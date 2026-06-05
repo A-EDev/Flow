@@ -399,6 +399,16 @@ class MainActivity : ComponentActivity() {
             intent.removeExtra("deeplink_video_id")
             return
         }
+
+        if (intent.getBooleanExtra("open_video_player", false)) {
+            intent.removeExtra("open_video_player")
+            val currentVideoId = GlobalPlayerState.currentVideo.value?.id
+            if (currentVideoId != null) {
+                _isDeeplinkShort.value = false
+                _deeplinkVideoId.value = currentVideoId
+            }
+            return
+        }
         
         // Reset shorts flag
         _isDeeplinkShort.value = false

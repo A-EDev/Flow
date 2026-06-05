@@ -2,6 +2,10 @@ FLOW CHANGE LOG
 VERSION: 2.1.6
 DATE: 2026-06-05
 STATUS: PRE-RELEASE
+IMPROVEMENTS
+- Improve media notification handling #577
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578
+- Fix missing metadata on come live streams #574
+- Fix video player stuck in a 403 retry loop #573

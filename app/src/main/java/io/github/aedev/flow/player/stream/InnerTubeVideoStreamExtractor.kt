@@ -89,13 +89,13 @@ object InnerTubeVideoStreamExtractor {
         // 2) Durable path: WEB + BotGuard PoToken + SABR. Survives the LOGIN_REQUIRED bot wall
         tryWebSabr(videoId, failureReasons)?.let {
             Log.w(TAG, "Extraction OK for $videoId via WEB (mode=SABR)")
-            return@withContext it
+            return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
         }
 
         // 3) Last resort: remaining token-free clients
         tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons, allowUntransformedN = true, liveDetected = liveDetected)?.let {
             Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/last-resort)")
-            return@withContext it
+            return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
         }
 
         Log.e(TAG, "All clients failed for $videoId (forceSabr=$forceSabr). Reasons: ${failureReasons.joinToString(" | ")}")

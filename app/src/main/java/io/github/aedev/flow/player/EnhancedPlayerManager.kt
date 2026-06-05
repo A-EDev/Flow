@@ -250,15 +250,18 @@ class EnhancedPlayerManager private constructor() {
         val realPlayer = player ?: return
         try {
             val appCtx = context.applicationContext
-            val sessionActivity = appCtx.packageManager
+            val launchIntent = appCtx.packageManager
                 .getLaunchIntentForPackage(appCtx.packageName)
-                ?.apply { addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP) }
-                ?.let { launch ->
-                    PendingIntent.getActivity(
-                        appCtx, 0, launch,
-                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-                    )
+                ?.apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("open_video_player", true)
                 }
+            val sessionActivity = launchIntent?.let {
+                PendingIntent.getActivity(
+                    appCtx, 1002, it,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            }
 
             val sessionPlayer = object : ForwardingPlayer(realPlayer) {
                 override fun getMediaMetadata(): MediaMetadata {

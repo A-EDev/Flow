@@ -258,7 +258,10 @@ class VideoPlayerViewModel @Inject constructor(
 
                 if (streamExpiryCount > MAX_STREAM_EXPIRY_RETRIES) {
                     Log.e("VideoPlayerViewModel", "Stream expiry retry limit ($MAX_STREAM_EXPIRY_RETRIES) reached for $videoId — giving up")
-                    EnhancedPlayerManager.getInstance().getPlayer()?.stop()
+                    EnhancedPlayerManager.getInstance().getPlayer()?.let { p ->
+                        p.stop()
+                        p.clearMediaItems()
+                    }
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -1142,7 +1145,8 @@ class VideoPlayerViewModel @Inject constructor(
                         val subtitles = extractSubtitles(streamInfo)
                         val chapters = streamInfo.streamSegments ?: emptyList()
                         val liveType = streamInfo.streamType == StreamType.LIVE_STREAM ||
-                            streamInfo.streamType == StreamType.POST_LIVE_STREAM
+                            streamInfo.streamType == StreamType.POST_LIVE_STREAM ||
+                            innerTubeResult?.isLive == true
                         val liveHlsUrl = streamInfo.hlsUrl?.takeIf { liveType && it.isNotEmpty() }
                             ?: innerTubeResult?.liveHlsUrl?.takeIf { liveFromInnerTube }
                         
@@ -1180,7 +1184,7 @@ class VideoPlayerViewModel @Inject constructor(
                             localFileVideoId = if (localFilePath != null) videoId else null,
                             offlineSponsorBlockSegments = offlineSegments,
                             hlsUrl = liveHlsUrl,
-                            isLive = streamInfo.streamType == StreamType.LIVE_STREAM,
+                            isLive = streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true,
                             isUpcoming = false,
                             upcomingReleaseTimeMs = null,
                             innerTubeVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
@@ -1210,7 +1214,7 @@ class VideoPlayerViewModel @Inject constructor(
                             preferredVideoCodec = preferredCodecKey
                         )
 
-                        if (streamInfo.streamType == StreamType.LIVE_STREAM) {
+                        if (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true) {
                             maybeStartLiveChat(videoId)
                             refreshLiveWatchMetadata(
                                 videoId = videoId,

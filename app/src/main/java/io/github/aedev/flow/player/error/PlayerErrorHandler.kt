@@ -273,6 +273,7 @@ class PlayerErrorHandler(
         if (consecutiveExpiryCount > MAX_CONSECUTIVE_EXPIRY) {
             Log.e(TAG, "Stream expiry limit reached ($consecutiveExpiryCount/$MAX_CONSECUTIVE_EXPIRY) for reason=$reason — stopping playback")
             PlayerDiagnostics.logError(TAG, "Giving up after $consecutiveExpiryCount consecutive stream expiry errors")
+            onPlaybackShutdown()
             stateFlow.value = stateFlow.value.copy(
                 isBuffering = false,
                 isPlaying = false,
