@@ -49,7 +49,9 @@ fun Modifier.videoPlayerControls(
     allowVolumeBoost: Boolean = false,
     doubleTapSeekMs: Long = 10_000L,
     longPressPlaybackSpeed: Float = 2.0f,
-    onExitFullscreen: (() -> Unit)? = null
+    onExitFullscreen: (() -> Unit)? = null,
+    isSeekForwardActive: Boolean = false,
+    isSeekBackActive: Boolean = false
 ): Modifier = composed {
     val currentIsSpeedBoostActive by rememberUpdatedState(isSpeedBoostActive)
     val currentOnSpeedBoostChange by rememberUpdatedState(onSpeedBoostChange)
@@ -79,6 +81,8 @@ fun Modifier.videoPlayerControls(
     val currentLongPressPlaybackSpeed by rememberUpdatedState(longPressPlaybackSpeed)
     val currentOnSeekAccumulate by rememberUpdatedState(onSeekAccumulate)
     val currentOnExitFullscreen by rememberUpdatedState(onExitFullscreen)
+    val currentIsSeekForwardActive by rememberUpdatedState(isSeekForwardActive)
+    val currentIsSeekBackActive by rememberUpdatedState(isSeekBackActive)
 
     var accumulatedForwardMs by remember { mutableStateOf(0L) }
     var accumulatedBackMs by remember { mutableStateOf(0L) }
@@ -95,9 +99,41 @@ fun Modifier.videoPlayerControls(
     this
         .pointerInput(Unit) {
             detectTapGestures(
-                onTap = {
+                onTap = { offset ->
                     if (!currentIsSpeedBoostActive) {
-                        currentOnShowControlsChange(!currentShowControls)
+                        val screenWidth = size.width
+                        val tapPosition = offset.x
+                        val leftThreshold = screenWidth / 3f
+                        val rightThreshold = screenWidth * 2f / 3f
+                        val now = System.currentTimeMillis()
+
+                        if (currentIsSeekBackActive && tapPosition < leftThreshold) {
+                            accumulatedBackMs += currentDoubleTapSeekMs
+                            lastBackTapTime = now
+                            currentOnSeekAccumulate(-(accumulatedBackMs / 1000L).toInt())
+                            currentOnShowSeekBackChange(true)
+                            val manager = EnhancedPlayerManager.getInstance()
+                            val player = manager.getPlayer()
+                            val isLive = manager.playerState.value.isLive || player?.isCurrentMediaItemLive == true
+                            val backBase = pendingBackTargetMs ?: player?.currentPosition ?: currentPositionProvider()
+                            val target = (backBase - currentDoubleTapSeekMs).coerceAtLeast(0)
+                            pendingBackTargetMs = target
+                            if (isLive) manager.seekToLiveTimeline(target) else manager.seekTo(target)
+                        } else if (currentIsSeekForwardActive && tapPosition > rightThreshold) {
+                            accumulatedForwardMs += currentDoubleTapSeekMs
+                            lastForwardTapTime = now
+                            currentOnSeekAccumulate((accumulatedForwardMs / 1000L).toInt())
+                            currentOnShowSeekForwardChange(true)
+                            val manager = EnhancedPlayerManager.getInstance()
+                            val player = manager.getPlayer()
+                            val isLive = manager.playerState.value.isLive || player?.isCurrentMediaItemLive == true
+                            val forwardBase = pendingForwardTargetMs ?: player?.currentPosition ?: currentPositionProvider()
+                            val target = (forwardBase + currentDoubleTapSeekMs).coerceAtMost(currentDuration)
+                            pendingForwardTargetMs = target
+                            if (isLive) manager.seekToLiveTimeline(target) else manager.seekTo(target)
+                        } else {
+                            currentOnShowControlsChange(!currentShowControls)
+                        }
                     }
                 },
                 onDoubleTap = { offset ->

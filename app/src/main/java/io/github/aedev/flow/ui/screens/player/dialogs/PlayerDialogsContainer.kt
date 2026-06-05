@@ -16,6 +16,7 @@ import io.github.aedev.flow.ui.screens.player.components.*
 import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.launch
 
 @Composable
@@ -25,7 +26,8 @@ fun PlayerDialogsContainer(
     uiState: VideoPlayerUiState,
     video: Video,
     viewModel: VideoPlayerViewModel,
-    renderSettingsMenu: Boolean = true
+    renderSettingsMenu: Boolean = true,
+    mediaSheetExpandedHeight: Dp? = null
 ) {
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context) }
@@ -202,7 +204,8 @@ fun PlayerDialogsContainer(
             onSleepTimerClick = {
                 screenState.showSettingsMenu = false
                 screenState.showSleepTimerSheet = true
-            }
+            },
+            expandedHeight = mediaSheetExpandedHeight
         )
     }
 

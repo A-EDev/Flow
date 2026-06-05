@@ -146,7 +146,9 @@ fun PlayerContent(
                         allowVolumeBoost = allowVolumeBoost,
                         doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
                         longPressPlaybackSpeed = longPressPlaybackSpeed,
-                        onExitFullscreen = { screenState.isFullscreen = false }
+                        onExitFullscreen = { screenState.isFullscreen = false },
+                        isSeekForwardActive = screenState.showSeekForwardAnimation,
+                        isSeekBackActive = screenState.showSeekBackAnimation
                     )
                 }
             )

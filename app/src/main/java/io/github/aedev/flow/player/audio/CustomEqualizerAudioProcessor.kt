@@ -29,8 +29,10 @@ class CustomEqualizerAudioProcessor : AudioProcessor {
     private var inputEnded = false
 
     private var filters: List<BiquadFilter> = emptyList()
-    private var preampGain: Double = 1.0 
+    private var preampGain: Double = 1.0
     private var pendingProfile: ParametricEQ? = null
+    @Volatile
+    private var lastAppliedProfile: ParametricEQ? = null
 
     companion object {
         private const val TAG = "CustomEqualizerAudioProcessor"
@@ -42,6 +44,7 @@ class CustomEqualizerAudioProcessor : AudioProcessor {
      */
     @Synchronized
     fun applyProfile(parametricEQ: ParametricEQ) {
+        lastAppliedProfile = parametricEQ
         if (sampleRate == 0) {
             Log.d(TAG, "Audio processor not configured yet. Storing profile as pending with ${parametricEQ.bands.size} bands")
             pendingProfile = parametricEQ
@@ -67,6 +70,7 @@ class CustomEqualizerAudioProcessor : AudioProcessor {
         filters = emptyList()
         preampGain = 1.0
         pendingProfile = null
+        lastAppliedProfile = null
         Log.d(TAG, "Equalizer disabled")
     }
 
@@ -108,12 +112,13 @@ class CustomEqualizerAudioProcessor : AudioProcessor {
 
         Log.d(TAG, "Configured: sampleRate=$sampleRate, channels=$channelCount, encoding=$encoding")
 
-        pendingProfile?.let { profile ->
+        val profileToApply = pendingProfile ?: lastAppliedProfile
+        profileToApply?.let { profile ->
             preampGain = 10.0.pow(profile.preamp / 20.0)
             createFilters(profile.bands)
             equalizerEnabled = true
             pendingProfile = null
-            Log.d(TAG, "Applied pending profile with ${filters.size} bands and ${profile.preamp} dB preamp")
+            Log.d(TAG, "Applied profile on configure with ${filters.size} bands and ${profile.preamp} dB preamp")
         }
 
         if (encoding != C.ENCODING_PCM_16BIT || channelCount > 2) {

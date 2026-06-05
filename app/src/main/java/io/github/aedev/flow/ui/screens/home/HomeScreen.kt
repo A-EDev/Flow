@@ -385,6 +385,9 @@ fun HomeScreen(
                                                     )
                                                 )
                                             }
+                                        },
+                                        onRemove = { videoId ->
+                                            viewModel.removeContinueWatchingEntry(videoId)
                                         }
                                     )
                                 }

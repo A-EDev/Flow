@@ -2,10 +2,15 @@ FLOW CHANGE LOG
 VERSION: 2.1.6
 DATE: 2026-06-05
 STATUS: PRE-RELEASE
+
 IMPROVEMENTS
 - Improve media notification handling #577
+- Improve video player settings sheet positioning #572
+- Improve double tap seek gesture #520
+- Add remove button "X" on continue watching shelf's cards
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578
 - Fix missing metadata on come live streams #574
 - Fix video player stuck in a 403 retry loop #573
+- Fix music audio equilizer settings saving issues

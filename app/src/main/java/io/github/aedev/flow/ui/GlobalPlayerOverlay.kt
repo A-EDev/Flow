@@ -691,7 +691,9 @@ fun GlobalPlayerOverlay(
                             allowVolumeBoost = allowVolumeBoost,
                             doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
                             longPressPlaybackSpeed = longPressPlaybackSpeed,
-                            onExitFullscreen = { screenState.isFullscreen = false }
+                            onExitFullscreen = { screenState.isFullscreen = false },
+                            isSeekForwardActive = screenState.showSeekForwardAnimation,
+                            isSeekBackActive = screenState.showSeekBackAnimation
                         )
                         // Two-finger pinch-to-zoom gesture. Only activates for 2+ pointers,
                         // so single-finger gestures (brightness/volume swipe, tap) are unaffected.
@@ -1270,7 +1272,8 @@ fun GlobalPlayerOverlay(
             uiState = playerUiState,
             video = completeVideo,
             viewModel = playerViewModel,
-            renderSettingsMenu = !canUseFullscreenSidePanel
+            renderSettingsMenu = !canUseFullscreenSidePanel,
+            mediaSheetExpandedHeight = mediaSheetExpandedHeight
         )
 
         // SB Submit dialog

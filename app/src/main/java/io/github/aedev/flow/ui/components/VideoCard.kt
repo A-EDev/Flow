@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
@@ -1070,6 +1071,7 @@ fun CompactVideoCard(
 fun ContinueWatchingShelf(
     entries: List<VideoHistoryEntry>,
     onVideoClick: (String) -> Unit,
+    onRemove: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (entries.isEmpty()) return
@@ -1099,7 +1101,8 @@ fun ContinueWatchingShelf(
             items(entries, key = { it.videoId }) { entry ->
                 ContinueWatchingCard(
                     entry = entry,
-                    onClick = { onVideoClick(entry.videoId) }
+                    onClick = { onVideoClick(entry.videoId) },
+                    onRemove = { onRemove(entry.videoId) }
                 )
             }
         }
@@ -1109,7 +1112,8 @@ fun ContinueWatchingShelf(
 @Composable
 private fun ContinueWatchingCard(
     entry: VideoHistoryEntry,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onRemove: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Column(
@@ -1167,22 +1171,40 @@ private fun ContinueWatchingCard(
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = entry.title,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 16.sp
-        )
-        if (entry.channelName.isNotEmpty()) {
-            Text(
-                text = entry.channelName,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = entry.title,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 16.sp
+                )
+                if (entry.channelName.isNotEmpty()) {
+                    Text(
+                        text = entry.channelName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }

@@ -180,7 +180,12 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-    
+
+    fun removeContinueWatchingEntry(videoId: String) {
+        viewModelScope.launch {
+            viewHistory?.clearVideoHistory(videoId)
+        }
+    }
 
     private fun loadHomeShorts() {
         viewModelScope.launch {

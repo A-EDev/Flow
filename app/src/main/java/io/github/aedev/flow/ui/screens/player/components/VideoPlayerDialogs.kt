@@ -912,7 +912,6 @@ fun SettingsMenuDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(bottom = 16.dp)
         ) {
             // ── Sheet title ──
             Box(

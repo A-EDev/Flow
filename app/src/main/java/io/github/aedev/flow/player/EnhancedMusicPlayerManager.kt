@@ -262,6 +262,10 @@ object EnhancedMusicPlayerManager {
                     _playerState.value = _playerState.value.copy(position = 0L)
                 }
                 prefetchNextTrack()
+
+                scope.launch {
+                    setEqProfile(_currentEqProfile.value)
+                }
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
