@@ -1,14 +1,22 @@
 package io.github.aedev.flow.service
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.PowerManager
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.error.PlayerDiagnostics
@@ -27,6 +35,8 @@ class VideoPlayerService : MediaSessionService() {
     companion object {
         private const val TAG = "VideoPlayerService"
         private const val LOCK_RELEASE_DELAY_MS = 30_000L
+        private const val FALLBACK_NOTIFICATION_ID = 7891
+        private const val FALLBACK_CHANNEL_ID = "video_playback_fallback"
 
         const val EXTRA_VIDEO_ID = "video_id"
         const val EXTRA_VIDEO_TITLE = "video_title"
@@ -67,6 +77,7 @@ class VideoPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        setMediaNotificationProvider(DefaultMediaNotificationProvider.Builder(this).build())
         serviceLog("onCreate")
 
         try {
@@ -101,8 +112,43 @@ class VideoPlayerService : MediaSessionService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         serviceLog("onStartCommand action=${intent?.action}")
+
+        if (EnhancedPlayerManager.getInstance().getVideoMediaSession() == null) {
+            serviceLog("No media session available — posting fallback foreground notification")
+            try {
+                ensureFallbackNotificationChannel()
+                val notification = NotificationCompat.Builder(this, FALLBACK_CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_notification_logo)
+                    .setContentTitle("Flow")
+                    .setSilent(true)
+                    .build()
+                ServiceCompat.startForeground(
+                    this, FALLBACK_NOTIFICATION_ID, notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to post fallback foreground notification", e)
+            }
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+
         updateLocks(isPlaybackActiveForLocks())
         return START_STICKY
+    }
+
+    private fun ensureFallbackNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = getSystemService(NotificationManager::class.java)
+            if (nm.getNotificationChannel(FALLBACK_CHANNEL_ID) == null) {
+                nm.createNotificationChannel(
+                    NotificationChannel(
+                        FALLBACK_CHANNEL_ID, "Video Playback",
+                        NotificationManager.IMPORTANCE_LOW
+                    )
+                )
+            }
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {

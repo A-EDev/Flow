@@ -1,0 +1,7 @@
+FLOW CHANGE LOG
+VERSION: 2.1.6
+DATE: 2026-06-05
+STATUS: PRE-RELEASE
+
+FIXES AND STABILITY
+- Fix Crashes from missing media notification provider #578
