@@ -1634,4 +1634,26 @@
     <string name="history_delete_shorts">Hapus Shorts dari riwayat</string>
     <string name="history_delete_shorts_title">Hapus Shorts?</string>
     <string name="history_delete_shorts_body">Ini akan menghapus semua Shorts dari riwayat tonton Anda. Video lain akan tetap disimpan.</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Terakhir diperbarui %1$s</string>
+    <string name="live_chat">Chat langsung</string>
+    <string name="live_chat_connecting">Menghubungkan ke chat langsung…</string>
+    <string name="live_chat_empty">Menunggu pesan…</string>
+    <string name="live_chat_show">Tampilkan chat</string>
+    <string name="live_chat_hide">Sembunyikan chat</string>
+    <string name="live_chat_jump_to_latest">Lompat ke pesan chat terbaru</string>
+    <string name="player_appearance_long_press_speed_title">Kecepatan Pemutaran saat Tekan Lama</string>
+    <string name="player_appearance_long_press_speed_subtitle">Pilih kecepatan sementara yang digunakan saat menahan pemutar</string>
+    <string name="player_appearance_long_press_speed_disabled">Dinonaktifkan</string>
+    <string name="content_settings_subs_show_checked_count_title">Jumlah video yang diperiksa</string>
+    <string name="content_settings_subs_show_checked_count_subtitle">Tampilkan berapa banyak video yang diperiksa di samping waktu pembaruan terakhir</string>
+    <string name="player_settings_video_codec">Codec Video Default</string>
+    <string name="player_settings_video_codec_dialog_title">Codec Video Default</string>
+    <string name="player_settings_video_codec_dialog_body">Pilih codec yang digunakan secara default pada resolusi yang dipilih. Ini tidak mengubah kualitas mana yang ditampilkan — Anda tetap dapat memilih codec apa pun dari pemilih kualitas. H.264 adalah yang paling kompatibel dan paling lancar di sebagian besar perangkat; AV1/VP9 menghemat data pada resolusi lebih tinggi tetapi memerlukan daya decoding yang lebih besar.</string>
+    <string name="player_settings_video_codec_auto_desc">Biarkan aplikasi memilih (mengutamakan H.264)</string>
+    <string name="donation_prompt_title">Menikmati Flow?</string>
+    <string name="donation_prompt_message">Flow gratis, open-source, dan dibuat tanpa iklan atau pelacak. Jika aplikasi ini sudah mendapat tempat di perangkat Anda, mohon pertimbangkan untuk mendukung pengembangannya — ini benar-benar membantu menjaga proyek tetap berjalan.</string>
+    <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
+    <string name="donation_prompt_support">Dukung pengembangan</string>
+    <string name="donation_prompt_later">Mungkin nanti</string>
+    <string name="donation_prompt_never">Jangan tampilkan lagi</string>
 </resources>
