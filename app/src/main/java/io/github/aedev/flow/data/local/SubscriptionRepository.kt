@@ -36,14 +36,7 @@ class SubscriptionRepository private constructor(private val context: Context) {
      */
     suspend fun subscribe(channel: ChannelSubscription) {
         context.subscriptionsDataStore.edit { preferences ->
-            val existing = preferences[channelKey(channel.channelId)]?.let { deserializeChannel(it) }
-            val safeChannel = when {
-                ThumbnailUrlResolver.isYoutubeVideoThumbnail(channel.channelThumbnail) &&
-                    existing?.channelThumbnail?.isNotBlank() == true &&
-                    !ThumbnailUrlResolver.isYoutubeVideoThumbnail(existing.channelThumbnail) ->
-                    channel.copy(channelThumbnail = existing.channelThumbnail)
-                else -> channel
-            }
+            val safeChannel = channel.withPreservedThumbnail(preferences)
 
             // Save channel data
             preferences[channelKey(safeChannel.channelId)] = serializeChannel(safeChannel)
@@ -59,6 +52,32 @@ class SubscriptionRepository private constructor(private val context: Context) {
             if (!orderList.contains(safeChannel.channelId)) {
                 orderList.add(0, safeChannel.channelId)
                 preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] = orderList.joinToString(",")
+            }
+        }
+    }
+
+    suspend fun subscribeAll(channels: Collection<ChannelSubscription>) {
+        if (channels.isEmpty()) return
+
+        context.subscriptionsDataStore.edit { preferences ->
+            val currentOrder = preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)]
+                .orEmpty()
+                .split(",")
+                .filter { it.isNotEmpty() }
+            val knownIds = currentOrder.toMutableSet()
+            val newIds = mutableListOf<String>()
+
+            channels.forEach { channel ->
+                val safeChannel = channel.withPreservedThumbnail(preferences)
+                preferences[channelKey(safeChannel.channelId)] = serializeChannel(safeChannel)
+                if (knownIds.add(safeChannel.channelId)) {
+                    newIds += safeChannel.channelId
+                }
+            }
+
+            if (newIds.isNotEmpty()) {
+                preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] =
+                    (newIds.asReversed() + currentOrder).joinToString(",")
             }
         }
     }
@@ -164,6 +183,21 @@ class SubscriptionRepository private constructor(private val context: Context) {
     
     private fun serializeChannel(channel: ChannelSubscription): String {
         return "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}|${channel.lastVideoId ?: ""}|${channel.lastCheckTime}|${channel.isNotificationEnabled}|${channel.isMusic}"
+    }
+
+    private fun ChannelSubscription.withPreservedThumbnail(
+        preferences: Preferences
+    ): ChannelSubscription {
+        val existing = preferences[channelKey(channelId)]?.let { deserializeChannel(it) }
+        return if (
+            ThumbnailUrlResolver.isYoutubeVideoThumbnail(channelThumbnail) &&
+            existing?.channelThumbnail?.isNotBlank() == true &&
+            !ThumbnailUrlResolver.isYoutubeVideoThumbnail(existing.channelThumbnail)
+        ) {
+            copy(channelThumbnail = existing.channelThumbnail)
+        } else {
+            this
+        }
     }
     
     private fun deserializeChannel(data: String): ChannelSubscription? {

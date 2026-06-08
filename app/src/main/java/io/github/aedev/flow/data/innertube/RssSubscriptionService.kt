@@ -24,8 +24,8 @@ object RssSubscriptionService {
     private const val TAG = "InnertubeSubs"
     private const val YOUTUBE_URL = "https://www.youtube.com"
 
-    private const val RSS_CHUNK_SIZE = 48
-    private const val CHANNEL_CHUNK_SIZE = 8
+    private const val RSS_CHUNK_SIZE = 6
+    private const val CHANNEL_CHUNK_SIZE = 3
     private const val CHANNEL_BATCH_SIZE = 50
     private val CHANNEL_BATCH_DELAY = (100L..400L)
     private const val SUBSCRIPTION_FEED_LOOKBACK_DAYS = 60L
@@ -75,8 +75,12 @@ object RssSubscriptionService {
                 rssChannelHasRecent[channelId] = result.hasRecent
                 rssNeedsChannelFallback[channelId] = result.needsChannelFallback
                 rssDateMap.putAll(result.videoTimestamps)
-                allRegular.addAll(result.videos)
+                result.videos.forEach { video ->
+                    if (video.isShort) allShorts.add(video) else allRegular.add(video)
+                }
             }
+            compactAccumulator(allRegular, MAX_REGULAR_VIDEOS)
+            compactAccumulator(allShorts, MAX_SHORTS)
             onProgress?.invoke(((ci + 1) * RSS_CHUNK_SIZE).coerceAtMost(uniqueChannelIds.size), uniqueChannelIds.size)
             emit(buildFeed(allRegular, allShorts, maxTotal))
             if (ci > 0 && ci % (CHANNEL_BATCH_SIZE / RSS_CHUNK_SIZE).coerceAtLeast(1) == 0) {
@@ -122,6 +126,8 @@ object RssSubscriptionService {
             }
 
             chunkVideos.forEach { if (it.isShort) allShorts.add(it) else allRegular.add(it) }
+            compactAccumulator(allRegular, MAX_REGULAR_VIDEOS)
+            compactAccumulator(allShorts, MAX_SHORTS)
             processedChannels = (processedChannels + chunk.size).coerceAtMost(uniqueChannelIds.size)
             onProgress?.invoke(processedChannels, uniqueChannelIds.size)
             Log.d(TAG, "Chunk ${chunkIndex + 1} done: +${chunkVideos.size} (regular=${allRegular.size}, shorts=${allShorts.size})")
@@ -181,6 +187,13 @@ object RssSubscriptionService {
                 isUpcoming = candidates.any { it.isUpcoming && it.timestamp > now + 60_000L }
             )
         }.sortedByDescending { it.timestamp }
+    }
+
+    private fun compactAccumulator(videos: MutableList<Video>, maxSize: Int) {
+        if (videos.size <= maxSize * 2) return
+        val compacted = videos.mergeDuplicateVideos().take(maxSize)
+        videos.clear()
+        videos.addAll(compacted)
     }
 
 

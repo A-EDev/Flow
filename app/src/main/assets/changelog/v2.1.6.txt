@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-06-05
+DATE: 2026-06-08
 STATUS: PRE-RELEASE
 
 IMPROVEMENTS
@@ -14,3 +14,5 @@ FIXES AND STABILITY
 - Fix missing metadata on come live streams #574
 - Fix video player stuck in a 403 retry loop #573
 - Fix music audio equilizer settings saving issues
+- Fix out-of-memory crashes when refreshing or importing large subscription lists #603
+- Fix lag when the bottom navigation bar hides or shows while scrolling

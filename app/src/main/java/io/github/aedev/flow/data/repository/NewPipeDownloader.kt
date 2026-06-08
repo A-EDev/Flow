@@ -16,12 +16,29 @@ import java.util.concurrent.TimeUnit
  */
 class NewPipeDownloader private constructor(context: Context) : Downloader() {
 
+    @Volatile
+    private var clientHolder: ClientHolder? = null
+
     private val client: OkHttpClient
-        get() = AppProxyManager.applyTo(OkHttpClient.Builder())
-            .readTimeout(30, TimeUnit.SECONDS)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
+        get() {
+            val signature = AppProxyManager.currentSignature()
+            clientHolder?.takeIf { it.proxySignature == signature }?.let { return it.client }
+
+            return synchronized(this) {
+                clientHolder?.takeIf { it.proxySignature == signature }?.client
+                    ?: AppProxyManager.applyTo(OkHttpClient.Builder())
+                        .readTimeout(30, TimeUnit.SECONDS)
+                        .connectTimeout(30, TimeUnit.SECONDS)
+                        .writeTimeout(30, TimeUnit.SECONDS)
+                        .build()
+                        .also { clientHolder = ClientHolder(signature, it) }
+            }
+        }
+
+    private data class ClientHolder(
+        val proxySignature: String,
+        val client: OkHttpClient
+    )
 
     companion object {
         private const val USER_AGENT =
@@ -68,28 +85,21 @@ class NewPipeDownloader private constructor(context: Context) : Downloader() {
             builder.get()
         }
 
-        val call = client.newCall(builder.build())
-        val response = call.execute()
+        return client.newCall(builder.build()).execute().use { response ->
+            if (response.code == 429) {
+                throw ReCaptchaException("reCaptcha Challenge requested", url)
+            }
 
-        if (response.code == 429) {
-            response.close()
-            throw ReCaptchaException("reCaptcha Challenge requested", url)
+            val responseString = response.body?.string() ?: ""
+            val responseHeaders = response.headers.toMultimap()
+
+            Response(
+                response.code,
+                response.message,
+                responseHeaders,
+                responseString,
+                url
+            )
         }
-
-        val responseBody = response.body
-        val responseString = responseBody?.string() ?: ""
-
-        val responseHeaders = mutableMapOf<String, List<String>>()
-        for ((name, values) in response.headers.toMultimap()) {
-             responseHeaders[name] = values
-        }
-
-        return Response(
-            response.code,
-            response.message,
-            responseHeaders,
-            responseString,
-            url 
-        )
     }
 }

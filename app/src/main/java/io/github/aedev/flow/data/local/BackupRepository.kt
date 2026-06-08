@@ -404,27 +404,28 @@ class BackupRepository(private val context: Context) {
             val totalForProgress = subscriptionsToImport.size
             val completedCount = AtomicInteger(0)
             onProgress?.invoke(0, totalForProgress)
-            val subscriptionsWithAvatars = supervisorScope {
-                subscriptionsToImport.map { sub ->
-                    async(Dispatchers.IO) {
-                        semaphore.withPermit {
-                            val result = try {
-                                val avatarUrl = fetchChannelAvatar(sub.channelId)
-                                sub.copy(channelThumbnail = avatarUrl)
-                            } catch (e: Exception) {
-                                sub // Return original if fail
+            val subscriptionsWithAvatars = mutableListOf<ChannelSubscription>()
+            supervisorScope {
+                subscriptionsToImport.chunked(25).forEach { batch ->
+                    subscriptionsWithAvatars += batch.map { sub ->
+                        async(Dispatchers.IO) {
+                            semaphore.withPermit {
+                                val result = try {
+                                    val avatarUrl = fetchChannelAvatar(sub.channelId)
+                                    sub.copy(channelThumbnail = avatarUrl)
+                                } catch (e: Exception) {
+                                    sub
+                                }
+                                onProgress?.invoke(completedCount.incrementAndGet(), totalForProgress)
+                                result
                             }
-                            onProgress?.invoke(completedCount.incrementAndGet(), totalForProgress)
-                            result
                         }
-                    }
-                }.awaitAll()
+                    }.awaitAll()
+                }
             }
 
-            subscriptionsWithAvatars.forEach {
-                subscriptionRepo.subscribe(it)
-                importedCount++
-            }
+            subscriptionRepo.subscribeAll(subscriptionsWithAvatars)
+            importedCount = subscriptionsWithAvatars.size
 
             // V9.2: Seed recommendation engine from imported subscriptions
             val channelNames = subscriptionsWithAvatars.map { it.channelName }.filter { it.isNotEmpty() }
@@ -480,27 +481,28 @@ class BackupRepository(private val context: Context) {
             val ytTotalForProgress = subscriptionsToImport.size
             val ytCompletedCount = AtomicInteger(0)
             onProgress?.invoke(0, ytTotalForProgress)
-            val subscriptionsWithAvatars = supervisorScope {
-                subscriptionsToImport.map { sub ->
-                    async(Dispatchers.IO) {
-                        semaphore.withPermit {
-                            val result = try {
-                                val avatarUrl = fetchChannelAvatar(sub.channelId)
-                                sub.copy(channelThumbnail = avatarUrl)
-                            } catch (e: Exception) {
-                                sub // Return original if fail
+            val subscriptionsWithAvatars = mutableListOf<ChannelSubscription>()
+            supervisorScope {
+                subscriptionsToImport.chunked(25).forEach { batch ->
+                    subscriptionsWithAvatars += batch.map { sub ->
+                        async(Dispatchers.IO) {
+                            semaphore.withPermit {
+                                val result = try {
+                                    val avatarUrl = fetchChannelAvatar(sub.channelId)
+                                    sub.copy(channelThumbnail = avatarUrl)
+                                } catch (e: Exception) {
+                                    sub
+                                }
+                                onProgress?.invoke(ytCompletedCount.incrementAndGet(), ytTotalForProgress)
+                                result
                             }
-                            onProgress?.invoke(ytCompletedCount.incrementAndGet(), ytTotalForProgress)
-                            result
                         }
-                    }
-                }.awaitAll()
+                    }.awaitAll()
+                }
             }
             
-            subscriptionsWithAvatars.forEach {
-                subscriptionRepo.subscribe(it)
-                importedCount++
-            }
+            subscriptionRepo.subscribeAll(subscriptionsWithAvatars)
+            importedCount = subscriptionsWithAvatars.size
 
             // V9.2: Seed recommendation engine from imported subscriptions
             val ytChannelNames = subscriptionsWithAvatars.map { it.channelName }.filter { it.isNotEmpty() }
@@ -1047,23 +1049,26 @@ class BackupRepository(private val context: Context) {
             val completed = AtomicInteger(0)
             onProgress?.invoke(0, total)
 
-            val finalSubs = supervisorScope {
-                subscriptionsToImport.map { sub ->
-                    async(Dispatchers.IO) {
-                        semaphore.withPermit {
-                            val result = if (sub.channelThumbnail.isEmpty()) {
-                                try {
-                                    sub.copy(channelThumbnail = fetchChannelAvatar(sub.channelId))
-                                } catch (e: Exception) { sub }
-                            } else sub
-                            onProgress?.invoke(completed.incrementAndGet(), total)
-                            result
+            val finalSubs = mutableListOf<ChannelSubscription>()
+            supervisorScope {
+                subscriptionsToImport.chunked(25).forEach { batch ->
+                    finalSubs += batch.map { sub ->
+                        async(Dispatchers.IO) {
+                            semaphore.withPermit {
+                                val result = if (sub.channelThumbnail.isEmpty()) {
+                                    try {
+                                        sub.copy(channelThumbnail = fetchChannelAvatar(sub.channelId))
+                                    } catch (e: Exception) { sub }
+                                } else sub
+                                onProgress?.invoke(completed.incrementAndGet(), total)
+                                result
+                            }
                         }
-                    }
-                }.awaitAll()
+                    }.awaitAll()
+                }
             }
 
-            finalSubs.forEach { subscriptionRepo.subscribe(it) }
+            subscriptionRepo.subscribeAll(finalSubs)
 
             // V9.2: Seed recommendation engine from imported subscriptions
             val ltChannelNames = finalSubs.map { it.channelName }.filter { it.isNotEmpty() }
@@ -1380,21 +1385,27 @@ class BackupRepository(private val context: Context) {
                 onProgress?.invoke("Subscriptions", 0, subRows.size)
                 val semaphore = Semaphore(5)
                 val completed = AtomicInteger(0)
+                val importedSubscriptions = mutableListOf<ChannelSubscription>()
                 supervisorScope {
-                    subRows.map { sub ->
-                        async(Dispatchers.IO) {
-                            semaphore.withPermit {
-                                val avatar = try { fetchChannelAvatar(sub.channelId) } catch (e: Exception) { "" }
-                                subscriptionRepo.subscribe(ChannelSubscription(
-                                    channelId = sub.channelId, channelName = sub.channelName,
-                                    channelThumbnail = avatar, subscribedAt = System.currentTimeMillis()
-                                ))
-                                subscriptionsImported++
-                                onProgress?.invoke("Subscriptions", completed.incrementAndGet(), subRows.size)
+                    subRows.chunked(25).forEach { batch ->
+                        importedSubscriptions += batch.map { sub ->
+                            async(Dispatchers.IO) {
+                                semaphore.withPermit {
+                                    val avatar = try { fetchChannelAvatar(sub.channelId) } catch (e: Exception) { "" }
+                                    onProgress?.invoke("Subscriptions", completed.incrementAndGet(), subRows.size)
+                                    ChannelSubscription(
+                                        channelId = sub.channelId,
+                                        channelName = sub.channelName,
+                                        channelThumbnail = avatar,
+                                        subscribedAt = System.currentTimeMillis()
+                                    )
+                                }
                             }
-                        }
-                    }.awaitAll()
+                        }.awaitAll()
+                    }
                 }
+                subscriptionRepo.subscribeAll(importedSubscriptions)
+                subscriptionsImported += importedSubscriptions.size
                 val channelNames = subRows.map { it.channelName }.filter { it.isNotEmpty() }
                 if (channelNames.isNotEmpty()) {
                     try { FlowNeuroEngine.bootstrapFromSubscriptions(context, channelNames) } catch (_: Exception) {}
@@ -1911,7 +1922,7 @@ class BackupRepository(private val context: Context) {
         backupData.likedVideos?.forEach { info -> likedVideosRepo.likeVideo(info) }
         backupData.searchHistory?.let { searchHistoryRepo.replaceSearchHistory(it) }
         backupData.subscriptions?.let { subs ->
-            subs.forEach { subscriptionRepo.subscribe(it) }
+            subscriptionRepo.subscribeAll(subs)
             val channelNames = subs.map { it.channelName }.filter { it.isNotEmpty() }
             if (channelNames.isNotEmpty()) {
                 try { FlowNeuroEngine.bootstrapFromSubscriptions(context, channelNames) } catch (_: Exception) {}

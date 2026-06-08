@@ -145,6 +145,7 @@ fun FlowApp(
     
     val selectedBottomNavIndex = remember { mutableIntStateOf(0) }
     val showBottomNav = remember { mutableStateOf(true) }
+    val navScrollThresholdPx = with(LocalDensity.current) { 32.dp.toPx() }
 
     LaunchedEffect(defaultNavTabIndex) {
         selectedBottomNavIndex.intValue = defaultNavTabIndex
@@ -152,17 +153,38 @@ fun FlowApp(
     }
 
     var isNavScrolledVisible by remember { mutableStateOf(true) }
+    var accumulatedNavScroll by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(currentRoute.value) {
         isNavScrolledVisible = true
+        accumulatedNavScroll = 0f
     }
-    val nestedScrollConnection = remember {
+    val nestedScrollConnection = remember(navScrollThresholdPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val route = currentRoute.value
-                if (route == "shorts" || route == "savedShortsPlayer") return Offset.Zero
+                if (source != NestedScrollSource.UserInput ||
+                    route == "shorts" ||
+                    route == "savedShortsPlayer"
+                ) {
+                    return Offset.Zero
+                }
+
+                val delta = available.y
+                if (delta == 0f) return Offset.Zero
+                if (accumulatedNavScroll != 0f && (accumulatedNavScroll > 0f) != (delta > 0f)) {
+                    accumulatedNavScroll = 0f
+                }
+                accumulatedNavScroll += delta
+
                 when {
-                    available.y < -10f -> isNavScrolledVisible = false 
-                    available.y > 10f  -> isNavScrolledVisible = true  
+                    accumulatedNavScroll <= -navScrollThresholdPx && isNavScrolledVisible -> {
+                        isNavScrolledVisible = false
+                        accumulatedNavScroll = 0f
+                    }
+                    accumulatedNavScroll >= navScrollThresholdPx && !isNavScrolledVisible -> {
+                        isNavScrolledVisible = true
+                        accumulatedNavScroll = 0f
+                    }
                 }
                 return Offset.Zero
             }
@@ -347,18 +369,9 @@ fun FlowApp(
             contentWindowInsets = WindowInsets.systemBars,
             bottomBar = {} 
         ) { paddingValues ->
-            // Shorts is full-screen: don't add bottom padding so the pager fills the entire
-            // viewport. The FloatingBottomNavBar floats on top (it lives outside the Scaffold).
-            val isOnShortsFullscreen = currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer"
-            val navBarExtraBottomPadding by animateDpAsState(
-                targetValue = if (!isInPipMode && showBottomNav.value && isNavScrolledVisible && !isOnShortsFullscreen) bottomNavContentHeightDp else 0.dp,
-                animationSpec = tween(durationMillis = 220),
-                label = "contentNavPadding"
-            )
             Box(
                 modifier = Modifier
                     .padding(if (isInPipMode) PaddingValues(0.dp) else paddingValues)
-                    .padding(bottom = navBarExtraBottomPadding.coerceAtLeast(0.dp))
                     .padding(bottom = musicMiniPlayerContentPadding.coerceAtLeast(0.dp))
                     .nestedScroll(nestedScrollConnection)
             ) {
