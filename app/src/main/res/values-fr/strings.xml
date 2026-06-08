@@ -1695,7 +1695,7 @@
     <string name="content_settings_subs_show_checked_count_title">Nombre de vidéos vérifiées</string>
     <string name="content_settings_subs_show_checked_count_subtitle">Indiquer le nombre de vidéos visionnées à côté de la date de la dernière mise à jour</string>
     <string name="donation_prompt_title">Vous appréciez Flow ?</string>
-    <string name="donation_prompt_message">Flow est une application gratuite et open source, conçue sans publicité ni traceurs. Si elle a trouvé sa place sur votre appareil, pensez à soutenir son développement : cela contribue réellement à assurer la pérennité du projet.</string>
+    <string name="donation_prompt_message">Flow est une application gratuite et open source, conçue sans publicité ni traqueurs. Si elle a trouvé sa place sur votre appareil, pensez à soutenir son développement : cela contribue réellement à assurer la pérennité du projet.</string>
     <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
     <string name="donation_prompt_support">Soutenir le développement</string>
     <string name="donation_prompt_later">Peut-être plus tard</string>
