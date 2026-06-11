@@ -17,39 +17,35 @@ object SabrMediaSourceFactory {
     private const val TAG = "SabrMediaSrcFactory"
 
     fun create(
-        streamingUrl: String,
+        info: SabrStreamInfo,
         videoId: String,
-        audioItag: Int,
-        audioLmt: Long,
-        videoItag: Int,
-        videoLmt: Long,
-        poToken: String,
-        visitorId: String,
-        ustreamerConfig: ByteArray,
         durationMs: Long,
-        audioMimeType: String = "",
-        videoMimeType: String = ""
+        startPositionMs: Long = 0L
     ): SabrMediaSourceResult {
         val sessionState = SabrSessionState().apply {
-            this.streamingUrl = streamingUrl
+            this.streamingUrl = info.streamingUrl
             this.videoId = videoId
-            this.selectedAudioItag = audioItag
-            this.selectedAudioLmt = audioLmt
-            this.selectedVideoItag = videoItag
-            this.selectedVideoLmt = videoLmt
-            this.poToken = poToken
-            this.visitorId = visitorId
-            this.ustreamerConfig = ustreamerConfig
+            this.selectedAudioItag = info.audioItag
+            this.selectedAudioLmt = info.audioLmt
+            this.selectedVideoItag = info.videoItag
+            this.selectedVideoLmt = info.videoLmt
+            this.audioTrackId = info.audioTrackId
+            this.stickyResolution = info.targetHeight
+            this.playheadPositionMs = startPositionMs
+            this.poToken = info.poToken
+            this.visitorId = info.visitorId
+            this.ustreamerConfig = info.ustreamerConfig
             this.durationMs = durationMs
             this.clientNameId = WEB_CLIENT_NAME_ID
             this.clientVersion = io.github.aedev.flow.innertube.models.YouTubeClient.WEB.clientVersion
             this.osName = "Windows"
             this.osVersion = "10.0"
         }
+        if (startPositionMs > 0) sessionState.lastSeekAtMs = System.currentTimeMillis()
 
-        // WEB user-agent so the GVS/SABR request 
+        // WEB user-agent so the GVS/SABR request matches the WEB-minted PoToken
         val userAgent = io.github.aedev.flow.innertube.models.YouTubeClient.USER_AGENT_WEB
-        val dataSource = SabrDataSource(userAgent, visitorId.ifEmpty { null })
+        val dataSource = SabrDataSource(userAgent, info.visitorId.ifEmpty { null })
         val controller = SabrStreamController(dataSource, sessionState)
         val orchestrator = SabrOrchestrator(controller)
 
@@ -67,9 +63,9 @@ object SabrMediaSourceFactory {
         val videoUri = Uri.parse("sabr://$videoId/video")
 
         val audioItemBuilder = MediaItem.Builder().setUri(audioUri)
-        containerMimeType(audioMimeType, isAudio = true)?.let { audioItemBuilder.setMimeType(it) }
+        containerMimeType(info.audioMimeType, isAudio = true)?.let { audioItemBuilder.setMimeType(it) }
         val videoItemBuilder = MediaItem.Builder().setUri(videoUri)
-        containerMimeType(videoMimeType, isAudio = false)?.let { videoItemBuilder.setMimeType(it) }
+        containerMimeType(info.videoMimeType, isAudio = false)?.let { videoItemBuilder.setMimeType(it) }
 
         val audioSource = ProgressiveMediaSource.Factory(audioDataSourceFactory)
             .createMediaSource(audioItemBuilder.build())
@@ -80,7 +76,8 @@ object SabrMediaSourceFactory {
         val mergedSource = MergingMediaSource(true, true, videoSource, audioSource)
 
         Log.d(TAG, "Created SABR MediaSource: video=$videoId, " +
-            "audioItag=$audioItag ($audioMimeType), videoItag=$videoItag ($videoMimeType)")
+            "audioItag=${info.audioItag} (${info.audioMimeType}), videoItag=${info.videoItag} (${info.videoMimeType}), " +
+            "startPos=${startPositionMs}ms")
 
         return SabrMediaSourceResult(
             mediaSource = mergedSource,

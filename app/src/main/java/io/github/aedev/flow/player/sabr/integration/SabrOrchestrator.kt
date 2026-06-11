@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.aedev.flow.player.sabr.core.SabrEvent
 import io.github.aedev.flow.player.sabr.core.SabrStreamController
 import io.github.aedev.flow.player.sabr.proto.FormatInitializationMetadata
+import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,6 +19,10 @@ class SabrOrchestrator(
     companion object {
         private const val TAG = "SabrOrchestrator"
         private const val MAX_FOLLOW_UP_ERRORS = 5
+        private const val POLL_INTERVAL_MS = 250L
+        private const val DEFAULT_MAX_REQUEST_GAP_MS = 8_000L
+        private const val MIN_TARGET_READAHEAD_MS = 5_000L
+        private const val URL_EXPIRY_MARGIN_MS = 60_000L
     }
 
     val audioBuffer = SabrSegmentBuffer()
@@ -26,6 +31,7 @@ class SabrOrchestrator(
     private var scope: CoroutineScope? = null
     private var eventCollectorJob: Job? = null
     private var segmentFetchJob: Job? = null
+    private var poTokenRefreshJob: Job? = null
     private var consecutiveErrors = 0
 
     @Volatile
@@ -72,6 +78,7 @@ class SabrOrchestrator(
         isRunning = false
         eventCollectorJob?.cancel()
         segmentFetchJob?.cancel()
+        poTokenRefreshJob?.cancel()
         controller.abort()
         audioBuffer.signalEndOfStream()
         videoBuffer.signalEndOfStream()
@@ -88,6 +95,11 @@ class SabrOrchestrator(
 
     fun updatePlayhead(positionMs: Long) {
         controller.updatePlayheadPosition(positionMs)
+    }
+
+    /** Background audio-only mode: tells the server to stop sending video segments. */
+    fun setAudioOnly(enabled: Boolean) {
+        controller.sessionState.enabledTrackTypes = if (enabled) 1 else -1
     }
 
     private fun handleEvent(event: SabrEvent) {
@@ -155,15 +167,61 @@ class SabrOrchestrator(
             is SabrEvent.SeekDirective -> {
                 Log.d(TAG, "Server seek directive: ${event.targetMs}ms")
             }
+
+            is SabrEvent.AttestationNeeded -> refreshPoToken(urgent = event.required)
+        }
+    }
+
+    private fun refreshPoToken(urgent: Boolean) {
+        if (poTokenRefreshJob?.isActive == true) return
+        poTokenRefreshJob = scope?.launch(Dispatchers.IO) {
+            val videoId = controller.sessionState.videoId
+            val fresh = try {
+                WebPoTokenSession.mint(videoId)
+            } catch (e: Exception) {
+                Log.w(TAG, "PoToken refresh threw: ${e.message}")
+                null
+            }
+            val streamingToken = fresh?.streamingDataPoToken
+            if (!streamingToken.isNullOrEmpty()) {
+                controller.sessionState.poToken = streamingToken
+                Log.w(TAG, "PoToken refreshed for $videoId (urgent=$urgent)")
+            } else if (urgent) {
+                onError?.invoke(-5, "PoToken refresh failed while attestation required", false)
+            }
         }
     }
 
     private suspend fun startFollowUpLoop() {
+        var lastRequestAtMs = System.currentTimeMillis()
         while (isRunning && consecutiveErrors < MAX_FOLLOW_UP_ERRORS) {
-            delay(100)
+            delay(POLL_INTERVAL_MS)
             if (!isRunning) break
+
+            // Pace requests by the server's readahead targets instead of hammering:
+            // request only when the buffered lead over the playhead drops below target,
+            // with a periodic heartbeat so the server can send policy/END_OF_TRACK parts.
+            val state = controller.sessionState
+            val now = System.currentTimeMillis()
+
+            // GVS URLs die at their expire= timestamp (~6h); re-extract before mid-play 403s
+            val expiresAtMs = state.urlExpiresAtMs()
+            if (expiresAtMs > 0 && now >= expiresAtMs - URL_EXPIRY_MARGIN_MS) {
+                Log.w(TAG, "SABR URL expiring (${(expiresAtMs - now) / 1000}s left) — requesting re-extraction")
+                onError?.invoke(-4, "SABR streaming URL expiring", false)
+                break
+            }
+
+            val maxGapMs = state.maxTimeSinceLastRequestMs.takeIf { it > 0 }
+                ?: DEFAULT_MAX_REQUEST_GAP_MS
+            val heartbeatDue = now - lastRequestAtMs >= maxGapMs
+            if (!heartbeatDue && bufferedAheadMs(state) >= targetReadaheadMs(state)) {
+                continue
+            }
+
             try {
                 controller.requestNextSegments()
+                lastRequestAtMs = System.currentTimeMillis()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -177,4 +235,18 @@ class SabrOrchestrator(
             }
         }
     }
+
+    private fun bufferedAheadMs(state: io.github.aedev.flow.player.sabr.core.SabrSessionState): Long {
+        val audioEndMs = state.audioBufferedRanges.maxOfOrNull { it.startTimeMs + it.durationMs }
+            ?: return 0L
+        // Audio-only mode: video lead is frozen by design — pace by audio alone
+        if (state.enabledTrackTypes == 1) return audioEndMs - state.playheadPositionMs
+        val videoEndMs = state.videoBufferedRanges.maxOfOrNull { it.startTimeMs + it.durationMs }
+            ?: return 0L
+        return minOf(audioEndMs, videoEndMs) - state.playheadPositionMs
+    }
+
+    private fun targetReadaheadMs(state: io.github.aedev.flow.player.sabr.core.SabrSessionState): Long =
+        minOf(state.targetAudioReadaheadMs, state.targetVideoReadaheadMs)
+            .coerceAtLeast(MIN_TARGET_READAHEAD_MS)
 }

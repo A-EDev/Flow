@@ -45,29 +45,33 @@ object UmpVarInt {
         return decodeBytes(full, 0, size, firstByte)
     }
 
+    // Canonical UMP varint layout (gsuberland/UMP_Format, LuanRT/googlevideo UmpReader):
+    // the remaining bits of the FIRST byte are the LOW-order bits of the value, and the
+    // following bytes are combined little-endian, shifted above them.
+    //   2-byte: (b0 & 0x3F) | (b1 << 6)
+    //   3-byte: (b0 & 0x1F) | ((b1 | (b2 << 8)) << 5)
+    //   4-byte: (b0 & 0x0F) | ((b1 | (b2 << 8) | (b3 << 16)) << 4)
+    //   5-byte: prefix bits ignored; bytes 1..4 are a little-endian uint32
     private fun decodeBytes(data: ByteArray, offset: Int, size: Int, firstByte: Int): Long {
         return when (size) {
             1 -> (firstByte and 0x7F).toLong()
 
             2 -> {
-                val valueBits = (firstByte and 0x3F).toLong()
                 val b1 = (data[offset + 1].toInt() and 0xFF).toLong()
-                (valueBits shl 8) or b1
+                (firstByte and 0x3F).toLong() or (b1 shl 6)
             }
 
             3 -> {
-                val valueBits = (firstByte and 0x1F).toLong()
                 val b1 = (data[offset + 1].toInt() and 0xFF).toLong()
                 val b2 = (data[offset + 2].toInt() and 0xFF).toLong()
-                (valueBits shl 16) or (b1 shl 8) or b2
+                (firstByte and 0x1F).toLong() or ((b1 or (b2 shl 8)) shl 5)
             }
 
             4 -> {
-                val valueBits = (firstByte and 0x0F).toLong()
                 val b1 = (data[offset + 1].toInt() and 0xFF).toLong()
                 val b2 = (data[offset + 2].toInt() and 0xFF).toLong()
                 val b3 = (data[offset + 3].toInt() and 0xFF).toLong()
-                (valueBits shl 24) or (b1 shl 16) or (b2 shl 8) or b3
+                (firstByte and 0x0F).toLong() or ((b1 or (b2 shl 8) or (b3 shl 16)) shl 4)
             }
 
             5 -> {
@@ -86,21 +90,21 @@ object UmpVarInt {
             value <= 0x7F -> byteArrayOf(value.toByte())
 
             value <= 0x3FFF -> byteArrayOf(
-                (0x80 or ((value shr 8) and 0x3F).toInt()).toByte(),
-                (value and 0xFF).toByte()
+                (0x80 or (value and 0x3F).toInt()).toByte(),
+                ((value shr 6) and 0xFF).toByte()
             )
 
             value <= 0x1FFFFF -> byteArrayOf(
-                (0xC0 or ((value shr 16) and 0x1F).toInt()).toByte(),
-                ((value shr 8) and 0xFF).toByte(),
-                (value and 0xFF).toByte()
+                (0xC0 or (value and 0x1F).toInt()).toByte(),
+                ((value shr 5) and 0xFF).toByte(),
+                ((value shr 13) and 0xFF).toByte()
             )
 
             value <= 0x0FFFFFFF -> byteArrayOf(
-                (0xE0 or ((value shr 24) and 0x0F).toInt()).toByte(),
-                ((value shr 16) and 0xFF).toByte(),
-                ((value shr 8) and 0xFF).toByte(),
-                (value and 0xFF).toByte()
+                (0xE0 or (value and 0x0F).toInt()).toByte(),
+                ((value shr 4) and 0xFF).toByte(),
+                ((value shr 12) and 0xFF).toByte(),
+                ((value shr 20) and 0xFF).toByte()
             )
 
             value <= 0xFFFFFFFFL -> {

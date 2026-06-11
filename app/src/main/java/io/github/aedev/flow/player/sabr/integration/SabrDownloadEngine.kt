@@ -70,6 +70,7 @@ class SabrDownloadEngine {
             this.ustreamerConfig = ustreamerConfig
             this.durationMs = durationMs
             this.playheadPositionMs = 0
+            if (audioOnly) this.enabledTrackTypes = 1
         }
 
         val dataSource = SabrDataSource(USER_AGENT, visitorId.ifEmpty { null })
@@ -169,6 +170,10 @@ class SabrDownloadEngine {
 
                             is SabrEvent.SeekDirective -> {
                                 Log.d(TAG, "Seek directive ignored during download: ${event.targetMs}ms")
+                            }
+
+                            is SabrEvent.AttestationNeeded -> {
+                                Log.w(TAG, "Attestation needed during download (required=${event.required})")
                             }
                         }
                     }

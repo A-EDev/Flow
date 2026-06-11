@@ -47,8 +47,10 @@ sealed class SabrEvent {
     data class Error(val code: Int, val message: String, val recoverable: Boolean) : SabrEvent()
     data class BackoffRequired(val delayMs: Long) : SabrEvent()
     object EndOfTrack : SabrEvent()
-    data class ReloadRequired(val reason: String) : SabrEvent()
+    data class ReloadRequired(val reason: String, val reloadToken: String? = null) : SabrEvent()
     data class SeekDirective(val targetMs: Long) : SabrEvent()
+    // required=false: grace window, refresh PoToken in background; true: media already cut
+    data class AttestationNeeded(val required: Boolean) : SabrEvent()
 }
 
 class SabrStreamController(
@@ -58,6 +60,8 @@ class SabrStreamController(
     companion object {
         private const val TAG = "SabrStreamCtrl"
         private const val READ_BUFFER_SIZE = 16384
+        private const val MAX_MEDIALESS_RESPONSES = 3
+        private const val NEAR_END_TOLERANCE_MS = 2_000L
 
         private val KNOWN_AUDIO_ITAGS = setOf(
             139, 140, 141, // AAC
@@ -81,9 +85,17 @@ class SabrStreamController(
     @Volatile
     private var aborted = false
 
+    @Volatile
+    private var sawMediaInResponse = false
+    private var consecutiveMedialessResponses = 0
+    private var attestationRetried = false
+
     suspend fun startSession() {
         aborted = false
         sessionState.requestSequence = 0
+        consecutiveMedialessResponses = 0
+        attestationRetried = false
+        sawMediaInResponse = false
         frameDecoder.reset()
 
         Log.d(TAG, "Starting SABR session: video=${sessionState.videoId}, " +
@@ -136,8 +148,15 @@ class SabrStreamController(
         withContext(Dispatchers.IO) {
             var stream: InputStream? = null
             try {
-                stream = dataSource.open(sessionState.effectiveUrl, requestBody)
+                // rn = monotonically increasing request number, expected by GVS endpoints
+                val url = sessionState.effectiveUrl.let {
+                    val sep = if (it.contains('?')) '&' else '?'
+                    "$it${sep}rn=${sessionState.requestSequence}"
+                }
+                sawMediaInResponse = false
+                stream = dataSource.open(url, requestBody)
                 readAndProcessStream(stream)
+                trackMedialessResponses()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -153,6 +172,34 @@ class SabrStreamController(
                 dataSource.close()
             }
         }
+    }
+
+    // Empty responses are legal (policy-only), but repeated ones while we still need
+    // media mean the session is wedged (e.g. stale buffered ranges) — escalate.
+    private suspend fun trackMedialessResponses() {
+        if (sawMediaInResponse) {
+            consecutiveMedialessResponses = 0
+            return
+        }
+        if (isBufferedToEnd()) return
+        consecutiveMedialessResponses++
+        if (consecutiveMedialessResponses >= MAX_MEDIALESS_RESPONSES) {
+            Log.w(TAG, "No media in $consecutiveMedialessResponses consecutive responses — session wedged")
+            _events.emit(SabrEvent.Error(
+                code = -3,
+                message = "No media in $consecutiveMedialessResponses consecutive responses",
+                recoverable = false
+            ))
+        }
+    }
+
+    private fun isBufferedToEnd(): Boolean {
+        val durationMs = sessionState.durationMs
+        if (durationMs <= 0) return false
+        val audioEnd = sessionState.audioBufferedRanges.maxOfOrNull { it.startTimeMs + it.durationMs } ?: 0L
+        if (sessionState.enabledTrackTypes == 1) return audioEnd >= durationMs - NEAR_END_TOLERANCE_MS
+        val videoEnd = sessionState.videoBufferedRanges.maxOfOrNull { it.startTimeMs + it.durationMs } ?: 0L
+        return minOf(audioEnd, videoEnd) >= durationMs - NEAR_END_TOLERANCE_MS
     }
 
     private suspend fun readAndProcessStream(stream: InputStream) {
@@ -193,6 +240,9 @@ class SabrStreamController(
 
     private fun handleMediaHeader(frame: UmpFrame) {
         val header = MediaHeader.decode(frame.payload)
+        if (header.compressionType > 1) {
+            Log.w(TAG, "MediaHeader id=${header.headerId} declares compression=${header.compressionType} (unsupported)")
+        }
         activeHeaders[header.headerId] = header
         segmentAccumulators[header.headerId] = ByteArrayOutputStream(
             if (header.contentLength > 0) header.contentLength.coerceAtMost(2_000_000).toInt()
@@ -226,6 +276,19 @@ class SabrStreamController(
         val accumulator = segmentAccumulators.remove(headerId) ?: return
         val data = accumulator.toByteArray()
 
+        if (header.contentLength > 0 && data.size.toLong() != header.contentLength) {
+            Log.w(TAG, "Segment length mismatch: itag=${header.itag}, seq=${header.sequenceNumber}, " +
+                "expected=${header.contentLength}, got=${data.size} — dropping")
+            return
+        }
+
+        sawMediaInResponse = true
+        // Re-sent segments would corrupt the append-only byte pipe — drop duplicates
+        if (!sessionState.markSegmentConsumed(header.itag, header.sequenceNumber, header.isInitSegment)) {
+            Log.v(TAG, "Duplicate segment dropped: itag=${header.itag}, seq=${header.sequenceNumber}, init=${header.isInitSegment}")
+            return
+        }
+
         val formatMeta = sessionState.formatMetadata[header.itag]
         val isAudio = formatMeta?.isAudio ?: (header.itag in KNOWN_AUDIO_ITAGS)
 
@@ -240,18 +303,22 @@ class SabrStreamController(
             data = data
         )
 
-        val formatId = FormatId(header.itag, header.lmt)
-        val range = FormatBufferedRange(
-            formatId = formatId,
-            startTimeMs = header.timeRangeStartMs,
-            durationMs = header.durationMs,
-            startSequence = header.sequenceNumber,
-            endSequence = header.sequenceNumber
-        )
-        sessionState.addBufferedRange(isAudio, range)
+        // Init segments are not part of the media timeline — never report them as buffered
+        if (!header.isInitSegment) {
+            val formatId = FormatId(header.itag, header.lmt)
+            val range = FormatBufferedRange(
+                formatId = formatId,
+                startTimeMs = header.timeRangeStartMs,
+                durationMs = header.durationMs,
+                startSequence = header.sequenceNumber,
+                endSequence = header.sequenceNumber
+            )
+            sessionState.addBufferedRange(isAudio, range)
+        }
 
         Log.d(TAG, "Segment complete: itag=${header.itag}, seq=${header.sequenceNumber}, " +
-            "${if (isAudio) "audio" else "video"}, size=${data.size}, time=${header.timeRangeStartMs}ms")
+            "init=${header.isInitSegment}, ${if (isAudio) "audio" else "video"}, " +
+            "size=${data.size}, time=${header.timeRangeStartMs}ms")
 
         _events.emit(SabrEvent.SegmentReady(segment))
     }
@@ -291,26 +358,55 @@ class SabrStreamController(
     private suspend fun handleSeek(frame: UmpFrame) {
         val seek = SabrSeek.decode(frame.payload)
         Log.d(TAG, "SeekDirective: target=${seek.seekTargetMs}ms")
+        sessionState.playheadPositionMs = seek.seekTargetMs
         _events.emit(SabrEvent.SeekDirective(seek.seekTargetMs))
     }
 
     private fun handleContextUpdate(frame: UmpFrame) {
         val update = SabrContextUpdate.decode(frame.payload)
         sessionState.updateFromContextUpdate(update)
-        Log.v(TAG, "ContextUpdate: ${update.context.size}B")
+        Log.v(TAG, "ContextUpdate: type=${update.type}, ${update.value.size}B, sendByDefault=${update.sendByDefault}")
     }
 
     private suspend fun handleProtectionStatus(frame: UmpFrame) {
         val status = StreamProtectionStatus.decode(frame.payload)
-        Log.d(TAG, "ProtectionStatus: status=${status.status}, reason=${status.reason}")
-        if (status.status == StreamProtectionStatus.STATUS_REQUIRES_RELOAD) {
-            _events.emit(SabrEvent.ReloadRequired("Stream protection requires reload: ${status.reason}"))
+        Log.d(TAG, "ProtectionStatus: status=${status.status}, maxRetries=${status.maxRetries}")
+        when (status.status) {
+            StreamProtectionStatus.STATUS_ATTESTATION_PENDING -> {
+                Log.w(TAG, "Stream protection: attestation pending (PoToken being verified)")
+                _events.emit(SabrEvent.AttestationNeeded(required = false))
+            }
+            StreamProtectionStatus.STATUS_ATTESTATION_REQUIRED -> {
+                // Media is cut. Try one in-session token refresh before tearing down.
+                if (!attestationRetried) {
+                    attestationRetried = true
+                    Log.w(TAG, "Stream protection: attestation required — attempting PoToken refresh")
+                    _events.emit(SabrEvent.AttestationNeeded(required = true))
+                } else {
+                    _events.emit(SabrEvent.ReloadRequired("Stream protection: attestation required"))
+                }
+            }
         }
     }
 
     private suspend fun handleReloadRequired(frame: UmpFrame) {
-        Log.w(TAG, "Server demands player reload")
-        _events.emit(SabrEvent.ReloadRequired("Server requested player response reload"))
+        // ReloadPlayerResponse { reload_playback_params = 1 { token = 1 } }
+        val token = try {
+            var t: String? = null
+            io.github.aedev.flow.player.sabr.proto.ProtobufReader(frame.payload).forEachField { field ->
+                if (field.fieldNumber == 1) {
+                    io.github.aedev.flow.player.sabr.proto.ProtobufReader(field.asBytes()).forEachField { inner ->
+                        if (inner.fieldNumber == 1) t = inner.asString()
+                    }
+                }
+            }
+            t
+        } catch (e: Exception) {
+            null
+        }
+        sessionState.reloadToken = token
+        Log.w(TAG, "Server demands player reload (token=${token != null})")
+        _events.emit(SabrEvent.ReloadRequired("Server requested player response reload", token))
     }
 
     private suspend fun handleEndOfTrack() {

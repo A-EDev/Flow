@@ -1099,13 +1099,15 @@ class VideoPlayerViewModel @Inject constructor(
                         } ?: emptyList()
 
                         val extractorVideoStreams = (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>()
-                        val effectiveVideoStreams: List<VideoStream> = mergeVideoStreams(innerTubeVideoStreams, extractorVideoStreams)
-                        val effectiveAudioStreams: List<AudioStream> = mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
+                        val effectiveVideoStreams: List<VideoStream> = mergeVideoStreams(extractorVideoStreams, innerTubeVideoStreams)
+                        val effectiveAudioStreams: List<AudioStream> = mergeAudioStreams(streamInfo.audioStreams, innerTubeAudioStreams)
 
-                        if (innerTubeVideoStreams.isNotEmpty()) {
+                        if (extractorVideoStreams.isNotEmpty()) {
+                            Log.i("VideoPlayerViewModel", "Using NewPipe streams: ${extractorVideoStreams.size} video, ${streamInfo.audioStreams.size} audio (merged=${effectiveVideoStreams.size})")
+                        } else if (innerTubeVideoStreams.isNotEmpty()) {
                             Log.i("VideoPlayerViewModel", "Using InnerTube streams: ${innerTubeVideoStreams.size} video, ${innerTubeAudioStreams.size} audio (client=${innerTubeResult?.usedClient?.clientName})")
                         } else {
-                            Log.d("VideoPlayerViewModel", "Using NewPipe streams: ${effectiveVideoStreams.size} video, ${effectiveAudioStreams.size} audio")
+                            Log.d("VideoPlayerViewModel", "No direct-URL streams; relying on manifests/SABR (sabr=${innerTubeResult?.sabrInfo != null})")
                         }
 
                         val availableQualities = extractAvailableQualitiesFromStreams(effectiveVideoStreams)
@@ -1149,6 +1151,8 @@ class VideoPlayerViewModel @Inject constructor(
                             innerTubeResult?.isLive == true
                         val liveHlsUrl = streamInfo.hlsUrl?.takeIf { liveType && it.isNotEmpty() }
                             ?: innerTubeResult?.liveHlsUrl?.takeIf { liveFromInnerTube }
+                        val effectiveDashUrl = streamInfo.dashMpdUrl?.takeIf { it.isNotEmpty() }
+                            ?: innerTubeResult?.liveDashUrl?.takeIf { liveFromInnerTube }
                         
                         // Load saved playback position
                         val savedPosition = viewHistory.getPlaybackPosition(videoId)
@@ -1206,12 +1210,14 @@ class VideoPlayerViewModel @Inject constructor(
                             localFilePath = localFilePath,
                             offlineSegments = offlineSegments,
                             hlsUrl = liveHlsUrl,
+                            dashManifestUrl = effectiveDashUrl,
                             isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
                             loadToken = loadToken,
                             sabrInfo = resolvedSabrInfo,
                             itVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
                             itAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),
-                            preferredVideoCodec = preferredCodecKey
+                            preferredVideoCodec = preferredCodecKey,
+                            preferSabr = escalateToSabr
                         )
 
                         if (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true) {
@@ -1483,7 +1489,9 @@ class VideoPlayerViewModel @Inject constructor(
         sabrInfo: SabrStreamInfo? = null,
         itVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
         itAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
-        preferredVideoCodec: String = "auto"
+        preferredVideoCodec: String = "auto",
+        dashManifestUrl: String? = null,
+        preferSabr: Boolean = false
     ) = withContext(Dispatchers.Main) {
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         val manager = EnhancedPlayerManager.getInstance()
@@ -1511,27 +1519,33 @@ class VideoPlayerViewModel @Inject constructor(
                 savedSegments = offlineSegments,
                 preservePosition = resumePosition.takeIf { it > 0L }
             )
-        } else if (audioStream != null || videoStreams.isNotEmpty() || !streamInfo.dashMpdUrl.isNullOrEmpty() || !hlsUrl.isNullOrEmpty()) {
-            if (audioStream == null) {
-                Log.w("VideoPlayerViewModel", "Preparing $videoId without a separate audio stream")
+        } else {
+            val effectiveDashUrl = dashManifestUrl?.takeIf { it.isNotEmpty() } ?: streamInfo.dashMpdUrl
+            val hasAnySource = audioStream != null || videoStreams.isNotEmpty() ||
+                !effectiveDashUrl.isNullOrEmpty() || !hlsUrl.isNullOrEmpty() || sabrInfo != null
+            if (hasAnySource) {
+                if (audioStream == null) {
+                    Log.w("VideoPlayerViewModel", "Preparing $videoId without a separate audio stream")
+                }
+                manager.setStreams(
+                    videoId = videoId,
+                    videoStream = if (isAdaptiveMode) null else videoStream,
+                    audioStream = audioStream,
+                    videoStreams = videoStreams,
+                    audioStreams = audioStreams,
+                    subtitles = subtitles,
+                    durationSeconds = streamInfo.duration,
+                    dashManifestUrl = effectiveDashUrl,
+                    hlsUrl = hlsUrl,
+                    streamType = streamInfo.streamType,
+                    startPosition = resumePosition,
+                    sabrInfo = sabrInfo,
+                    itVideoFormats = itVideoFormats,
+                    itAudioFormats = itAudioFormats,
+                    preferredVideoCodec = preferredVideoCodec,
+                    preferSabr = preferSabr
+                )
             }
-            manager.setStreams(
-                videoId = videoId,
-                videoStream = if (isAdaptiveMode) null else videoStream,
-                audioStream = audioStream,
-                videoStreams = videoStreams,
-                audioStreams = audioStreams,
-                subtitles = subtitles,
-                durationSeconds = streamInfo.duration,
-                dashManifestUrl = streamInfo.dashMpdUrl,
-                hlsUrl = hlsUrl,
-                streamType = streamInfo.streamType,
-                startPosition = resumePosition,
-                sabrInfo = sabrInfo,
-                itVideoFormats = itVideoFormats,
-                itAudioFormats = itAudioFormats,
-                preferredVideoCodec = preferredVideoCodec
-            )
         }
         applyRememberedPlaybackSpeed(isLive = !hlsUrl.isNullOrEmpty(), manager = manager)
 

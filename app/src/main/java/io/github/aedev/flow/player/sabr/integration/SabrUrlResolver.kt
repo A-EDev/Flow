@@ -16,7 +16,9 @@ data class SabrStreamInfo(
     val visitorId: String = "",
     val ustreamerConfig: ByteArray = ByteArray(0),
     val audioMimeType: String = "",
-    val videoMimeType: String = ""
+    val videoMimeType: String = "",
+    val audioTrackId: String = "",
+    val targetHeight: Int = 0
 )
 
 object SabrUrlResolver {
@@ -97,7 +99,8 @@ object SabrUrlResolver {
             visitorId = visitorId,
             ustreamerConfig = extractUstreamerConfig(playerResponse),
             audioMimeType = selectedAudio.mimeType,
-            videoMimeType = selectedVideo.mimeType
+            videoMimeType = selectedVideo.mimeType,
+            audioTrackId = selectedAudio.audioTrack?.id.orEmpty()
         )
     }
 
@@ -141,11 +144,13 @@ object SabrUrlResolver {
             visitorId = visitorId,
             ustreamerConfig = extractUstreamerConfig(playerResponse),
             audioMimeType = selectedAudio.mimeType,
-            videoMimeType = selectedVideo.mimeType
+            videoMimeType = selectedVideo.mimeType,
+            audioTrackId = selectedAudio.audioTrack?.id.orEmpty(),
+            targetHeight = targetHeight
         )
     }
 
-    // Decode the base64 `videoPlaybackUstreamerConfig` required by the SABR POST body. 
+    // Decode the base64 `videoPlaybackUstreamerConfig` required by the SABR POST body.
     private fun extractUstreamerConfig(playerResponse: PlayerResponse): ByteArray {
         val b64 = playerResponse.playerConfig
             ?.mediaCommonConfig
@@ -169,18 +174,31 @@ object SabrUrlResolver {
         }
     }
 
+    /**
+     * On multi-audio (auto-dub) videos the same itags repeat once per language; picking by
+     * itag/bitrate alone selects an arbitrary dub. Restrict to the original track first
+     * (track id suffix ".4" = ORIGINAL in InnerTube; isAutoDubbed marks generated dubs).
+     */
+    private fun isOriginalAudioTrack(format: PlayerResponse.StreamingData.Format): Boolean {
+        val track = format.audioTrack ?: return true
+        if (track.isAutoDubbed == true) return false
+        val id = track.id ?: return true
+        return id.substringAfterLast('.', missingDelimiterValue = "4") == "4"
+    }
+
     private fun selectBestAudio(
         audioFormats: List<PlayerResponse.StreamingData.Format>
     ): PlayerResponse.StreamingData.Format? {
+        val candidates = audioFormats.filter(::isOriginalAudioTrack).ifEmpty { audioFormats }
         for (preferredItag in PREFERRED_AUDIO_ITAGS) {
-            audioFormats.find { it.itag == preferredItag }?.let { return it }
+            candidates.find { it.itag == preferredItag }?.let { return it }
         }
-        val webmAudio = audioFormats
+        val webmAudio = candidates
             .filter { it.mimeType.contains("webm", ignoreCase = true) }
             .maxByOrNull { it.bitrate }
         if (webmAudio != null) return webmAudio
 
-        return audioFormats.maxByOrNull { it.bitrate }
+        return candidates.maxByOrNull { it.bitrate }
     }
 
     private fun selectBestVideo(

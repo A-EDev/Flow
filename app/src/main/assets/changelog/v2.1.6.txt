@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-06-08
+DATE: 2026-06-11
 STATUS: PRE-RELEASE
 
 IMPROVEMENTS
@@ -8,6 +8,8 @@ IMPROVEMENTS
 - Improve video player settings sheet positioning #572
 - Improve double tap seek gesture #520
 - Add remove button "X" on continue watching shelf's cards
+- Improve SABR implementation
+- Bump NewPipeExtractor to v0.26.3 and set it as primary source with native SABR fallback
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578
@@ -16,3 +18,5 @@ FIXES AND STABILITY
 - Fix music audio equilizer settings saving issues
 - Fix out-of-memory crashes when refreshing or importing large subscription lists #603
 - Fix lag when the bottom navigation bar hides or shows while scrolling
+- Fix playback crashes
+- Fix missing audio tracks

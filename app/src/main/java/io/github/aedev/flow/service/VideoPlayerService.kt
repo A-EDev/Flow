@@ -35,7 +35,6 @@ class VideoPlayerService : MediaSessionService() {
     companion object {
         private const val TAG = "VideoPlayerService"
         private const val LOCK_RELEASE_DELAY_MS = 30_000L
-        private const val FALLBACK_NOTIFICATION_ID = 7891
         private const val FALLBACK_CHANNEL_ID = "video_playback_fallback"
 
         const val EXTRA_VIDEO_ID = "video_id"
@@ -110,31 +109,36 @@ class VideoPlayerService : MediaSessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        promoteToForeground()
         super.onStartCommand(intent, flags, startId)
         serviceLog("onStartCommand action=${intent?.action}")
 
         if (EnhancedPlayerManager.getInstance().getVideoMediaSession() == null) {
-            serviceLog("No media session available — posting fallback foreground notification")
-            try {
-                ensureFallbackNotificationChannel()
-                val notification = NotificationCompat.Builder(this, FALLBACK_CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_notification_logo)
-                    .setContentTitle("Flow")
-                    .setSilent(true)
-                    .build()
-                ServiceCompat.startForeground(
-                    this, FALLBACK_NOTIFICATION_ID, notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to post fallback foreground notification", e)
-            }
+            serviceLog("No media session available — stopping after placeholder promotion")
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf(startId)
             return START_NOT_STICKY
         }
 
         updateLocks(isPlaybackActiveForLocks())
         return START_STICKY
+    }
+
+    private fun promoteToForeground() {
+        try {
+            ensureFallbackNotificationChannel()
+            val notification = NotificationCompat.Builder(this, FALLBACK_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification_logo)
+                .setContentTitle("Flow")
+                .setSilent(true)
+                .build()
+            ServiceCompat.startForeground(
+                this, DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID, notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to promote service to foreground", e)
+        }
     }
 
     private fun ensureFallbackNotificationChannel() {

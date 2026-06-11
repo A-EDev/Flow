@@ -33,11 +33,19 @@ class SabrSegmentBuffer {
                 val next = if (totalRead > 0) {
                     queue.poll()
                 } else {
-                    queue.poll(2, TimeUnit.SECONDS)
+                    // Block in slices: returning 0 makes ExoPlayer's loader spin-poll
+                    var polled: ByteArray? = null
+                    while (polled == null && !closed.get()) {
+                        if (endOfStream.get() && queue.isEmpty()) break
+                        polled = queue.poll(250, TimeUnit.MILLISECONDS)
+                    }
+                    polled
                 }
 
                 if (next == null) {
-                    if (endOfStream.get() && queue.isEmpty()) return if (totalRead > 0) totalRead else -1
+                    if (closed.get() || (endOfStream.get() && queue.isEmpty())) {
+                        return if (totalRead > 0) totalRead else -1
+                    }
                     return if (totalRead > 0) totalRead else 0
                 }
 

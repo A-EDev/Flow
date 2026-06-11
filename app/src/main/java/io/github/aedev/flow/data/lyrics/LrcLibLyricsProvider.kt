@@ -7,6 +7,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.google.gson.Gson
 import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
 
 /**
  * LyricsProvider implementation wrapping the LrcLib API.
@@ -14,9 +15,14 @@ import java.net.URLEncoder
  */
 class LrcLibLyricsProvider : LyricsProvider {
     override val name = "LrcLib"
-    
+
     private val client: OkHttpClient
-        get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
+        get() = AppProxyManager.applyTo(
+            OkHttpClient.Builder()
+                .connectTimeout(3, TimeUnit.SECONDS)
+                .readTimeout(4, TimeUnit.SECONDS)
+                .callTimeout(5, TimeUnit.SECONDS)
+        ).build()
     private val gson = Gson()
     
     private data class LrcLibResponse(

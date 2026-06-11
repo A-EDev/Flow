@@ -170,14 +170,6 @@
             </intent-filter>
         </service>
         
-        <!-- Media button receiver -->
-        <receiver android:name="androidx.media.session.MediaButtonReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MEDIA_BUTTON" />
-            </intent-filter>
-        </receiver>
-        
         <!-- Notification action receiver for downloads and other actions -->
         <receiver 
             android:name=".notification.NotificationActionReceiver"

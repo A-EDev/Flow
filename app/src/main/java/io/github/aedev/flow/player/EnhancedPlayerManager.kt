@@ -139,6 +139,7 @@ class EnhancedPlayerManager private constructor() {
     private var pendingInitialLiveEdgeSeek = false
     
     private var currentSabrInfo: SabrStreamInfo? = null
+    private var sabrPreferred = false
 
     private var isAudioOnlyMode = false
     private var videoTracksDisabled = false
@@ -744,7 +745,8 @@ class EnhancedPlayerManager private constructor() {
         itVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
         itAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
         preferredVideoCodec: String = "auto",
-        keepAudioOnly: Boolean = false
+        keepAudioOnly: Boolean = false,
+        preferSabr: Boolean = false
     ) {
         if (!isOnMainThread()) {
             autoNextLog("setStreams switching to main id=$videoId from=${Thread.currentThread().name}")
@@ -766,14 +768,16 @@ class EnhancedPlayerManager private constructor() {
                     itVideoFormats = itVideoFormats,
                     itAudioFormats = itAudioFormats,
                     preferredVideoCodec = preferredVideoCodec,
-                    keepAudioOnly = keepAudioOnly
+                    keepAudioOnly = keepAudioOnly,
+                    preferSabr = preferSabr
                 )
             }
             return
         }
-        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)}, sabr=${sabrInfo != null}, itVideo=${itVideoFormats.size}, itAudio=${itAudioFormats.size}, keepAudioOnly=$keepAudioOnly)")
+        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)}, sabr=${sabrInfo != null}, preferSabr=$preferSabr, itVideo=${itVideoFormats.size}, itAudio=${itAudioFormats.size}, keepAudioOnly=$keepAudioOnly)")
         resetPlaybackStateForNewVideo(videoId)
         currentSabrInfo = sabrInfo
+        sabrPreferred = preferSabr
         innerTubeVideoFormats = itVideoFormats
         innerTubeAudioFormats = itAudioFormats
         isAudioOnlyMode = keepAudioOnly
@@ -861,6 +865,7 @@ class EnhancedPlayerManager private constructor() {
         errorHandler?.resetExpiryCounter()
         mediaLoader?.releaseSabr()
         currentSabrInfo = null
+        sabrPreferred = false
         innerTubeVideoFormats = emptyList()
         innerTubeAudioFormats = emptyList()
         currentVideoStream = null
@@ -972,7 +977,6 @@ class EnhancedPlayerManager private constructor() {
             Log.w(TAG, "loadMediaInternal: no playable audio/video streams")
             return false
         }
-        val sabr = currentSabrInfo
         val result = mediaLoader?.loadMedia(
             player = player,
             context = appContext,
@@ -989,17 +993,9 @@ class EnhancedPlayerManager private constructor() {
             localFilePath = localFilePath,
             audioOnly = audioOnly,
             subtitleStreams = availableSubtitles,
-            sabrStreamingUrl = sabr?.streamingUrl,
+            sabrInfo = currentSabrInfo,
             sabrVideoId = currentVideoId,
-            sabrAudioItag = sabr?.audioItag ?: 0,
-            sabrAudioLmt = sabr?.audioLmt ?: 0,
-            sabrVideoItag = sabr?.videoItag ?: 0,
-            sabrVideoLmt = sabr?.videoLmt ?: 0,
-            sabrPoToken = sabr?.poToken.orEmpty(),
-            sabrVisitorId = sabr?.visitorId.orEmpty(),
-            sabrUstreamerConfig = sabr?.ustreamerConfig ?: ByteArray(0),
-            sabrAudioMimeType = sabr?.audioMimeType.orEmpty(),
-            sabrVideoMimeType = sabr?.videoMimeType.orEmpty(),
+            sabrPreferred = sabrPreferred,
             innerTubeVideoFormats = innerTubeVideoFormats,
             innerTubeAudioFormats = innerTubeAudioFormats
         ) ?: false
@@ -1020,6 +1016,7 @@ class EnhancedPlayerManager private constructor() {
                     .build()
             )
         }
+        mediaLoader?.getActiveSabrOrchestrator()?.setAudioOnly(disabled)
     }
 
     // ===== Queue Management =====
@@ -1322,9 +1319,11 @@ class EnhancedPlayerManager private constructor() {
                     .orEmpty()
                 val extractorVideoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
                     .filterIsInstance<VideoStream>()
-                val mergedVideoStreams = mergeVideoStreams(innerTubeVideoStreams, extractorVideoStreams)
-                val mergedAudioStreams = mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
-                if (innerTubeVideoStreams.isNotEmpty()) {
+                val mergedVideoStreams = mergeVideoStreams(extractorVideoStreams, innerTubeVideoStreams)
+                val mergedAudioStreams = mergeAudioStreams(streamInfo.audioStreams, innerTubeAudioStreams)
+                if (extractorVideoStreams.isNotEmpty()) {
+                    Log.d(TAG, "Queue advance using NewPipe streams: ${extractorVideoStreams.size} video (merged=${mergedVideoStreams.size}, innerTube=${innerTubeVideoStreams.size})")
+                } else if (innerTubeVideoStreams.isNotEmpty()) {
                     Log.d(TAG, "Queue advance using InnerTube streams: ${innerTubeVideoStreams.size} video, ${innerTubeAudioStreams.size} audio (merged=${mergedVideoStreams.size})")
                 }
 
@@ -1640,6 +1639,7 @@ class EnhancedPlayerManager private constructor() {
 
         mediaLoader?.releaseSabr()
         currentSabrInfo = null
+        sabrPreferred = false
 
         if (pre.fromQueue) {
             if (currentQueueIndex < playbackQueue.size - 1) {
@@ -1939,6 +1939,10 @@ class EnhancedPlayerManager private constructor() {
     fun seekTo(position: Long) {
         val p = player ?: return
         val isLive = currentIsLiveStream || p.isCurrentMediaItemLive
+        if (!isLive && mediaLoader?.getActiveSabrOrchestrator() != null) {
+            sabrSeekTo(resolveSeekTarget(p, position))
+            return
+        }
         val target = resolveSeekTarget(p, position)
         if (isLive) {
             p.setSeekParameters(SeekParameters.EXACT)
@@ -1947,6 +1951,21 @@ class EnhancedPlayerManager private constructor() {
         p.seekTo(target)
         if (isLive) {
             updateLiveEdgeState(p)
+        }
+    }
+
+    private fun sabrSeekTo(positionMs: Long) {
+        val shouldPlay = player?.playWhenReady ?: true
+        Log.d(TAG, "SABR seek: rebuilding session at ${positionMs}ms")
+        _playerState.value = _playerState.value.copy(isBuffering = true)
+        scope.launch {
+            mediaLoader?.releaseSabr()
+            player?.stop()
+            player?.clearMediaItems()
+            val loaded = loadMediaInternal(currentVideoStream, currentAudioStream, positionMs)
+            if (loaded) {
+                player?.playWhenReady = shouldPlay
+            }
         }
     }
 
