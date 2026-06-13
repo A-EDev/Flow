@@ -388,6 +388,8 @@
     <string name="deep_flow_expires_in">Expires in %s</string>
     <string name="deep_flow_expire_duration_title">Auto-disable after</string>
     <string name="deep_flow_expire_duration_subtitle">Learning resumes automatically after %s</string>
+    <string name="deep_flow_save_history_title">Save to watch history</string>
+    <string name="deep_flow_save_history_subtitle">Keep watched videos in history (with progress). The engine still won\'t learn from them. Off = nothing is saved.</string>
     <string name="deep_flow_dialog_title">Pause Duration</string>
     <string name="deep_flow_dialog_body">How long should learning stay paused?</string>
     <string name="deep_flow_enabled_message">Deep Flow enabled</string>

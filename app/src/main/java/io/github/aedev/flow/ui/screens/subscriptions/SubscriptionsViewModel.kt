@@ -178,15 +178,19 @@ class SubscriptionsViewModel : ViewModel() {
         }
 
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
-            viewHistory.getVideoHistoryFlow()
-                .combine(playerPreferences.hideWatchedVideos) { history, hideWatched ->
-                    if (!hideWatched) return@combine emptySet<String>()
-                    history
-                        .asSequence()
-                        .filter { it.progressPercentage >= 10f }
-                        .map { it.videoId }
-                        .toHashSet()
-                }
+            combine(
+                viewHistory.getVideoHistoryFlow(),
+                playerPreferences.hideWatchedVideos,
+                database.downloadDao().getVideoDownloads()
+            ) { history, hideWatched, downloads ->
+                if (!hideWatched) return@combine emptySet<String>()
+                val downloadedIds = downloads.mapTo(HashSet()) { it.download.videoId }
+                history
+                    .asSequence()
+                    .filter { it.progressPercentage >= 10f || it.videoId in downloadedIds }
+                    .map { it.videoId }
+                    .toHashSet()
+            }
                 .distinctUntilChanged()
                 .collect { ids ->
                     watchedVideoIds = ids

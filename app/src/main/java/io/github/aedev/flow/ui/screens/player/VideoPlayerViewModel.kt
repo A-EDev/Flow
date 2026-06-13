@@ -1908,7 +1908,7 @@ class VideoPlayerViewModel @Inject constructor(
                 channelId = channelId,
                 isLocal = isLocal
             )
-            if (duration > 0 && !isLocal) {
+            if (duration > 0 && !isLocal && !playerPreferences.isDeepFlowCurrentlyActive()) {
                 interestProfile.recordWatch(
                     videoTitle = title,
                     channelId = channelId,

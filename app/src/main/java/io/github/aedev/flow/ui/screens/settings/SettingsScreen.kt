@@ -120,6 +120,7 @@ fun SettingsScreen(
     val deepFlowActive by playerPreferences.deepFlowActive.collectAsState(initial = false)
     val deepFlowActivatedAt by playerPreferences.deepFlowActivatedAt.collectAsState(initial = 0L)
     val deepFlowExpireHours by playerPreferences.deepFlowExpireHours.collectAsState(initial = 4)
+    val deepFlowSaveHistory by playerPreferences.deepFlowSaveToHistory.collectAsState(initial = false)
     var showDeepFlowDurationDialog by remember { mutableStateOf(false) }
 
     val deepFlowRemainingLabel: String? = remember(deepFlowActive, deepFlowActivatedAt, deepFlowExpireHours) {
@@ -653,6 +654,43 @@ item {
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    HorizontalDivider(
+                        Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.History,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_save_history_title),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_save_history_subtitle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = deepFlowSaveHistory,
+                            onCheckedChange = { enabled ->
+                                coroutineScope.launch {
+                                    playerPreferences.setDeepFlowSaveToHistory(enabled)
+                                }
+                            }
                         )
                     }
                 }
