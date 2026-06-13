@@ -19,7 +19,7 @@
     <string name="library_playlists_label">Плейлисты</string>
     <string name="library_music_playlists_label">Музлисты</string>
     <string name="library_music_playlists_subtitle">Ваши музыкальные коллекции</string>
-    <string name="library_liked_videos_label">Понравившиеся видео</string>
+    <string name="library_liked_videos_label">Лайки</string>
     <string name="library_saved_shorts_label">Сохраненные Shorts</string>
     <string name="library_watch_later_label">Посмотреть позже</string>
     <string name="library_downloads_label">Загруженные</string>
@@ -37,9 +37,9 @@
     <string name="empty_watch_history_body">Здесь будут видео, которые вы смотрели</string>
     <string name="liked">"Понравилось "</string>
     <string name="liked_music">Понравившаяся музыка</string>
-    <string name="liked_videos">Понравившиеся видео</string>
+    <string name="liked_videos">Лайки</string>
     <string name="share_song">Поделиться песней</string>
-    <string name="empty_liked">Нет понравившихся видео</string>
+    <string name="empty_liked">Нет лайков</string>
     <string name="empty_liked_body">Здесь будут видео, которые вам понравились</string>
     <string name="song">Песня</string>
     <string name="video">Видео</string>
@@ -919,4 +919,12 @@
     <string name="player_fullscreen_seekbar_width_full">На всю ширину</string>
     <string name="player_fullscreen_seekbar_width_default">По умолчанию</string>
     <string name="player_fullscreen_seekbar_width_custom">Настроить</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Последнее обновление:%1$s</string>
+    <string name="add_to_library">Добавить в библиотеку</string>
+    <string name="saved_to_library">Сохранено в библиотеку</string>
+    <string name="failed_to_save_to_library">Не удалось сохранить в библиотеку</string>
+    <string name="open">Открыть</string>
+    <string name="refresh_lyrics">Обновить текст песни</string>
+    <string name="upcoming_video_reminder_enabled">Напоминание установлено</string>
+    <string name="upcoming_video_reminder_badge">Напоминание включено</string>
 </resources>

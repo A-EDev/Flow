@@ -70,7 +70,7 @@
     <string name="dislikes">عدم الإعجاب</string>
     <string name="quality">الدقة</string>
     <string name="duration">المدة</string>
-    <string name="reply">الرد</string>
+    <string name="reply">رد</string>
     <string name="hide_replies">إخفاء الردود</string>
     <string name="new_update_available">تحديث جديد متاح</string>
     <string name="update_available_template">%1$s متاح الأن</string>
@@ -1077,10 +1077,10 @@
     <string name="filter_newest">الأحدث</string>
     <string name="no_comments_yet">لا تعليقات بعد</string>
     <string name="read_more">اقرأ المزيد</string>
-    <string name="view_replies_template">عرض %1$d تعليق</string>
+    <string name="view_replies_template">عرض %1$d رد</string>
     <string name="pinned_comment">تعليق مثبت</string>
     <string name="pinned_by_creator">تم التثبيت بواسطة منشئ المحتوى</string>
-    <string name="nav_shorts">Shorts</string>
+    <string name="nav_shorts">مقاطع قصيرة</string>
     <string name="nav_music">موسيقى</string>
     <string name="tags">العلامات</string>
     <string name="ago">منذ</string>
