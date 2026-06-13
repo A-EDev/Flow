@@ -132,6 +132,8 @@ class EnhancedPlayerManager private constructor() {
     private var currentHlsUrl: String? = null
     private var currentIsLiveStream = false
     private var liveQualityHeights: List<Int> = emptyList()
+
+    private var pendingLiveQualityHeight: Int = 0
     private var lastLiveEdgeRecoveryMs = 0L
     private var preLivePlaybackSpeed: Float? = null
     private var pendingLiveDisplaySeekPositionMs: Long? = null
@@ -746,7 +748,8 @@ class EnhancedPlayerManager private constructor() {
         itAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
         preferredVideoCodec: String = "auto",
         keepAudioOnly: Boolean = false,
-        preferSabr: Boolean = false
+        preferSabr: Boolean = false,
+        preferredLiveQualityHeight: Int = 0
     ) {
         if (!isOnMainThread()) {
             autoNextLog("setStreams switching to main id=$videoId from=${Thread.currentThread().name}")
@@ -769,7 +772,8 @@ class EnhancedPlayerManager private constructor() {
                     itAudioFormats = itAudioFormats,
                     preferredVideoCodec = preferredVideoCodec,
                     keepAudioOnly = keepAudioOnly,
-                    preferSabr = preferSabr
+                    preferSabr = preferSabr,
+                    preferredLiveQualityHeight = preferredLiveQualityHeight
                 )
             }
             return
@@ -799,6 +803,7 @@ class EnhancedPlayerManager private constructor() {
         }
         val isLiveStream = useLiveManifest &&
             (!currentHlsUrl.isNullOrEmpty() || !currentDashManifestUrl.isNullOrEmpty())
+        pendingLiveQualityHeight = if (isLiveStream) preferredLiveQualityHeight else 0
         updateLivePlaybackMode(isLive = isLiveStream, forceLiveSpeedReset = true)
         pendingInitialLiveEdgeSeek = streamType == StreamType.LIVE_STREAM
         currentVideoId = videoId
@@ -859,6 +864,7 @@ class EnhancedPlayerManager private constructor() {
     private fun resetPlaybackStateForNewVideo(videoId: String) {
         currentVideoId = videoId
         liveQualityHeights = emptyList()
+        pendingLiveQualityHeight = 0
         lastLiveEdgeRecoveryMs = 0L
         qualityManager?.resetForNewVideo()
         playbackTracker?.reset()
@@ -2224,6 +2230,13 @@ class EnhancedPlayerManager private constructor() {
             availableQualities = options,
             effectiveQuality = manualHeight ?: heights.first()
         )
+
+        if (pendingLiveQualityHeight > 0 && manualHeight == null) {
+            val target = heights.firstOrNull { it <= pendingLiveQualityHeight } ?: heights.last()
+            pendingLiveQualityHeight = 0
+            Log.d(TAG, "Applying default live quality: ${target}p")
+            switchLiveQuality(target)
+        }
     }
 
     private fun switchLiveQuality(height: Int): Boolean {

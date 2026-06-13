@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "io.github.aedev.flow"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "io.github.aedev.flow"

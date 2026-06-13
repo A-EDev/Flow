@@ -41,6 +41,8 @@ import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
+import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
@@ -1144,7 +1146,12 @@ class VideoPlayerViewModel @Inject constructor(
                             }
                         } else null
 
-                        val subtitles = extractSubtitles(streamInfo)
+                        val captionStreams = innerTubeResult?.playerResponse
+                            ?.let { CaptionTrackResolver.resolve(it) }.orEmpty()
+                        val mergedSubtitleStreams = StreamProcessor.processSubtitleStreams(
+                            streamInfo.subtitles.orEmpty() + captionStreams
+                        )
+                        val subtitles = extractSubtitles(mergedSubtitleStreams)
                         val chapters = streamInfo.streamSegments ?: emptyList()
                         val liveType = streamInfo.streamType == StreamType.LIVE_STREAM ||
                             streamInfo.streamType == StreamType.POST_LIVE_STREAM ||
@@ -1205,7 +1212,7 @@ class VideoPlayerViewModel @Inject constructor(
                             audioStream = selectedStreams.second,
                             videoStreams = effectiveVideoStreams,
                             audioStreams = effectiveAudioStreams,
-                            subtitles = streamInfo.subtitles ?: emptyList(),
+                            subtitles = mergedSubtitleStreams,
                             savedPosition = savedPosition.first(),
                             localFilePath = localFilePath,
                             offlineSegments = offlineSegments,
@@ -1217,7 +1224,8 @@ class VideoPlayerViewModel @Inject constructor(
                             itVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
                             itAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),
                             preferredVideoCodec = preferredCodecKey,
-                            preferSabr = escalateToSabr
+                            preferSabr = escalateToSabr,
+                            preferredLiveQualityHeight = preferredQuality.height
                         )
 
                         if (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true) {
@@ -1491,7 +1499,8 @@ class VideoPlayerViewModel @Inject constructor(
         itAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
         preferredVideoCodec: String = "auto",
         dashManifestUrl: String? = null,
-        preferSabr: Boolean = false
+        preferSabr: Boolean = false,
+        preferredLiveQualityHeight: Int = 0
     ) = withContext(Dispatchers.Main) {
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         val manager = EnhancedPlayerManager.getInstance()
@@ -1543,7 +1552,8 @@ class VideoPlayerViewModel @Inject constructor(
                     itVideoFormats = itVideoFormats,
                     itAudioFormats = itAudioFormats,
                     preferredVideoCodec = preferredVideoCodec,
-                    preferSabr = preferSabr
+                    preferSabr = preferSabr,
+                    preferredLiveQualityHeight = preferredLiveQualityHeight
                 )
             }
         }
@@ -1551,6 +1561,15 @@ class VideoPlayerViewModel @Inject constructor(
 
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         manager.play()
+    }
+
+    private suspend fun preferredDefaultQualityHeight(): Int {
+        val quality = if (detectIsWifi()) {
+            playerPreferences.defaultQualityWifi.first()
+        } else {
+            playerPreferences.defaultQualityCellular.first()
+        }
+        return quality.height
     }
 
     private suspend fun prepareLiveStreamFromInnerTube(
@@ -1593,6 +1612,10 @@ class VideoPlayerViewModel @Inject constructor(
         val autoplay = playerPreferences.autoplayEnabled.first()
         manager.setAutoplayCandidates(sourceVideoId = videoId, videos = relatedVideos, enabled = autoplay)
 
+        val liveCaptionStreams = StreamProcessor.processSubtitleStreams(
+            CaptionTrackResolver.resolve(result.playerResponse)
+        )
+
         _uiState.update {
             it.copy(
                 streamInfo = null,
@@ -1604,6 +1627,7 @@ class VideoPlayerViewModel @Inject constructor(
                 isLive = true,
                 isUpcoming = false,
                 upcomingReleaseTimeMs = null,
+                subtitles = extractSubtitles(liveCaptionStreams),
                 innerTubeVideoFormats = emptyList(),
                 innerTubeAudioFormats = emptyList()
             )
@@ -1618,12 +1642,13 @@ class VideoPlayerViewModel @Inject constructor(
             audioStream = null,
             videoStreams = emptyList(),
             audioStreams = emptyList(),
-            subtitles = emptyList(),
+            subtitles = liveCaptionStreams,
             durationSeconds = 0L,
             dashManifestUrl = result.liveDashUrl,
             hlsUrl = result.liveHlsUrl,
             streamType = StreamType.LIVE_STREAM,
-            startPosition = 0L
+            startPosition = 0L,
+            preferredLiveQualityHeight = preferredDefaultQualityHeight()
         )
         applyRememberedPlaybackSpeed(isLive = true, manager = manager)
 
@@ -2277,10 +2302,12 @@ class VideoPlayerViewModel @Inject constructor(
         return QualityManager.normalizeQualityHeight(labelHeight ?: fallbackHeight)
     }
     
-    private fun extractSubtitles(streamInfo: StreamInfo): List<SubtitleInfo> {
-        return streamInfo.subtitles.map { subtitle ->
+    private fun extractSubtitles(
+        subtitleStreams: List<org.schabi.newpipe.extractor.stream.SubtitlesStream>
+    ): List<SubtitleInfo> {
+        return subtitleStreams.map { subtitle ->
             SubtitleInfo(
-                url = subtitle.url ?: "",
+                url = subtitle.getContent() ?: "",
                 format = subtitle.format?.mimeType ?: "text/vtt",
                 language = subtitle.displayLanguageName ?: subtitle.languageTag,
                 languageCode = subtitle.languageTag,

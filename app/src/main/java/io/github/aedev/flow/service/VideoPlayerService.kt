@@ -36,6 +36,8 @@ class VideoPlayerService : MediaSessionService() {
         private const val TAG = "VideoPlayerService"
         private const val LOCK_RELEASE_DELAY_MS = 30_000L
         private const val FALLBACK_CHANNEL_ID = "video_playback_fallback"
+        private const val MEDIA_CHANNEL_ID = "video_playback_media"
+        private const val FALLBACK_NOTIFICATION_ID = 7892
 
         const val EXTRA_VIDEO_ID = "video_id"
         const val EXTRA_VIDEO_TITLE = "video_title"
@@ -76,7 +78,12 @@ class VideoPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        setMediaNotificationProvider(DefaultMediaNotificationProvider.Builder(this).build())
+        val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
+            .setChannelId(MEDIA_CHANNEL_ID)
+            .setChannelName(R.string.app_name)
+            .build()
+            .apply { setSmallIcon(R.drawable.ic_notification_logo) }
+        setMediaNotificationProvider(notificationProvider)
         serviceLog("onCreate")
 
         try {
@@ -109,12 +116,12 @@ class VideoPlayerService : MediaSessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        promoteToForeground()
         super.onStartCommand(intent, flags, startId)
         serviceLog("onStartCommand action=${intent?.action}")
 
         if (EnhancedPlayerManager.getInstance().getVideoMediaSession() == null) {
-            serviceLog("No media session available — stopping after placeholder promotion")
+            serviceLog("No media session available — placeholder then stop")
+            promoteToForeground()
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf(startId)
             return START_NOT_STICKY
@@ -133,7 +140,7 @@ class VideoPlayerService : MediaSessionService() {
                 .setSilent(true)
                 .build()
             ServiceCompat.startForeground(
-                this, DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID, notification,
+                this, FALLBACK_NOTIFICATION_ID, notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
             )
         } catch (e: Exception) {

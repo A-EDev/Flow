@@ -63,11 +63,12 @@ class VideoPlaybackResolver(
 
                 return androidx.media3.exoplayer.hls.HlsMediaSource.Factory(liveHlsDataSourceFactory)
                     .setAllowChunklessPreparation(true)
-                    .setPlaylistTrackerFactory { dataSourceFactory, loadErrorHandlingPolicy, playlistParserFactory ->
+                    .setPlaylistTrackerFactory { dataSourceFactory, loadErrorHandlingPolicy, playlistParserFactory, cmcdConfiguration ->
                         DefaultHlsPlaylistTracker(
                             dataSourceFactory,
                             loadErrorHandlingPolicy,
                             playlistParserFactory,
+                            cmcdConfiguration,
                             PLAYLIST_STUCK_TARGET_DURATION_COEFFICIENT
                         )
                     }

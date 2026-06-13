@@ -10,6 +10,10 @@ IMPROVEMENTS
 - Add remove button "X" on continue watching shelf's cards
 - Improve SABR implementation
 - Bump NewPipeExtractor to v0.26.3 and set it as primary source with native SABR fallback
+- Bump Media3/ExoPlayer to 1.6.1 for more reliable background playback notifications
+- Apply default quality settings to live streams #576
+- Add a full list of audio languages to the preferred audio language setting #580
+- List all available captions, including auto-translated tracks
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

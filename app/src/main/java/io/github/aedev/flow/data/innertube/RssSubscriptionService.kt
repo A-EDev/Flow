@@ -24,7 +24,7 @@ object RssSubscriptionService {
     private const val TAG = "InnertubeSubs"
     private const val YOUTUBE_URL = "https://www.youtube.com"
 
-    private const val RSS_CHUNK_SIZE = 6
+    private const val RSS_CHUNK_SIZE = 20
     private const val CHANNEL_CHUNK_SIZE = 3
     private const val CHANNEL_BATCH_SIZE = 50
     private val CHANNEL_BATCH_DELAY = (100L..400L)

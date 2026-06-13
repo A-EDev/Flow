@@ -44,7 +44,9 @@ object NotificationHelper {
     const val NOTIFICATION_DOWNLOAD_PROGRESS = 1001
     const val NOTIFICATION_DOWNLOAD_COMPLETE = 1002
     const val NOTIFICATION_DOWNLOAD_FAILED = 1003
-    const val NOTIFICATION_NEW_VIDEO = 2000 // Base ID, will be offset by channel
+    const val NOTIFICATION_NEW_VIDEO = 2000 // Base ID, per-video IDs are this + (videoId hash & 0xFFFF)
+    const val NOTIFICATION_NEW_VIDEO_SUMMARY = 1999 // Group summary; kept below the per-video range
+    private const val GROUP_NEW_VIDEOS = "new_videos"
     const val NOTIFICATION_PLAYBACK = 3001
     const val NOTIFICATION_MUSIC_PLAYBACK = 3002
     const val NOTIFICATION_GENERAL = 4000
@@ -407,12 +409,7 @@ object NotificationHelper {
     )
 
     /**
-     * Smart dispatcher for subscription update notifications.
-     *
-     * - 0 entries  → no-op
-     * - 1 entry    → full individual notification with thumbnail
-     * - 2+ entries → single grouped InboxStyle notification listing all channels;
-     *                shows up as one notification in the shade instead of a flood
+     * Dispatcher for subscription update notifications.
      */
     suspend fun showSubscriptionUpdates(context: Context, videos: List<NewVideoEntry>) {
         if (!hasNotificationPermission(context)) return
@@ -432,8 +429,10 @@ object NotificationHelper {
             )
         }
 
-        if (videos.size == 1) {
-            val v = videos.first()
+        val manager = NotificationManagerCompat.from(context)
+        val multiple = videos.size > 1
+
+        videos.forEach { v ->
             val notifId = NOTIFICATION_NEW_VIDEO + v.videoId.hashCode().and(0xFFFF)
             val watchIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -453,6 +452,7 @@ object NotificationHelper {
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setCategory(NotificationCompat.CATEGORY_SOCIAL)
+                .setGroup(GROUP_NEW_VIDEOS)
             v.thumbnailUrl?.let { url ->
                 getBitmapFromUrl(url)?.let { bm ->
                     builder.setLargeIcon(bm)
@@ -461,22 +461,22 @@ object NotificationHelper {
                     )
                 }
             }
-            NotificationManagerCompat.from(context).notify(notifId, builder.build())
-            return
+            manager.notify(notifId, builder.build())
         }
+
+        if (!multiple) return
 
         val summaryIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val summaryPendingIntent = PendingIntent.getActivity(
             context,
-            NOTIFICATION_NEW_VIDEO,
+            NOTIFICATION_NEW_VIDEO_SUMMARY,
             summaryIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val inboxStyle = NotificationCompat.InboxStyle()
             .setBigContentTitle("${videos.size} new videos")
-
         videos.take(6).forEach { v ->
             inboxStyle.addLine("${v.channelName}: ${v.videoTitle}")
         }
@@ -494,10 +494,12 @@ object NotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_SOCIAL)
             .setStyle(inboxStyle)
+            .setGroup(GROUP_NEW_VIDEOS)
+            .setGroupSummary(true)
             .setNumber(videos.size)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_NEW_VIDEO, summaryNotification)
+        manager.notify(NOTIFICATION_NEW_VIDEO_SUMMARY, summaryNotification)
     }
 
     /**

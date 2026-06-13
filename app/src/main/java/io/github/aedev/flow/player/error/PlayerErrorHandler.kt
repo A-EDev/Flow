@@ -51,7 +51,7 @@ class PlayerErrorHandler(
 ) {
     companion object {
         private const val TAG = "PlayerErrorHandler"
-        private const val MAX_CONSECUTIVE_EXPIRY = 5
+        private const val MAX_CONSECUTIVE_EXPIRY = 3
         private const val EXPIRY_DEBOUNCE_MS = 1500L
     }
 
