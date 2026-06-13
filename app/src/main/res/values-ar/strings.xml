@@ -1663,4 +1663,16 @@
     <string name="donation_prompt_support">إدعم التطوير</string>
     <string name="donation_prompt_later">رُبما لاحقاً</string>
     <string name="donation_prompt_never">لا تظهر مجدداً</string>
+    <string name="library_local_media_label">الوسائط المحلية</string>
+    <string name="library_local_media_subtitle">شَغٍل مقاطع الفيديو و الموسيقى على هذا الجهاز</string>
+    <string name="local_media_title">الوسائط المحلية</string>
+    <string name="local_media_rescan">إعادة فحص</string>
+    <string name="local_media_scanning">جاري فحص جِهازك…</string>
+    <string name="local_media_empty_title">لا يوجد %1$s</string>
+    <string name="local_media_empty_body">سَتظهر هنا مقاطع الفيديو والموسيقى المخزنة على هذا الجهاز.</string>
+    <string name="local_media_permission_title">الإذن مطلوب</string>
+    <string name="local_media_permission_body">إسمح بالوصول إلى الوسائط الخاصة بك حتى يتمكن Flow من العثور على مقاطع الفيديو والموسيقى المحلية وتشغيلها.</string>
+    <string name="local_media_grant">منح الوصول</string>
+    <string name="history_tab_local_videos">الفيديوهات المحلية</string>
+    <string name="history_tab_local_music">الموسيقي المحلية</string>
 </resources>
