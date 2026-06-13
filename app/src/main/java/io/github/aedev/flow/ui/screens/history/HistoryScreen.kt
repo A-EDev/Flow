@@ -714,13 +714,17 @@ private enum class HistoryContentFilter {
     All,
     Videos,
     Shorts,
-    Music;
+    Music,
+    LocalVideos,
+    LocalMusic;
 
     fun matches(entry: VideoHistoryEntry): Boolean = when (this) {
-        All -> true
-        Videos -> !entry.isMusic && !entry.isShort
-        Shorts -> !entry.isMusic && entry.isShort
-        Music -> entry.isMusic
+        All -> !entry.isLocal
+        Videos -> !entry.isMusic && !entry.isShort && !entry.isLocal
+        Shorts -> !entry.isMusic && entry.isShort && !entry.isLocal
+        Music -> entry.isMusic && !entry.isLocal
+        LocalVideos -> entry.isLocal && !entry.isMusic
+        LocalMusic -> entry.isLocal && entry.isMusic
     }
 }
 
@@ -730,6 +734,8 @@ private fun HistoryContentFilter.label(): String = when (this) {
     HistoryContentFilter.Videos -> stringResource(R.string.history_tab_videos)
     HistoryContentFilter.Shorts -> stringResource(R.string.history_tab_shorts)
     HistoryContentFilter.Music -> stringResource(R.string.nav_music)
+    HistoryContentFilter.LocalVideos -> stringResource(R.string.history_tab_local_videos)
+    HistoryContentFilter.LocalMusic -> stringResource(R.string.history_tab_local_music)
 }
 
 private enum class HistorySort {

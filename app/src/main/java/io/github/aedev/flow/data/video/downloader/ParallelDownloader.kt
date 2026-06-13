@@ -23,10 +23,26 @@ class ParallelDownloader @Inject constructor() {
 
     companion object {
         private const val TAG = "ParallelDownloader"
-        private const val BUFFER_SIZE = 512 * 1024      
-        private const val BLOCK_SIZE = 2L * 1024 * 1024  
-        private const val MAX_RETRIES = 5               
+        private const val BUFFER_SIZE = 512 * 1024
+        private const val BLOCK_SIZE = 2L * 1024 * 1024
+        private const val MAX_RETRIES = 5
         private const val INITIAL_RETRY_DELAY_MS = 2000L
+        private const val UA_IOS = "com.google.ios.youtube/21.03.3 (iPad7,6; U; CPU iPadOS 17_7_10 like Mac OS X; en-US)"
+        private const val UA_ANDROID = "com.google.android.youtube/21.03.38 (Linux; U; Android 14) gzip"
+        private const val UA_ANDROID_VR = "com.google.android.apps.youtube.vr.oculus/1.61.48 (Linux; U; Android 12; en_US; Quest 3; Build/SQ3A.220605.009.A1; Cronet/132.0.6808.3)"
+    }
+
+    private fun resolveUserAgent(url: String, fallback: String): String {
+        return try {
+            when (Uri.parse(url).getQueryParameter("c")?.uppercase()) {
+                "IOS" -> UA_IOS
+                "ANDROID", "ANDROID_CREATOR" -> UA_ANDROID
+                "ANDROID_VR" -> UA_ANDROID_VR
+                else -> fallback
+            }
+        } catch (_: Exception) {
+            fallback
+        }
     }
 
     private var _client: OkHttpClient? = null
@@ -401,12 +417,13 @@ class ParallelDownloader @Inject constructor() {
         }
 
         val isYT = isYouTubeStreamUrl(url)
+        val effectiveUserAgent = resolveUserAgent(url, mission.userAgent)
 
         val request = if (isYT) {
             val rangedUrl = buildYouTubeBlockUrl(url, resumeFrom, endByte)
             Request.Builder()
                 .url(rangedUrl)
-                .header("User-Agent", mission.userAgent)
+                .header("User-Agent", effectiveUserAgent)
                 .header("Origin", "https://www.youtube.com")
                 .header("Referer", "https://www.youtube.com/")
                 .header("Accept", "*/*")
@@ -416,7 +433,7 @@ class ParallelDownloader @Inject constructor() {
             Request.Builder()
                 .url(url)
                 .header("Range", "bytes=$resumeFrom-$endByte")
-                .header("User-Agent", mission.userAgent)
+                .header("User-Agent", effectiveUserAgent)
                 .build()
         }
 
@@ -478,12 +495,13 @@ class ParallelDownloader @Inject constructor() {
 
     private fun getContentLength(client: OkHttpClient, url: String, userAgent: String): Long {
         val useQueryRange = isYouTubeStreamUrl(url)
+        val effectiveUserAgent = resolveUserAgent(url, userAgent)
         return try {
             if (!useQueryRange) {
                 val request = Request.Builder()
                     .url(url)
                     .head()
-                    .header("User-Agent", userAgent)
+                    .header("User-Agent", effectiveUserAgent)
                     .build()
                 val response = client.newCall(request).execute()
                 val length = response.header("Content-Length")?.toLongOrNull() ?: -1L
@@ -495,7 +513,7 @@ class ParallelDownloader @Inject constructor() {
                 // YouTube: use query-range
                 Request.Builder()
                     .url(buildYouTubeBlockUrl(url, 0L, 0L))
-                    .header("User-Agent", userAgent)
+                    .header("User-Agent", effectiveUserAgent)
                     .header("Origin", "https://www.youtube.com")
                     .header("Referer", "https://www.youtube.com/")
                     .build()
@@ -503,7 +521,7 @@ class ParallelDownloader @Inject constructor() {
                 Request.Builder()
                     .url(url)
                     .header("Range", "bytes=0-0")
-                    .header("User-Agent", userAgent)
+                    .header("User-Agent", effectiveUserAgent)
                     .build()
             }
             val rangeResponse = client.newCall(rangeRequest).execute()

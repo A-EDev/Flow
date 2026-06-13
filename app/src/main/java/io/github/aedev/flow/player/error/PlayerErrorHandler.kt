@@ -36,6 +36,7 @@ class PlayerErrorHandler(
     private val onQualityDowngrade: () -> Unit,
     private val onPlaybackShutdown: () -> Unit,
     private val onStreamExpired: () -> Unit,
+    private val onGatedCodecFallback: (Long) -> Boolean,
     private val getFailedStreamUrls: () -> Set<String>,
     private val markStreamFailed: (String) -> Unit,
     private val incrementStreamErrors: () -> Unit,
@@ -225,9 +226,15 @@ class PlayerErrorHandler(
         )
         return when (httpCode) {
             403, 410 -> {
-                Log.w(TAG, "HTTP $httpCode — stream URL expired ('YouTube changed data'). Triggering extractor reload.")
-                PlayerDiagnostics.logWarning(TAG, "YouTube stream URL expired (HTTP $httpCode) — requesting fresh stream info")
-                handleStreamExpired("http-$httpCode")
+                if (onGatedCodecFallback(player?.currentPosition ?: 0L)) {
+                    Log.w(TAG, "HTTP $httpCode on AV1 — switched to a compatible codec at the same resolution")
+                    PlayerDiagnostics.logWarning(TAG, "AV1 stream CDN-gated (HTTP $httpCode) — switched to a compatible codec")
+                    resetExpiryCounter()
+                } else {
+                    Log.w(TAG, "HTTP $httpCode — stream URL expired ('YouTube changed data'). Triggering extractor reload.")
+                    PlayerDiagnostics.logWarning(TAG, "YouTube stream URL expired (HTTP $httpCode) — requesting fresh stream info")
+                    handleStreamExpired("http-$httpCode")
+                }
                 true
             }
             404 -> {

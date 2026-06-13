@@ -432,6 +432,7 @@ class EnhancedPlayerManager private constructor() {
             onQualityDowngrade = { attemptQualityDowngrade() },
             onPlaybackShutdown = { onPlaybackShutdown() },
             onStreamExpired = { scope.launch { _streamExpiredEvent.emit(Unit) } },
+            onGatedCodecFallback = { position -> qualityManager?.fallbackToAlternateCodec(position) ?: false },
             getFailedStreamUrls = { qualityManager?.let { qm ->
                 availableVideoStreams.filter { qm.hasStreamFailed(it.getContent()) }.map { it.getContent() }.toSet()
             } ?: emptySet() },

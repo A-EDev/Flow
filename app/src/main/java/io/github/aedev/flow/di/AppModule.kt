@@ -4,6 +4,7 @@ import android.content.Context
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.innertube.YouTube
 import coil.ImageLoader
+import coil.decode.VideoFrameDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.util.DebugLogger
@@ -39,6 +40,7 @@ object AppModule {
     ): ImageLoader {
         return ImageLoader.Builder(context)
             .okHttpClient(okHttpClient)
+            .components { add(VideoFrameDecoder.Factory()) }
             .memoryCache {
                 MemoryCache.Builder(context)
                     .maxSizePercent(0.10)

@@ -56,9 +56,12 @@ fun EnhancedVideoPlayerScreen(
     val comments by viewModel.commentsState.collectAsStateWithLifecycle()
     
     val preferences = remember { PlayerPreferences(context) }
-    val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
-    val commentsEnabled by preferences.commentsEnabled.collectAsState(initial = true)
+    val showRelatedVideosPref by preferences.showRelatedVideos.collectAsState(initial = true)
+    val commentsEnabledPref by preferences.commentsEnabled.collectAsState(initial = true)
     val showCommentsPreview by preferences.commentsPreviewEnabled.collectAsState(initial = true)
+    val isLocalMedia = video.id.startsWith("local_")
+    val showRelatedVideos = showRelatedVideosPref && !isLocalMedia
+    val commentsEnabled = commentsEnabledPref && !isLocalMedia
     val relatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
     Box(
         modifier = Modifier

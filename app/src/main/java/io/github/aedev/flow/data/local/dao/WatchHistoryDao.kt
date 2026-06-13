@@ -39,10 +39,10 @@ interface WatchHistoryDao {
     @Query("SELECT * FROM watch_history ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
     suspend fun getHistoryPage(limit: Int, offset: Int): List<WatchHistoryEntity>
 
-    @Query("SELECT * FROM watch_history WHERE isMusic = 0 ORDER BY timestamp DESC")
+    @Query("SELECT * FROM watch_history WHERE isMusic = 0 AND isLocal = 0 ORDER BY timestamp DESC")
     fun getVideoHistory(): Flow<List<WatchHistoryEntity>>
 
-    @Query("SELECT * FROM watch_history WHERE isMusic = 1 ORDER BY timestamp DESC")
+    @Query("SELECT * FROM watch_history WHERE isMusic = 1 AND isLocal = 0 ORDER BY timestamp DESC")
     fun getMusicHistory(): Flow<List<WatchHistoryEntity>>
 
     @Query("SELECT * FROM watch_history WHERE videoId = :videoId")
@@ -54,24 +54,26 @@ interface WatchHistoryDao {
     @Query("SELECT COUNT(*) FROM watch_history")
     fun getCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM watch_history WHERE isMusic = 0")
+    @Query("SELECT COUNT(*) FROM watch_history WHERE isMusic = 0 AND isLocal = 0")
     fun getVideoCount(): Flow<Int>
 
     /**
      * Returns video IDs that the user has already watched (position > 0 OR appeared in history).
-     * Used to filter watched shorts from the subscription shelf.
+     * Used to filter watched shorts from the subscription shelf. Local files are excluded so the
+     * recommendation/feed engine never learns from them.
      */
-    @Query("SELECT videoId FROM watch_history WHERE isMusic = 0")
+    @Query("SELECT videoId FROM watch_history WHERE isMusic = 0 AND isLocal = 0")
     suspend fun getAllWatchedVideoIds(): List<String>
 
     /**
      * Returns video IDs where the user has watched at least [minPercent]% of the video.
      * Used for the hide-watched filter so that merely opening a video (0% progress)
-     * does not cause it to be hidden.
+     * does not cause it to be hidden. Local files are excluded (engine must not learn from them).
      */
     @Query("""
         SELECT videoId FROM watch_history
         WHERE isMusic = 0
+        AND isLocal = 0
         AND duration > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
     """)
@@ -80,6 +82,7 @@ interface WatchHistoryDao {
     @Query("""
         SELECT videoId FROM watch_history
         WHERE isMusic = 0
+        AND isLocal = 0
         AND isShort = 1
         AND duration > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
@@ -102,11 +105,12 @@ interface WatchHistoryDao {
         SELECT * FROM watch_history
         WHERE isMusic = 0
         AND isShort = 0
+        AND isLocal = 0
         AND duration > 0
         AND position > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) < 0.95
         AND (duration - position) > 30000
-        AND timestamp = (SELECT MAX(timestamp) FROM watch_history WHERE isMusic = 0 AND isShort = 0)
+        AND timestamp = (SELECT MAX(timestamp) FROM watch_history WHERE isMusic = 0 AND isShort = 0 AND isLocal = 0)
         LIMIT 1
     """)
     suspend fun getLatestUnfinishedVideo(): WatchHistoryEntity?

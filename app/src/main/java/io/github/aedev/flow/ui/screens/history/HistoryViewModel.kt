@@ -87,9 +87,11 @@ class HistoryViewModel : ViewModel() {
 
                 val stubs = enriched
                     .filter { entry ->
-                        entry.title.isEmpty() ||
-                            entry.channelName.isEmpty() ||
-                            (entry.isShort && !shortVideos.containsKey(entry.videoId))
+                        !entry.isLocal && (
+                            entry.title.isEmpty() ||
+                                entry.channelName.isEmpty() ||
+                                (entry.isShort && !shortVideos.containsKey(entry.videoId))
+                        )
                     }
                     .distinctBy { it.videoId }
                     .take(30)

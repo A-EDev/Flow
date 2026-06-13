@@ -128,6 +128,7 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     private fun isPlaybackLoadCurrent(token: Long): Boolean = playbackLoadToken == token
+    private fun isLocalMediaId(id: String?): Boolean = id?.startsWith("local_") == true
 
     private fun cancelActivePlaybackLoad() {
         activeLoadJob?.cancel()
@@ -583,10 +584,58 @@ class VideoPlayerViewModel @Inject constructor(
         loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
     }
 
-    /**
-     * Clears all video player state, stops playback and resets UI.
-     * This should be called when the video player is dismissed.
-     */
+    fun playLocalVideo(video: Video, contentUri: String) {
+        val loadToken = nextPlaybackLoadToken()
+        cancelActivePlaybackLoad()
+
+        streamExpiryVideoId = null
+        streamExpiryCount = 0
+
+        EnhancedPlayerManager.getInstance().pause()
+        EnhancedPlayerManager.getInstance().clearAll()
+        EnhancedMusicPlayerManager.stop()
+        EnhancedMusicPlayerManager.clearCurrentTrack()
+
+        _uiState.value = _uiState.value.copy(
+            cachedVideo = video,
+            isRestoredSession = false,
+            isLoading = false,
+            error = null,
+            errorHint = null,
+            metadataError = null,
+            streamInfo = null,
+            videoStream = null,
+            audioStream = null,
+            savedPosition = null,
+            relatedVideos = emptyList(),
+            isSubscribed = false,
+            likeState = null,
+            isUpcoming = false,
+            upcomingReleaseTimeMs = null,
+            localFilePath = contentUri,
+            localFileVideoId = video.id,
+            offlineSponsorBlockSegments = null
+        )
+        GlobalPlayerState.setCurrentVideo(video)
+        EnhancedPlayerManager.getInstance().startBackgroundService(
+            videoId   = video.id,
+            title     = video.title.ifEmpty { "Flow Player" },
+            channel   = video.channelName,
+            thumbnail = video.thumbnailUrl
+        )
+
+        viewModelScope.launch {
+            val resumePosition = runCatching { viewHistory.getSavedPosition(video.id) }.getOrDefault(0L)
+            prepareLocalMediaForPlayback(
+                videoId = video.id,
+                localFilePath = contentUri,
+                offlineSegments = null,
+                savedPosition = resumePosition,
+                loadToken = loadToken
+            )
+        }
+    }
+
     fun clearVideo() {
         nextPlaybackLoadToken()
         cancelActivePlaybackLoad()
@@ -603,12 +652,10 @@ class VideoPlayerViewModel @Inject constructor(
             ) 
         }
         
-        // Reset history
         navigationHistory.clear()
         currentHistoryIndex = -1
         _canGoPrevious.value = false
         
-        // Clear related content
         _commentsState.value = emptyList()
         _isLoadingComments.value = false
         commentsNextPage = null
@@ -616,12 +663,6 @@ class VideoPlayerViewModel @Inject constructor(
         _isLoadingMoreComments.value = false
     }
 
-    /**
-     * Puts the player into background mode (audio-only) and signals the UI to dismiss.
-     * If the current video's audio stream is available, hands off to the music player
-     * so the mini music player remains visible and playback continues seamlessly from
-     * the current position.
-     */
     fun startBackgroundService() {
         val state = _uiState.value
         val audioUrl = state.audioStream?.content
@@ -640,7 +681,6 @@ class VideoPlayerViewModel @Inject constructor(
             EnhancedPlayerManager.getInstance().pause()
             EnhancedMusicPlayerManager.playTrack(musicTrack, audioUrl, startPositionMs = positionMs)
         } else {
-            // Fallback: keep video ExoPlayer running in audio-only mode
             EnhancedPlayerManager.getInstance().switchToAudioOnly()
         }
         _uiState.update { it.copy(shouldDismissPlayer = true) }
@@ -650,10 +690,6 @@ class VideoPlayerViewModel @Inject constructor(
         _uiState.update { it.copy(shouldDismissPlayer = false) }
     }
 
-    /**
-     * Retry loading the current video after an error.
-     * Uses the cached video metadata to know which video to reload.
-     */
     fun retryLoadVideo() {
         val videoId = _uiState.value.cachedVideo?.id ?: return
         Log.d("VideoPlayerViewModel", "Retrying video load for $videoId")
@@ -732,14 +768,11 @@ class VideoPlayerViewModel @Inject constructor(
         if (videos.isEmpty()) return
         val startVideo = videos.getOrNull(startIndex) ?: videos.first()
         
-        // Stop music player
         EnhancedMusicPlayerManager.stop()
         EnhancedMusicPlayerManager.clearCurrentTrack()
         
-        // Update Player Manager Queue
         EnhancedPlayerManager.getInstance().setQueue(videos, startIndex, title)
         
-        // Update UI state immediately
         _uiState.update { 
             it.copy(
                 cachedVideo = startVideo,
@@ -768,7 +801,6 @@ class VideoPlayerViewModel @Inject constructor(
         if (applyUpcomingState(startVideo, preserveQueueTitle = title)) {
             return
         }
-        // Start loading the first video
         loadVideoInfo(startVideo.id, isWifi = detectIsWifi(), forceRefresh = true)
     }
 
@@ -819,6 +851,10 @@ class VideoPlayerViewModel @Inject constructor(
      *   session-gated URLs that just 403'd, so re-trying them loops.
      */
     fun loadVideoInfo(videoId: String, isWifi: Boolean = true, forceRefresh: Boolean = false, escalateToSabr: Boolean = false) {
+        if (isLocalMediaId(videoId)) {
+            Log.d("VideoPlayerViewModel", "loadVideoInfo: $videoId is a local file — skipping all network loading")
+            return
+        }
         val currentState = _uiState.value
         Log.d("VideoPlayerViewModel", "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh, escalateToSabr=$escalateToSabr")
 
@@ -1834,12 +1870,7 @@ class VideoPlayerViewModel @Inject constructor(
             switchQuality(availableQualities[currentIndex - 1])
         }
     }
-    
-    /**
-     * Eagerly records a video as opened in history (position = 0).
-     * Called the moment the user opens any video so history is always populated,
-     * regardless of how quickly they close the player.
-     */
+
     private fun saveHistoryEntry(video: Video) {
         if (video.id.startsWith("recovered_")) return
         viewModelScope.launch {
@@ -1857,14 +1888,15 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     fun savePlaybackPosition(
-        videoId: String, 
-        position: Long, 
-        duration: Long, 
-        title: String, 
+        videoId: String,
+        position: Long,
+        duration: Long,
+        title: String,
         thumbnailUrl: String,
         channelName: String = "",
         channelId: String = ""
     ) {
+        val isLocal = isLocalMediaId(videoId)
         viewModelScope.launch {
             viewHistory.savePlaybackPosition(
                 videoId = videoId,
@@ -1873,9 +1905,10 @@ class VideoPlayerViewModel @Inject constructor(
                 title = title,
                 thumbnailUrl = thumbnailUrl,
                 channelName = channelName,
-                channelId = channelId
+                channelId = channelId,
+                isLocal = isLocal
             )
-            if (duration > 0) {
+            if (duration > 0 && !isLocal) {
                 interestProfile.recordWatch(
                     videoTitle = title,
                     channelId = channelId,
@@ -1889,6 +1922,7 @@ class VideoPlayerViewModel @Inject constructor(
     
     fun reportWatchProgress(video: io.github.aedev.flow.data.model.Video, position: Long, duration: Long) {
         if (duration <= 0) return
+        if (isLocalMediaId(video.id)) return
         val watchFraction = position.toDouble() / duration
         // Only report if watched at least 20% and not already reported for this video
         // within a 10-second dedup window (guards against DisposableEffect re-fires).
@@ -2077,6 +2111,12 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     fun loadComments(videoId: String) {
+        if (isLocalMediaId(videoId)) {
+            _commentsState.value = emptyList()
+            _isLoadingComments.value = false
+            _hasMoreComments.value = false
+            return
+        }
         viewModelScope.launch {
             _isLoadingComments.value = true
             _commentsState.value = emptyList()

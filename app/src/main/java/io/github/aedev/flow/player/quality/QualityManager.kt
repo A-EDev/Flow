@@ -525,6 +525,47 @@ class QualityManager(
         return null
     }
     
+    fun fallbackToAlternateCodec(currentPosition: Long): Boolean {
+        val current = currentVideoStream ?: return false
+        val failingCodec = VideoCodecUtils.codecKeyFromStream(current)
+        if (!failingCodec.equals("av1", ignoreCase = true)) return false
+
+        val currentHeight = qualityHeight(current)
+        markStreamFailed(current.getContent())
+
+        val candidate = getWorkingStreams()
+            .filter { !VideoCodecUtils.codecKeyFromStream(it).equals("av1", ignoreCase = true) }
+            .minWithOrNull(
+                compareBy<VideoStream> { kotlin.math.abs(qualityHeight(it) - currentHeight) }
+                    .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                    .thenByDescending { it.bitrate }
+            )
+        if (candidate == null) {
+            Log.w(TAG, "Codec fallback: no non-AV1 stream available for ${currentHeight}p")
+            return false
+        }
+
+        val targetHeight = qualityHeight(candidate)
+        val targetCodec = VideoCodecUtils.codecKeyFromStream(candidate)
+        currentVideoStream = candidate
+        streamErrorCount = 0
+        lastAdaptiveQualityHeight = targetHeight
+        if (!isAdaptiveQualityEnabled) manualQualityHeight = targetHeight
+
+        Log.w(TAG, "Codec fallback: ${VideoCodecUtils.codecLabelFromKey(failingCodec)} ${currentHeight}p gated by CDN (403) → ${VideoCodecUtils.codecLabelFromKey(targetCodec)} ${targetHeight}p")
+
+        onQualitySwitch(candidate, currentPosition)
+
+        stateFlow.value = stateFlow.value.copy(
+            currentQuality = if (isAdaptiveQualityEnabled) 0 else targetHeight,
+            effectiveQuality = targetHeight,
+            currentQualityKey = if (isAdaptiveQualityEnabled) null else streamKey(candidate),
+            isBuffering = true,
+            error = null
+        )
+        return true
+    }
+
     /**
      * Downgrade quality due to bandwidth issues.
      * Returns the new stream or null if already at lowest quality.

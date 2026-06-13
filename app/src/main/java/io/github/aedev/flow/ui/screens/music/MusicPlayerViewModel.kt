@@ -111,10 +111,12 @@ class MusicPlayerViewModel @Inject constructor(
                     duration = if (track != null) track.duration * 1000L else 0L,
                     currentPosition = 0L
                 ) }
-                track?.let { 
-                    checkIfFavorite(it.videoId)
-                    fetchLyrics(it.videoId, it.artist, it.title, it.duration, it.album)
-                    fetchRelatedContent(it.videoId)
+                track?.let {
+                    if (!isLocalMediaId(it.videoId)) {
+                        checkIfFavorite(it.videoId)
+                        fetchLyrics(it.videoId, it.artist, it.title, it.duration, it.album)
+                        fetchRelatedContent(it.videoId)
+                    }
                 }
             }
         }
@@ -194,6 +196,46 @@ class MusicPlayerViewModel @Inject constructor(
             }
         }
     }
+
+    fun playLocalMusic(track: MusicTrack, queue: List<MusicTrack>, localUris: Map<String, Uri>) {
+        loadTrackJob?.cancel()
+        loadTrackJob = viewModelScope.launch {
+            val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
+            _uiState.update {
+                it.copy(
+                    currentTrack = track,
+                    isLoading = false,
+                    error = null,
+                    playingFrom = "Local media",
+                    selectedFilter = FILTER_ALL
+                )
+            }
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                EnhancedMusicPlayerManager.playTrack(
+                    track = track,
+                    audioUrl = localUris[track.videoId]?.toString() ?: "",
+                    queue = activeQueue,
+                    sourceName = "Local media",
+                    localUriOverrides = localUris
+                )
+            }
+            launch(PerformanceDispatcher.diskIO) {
+                viewHistory.savePlaybackPosition(
+                    videoId      = track.videoId,
+                    position     = 0,
+                    duration     = track.duration.toLong() * 1000,
+                    title        = track.title,
+                    thumbnailUrl = track.thumbnailUrl,
+                    channelName  = track.artist,
+                    channelId    = "",
+                    isMusic      = true,
+                    isLocal      = true
+                )
+            }
+        }
+    }
+
+    private fun isLocalMediaId(id: String?): Boolean = id?.startsWith("local_") == true
 
     fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList(), sourceName: String? = null) {
         loadTrackJob?.cancel()

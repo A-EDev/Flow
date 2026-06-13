@@ -185,7 +185,8 @@ dependencies {
     implementation(libs.androidx.constraintlayout.compose)
 
     // --- Image Loading ---
-    implementation(libs.coil.compose) 
+    implementation(libs.coil.compose)
+    implementation(libs.coil.video)
     implementation(libs.picasso)
     implementation("androidx.palette:palette-ktx:1.0.0")
 

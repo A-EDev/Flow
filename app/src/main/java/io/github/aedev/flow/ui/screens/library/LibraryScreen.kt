@@ -38,6 +38,7 @@ fun LibraryScreen(
     onNavigateToWatchLater: () -> Unit,
     onNavigateToSavedShorts: () -> Unit,
     onNavigateToDownloads: () -> Unit,
+    onNavigateToLocalMedia: () -> Unit,
     onManageData: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel()
@@ -156,7 +157,16 @@ fun LibraryScreen(
                     onClick = onNavigateToDownloads
                 )
             }
-            
+
+            item {
+                LibraryCard(
+                    icon = Icons.Outlined.PermMedia,
+                    title = context.getString(R.string.library_local_media_label),
+                    subtitle = context.getString(R.string.library_local_media_subtitle),
+                    onClick = onNavigateToLocalMedia
+                )
+            }
+
             item {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }

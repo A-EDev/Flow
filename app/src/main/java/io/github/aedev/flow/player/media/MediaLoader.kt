@@ -241,8 +241,13 @@ class MediaLoader(
         }
 
         val mediaSource = if (localFilePath != null) {
+            val localUri = if (localFilePath.startsWith("content://")) {
+                android.net.Uri.parse(localFilePath)
+            } else {
+                android.net.Uri.fromFile(File(localFilePath))
+            }
             ProgressiveMediaSource.Factory(cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory)
-                .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(File(localFilePath))))
+                .createMediaSource(MediaItem.fromUri(localUri))
         } else {
             val resolver = VideoPlaybackResolver(
                 cacheManager?.getDashDataSourceFactory() ?: dataSourceFactory,
