@@ -1700,4 +1700,18 @@
     <string name="donation_prompt_support">Soutenir le développement</string>
     <string name="donation_prompt_later">Peut-être plus tard</string>
     <string name="donation_prompt_never">Ne plus afficher</string>
+    <string name="library_local_media_label">Médias locaux</string>
+    <string name="library_local_media_subtitle">Lire des vidéos et de la musique sur cet appareil</string>
+    <string name="local_media_title">Médias locaux</string>
+    <string name="local_media_rescan">Analyser à nouveau</string>
+    <string name="local_media_scanning">Analyse de votre appareil…</string>
+    <string name="local_media_empty_title">Aucun %1$s trouvé</string>
+    <string name="local_media_empty_body">Les vidéos et la musique enregistrées sur cet appareil s\'afficheront ici.</string>
+    <string name="local_media_permission_title">Autorisation requise</string>
+    <string name="local_media_permission_body">Autorisez l\'accès à vos fichiers multimédias afin que Flow puisse trouver et lire vos vidéos et votre musique stockées localement.</string>
+    <string name="local_media_grant">Accorder l\'accès</string>
+    <string name="history_tab_local_videos">Vidéos locales</string>
+    <string name="history_tab_local_music">Musique locale</string>
+    <string name="deep_flow_save_history_title">Ajouter à l\'historique</string>
+    <string name="deep_flow_save_history_subtitle">Conserver les vidéos visionnées dans l\'historique (avec la progression). Le moteur ne s\'en servira toutefois pas pour s\'améliorer. Désactivé = rien n\'est enregistré.</string>
 </resources>
