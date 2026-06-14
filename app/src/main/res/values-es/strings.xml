@@ -283,7 +283,7 @@
     <string name="maybe_later">tal vez más tarde</string>
     <string name="release_notes">NOTAS DE VERSIÓN</string>
     <string name="pinned_comment">Comentario fijado</string>
-    <string name="update_flow">Flujo de actualización</string>
+    <string name="update_flow">Actualizar Flow</string>
     <string name="view_replies_template">Ver %1$d respuestas</string>
     <string name="nav_home">Hogar</string>
     <string name="new_update_available">Nueva actualización disponible</string>
@@ -1526,7 +1526,7 @@
     <string name="appearance_system_dark_theme">Tema del modo oscuro</string>
     <string name="theme_desc_material_you">Colores de fondo de pantalla en Android 12+</string>
     <string name="appearance_system_defaults_title">Temas predeterminados del sistema</string>
-    <string name="icon_name_flow_light">Luz de flujo</string>
+    <string name="icon_name_flow_light">Luz de Flow</string>
     <string name="icon_name_material_sky">Cielo material</string>
     <string name="icon_name_material_mint">Materiales nuevos</string>
     <string name="content_settings_subs_show_videos_title">Vídeos de suscripción</string>
