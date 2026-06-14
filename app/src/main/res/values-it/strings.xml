@@ -276,7 +276,7 @@
     <string name="peace_and_quiet">Pace e tranquillità</string>
     <string name="notifications_empty_body">Sei in pari! I nuovi aggiornamenti dalle tue iscrizioni appariranno qui.</string>
     <string name="settings_title">Impostazioni</string>
-    <string name="settings_flow_engine_header">Motore di Flow</string>
+    <string name="settings_flow_engine_header">Algoritmo di Flow</string>
     <string name="settings_active_learning">APPRENDIMENTO ATTIVO</string>
     <string name="settings_reset_brain_title">Reimpostare la personalità di Flow?</string>
     <string name="settings_reset_brain_body">Questa operazione cancellerà completamente il tuo profilo di interessi \"Flow Brain\".\n\n• Tutti gli argomenti appresi verranno dimenticati.\n• I tratti della personalità verranno reimpostati a neutro.\n• I suggerimenti torneranno a quelli predefiniti.\n\nQuesta azione non può essere annullata.</string>
@@ -1161,14 +1161,14 @@
     <string name="checking_for_updates">Controllo aggiornamenti in corso…</string>
     <string name="flow_is_up_to_date">Flow è aggiornato!</string>
     <string name="update_check_failed">Impossibile verificare gli aggiornamenti. Controlla la tua connessione.</string>
-    <string name="export_engine_data">Esporta profilo del motore</string>
+    <string name="export_engine_data">Esporta profilo dell\'algoritmo</string>
     <string name="export_engine_data_subtitle">Esegui il backup della tua personalità AI e dei dati di apprendimento</string>
-    <string name="export_engine_success">Profilo del motore esportato correttamente</string>
-    <string name="export_engine_failed">Impossibile esportare il profilo del motore</string>
-    <string name="import_engine_data">Importa i dati del Motore di Flow</string>
+    <string name="export_engine_success">Profilo dell\'algoritmo esportato correttamente</string>
+    <string name="export_engine_failed">Impossibile esportare il profilo dell\'algoritmo</string>
+    <string name="import_engine_data">Importa i dati dell\'algoritmo di Flow</string>
     <string name="import_engine_data_desc">Ripristina la tua personalità AI da un file di backup</string>
-    <string name="import_engine_success">Profilo del motore ripristinato correttamente</string>
-    <string name="import_engine_failed">Impossibile importare il profilo del motore</string>
+    <string name="import_engine_success">Profilo dell\'algoritmo ripristinato correttamente</string>
+    <string name="import_engine_failed">Impossibile importare il profilo dell\'algoritmo</string>
     <string name="import_engine_section_title">Motore di Flow</string>
     <string name="import_engine_section_subtitle">Ripristina il tuo profilo di apprendimento AI</string>
     <string name="master_backup_title">Backup completo</string>
@@ -1176,7 +1176,7 @@
     <string name="master_backup_export_success">Backup completo salvato correttamente</string>
     <string name="master_backup_export_failed">Impossibile esportare il backup completo</string>
     <string name="import_master_backup_title">Importa backup completo</string>
-    <string name="import_master_backup_desc">Ripristina sia i dati dell\'app che il profilo del motore da un singolo backup completo</string>
+    <string name="import_master_backup_desc">Ripristina sia i dati dell\'app che il profilo dell\'algoritmo da un singolo backup completo</string>
     <string name="import_master_backup_success">Backup completo ripristinato correttamente</string>
     <string name="import_master_backup_failed">Impossibile importare il backup completo</string>
     <string name="auto_backup_title">Backup automatici</string>
@@ -1191,7 +1191,7 @@
     <string name="auto_backup_frequency_weekly">Settimanale</string>
     <string name="auto_backup_frequency_monthly">Mensile</string>
     <string name="auto_backup_type_app_data">Dati dell\'app</string>
-    <string name="auto_backup_type_brain">Profilo del motore</string>
+    <string name="auto_backup_type_brain">Profilo dell\'algoritmo</string>
     <string name="auto_backup_type_master">Backup completo</string>
     <string name="auto_backup_folder_label">Cartella di backup</string>
     <string name="auto_backup_pick_folder">Scegli cartella</string>
@@ -1363,7 +1363,7 @@
     <string name="profile_import_success">Profilo importato correttamente</string>
     <string name="profile_import_failed">Importazione non riuscita - file non valido</string>
     <string name="learning_stats_title">Segnali di apprendimento</string>
-    <string name="learning_stats_subtitle">Cosa ricorda attualmente il motore</string>
+    <string name="learning_stats_subtitle">Cosa ricorda attualmente l\'algoritmo</string>
     <string name="metric_interactions">Interazioni</string>
     <string name="metric_interactions_detail">clic, visualizzazioni, salti</string>
     <string name="metric_topics">Argomenti</string>
@@ -1660,4 +1660,18 @@
     <string name="donation_prompt_support">Supporta lo sviluppo</string>
     <string name="donation_prompt_later">Forse più tardi</string>
     <string name="donation_prompt_never">Non mostrare più</string>
+    <string name="library_local_media_label">Media locali</string>
+    <string name="library_local_media_subtitle">Riproduci video e musica su questo dispositivo</string>
+    <string name="local_media_title">Media locali</string>
+    <string name="local_media_rescan">Riscansiona</string>
+    <string name="local_media_scanning">Scansione del dispositivo…</string>
+    <string name="local_media_empty_title">Nessun %1$s trovato</string>
+    <string name="local_media_empty_body">I video e la musica memorizzati su questo dispositivo appariranno qui.</string>
+    <string name="local_media_permission_title">Autorizzazione necessaria</string>
+    <string name="local_media_permission_body">Concedi l\'accesso ai contenuti multimediali in modo che Flow possa individuare e riprodurre video e musica locali.</string>
+    <string name="local_media_grant">Concedi accesso</string>
+    <string name="history_tab_local_videos">Video locali</string>
+    <string name="history_tab_local_music">Musica locale</string>
+    <string name="deep_flow_save_history_title">Salva nella cronologia di visualizzazione</string>
+    <string name="deep_flow_save_history_subtitle">Conserva i video visualizzati nella cronologia (con i progressi). L\'algoritmo continuerà comunque a non usarli per l\'apprendimento. Disattivato = non viene salvato nulla.</string>
 </resources>
