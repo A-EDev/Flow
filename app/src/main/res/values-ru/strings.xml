@@ -801,7 +801,7 @@
     <string name="history_no_results">Нет совпадающих записей</string>
     <string name="history_no_results_body">Попробуйте другой поиск или фильтр</string>
     <string name="history_tab_videos">Видео</string>
-    <string name="history_tab_shorts">Короткие видео (Shorts)</string>
+    <string name="history_tab_shorts">Shorts</string>
     <string name="empty_liked_videos">Нет понравившихся видео</string>
     <string name="empty_liked_music">Нет понравившейся музыки</string>
     <string name="empty_liked_music_body">Здесь появятся песни, которые вам нравятся</string>
@@ -927,4 +927,11 @@
     <string name="refresh_lyrics">Обновить текст песни</string>
     <string name="upcoming_video_reminder_enabled">Напоминание установлено</string>
     <string name="upcoming_video_reminder_badge">Напоминание включено</string>
+    <string name="playback_speed">Скорость воспроизведения</string>
+    <string name="shorts_audio_track">Звуковая дорожка</string>
+    <string name="audio_track">Звуковая дорожка</string>
+    <string name="pip_mode">Картинка в картинке</string>
+    <string name="sleep_timer">Таймер сна</string>
+    <string name="subtitle_style">Параметры субтитров</string>
+    <string name="autoplay_next">Автовоспроизведение</string>
 </resources>
