@@ -1661,4 +1661,6 @@
     <string name="donation_prompt_support">Підтримати розробку</string>
     <string name="donation_prompt_later">Можливо пізніше</string>
     <string name="donation_prompt_never">Більше не показувати</string>
+    <string name="library_local_media_label">Локальні медіафайли</string>
+    <string name="library_local_media_subtitle">Відтворюйте відео та музику на цьому пристрої</string>
 </resources>
