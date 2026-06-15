@@ -1656,4 +1656,33 @@
     <string name="donation_prompt_support">Dukung pengembangan</string>
     <string name="donation_prompt_later">Mungkin nanti</string>
     <string name="donation_prompt_never">Jangan tampilkan lagi</string>
+    <string name="library_local_media_label">Media bawaan</string>
+    <string name="library_local_media_subtitle">Putar video dan musik di perangkat ini</string>
+    <string name="local_media_title">Media bawaan</string>
+    <string name="local_media_rescan">Pindai ulang</string>
+    <string name="local_media_scanning">Memindai perangkat Anda …</string>
+    <string name="local_media_empty_title">Tidak ada %1$s yang ditemukan</string>
+    <string name="local_media_empty_body">Video dan musik yang tersimpan di perangkat ini akan muncul di sini.</string>
+    <string name="local_media_permission_title">Izin diperlukan</string>
+    <string name="local_media_permission_body">Memungkinkan akses ke media Anda sehingga Flow dapat menemukan dan memutar video dan musik lokal.</string>
+    <string name="local_media_grant">Berikan akses</string>
+    <string name="history_tab_local_videos">Video bawaan</string>
+    <string name="history_tab_local_music">Musik bawaan</string>
+    <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
+    <string name="content_settings_share_without_text_title">Bagikan tautan tanpa teks</string>
+    <string name="content_settings_share_without_text_subtitle">Bagikan hanya tautan video, tanpa pesan “Check out this video”</string>
+    <string name="deep_flow_save_history_title">Simpan untuk melihat riwayat tontonan</string>
+    <string name="deep_flow_save_history_subtitle">Terus menonton video dalam riwayat (dengan kemajuan). Mesin masih tidak akan belajar dari mereka. Off = tidak ada yang disimpan.</string>
+    <string name="icon_name_flow_play">Flow mainkan</string>
+    <string name="player_appearance_controls_while_loading_title">Kontrol Saat Memuat</string>
+    <string name="player_appearance_controls_while_loading_subtitle">Tampilkan kontrol pemutar sebelum video selesai memuat sehingga Anda dapat menyesuaikan volume segera</string>
+    <string name="player_settings_autoplay_countdown_title">Jeda putar otomatis</string>
+    <string name="player_settings_autoplay_countdown_none">Nihil (langsung ganti)</string>
+    <string name="player_settings_autoplay_countdown_seconds_template">%1$d detik</string>
+    <string name="player_settings_autoplay_countdown_dialog_body">Tampilkan hitungan mundur sebelum secara otomatis beralih ke video berikutnya. Selama hitungan mundur Anda dapat me-restart video saat ini, membatalkan saklar, atau memutar yang berikutnya segera.</string>
+    <string name="autoplay_countdown_up_next">Berikutnya</string>
+    <string name="autoplay_countdown_next_video">Video selanjutnya</string>
+    <string name="autoplay_countdown_cancel">Batal</string>
+    <string name="autoplay_countdown_restart">Ulang</string>
+    <string name="autoplay_countdown_play_now">Putar sekarang</string>
 </resources>
