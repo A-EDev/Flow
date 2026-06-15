@@ -557,7 +557,7 @@ fun VideoCardFullWidth(
     val quickActionsVmFW: QuickActionsViewModel = hiltViewModel()
     val watchedVideoIdsFW by quickActionsVmFW.watchedVideoIds.collectAsState()
     val isWatchedFW = remember(watchedVideoIdsFW, watchProgress, video.id) {
-        watchedVideoIdsFW.contains(video.id) || (watchProgress ?: 0f) >= 0.99f
+        watchedVideoIdsFW.contains(video.id) || (watchProgress ?: 0f) >= 0.90f
     }
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -877,7 +877,7 @@ fun CompactVideoCard(
     val quickActionsVmCompact: QuickActionsViewModel = hiltViewModel()
     val watchedVideoIdsCompact by quickActionsVmCompact.watchedVideoIds.collectAsState()
     val isWatchedCompact = remember(watchedVideoIdsCompact, watchProgress, video.id) {
-        watchedVideoIdsCompact.contains(video.id) || (watchProgress ?: 0f) >= 0.99f
+        watchedVideoIdsCompact.contains(video.id) || (watchProgress ?: 0f) >= 0.90f
     }
     val displayTitle = deArrowResultCompact?.title ?: video.title
     val displayThumbnailUrl = deArrowResultCompact?.thumbnailUrl ?: video.thumbnailUrl

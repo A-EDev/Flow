@@ -489,13 +489,43 @@ class QuickActionsViewModel @Inject constructor(
             else -> null
         }
 
+        var fallbackUrl: String? = null
+        var fallbackAudioUrl: String? = null
+        var fallbackCodec: String? = null
+        var fallbackQuality: String? = null
+        if (videoCodec == "av1") {
+            val fb = videoFormats
+                .filter { it.height == bestVideo.height && !it.mimeType.contains("av01", true) }
+                .maxByOrNull { it.bitrate }
+            if (fb?.url != null) {
+                val fbIsMp4 = fb.mimeType.contains("mp4", ignoreCase = true)
+                val fbAudio = if (fbIsMp4) {
+                    audioFormats.filter { it.mimeType.contains("mp4", true) }.maxByOrNull { it.bitrate }
+                        ?: audioFormats.maxByOrNull { it.bitrate }
+                } else {
+                    audioFormats.filter { it.mimeType.contains("webm", true) }.maxByOrNull { it.bitrate }
+                        ?: audioFormats.maxByOrNull { it.bitrate }
+                }
+                if (fbAudio?.url != null) {
+                    fallbackUrl = fb.url
+                    fallbackAudioUrl = fbAudio.url
+                    fallbackCodec = if (fb.mimeType.contains("vp9", true) || fb.mimeType.contains("vp09", true)) "vp9" else null
+                    fallbackQuality = "${fb.height}p"
+                }
+            }
+        }
+
         io.github.aedev.flow.data.video.downloader.FlowDownloadService.startDownload(
             context = context,
             video = video,
             url = bestVideo.url!!,
             quality = "${bestVideo.height}p",
             audioUrl = bestAudio?.url,
-            videoCodec = videoCodec
+            videoCodec = videoCodec,
+            fallbackUrl = fallbackUrl,
+            fallbackAudioUrl = fallbackAudioUrl,
+            fallbackCodec = fallbackCodec,
+            fallbackQuality = fallbackQuality
         )
         Toast.makeText(context, "Download started: ${video.title}", Toast.LENGTH_SHORT).show()
     }

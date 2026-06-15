@@ -65,11 +65,6 @@ interface WatchHistoryDao {
     @Query("SELECT videoId FROM watch_history WHERE isMusic = 0 AND isLocal = 0")
     suspend fun getAllWatchedVideoIds(): List<String>
 
-    /**
-     * Returns video IDs where the user has watched at least [minPercent]% of the video.
-     * Used for the hide-watched filter so that merely opening a video (0% progress)
-     * does not cause it to be hidden. Local files are excluded (engine must not learn from them).
-     */
     @Query("""
         SELECT videoId FROM watch_history
         WHERE isMusic = 0
@@ -77,7 +72,7 @@ interface WatchHistoryDao {
         AND duration > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
     """)
-    suspend fun getWatchedVideoIdsAboveThreshold(minPercent: Float = 10f): List<String>
+    suspend fun getWatchedVideoIdsAboveThreshold(minPercent: Float = 90f): List<String>
 
     @Query("""
         SELECT videoId FROM watch_history

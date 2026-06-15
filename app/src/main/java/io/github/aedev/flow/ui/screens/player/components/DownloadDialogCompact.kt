@@ -209,6 +209,31 @@ fun DownloadQualityDialogCompact(
             }
         }
 
+        var fallbackUrl: String? = null
+        var fallbackAudioUrl: String? = null
+        var fallbackCodec: String? = null
+        var fallbackQuality: String? = null
+        if (selectedCodec == "av1") {
+            val fb = videoStreams.firstOrNull {
+                VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight &&
+                    VideoPlayerUtils.codecKeyFromStream(it) != "av1"
+            }
+            val fbUrl = fb?.getContent()?.takeIf { it.isNotBlank() }
+            if (fb != null && fbUrl != null) {
+                val fbCodecKey = VideoPlayerUtils.codecKeyFromStream(fb)
+                val fbAudio = if (fb.isVideoOnly) {
+                    DownloadStreamHelpers.pickCompatibleAudioForVideo(fbCodecKey, audioStreams, preferredLang)
+                        ?.getContent()?.takeIf { it.isNotBlank() }
+                } else null
+                if (!fb.isVideoOnly || fbAudio != null) {
+                    fallbackUrl = fbUrl
+                    fallbackAudioUrl = fbAudio
+                    fallbackCodec = when (fbCodecKey) { "vp9", "vp8" -> fbCodecKey; else -> null }
+                    fallbackQuality = "${VideoPlayerUtils.codecLabelFromKey(fbCodecKey)} ${selectedHeight}p"
+                }
+            }
+        }
+
         VideoPlayerUtils.startDownload(
             context = context,
             video = taggedVideo,
@@ -219,7 +244,11 @@ fun DownloadQualityDialogCompact(
                 "vp9", "vp8", "av1" -> selectedCodec
                 else -> null
             },
-            threads = threads
+            threads = threads,
+            fallbackUrl = fallbackUrl,
+            fallbackAudioUrl = fallbackAudioUrl,
+            fallbackCodec = fallbackCodec,
+            fallbackQuality = fallbackQuality
         )
         Toast.makeText(context, context.getString(R.string.downloading_template, qualityLabel), Toast.LENGTH_SHORT).show()
         downloadPrefsScope.launch {

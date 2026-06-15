@@ -85,7 +85,19 @@ object VideoPlayerUtils {
         }
     }
 
-    fun startDownload(context: Context, video: Video, url: String, qualityLabel: String, audioUrl: String? = null, videoCodec: String? = null, threads: Int? = null) {
+    fun startDownload(
+        context: Context,
+        video: Video,
+        url: String,
+        qualityLabel: String,
+        audioUrl: String? = null,
+        videoCodec: String? = null,
+        threads: Int? = null,
+        fallbackUrl: String? = null,
+        fallbackAudioUrl: String? = null,
+        fallbackCodec: String? = null,
+        fallbackQuality: String? = null
+    ) {
         try {
             promptStoragePermissionIfNeeded(context)
 
@@ -97,9 +109,13 @@ object VideoPlayerUtils {
                 qualityLabel,
                 audioUrl,
                 videoCodec = videoCodec,
-                threads = threads
+                threads = threads,
+                fallbackUrl = fallbackUrl,
+                fallbackAudioUrl = fallbackAudioUrl,
+                fallbackCodec = fallbackCodec,
+                fallbackQuality = fallbackQuality
             )
-            
+
             Toast.makeText(context, "Started download: ${video.title}", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(context, "Download failed to start: ${e.message}", Toast.LENGTH_SHORT).show()

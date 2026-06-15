@@ -88,20 +88,12 @@ class HomeViewModel @Inject constructor(
         viewHistory = ViewHistory.getInstance(context)
         
         // Keep the watched-IDs set up to date so the feed can filter them out.
-        // When hideWatchedVideos is ON: filter videos watched at least 10%.
-        // When OFF: keep current behaviour (only >=90% watched are excluded).
         viewModelScope.launch {
             viewHistory!!.getVideoHistoryFlow()
-                .combine(playerPreferences.hideWatchedVideos) { history, hideWatched ->
-                    if (hideWatched) {
-                        history.filter { it.progressPercentage >= 10f }
-                            .map { it.videoId }
-                            .toHashSet()
-                    } else {
-                        history.filter { it.progressPercentage >= 90f }
-                            .map { it.videoId }
-                            .toHashSet()
-                    }
+                .combine(playerPreferences.hideWatchedVideos) { history, _ ->
+                    history.filter { it.progressPercentage >= ViewHistory.WATCHED_THRESHOLD_PERCENT }
+                        .map { it.videoId }
+                        .toHashSet()
                 }
                 .collect { ids -> watchedVideoIds.value = ids }
         }

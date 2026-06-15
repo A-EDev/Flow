@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-06-13
+DATE: 2026-06-15
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -18,6 +18,8 @@ IMPROVEMENTS
 - Add a full list of audio languages to the preferred audio language setting #580
 - List all available captions, including auto-translated tracks
 - Improve AV1 codec handling
+- Improve mark as watched percentage
+- Add new share context toggle 
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

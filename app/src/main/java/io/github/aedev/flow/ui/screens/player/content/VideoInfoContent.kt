@@ -66,6 +66,7 @@ fun VideoInfoContent(
 ) {
     var showAddToPlaylistDialog by remember(video.id) { mutableStateOf(false) }
     val playerPrefs = remember { PlayerPreferences(context) }
+    val shareWithoutText by playerPrefs.shareWithoutText.collectAsState(initial = false)
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
     val deArrowResult by produceState<DeArrowResult?>(
         initialValue = null,
@@ -306,10 +307,15 @@ fun VideoInfoContent(
         },
         onSaveClick = { showAddToPlaylistDialog = true },
         onShareClick = {
+            val shareText = if (shareWithoutText) {
+                context.getString(R.string.share_link_only_template, video.id)
+            } else {
+                context.getString(R.string.check_out_video_template, resolvedVideoTitle, video.id)
+            }
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_SUBJECT, resolvedVideoTitle)
-                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.check_out_video_template, resolvedVideoTitle, video.id))
+                putExtra(Intent.EXTRA_TEXT, shareText)
             }
             context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
         },

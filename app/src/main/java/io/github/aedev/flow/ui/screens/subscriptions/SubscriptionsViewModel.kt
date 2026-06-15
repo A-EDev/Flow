@@ -187,7 +187,7 @@ class SubscriptionsViewModel : ViewModel() {
                 val downloadedIds = downloads.mapTo(HashSet()) { it.download.videoId }
                 history
                     .asSequence()
-                    .filter { it.progressPercentage >= 10f || it.videoId in downloadedIds }
+                    .filter { it.progressPercentage >= ViewHistory.WATCHED_THRESHOLD_PERCENT || it.videoId in downloadedIds }
                     .map { it.videoId }
                     .toHashSet()
             }

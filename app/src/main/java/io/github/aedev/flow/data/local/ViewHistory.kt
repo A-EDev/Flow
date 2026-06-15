@@ -37,6 +37,8 @@ class ViewHistory private constructor(private val context: Context) {
     companion object {
         private const val TAG = "ViewHistory"
 
+        const val WATCHED_THRESHOLD_PERCENT = 90f
+
         @Volatile
         private var INSTANCE: ViewHistory? = null
 

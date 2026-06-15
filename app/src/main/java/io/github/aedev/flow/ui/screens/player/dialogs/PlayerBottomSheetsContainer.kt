@@ -65,6 +65,9 @@ fun PlayerBottomSheetsContainer(
         }
     }
 
+    val shareWithoutText by remember { io.github.aedev.flow.data.local.PlayerPreferences(context).shareWithoutText }
+        .collectAsStateWithLifecycle(initialValue = false)
+
     val sortedComments = remember(comments, screenState.commentSortFilter) {
         val pinned = comments.filter { it.isPinned }
         val unpinned = comments.filterNot { it.isPinned }
@@ -115,10 +118,15 @@ fun PlayerBottomSheetsContainer(
             onDismiss = { screenState.showQuickActions = false },
             onShare = {
                 screenState.showQuickActions = false
+                val shareText = if (shareWithoutText) {
+                    context.getString(R.string.share_link_only_template, completeVideo.id)
+                } else {
+                    context.getString(R.string.check_out_video_template, completeVideo.title, completeVideo.id)
+                }
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, completeVideo.title)
-                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.check_out_video_template, completeVideo.title, completeVideo.id))
+                    putExtra(Intent.EXTRA_TEXT, shareText)
                 }
                 context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
             },

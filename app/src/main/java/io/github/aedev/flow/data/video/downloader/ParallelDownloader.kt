@@ -452,6 +452,7 @@ class ParallelDownloader @Inject constructor() {
                 Log.e(TAG, "Block download failed: HTTP $code (range=$resumeFrom-$endByte, yt=$isYT)")
                 if (code == 403) {
                     mission.error = "URL expired (403). Re-fetch needed."
+                    mission.gatedHttp403 = true
                 }
                 return false
             }

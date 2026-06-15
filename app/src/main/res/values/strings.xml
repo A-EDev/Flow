@@ -128,6 +128,9 @@
     <string name="unsubscribe">Unsubscribe</string>
     <string name="share_video">Share video</string>
     <string name="check_out_video_template">Check out this video: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
+    <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
+    <string name="content_settings_share_without_text_title">Share links without text</string>
+    <string name="content_settings_share_without_text_subtitle">Share just the video link, without the “Check out this video” message</string>
     <string name="related_videos">Related Videos</string>
     <string name="quality_auto">Auto</string>
     <string name="quality_auto_template">Auto (%1$dp)</string>

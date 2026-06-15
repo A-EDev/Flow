@@ -37,10 +37,17 @@ data class FlowDownloadMission(
     // Timestamps
     val createdTime: Long = System.currentTimeMillis(),
     var finishTime: Long = 0,
-    
+
     // Error tracking
-    var error: String? = null
+    var error: String? = null,
+
+    var fallbackUrl: String? = null,
+    var fallbackAudioUrl: String? = null,
+    var fallbackCodec: String? = null,
+    var fallbackQuality: String? = null
 ) {
+    @Volatile
+    var gatedHttp403: Boolean = false
     // Atomic counters — updated from multiple download threads without locks
     @Transient val downloadedBytesAtomic = AtomicLong(0L)
     @Transient val audioDownloadedBytesAtomic = AtomicLong(0L)

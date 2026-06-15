@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.ViewAgenda
@@ -83,6 +84,7 @@ fun ContentSettingsScreen(
     val showAppLogoIcon by preferences.showAppLogoIcon.collectAsState(initial = true)
     val currentRelatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.COMPACT)
     val hideWatchedVideos by preferences.hideWatchedVideos.collectAsState(initial = false)
+    val shareWithoutText by preferences.shareWithoutText.collectAsState(initial = false)
     val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
     val showRegionPickerInExplore by preferences.showRegionPickerInExplore.collectAsState(initial = true)
     val videoTitleMaxLines by preferences.videoTitleMaxLines.collectAsState(initial = 1)
@@ -418,6 +420,18 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setHideWatchedVideos(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Share,
+                        title = stringResource(R.string.content_settings_share_without_text_title),
+                        subtitle = stringResource(R.string.content_settings_share_without_text_subtitle),
+                        checked = shareWithoutText,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShareWithoutText(enabled)
                             }
                         }
                     )

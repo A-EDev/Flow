@@ -215,6 +215,7 @@ class PlayerPreferences(context: Context) {
         // Content filtering
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
+        val SHARE_WITHOUT_TEXT = booleanPreferencesKey("share_without_text")
 
         // Shorts background playback
         val SHORTS_BACKGROUND_PLAY = booleanPreferencesKey("shorts_background_play")
@@ -1418,6 +1419,18 @@ class PlayerPreferences(context: Context) {
     suspend fun setHideWatchedVideos(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.HIDE_WATCHED_VIDEOS] = enabled
+        }
+    }
+
+    /** When ON, sharing a video link sends only the bare URL, without the "Check out this video" text. */
+    val shareWithoutText: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHARE_WITHOUT_TEXT] ?: false
+        }
+
+    suspend fun setShareWithoutText(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHARE_WITHOUT_TEXT] = enabled
         }
     }
 

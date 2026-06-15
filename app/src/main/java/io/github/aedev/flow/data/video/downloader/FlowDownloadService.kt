@@ -91,6 +91,11 @@ class FlowDownloadService : Service() {
         const val EXTRA_VIDEO_CODEC = "video_codec"
         const val EXTRA_THREADS = "download_threads"
 
+        private const val EXTRA_FALLBACK_URL = "fallback_video_url"
+        private const val EXTRA_FALLBACK_AUDIO_URL = "fallback_audio_url"
+        private const val EXTRA_FALLBACK_CODEC = "fallback_video_codec"
+        private const val EXTRA_FALLBACK_QUALITY = "fallback_quality"
+
         private const val EXTRA_SABR_STREAMING_URL = "sabr_streaming_url"
         private const val EXTRA_SABR_AUDIO_ITAG = "sabr_audio_itag"
         private const val EXTRA_SABR_AUDIO_LMT = "sabr_audio_lmt"
@@ -160,7 +165,11 @@ class FlowDownloadService : Service() {
             audioExtension: String? = null,
             audioMimeType: String? = null,
             isMusic: Boolean = false,
-            threads: Int? = null
+            threads: Int? = null,
+            fallbackUrl: String? = null,
+            fallbackAudioUrl: String? = null,
+            fallbackCodec: String? = null,
+            fallbackQuality: String? = null
         ) {
             val intent = Intent(context, FlowDownloadService::class.java).apply {
                 action = ACTION_START_DOWNLOAD
@@ -179,6 +188,10 @@ class FlowDownloadService : Service() {
                 if (audioExtension != null) putExtra(EXTRA_AUDIO_EXTENSION, audioExtension)
                 if (audioMimeType != null) putExtra(EXTRA_AUDIO_MIME_TYPE, audioMimeType)
                 if (threads != null) putExtra(EXTRA_THREADS, threads)
+                if (fallbackUrl != null) putExtra(EXTRA_FALLBACK_URL, fallbackUrl)
+                if (fallbackAudioUrl != null) putExtra(EXTRA_FALLBACK_AUDIO_URL, fallbackAudioUrl)
+                if (fallbackCodec != null) putExtra(EXTRA_FALLBACK_CODEC, fallbackCodec)
+                if (fallbackQuality != null) putExtra(EXTRA_FALLBACK_QUALITY, fallbackQuality)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -250,6 +263,11 @@ class FlowDownloadService : Service() {
                 val isMusic = intent.getBooleanExtra(EXTRA_IS_MUSIC, false)
                 val threadsOverride = intent.getIntExtra(EXTRA_THREADS, 0).takeIf { it > 0 }
 
+                val fallbackUrl = intent.getStringExtra(EXTRA_FALLBACK_URL)
+                val fallbackAudioUrl = intent.getStringExtra(EXTRA_FALLBACK_AUDIO_URL)
+                val fallbackCodec = intent.getStringExtra(EXTRA_FALLBACK_CODEC)
+                val fallbackQuality = intent.getStringExtra(EXTRA_FALLBACK_QUALITY)
+
                 val sabrStreamingUrl = intent.getStringExtra(EXTRA_SABR_STREAMING_URL)
                 val sabrAudioItag = intent.getIntExtra(EXTRA_SABR_AUDIO_ITAG, 0)
                 val sabrAudioLmt = intent.getLongExtra(EXTRA_SABR_AUDIO_LMT, 0)
@@ -265,6 +283,10 @@ class FlowDownloadService : Service() {
                     thumbnail, channel, duration, audioOnly, userAgent, videoCodec,
                     audioExtension, audioMimeType, isMusic,
                     threadsOverride = threadsOverride,
+                    fallbackUrl = fallbackUrl,
+                    fallbackAudioUrl = fallbackAudioUrl,
+                    fallbackCodec = fallbackCodec,
+                    fallbackQuality = fallbackQuality,
                     sabrStreamingUrl = sabrStreamingUrl,
                     sabrAudioItag = sabrAudioItag,
                     sabrAudioLmt = sabrAudioLmt,
@@ -302,6 +324,10 @@ class FlowDownloadService : Service() {
         audioMimeType: String? = null,
         isMusic: Boolean = false,
         threadsOverride: Int? = null,
+        fallbackUrl: String? = null,
+        fallbackAudioUrl: String? = null,
+        fallbackCodec: String? = null,
+        fallbackQuality: String? = null,
         sabrStreamingUrl: String? = null,
         sabrAudioItag: Int = 0,
         sabrAudioLmt: Long = 0,
@@ -391,6 +417,13 @@ class FlowDownloadService : Service() {
                 )
             }
 
+            if (!audioOnly && isAv1Codec && fallbackUrl != null) {
+                mission.fallbackUrl = fallbackUrl
+                mission.fallbackAudioUrl = fallbackAudioUrl
+                mission.fallbackCodec = fallbackCodec
+                mission.fallbackQuality = fallbackQuality
+            }
+
             activeMissions[videoId] = mission
 
             val notificationId = getNotificationId(videoId)
@@ -472,7 +505,10 @@ class FlowDownloadService : Service() {
                         )
                     } else {
                         Log.d(TAG, "Executing download...")
-                        executeDownload(mission, videoId, audioOnly, normalizedAudioMimeType)
+                        val needsCodecFallback = executeDownload(mission, videoId, audioOnly, normalizedAudioMimeType)
+                        if (needsCodecFallback) {
+                            retryWithCodecFallback(mission)
+                        }
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
@@ -495,9 +531,10 @@ class FlowDownloadService : Service() {
         videoId: String,
         audioOnly: Boolean,
         audioMimeType: String = "audio/mp4"
-    ) {
+    ): Boolean {
         Log.d(TAG, "executeDownload: Starting execution for $videoId. AudioOnly=$audioOnly")
-        
+
+        var attemptCodecFallback = false
         try {
             updateAllItemStatuses(videoId, DownloadItemStatus.DOWNLOADING)
             mission.status = MissionStatus.RUNNING
@@ -674,6 +711,9 @@ class FlowDownloadService : Service() {
                     val total = mission.totalBytes + mission.audioTotalBytes
                     downloadManager.updateItemFull(ids.first(), downloaded, total, DownloadItemStatus.PAUSED)
                 }
+            } else if (mission.gatedHttp403 && mission.fallbackUrl != null) {
+                Log.w(TAG, "executeDownload: AV1 stream CDN-gated (403) → will retry with ${mission.fallbackCodec} fallback")
+                attemptCodecFallback = true
             } else {
                 Log.e(TAG, "executeDownload: parallelDownloader.start returned false")
                 mission.status = MissionStatus.FAILED
@@ -701,9 +741,31 @@ class FlowDownloadService : Service() {
         }
 
         // Stop service if no more active downloads
-        if (activeMissions.isEmpty()) {
+        if (activeMissions.isEmpty() && !attemptCodecFallback) {
             stopSelf()
         }
+        return attemptCodecFallback
+    }
+
+    private fun retryWithCodecFallback(mission: FlowDownloadMission) {
+        try {
+            File("${mission.savePath}.video.tmp").takeIf { it.exists() }?.delete()
+            File("${mission.savePath}.audio.tmp").takeIf { it.exists() }?.delete()
+            File(mission.savePath).takeIf { it.exists() }?.delete()
+        } catch (e: Exception) {
+            Log.w(TAG, "retryWithCodecFallback: temp cleanup failed (non-fatal)", e)
+        }
+        val fallbackUrl = mission.fallbackUrl ?: return
+        Log.w(TAG, "retryWithCodecFallback: relaunching download for ${mission.video.id} with ${mission.fallbackCodec} (${mission.fallbackQuality})")
+        startDownload(
+            context = applicationContext,
+            video = mission.video,
+            url = fallbackUrl,
+            quality = mission.fallbackQuality ?: mission.quality,
+            audioUrl = mission.fallbackAudioUrl,
+            videoCodec = mission.fallbackCodec,
+            threads = mission.threads
+        )
     }
 
     private suspend fun executeSabrDownload(
@@ -982,7 +1044,10 @@ class FlowDownloadService : Service() {
         val previousJob = downloadJobs[videoId]
         val job = serviceScope.launch {
             previousJob?.join()
-            executeDownload(mission, videoId, audioOnly)
+            val needsCodecFallback = executeDownload(mission, videoId, audioOnly)
+            if (needsCodecFallback) {
+                retryWithCodecFallback(mission)
+            }
         }
         downloadJobs[videoId] = job
     }
