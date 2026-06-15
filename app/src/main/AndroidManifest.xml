@@ -219,6 +219,20 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Flow Play (white background, red video frame + play mark) -->
+        <activity-alias
+            android:name=".IconFlowPlay"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_flow_play"
+            android:roundIcon="@mipmap/ic_launcher_flow_play_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- AMOLED Dark -->
         <activity-alias
             android:name=".IconAmoled"

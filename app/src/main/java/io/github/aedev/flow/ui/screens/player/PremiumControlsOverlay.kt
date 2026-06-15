@@ -173,7 +173,11 @@ fun PremiumControlsOverlay(
     val speedIndicatorLabel = remember(playbackSpeed) { playbackSpeed.toSpeedIndicatorLabel() }
 
 
+    val showControlsWhileLoading by playerPreferences.showControlsWhileLoading.collectAsState(initial = false)
     val isInitialLoading = isBuffering && duration <= 0L && currentPosition <= 0L
+    // When the user opts in, keep the controls visible during the initial load so volume/brightness/
+    // back/etc. can be used before the first frame arrives.
+    val hideControlsForLoading = isInitialLoading && !showControlsWhileLoading
 
     Box(
         modifier = modifier
@@ -236,7 +240,7 @@ fun PremiumControlsOverlay(
                 }
             } else {
                 // Top Bar
-            if (!isInitialLoading) {
+            if (!hideControlsForLoading) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -491,7 +495,7 @@ fun PremiumControlsOverlay(
                     horizontalArrangement = Arrangement.spacedBy(48.dp)
                 ) {
                     // Previous Video
-                    if (!isInitialLoading) {
+                    if (!hideControlsForLoading) {
                         val prevInteractionSource = remember { MutableInteractionSource() }
                         IconButton(
                             onClick = onPrevious,
@@ -543,7 +547,7 @@ fun PremiumControlsOverlay(
                     }
 
                     // Next Video
-                    if (!isInitialLoading) {
+                    if (!hideControlsForLoading) {
                         val nextInteractionSource = remember { MutableInteractionSource() }
                         IconButton(
                             onClick = onNext,
@@ -563,7 +567,7 @@ fun PremiumControlsOverlay(
             }
 
             // Bottom Bar
-            if (!isInitialLoading) {
+            if (!hideControlsForLoading) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()

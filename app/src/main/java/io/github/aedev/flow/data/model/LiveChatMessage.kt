@@ -1,10 +1,16 @@
 package io.github.aedev.flow.data.model
 
+data class LiveChatSegment(
+    val text: String,
+    val emojiImageUrl: String? = null,
+)
+
 data class LiveChatMessage(
     val id: String,
     val author: String,
     val authorPhotoUrl: String?,
     val message: String,
+    val segments: List<LiveChatSegment> = emptyList(),
     val timestamp: String?,
     val type: LiveChatMessageType = LiveChatMessageType.TEXT,
     val isOwner: Boolean = false,

@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.repository
 import android.util.Log
 import io.github.aedev.flow.data.model.LiveChatMessage
 import io.github.aedev.flow.data.model.LiveChatMessageType
+import io.github.aedev.flow.data.model.LiveChatSegment
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.response.GetLiveChatResponse
 import kotlinx.coroutines.CancellationException
@@ -65,11 +66,13 @@ class LiveChatRepository @Inject constructor() {
         type: LiveChatMessageType
     ): LiveChatMessage? {
         val msgId = id ?: return null
-        val text = when (type) {
+        val bodyMessage = when (type) {
             LiveChatMessageType.MEMBERSHIP ->
-                message?.plainText()?.takeIf { it.isNotBlank() } ?: headerSubtext?.plainText().orEmpty()
-            else -> message?.plainText().orEmpty()
+                message?.takeIf { it.plainText().isNotBlank() } ?: headerSubtext
+            else -> message
         }
+        val text = bodyMessage?.plainText().orEmpty()
+        val segments = bodyMessage?.toSegments().orEmpty()
 
         var isOwner = false
         var isModerator = false
@@ -94,6 +97,7 @@ class LiveChatRepository @Inject constructor() {
             author = authorName?.value() ?: "",
             authorPhotoUrl = authorPhoto?.bestUrl(),
             message = text,
+            segments = segments,
             timestamp = timestampText?.value(),
             type = type,
             isOwner = isOwner,
@@ -106,6 +110,27 @@ class LiveChatRepository @Inject constructor() {
             superChatHeaderArgb = headerBackgroundColor?.toInt(),
         )
     }
+
+    private fun GetLiveChatResponse.Message.toSegments(): List<LiveChatSegment> =
+        runs.mapNotNull { run ->
+            val emoji = run.emoji
+            when {
+                run.text != null -> LiveChatSegment(text = run.text)
+                emoji != null -> {
+                    val isCustom = emoji.isCustomEmoji == true
+                    val unicode = emoji.emojiId?.takeIf { !isCustom && it.isNotBlank() }
+                    if (unicode != null) {
+                        LiveChatSegment(text = unicode)
+                    } else {
+                        LiveChatSegment(
+                            text = emoji.shortcuts.firstOrNull() ?: emoji.emojiId ?: "",
+                            emojiImageUrl = emoji.image?.bestUrl()
+                        )
+                    }
+                }
+                else -> null
+            }
+        }
 
     companion object {
         private const val TAG = "LiveChatRepository"

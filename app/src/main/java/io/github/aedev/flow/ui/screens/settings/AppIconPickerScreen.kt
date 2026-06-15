@@ -72,6 +72,7 @@ private data class AppIconOption(
 private val ALL_ICONS = listOf(
     AppIconOption(".IconFlowRed", R.string.icon_name_flow_red, Color(0xFF0F0F0F), R.drawable.ic_launcher_foreground),
     AppIconOption(".IconFlowLight", R.string.icon_name_flow_light, Color(0xFFFFFFFF), R.drawable.ic_launcher_foreground),
+    AppIconOption(".IconFlowPlay", R.string.icon_name_flow_play, Color(0xFFFFFFFF), R.drawable.ic_fg_flow_play),
     AppIconOption(".IconAmoled", R.string.icon_name_amoled, Color(0xFF000000), R.drawable.ic_fg_amoled),
     AppIconOption(".IconMonochrome", R.string.icon_name_monochrome, Color(0xFFFFFFFF), R.drawable.ic_fg_monochrome),
     AppIconOption(".IconGhost", R.string.icon_name_ghost, Color(0xFF121212), R.drawable.ic_fg_ghost),

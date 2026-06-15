@@ -157,6 +157,11 @@ class EnhancedPlayerManager private constructor() {
     private var autoplayCandidates: List<Video> = emptyList()
     private var autoplaySourceVideoId: String? = null
     private var autoplayJob: Job? = null
+
+    @Volatile private var autoplayCountdownSeconds: Int = 0
+    private var autoplayCountdownJob: Job? = null
+    private val _autoplayCountdown = MutableStateFlow(AutoplayCountdownState())
+    val autoplayCountdown: StateFlow<AutoplayCountdownState> = _autoplayCountdown.asStateFlow()
     
     // Application context
     private var appContext: Context? = null
@@ -543,6 +548,12 @@ class EnhancedPlayerManager private constructor() {
             }
         }
 
+        scope.launch {
+            prefs.autoplayCountdownSeconds.collect { seconds ->
+                autoplayCountdownSeconds = seconds
+            }
+        }
+
         // Collect per-category SponsorBlock actions and update handler
         val sbCategories = listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic")
         sbCategories.forEach { category ->
@@ -603,13 +614,8 @@ class EnhancedPlayerManager private constructor() {
                         autoNextLog("STATE_ENDED loop replay")
                         player?.seekTo(0)
                         player?.play()
-                    } else if (hasNext()) {
-                        autoNextLog("STATE_ENDED queue fallback playNext")
-                        _queueAutoAdvanceEvent.tryEmit(Unit)
-                        playNext(loadStreamsInPlayer = true)
                     } else {
-                        autoNextLog("STATE_ENDED related-autoplay fallback")
-                        playNextAutoplayCandidate()
+                        maybeStartAutoplayCountdownOrAdvance()
                     }
                 }
                 
@@ -863,6 +869,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun resetPlaybackStateForNewVideo(videoId: String) {
+        clearAutoplayCountdownInternal()
         currentVideoId = videoId
         liveQualityHeights = emptyList()
         pendingLiveQualityHeight = 0
@@ -1245,6 +1252,97 @@ class EnhancedPlayerManager private constructor() {
         autoplayCandidates = autoplayCandidates.drop(1)
         playVideoFromServiceLayer(nextVideo, reason = "related-autoplay")
         return true
+    }
+
+    // ===== Autoplay countdown (delay before switching to the next video) =====
+
+    private fun nextSessionVideo(): Video? = when {
+        hasNext() -> playbackQueue.getOrNull(currentQueueIndex + 1)
+        autoplayEnabled -> autoplayCandidates.firstOrNull()
+        else -> null
+    }
+
+    private fun maybeStartAutoplayCountdownOrAdvance() {
+        val delaySeconds = autoplayCountdownSeconds
+        val nextVideo = nextSessionVideo()
+        if (delaySeconds > 0 && nextVideo != null) {
+            startAutoplayCountdown(delaySeconds, nextVideo)
+        } else {
+            performAutoAdvance()
+        }
+    }
+
+    private fun performAutoAdvance() {
+        if (hasNext()) {
+            autoNextLog("auto-advance queue playNext")
+            _queueAutoAdvanceEvent.tryEmit(Unit)
+            playNext(loadStreamsInPlayer = true)
+        } else {
+            autoNextLog("auto-advance related-autoplay")
+            playNextAutoplayCandidate()
+        }
+    }
+
+    private fun startAutoplayCountdown(totalSeconds: Int, nextVideo: Video) {
+        autoplayCountdownJob?.cancel()
+        autoplayCountdownJob = scope.launch {
+            var remaining = totalSeconds
+            _autoplayCountdown.value = AutoplayCountdownState(
+                isActive = true,
+                secondsRemaining = remaining,
+                totalSeconds = totalSeconds,
+                nextVideoTitle = nextVideo.title,
+                nextVideoChannel = nextVideo.channelName,
+                nextVideoThumbnailUrl = nextVideo.thumbnailUrl,
+            )
+            autoNextLog("autoplay countdown start ${totalSeconds}s next=${nextVideo.id}")
+            while (remaining > 0) {
+                delay(1000L)
+                remaining--
+                _autoplayCountdown.value = _autoplayCountdown.value.copy(secondsRemaining = remaining)
+            }
+            _autoplayCountdown.value = AutoplayCountdownState()
+            autoplayCountdownJob = null
+            autoNextLog("autoplay countdown elapsed -> advance")
+            performAutoAdvance()
+        }
+    }
+
+    fun skipAutoplayCountdown() {
+        if (!_autoplayCountdown.value.isActive) return
+        autoplayCountdownJob?.cancel()
+        autoplayCountdownJob = null
+        _autoplayCountdown.value = AutoplayCountdownState()
+        autoNextLog("autoplay countdown skipped -> advance now")
+        performAutoAdvance()
+    }
+
+    fun cancelAutoplayCountdown() {
+        if (!_autoplayCountdown.value.isActive) return
+        autoplayCountdownJob?.cancel()
+        autoplayCountdownJob = null
+        _autoplayCountdown.value = AutoplayCountdownState()
+        releaseAdvanceWakeLock()
+        autoNextLog("autoplay countdown cancelled")
+    }
+
+    fun restartFromAutoplayCountdown() {
+        autoplayCountdownJob?.cancel()
+        autoplayCountdownJob = null
+        _autoplayCountdown.value = AutoplayCountdownState()
+        releaseAdvanceWakeLock()
+        player?.seekTo(0)
+        player?.play()
+        autoNextLog("autoplay countdown -> restart current")
+    }
+
+    private fun clearAutoplayCountdownInternal() {
+        if (autoplayCountdownJob == null && !_autoplayCountdown.value.isActive) return
+        autoplayCountdownJob?.cancel()
+        autoplayCountdownJob = null
+        if (_autoplayCountdown.value.isActive) {
+            _autoplayCountdown.value = AutoplayCountdownState()
+        }
     }
 
     private fun playVideoFromServiceLayer(video: Video, reason: String) {

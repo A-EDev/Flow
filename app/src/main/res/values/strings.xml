@@ -524,6 +524,7 @@
     <string name="app_icon_apply_toast">Icon updated - your launcher will refresh</string>
     <string name="icon_name_flow_red">Flow Red</string>
     <string name="icon_name_flow_light">Flow Light</string>
+    <string name="icon_name_flow_play">Flow Play</string>
     <string name="icon_name_amoled">AMOLED Dark</string>
     <string name="icon_name_monochrome">Monochrome</string>
     <string name="icon_name_ghost">Ghost</string>
@@ -556,6 +557,8 @@
     <string name="player_appearance_remember_brightness_subtitle">Reuse your last player brightness level for the next videos</string>
     <string name="player_appearance_volume_gesture_title">Volume Gesture</string>
     <string name="player_appearance_volume_gesture_subtitle">Swipe the right edge in fullscreen to adjust volume</string>
+    <string name="player_appearance_controls_while_loading_title">Controls While Loading</string>
+    <string name="player_appearance_controls_while_loading_subtitle">Show the player controls before the video finishes loading so you can adjust volume right away</string>
     <string name="player_appearance_long_press_speed_title">Long-press Playback Speed</string>
     <string name="player_appearance_long_press_speed_subtitle">Choose the temporary speed used while holding the player</string>
     <string name="player_appearance_long_press_speed_disabled">Disabled</string>
@@ -775,6 +778,15 @@
     <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d seconds</string>
     <string name="player_settings_autoplay">Autoplay</string>
     <string name="player_settings_autoplay_subtitle">Automatically play the next video</string>
+    <string name="player_settings_autoplay_countdown_title">Autoplay delay</string>
+    <string name="player_settings_autoplay_countdown_none">None (switch immediately)</string>
+    <string name="player_settings_autoplay_countdown_seconds_template">%1$d seconds</string>
+    <string name="player_settings_autoplay_countdown_dialog_body">Show a countdown before automatically switching to the next video. During the countdown you can restart the current video, cancel the switch, or play the next one right away.</string>
+    <string name="autoplay_countdown_up_next">Up next</string>
+    <string name="autoplay_countdown_next_video">Next video</string>
+    <string name="autoplay_countdown_cancel">Cancel</string>
+    <string name="autoplay_countdown_restart">Restart</string>
+    <string name="autoplay_countdown_play_now">Play now</string>
     <string name="player_settings_skip_silence">Skip Silence</string>
     <string name="player_settings_skip_silence_subtitle">Skip parts with no audio</string>
     <string name="player_settings_remember_speed">Remember Playback Speed</string>

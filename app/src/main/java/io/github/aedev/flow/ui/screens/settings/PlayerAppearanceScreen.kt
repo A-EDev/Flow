@@ -65,6 +65,7 @@ fun PlayerAppearanceScreen(
     val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
+    val showControlsWhileLoading by playerPreferences.showControlsWhileLoading.collectAsState(initial = false)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
@@ -359,6 +360,23 @@ fun PlayerAppearanceScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 playerPreferences.setVolumeSwipeGesturesEnabled(enabled)
+                            }
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.player_appearance_controls_while_loading_title),
+                        subtitle = stringResource(R.string.player_appearance_controls_while_loading_subtitle),
+                        checked = showControlsWhileLoading,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setShowControlsWhileLoading(enabled)
                             }
                         }
                     )

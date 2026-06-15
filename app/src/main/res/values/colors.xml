@@ -12,6 +12,7 @@
     <color name="icon_bg_ghost">#121212</color>
     <color name="icon_bg_dynamic">#2D2D2D</color>
     <color name="icon_bg_flow_light">#FFFFFF</color>
+    <color name="icon_bg_flow_play">#FFFFFF</color>
     <color name="icon_bg_material_sky">#D7E3FF</color>
     <color name="icon_bg_material_mint">#C7E8D4</color>
 </resources>

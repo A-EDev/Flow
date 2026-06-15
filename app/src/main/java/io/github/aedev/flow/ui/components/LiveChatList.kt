@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -21,8 +23,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -30,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.LiveChatMessage
 import io.github.aedev.flow.data.model.LiveChatMessageType
+import io.github.aedev.flow.data.model.LiveChatSegment
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -152,8 +160,9 @@ private fun ChatTextRow(message: LiveChatMessage) {
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             AuthorLine(message)
-            Text(
-                text = message.message,
+            ChatMessageText(
+                segments = message.segments,
+                fallback = message.message,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -180,10 +189,11 @@ private fun MembershipRow(message: LiveChatMessage) {
                 color = Color(0xFF0B8043)
             )
         }
-        if (message.message.isNotBlank()) {
+        if (message.message.isNotBlank() || message.segments.isNotEmpty()) {
             Spacer(Modifier.height(3.dp))
-            Text(
-                text = message.message,
+            ChatMessageText(
+                segments = message.segments,
+                fallback = message.message,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -228,15 +238,73 @@ private fun SuperChatRow(message: LiveChatMessage) {
                 }
             }
         }
-        if (message.message.isNotBlank()) {
-            Text(
-                text = message.message,
+        if (message.message.isNotBlank() || message.segments.isNotEmpty()) {
+            ChatMessageText(
+                segments = message.segments,
+                fallback = message.message,
                 style = MaterialTheme.typography.bodyMedium,
                 color = onBody,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
             )
         }
     }
+}
+
+@Composable
+private fun ChatMessageText(
+    segments: List<LiveChatSegment>,
+    fallback: String,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    if (segments.isEmpty()) {
+        Text(text = fallback, style = style, color = color, modifier = modifier)
+        return
+    }
+    if (segments.none { it.emojiImageUrl != null }) {
+        Text(
+            text = segments.joinToString("") { it.text },
+            style = style,
+            color = color,
+            modifier = modifier
+        )
+        return
+    }
+
+    val context = LocalContext.current
+    val inlineContent = HashMap<String, InlineTextContent>()
+    val annotated = buildAnnotatedString {
+        segments.forEachIndexed { index, seg ->
+            val imageUrl = seg.emojiImageUrl
+            if (imageUrl != null) {
+                val key = "emoji_$index"
+                appendInlineContent(key, seg.text.ifBlank { ":emoji:" })
+                inlineContent[key] = InlineTextContent(
+                    placeholder = Placeholder(
+                        width = 1.4.em,
+                        height = 1.4.em,
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.Center
+                    )
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context).data(imageUrl).crossfade(true).build(),
+                        contentDescription = seg.text,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            } else {
+                append(seg.text)
+            }
+        }
+    }
+    Text(
+        text = annotated,
+        style = style,
+        color = color,
+        inlineContent = inlineContent,
+        modifier = modifier
+    )
 }
 
 @Composable

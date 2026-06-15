@@ -136,6 +136,7 @@ fun PlayerSettingsScreen(
     val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
     
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
+    val autoplayCountdownSeconds by playerPreferences.autoplayCountdownSeconds.collectAsState(initial = 0)
     val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
     val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
@@ -158,6 +159,7 @@ fun PlayerSettingsScreen(
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
     var showSeekDurationDialog by remember { mutableStateOf(false) }
     var showShortsPlaybackModeDialog by remember { mutableStateOf(false) }
+    var showAutoplayCountdownDialog by remember { mutableStateOf(false) }
 
     val customSpeedsEnabled by playerPreferences.customSpeedsEnabled.collectAsState(initial = false)
     val customSpeedPresetsRaw by playerPreferences.customSpeedPresets.collectAsState(initial = "")
@@ -346,6 +348,20 @@ fun PlayerSettingsScreen(
                                 playerPreferences.setAutoplayEnabled(it && !videoLoopEnabled)
                             }
                         }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsClickItem(
+                        icon = Icons.Outlined.Timer,
+                        title = stringResource(R.string.player_settings_autoplay_countdown_title),
+                        subtitle = if (autoplayCountdownSeconds <= 0) {
+                            stringResource(R.string.player_settings_autoplay_countdown_none)
+                        } else {
+                            stringResource(
+                                R.string.player_settings_autoplay_countdown_seconds_template,
+                                autoplayCountdownSeconds
+                            )
+                        },
+                        onClick = { showAutoplayCountdownDialog = true }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -779,6 +795,64 @@ fun PlayerSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showShortsPlaybackModeDialog = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
+    }
+
+    if (showAutoplayCountdownDialog) {
+        AlertDialog(
+            onDismissRequest = { showAutoplayCountdownDialog = false },
+            title = {
+                Text(
+                    stringResource(R.string.player_settings_autoplay_countdown_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.player_settings_autoplay_countdown_dialog_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    listOf(0, 3, 5, 10, 15).forEach { seconds ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    coroutineScope.launch {
+                                        playerPreferences.setAutoplayCountdownSeconds(seconds)
+                                    }
+                                    showAutoplayCountdownDialog = false
+                                }
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = autoplayCountdownSeconds == seconds,
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = if (seconds == 0) {
+                                    stringResource(R.string.player_settings_autoplay_countdown_none)
+                                } else {
+                                    stringResource(
+                                        R.string.player_settings_autoplay_countdown_seconds_template,
+                                        seconds
+                                    )
+                                },
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAutoplayCountdownDialog = false }) {
                     Text(stringResource(R.string.btn_close))
                 }
             }

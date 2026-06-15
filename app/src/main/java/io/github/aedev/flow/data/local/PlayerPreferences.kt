@@ -32,6 +32,8 @@ class PlayerPreferences(context: Context) {
         val DEFAULT_VIDEO_CODEC = stringPreferencesKey("default_video_codec")
         val BACKGROUND_PLAY_ENABLED = booleanPreferencesKey("background_play_enabled")
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
+        val AUTOPLAY_COUNTDOWN_SECONDS = intPreferencesKey("autoplay_countdown_seconds")
+        val SHOW_CONTROLS_WHILE_LOADING = booleanPreferencesKey("show_controls_while_loading")
         val VIDEO_LOOP_ENABLED = booleanPreferencesKey("video_loop_enabled")
         val SUBTITLES_ENABLED = booleanPreferencesKey("subtitles_enabled")
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
@@ -834,6 +836,28 @@ class PlayerPreferences(context: Context) {
     suspend fun setAutoplayEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.AUTOPLAY_ENABLED] = enabled
+        }
+    }
+
+    val autoplayCountdownSeconds: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            (preferences[Keys.AUTOPLAY_COUNTDOWN_SECONDS] ?: 0).coerceIn(0, 30)
+        }
+
+    suspend fun setAutoplayCountdownSeconds(seconds: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.AUTOPLAY_COUNTDOWN_SECONDS] = seconds.coerceIn(0, 30)
+        }
+    }
+
+    val showControlsWhileLoading: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHOW_CONTROLS_WHILE_LOADING] ?: false
+        }
+
+    suspend fun setShowControlsWhileLoading(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHOW_CONTROLS_WHILE_LOADING] = enabled
         }
     }
 

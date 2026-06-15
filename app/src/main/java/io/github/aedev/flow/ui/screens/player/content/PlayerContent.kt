@@ -369,5 +369,9 @@ fun PlayerContent(
                 }
             }
         )
+
+        if (!screenState.isInPipMode) {
+            AutoplayCountdownOverlay()
+        }
     }
 }

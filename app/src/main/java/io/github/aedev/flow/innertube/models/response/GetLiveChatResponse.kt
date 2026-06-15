@@ -95,7 +95,10 @@ data class GetLiveChatResponse(
 
             fun displayText(): String = when {
                 text != null -> text
-                emoji != null -> emoji.shortcuts.firstOrNull() ?: emoji.emojiId ?: ""
+                emoji != null -> {
+                    val unicode = emoji.emojiId?.takeIf { emoji.isCustomEmoji != true }
+                    unicode ?: emoji.shortcuts.firstOrNull() ?: emoji.emojiId ?: ""
+                }
                 else -> ""
             }
         }

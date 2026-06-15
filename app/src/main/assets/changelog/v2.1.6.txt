@@ -4,7 +4,8 @@ DATE: 2026-06-15
 STATUS: PRE-RELEASE
 
 NEW FEATURES
-- add a local media library (play local on-device media)
+- Add a local media library (play local on-device media)
+- Add new logo #605 by @AnharHussainMiah
 
 IMPROVEMENTS
 - Improve media notification handling #577
@@ -20,6 +21,9 @@ IMPROVEMENTS
 - Improve AV1 codec handling
 - Improve mark as watched percentage
 - Add new share context toggle 
+- Add toggle to show/hide overlay #604
+- Add a delay config for autoplay #620
+- Improve Emojis handling in live chat #617
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578
