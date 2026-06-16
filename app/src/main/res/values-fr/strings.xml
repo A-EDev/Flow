@@ -1714,4 +1714,19 @@
     <string name="history_tab_local_music">Musique locale</string>
     <string name="deep_flow_save_history_title">Ajouter à l\'historique</string>
     <string name="deep_flow_save_history_subtitle">Conserver les vidéos visionnées dans l\'historique (avec la progression). Le moteur ne s\'en servira toutefois pas pour s\'améliorer. Désactivé = rien n\'est enregistré.</string>
+    <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
+    <string name="content_settings_share_without_text_title">Partager des liens sans texte</string>
+    <string name="content_settings_share_without_text_subtitle">Partagez uniquement le lien vers la vidéo, sans le message « Regardez cette vidéo »</string>
+    <string name="icon_name_flow_play">Flow Lecture</string>
+    <string name="player_appearance_controls_while_loading_title">Commandes pendant le chargement</string>
+    <string name="player_appearance_controls_while_loading_subtitle">Affichez les commandes de lecture avant la fin du chargement de la vidéo afin de pouvoir régler le volume immédiatement</string>
+    <string name="player_settings_autoplay_countdown_title">Délai de lecture automatique</string>
+    <string name="player_settings_autoplay_countdown_none">Aucun (changer immédiatement)</string>
+    <string name="player_settings_autoplay_countdown_seconds_template">%1$d secondes</string>
+    <string name="player_settings_autoplay_countdown_dialog_body">Affichez un compte à rebours avant de passer automatiquement à la vidéo suivante. Pendant le compte à rebours, vous pouvez relancer la vidéo en cours, annuler le passage à la suivante ou lancer immédiatement la vidéo suivante.</string>
+    <string name="autoplay_countdown_up_next">À suivre</string>
+    <string name="autoplay_countdown_next_video">Vidéo suivante</string>
+    <string name="autoplay_countdown_cancel">Annuler</string>
+    <string name="autoplay_countdown_restart">Redémarrer</string>
+    <string name="autoplay_countdown_play_now">Lire maintenant</string>
 </resources>
