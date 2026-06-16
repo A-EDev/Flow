@@ -1677,4 +1677,16 @@
     <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
     <string name="content_settings_share_without_text_title">Condividi link senza testo</string>
     <string name="content_settings_share_without_text_subtitle">Condividi solo il link dei video, senza il messaggio \"Dai un\'occhiata a questo video\"</string>
+    <string name="player_appearance_controls_while_loading_title">Controlli durante il caricamento</string>
+    <string name="player_appearance_controls_while_loading_subtitle">Mostra i controlli del player prima che il video finisca di caricarsi, così puoi regolare il volume immediatamente</string>
+    <string name="player_settings_autoplay_countdown_title">Ritardo della riproduzione automatica</string>
+    <string name="player_settings_autoplay_countdown_none">Nessuno (cambia immediatamente)</string>
+    <string name="player_settings_autoplay_countdown_seconds_template">%1$d secondi</string>
+    <string name="player_settings_autoplay_countdown_dialog_body">Mostra un conto alla rovescia prima del passaggio automatico al video successivo. Durante il conto alla rovescia puoi ricominciare il video attuale, annullare il passaggio, oppure riprodurre il video successivo immediatamente.</string>
+    <string name="icon_name_flow_play">Flow Play</string>
+    <string name="autoplay_countdown_up_next">A seguire</string>
+    <string name="autoplay_countdown_next_video">Prossimo video</string>
+    <string name="autoplay_countdown_cancel">Annulla</string>
+    <string name="autoplay_countdown_restart">Riavvia</string>
+    <string name="autoplay_countdown_play_now">Riproduci ora</string>
 </resources>
