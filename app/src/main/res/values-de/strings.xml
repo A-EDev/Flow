@@ -952,4 +952,13 @@
     <string name="sleep_timer_end_of_media">Ende des aktuellen Songs</string>
     <string name="sleep_timer_reset">Zurücksetzen</string>
     <string name="sleep_timer_cancel_timer">Timer abbrechen</string>
+    <string name="library_local_media_label">Lokale Medien</string>
+    <string name="library_local_media_subtitle">Videos und Musik auf diesem Gerät abspielen</string>
+    <string name="local_media_title">Lokale Medien</string>
+    <string name="local_media_rescan">Erneut scannen</string>
+    <string name="local_media_scanning">Ihr Gerät wird gescannt…</string>
+    <string name="local_media_empty_title">Es wurden keine %1$s gefunden</string>
+    <string name="local_media_empty_body">Die auf diesem Gerät gespeicherten Videos und Musikdateien werden hier angezeigt.</string>
+    <string name="local_media_permission_title">Erforderliche Berechtigung</string>
+    <string name="local_media_permission_body">Erlauben Sie den Zugriff auf Ihre Medien, damit Flow lokale Videos und Musik finden und abspielen kann.</string>
 </resources>
