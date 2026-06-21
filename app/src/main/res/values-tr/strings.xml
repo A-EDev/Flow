@@ -1656,4 +1656,17 @@
     <string name="subscriptions_last_refreshed_time_only_template">Son güncelleme %1$s</string>
     <string name="player_settings_video_codec_dialog_body">Seçilen çözünürlükte varsayılan olarak hangi kodeğin kullanılacağını seçin. Bu, listelenen kaliteleri değiştirmez; kalite seçicisinden yine de herhangi bir kodeği seçebilirsiniz. H.264 çoğu cihazda en uyumlu ve en akıcı olanıdır; AV1/VP9 daha yüksek çözünürlüklerde veri tasarrufu sağlar ancak daha fazla kod çözme gücüne ihtiyaç duyar.</string>
     <string name="donation_prompt_message">Flow ücretsiz, açık kaynaklı ve reklam veya izleyici içermeyen bir uygulamadır. Eğer cihazınızda yer edindiyse, lütfen geliştirilmesine destek olmayı düşünün — bu, projenin hayatta kalmasına gerçekten yardımcı olur.</string>
+    <string name="library_local_media_label">Yerel medya</string>
+    <string name="library_local_media_subtitle">Video ve müziği bu cihazda oynat</string>
+    <string name="local_media_title">Yerel medya</string>
+    <string name="local_media_rescan">Yeniden taranıyor</string>
+    <string name="local_media_scanning">Cihazın taranıyor…</string>
+    <string name="local_media_empty_title">%1$s Bulunamadı</string>
+    <string name="local_media_empty_body">Cihazındaki video ve müzikler burada görünecek.</string>
+    <string name="local_media_permission_title">İzin gerekiyor</string>
+    <string name="local_media_permission_body">Flow\'un cihazındaki müzik ve videolara erişmesine izin ver.</string>
+    <string name="local_media_grant">Erişim izni ver</string>
+    <string name="history_tab_local_videos">Yerel videolar</string>
+    <string name="history_tab_local_music">Yerel müzikler</string>
+    <string name="share_link_only_template">https://youtube.com/watch?v=%1</string>
 </resources>
