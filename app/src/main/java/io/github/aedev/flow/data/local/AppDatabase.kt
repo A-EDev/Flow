@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.dao.DownloadedSongDao
 import io.github.aedev.flow.data.local.dao.NotificationDao
 import io.github.aedev.flow.data.local.dao.PlaylistDao
+import io.github.aedev.flow.data.local.dao.RecognitionHistoryDao
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
@@ -19,6 +20,7 @@ import io.github.aedev.flow.data.local.entity.MusicHomeCacheEntity
 import io.github.aedev.flow.data.local.entity.NotificationEntity
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
+import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeChipEntity
 import io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
@@ -38,9 +40,10 @@ import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
         DownloadEntity::class,
         DownloadItemEntity::class,
         WatchHistoryEntity::class,
-        SubscriptionGroupEntity::class
+        SubscriptionGroupEntity::class,
+        RecognitionHistoryEntity::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -52,6 +55,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun downloadDao(): DownloadDao
     abstract fun watchHistoryDao(): WatchHistoryDao
     abstract fun subscriptionGroupDao(): SubscriptionGroupDao
+    abstract fun recognitionHistoryDao(): RecognitionHistoryDao
 
     companion object {
         @Volatile
@@ -140,6 +144,38 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS recognition_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        trackId TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        artist TEXT NOT NULL,
+                        album TEXT,
+                        coverArtUrl TEXT,
+                        coverArtHqUrl TEXT,
+                        genre TEXT,
+                        releaseDate TEXT,
+                        label TEXT,
+                        shazamUrl TEXT,
+                        appleMusicUrl TEXT,
+                        spotifyUrl TEXT,
+                        isrc TEXT,
+                        youtubeVideoId TEXT,
+                        recognizedAt INTEGER NOT NULL,
+                        liked INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_recognition_history_trackId ON recognition_history(trackId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_recognition_history_recognizedAt ON recognition_history(recognizedAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_recognition_history_title ON recognition_history(title)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_recognition_history_artist ON recognition_history(artist)")
+            }
+        }
+
         fun getDatabase(context: android.content.Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = androidx.room.Room.databaseBuilder(
@@ -147,7 +183,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flow_database"
                 )
-                .addMigrations(MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+                .addMigrations(MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

@@ -1784,4 +1784,19 @@
     <string name="history_delete_shorts">Delete Shorts from history</string>
     <string name="history_delete_shorts_title">Delete Shorts?</string>
     <string name="history_delete_shorts_body">This removes all Shorts from your watch history. Other videos are kept.</string>
+
+    <!-- Music recognition (Shazam) -->
+    <string name="recognize_music">Recognize music</string>
+    <string name="recognition_history">Recognition history</string>
+    <string name="tap_to_recognize">Tap to recognize</string>
+    <string name="listening">Listening…</string>
+    <string name="processing">Processing…</string>
+    <string name="no_match_found">No match found</string>
+    <string name="recognition_error">Recognition failed</string>
+    <string name="try_again">Try again</string>
+    <string name="search_in_flow">Search in Flow</string>
+    <string name="recognition_search_history">Search recognized songs</string>
+    <string name="recognition_history_empty">Recognized songs will appear here</string>
+    <string name="recognition_clear_history">Clear history?</string>
+    <string name="recognition_clear_history_body">This removes all recognized songs. This cannot be undone.</string>
 </resources>

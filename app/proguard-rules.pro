@@ -107,6 +107,14 @@
 -dontwarn io.ktor.**
 -keep class io.ktor.** { *; }
 
+## Shazam recognition models + kotlinx serializers
+-keepclasseswithmembers class io.github.aedev.flow.data.recognition.shazam.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keepclassmembers class io.github.aedev.flow.data.recognition.shazam.** {
+    *** Companion;
+}
+
 ## Rules for Brotli
 -dontwarn org.brotli.**
 -keep class org.brotli.** { *; }

@@ -811,6 +811,9 @@ fun NavGraphBuilder.flowAppGraph(
             onSearchClick = {
                 navController.navigate("musicSearch")
             },
+            onRecognizeClick = {
+                navController.navigate("musicRecognize")
+            },
             onSettingsClick = {
                 navController.navigate("settings")
             },
@@ -842,13 +845,24 @@ fun NavGraphBuilder.flowAppGraph(
     }
 
     // Music Search Screen
-    composable("musicSearch") {
+    composable(
+        route = "musicSearch?query={query}",
+        arguments = listOf(
+            navArgument("query") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            }
+        )
+    ) { backStackEntry ->
         currentRoute.value = "musicSearch"
         showBottomNav.value = false
-        
+
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-        
+        val initialQuery = backStackEntry.arguments?.getString("query")
+
         io.github.aedev.flow.ui.screens.music.MusicSearchScreen(
+            initialQuery = initialQuery,
             onBackClick = { navController.popBackStack() },
             onTrackClick = { track, queue, source ->
                 musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
@@ -869,6 +883,68 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
     
+    // Music Recognition (Shazam) Screen
+    composable("musicRecognize") {
+        currentRoute.value = "musicRecognize"
+        showBottomNav.value = false
+
+        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+
+        fun playRecognized(result: io.github.aedev.flow.data.recognition.RecognitionResult) {
+            val track = io.github.aedev.flow.ui.screens.recognition.RecognitionViewModel.toMusicTrack(result) ?: return
+            musicPlayerViewModel.loadAndPlayTrack(track, listOf(track), "Recognized")
+            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+            val encodedTitle = android.net.Uri.encode(track.title)
+            val encodedArtist = android.net.Uri.encode(track.artist)
+            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+        }
+
+        fun searchRecognized(title: String, artist: String) {
+            val query = io.github.aedev.flow.ui.screens.recognition.RecognitionViewModel.searchQueryFor(title, artist)
+            navController.navigate("musicSearch?query=${android.net.Uri.encode(query)}")
+        }
+
+        io.github.aedev.flow.ui.screens.recognition.RecognitionScreen(
+            onBackClick = { navController.popBackStack() },
+            onHistoryClick = { navController.navigate("recognitionHistory") },
+            onPlay = { result -> playRecognized(result) },
+            onSearch = { result -> searchRecognized(result.title, result.artist) }
+        )
+    }
+
+    // Music Recognition History Screen
+    composable("recognitionHistory") {
+        currentRoute.value = "recognitionHistory"
+        showBottomNav.value = false
+
+        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+
+        io.github.aedev.flow.ui.screens.recognition.RecognitionHistoryScreen(
+            onBackClick = { navController.popBackStack() },
+            onItemClick = { item ->
+                val videoId = item.youtubeVideoId
+                if (!videoId.isNullOrBlank()) {
+                    val track = io.github.aedev.flow.ui.screens.music.MusicTrack(
+                        videoId = videoId,
+                        title = item.title,
+                        artist = item.artist,
+                        thumbnailUrl = item.coverArtHqUrl ?: item.coverArtUrl ?: "",
+                        duration = 0,
+                        album = item.album.orEmpty()
+                    )
+                    musicPlayerViewModel.loadAndPlayTrack(track, listOf(track), "Recognized")
+                    val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                    val encodedTitle = android.net.Uri.encode(track.title)
+                    val encodedArtist = android.net.Uri.encode(track.artist)
+                    navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+                } else {
+                    val query = io.github.aedev.flow.ui.screens.recognition.RecognitionViewModel.searchQueryFor(item.title, item.artist)
+                    navController.navigate("musicSearch?query=${android.net.Uri.encode(query)}")
+                }
+            }
+        )
+    }
+
     // YouTube Browse Screen (for mood/genre content)
     composable(
         route = "youtube_browse/{browseId}?params={params}",

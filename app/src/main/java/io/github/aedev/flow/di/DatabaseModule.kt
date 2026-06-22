@@ -46,4 +46,9 @@ object DatabaseModule {
     fun provideDownloadDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.DownloadDao {
         return database.downloadDao()
     }
+
+    @Provides
+    fun provideRecognitionHistoryDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.RecognitionHistoryDao {
+        return database.recognitionHistoryDao()
+    }
 }

@@ -6,6 +6,7 @@ STATUS: PRE-RELEASE
 NEW FEATURES
 - Add a local media library (play local on-device media)
 - Add new logo #605 by @AnharHussainMiah
+- Add new music recognizer feature (Based on Metrolist's implementation see https://github.com/MetrolistGroup/Metrolist)
 
 IMPROVEMENTS
 - Improve media notification handling #577

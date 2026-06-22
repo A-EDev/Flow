@@ -61,6 +61,7 @@ fun MusicSearchScreen(
     onAlbumClick: (String) -> Unit,
     onArtistClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
+    initialQuery: String? = null,
     viewModel: MusicSearchViewModel = hiltViewModel()
 ) {
     val query by viewModel.query.collectAsState()
@@ -70,10 +71,17 @@ fun MusicSearchScreen(
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
 
+    // When opened with a preset query (e.g. from music recognition), run the search instead of auto-focusing.
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(100)
-        focusRequester.requestFocus()
-        keyboardController?.show()
+        if (!initialQuery.isNullOrBlank()) {
+            viewModel.onQueryChange(initialQuery)
+            viewModel.performSearch(initialQuery)
+            keyboardController?.hide()
+        } else {
+            kotlinx.coroutines.delay(100)
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
     }
     
     var showBottomSheet by remember { mutableStateOf(false) }

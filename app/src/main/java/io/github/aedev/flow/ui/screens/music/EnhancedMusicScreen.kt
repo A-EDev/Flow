@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.collectLatest
 import io.github.aedev.flow.ui.TabScrollEventBus
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
@@ -55,6 +56,7 @@ fun EnhancedMusicScreen(
     onVideoClick: (MusicTrack) -> Unit = {},
     onArtistClick: (String) -> Unit = {},
     onSearchClick: () -> Unit = {},
+    onRecognizeClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
     onMoodsClick: (io.github.aedev.flow.innertube.pages.MoodAndGenres.Item?) -> Unit = {},
@@ -139,6 +141,9 @@ fun EnhancedMusicScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = onRecognizeClick) {
+                        Icon(Icons.Outlined.Mic, stringResource(R.string.recognize_music))
+                    }
                     IconButton(onClick = onSearchClick) {
                         Icon(Icons.Outlined.Search, stringResource(R.string.search))
                     }
