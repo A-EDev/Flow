@@ -136,6 +136,7 @@ fun PlayerSettingsScreen(
     val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
     
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
+    val queueAutoplayEnabled by playerPreferences.queueAutoplayEnabled.collectAsState(initial = true)
     val autoplayCountdownSeconds by playerPreferences.autoplayCountdownSeconds.collectAsState(initial = 0)
     val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
     val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
@@ -346,6 +347,19 @@ fun PlayerSettingsScreen(
                         onCheckedChange = {
                             coroutineScope.launch {
                                 playerPreferences.setAutoplayEnabled(it && !videoLoopEnabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.PlaylistPlay,
+                        title = stringResource(R.string.player_settings_queue_autoplay),
+                        subtitle = stringResource(R.string.player_settings_queue_autoplay_subtitle),
+                        checked = queueAutoplayEnabled,
+                        enabled = !videoLoopEnabled,
+                        onCheckedChange = {
+                            coroutineScope.launch {
+                                playerPreferences.setQueueAutoplayEnabled(it && !videoLoopEnabled)
                             }
                         }
                     )

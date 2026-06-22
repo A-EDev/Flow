@@ -71,8 +71,9 @@ interface WatchHistoryDao {
         AND isLocal = 0
         AND duration > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
+        AND (duration - position) <= :maxRemainingMs
     """)
-    suspend fun getWatchedVideoIdsAboveThreshold(minPercent: Float = 90f): List<String>
+    suspend fun getWatchedVideoIdsAboveThreshold(minPercent: Float = 99f, maxRemainingMs: Long = Long.MAX_VALUE): List<String>
 
     @Query("""
         SELECT videoId FROM watch_history
@@ -81,8 +82,9 @@ interface WatchHistoryDao {
         AND isShort = 1
         AND duration > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
+        AND (duration - position) <= :maxRemainingMs
     """)
-    suspend fun getWatchedShortIdsAboveThreshold(minPercent: Float = 90f): List<String>
+    suspend fun getWatchedShortIdsAboveThreshold(minPercent: Float = 99f, maxRemainingMs: Long = Long.MAX_VALUE): List<String>
 
     /**
      * Returns the most recently watched non-music, non-Short video **only if that specific video

@@ -696,6 +696,14 @@
     <string name="content_settings_header_content_components">Content Components</string>
     <string name="content_settings_hide_watched_title">Hide Watched Videos</string>
     <string name="content_settings_hide_watched_subtitle">Filter videos you\'ve already watched from your home feed and subscriptions</string>
+    <string name="content_settings_watched_threshold_title">Mark as watched when</string>
+    <string name="content_settings_watched_threshold_dialog_body">Choose how much of a video must be played before it counts as watched and gets hidden.</string>
+    <string name="content_settings_watched_threshold_90">90% played</string>
+    <string name="content_settings_watched_threshold_95">95% played</string>
+    <string name="content_settings_watched_threshold_99">99% played</string>
+    <string name="content_settings_watched_threshold_almost">Almost finished (last minute)</string>
+    <string name="content_settings_navbar_hide_on_scroll_title">Hide navigation bar on scroll</string>
+    <string name="content_settings_navbar_hide_on_scroll_subtitle">Hide the bottom navigation bar when scrolling down. Turn off to keep it always visible (helps if the animation lags).</string>
     <string name="content_settings_disable_shorts_player_title">Disable Shorts Player</string>
     <string name="content_settings_disable_shorts_player_subtitle">Play all videos (including YouTube Shorts) in the regular video player</string>
     <string name="content_settings_explore_region_picker_title">Quick region picker in Explore</string>
@@ -776,8 +784,10 @@
     <string name="player_settings_shorts_playback_mode_dialog_title">Shorts Playback Mode</string>
     <string name="player_settings_shorts_playback_mode_dialog_body">Choose how Shorts should behave when the current short finishes playing:</string>
     <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d seconds</string>
-    <string name="player_settings_autoplay">Autoplay</string>
-    <string name="player_settings_autoplay_subtitle">Automatically play the next video</string>
+    <string name="player_settings_autoplay">Autoplay related videos</string>
+    <string name="player_settings_autoplay_subtitle">When nothing is queued, automatically play a suggested video next</string>
+    <string name="player_settings_queue_autoplay">Autoplay queued videos</string>
+    <string name="player_settings_queue_autoplay_subtitle">Automatically play the next video in a playlist or Watch Later queue. When off, you can still skip manually.</string>
     <string name="player_settings_autoplay_countdown_title">Autoplay delay</string>
     <string name="player_settings_autoplay_countdown_none">None (switch immediately)</string>
     <string name="player_settings_autoplay_countdown_seconds_template">%1$d seconds</string>

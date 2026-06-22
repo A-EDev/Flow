@@ -949,8 +949,10 @@ class ShortsRepository private constructor(private val context: Context) {
 
     private suspend fun filterWatchedShorts(shorts: List<ShortVideo>): List<ShortVideo> {
         if (shorts.isEmpty()) return shorts
-        val watchedIds = runCatching { viewHistory.getWatchedShortIdsAboveThreshold(90f) }
-            .getOrDefault(emptySet())
+        val threshold = PlayerPreferences(context).watchedThreshold.first()
+        val watchedIds = runCatching {
+            viewHistory.getWatchedShortIdsAboveThreshold(threshold.minPercent, threshold.maxRemainingMs)
+        }.getOrDefault(emptySet())
         if (watchedIds.isEmpty()) return shorts
         return shorts.filter { it.id !in watchedIds }
     }

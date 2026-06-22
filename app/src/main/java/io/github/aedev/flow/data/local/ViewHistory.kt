@@ -37,8 +37,6 @@ class ViewHistory private constructor(private val context: Context) {
     companion object {
         private const val TAG = "ViewHistory"
 
-        const val WATCHED_THRESHOLD_PERCENT = 90f
-
         @Volatile
         private var INSTANCE: ViewHistory? = null
 
@@ -201,8 +199,8 @@ class ViewHistory private constructor(private val context: Context) {
     fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> =
         dao.getMusicHistory().map { list -> list.map { it.toDomain() } }
 
-    suspend fun getWatchedShortIdsAboveThreshold(minPercent: Float = 90f): Set<String> =
-        dao.getWatchedShortIdsAboveThreshold(minPercent).toHashSet()
+    suspend fun getWatchedShortIdsAboveThreshold(minPercent: Float = 99f, maxRemainingMs: Long = Long.MAX_VALUE): Set<String> =
+        dao.getWatchedShortIdsAboveThreshold(minPercent, maxRemainingMs).toHashSet()
 
     /** Efficient count without loading all rows — use this instead of list.size. */
     fun getVideoCount(): Flow<Int> = dao.getVideoCount()

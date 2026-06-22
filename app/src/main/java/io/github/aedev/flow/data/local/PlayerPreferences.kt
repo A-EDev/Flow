@@ -32,6 +32,7 @@ class PlayerPreferences(context: Context) {
         val DEFAULT_VIDEO_CODEC = stringPreferencesKey("default_video_codec")
         val BACKGROUND_PLAY_ENABLED = booleanPreferencesKey("background_play_enabled")
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
+        val QUEUE_AUTOPLAY_ENABLED = booleanPreferencesKey("queue_autoplay_enabled")
         val AUTOPLAY_COUNTDOWN_SECONDS = intPreferencesKey("autoplay_countdown_seconds")
         val SHOW_CONTROLS_WHILE_LOADING = booleanPreferencesKey("show_controls_while_loading")
         val VIDEO_LOOP_ENABLED = booleanPreferencesKey("video_loop_enabled")
@@ -98,6 +99,7 @@ class PlayerPreferences(context: Context) {
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val SHORTS_NAVIGATION_ENABLED = booleanPreferencesKey("shorts_navigation_enabled")
+        val BOTTOM_NAV_HIDE_ON_SCROLL = booleanPreferencesKey("bottom_nav_hide_on_scroll")
         val MUSIC_NAVIGATION_ENABLED = booleanPreferencesKey("music_navigation_enabled")
         val SEARCH_NAV_TAB_ENABLED = booleanPreferencesKey("search_nav_tab_enabled")
         val CATEGORIES_NAV_TAB_ENABLED = booleanPreferencesKey("categories_nav_tab_enabled")
@@ -216,6 +218,7 @@ class PlayerPreferences(context: Context) {
 
         // Content filtering
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
+        val WATCHED_THRESHOLD = stringPreferencesKey("watched_threshold")
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
         val SHARE_WITHOUT_TEXT = booleanPreferencesKey("share_without_text")
 
@@ -602,6 +605,18 @@ class PlayerPreferences(context: Context) {
         }
     }
 
+    // When OFF, the bottom navigation bar stays pinned instead of hiding/showing on scroll.
+    val bottomNavHideOnScroll: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.BOTTOM_NAV_HIDE_ON_SCROLL] ?: true
+        }
+
+    suspend fun setBottomNavHideOnScroll(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.BOTTOM_NAV_HIDE_ON_SCROLL] = enabled
+        }
+    }
+
     // Music navigation enabled preference
     val musicNavigationEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
         .map { preferences ->
@@ -836,6 +851,18 @@ class PlayerPreferences(context: Context) {
     suspend fun setAutoplayEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.AUTOPLAY_ENABLED] = enabled
+        }
+    }
+
+    // Autoplay for the playback queue (playlists / watch later) — independent of related-video autoplay.
+    val queueAutoplayEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.QUEUE_AUTOPLAY_ENABLED] ?: true
+        }
+
+    suspend fun setQueueAutoplayEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.QUEUE_AUTOPLAY_ENABLED] = enabled
         }
     }
 
@@ -1443,6 +1470,19 @@ class PlayerPreferences(context: Context) {
     suspend fun setHideWatchedVideos(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.HIDE_WATCHED_VIDEOS] = enabled
+        }
+    }
+
+    // Defaults to ALMOST_FINISHED so long videos only disappear in their final minute instead of at a flat 90%.
+    val watchedThreshold: Flow<WatchedThreshold> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            runCatching { WatchedThreshold.valueOf(preferences[Keys.WATCHED_THRESHOLD] ?: WatchedThreshold.ALMOST_FINISHED.name) }
+                .getOrDefault(WatchedThreshold.ALMOST_FINISHED)
+        }
+
+    suspend fun setWatchedThreshold(threshold: WatchedThreshold) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.WATCHED_THRESHOLD] = threshold.name
         }
     }
 
@@ -2295,8 +2335,21 @@ enum class HomeViewMode {
 }
 
 enum class PlayerRelatedCardStyle {
-    COMPACT,    
-    FULL_WIDTH 
+    COMPACT,
+    FULL_WIDTH
+}
+
+enum class WatchedThreshold(val minPercent: Float, val maxRemainingMs: Long) {
+    PERCENT_90(90f, Long.MAX_VALUE),
+    PERCENT_95(95f, Long.MAX_VALUE),
+    PERCENT_99(99f, Long.MAX_VALUE),
+    ALMOST_FINISHED(99f, 60_000L);
+
+    fun isWatched(positionMs: Long, durationMs: Long): Boolean {
+        if (durationMs <= 0L) return false
+        val percent = positionMs.toFloat() / durationMs.toFloat() * 100f
+        return percent >= minPercent && durationMs - positionMs <= maxRemainingMs
+    }
 }
 
 

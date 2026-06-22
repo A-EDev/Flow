@@ -7,6 +7,9 @@ NEW FEATURES
 - Add a local media library (play local on-device media)
 - Add new logo #605 by @AnharHussainMiah
 - Add new music recognizer feature (Based on Metrolist's implementation see https://github.com/MetrolistGroup/Metrolist)
+- Add custom mark as watched threshold settings
+- Add bottom navbar scroll events toggle
+- Add queue/playlist autoplay toggle
 
 IMPROVEMENTS
 - Improve media notification handling #577
@@ -25,6 +28,7 @@ IMPROVEMENTS
 - Add toggle to show/hide overlay #604
 - Add a delay config for autoplay #620
 - Improve Emojis handling in live chat #617
+- Improve chapters container #588
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

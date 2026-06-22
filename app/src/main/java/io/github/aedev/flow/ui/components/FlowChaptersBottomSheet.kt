@@ -286,76 +286,82 @@ fun ChapterItem(
         color = if (isCurrent) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surfaceContainerLow,
         border = if (isCurrent) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)) else null
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ChapterThumbnail(
-                thumbnailUrl = thumbnailUrl,
-                isCurrent = isCurrent,
-                progress = progress
-            )
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val thumbnailWidth = (maxWidth * 0.42f).coerceIn(72.dp, 146.dp)
+            val thumbnailHeight = thumbnailWidth * (82f / 146f)
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 4.dp)
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isCurrent) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(12.dp)
+                ChapterThumbnail(
+                    thumbnailUrl = thumbnailUrl,
+                    isCurrent = isCurrent,
+                    progress = progress,
+                    width = thumbnailWidth,
+                    height = thumbnailHeight
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 4.dp)
+                ) {
+                    if (isCurrent) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.PlayArrow,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = formatChapterTime(chapter.startTimeSeconds),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
+                    } else {
                         Text(
                             text = formatChapterTime(chapter.startTimeSeconds),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+
+                    Text(
+                        text = chapter.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.SemiBold,
+                        color = if (isCurrent) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (durationLabel != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = durationLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                } else {
-                    Text(
-                        text = formatChapterTime(chapter.startTimeSeconds),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                }
-
-                Text(
-                    text = chapter.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (isCurrent) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (durationLabel != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = durationLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
-                    )
                 }
             }
         }
@@ -366,14 +372,16 @@ fun ChapterItem(
 private fun ChapterThumbnail(
     thumbnailUrl: String,
     isCurrent: Boolean,
-    progress: Float
+    progress: Float,
+    width: Dp,
+    height: Dp
 ) {
     val context = LocalContext.current
 
     Box(
         modifier = Modifier
-            .width(146.dp)
-            .height(82.dp)
+            .width(width)
+            .height(height)
             .clip(RoundedCornerShape(14.dp))
     ) {
         if (thumbnailUrl.isNotBlank()) {

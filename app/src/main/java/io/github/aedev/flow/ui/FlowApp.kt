@@ -95,6 +95,7 @@ fun FlowApp(
     val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
     val subscriptionRefreshOnStartup by preferences.subscriptionRefreshOnStartup.collectAsState(initial = false)
+    val bottomNavHideOnScroll by preferences.bottomNavHideOnScroll.collectAsState(initial = true)
     val defaultStartRoute = navRouteForIndex(defaultNavTabIndex)
     
     // Mini Player Customizations
@@ -158,11 +159,19 @@ fun FlowApp(
         isNavScrolledVisible = true
         accumulatedNavScroll = 0f
     }
-    val nestedScrollConnection = remember(navScrollThresholdPx) {
+    // Keep the bar pinned when the user turned hide-on-scroll off.
+    LaunchedEffect(bottomNavHideOnScroll) {
+        if (!bottomNavHideOnScroll) {
+            isNavScrolledVisible = true
+            accumulatedNavScroll = 0f
+        }
+    }
+    val nestedScrollConnection = remember(navScrollThresholdPx, bottomNavHideOnScroll) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val route = currentRoute.value
-                if (source != NestedScrollSource.UserInput ||
+                if (!bottomNavHideOnScroll ||
+                    source != NestedScrollSource.UserInput ||
                     route == "shorts" ||
                     route == "savedShortsPlayer"
                 ) {

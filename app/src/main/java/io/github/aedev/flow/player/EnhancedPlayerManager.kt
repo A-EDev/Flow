@@ -154,6 +154,7 @@ class EnhancedPlayerManager private constructor() {
     private var manualLoopEnabled: Boolean = false
     private var globalLoopEnabled: Boolean = false
     @Volatile private var autoplayEnabled: Boolean = true
+    @Volatile private var queueAutoplayEnabled: Boolean = true
     private var autoplayCandidates: List<Video> = emptyList()
     private var autoplaySourceVideoId: String? = null
     private var autoplayJob: Job? = null
@@ -545,6 +546,12 @@ class EnhancedPlayerManager private constructor() {
         scope.launch {
             prefs.autoplayEnabled.collect { isEnabled ->
                 autoplayEnabled = isEnabled
+            }
+        }
+
+        scope.launch {
+            prefs.queueAutoplayEnabled.collect { isEnabled ->
+                queueAutoplayEnabled = isEnabled
             }
         }
 
@@ -1257,7 +1264,7 @@ class EnhancedPlayerManager private constructor() {
     // ===== Autoplay countdown (delay before switching to the next video) =====
 
     private fun nextSessionVideo(): Video? = when {
-        hasNext() -> playbackQueue.getOrNull(currentQueueIndex + 1)
+        hasNext() -> if (queueAutoplayEnabled) playbackQueue.getOrNull(currentQueueIndex + 1) else null
         autoplayEnabled -> autoplayCandidates.firstOrNull()
         else -> null
     }
@@ -1274,6 +1281,11 @@ class EnhancedPlayerManager private constructor() {
 
     private fun performAutoAdvance() {
         if (hasNext()) {
+            // Queue autoplay can be disabled independently; manual next still works.
+            if (!queueAutoplayEnabled) {
+                autoNextLog("auto-advance queue disabled")
+                return
+            }
             autoNextLog("auto-advance queue playNext")
             _queueAutoAdvanceEvent.tryEmit(Unit)
             playNext(loadStreamsInPlayer = true)
@@ -1551,7 +1563,7 @@ class EnhancedPlayerManager private constructor() {
     private fun nextPreloadTarget(): Pair<Video, Boolean>? {
         val fromQueue = hasNext()
         val nextVideo = when {
-            fromQueue -> playbackQueue.getOrNull(currentQueueIndex + 1)
+            fromQueue -> if (queueAutoplayEnabled) playbackQueue.getOrNull(currentQueueIndex + 1) else null
             autoplayEnabled && autoplayCandidates.isNotEmpty() -> autoplayCandidates.first()
             else -> null
         } ?: return null

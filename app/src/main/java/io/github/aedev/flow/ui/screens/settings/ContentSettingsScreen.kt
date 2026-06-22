@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SmartDisplay
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
+import io.github.aedev.flow.data.local.WatchedThreshold
 import io.github.aedev.flow.ui.theme.GridItemSize
 import kotlinx.coroutines.launch
 
@@ -84,6 +86,9 @@ fun ContentSettingsScreen(
     val showAppLogoIcon by preferences.showAppLogoIcon.collectAsState(initial = true)
     val currentRelatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.COMPACT)
     val hideWatchedVideos by preferences.hideWatchedVideos.collectAsState(initial = false)
+    val watchedThreshold by preferences.watchedThreshold.collectAsState(initial = io.github.aedev.flow.data.local.WatchedThreshold.ALMOST_FINISHED)
+    var showWatchedThresholdDialog by remember { mutableStateOf(false) }
+    val bottomNavHideOnScroll by preferences.bottomNavHideOnScroll.collectAsState(initial = true)
     val shareWithoutText by preferences.shareWithoutText.collectAsState(initial = false)
     val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
     val showRegionPickerInExplore by preferences.showRegionPickerInExplore.collectAsState(initial = true)
@@ -423,6 +428,15 @@ fun ContentSettingsScreen(
                             }
                         }
                     )
+                    if (hideWatchedVideos) {
+                        HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        SettingsItem(
+                            icon = Icons.Outlined.Schedule,
+                            title = stringResource(R.string.content_settings_watched_threshold_title),
+                            subtitle = watchedThresholdLabel(watchedThreshold),
+                            onClick = { showWatchedThresholdDialog = true }
+                        )
+                    }
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Share,
@@ -534,6 +548,18 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setCategoriesNavigationEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Default.KeyboardArrowDown,
+                        title = stringResource(R.string.content_settings_navbar_hide_on_scroll_title),
+                        subtitle = stringResource(R.string.content_settings_navbar_hide_on_scroll_subtitle),
+                        checked = bottomNavHideOnScroll,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setBottomNavHideOnScroll(enabled)
                             }
                         }
                     )
@@ -759,6 +785,57 @@ fun ContentSettingsScreen(
             }
         }
     }
+
+    if (showWatchedThresholdDialog) {
+        AlertDialog(
+            onDismissRequest = { showWatchedThresholdDialog = false },
+            title = {
+                Text(
+                    stringResource(R.string.content_settings_watched_threshold_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.content_settings_watched_threshold_dialog_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    listOf(
+                        WatchedThreshold.ALMOST_FINISHED,
+                        WatchedThreshold.PERCENT_99,
+                        WatchedThreshold.PERCENT_95,
+                        WatchedThreshold.PERCENT_90
+                    ).forEach { option ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    coroutineScope.launch { preferences.setWatchedThreshold(option) }
+                                    showWatchedThresholdDialog = false
+                                }
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = watchedThreshold == option, onClick = null)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = watchedThresholdLabel(option),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showWatchedThresholdDialog = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
+    }
 }
 
 
@@ -857,6 +934,14 @@ private fun navTabIcon(index: Int): ImageVector = when (index) {
     5 -> Icons.Outlined.Search
     6 -> Icons.Outlined.Explore
     else -> Icons.Outlined.Home
+}
+
+@Composable
+private fun watchedThresholdLabel(threshold: WatchedThreshold): String = when (threshold) {
+    WatchedThreshold.PERCENT_90 -> stringResource(R.string.content_settings_watched_threshold_90)
+    WatchedThreshold.PERCENT_95 -> stringResource(R.string.content_settings_watched_threshold_95)
+    WatchedThreshold.PERCENT_99 -> stringResource(R.string.content_settings_watched_threshold_99)
+    WatchedThreshold.ALMOST_FINISHED -> stringResource(R.string.content_settings_watched_threshold_almost)
 }
 
 @Composable

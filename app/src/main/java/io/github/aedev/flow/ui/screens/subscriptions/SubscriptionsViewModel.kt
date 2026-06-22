@@ -181,13 +181,14 @@ class SubscriptionsViewModel : ViewModel() {
             combine(
                 viewHistory.getVideoHistoryFlow(),
                 playerPreferences.hideWatchedVideos,
+                playerPreferences.watchedThreshold,
                 database.downloadDao().getVideoDownloads()
-            ) { history, hideWatched, downloads ->
+            ) { history, hideWatched, threshold, downloads ->
                 if (!hideWatched) return@combine emptySet<String>()
                 val downloadedIds = downloads.mapTo(HashSet()) { it.download.videoId }
                 history
                     .asSequence()
-                    .filter { it.progressPercentage >= ViewHistory.WATCHED_THRESHOLD_PERCENT || it.videoId in downloadedIds }
+                    .filter { threshold.isWatched(it.position, it.duration) || it.videoId in downloadedIds }
                     .map { it.videoId }
                     .toHashSet()
             }

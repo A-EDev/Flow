@@ -90,8 +90,8 @@ class HomeViewModel @Inject constructor(
         // Keep the watched-IDs set up to date so the feed can filter them out.
         viewModelScope.launch {
             viewHistory!!.getVideoHistoryFlow()
-                .combine(playerPreferences.hideWatchedVideos) { history, _ ->
-                    history.filter { it.progressPercentage >= ViewHistory.WATCHED_THRESHOLD_PERCENT }
+                .combine(playerPreferences.watchedThreshold) { history, threshold ->
+                    history.filter { threshold.isWatched(it.position, it.duration) }
                         .map { it.videoId }
                         .toHashSet()
                 }
