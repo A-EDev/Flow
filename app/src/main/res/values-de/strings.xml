@@ -961,4 +961,11 @@
     <string name="local_media_empty_body">Die auf diesem Gerät gespeicherten Videos und Musikdateien werden hier angezeigt.</string>
     <string name="local_media_permission_title">Erforderliche Berechtigung</string>
     <string name="local_media_permission_body">Erlauben Sie den Zugriff auf Ihre Medien, damit Flow lokale Videos und Musik finden und abspielen kann.</string>
+    <string name="local_media_grant">Zugriff gewähren</string>
+    <string name="history_tab_local_videos">Lokale Videos</string>
+    <string name="history_tab_local_music">Lokale Musik</string>
+    <string name="deep_flow_save_history_title">Zum Verlauf hinzufügen</string>
+    <string name="deep_flow_save_history_subtitle">Angesehene Videos im Verlauf speichern (mit Fortschrittsanzeige). Die Engine lernt jedoch weiterhin nicht daraus. Aus = Es wird nichts gespeichert.</string>
+    <string name="content_settings_watched_threshold_title">Als „gesehen“ markieren, wenn</string>
+    <string name="content_settings_watched_threshold_dialog_body">Legen Sie fest, wie viel von einem Video abgespielt werden muss, bevor es als angesehen gilt und ausgeblendet wird.</string>
 </resources>
