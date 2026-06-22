@@ -36,6 +36,9 @@
   <img src="https://img.shields.io/badge/License-GPL_v3.0-blue?style=for-the-badge&logo=gnu-bash&logoColor=white">
 </a>
 <img src="https://img.shields.io/github/last-commit/A-EDev/Flow?style=for-the-badge&color=red">
+<a href="#cert">
+  <img src="https://img.shields.io/badge/Security-Verified_SHA--256-blue?style=for-the-badge&logo=security&logoColor=white">
+</a>
 
 </div>
 
@@ -188,6 +191,12 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 
 ### Requirements 
 **Minimum Requirement:** Android 8.0+
+<a id="cert"></a>
+### Verifying Authenticity
+To ensure the authenticity of the APK and verify it has not been tampered with, you can check the signing certificate fingerprint using tools like [AppVerifier](https://github.com/soupslurpr/AppVerifier).
+
+**Release Certificate SHA-256 Fingerprint:**
+`43:22:29:4E:D4:CA:A2:D4:29:41:40:09:58:18:08:0F:FE:8A:CC:1F:BE:3C:DC:76:10:7D:F4:5C:52:86:BE:40`
 
 ---
 
