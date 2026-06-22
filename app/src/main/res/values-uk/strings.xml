@@ -1663,4 +1663,31 @@
     <string name="donation_prompt_never">Більше не показувати</string>
     <string name="library_local_media_label">Локальні медіафайли</string>
     <string name="library_local_media_subtitle">Відтворюйте відео та музику на цьому пристрої</string>
+    <string name="local_media_title">Локальні медіа</string>
+    <string name="local_media_rescan">Пересканувати</string>
+    <string name="local_media_scanning">Сканування вашого пристрою…</string>
+    <string name="local_media_empty_title">%1$s не знайдено</string>
+    <string name="local_media_empty_body">Відео та музика, збережені на цьому пристрої, з’являться тут.</string>
+    <string name="local_media_permission_title">Потрібен дозвіл</string>
+    <string name="local_media_permission_body">Надайте доступ до медіафайлів, щоб Flow міг знаходити та відтворювати локальні відео й музику.</string>
+    <string name="local_media_grant">Надати доступ</string>
+    <string name="history_tab_local_videos">Локальні відео</string>
+    <string name="history_tab_local_music">Локальна музика</string>
+    <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
+    <string name="content_settings_share_without_text_title">Поділитися посиланням без тексту</string>
+    <string name="content_settings_share_without_text_subtitle">Поділіться лише посиланням на відео, без повідомлення «Подивись це відео»</string>
+    <string name="deep_flow_save_history_title">Зберегти в історію переглядів</string>
+    <string name="deep_flow_save_history_subtitle">Зберігати переглянуті відео в історії (разом із прогресом). Алгоритм все одно не використовуватиме їх для рекомендацій. Вимк = нічого не зберігається.</string>
+    <string name="icon_name_flow_play">Flow Play</string>
+    <string name="player_appearance_controls_while_loading_title">Керування під час завантаження</string>
+    <string name="player_appearance_controls_while_loading_subtitle">Показувати елементи керування програвачем до завершення завантаження відео, аби ви мали змогу відразу налаштувати гучність</string>
+    <string name="player_settings_autoplay_countdown_title">Затримка автовідтворення</string>
+    <string name="player_settings_autoplay_countdown_none">Немає (миттєвий перехід)</string>
+    <string name="player_settings_autoplay_countdown_seconds_template">%1$d с</string>
+    <string name="player_settings_autoplay_countdown_dialog_body">Показувати зворотний відлік перед автоматичним переходом до наступного відео. Під час відліку ви можете перезапустити поточне відео, скасувати перехід або одразу ввімкнути наступне.</string>
+    <string name="autoplay_countdown_up_next">Наступне</string>
+    <string name="autoplay_countdown_next_video">Наступне відео</string>
+    <string name="autoplay_countdown_cancel">Скасувати</string>
+    <string name="autoplay_countdown_restart">Перезапустити</string>
+    <string name="autoplay_countdown_play_now">Відтворити зараз</string>
 </resources>
