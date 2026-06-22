@@ -10,6 +10,7 @@ NEW FEATURES
 - Add custom mark as watched threshold settings
 - Add bottom navbar scroll events toggle
 - Add queue/playlist autoplay toggle
+- Add shorts search tab
 
 IMPROVEMENTS
 - Improve media notification handling #577
@@ -41,3 +42,5 @@ FIXES AND STABILITY
 - Fix missing audio tracks
 - Fix "Failed to parse video data" errors 
 - Fix videos playing in the wrong (AI-dubbed) audio language on some networks by always preferring the original audio track
+- Fix missing Shorts metadata
+- Fix missing playlist videos metadata

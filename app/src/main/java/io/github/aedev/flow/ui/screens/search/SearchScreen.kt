@@ -239,8 +239,8 @@ fun SearchScreen(
     }
 
     val tabContentTypes = listOf(
-        ContentType.ALL, ContentType.VIDEOS, ContentType.CHANNELS,
-        ContentType.PLAYLISTS, ContentType.LIVE
+        ContentType.ALL, ContentType.VIDEOS, ContentType.SHORTS,
+        ContentType.CHANNELS, ContentType.PLAYLISTS, ContentType.LIVE
     )
     val sortByTypes = listOf(
         SortType.RELEVANCE, SortType.RATING, SortType.VIEWS
@@ -420,6 +420,12 @@ fun SearchScreen(
                         SearchErrorState(
                             message = err.localizedMessage ?: "Search failed",
                             onRetry = pagingItems::retry
+                        )
+                    }
+                    tabContentTypes[selectedTabIndex] == ContentType.SHORTS -> {
+                        SearchShortsGrid(
+                            pagingItems, gridState, maxOf(columns, 2),
+                            navigateToVideo, dismissKeyboard
                         )
                     }
                     else -> {
@@ -621,6 +627,7 @@ private fun SearchFiltersBar(
     val typeLabels = listOf(
         ContentType.ALL to "All",
         ContentType.VIDEOS to "Videos",
+        ContentType.SHORTS to "Shorts",
         ContentType.CHANNELS to "Channels",
         ContentType.PLAYLISTS to "Playlists",
         ContentType.LIVE to "Live"
@@ -855,9 +862,14 @@ private fun SearchResultList(
                     is SearchResultItem.VideoResult -> "v_${it.video.id}"
                     is SearchResultItem.ChannelResult -> "c_${it.channel.id}"
                     is SearchResultItem.PlaylistResult -> "p_${it.playlist.id}"
+                    is SearchResultItem.ShortsShelfResult -> "shelf"
                     null -> "null"
                 }
                 "${prefix}_$i"
+            },
+            span = { i ->
+                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult)
+                    GridItemSpan(maxLineSpan) else GridItemSpan(1)
             }
         ) { i ->
             val item = pagingItems[i] ?: return@items
@@ -899,6 +911,8 @@ private fun SearchResultList(
                                 onPlaylistClick(item.playlist)
                             }
                         )
+                    is SearchResultItem.ShortsShelfResult ->
+                        ShortsShelf(shorts = item.shorts, onShortClick = onVideoClick)
                 }
             }
         }
@@ -951,9 +965,14 @@ private fun SearchResultGrid(
                     is SearchResultItem.VideoResult -> "v_${it.video.id}"
                     is SearchResultItem.ChannelResult -> "c_${it.channel.id}"
                     is SearchResultItem.PlaylistResult -> "p_${it.playlist.id}"
+                    is SearchResultItem.ShortsShelfResult -> "shelf"
                     null -> "null"
                 }
                 "${prefix}_$i"
+            },
+            span = { i ->
+                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult)
+                    GridItemSpan(maxLineSpan) else GridItemSpan(1)
             }
         ) { i ->
             val item = pagingItems[i] ?: return@items
@@ -991,6 +1010,61 @@ private fun SearchResultGrid(
                             onPlaylistClick(item.playlist)
                         }
                     )
+                is SearchResultItem.ShortsShelfResult ->
+                    ShortsShelf(shorts = item.shorts, onShortClick = onVideoClick)
+            }
+        }
+
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            PagingFooter(
+                pagingItems.loadState.append,
+                pagingItems::retry,
+                pagingItems.itemCount
+            )
+        }
+    }
+}
+
+/** Shorts tab: a portrait grid of [ShortsCard]s. */
+@Composable
+private fun SearchShortsGrid(
+    pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
+    gridState: LazyGridState,
+    columns: Int,
+    onVideoClick: (Video) -> Unit,
+    dismissKeyboard: () -> Unit
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
+        state = gridState,
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(
+                            pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial
+                        )
+                        if (event.changes.any { it.pressed }) {
+                            dismissKeyboard()
+                        }
+                    }
+                }
+            },
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 90.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        items(
+            count = pagingItems.itemCount,
+            key = { i -> (pagingItems.peek(i) as? SearchResultItem.VideoResult)?.video?.id ?: "null_$i" }
+        ) { i ->
+            (pagingItems[i] as? SearchResultItem.VideoResult)?.let {
+                ShortsCard(
+                    video = it.video,
+                    onClick = { onVideoClick(it.video) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 

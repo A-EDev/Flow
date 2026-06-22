@@ -10,6 +10,8 @@ import io.github.aedev.flow.data.local.SortType
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.local.ContentType
+import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,6 +30,7 @@ sealed class SearchResultItem {
     data class VideoResult(val video: Video) : SearchResultItem()
     data class ChannelResult(val channel: Channel) : SearchResultItem()
     data class PlaylistResult(val playlist: Playlist) : SearchResultItem()
+    data class ShortsShelfResult(val shorts: List<Video>) : SearchResultItem()
 }
 
 /**
@@ -56,6 +59,12 @@ class SearchPagingSource(
         return try {
             withContext(Dispatchers.IO) {
                 val page = params.key
+
+                // Shorts tab: NewPipe search has no shorts, so serve them directly (single page).
+                if (searchFilter?.contentType == ContentType.SHORTS) {
+                    val shorts = if (page == null) fetchShortVideos().map { SearchResultItem.VideoResult(it) } else emptyList()
+                    return@withContext LoadResult.Page(shorts, prevKey = null, nextKey = null)
+                }
 
                 val extractor = service.getSearchExtractor(query, contentFilters, "")
                 extractor.fetchPage()
@@ -168,10 +177,23 @@ class SearchPagingSource(
                     }
                 }
 
+                // All tab (unfiltered): shorts sit in a shelf NewPipe skips; surface them
+                // as a horizontal shelf after the top result (first page only).
+                val unfilteredAll = searchFilter == null || (searchFilter.contentType == ContentType.ALL &&
+                    searchFilter.duration == Duration.ANY && searchFilter.uploadDate == UploadDate.ANY)
+                val combined = if (page == null && unfilteredAll) {
+                    val shorts = fetchShortVideos().take(15)
+                    when {
+                        shorts.isEmpty() -> items
+                        items.isEmpty() -> listOf(SearchResultItem.ShortsShelfResult(shorts))
+                        else -> listOf(items.first(), SearchResultItem.ShortsShelfResult(shorts)) + items.drop(1)
+                    }
+                } else items
+
                 Log.d(TAG, "Loaded ${items.size} items | query='$query' | nextPage=${infoPage.nextPage != null}")
 
                 LoadResult.Page(
-                    data = sortVideoItems(searchFilter = searchFilter, items),
+                    data = sortVideoItems(searchFilter = searchFilter, combined),
                     prevKey = null,
                     nextKey = infoPage.nextPage
                 )
@@ -183,6 +205,23 @@ class SearchPagingSource(
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    /** Shorts from the web-client search shelf, as [Video]s flagged [Video.isShort]. */
+    private suspend fun fetchShortVideos(): List<Video> =
+        YouTube.searchShorts(query).getOrNull().orEmpty().map { s ->
+            Video(
+                id = s.id,
+                title = s.title,
+                channelName = "",
+                channelId = "",
+                thumbnailUrl = "https://i.ytimg.com/vi/${s.id}/oar2.jpg",
+                duration = 0,
+                viewCount = s.viewCount,
+                uploadDate = "",
+                timestamp = System.currentTimeMillis(),
+                isShort = true
+            )
+        }
 
     private fun extractVideoId(url: String): String {
         val patterns = listOf(

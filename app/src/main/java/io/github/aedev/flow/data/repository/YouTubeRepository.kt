@@ -732,8 +732,8 @@ class YouTubeRepository @Inject constructor(
 
             val innertubeVideos = fetchInnertubePlaylistVideos(playlistId)
             val playlistVideos = if (innertubeVideos.size > allVideos.size) {
-                Log.i(TAG, "Using Innertube playlist result for $playlistId (${innertubeVideos.size} > ${allVideos.size})")
-                innertubeVideos
+                val knownIds = allVideos.mapTo(HashSet()) { it.id }
+                allVideos + innertubeVideos.filter { it.id !in knownIds }
             } else {
                 allVideos
             }

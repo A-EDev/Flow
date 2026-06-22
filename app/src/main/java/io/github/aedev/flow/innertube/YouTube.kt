@@ -61,8 +61,10 @@ import io.github.aedev.flow.innertube.pages.SearchPage
 import io.github.aedev.flow.innertube.pages.SearchResult
 import io.github.aedev.flow.innertube.pages.SearchSuggestionPage
 import io.github.aedev.flow.innertube.pages.SearchSummary
+import io.github.aedev.flow.innertube.pages.SearchShortItem
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
+import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.toShortsPage
 import android.util.Log
 import io.ktor.client.call.body
@@ -70,6 +72,7 @@ import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -185,6 +188,12 @@ object YouTube {
                 ?.musicShelfRenderer?.continuations?.getContinuation()
         )
     }
+
+    // Long-form search ignores the Shorts shelf; fetch it from the main site (not music).
+    suspend fun searchShorts(query: String): Result<List<SearchShortItem>> = runCatching {
+        innerTube.webSearch(WEB, query).body<JsonObject>().toSearchShorts()
+    }.onSuccess { Log.d("SearchShorts", "query='$query' shorts=${it.size}") }
+        .onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
 
     suspend fun searchContinuation(continuation: String): Result<SearchResult> = runCatching {
         val response = innerTube.search(WEB_REMIX, continuation = continuation).body<SearchResponse>()

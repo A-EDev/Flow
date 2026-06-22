@@ -1261,13 +1261,13 @@ fun ShortsShelf(
 @Composable
 fun ShortsCard(
     video: Video,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier.width(160.dp)
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     Column(
-        modifier = Modifier
-            .width(160.dp)
+        modifier = modifier
             .pressScale(interactionSource)
             .combinedClickable(
                 interactionSource = interactionSource,

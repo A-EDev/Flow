@@ -265,6 +265,36 @@ class InnerTube {
     }
 
     /**
+     * Search the main YouTube site (www.youtube.com), not the music endpoint. Needed to
+     * reach renderers the music search omits, e.g. the Shorts shelf.
+     */
+    suspend fun webSearch(
+        client: YouTubeClient,
+        query: String,
+        params: String? = null,
+    ) = withRetry {
+        httpClient.post("https://www.youtube.com/youtubei/v1/search") {
+            headers {
+                append("X-YouTube-Client-Name", client.clientId)
+                append("X-YouTube-Client-Version", client.clientVersion)
+                append("X-Origin", "https://www.youtube.com")
+                append("Referer", "https://www.youtube.com/")
+                visitorData?.let { append("X-Goog-Visitor-Id", it) }
+            }
+            contentType(io.ktor.http.ContentType.Application.Json)
+            userAgent(client.userAgent)
+            parameter("prettyPrint", false)
+            setBody(
+                SearchBody(
+                    context = client.toContext(locale, visitorData, null),
+                    query = query,
+                    params = params,
+                )
+            )
+        }
+    }
+
+    /**
      * Search for videos within a specific YouTube channel using the /browse endpoint.
      * Uses the channel's Search Tab (params = "EgZzZWFyY2jyBgQKAloA") with the query as a
      * top-level body field.
