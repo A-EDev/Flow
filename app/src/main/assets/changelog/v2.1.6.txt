@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-06-15
+DATE: 2026-06-22
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -34,3 +34,5 @@ FIXES AND STABILITY
 - Fix lag when the bottom navigation bar hides or shows while scrolling
 - Fix playback crashes
 - Fix missing audio tracks
+- Fix "Failed to parse video data" errors 
+- Fix videos playing in the wrong (AI-dubbed) audio language on some networks by always preferring the original audio track

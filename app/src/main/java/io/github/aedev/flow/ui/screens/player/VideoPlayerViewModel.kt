@@ -1411,6 +1411,34 @@ class VideoPlayerViewModel @Inject constructor(
                                     )
                                 }
                             }
+                        } else if (innerTubeResult != null && innerTubeHasPlayableVod(innerTubeResult)) {
+                            try {
+                                Log.w("VideoPlayerViewModel", "VOD fallback for $videoId via InnerTube (NewPipe StreamInfo null)")
+                                prepareVodStreamFromInnerTube(
+                                    videoId = videoId,
+                                    result = innerTubeResult,
+                                    relatedVideos = relatedVideos,
+                                    preferredQuality = preferredQuality,
+                                    preferredAudioLanguage = preferredAudioLanguage,
+                                    preferredCodecKey = preferredCodecKey,
+                                    loadToken = loadToken
+                                )
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Log.e("VideoPlayerViewModel", "InnerTube VOD fallback failed for $videoId", e)
+                                val videoError = VideoErrorMapper.from(context, streamError ?: e, videoId)
+                                if (isPlaybackLoadCurrent(loadToken)) {
+                                    _uiState.update {
+                                        it.copy(
+                                            isLoading = false,
+                                            relatedVideos = relatedVideos,
+                                            error = videoError.message,
+                                            errorHint = videoError.hint
+                                        )
+                                    }
+                                }
+                            }
                         } else {
                             Log.e("VideoPlayerViewModel", "Stream info is null for $videoId and no offline copy found.")
                             val videoError = VideoErrorMapper.from(context, streamError, videoId)
@@ -1694,6 +1722,135 @@ class VideoPlayerViewModel @Inject constructor(
         maybeStartLiveChat(videoId)
 
         refreshLiveWatchMetadata(videoId, enrichedVideo, loadToken)
+    }
+
+    private fun innerTubeHasPlayableVod(
+        result: InnerTubeVideoStreamExtractor.VideoExtractionResult
+    ): Boolean {
+        if (result.isLive) return false
+        if (result.sabrInfo != null) return true
+        val hasVideo = result.videoFormats.any { !it.url.isNullOrEmpty() }
+        val hasAudio = result.audioFormats.any { !it.url.isNullOrEmpty() }
+        return hasVideo && hasAudio
+    }
+
+    private suspend fun prepareVodStreamFromInnerTube(
+        videoId: String,
+        result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
+        relatedVideos: List<Video>,
+        preferredQuality: VideoQuality,
+        preferredAudioLanguage: String,
+        preferredCodecKey: String,
+        loadToken: Long
+    ) = withContext(Dispatchers.Main) {
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+
+        val details = result.playerResponse.videoDetails
+        val cached = _uiState.value.cachedVideo
+        val title = details?.title?.takeIf { it.isNotBlank() } ?: cached?.title ?: ""
+        val channel = details?.author?.takeIf { it.isNotBlank() } ?: cached?.channelName ?: ""
+        val channelId = details?.channelId?.takeIf { it.isNotBlank() } ?: cached?.channelId ?: ""
+        val thumbnail = details?.thumbnail?.thumbnails?.maxByOrNull { it.height ?: 0 }?.url
+            ?: cached?.thumbnailUrl ?: ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, null)
+        val durationSeconds = details?.lengthSeconds?.toLongOrNull()?.takeIf { it > 0 }
+            ?: cached?.duration?.toLong()?.takeIf { it > 0 }
+            ?: 0L
+
+        val enrichedVideo = (cached ?: Video(
+            id = videoId, title = "", channelName = "", channelId = "",
+            thumbnailUrl = "", duration = 0, viewCount = 0L, uploadDate = ""
+        )).copy(
+            title = title,
+            channelName = channel,
+            channelId = channelId,
+            thumbnailUrl = thumbnail,
+            duration = durationSeconds.toInt()
+        )
+        GlobalPlayerState.setCurrentVideo(enrichedVideo)
+
+        val manager = EnhancedPlayerManager.getInstance()
+        manager.initialize(context)
+        manager.startBackgroundService(videoId = videoId, title = title, channel = channel, thumbnail = thumbnail)
+
+        val videoStreams = InnerTubeStreamBridge.convertVideoFormats(result.videoFormats)
+        val audioStreams = InnerTubeStreamBridge.convertAudioFormats(result.audioFormats)
+        val availableQualities = extractAvailableQualitiesFromStreams(videoStreams)
+        val selected = selectStreamsFromLists(
+            videoStreams, audioStreams, preferredQuality, preferredAudioLanguage, preferredCodecKey
+        )
+
+        val captionStreams = StreamProcessor.processSubtitleStreams(
+            CaptionTrackResolver.resolve(result.playerResponse)
+        )
+
+        val autoplay = playerPreferences.autoplayEnabled.first()
+        manager.setAutoplayCandidates(sourceVideoId = videoId, videos = relatedVideos, enabled = autoplay)
+
+        val savedPositionFlow = viewHistory.getPlaybackPosition(videoId)
+        val savedPositionMs = savedPositionFlow.first()
+        val durationMs = durationSeconds * 1000L
+        val resumePosition = savedPositionMs
+            .takeIf { it > 500L }
+            ?.takeUnless { shouldRestartCompletedPlayback(it, durationMs) }
+            ?: 0L
+        val isAdaptiveMode = preferredQuality == VideoQuality.AUTO
+
+        Log.w(
+            "VideoPlayerViewModel",
+            "VOD fallback playing $videoId via InnerTube ${result.usedClient.clientName} " +
+                "(sabr=${result.sabrInfo != null}, video=${videoStreams.size}, audio=${audioStreams.size})"
+        )
+
+        _uiState.update {
+            it.copy(
+                streamInfo = null,
+                relatedVideos = relatedVideos,
+                videoStream = selected.first,
+                audioStream = selected.second,
+                availableQualities = availableQualities,
+                selectedQuality = selected.third,
+                subtitles = extractSubtitles(captionStreams),
+                isLoading = false,
+                error = null,
+                errorHint = null,
+                savedPosition = savedPositionFlow,
+                isAdaptiveMode = isAdaptiveMode,
+                autoplayEnabled = autoplay,
+                isLive = false,
+                isUpcoming = false,
+                upcomingReleaseTimeMs = null,
+                innerTubeVideoFormats = result.videoFormats,
+                innerTubeAudioFormats = result.audioFormats
+            )
+        }
+
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+        if (manager.isPreparedForPlayback(videoId)) return@withContext
+
+        val preferSabr = result.sabrInfo != null && videoStreams.isEmpty()
+        manager.setStreams(
+            videoId = videoId,
+            videoStream = if (isAdaptiveMode) null else selected.first,
+            audioStream = selected.second,
+            videoStreams = videoStreams,
+            audioStreams = audioStreams,
+            subtitles = captionStreams,
+            durationSeconds = durationSeconds,
+            dashManifestUrl = null,
+            hlsUrl = null,
+            streamType = StreamType.VIDEO_STREAM,
+            startPosition = resumePosition,
+            sabrInfo = result.sabrInfo,
+            itVideoFormats = result.videoFormats,
+            itAudioFormats = result.audioFormats,
+            preferredVideoCodec = preferredCodecKey,
+            preferSabr = preferSabr,
+            preferredLiveQualityHeight = preferredQuality.height
+        )
+        applyRememberedPlaybackSpeed(isLive = false, manager = manager)
+
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+        manager.play()
     }
 
     private fun refreshLiveWatchMetadata(

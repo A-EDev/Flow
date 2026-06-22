@@ -3,11 +3,13 @@ package io.github.aedev.flow.player.stream
 import android.util.Log
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.AudioTrackType
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.Stream
 import org.schabi.newpipe.extractor.stream.VideoStream
 import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.services.youtube.ItagItem
+import java.util.Locale
 
 object InnerTubeStreamBridge {
     private const val TAG = "InnerTubeStreamBridge"
@@ -56,12 +58,30 @@ object InnerTubeStreamBridge {
                     .setMediaFormat(mediaFormat)
                     .setAverageBitrate(bitrate)
                     .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP)
+                    .applyAudioTrackMetadata(format)
                     .build()
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to build AudioStream for itag=${format.itag}: ${e.message}")
                 null
             }
         }
+    }
+
+    private fun AudioStream.Builder.applyAudioTrackMetadata(
+        format: PlayerResponse.StreamingData.Format
+    ): AudioStream.Builder {
+        setAudioTrackType(if (format.isOriginal) AudioTrackType.ORIGINAL else AudioTrackType.DUBBED)
+        format.audioTrack?.let { track ->
+            track.id?.takeIf { it.isNotBlank() }?.let { setAudioTrackId(it) }
+            track.displayName?.takeIf { it.isNotBlank() }?.let { setAudioTrackName(it) }
+        }
+        format.audioLanguageTag?.let { tag ->
+            runCatching { Locale.forLanguageTag(tag) }
+                .getOrNull()
+                ?.takeIf { it.language.isNotBlank() }
+                ?.let { setAudioLocale(it) }
+        }
+        return this
     }
 
     private fun mapVideoMimeToMediaFormat(mimeType: String): MediaFormat? {

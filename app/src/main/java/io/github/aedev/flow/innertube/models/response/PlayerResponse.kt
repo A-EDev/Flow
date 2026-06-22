@@ -132,7 +132,18 @@ data class PlayerResponse(
             val isAudio: Boolean
                 get() = width == null
             val isOriginal: Boolean
-                get() = audioTrack?.isAutoDubbed == null
+                get() {
+                    val track = audioTrack ?: return true
+                    if (track.isAutoDubbed == true) return false
+                    track.displayName?.let { if (it.contains("original", ignoreCase = true)) return true }
+                    val id = track.id ?: return true
+                    return id.substringAfterLast('.', missingDelimiterValue = "4") == "4"
+                }
+
+            val audioLanguageTag: String?
+                get() = audioTrack?.id
+                    ?.substringBeforeLast('.', missingDelimiterValue = "")
+                    ?.takeIf { it.isNotBlank() }
 
             @Serializable
             data class AudioTrack(
