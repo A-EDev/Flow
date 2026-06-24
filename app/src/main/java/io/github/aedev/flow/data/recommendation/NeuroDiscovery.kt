@@ -816,13 +816,8 @@ internal class NeuroDiscovery(
         queries: MutableList<DiscoveryQuery>,
         brain: UserBrain
     ) {
-        val explorationBudget = when {
-            brain.totalInteractions > 200 -> 0
-            brain.totalInteractions > 80 -> 1
-            else -> 2
-        }
-
-        if (explorationBudget == 0) return
+        // Always reserve at least one exploration slot — no decay-to-zero bubble.
+        val explorationBudget = if (brain.totalInteractions > 80) 1 else 2
 
         val blocked = brain.blockedTopics
 
@@ -1143,12 +1138,5 @@ internal class NeuroDiscovery(
             .sortedBy { it.second }
             .take(2)
             .map { it.first }
-    }
-
-    fun getSnowballSeeds(
-        recentlyWatched: List<Video>,
-        count: Int = 3
-    ): List<String> {
-        return recentlyWatched.take(count).map { it.id }
     }
 }

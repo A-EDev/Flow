@@ -100,6 +100,12 @@ internal object NeuroScoring {
     const val PERSONA_STABILITY_THRESHOLD = 3
     const val PERSONA_MAX_STABILITY = 10
     const val EXPLORATION_SCORE_THRESHOLD = 0.1
+    const val EXPLORE_UCB_C = 0.06
+    const val EXPLORE_MAX_BONUS = 0.08
+
+    // ── IDF vocabulary bounds ──
+    const val IDF_MAX_KEYS = 20_000
+    const val IDF_KEEP_KEYS = 16_000
 
     // ── Novelty & Relevance Gate ──
     const val NOVELTY_RELEVANCE_GATE = 0.08
@@ -656,6 +662,232 @@ internal object NeuroScoring {
             maxCount >= 1 -> 0.25
             else -> 0.50
         }
+    }
+
+    // ── Topic affinity key ──
+
+    fun makeAffinityKey(t1: String, t2: String): String =
+        if (t1 < t2) "$t1|$t2" else "$t2|$t1"
+
+    /** Hermite smoothstep — continuous ramp from 0 at edge0 to 1 at edge1. */
+    private fun smoothstep(edge0: Double, edge1: Double, x: Double): Double {
+        val t = ((x - edge0) / (edge1 - edge0)).coerceIn(0.0, 1.0)
+        return t * t * (3.0 - 2.0 * t)
+    }
+
+    /** LFU vocabulary cap: when IDF exceeds the limit, keep only the most frequent keys. */
+    fun capIdfVocabulary(freq: MutableMap<String, Int>) {
+        if (freq.size <= IDF_MAX_KEYS) return
+        val kept = freq.entries.sortedByDescending { it.value }
+            .take(IDF_KEEP_KEYS)
+            .associate { it.key to it.value }
+        freq.clear()
+        freq.putAll(kept)
+    }
+
+    /**
+     * Greedy cluster-diversified seed pick: highest weight first, at most
+     * maxPerCluster per cluster, capped at maxSeeds — prevents seed monoculture.
+     */
+    fun pickDiverseSeeds(seeds: List<SeedRank>, maxSeeds: Int, maxPerCluster: Int): List<String> {
+        val out = mutableListOf<String>()
+        val perCluster = HashMap<String, Int>()
+        for (s in seeds.sortedByDescending { it.weight }) {
+            if (out.size >= maxSeeds) break
+            val count = perCluster[s.clusterKey] ?: 0
+            if (count >= maxPerCluster) continue
+            out.add(s.id)
+            perCluster[s.clusterKey] = count + 1
+        }
+        return out
+    }
+
+    // ── Topic probation (damp brand-new, unconfirmed topics on mature brains) ──
+
+    private fun topicScore(brain: UserBrain, topic: String): Double {
+        brain.globalVector.topics[topic]?.let { return it }
+        return brain.globalVector.topics.entries
+            .firstOrNull { stripDomainTag(it.key) == topic }
+            ?.value ?: 0.0
+    }
+
+    private fun hasConfirmedTopicEvidence(
+        topic: String,
+        brain: UserBrain,
+        lemmatizedPreferred: Set<String>
+    ): Boolean {
+        val base = stripDomainTag(topic)
+        if (lemmatizedPreferred.any { it.equals(base, ignoreCase = true) }) return true
+
+        val evidence = brain.topicEvidence[base] ?: brain.topicEvidence[topic]
+        return evidence != null &&
+            (evidence.explicitSignals > 0 ||
+                evidence.watchSignals >= 2 ||
+                evidence.videoIds.size >= 2 ||
+                evidence.positiveScore >= 1.2)
+    }
+
+    fun calculateTopicProbationPenalty(
+        videoVector: ContentVector,
+        brain: UserBrain,
+        lemmatizedPreferred: Set<String>
+    ): Double {
+        if (brain.totalInteractions < COLD_START_THRESHOLD) return 1.0
+
+        val topTopics = videoVector.topics.entries
+            .sortedByDescending { it.value }
+            .take(4)
+            .map { stripDomainTag(it.key) }
+            .filter { it.length >= 3 }
+            .distinct()
+
+        if (topTopics.isEmpty()) return 1.0
+
+        val probationaryCount = topTopics.count { topic ->
+            val score = topicScore(brain, topic)
+            score in 0.015..0.20 && !hasConfirmedTopicEvidence(topic, brain, lemmatizedPreferred)
+        }
+
+        if (probationaryCount == 0) return 1.0
+
+        val ratio = probationaryCount.toDouble() / topTopics.size.toDouble()
+        if (ratio <= 0.5) return 1.0
+        return (1.0 - ratio * 0.20).coerceIn(0.75, 1.0)
+    }
+
+    /**
+     * UCB-style exploration bonus: rises when the candidate's primary topic has
+     * little positive evidence relative to total interactions. Persona-weighted
+     * by the caller and bounded, so focused users stay mostly exploit.
+     */
+    fun explorationBonus(videoVector: ContentVector, brain: UserBrain, exploreWeight: Double): Double {
+        if (exploreWeight <= 0.0 || brain.totalInteractions < COLD_START_THRESHOLD) return 0.0
+        val primary = videoVector.topics.maxByOrNull { it.value }?.key
+            ?.let { stripDomainTag(it) } ?: return 0.0
+        val n = brain.topicEvidence[primary]?.positiveSignals ?: 0
+        val ucb = EXPLORE_UCB_C * sqrt(ln(1.0 + brain.totalInteractions) / (1.0 + n))
+        return (ucb * exploreWeight).coerceAtMost(EXPLORE_MAX_BONUS)
+    }
+
+    /**
+     * Deterministic per-candidate score: the full factor pipeline minus the
+     * exploration jitter (which stays in the caller so this stays pure).
+     * Combination order and add/multiply semantics are unchanged.
+     */
+    fun scoreCandidate(
+        video: Video,
+        videoVector: ContentVector,
+        p: ScoringParams
+    ): Double {
+        val brain = p.brain
+
+        val personalityScore = if (video.isShort && brain.shortsVector.topics.isNotEmpty()) {
+            val globalSim = NeuroVectorMath.calculateCosineSimilarity(brain.globalVector, videoVector)
+            val shortsSim = NeuroVectorMath.calculateCosineSimilarity(brain.shortsVector, videoVector)
+            globalSim * 0.4 + shortsSim * 0.6
+        } else {
+            NeuroVectorMath.calculateCosineSimilarity(brain.globalVector, videoVector)
+        }
+        val contextScore = NeuroVectorMath.calculateCosineSimilarity(p.timeContextVector, videoVector)
+        // Smooth ramp instead of a cliff at the gate: two near-identical candidates
+        // straddling the threshold no longer get wildly different novelty credit.
+        val noveltyScore = if (p.isColdStart) {
+            1.0 - personalityScore
+        } else {
+            smoothstep(NOVELTY_RELEVANCE_GATE, NOVELTY_RELEVANCE_GATE + 0.1, personalityScore) *
+                (1.0 - personalityScore)
+        }
+
+        var totalScore = (personalityScore * p.wPersonality) +
+            (contextScore * p.wContext) +
+            (noveltyScore * p.wNovelty)
+
+        totalScore *= calculateTopicProbationPenalty(videoVector, brain, p.lemmatizedPreferred)
+
+        if (brain.topicAffinities.isNotEmpty()) {
+            val videoTopics = videoVector.topics.keys
+                .map { stripDomainTag(it) }.distinct()
+            var affinityBoost = 0.0
+            for (i in videoTopics.indices) {
+                for (j in i + 1 until videoTopics.size) {
+                    val key = makeAffinityKey(videoTopics[i], videoTopics[j])
+                    val affinity = brain.topicAffinities[key] ?: 0.0
+                    affinityBoost += affinity * AFFINITY_BOOST_PER_PAIR
+                }
+            }
+            totalScore += affinityBoost.coerceAtMost(AFFINITY_MAX_BOOST_PER_VIDEO)
+        }
+
+        totalScore += calculateChannelSignal(video, brain, p.userSubs)
+
+        totalScore += calculateSerendipity(noveltyScore, contextScore)
+
+        if (p.isColdStart && video.viewCount > 0) {
+            val popularityBoost = log10(1.0 + video.viewCount.toDouble()) / 10.0 * 0.05
+            totalScore += popularityBoost
+        }
+
+        totalScore *= calculateEngagementQuality(video, p.isColdStart)
+
+        val ageMultiplier = TimeDecay.calculateMultiplier(video.uploadDate, video.isLive)
+        val isClassic = isVideoClassic(video.viewCount)
+        val isSub = p.userSubs.contains(video.channelId)
+        val finalAgeFactor = when {
+            isClassic || isSub -> (ageMultiplier + 1.0) / 2.0
+            else -> ageMultiplier
+        }
+        totalScore *= finalAgeFactor
+
+        totalScore += calculateCuriosityBonus(
+            personalityScore, brain.globalVector.complexity, videoVector.complexity
+        )
+
+        totalScore *= calculateFreshness(
+            video, videoVector, personalityScore,
+            p.sessionTopics, p.sessionVideoCount,
+            p.impressions[video.id], p.now
+        )
+
+        if (p.isOnboarding) {
+            val hasPreferred = p.lemmatizedPreferred.any { videoVector.topics.containsKey(it) }
+            if (hasPreferred) {
+                totalScore += p.onboardingWarmup * ONBOARDING_MAX_BOOST
+            }
+        }
+
+        totalScore *= calculateWatchedPenalty(video, p.watchHistory[video.id])
+
+        totalScore *= calculateAntiRecommendationPenalty(videoVector, video, brain)
+
+        totalScore *= calculateRejectionPatternPenalty(videoVector, brain.rejectionPatterns, p.now)
+
+        totalScore *= calculateRelevanceFloor(personalityScore, brain.totalInteractions, isSub)
+
+        totalScore *= calculateFeedHistoryPenalty(
+            video.id, brain.feedHistory, p.now, p.candidatePoolSize
+        )
+
+        totalScore *= calculateImplicitDisinterestPenalty(
+            video.id, brain.feedHistory, p.watchHistory, p.now
+        )
+
+        totalScore += calculateMomentumBoost(videoVector, p.recentInteractions, personalityScore)
+
+        totalScore += explorationBonus(videoVector, brain, p.exploreWeight)
+
+        if (video.isShort) {
+            val seenTimestamp = brain.seenShortsHistory[video.id]
+            if (seenTimestamp != null) {
+                val daysSinceSeen = (p.now - seenTimestamp) / (24.0 * 60 * 60 * 1000)
+                if (daysSinceSeen < SEEN_SHORT_EXPIRY_DAYS) {
+                    val recovery = (daysSinceSeen / SEEN_SHORT_EXPIRY_DAYS).coerceIn(0.0, 1.0)
+                    val seenPenalty = SEEN_SHORT_PENALTY + (1.0 - SEEN_SHORT_PENALTY) * recovery
+                    totalScore *= seenPenalty
+                }
+            }
+        }
+
+        return totalScore
     }
 
     /**

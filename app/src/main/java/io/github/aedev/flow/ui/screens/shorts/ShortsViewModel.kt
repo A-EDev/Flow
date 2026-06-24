@@ -411,11 +411,12 @@ class ShortsViewModel @Inject constructor(
                 video.duration > 0 -> video.duration * 1000L
                 else -> positionMs.coerceAtLeast(1_000L)
             }
-            val watchedPosition = positionMs.coerceAtLeast((safeDuration * 0.9f).toLong())
+            val watchedPosition = positionMs.coerceIn(0L, safeDuration)
+            val pct = (watchedPosition.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
 
             viewHistory.savePlaybackPosition(
                 videoId = video.id,
-                position = watchedPosition.coerceAtMost(safeDuration),
+                position = watchedPosition,
                 duration = safeDuration,
                 title = video.title,
                 thumbnailUrl = video.thumbnailUrl,
@@ -426,10 +427,13 @@ class ShortsViewModel @Inject constructor(
             )
 
             runCatching {
+                // Real watched fraction; a quick flick is a skip, not a full watch.
+                val interaction = if (watchedPosition < MIN_SHORT_WATCH_MS)
+                    InteractionType.SKIPPED else InteractionType.WATCHED
                 FlowNeuroEngine.onVideoInteraction(
                     video.copy(isShort = true),
-                    InteractionType.WATCHED,
-                    percentWatched = (watchedPosition.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
+                    interaction,
+                    percentWatched = pct
                 )
                 FlowNeuroEngine.recordSeenShorts(listOf(video.id))
             }.onFailure { e ->
@@ -613,6 +617,8 @@ class ShortsViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "ShortsViewModel"
+        // Quick flicks below this count as skips, not watches.
+        private const val MIN_SHORT_WATCH_MS = 2_000L
     }
 }
 

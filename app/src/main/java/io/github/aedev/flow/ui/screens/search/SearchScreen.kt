@@ -46,7 +46,6 @@ import io.github.aedev.flow.data.local.SearchHistoryItem
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.model.*
 import io.github.aedev.flow.data.paging.SearchResultItem
-import io.github.aedev.flow.data.recommendation.InterestProfile
 import io.github.aedev.flow.data.search.SearchSuggestionsService
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.utils.formatDuration
@@ -67,7 +66,6 @@ fun SearchScreen(
 ) {
     val context = LocalContext.current
     val searchHistoryRepo = remember { SearchHistoryRepository(context) }
-    val interestProfile = remember { InterestProfile.getInstance(context) }
     val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
 
     var searchQuery by remember { mutableStateOf(TextFieldValue("")) }
@@ -227,7 +225,6 @@ fun SearchScreen(
     LaunchedEffect(uiState.query) {
         if (uiState.query.isNotBlank()) {
             searchHistoryRepo.saveSearchQuery(uiState.query)
-            interestProfile.recordSearch(uiState.query)
             gridState.scrollToItem(0)
         }
     }

@@ -40,12 +40,6 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideInterestProfile(@ApplicationContext context: Context): io.github.aedev.flow.data.recommendation.InterestProfile {
-        return io.github.aedev.flow.data.recommendation.InterestProfile.getInstance(context)
-    }
-
-    @Provides
-    @Singleton
     fun provideMusicPlaylistRepository(@ApplicationContext context: Context): io.github.aedev.flow.data.music.PlaylistRepository {
         return io.github.aedev.flow.data.music.PlaylistRepository(context)
     }

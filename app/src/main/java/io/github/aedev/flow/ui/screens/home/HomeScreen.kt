@@ -50,6 +50,7 @@ import io.github.aedev.flow.player.DeepFlowManager
 // Add this import for snapshotFlow
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -156,6 +157,13 @@ fun HomeScreen(
                 viewModel.loadMoreVideos()
             }
         }
+    }
+
+    // Viewport impressions: only items dwelt in view are recorded as "shown".
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? String } }
+            .debounce(500)
+            .collect { viewModel.recordImpressions(it) }
     }
 
     // Scroll to top (and refresh) when the home nav-bar tab is re-tapped while already on this screen

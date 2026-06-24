@@ -31,6 +31,9 @@ internal object NeuroVectorMath {
 
     const val TOPIC_PRUNE_THRESHOLD = 0.03
 
+    /** Similarity with no topic overlap is damped so off-topic content can be floored. */
+    const val SCALAR_ONLY_DAMP = 0.3
+
     /** Topics above this score are core interests — decay extremely slowly */
     const val ESTABLISHED_TOPIC_THRESHOLD = 0.30
     /** Topics above this score are developing — decay slowly */
@@ -67,7 +70,7 @@ internal object NeuroVectorMath {
             (pacingSim * PACING_SIMILARITY_WEIGHT) +
             (complexitySim * COMPLEXITY_SIMILARITY_WEIGHT)
 
-        if (smallMap.isEmpty()) return scalarScore
+        if (smallMap.isEmpty()) return scalarScore * SCALAR_ONLY_DAMP
 
         // Build O(1) reverse-lookup maps for migration-compatibility matches
         val largeBaseToTagged = HashMap<String, Pair<String, Double>>(largeMap.size)
@@ -108,7 +111,7 @@ internal object NeuroVectorMath {
             }
         }
 
-        if (!hasIntersection) return scalarScore
+        if (!hasIntersection) return scalarScore * SCALAR_ONLY_DAMP
 
         var magnitudeA = 0.0
         var magnitudeB = 0.0

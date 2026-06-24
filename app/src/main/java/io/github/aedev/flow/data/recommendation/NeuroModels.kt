@@ -208,3 +208,43 @@ internal data class IdfSnapshot(
     val wordFrequency: Map<String, Int>,
     val totalDocs: Int
 )
+
+/**
+ * Immutable per-rank() snapshot consumed by NeuroScoring.scoreCandidate.
+ * Bundles every shared input so candidate scoring is a pure, deterministic
+ * function (no engine state, no Context) — testable and replayable offline.
+ */
+/** A candidate seed (recent positive) for related-graph retrieval. */
+data class SeedInput(
+    val id: String,
+    val title: String,
+    val weight: Double
+)
+
+/** A seed annotated with its interest cluster, for diversified selection. */
+internal data class SeedRank(
+    val id: String,
+    val clusterKey: String,
+    val weight: Double
+)
+
+internal data class ScoringParams(
+    val brain: UserBrain,
+    val userSubs: Set<String>,
+    val timeContextVector: ContentVector,
+    val wPersonality: Double,
+    val wContext: Double,
+    val wNovelty: Double,
+    val isColdStart: Boolean,
+    val isOnboarding: Boolean,
+    val onboardingWarmup: Double,
+    val lemmatizedPreferred: Set<String>,
+    val sessionTopics: List<String>,
+    val sessionVideoCount: Int,
+    val impressions: Map<String, ImpressionEntry>,
+    val watchHistory: Map<String, WatchEntry>,
+    val recentInteractions: List<MomentumEntry>,
+    val candidatePoolSize: Int,
+    val now: Long,
+    val exploreWeight: Double = 0.0
+)

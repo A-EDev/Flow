@@ -785,24 +785,7 @@ class YouTubeRepository @Inject constructor(
 
     suspend fun getLiveWatchMetadata(videoId: String): LiveWatchMetadata? = withContext(Dispatchers.IO) {
         val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext null
-        val relatedRows = resp.relatedVideos()
-        val related = relatedRows.mapNotNull { cv ->
-            val id = cv.videoId ?: return@mapNotNull null
-            val viewText = cv.viewCountText?.text()
-            val isLive = cv.isLive || viewText.isLiveViewCountText()
-            Video(
-                id = id,
-                title = cv.title?.text() ?: "",
-                channelName = cv.longBylineText?.text() ?: "",
-                channelId = "",
-                thumbnailUrl = cv.thumbnail?.bestUrl()?.let { ThumbnailUrlResolver.normalizeVideoThumbnail(id, it) }
-                    ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
-                duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
-                viewCount = parseAbbreviatedCount(viewText) ?: 0L,
-                uploadDate = cv.publishedTimeText?.text() ?: "",
-                isLive = isLive
-            )
-        }
+        val related = mapWatchMetadataRelated(resp)
         Log.i(TAG, "InnerTube watch metadata for $videoId: rawRelated=${resp.relatedResultCount()} parsedRelated=${related.size}")
         LiveWatchMetadata(
             title = resp.title(),
@@ -814,6 +797,34 @@ class YouTubeRepository @Inject constructor(
             description = resp.description(),
             relatedVideos = related
         )
+    }
+
+    private fun mapWatchMetadataRelated(
+        resp: io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
+    ): List<Video> = resp.relatedVideos().mapNotNull { cv ->
+        val id = cv.videoId ?: return@mapNotNull null
+        val viewText = cv.viewCountText?.text()
+        val isLive = cv.isLive || viewText.isLiveViewCountText()
+        Video(
+            id = id,
+            title = cv.title?.text() ?: "",
+            channelName = cv.longBylineText?.text() ?: "",
+            channelId = "",
+            thumbnailUrl = cv.thumbnail?.bestUrl()?.let { ThumbnailUrlResolver.normalizeVideoThumbnail(id, it) }
+                ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
+            duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
+            viewCount = parseAbbreviatedCount(viewText) ?: 0L,
+            uploadDate = cv.publishedTimeText?.text() ?: "",
+            isLive = isLive
+        )
+    }
+
+    /** Light related-video harvest for the feed (InnerTube /next, no stream resolution). */
+    suspend fun getRelatedCandidates(videoId: String): List<Video> = withContext(Dispatchers.IO) {
+        val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext emptyList()
+        mapWatchMetadataRelated(resp)
+            .filter { it.id.isNotBlank() && it.id != videoId }
+            .distinctBy { it.id }
     }
 
     suspend fun getLiveRelatedVideosBySearch(
