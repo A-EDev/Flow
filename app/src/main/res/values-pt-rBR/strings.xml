@@ -67,15 +67,15 @@
     <string name="album_label">Álbum</string>
     <string name="library_music_playlists_subtitle">Suas coleções de música</string>
     <string name="clear_all">Limpar Tudo</string>
-    <string name="empty_watch_history">Sem Histórico de Exibição</string>
-    <string name="liked">"Gostei "</string>
+    <string name="empty_watch_history">Não há Histórico de Exibição</string>
+    <string name="liked">"Curtido "</string>
     <string name="related_videos">Vídeos Relacionados</string>
     <string name="quality_auto">Automático</string>
     <string name="quality_auto_template">Automático (%1$dp)</string>
-    <string name="failed_to_load_channel">Não foi possível carregar o canal</string>
+    <string name="failed_to_load_channel">Ocorreu um erro ao carregar o canal</string>
     <string name="stats">Status</string>
     <string name="library_playlists_label">Playlists</string>
-    <string name="downloaded">Baixado(s)</string>
+    <string name="downloaded">Baixado</string>
     <string name="up_next">A SEGUIR</string>
     <string name="related">RELACIONADOS</string>
     <string name="shuffle">Aleatório</string>
@@ -83,7 +83,7 @@
     <string name="autoplay">Reprodução automática</string>
     <string name="empty_description">Não há descrição disponível</string>
     <string name="no_related_content">Não foi encontrado nenhum conteúdo relacionado</string>
-    <string name="share_message_template">Ouve esta música: %1$s dos %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
+    <string name="share_message_template">Veja só essa música: %1$s por %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
     <string name="filter_deep_cuts">Cortes profundos</string>
     <string name="filter_workout">Treino</string>
     <string name="video_id_label">Vídeo ID</string>
