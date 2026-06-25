@@ -371,6 +371,9 @@ class PlaylistRepository @Inject constructor(
         }
     }
 
+    suspend fun getSavedVideoPlaylistVideoIds(): List<String> =
+        playlistDao.getSavedVideoPlaylistVideoIds()
+
     fun getPlaylistVideosFlow(playlistId: String): Flow<List<Video>> =
         playlistDao.getVideosForPlaylist(playlistId).map { entities ->
             entities.map { it.toDomain() }

@@ -8,6 +8,8 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.recommendation.SeedInput
 import io.github.aedev.flow.data.recommendation.UserBrain
+import io.github.aedev.flow.data.local.LikedVideosRepository
+import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.VideoHistoryEntry
@@ -34,6 +36,7 @@ import kotlinx.coroutines.sync.withPermit
 import org.schabi.newpipe.extractor.Page
 
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 /** Seed candidates for related-graph retrieval: recent, mostly-watched, non-Short videos. */
@@ -46,6 +49,41 @@ internal fun seedInputsFrom(history: List<VideoHistoryEntry>, max: Int = 10): Li
 /** Keeps only visible grid keys that map to real feed videos (drops shelf/loader keys). */
 internal fun feedImpressionIds(visibleKeys: List<String>, knownIds: Set<String>): List<String> =
     visibleKeys.filter { it in knownIds }
+
+/** Saved-interest seed pools: watch history (newest-first), liked videos, and saved playlists. */
+internal data class SavedSeedSources(
+    val historyIds: List<String>,
+    val likedIds: List<String>,
+    val playlistIds: List<String>
+)
+
+private fun sampleIds(ids: List<String>, range: IntRange, random: kotlin.random.Random): List<String> {
+    if (ids.isEmpty() || range.last <= 0) return emptyList()
+    val n = random.nextInt(range.first, range.last + 1).coerceAtMost(ids.size)
+    return ids.shuffled(random).take(n)
+}
+
+/**
+ * Picks seed video ids to expand via the related (/next) graph: the latest watched video plus a
+ * random sample from history, liked, and saved playlists. Ids on cooldown are excluded.
+ */
+internal fun selectSavedInterestSeeds(
+    sources: SavedSeedSources,
+    cooldown: Set<String>,
+    random: kotlin.random.Random,
+    historyRandom: IntRange = 1..2,
+    likedPicks: IntRange = 1..2,
+    playlistPicks: IntRange = 1..4,
+    maxSeeds: Int = 5
+): List<String> {
+    val picked = LinkedHashSet<String>()
+    val history = sources.historyIds.filterNot { it in cooldown }
+    history.firstOrNull()?.let { picked.add(it) } 
+    picked += sampleIds(history.drop(1), historyRandom, random)
+    picked += sampleIds(sources.likedIds.filterNot { it in cooldown }, likedPicks, random)
+    picked += sampleIds(sources.playlistIds.filterNot { it in cooldown }, playlistPicks, random)
+    return picked.take(maxSeeds)
+}
 
 // Format signals often tied to low-effort feed filler. NOT a blocklist: they only demote
 // exploration candidates, and only when the user shows no matching interest.
@@ -135,7 +173,8 @@ class HomeViewModel @Inject constructor(
     private val repository: YouTubeRepository,
     private val subscriptionRepository: SubscriptionRepository, 
     private val shortsRepository: ShortsRepository,
-    private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences
+    private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
     companion object {
         private const val TAG = "HomeViewModel"
@@ -145,7 +184,16 @@ class HomeViewModel @Inject constructor(
         private const val RELATED_TTL_MS = 45L * 60L * 1000L
         private const val MAX_RELATED_SEEDS = 4
         private const val MIN_PAGE_SIZE = 8
+        private const val MAX_SAVED_SEEDS = 5
+        private const val SAVED_RELATED_SLOTS = 8
+        private const val SAVED_SEED_COOLDOWN_MS = 3L * 60L * 60L * 1000L
     }
+
+    // Saved-interest enrichment sources (history/liked/playlists) + per-seed cooldown.
+    private val likedVideosRepository by lazy { LikedVideosRepository.getInstance(appContext) }
+    private val playlistRepository by lazy { PlaylistRepository(appContext) }
+    private val historyRepository by lazy { ViewHistory.getInstance(appContext) }
+    private val savedSeedCooldown = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -369,19 +417,7 @@ class HomeViewModel @Inject constructor(
 
                     // ── Related-graph lane: harvest /next neighbours of recent positives ──
                     val deferredRelated = async {
-                        val seedIds = FlowNeuroEngine.selectRelatedSeeds(buildSeedInputs(), MAX_RELATED_SEEDS)
-                        if (seedIds.isEmpty()) emptyList()
-                        else seedIds.map { seedId ->
-                            async {
-                                val ts = System.currentTimeMillis()
-                                relatedCache[seedId]?.takeIf { ts - it.ts < RELATED_TTL_MS }?.videos
-                                    ?: (relatedSemaphore.withPermit {
-                                        withTimeoutOrNull(4_000L) {
-                                            repository.getRelatedCandidates(seedId)
-                                        } ?: emptyList()
-                                    }).also { relatedCache[seedId] = CachedRelated(it, ts) }
-                            }
-                        }.awaitAll().flatten()
+                        fetchRelatedFor(FlowNeuroEngine.selectRelatedSeeds(buildSeedInputs(), MAX_RELATED_SEEDS))
                     }
 
                     // ── Fast first paint ────────────────────────────────────────
@@ -566,6 +602,9 @@ class HomeViewModel @Inject constructor(
                     lastRefreshTime = now
                 )}
                 HomeFeedCache.update(spacedMix, _uiState.value.shorts)
+
+                // Enrich (post-paint) with related neighbours of saved/watched videos.
+                enrichFeedWithSavedInterest(userSubs, taste)
 
                 // ── Wave 2: remaining queries loaded in background ──
                 val wave2Queries = discoveryQueries.drop(currentQueryIndex)
@@ -788,6 +827,84 @@ class HomeViewModel @Inject constructor(
     private suspend fun buildSeedInputs(): List<SeedInput> {
         val history = viewHistory?.getVideoHistoryFlow()?.first() ?: return emptyList()
         return seedInputsFrom(history)
+    }
+
+    /** Expands seed video ids into their related (/next) neighbours, cached and concurrency-bounded. */
+    private suspend fun fetchRelatedFor(seedIds: List<String>): List<Video> = coroutineScope {
+        if (seedIds.isEmpty()) return@coroutineScope emptyList()
+        seedIds.map { seedId ->
+            async {
+                val ts = System.currentTimeMillis()
+                relatedCache[seedId]?.takeIf { ts - it.ts < RELATED_TTL_MS }?.videos
+                    ?: (relatedSemaphore.withPermit {
+                        withTimeoutOrNull(4_000L) { repository.getRelatedCandidates(seedId) } ?: emptyList()
+                    }).also { relatedCache[seedId] = CachedRelated(it, ts) }
+            }
+        }.awaitAll().flatten()
+    }
+
+    private suspend fun gatherSavedSeedSources(): SavedSeedSources {
+        val historyIds = runCatching {
+            historyRepository.getVideoHistoryFlow().first()
+                .filter { !it.isShort }
+                .sortedByDescending { it.timestamp }
+                .map { it.videoId }
+        }.getOrElse { emptyList() }
+        val likedIds = runCatching {
+            likedVideosRepository.getLikedVideosFlow().first().map { it.videoId }
+        }.getOrElse { emptyList() }
+        val playlistIds = runCatching {
+            playlistRepository.getSavedVideoPlaylistVideoIds()
+        }.getOrElse { emptyList() }
+        return SavedSeedSources(historyIds, likedIds, playlistIds)
+    }
+
+    private fun activeSavedSeedCooldown(now: Long): Set<String> {
+        savedSeedCooldown.entries.removeAll { now - it.value > SAVED_SEED_COOLDOWN_MS }
+        return savedSeedCooldown.keys.toHashSet()
+    }
+
+    /**
+     * Enriches the feed with related neighbours of the videos the user saved/watched, on top of the
+     * lane quotas. Runs after first paint so it never delays load; chosen seeds enter a cooldown.
+     */
+    private fun enrichFeedWithSavedInterest(userSubs: Set<String>, taste: FeedTasteProfile) {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            try {
+                val now = System.currentTimeMillis()
+                val seeds = selectSavedInterestSeeds(
+                    gatherSavedSeedSources(), activeSavedSeedCooldown(now),
+                    kotlin.random.Random.Default, maxSeeds = MAX_SAVED_SEEDS
+                )
+                if (seeds.isEmpty()) return@launch
+                seeds.forEach { savedSeedCooldown[it] = now }
+
+                val related = fetchRelatedFor(seeds)
+                if (related.isEmpty()) return@launch
+
+                val existing = _uiState.value.videos.mapTo(HashSet()) { it.id }
+                val enriched = demoteByFit(
+                    FlowNeuroEngine.rank(
+                        related.filterValid().filterWatched(watchedVideoIds.value)
+                            .filterRecentHomeSuggestion(now)
+                            .filterNot { existing.contains(it.id) },
+                        userSubs
+                    ),
+                    taste
+                ).take(SAVED_RELATED_SLOTS)
+                if (enriched.isEmpty()) return@launch
+
+                _uiState.update { state ->
+                    val tail = state.videos.takeLast(2).map { it.channelId }
+                    val merged = state.videos + spaceByChannel(enriched, seedRecent = tail)
+                    HomeFeedCache.update(merged, state.shorts)
+                    state.copy(videos = merged)
+                }
+                Log.d(TAG, "Saved-interest enrichment: +${enriched.size} from ${seeds.size} seeds")
+            } catch (e: Exception) {
+                Log.d(TAG, "Saved-interest enrichment failed: ${e.message}")
+            }
+        }
     }
 
     // Viewport impressions: count only items actually scrolled into view.

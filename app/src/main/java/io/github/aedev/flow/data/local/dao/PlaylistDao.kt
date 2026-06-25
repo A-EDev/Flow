@@ -90,6 +90,14 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlist_video_cross_ref")
     suspend fun getAllPlaylistVideoCrossRefs(): List<PlaylistVideoCrossRef>
 
+    /** Distinct video ids saved across Watch Later and all non-music video playlists (excludes saved shorts). */
+    @Query("""
+        SELECT DISTINCT r.videoId FROM playlist_video_cross_ref r
+        INNER JOIN playlists p ON p.id = r.playlistId
+        WHERE p.isMusic = 0 AND p.id != 'saved_shorts'
+    """)
+    suspend fun getSavedVideoPlaylistVideoIds(): List<String>
+
     @Query("UPDATE playlists SET thumbnailUrl = :thumbnailUrl WHERE id = :id")
     suspend fun updatePlaylistThumbnail(id: String, thumbnailUrl: String)
 

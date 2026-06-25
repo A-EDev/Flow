@@ -129,4 +129,46 @@ class HomeFeedLogicTest {
         val related = listOf(vc("r1", ""), vc("r2", ""), vc("r3", ""))
         assertThat(spaceByChannel(related).map { it.id }).containsExactly("r1", "r2", "r3").inOrder()
     }
+
+    private val seededRandom get() = kotlin.random.Random(42)
+
+    @Test
+    fun `selectSavedInterestSeeds always considers the latest watched video first`() {
+        val sources = SavedSeedSources(
+            historyIds = listOf("h_latest", "h2", "h3"), likedIds = emptyList(), playlistIds = emptyList()
+        )
+        val seeds = selectSavedInterestSeeds(sources, cooldown = emptySet(), random = seededRandom)
+        assertThat(seeds).contains("h_latest")
+    }
+
+    @Test
+    fun `selectSavedInterestSeeds pulls from history, liked, and playlists within bounds`() {
+        val sources = SavedSeedSources(
+            historyIds = (1..10).map { "h$it" },
+            likedIds = (1..10).map { "l$it" },
+            playlistIds = (1..10).map { "p$it" }
+        )
+        val seeds = selectSavedInterestSeeds(sources, cooldown = emptySet(), random = seededRandom)
+        assertThat(seeds.size).isAtMost(5) // maxSeeds
+        assertThat(seeds.any { it.startsWith("h") }).isTrue()
+        assertThat(seeds.any { it.startsWith("l") }).isTrue()
+        assertThat(seeds.any { it.startsWith("p") }).isTrue()
+    }
+
+    @Test
+    fun `selectSavedInterestSeeds excludes ids on cooldown`() {
+        val sources = SavedSeedSources(
+            historyIds = listOf("h_latest", "h2"), likedIds = listOf("l1"), playlistIds = listOf("p1")
+        )
+        val cooldown = setOf("h_latest", "l1", "p1")
+        val seeds = selectSavedInterestSeeds(sources, cooldown = cooldown, random = seededRandom)
+        assertThat(seeds).containsNoneIn(cooldown)
+        assertThat(seeds).contains("h2") // newest non-cooled history is now the latest considered
+    }
+
+    @Test
+    fun `selectSavedInterestSeeds returns empty when nothing is saved`() {
+        val empty = SavedSeedSources(emptyList(), emptyList(), emptyList())
+        assertThat(selectSavedInterestSeeds(empty, cooldown = emptySet(), random = seededRandom)).isEmpty()
+    }
 }
