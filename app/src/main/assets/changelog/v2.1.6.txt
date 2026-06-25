@@ -11,6 +11,7 @@ NEW FEATURES
 - Add bottom navbar scroll events toggle
 - Add queue/playlist autoplay toggle
 - Add shorts search tab
+- Add new video ambient mode
 
 IMPROVEMENTS
 - Improve media notification handling #577

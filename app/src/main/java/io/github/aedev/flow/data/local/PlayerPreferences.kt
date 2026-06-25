@@ -36,6 +36,7 @@ class PlayerPreferences(context: Context) {
         val AUTOPLAY_COUNTDOWN_SECONDS = intPreferencesKey("autoplay_countdown_seconds")
         val SHOW_CONTROLS_WHILE_LOADING = booleanPreferencesKey("show_controls_while_loading")
         val VIDEO_LOOP_ENABLED = booleanPreferencesKey("video_loop_enabled")
+        val VIDEO_AMBIENT_MODE_ENABLED = booleanPreferencesKey("video_ambient_mode_enabled")
         val SUBTITLES_ENABLED = booleanPreferencesKey("subtitles_enabled")
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
         val SUBTITLE_FONT_SIZE = floatPreferencesKey("subtitle_font_size")
@@ -885,6 +886,18 @@ class PlayerPreferences(context: Context) {
     suspend fun setShowControlsWhileLoading(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHOW_CONTROLS_WHILE_LOADING] = enabled
+        }
+    }
+
+    // Video Ambient Mode
+    val videoAmbientModeEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.VIDEO_AMBIENT_MODE_ENABLED] ?: false
+        }
+
+    suspend fun setVideoAmbientModeEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.VIDEO_AMBIENT_MODE_ENABLED] = enabled
         }
     }
 

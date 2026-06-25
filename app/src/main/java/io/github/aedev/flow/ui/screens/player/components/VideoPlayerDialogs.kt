@@ -19,6 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.*
@@ -778,6 +780,8 @@ fun SettingsMenuDialog(
     onStableVolumeToggle: (Boolean) -> Unit,
     onShowSubtitleStyle: () -> Unit,
     onLoopToggle: (Boolean) -> Unit,
+    ambientModeEnabled: Boolean = false,
+    onAmbientModeToggle: (Boolean) -> Unit = {},
     onCastClick: () -> Unit = {},
     onPipClick: () -> Unit = {},
     onSleepTimerClick: () -> Unit = {},
@@ -1079,6 +1083,15 @@ fun SettingsMenuDialog(
                 label = stringResource(R.string.player_settings_stable_voice),
                 checked = playerState.isStableVolumeEnabled,
                 onToggle = onStableVolumeToggle
+            )
+
+            // ── Ambient Mode ──
+            PlayerSettingsSectionHeader(stringResource(R.string.player_settings_display))
+            PlayerSettingsToggleRow(
+                icon = ImageVector.vectorResource(R.drawable.ic_ambient_mode),
+                label = stringResource(R.string.player_settings_ambient_mode),
+                checked = ambientModeEnabled,
+                onToggle = onAmbientModeToggle
             )
                 }
                 PlayerSettingsPage.Quality -> PlayerSettingsQualityPage(

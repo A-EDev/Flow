@@ -69,6 +69,7 @@ fun PlayerAppearanceScreen(
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
+    val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val fullscreenSeekbarPaddingMode by playerPreferences.fullscreenSeekbarPaddingMode.collectAsState(
         initial = FullscreenSeekbarPaddingMode.DEFAULT
     )
@@ -431,6 +432,23 @@ fun PlayerAppearanceScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 playerPreferences.setAdaptivePlayerSizeEnabled(enabled)
+                            }
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_ambient_mode),
+                        title = stringResource(R.string.player_settings_ambient_mode),
+                        subtitle = stringResource(R.string.player_settings_ambient_mode_subtitle),
+                        checked = ambientModeEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setVideoAmbientModeEnabled(enabled)
                             }
                         }
                     )

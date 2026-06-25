@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -48,8 +49,10 @@ fun VideoPlayerSurface(
     resizeMode: Int,
     modifier: Modifier = Modifier,
     onVideoAspectRatioChanged: ((Float) -> Unit)? = null,
-    cornerRadiusDp: Float = 0f
+    cornerRadiusDp: Float = 0f,
+    ambientMode: Boolean = false
 ) {
+    val ambientActive = ambientMode && resizeMode == 0
     val context = LocalContext.current
     val density = LocalDensity.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -116,7 +119,18 @@ fun VideoPlayerSurface(
 
     val currentSurfaceRestoreTrigger = surfaceRestoreTrigger
 
+    val ambientFrame = rememberAmbientFrame(playerView, ambientActive)
+
     key(video.id) {
+      Box(modifier = modifier.fillMaxSize()) {
+        if (ambientActive) {
+            VideoAmbientBackground(
+                frame = ambientFrame.frame,
+                baseColor = ambientFrame.base,
+                accentColor = ambientFrame.accent,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         AndroidView(
             factory = { playerView },
             update = { view ->
@@ -181,10 +195,15 @@ fun VideoPlayerSurface(
                     view.resizeMode = desiredResizeMode
                 }
 
+                view.setBackgroundColor(
+                    if (ambientActive) android.graphics.Color.TRANSPARENT else android.graphics.Color.BLACK
+                )
+
                 applyOutlineCornerRadius(view, cornerRadiusPx)
             },
-            modifier = modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         )
+      }
     }
 }
 

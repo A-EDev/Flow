@@ -819,6 +819,9 @@
     <string name="speed_slider_apply">Apply</string>
     <string name="player_settings_stable_voice">Stable Voice</string>
     <string name="player_settings_stable_voice_subtitle">Normalize audio volume for consistent playback</string>
+    <string name="player_settings_display">Display</string>
+    <string name="player_settings_ambient_mode">Ambient mode</string>
+    <string name="player_settings_ambient_mode_subtitle">Fill the bars around the video with a soft glow of its colors</string>
     <string name="loop_video">Loop video</string>
     <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Skip sponsored segments</string>

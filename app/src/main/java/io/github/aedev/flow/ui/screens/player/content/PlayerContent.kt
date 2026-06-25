@@ -72,6 +72,7 @@ fun PlayerContent(
     val doubleTapSeekSeconds by playerPrefs.doubleTapSeekSeconds.collectAsState(initial = 10)
     val allowVolumeBoost by playerPrefs.allowVolumeBoost.collectAsState(initial = false)
     val longPressPlaybackSpeed by playerPrefs.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
+    val ambientModeEnabled by playerPrefs.videoAmbientModeEnabled.collectAsState(initial = false)
     val deArrowResult by produceState<DeArrowResult?>(
         initialValue = null,
         key1 = video.id,
@@ -157,7 +158,8 @@ fun PlayerContent(
         VideoPlayerSurface(
             video = video,
             resizeMode = screenState.resizeMode,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            ambientMode = ambientModeEnabled
         )
 
         Media3SubtitleOverlay(

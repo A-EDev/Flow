@@ -170,6 +170,7 @@ fun GlobalPlayerOverlay(
     val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
     val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
+    val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
     val lockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
     val commentsEnabled by playerPreferences.commentsEnabled.collectAsState(initial = true)
@@ -776,7 +777,8 @@ fun GlobalPlayerOverlay(
                             resizeMode = screenState.resizeMode,
                             modifier = Modifier.fillMaxSize(),
                             onVideoAspectRatioChanged = { videoAspectRatio = it },
-                            cornerRadiusDp = if (isMinimized && !localIsInPipMode) 12f else 0f
+                            cornerRadiusDp = if (isMinimized && !localIsInPipMode) 12f else 0f,
+                            ambientMode = ambientModeEnabled && !isMinimized && !localIsInPipMode
                         )
                         if (!isMinimized && !localIsInPipMode) {
                             Media3SubtitleOverlay(
@@ -1198,6 +1200,8 @@ fun GlobalPlayerOverlay(
                             screenState.showSubtitleStyleCustomizer = true
                         },
                         onLoopToggle = { playerViewModel.toggleLoop(it) },
+                        ambientModeEnabled = ambientModeEnabled,
+                        onAmbientModeToggle = { scope.launch { playerPreferences.setVideoAmbientModeEnabled(it) } },
                         onCastClick = {
                             DlnaCastManager.startDiscovery(context)
                             screenState.showDlnaDialog = true

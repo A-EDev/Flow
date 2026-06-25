@@ -32,6 +32,7 @@ fun PlayerDialogsContainer(
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context) }
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
+    val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -186,6 +187,8 @@ fun PlayerDialogsContainer(
                 screenState.showSubtitleStyleCustomizer = true 
             },
             onLoopToggle = { viewModel.toggleLoop(it) },
+            ambientModeEnabled = ambientModeEnabled,
+            onAmbientModeToggle = { coroutineScope.launch { playerPreferences.setVideoAmbientModeEnabled(it) } },
             onCastClick = {
                 io.github.aedev.flow.player.dlna.DlnaCastManager.startDiscovery(context)
                 screenState.showSettingsMenu = false
