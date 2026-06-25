@@ -1752,4 +1752,7 @@
     <string name="recognition_history_empty">Les morceaux identifiés s\'afficheront ici</string>
     <string name="recognition_clear_history">Effacer l\'historique ?</string>
     <string name="recognition_clear_history_body">Cette opération supprime toutes les chansons reconnues. Elle est irréversible.</string>
+    <string name="player_settings_display">Affichage</string>
+    <string name="player_settings_ambient_mode">Mode ambiant</string>
+    <string name="player_settings_ambient_mode_subtitle">Remplissez les bandes autour de la vidéo d\'une douce lueur aux couleurs de celle-ci</string>
 </resources>
