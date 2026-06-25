@@ -39,32 +39,10 @@ object GlobalPlayerState {
     private val _dismissRequested = MutableStateFlow(false)
     val dismissRequested: StateFlow<Boolean> = _dismissRequested.asStateFlow()
     
-    // Delegate to EnhancedPlayerManager for player state
+    // Delegate to EnhancedPlayerManager for player state. This is the single reactive
+    // source of truth for playback; collect playerState for isPlaying/position/duration.
     val playerState: StateFlow<EnhancedPlayerState> = EnhancedPlayerManager.getInstance().playerState
-    
-    // Computed properties from EnhancedPlayerManager - delegates to player state
-    val isPlaying: StateFlow<Boolean> get() {
-        val flow = MutableStateFlow(false)
-        flow.value = EnhancedPlayerManager.getInstance().isPlaying()
-        return flow.asStateFlow()
-    }
-    
-    val currentPosition: StateFlow<Long> get() {
-        val flow = MutableStateFlow(0L)
-        flow.value = EnhancedPlayerManager.getInstance().getCurrentPosition()
-        return flow.asStateFlow()
-    }
-    
-    val duration: StateFlow<Long> get() {
-        val flow = MutableStateFlow(0L)
-        flow.value = EnhancedPlayerManager.getInstance().getDuration()
-        return flow.asStateFlow()
-    }
-    
-    // Legacy compatibility - delegates to EnhancedPlayerManager
-    @Deprecated("Use EnhancedPlayerManager.getPlayer() instead", ReplaceWith("EnhancedPlayerManager.getInstance().getPlayer()"))
-    val exoPlayer get() = EnhancedPlayerManager.getInstance().getPlayer()
-    
+
     /**
      * Initialize the player - delegates to EnhancedPlayerManager.
      */
@@ -92,14 +70,6 @@ object GlobalPlayerState {
      */
     fun setCurrentVideo(video: Video?) {
         _currentVideo.value = video
-    }
-    
-    /**
-     * Update playback position and duration (legacy compatibility).
-     */
-    @Deprecated("Position tracking now handled automatically by EnhancedPlayerManager")
-    fun updatePlaybackInfo(_position: Long, _duration: Long) {
-        // No-op - EnhancedPlayerManager handles this internally
     }
     
     /**
@@ -191,18 +161,5 @@ object GlobalPlayerState {
         _currentVideo.value = null
         _isMiniPlayerVisible.value = false
         _miniPlayerExpansionState.value = MiniPlayerExpansionState.HIDDEN
-    }
-    
-    /**
-     * Get progress as a float between 0 and 1.
-     */
-    fun getProgress(): Float {
-        val position = EnhancedPlayerManager.getInstance().getCurrentPosition()
-        val dur = EnhancedPlayerManager.getInstance().getDuration()
-        return if (dur > 0) {
-            (position.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
     }
 }

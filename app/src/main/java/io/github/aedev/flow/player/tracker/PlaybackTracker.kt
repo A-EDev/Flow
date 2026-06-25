@@ -32,10 +32,7 @@ class PlaybackTracker(
     private var lastCheckedPosition = 0L
     private var stuckCount = 0
     private var lastSaveTime = 0L
-    
-    // Watchdog state
-    private var isWatchdogActive = false
-    
+
     /**
      * Start position tracking.
      */
@@ -71,7 +68,6 @@ class PlaybackTracker(
         positionTrackerJob?.cancel()
         positionTrackerJob = null
         stuckCount = 0
-        isWatchdogActive = false
     }
     
     private suspend fun trackPosition(player: ExoPlayer) {
@@ -132,12 +128,7 @@ class PlaybackTracker(
             lastCheckedPosition = currentPos
         }
     }
-    
-    /**
-     * Get the last checked position.
-     */
-    fun getLastPosition(): Long = lastCheckedPosition
-    
+
     /**
      * Reset tracking state for a new video.
      */
@@ -146,14 +137,4 @@ class PlaybackTracker(
         stuckCount = 0
         lastSaveTime = 0L
     }
-    
-    /**
-     * Check if playback is currently stalled.
-     */
-    fun isStalled(): Boolean = stuckCount >= PlayerConfig.STUCK_DETECTION_THRESHOLD
-    
-    /**
-     * Get current stuck count for debugging.
-     */
-    fun getStuckCount(): Int = stuckCount
 }

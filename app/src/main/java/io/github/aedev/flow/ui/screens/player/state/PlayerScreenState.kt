@@ -3,7 +3,6 @@ package io.github.aedev.flow.ui.screens.player.state
 import android.content.Context
 import android.media.AudioManager
 import androidx.compose.runtime.*
-import io.github.aedev.flow.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.SubtitleStyle
 
@@ -79,10 +78,7 @@ class PlayerScreenState {
     // Shorts/Music Prompt
     var showShortsPrompt by mutableStateOf(false)
     var hasShownShortsPrompt by mutableStateOf(false)
-    
-    // Seekbar Preview
-    var seekbarPreviewHelper by mutableStateOf<SeekbarPreviewThumbnailHelper?>(null)
-   
+
     fun resetForNewVideo() {
         lastInteractionTimestamp = System.currentTimeMillis()
         showControls = true
@@ -91,7 +87,6 @@ class PlayerScreenState {
         duration = 0L
         subtitlesEnabled = false
         selectedSubtitleUrl = null
-        seekbarPreviewHelper = null
         showBrightnessOverlay = false
         showVolumeOverlay = false
         showSeekBackAnimation = false

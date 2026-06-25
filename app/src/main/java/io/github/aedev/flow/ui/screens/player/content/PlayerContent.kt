@@ -294,7 +294,6 @@ fun PlayerContent(
                     )
                 }
             },
-            seekbarPreviewHelper = screenState.seekbarPreviewHelper,
             chapters = uiState.chapters,
                             onChapterClick = { screenState.showChaptersSheet = true },
                             onSubtitleClick = {

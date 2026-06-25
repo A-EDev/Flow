@@ -1,16 +1,9 @@
 package io.github.aedev.flow.ui.screens.player.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,23 +13,16 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.GenericShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,27 +41,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.player.seekbarpreview.SeekbarPreviewThumbnailHelper
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.IntOffset
-import androidx.core.graphics.BitmapCompat
-import androidx.core.math.MathUtils
 import org.schabi.newpipe.extractor.stream.StreamSegment
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// Custom seekbar with preview thumbnails
+// Custom seekbar drawing buffer, SponsorBlock segments and chapter gaps over the progress track.
 @Composable
 fun SeekbarWithPreview(
     value: Float,
@@ -86,74 +57,27 @@ fun SeekbarWithPreview(
     steps: Int = 0,
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    seekbarPreviewHelper: SeekbarPreviewThumbnailHelper? = null,
     chapters: List<StreamSegment> = emptyList(),
     sponsorSegments: List<SponsorBlockSegment> = emptyList(),
     duration: Long = 0L,
     bufferedValue: Float = 0f,
     edgeAligned: Boolean = false
 ) {
-    val previewEnabled = false
-    var previewPosition by remember { mutableFloatStateOf(0f) }
-    var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     val primaryColor = MaterialTheme.colorScheme.primary
-    val density = LocalDensity.current
 
-    val fallbackPreviewW = 240.dp
-    val fallbackPreviewH = 135.dp
-    val previewW = previewBitmap?.let { with(density) { it.width.toDp() } } ?: fallbackPreviewW
-    val previewH = previewBitmap?.let { with(density) { it.height.toDp() } } ?: fallbackPreviewH
-    
-    var sliderWidth by remember { mutableFloatStateOf(0f) }
     var edgePointerActive by remember { mutableStateOf(false) }
-    
+
     val isPressed by interactionSource.collectIsPressedAsState()
     val isDragged by interactionSource.collectIsDraggedAsState()
     val isInteracting = isPressed || isDragged || edgePointerActive
-    
+
     // Internal value to keep the thumb following the finger smoothly
     var internalValue by remember { mutableFloatStateOf(value) }
-    
+
     // Sync internal value with external value when not interacting
     LaunchedEffect(value) {
         if (!isInteracting) {
             internalValue = value
-        }
-    }
-
-    // Async thumbnail loading with debouncing and better responsiveness
-    LaunchedEffect(internalValue, isInteracting) {
-        if (previewEnabled && isInteracting && seekbarPreviewHelper != null) {
-            val durationMs = seekbarPreviewHelper.getPlayer().duration
-            if (durationMs > 0) {
-                // Round to nearest 2 seconds for better cache hits during scrub
-                val positionMs = ((internalValue * durationMs) / 2000).toLong() * 2000
-
-                val bitmap = withContext(Dispatchers.IO) {
-                    try {
-                        val rawBitmap = seekbarPreviewHelper.loadThumbnailForPosition(positionMs)
-                        resizeBitmapLikeNewPipe(
-                            source = rawBitmap,
-                            baseViewWidthPx = sliderWidth.roundToInt().coerceAtLeast(1),
-                            minWidthPx = with(density) { 10.dp.roundToPx() }
-                        )
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-
-                if (bitmap != null) {
-                    previewBitmap = bitmap
-                }
-            }
-        } else {
-            previewBitmap = null
-        }
-    }
-
-    LaunchedEffect(isInteracting) {
-        if (previewEnabled && isInteracting && sliderWidth > 0f) {
-            previewPosition = with(density) { (internalValue * sliderWidth).toDp().value }
         }
     }
 
@@ -162,7 +86,7 @@ fun SeekbarWithPreview(
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "trackHeight"
     )
-    
+
     val thumbScale by animateFloatAsState(
         targetValue = if (isInteracting) 1.8f else 0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
@@ -177,10 +101,7 @@ fun SeekbarWithPreview(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(if (edgeAligned) 20.dp else 32.dp)
-                .onGloballyPositioned { coordinates ->
-                    sliderWidth = coordinates.size.width.toFloat()
-                },
+                .height(if (edgeAligned) 20.dp else 32.dp),
             contentAlignment = if (edgeAligned) Alignment.BottomCenter else Alignment.Center
         ) {
         Canvas(
@@ -192,7 +113,7 @@ fun SeekbarWithPreview(
             val width = size.width
             val trackTop = if (edgeAligned) size.height - trackHeightPx else 0f
             val trackCenterY = trackTop + trackHeightPx / 2f
-            
+
             // Draw inactive track (background)
             drawRoundRect(
                 color = Color.White.copy(alpha = 0.15f),
@@ -200,7 +121,7 @@ fun SeekbarWithPreview(
                 size = Size(width, trackHeightPx),
                 cornerRadius = CornerRadius(trackHeightPx / 2)
             )
-            
+
             // Draw buffer track (the NewPipe feature)
             if (bufferedValue > 0f) {
                 val bufferWidth = width * bufferedValue.coerceIn(0f, 1f)
@@ -211,18 +132,18 @@ fun SeekbarWithPreview(
                     cornerRadius = CornerRadius(trackHeightPx / 2)
                 )
             }
-            
+
             // Draw Sponsor Segments
             if (duration > 0) {
                 sponsorSegments.forEach { segment ->
                      val startRatio = (segment.startTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
                      val endRatio = (segment.endTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
-                     
+
                      if (endRatio > startRatio) {
                          val startX = startRatio * width
                          val endX = endRatio * width
                          val segWidth = endX - startX
-                         
+
                          val segmentColor = when (segment.category) {
                              "sponsor" -> Color(0xFF00D100) // Green
                              "selfpromo" -> Color(0xFFFFFF00) // Yellow
@@ -232,7 +153,7 @@ fun SeekbarWithPreview(
                              "music_offtopic" -> Color(0xFFFF8000) // Orange
                              else -> Color(0xFF00D100)
                          }.copy(alpha = 0.5f)
-                         
+
                          drawRoundRect(
                              color = segmentColor,
                              topLeft = Offset(startX, trackTop),
@@ -242,7 +163,7 @@ fun SeekbarWithPreview(
                      }
                 }
             }
-            
+
             // Draw active track (progress)
             val activeWidth = width * internalValue
             drawRoundRect(
@@ -251,23 +172,23 @@ fun SeekbarWithPreview(
                 size = Size(activeWidth, trackHeightPx),
                 cornerRadius = CornerRadius(trackHeightPx / 2)
             )
-            
+
             // Draw Chapter Separators (Gaps)
             if (chapters.isNotEmpty() && duration > 0) {
                 val gapWidth = 3.dp.toPx()
-                
+
                 chapters.forEach { chapter ->
                     if (chapter.startTimeSeconds > 0) {
                         val chapterStartMs = chapter.startTimeSeconds * 1000
                         val chapterProgress = chapterStartMs.toFloat() / duration.toFloat()
-                        
+
                         if (chapterProgress in 0f..1f) {
                             val gapX = width * chapterProgress
-                            
+
                             // Draw a clear line to simulate a gap
                             drawLine(
-                                color = Color.Black.copy(alpha = 0.8f), 
-                                start = Offset(gapX, trackTop), 
+                                color = Color.Black.copy(alpha = 0.8f),
+                                start = Offset(gapX, trackTop),
                                 end = Offset(gapX, trackTop + trackHeightPx),
                                 strokeWidth = gapWidth
                             )
@@ -309,11 +230,6 @@ fun SeekbarWithPreview(
             onValueChange = { newValue ->
                 internalValue = newValue
                 onValueChange(newValue)
-
-                // Update preview position
-                if (previewEnabled && seekbarPreviewHelper != null) {
-                    previewPosition = with(density) { (newValue * sliderWidth).toDp().value }
-                }
             },
             onValueChangeFinished = {
                 onValueChangeFinished?.invoke()
@@ -380,10 +296,6 @@ fun SeekbarWithPreview(
                             if (abs(newValue - internalValue) > 0.0001f) {
                                 internalValue = newValue
                                 onValueChange(newValue)
-
-                                if (previewEnabled && seekbarPreviewHelper != null) {
-                                    previewPosition = with(density) { (newValue * sliderWidth).toDp().value }
-                                }
                             }
                         }
 
@@ -420,113 +332,6 @@ fun SeekbarWithPreview(
                     }
             )
         }
-        } 
-
-        val triangleH = 7.dp
-
-        AnimatedVisibility(
-            visible = previewEnabled && isInteracting,
-            enter = fadeIn(tween(150)) + slideInVertically(
-                initialOffsetY = { it / 2 }, animationSpec = tween(150)
-            ),
-            exit = fadeOut(tween(200)) + slideOutVertically(
-                targetOffsetY = { it / 2 }, animationSpec = tween(200)
-            ),
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset {
-                    val previewWidthPx = previewW.toPx()
-                    val positionPx = previewPosition.dp.toPx()
-                    val rawX = positionPx - previewWidthPx / 2f
-                    val clampedX = rawX.coerceIn(0f, (sliderWidth - previewWidthPx).coerceAtLeast(0f))
-                    val yPx = (previewH + triangleH + 4.dp).toPx()
-                    IntOffset(clampedX.toInt(), -yPx.toInt())
-                }
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(
-                    modifier = Modifier.size(previewW, previewH),
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color.Black,
-                    border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.85f)),
-                    shadowElevation = 8.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        val bmp = previewBitmap
-                        if (bmp != null) {
-                            Image(
-                                bitmap = bmp.asImageBitmap(),
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit,
-                                filterQuality = FilterQuality.High
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color(0xFF1C1C1C))
-                            )
-                        }
-
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 6.dp)
-                        ) {
-                            Text(
-                                text = VideoPlayerUtils.formatTime((internalValue * duration).toLong()),
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(14.dp, triangleH)
-                        .background(Color.White.copy(alpha = 0.85f), shape = GenericShape { size, _ ->
-                            moveTo(0f, 0f)
-                            lineTo(size.width, 0f)
-                            lineTo(size.width / 2f, size.height)
-                            close()
-                        })
-                )
-            }
         }
-    }
-}
-
-private fun resizeBitmapLikeNewPipe(
-    source: android.graphics.Bitmap,
-    baseViewWidthPx: Int,
-    minWidthPx: Int
-): android.graphics.Bitmap {
-    if (source.width <= 0 || source.height <= 0) return source
-
-    val srcWidth = source.width
-    val desiredWidth = Math.round(baseViewWidthPx / 4f)
-    val newWidth = MathUtils.clamp(
-        desiredWidth,
-        minWidthPx,
-        Math.round(srcWidth * 2.5f)
-    )
-
-    if (newWidth <= 0 || newWidth == srcWidth) {
-        return source
-    }
-
-    val scaleFactor = newWidth.toFloat() / srcWidth.toFloat()
-    val newHeight = (source.height * scaleFactor).roundToInt().coerceAtLeast(1)
-
-    return try {
-        BitmapCompat.createScaledBitmap(source, newWidth, newHeight, null, true)
-    } catch (e: Exception) {
-        source
     }
 }

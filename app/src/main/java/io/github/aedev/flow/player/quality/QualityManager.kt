@@ -111,11 +111,6 @@ class QualityManager(
     }
     
     /**
-     * Check if max stream errors have been reached.
-     */
-    fun hasReachedMaxErrors(): Boolean = streamErrorCount >= PlayerConfig.MAX_STREAM_ERRORS
-    
-    /**
      * Reset stream error count.
      */
     fun resetStreamErrors() {
@@ -564,34 +559,5 @@ class QualityManager(
             error = null
         )
         return true
-    }
-
-    /**
-     * Downgrade quality due to bandwidth issues.
-     * Returns the new stream or null if already at lowest quality.
-     */
-    fun downgradeQualityDueToBandwidth(): VideoStream? {
-        if (!isAdaptiveQualityEnabled) return null
-        
-        val currentHeight = currentVideoStream?.let(::qualityHeight) ?: return null
-        
-        val lowerQualityStream = availableVideoStreams
-            .filter { qualityHeight(it) < currentHeight }
-            .maxByOrNull { qualityHeight(it) }
-            
-        if (lowerQualityStream != null) {
-            val lowerHeight = qualityHeight(lowerQualityStream)
-            Log.w(TAG, "Bandwidth adaptation: Downgrading from ${currentHeight}p to ${lowerHeight}p")
-            currentVideoStream = lowerQualityStream
-            
-            stateFlow.value = stateFlow.value.copy(
-                effectiveQuality = lowerHeight
-            )
-            
-            return lowerQualityStream
-        }
-        
-        Log.w(TAG, "Bandwidth adaptation: No lower quality available")
-        return null
     }
 }

@@ -37,7 +37,12 @@ object VideoPlayerUtils {
     fun streamSizeKey(height: Int, codecKey: String): String = "${height}_${codecKey}"
 
     // ─────────────────────────────────────────────────────────────────────────
-    fun formatTime(timeMs: Long): String {
+    /**
+     * Format a millisecond duration as `H:MM:SS` or `M:SS`.
+     * @param padMinutes when true the no-hours form is zero-padded (`MM:SS`), matching the
+     *   look used by the main on-video controls; otherwise minutes are unpadded (`M:SS`).
+     */
+    fun formatTime(timeMs: Long, padMinutes: Boolean = false): String {
         val totalSeconds = timeMs / 1000
         val hours = totalSeconds / 3600
         val minutes = (totalSeconds % 3600) / 60
@@ -45,8 +50,24 @@ object VideoPlayerUtils {
 
         return if (hours > 0) {
             String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else if (padMinutes) {
+            String.format("%02d:%02d", minutes, seconds)
         } else {
             String.format("%d:%02d", minutes, seconds)
+        }
+    }
+
+    /**
+     * Format a playback speed as a compact label, e.g. `2x`, `1.5x`, `0.75x`.
+     * Trailing zeros are trimmed and the value is clamped to `0.1..maxSpeed`.
+     */
+    fun formatSpeedLabel(speed: Float, maxSpeed: Float = 10.0f): String {
+        val clamped = speed.coerceIn(0.1f, maxSpeed)
+        return if (kotlin.math.abs(clamped - clamped.toInt()) < 0.01f) {
+            "${clamped.toInt()}x"
+        } else {
+            val rounded = kotlin.math.round(clamped * 100f) / 100f
+            "${rounded.toString().trimEnd('0').trimEnd('.')}x"
         }
     }
 

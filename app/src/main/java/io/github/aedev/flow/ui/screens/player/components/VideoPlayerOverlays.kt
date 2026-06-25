@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockSegment
+import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.delay
 
 @Composable
@@ -302,7 +303,7 @@ fun SpeedBoostOverlay(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = formatSpeedBoostLabel(speed),
+                    text = VideoPlayerUtils.formatSpeedLabel(speed, maxSpeed = 4.0f),
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -316,15 +317,6 @@ fun SpeedBoostOverlay(
                 )
             }
         }
-    }
-}
-
-private fun formatSpeedBoostLabel(speed: Float): String {
-    val clamped = speed.coerceIn(0.1f, 4.0f)
-    return if (kotlin.math.abs(clamped - clamped.toInt()) < 0.01f) {
-        "${clamped.toInt()}x"
-    } else {
-        "${(kotlin.math.round(clamped * 100f) / 100f).toString().trimEnd('0').trimEnd('.')}x"
     }
 }
 

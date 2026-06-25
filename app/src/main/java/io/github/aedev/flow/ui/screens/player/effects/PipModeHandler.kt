@@ -15,30 +15,6 @@ import io.github.aedev.flow.player.PictureInPictureHelper
 
 private const val TAG = "PipModeHandler"
 
-object PipModeHandler {
-    
-    /**
-     * Check if PiP is supported on this device and enabled by user
-     */
-    fun isPipSupported(context: Context, manualPipButtonEnabled: Boolean): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && 
-               PictureInPictureHelper.isPipSupported(context) &&
-               manualPipButtonEnabled
-    }
-    
-    /**
-     * Enter Picture-in-Picture mode
-     */
-    fun enterPipMode(activity: Activity?, isPlaying: Boolean) {
-        activity?.let { act ->
-            PictureInPictureHelper.requestPlayerPipMode(
-                activity = act,
-                isPlaying = isPlaying
-            )
-        }
-    }
-}
-
 /**
  * Effect to detect PiP mode state changes
  */

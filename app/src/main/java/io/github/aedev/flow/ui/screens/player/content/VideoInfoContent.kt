@@ -365,15 +365,6 @@ fun LazyListScope.relatedVideosContent(
     onChannelClick: (String) -> Unit,
     cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH
 ) {
-    // Header
-    item {
-        if (relatedVideos.isNotEmpty()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-               
-            }
-        }
-    }
-    
     // Video items
     items(
         count = relatedVideos.size,
@@ -405,14 +396,6 @@ fun LazyListScope.relatedVideosGridContent(
     onChannelClick: (String) -> Unit,
     cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH
 ) {
-    item {
-        if (relatedVideos.isNotEmpty()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-               
-            }
-        }
-    }
-    
     val chunkedVideos = relatedVideos.chunked(columns)
     
     items(

@@ -34,8 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
+import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -78,7 +78,6 @@ fun PremiumControlsOverlay(
     isFullscreen: Boolean,
     isPipSupported: Boolean = false,
     onPipClick: () -> Unit = {},
-    seekbarPreviewHelper: SeekbarPreviewThumbnailHelper?,
     chapters: List<StreamSegment> = emptyList(),
     onChapterClick: () -> Unit = {},
     onSubtitleClick: () -> Unit = {},
@@ -170,7 +169,7 @@ fun PremiumControlsOverlay(
     val seekbarHorizontalPadding = if (isFullscreen) fullscreenSeekbarHorizontalPaddingDp.dp else 0.dp
     val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
     val compactQualityLabel = remember(qualityLabel) { qualityLabel?.toCompactQualityLabel() }
-    val speedIndicatorLabel = remember(playbackSpeed) { playbackSpeed.toSpeedIndicatorLabel() }
+    val speedIndicatorLabel = remember(playbackSpeed) { VideoPlayerUtils.formatSpeedLabel(playbackSpeed) }
 
 
     val showControlsWhileLoading by playerPreferences.showControlsWhileLoading.collectAsState(initial = false)
@@ -611,7 +610,7 @@ fun PremiumControlsOverlay(
                         ) {
                             if (isLive) {
                                 Text(
-                                    text = formatTime(displayedPosition),
+                                    text = VideoPlayerUtils.formatTime(displayedPosition, padMinutes = true),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
@@ -647,7 +646,7 @@ fun PremiumControlsOverlay(
                                 )
                             } else {
                             Text(
-                                text = if (showRemainingTime) "-${formatTime((duration - displayedPosition).coerceAtLeast(0))}" else formatTime(displayedPosition),
+                                text = if (showRemainingTime) "-${VideoPlayerUtils.formatTime((duration - displayedPosition).coerceAtLeast(0), padMinutes = true)}" else VideoPlayerUtils.formatTime(displayedPosition, padMinutes = true),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
@@ -662,7 +661,7 @@ fun PremiumControlsOverlay(
                             
                             // Total Duration
                             Text(
-                                text = formatTime(duration),
+                                text = VideoPlayerUtils.formatTime(duration, padMinutes = true),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color.White.copy(alpha = 0.7f)
                             )
@@ -814,7 +813,6 @@ fun PremiumControlsOverlay(
                             isScrubbing = false
                             EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
                         },
-                        seekbarPreviewHelper = seekbarPreviewHelper,
                         chapters = chapters,
                         sponsorSegments = sponsorSegments,
                         duration = seekDuration,
@@ -902,7 +900,6 @@ fun PremiumControlsOverlay(
                             isScrubbing = false
                             EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
                         },
-                        seekbarPreviewHelper = seekbarPreviewHelper,
                         chapters = chapters,
                         sponsorSegments = sponsorSegments,
                         duration = seekDuration,
@@ -977,25 +974,3 @@ private fun String.toCompactQualityLabel(): String {
     }
 }
 
-private fun Float.toSpeedIndicatorLabel(): String {
-    val speed = coerceIn(0.1f, 10.0f)
-    return if (kotlin.math.abs(speed - speed.toInt()) < 0.01f) {
-        "${speed.toInt()}x"
-    } else {
-        val rounded = kotlin.math.round(speed * 100f) / 100f
-        "${rounded.toString().trimEnd('0').trimEnd('.')}x"
-    }
-}
-
-private fun formatTime(timeMs: Long): String {
-    val totalSeconds = timeMs / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-
-    return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format("%02d:%02d", minutes, seconds)
-    }
-}

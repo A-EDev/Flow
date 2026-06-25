@@ -418,13 +418,6 @@ fun GlobalPlayerOverlay(
         )
     }
     
-    // Seekbar preview
-    SeekbarPreviewEffectWithState(
-        context = context,
-        uiState = playerUiState,
-        screenState = screenState
-    )
-    
     val globalCurrentVideo by GlobalPlayerState.currentVideo.collectAsState()
     LaunchedEffect(globalCurrentVideo?.id) {
         val current = globalCurrentVideo
@@ -963,7 +956,6 @@ fun GlobalPlayerOverlay(
                                         isPlaying = playerState.isPlaying
                                     )
                                 },
-                                seekbarPreviewHelper = screenState.seekbarPreviewHelper,
                                 chapters = playerUiState.chapters,
                                 onChapterClick = { screenState.showChaptersSheet = true },
                                 onSubtitleClick = {

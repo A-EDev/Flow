@@ -52,6 +52,7 @@ import io.github.aedev.flow.player.service.BackgroundServiceManager
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
+import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
@@ -1436,8 +1437,8 @@ class EnhancedPlayerManager private constructor() {
                     .orEmpty()
                 val extractorVideoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
                     .filterIsInstance<VideoStream>()
-                val mergedVideoStreams = mergeVideoStreams(extractorVideoStreams, innerTubeVideoStreams)
-                val mergedAudioStreams = mergeAudioStreams(streamInfo.audioStreams, innerTubeAudioStreams)
+                val mergedVideoStreams = StreamMergeUtils.mergeVideoStreams(extractorVideoStreams, innerTubeVideoStreams)
+                val mergedAudioStreams = StreamMergeUtils.mergeAudioStreams(streamInfo.audioStreams, innerTubeAudioStreams)
                 if (extractorVideoStreams.isNotEmpty()) {
                     Log.d(TAG, "Queue advance using NewPipe streams: ${extractorVideoStreams.size} video (merged=${mergedVideoStreams.size}, innerTube=${innerTubeVideoStreams.size})")
                 } else if (innerTubeVideoStreams.isNotEmpty()) {
@@ -1540,8 +1541,8 @@ class EnhancedPlayerManager private constructor() {
             .orEmpty()
         val extractorVideoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
             .filterIsInstance<VideoStream>()
-        val mergedVideoStreams = mergeVideoStreams(innerTubeVideoStreams, extractorVideoStreams)
-        val mergedAudioStreams = mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
+        val mergedVideoStreams = StreamMergeUtils.mergeVideoStreams(innerTubeVideoStreams, extractorVideoStreams)
+        val mergedAudioStreams = StreamMergeUtils.mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
         val selected = selectStreamsForServicePlayback(mergedVideoStreams, mergedAudioStreams, preferredQuality, preferredAudioLanguage, preferredCodecKey)
         ResolvedStreamData(
             enrichedVideo = enrichedVideo,
@@ -1926,40 +1927,6 @@ class EnhancedPlayerManager private constructor() {
             selectedVideoStream
         }
         return videoStream to audioStream
-    }
-
-    private fun mergeVideoStreams(
-        primary: List<VideoStream>,
-        fallback: List<VideoStream>
-    ): List<VideoStream> {
-        return (primary + fallback)
-            .filter { it.getContent().isNotBlank() }
-            .distinctBy { stream ->
-                val url = stream.getContent()
-                if (url.isNotBlank()) url else "${VideoCodecUtils.qualityHeightFromStream(stream)}_${VideoCodecUtils.codecKeyFromStream(stream)}_${stream.bitrate}"
-            }
-            .sortedWith(
-                compareByDescending<VideoStream> { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
-                    .thenBy { VideoCodecUtils.playbackCodecRank(it) }
-                    .thenByDescending { it.bitrate }
-            )
-    }
-
-    private fun mergeAudioStreams(
-        primary: List<AudioStream>,
-        fallback: List<AudioStream>
-    ): List<AudioStream> {
-        return (primary + fallback)
-            .filter { it.getContent().isNotBlank() }
-            .distinctBy { stream ->
-                listOf(
-                    stream.getContent(),
-                    stream.format?.mimeType.orEmpty(),
-                    stream.audioTrackId.orEmpty(),
-                    stream.averageBitrate.takeIf { it > 0 } ?: stream.bitrate
-                ).joinToString("|")
-            }
-            .sortedByDescending { it.averageBitrate.takeIf { bitrate -> bitrate > 0 } ?: it.bitrate }
     }
 
     private fun relatedVideosFromStreamInfo(info: StreamInfo): List<Video> =
@@ -2586,12 +2553,6 @@ class EnhancedPlayerManager private constructor() {
         }
     }
     
-    fun retryLoadMediaIfSurfaceReady() {
-        if (isSurfaceReady && currentVideoStream != null) {
-            loadMediaInternal(currentVideoStream, currentAudioStream)
-        }
-    }
-
     // ===== Cache & Background Service =====
     
     fun getCacheSize(): Long = cacheManager?.getCacheSize() ?: 0L
