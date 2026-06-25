@@ -747,4 +747,7 @@
     <string name="arch_label">Architektura: %1$s</string>
     <string name="android_sdk_label">SDK Androida: %1$s</string>
     <string name="os_label">System: Android %1$s</string>
+    <string name="recognition_clear_history">Wyczyścić historię?</string>
+    <string name="recognition_clear_history_body">Spowoduje to usunięcie wszystkich rozpoznanych utworów. Czynności tej nie można cofnąć.</string>
+    <string name="datetime_sample_relative">7 miesięcy temu</string>
 </resources>
