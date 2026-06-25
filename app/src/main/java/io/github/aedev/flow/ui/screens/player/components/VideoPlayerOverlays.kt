@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -27,8 +28,69 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockSegment
+import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.delay
+import kotlin.math.max
+
+@Composable
+fun PlayerGestureOverlays(
+    screenState: PlayerScreenState,
+    allowVolumeBoost: Boolean,
+    speedBoostSpeed: Float,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val leftInset = with(density) {
+        max(
+            WindowInsets.displayCutout.getLeft(this, layoutDirection),
+            WindowInsets.systemBars.getLeft(this, layoutDirection)
+        ).toDp()
+    }
+    val rightInset = with(density) {
+        max(
+            WindowInsets.displayCutout.getRight(this, layoutDirection),
+            WindowInsets.systemBars.getRight(this, layoutDirection)
+        ).toDp()
+    }
+    val brightnessPadding = maxOf(leftInset + 36.dp, 72.dp)
+    val volumePadding = maxOf(rightInset + 36.dp, 72.dp)
+
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Box(modifier = modifier.fillMaxSize()) {
+            SeekAnimationOverlay(
+                showSeekBack = screenState.showSeekBackAnimation,
+                showSeekForward = screenState.showSeekForwardAnimation,
+                seekSeconds = screenState.seekAccumulation,
+                modifier = Modifier.align(Alignment.Center)
+            )
+
+            BrightnessOverlay(
+                isVisible = screenState.showBrightnessOverlay,
+                brightnessLevel = screenState.brightnessLevel,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = brightnessPadding)
+            )
+
+            VolumeOverlay(
+                isVisible = screenState.showVolumeOverlay,
+                volumeLevel = screenState.volumeLevel,
+                maxVolumeLevel = if (allowVolumeBoost) 2f else 1f,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = volumePadding)
+            )
+
+            SpeedBoostOverlay(
+                isVisible = screenState.isSpeedBoostActive,
+                speed = speedBoostSpeed,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
+    }
+}
 
 @Composable
 fun SeekAnimationOverlay(

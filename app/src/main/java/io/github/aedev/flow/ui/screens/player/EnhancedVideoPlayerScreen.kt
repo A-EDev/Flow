@@ -27,6 +27,7 @@ import io.github.aedev.flow.ui.screens.player.content.relatedVideosGridContent
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.PlaylistQueueDock
 
 /**
@@ -63,6 +64,7 @@ fun EnhancedVideoPlayerScreen(
     val showRelatedVideos = showRelatedVideosPref && !isLocalMedia
     val commentsEnabled = commentsEnabledPref && !isLocalMedia
     val relatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
+    val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     Box(
         modifier = Modifier
         .fillMaxSize()
@@ -73,8 +75,8 @@ fun EnhancedVideoPlayerScreen(
             val isTablet = config.smallestScreenWidthDp >= 600
             val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             
-            val isWideLayout = isTablet && isLandscape && !screenState.isFullscreen && !screenState.isInPipMode
-            val isTabletPortrait = isTablet && !isLandscape && !screenState.isFullscreen && !screenState.isInPipMode
+            val isWideLayout = isTablet && isLandscape && !screenState.isFullscreen && !isInPipMode
+            val isTabletPortrait = isTablet && !isLandscape && !screenState.isFullscreen && !isInPipMode
 
             if (isWideLayout) {
                 val descriptionWeight = if (maxWidth < 840.dp) 0.55f else 0.65f
@@ -158,7 +160,7 @@ fun EnhancedVideoPlayerScreen(
             } else {
                 // Phone Portrait or Tablet Portrait Layout
                 Column(Modifier.fillMaxSize()) {
-                    if (!screenState.isFullscreen && !screenState.isInPipMode) {
+                    if (!screenState.isFullscreen && !isInPipMode) {
                         LazyColumn(
                             Modifier.weight(1f), 
                             contentPadding = PaddingValues(bottom = 80.dp)

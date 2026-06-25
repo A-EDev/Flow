@@ -291,8 +291,6 @@ class VideoPlayerViewModel @Inject constructor(
             EnhancedPlayerManager.getInstance().playerState.collect { playerState ->
                 _uiState.update {
                     it.copy(
-                        hasNext = playerState.hasNext,
-                        hasPrevious = playerState.hasPrevious,
                         queueTitle = playerState.queueTitle
                     )
                 }
@@ -2563,8 +2561,6 @@ data class VideoPlayerUiState(
     val localFileVideoId: String? = null,
     val metadataError: String? = null,
     val dislikeCount: Long? = null,
-    val hasNext: Boolean = false,
-    val hasPrevious: Boolean = false,
     val queueTitle: String? = null,
     val hlsUrl: String? = null,
     val shouldDismissPlayer: Boolean = false,

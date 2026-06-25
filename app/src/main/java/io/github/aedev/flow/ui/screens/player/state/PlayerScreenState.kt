@@ -11,7 +11,6 @@ class PlayerScreenState {
     var showControls by mutableStateOf(true)
     var isTouchLocked by mutableStateOf(false)
     var isFullscreen by mutableStateOf(false)
-    var isInPipMode by mutableStateOf(false)
     var lastInteractionTimestamp by mutableLongStateOf(System.currentTimeMillis())
     
     // Playback Position

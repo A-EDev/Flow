@@ -20,17 +20,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Replay
-import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.Replay10
-import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.Schedule
 import android.widget.Toast
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,7 +35,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -59,7 +50,6 @@ import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
-import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.ui.components.DraggablePlayerLayout
 import io.github.aedev.flow.ui.components.PlayerDraggableState
 import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
@@ -80,10 +70,7 @@ import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.PremiumControlsOverlay
 import io.github.aedev.flow.ui.screens.player.components.videoPlayerControls
-import io.github.aedev.flow.ui.screens.player.components.SeekAnimationOverlay
-import io.github.aedev.flow.ui.screens.player.components.BrightnessOverlay
-import io.github.aedev.flow.ui.screens.player.components.VolumeOverlay
-import io.github.aedev.flow.ui.screens.player.components.SpeedBoostOverlay
+import io.github.aedev.flow.ui.screens.player.components.PlayerGestureOverlays
 import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
 import io.github.aedev.flow.ui.screens.player.components.SettingsMenuDialog
 import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
@@ -227,7 +214,7 @@ fun GlobalPlayerOverlay(
     val dlnaDevices by DlnaCastManager.devices.collectAsState()
     val isDlnaDiscovering by DlnaCastManager.isDiscovering.collectAsState()
     
-    var localIsInPipMode by remember { mutableStateOf(false) }
+    val localIsInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     var keepMiniOnQueueAutoAdvance by remember { mutableStateOf(false) }
     
     val progress = if (screenState.duration > 0) {
@@ -364,9 +351,8 @@ fun GlobalPlayerOverlay(
         lifecycleOwner = lifecycleOwner,
         isPlaying = playerState.playWhenReady,
         pipPreferences = pipPreferences,
-        onPipModeChanged = { inPipMode -> 
-            localIsInPipMode = inPipMode
-            screenState.isInPipMode = inPipMode
+        onPipModeChanged = { inPipMode ->
+            GlobalPlayerState.setPipMode(inPipMode)
         }
     )
 
@@ -797,40 +783,10 @@ fun GlobalPlayerOverlay(
                         
                         // Non-zoomable UI overlays (always at full-screen position)
                         if (!isMinimized && !localIsInPipMode) {
-                            // Seek animations
-                            SeekAnimationOverlay(
-                                showSeekBack = screenState.showSeekBackAnimation,
-                                showSeekForward = screenState.showSeekForwardAnimation,
-                                seekSeconds = screenState.seekAccumulation,
-                                modifier = Modifier.align(Alignment.Center)
-                            )
-                            
-                            // Brightness overlay
-                            BrightnessOverlay(
-                                isVisible = screenState.showBrightnessOverlay,
-                                brightnessLevel = screenState.brightnessLevel,
-                                modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .padding(end = 44.dp)
-                            )
-                            
-                            // Volume overlay
-                            VolumeOverlay(
-                                isVisible = screenState.showVolumeOverlay,
-                                volumeLevel = screenState.volumeLevel,
-                                maxVolumeLevel = if (allowVolumeBoost) 2f else 1f,
-                                modifier = Modifier
-                                    .align(Alignment.CenterStart)
-                                    .padding(start = 44.dp)
-                            )
-                            
-                               // Long-press speed overlay
-                            SpeedBoostOverlay(
-                                isVisible = screenState.isSpeedBoostActive,
-                                speed = longPressPlaybackSpeed,
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .padding(top = 0.dp)
+                            PlayerGestureOverlays(
+                                screenState = screenState,
+                                allowVolumeBoost = allowVolumeBoost,
+                                speedBoostSpeed = longPressPlaybackSpeed
                             )
 
                             AnimatedVisibility(
@@ -1290,86 +1246,14 @@ fun GlobalPlayerOverlay(
                 isCasting = DlnaCastManager.isCasting,
                 videoTitle = video.title,
                 onDeviceSelected = { device ->
-                    val streamInfo = playerUiState.streamInfo
-
-                    if (streamInfo != null) {
-                        val duration = streamInfo.duration
-
-                        val videoVariants = (streamInfo.videoOnlyStreams ?: emptyList())
-                            .filter { it.height > 0 }
-                            .filter {
-                                val mime = it.format?.mimeType ?: ""
-                                mime.contains("mp4") || mime.contains("avc")
-                            }
-                            .sortedByDescending { VideoCodecUtils.qualityHeightFromStream(it) }
-                            .map { stream ->
-                                io.github.aedev.flow.player.dlna.CastStreamVariant(
-                                    url = stream.content ?: stream.url ?: "",
-                                    width = stream.width.takeIf { it > 0 } ?: (stream.height * 16 / 9),
-                                    height = stream.height,
-                                    bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
-                                    mime = "video/mp4",
-                                    codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F"
-                                )
-                            }
-                            .filter { it.url.isNotEmpty() }
-
-                        val bestAudio = streamInfo.audioStreams
-                            ?.filter {
-                                val mime = it.format?.mimeType ?: ""
-                                mime.contains("mp4") || mime.contains("m4a") || mime.contains("aac")
-                            }
-                            ?.maxByOrNull { it.bitrate }
-
-                        val audioUrl = bestAudio?.let { it.content ?: it.url }
-                        val audioBitrate = bestAudio?.bitrate?.takeIf { it > 0 } ?: 128_000
-                        val audioCodec = bestAudio?.codec?.takeIf { it?.isNotBlank() == true } ?: "mp4a.40.2"
-                        val audioMime = bestAudio?.format?.mimeType?.let {
-                            if (it.contains("mp4") || it.contains("m4a")) "audio/mp4" else it
-                        } ?: "audio/mp4"
-
-                        if (videoVariants.isNotEmpty() && audioUrl != null) {
-                            android.util.Log.d("DlnaCast", "HLS cast: ${videoVariants.size} variants, " +
-                                "audio=${audioBitrate/1000}kbps")
-
-                            DlnaCastManager.castTo(
-                                device = device,
-                                title = video.title,
-                                videoVariants = videoVariants,
-                                audioUrl = audioUrl,
-                                audioMime = audioMime,
-                                audioBitrate = audioBitrate,
-                                audioCodec = audioCodec,
-                                durationSeconds = duration
-                            )
-                        } else {
-                            val bestMuxed = streamInfo.videoStreams
-                                ?.filter { it.height > 0 }
-                                ?.maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) }
-                            val muxedUrl = bestMuxed?.let { it.content ?: it.url }
-                                ?: EnhancedPlayerManager.getInstance().getPlayer()
-                                    ?.currentMediaItem?.localConfiguration?.uri?.toString()
-
-                            if (muxedUrl != null && muxedUrl.isNotEmpty() && !muxedUrl.startsWith("local://")) {
-                                android.util.Log.d("DlnaCast", "Fallback to pre-muxed: ${bestMuxed?.let(VideoCodecUtils::qualityHeightFromStream)}p")
-                                DlnaCastManager.castTo(
-                                    device = device,
-                                    title = video.title,
-                                    fallbackVideoUrl = muxedUrl
-                                )
-                            }
-                        }
-                    } else {
-                        val playerUrl = EnhancedPlayerManager.getInstance().getPlayer()
-                            ?.currentMediaItem?.localConfiguration?.uri?.toString()
-                        if (playerUrl != null && playerUrl.isNotEmpty() && !playerUrl.startsWith("local://")) {
-                            DlnaCastManager.castTo(
-                                device = device,
-                                title = video.title,
-                                fallbackVideoUrl = playerUrl
-                            )
-                        }
-                    }
+                    val currentPlayerUrl = EnhancedPlayerManager.getInstance().getPlayer()
+                        ?.currentMediaItem?.localConfiguration?.uri?.toString()
+                    DlnaCastManager.castStreamInfo(
+                        device = device,
+                        title = video.title,
+                        streamInfo = playerUiState.streamInfo,
+                        currentPlayerUrl = currentPlayerUrl
+                    )
                     showDlnaDialog = false
                 },
                 onStopCasting = {
@@ -1417,366 +1301,4 @@ fun GlobalPlayerOverlay(
             renderChaptersSheet = !canUseFullscreenSidePanel
         )
     }
-}
-
-@Composable
-private fun UpcomingVideoOverlay(
-    title: String,
-    releaseTimeMs: Long?,
-    isReminderSet: Boolean,
-    onToggleReminder: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var nowMs by remember(releaseTimeMs) { mutableStateOf(System.currentTimeMillis()) }
-
-    LaunchedEffect(releaseTimeMs) {
-        if (releaseTimeMs == null) return@LaunchedEffect
-        while (true) {
-            nowMs = System.currentTimeMillis()
-            delay(1000)
-        }
-    }
-
-    Surface(
-        modifier = modifier
-            .padding(horizontal = 24.dp)
-            .widthIn(max = 420.dp),
-        shape = RoundedCornerShape(24.dp),
-        color = Color.Black.copy(alpha = 0.78f),
-        tonalElevation = 0.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Schedule,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(42.dp)
-            )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                maxLines = 2
-            )
-            Text(
-                text = stringResource(R.string.upcoming_video_overlay_title),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.78f),
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = releaseTimeMs?.let { formatCountdown(it - nowMs) }
-                    ?: stringResource(R.string.premiere_soon),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            if (releaseTimeMs != null) {
-                FilledTonalButton(onClick = onToggleReminder) {
-                    Icon(
-                        imageVector = if (isReminderSet) Icons.Rounded.NotificationsActive else Icons.Rounded.Notifications,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(
-                            if (isReminderSet) R.string.upcoming_video_reminder_enabled
-                            else R.string.upcoming_video_reminder_action
-                        )
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun formatCountdown(remainingMs: Long): String {
-    if (remainingMs <= 0L) return "00:00"
-    val totalSeconds = remainingMs / 1000L
-    val days = totalSeconds / 86_400L
-    val hours = (totalSeconds % 86_400L) / 3_600L
-    val minutes = (totalSeconds % 3_600L) / 60L
-    val seconds = totalSeconds % 60L
-    return when {
-        days > 0L -> String.format(Locale.US, "%dd %02dh %02dm", days, hours, minutes)
-        hours > 0L -> String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
-        else -> String.format(Locale.US, "%02d:%02d", minutes, seconds)
-    }
-}
-
-/**
- * Mini Player Controls - Dynamically arranges Play/Pause, Rewind/FastForward, and Next/Previous.
- */
-@Composable
-private fun MiniPlayerControls(
-    playerState: io.github.aedev.flow.player.state.EnhancedPlayerState,
-    showSkipControls: Boolean,
-    showNextPrevControls: Boolean,
-    sizeScale: Float = 1f,
-    onPlayPause: () -> Unit,
-    onSkipForward: () -> Unit,
-    onSkipBack: () -> Unit,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
-    onClose: () -> Unit
-) {
-    val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp > 600
-
-    val scaleMult = sizeScale.coerceIn(1f, 1.6f)
-
-    val baseTouchSize = if (isTablet) 44.dp else 36.dp
-    val baseBgSize  = if (isTablet) 34.dp else 24.dp
-    val baseIconSize = if (isTablet) 30.dp else 24.dp
-    val finalTouchSize = baseTouchSize * scaleMult
-    val finalBgSize   = baseBgSize   * scaleMult
-    val finalIconSize = baseIconSize * scaleMult
-    val topTouchSize = if (isTablet) 50.dp else 42.dp
-    val topBgSize = if (isTablet) 42.dp else 34.dp
-
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        IconButton(
-            onClick = onPlayPause,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(4.dp)
-                .size(topTouchSize)
-        ) {
-            MiniPlayerButtonBackground(
-                backgroundSize = topBgSize,
-                backgroundAlpha = 0.28f
-            ) {
-                if (playerState.isBuffering) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(if (isTablet) 30.dp else 24.dp),
-                        strokeWidth = 2.dp,
-                        color = Color.White
-                    )
-                } else {
-                    Icon(
-                        imageVector = when {
-                            playerState.hasEnded -> Icons.Rounded.Replay
-                            playerState.playWhenReady -> Icons.Rounded.Pause
-                            else -> Icons.Rounded.PlayArrow
-                        },
-                        contentDescription = when {
-                            playerState.hasEnded -> "Replay"
-                            playerState.playWhenReady -> "Pause"
-                            else -> "Play"
-                        },
-                        tint = Color.White,
-                        modifier = Modifier.size(if (isTablet) 42.dp else 34.dp)
-                    )
-                }
-            }
-        }
-
-        IconButton(
-            onClick = {
-                EnhancedPlayerManager.getInstance().stop()
-                GlobalPlayerState.hideMiniPlayer()
-                onClose()
-            },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(4.dp)
-                .size(topTouchSize)
-        ) {
-            MiniPlayerButtonBackground(
-                backgroundSize = topBgSize,
-                backgroundAlpha = 0.28f
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = "Close",
-                    tint = Color.White,
-                    modifier = Modifier.size(if (isTablet) 34.dp else 30.dp)
-                )
-            }
-        }
-
-        if (showSkipControls || showNextPrevControls) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (showNextPrevControls) {
-                    MiniPlayerIconButton(
-                        imageVector = Icons.Rounded.SkipPrevious,
-                        contentDescription = "Previous",
-                        touchSize = finalTouchSize,
-                        backgroundSize = finalBgSize,
-                        iconSize = finalIconSize,
-                        onClick = onPrevious
-                    )
-                }
-
-                if (showSkipControls) {
-                    MiniPlayerIconButton(
-                        imageVector = Icons.Rounded.Replay10,
-                        contentDescription = "Skip Back 10s",
-                        touchSize = finalTouchSize,
-                        backgroundSize = finalBgSize,
-                        iconSize = finalIconSize,
-                        onClick = onSkipBack
-                    )
-                }
-
-                if (showSkipControls) {
-                    MiniPlayerIconButton(
-                        imageVector = Icons.Rounded.Forward10,
-                        contentDescription = "Skip Forward 10s",
-                        touchSize = finalTouchSize,
-                        backgroundSize = finalBgSize,
-                        iconSize = finalIconSize,
-                        onClick = onSkipForward
-                    )
-                }
-
-                if (showNextPrevControls) {
-                    MiniPlayerIconButton(
-                        imageVector = Icons.Rounded.SkipNext,
-                        contentDescription = "Next",
-                        touchSize = finalTouchSize,
-                        backgroundSize = finalBgSize,
-                        iconSize = finalIconSize,
-                        onClick = onNext
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiniPlayerIconButton(
-    imageVector: ImageVector,
-    contentDescription: String,
-    touchSize: androidx.compose.ui.unit.Dp,
-    backgroundSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
-    onClick: () -> Unit
-) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(touchSize)
-    ) {
-        MiniPlayerButtonBackground(backgroundSize = backgroundSize) {
-            Icon(
-                imageVector = imageVector,
-                contentDescription = contentDescription,
-                tint = Color.White,
-                modifier = Modifier.size(iconSize)
-            )
-        }
-    }
-}
-
-@Composable
-private fun MiniPlayerButtonBackground(
-    backgroundSize: androidx.compose.ui.unit.Dp,
-    backgroundAlpha: Float = 0.36f,
-    content: @Composable BoxScope.() -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(backgroundSize)
-            .background(Color.Black.copy(alpha = backgroundAlpha), CircleShape),
-        contentAlignment = Alignment.Center,
-        content = content
-    )
-}
-
-/** DLNA / UPnP device-picker dialog shown when the cast button is pressed. */
-@Composable
-private fun DlnaDevicePickerDialog(
-    devices: List<DlnaDevice>,
-    isDiscovering: Boolean,
-    isCasting: Boolean,
-    videoTitle: String,
-    onDeviceSelected: (DlnaDevice) -> Unit,
-    onStopCasting: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = if (isCasting) "Casting to TV" else "Cast to Device")
-                if (isDiscovering) {
-                    Spacer(Modifier.width(8.dp))
-                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                }
-            }
-        },
-        text = {
-            Column {
-                if (!isCasting && devices.isEmpty() && !isDiscovering) {
-                    Text(
-                        text = "No DLNA/UPnP renderers found on this network.\n\n" +
-                            "Make sure your TV or media player (VLC, Kodi, etc.) is on the " +
-                            "same Wi-Fi network and has media renderer mode enabled.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                } else if (!isCasting && devices.isEmpty()) {
-                    Text(
-                        text = "Searching for DLNA devices…",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                } else if (isCasting) {
-                    Text(
-                        text = "Now casting: $videoTitle",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                } else {
-                    LazyColumn {
-                        items(devices) { device ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onDeviceSelected(device) }
-                                    .padding(vertical = 12.dp, horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(28.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Text(
-                                    text = device.friendlyName,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                            HorizontalDivider()
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            if (isCasting) {
-                TextButton(onClick = onStopCasting) { Text("Stop Casting") }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
 }

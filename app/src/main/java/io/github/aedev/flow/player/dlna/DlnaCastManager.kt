@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.SystemClock
 import android.util.Log
+import io.github.aedev.flow.player.stream.VideoCodecUtils
+import org.schabi.newpipe.extractor.stream.StreamInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -263,6 +265,85 @@ object DlnaCastManager {
      * The proxy runs on the phone and relays the stream, so the renderer
      * connects to the phone instead of YouTube.
      */
+    /**
+     * Build cast variants from an extracted [StreamInfo] and start casting to [device].
+     * Prefers HLS-style separate video variants + best AAC audio; falls back to a pre-muxed
+     * stream (or [currentPlayerUrl]) when separate streams aren't usable.
+     *
+     * @param currentPlayerUrl the currently-playing media URI, supplied by the caller so this
+     *   manager stays decoupled from the player engine; used as a last-resort fallback.
+     */
+    fun castStreamInfo(
+        device: DlnaDevice,
+        title: String,
+        streamInfo: StreamInfo?,
+        currentPlayerUrl: String?
+    ) {
+        if (streamInfo != null) {
+            val duration = streamInfo.duration
+
+            val videoVariants = (streamInfo.videoOnlyStreams ?: emptyList())
+                .filter { it.height > 0 }
+                .filter {
+                    val mime = it.format?.mimeType ?: ""
+                    mime.contains("mp4") || mime.contains("avc")
+                }
+                .sortedByDescending { VideoCodecUtils.qualityHeightFromStream(it) }
+                .map { stream ->
+                    CastStreamVariant(
+                        url = stream.content ?: stream.url ?: "",
+                        width = stream.width.takeIf { it > 0 } ?: (stream.height * 16 / 9),
+                        height = stream.height,
+                        bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
+                        mime = "video/mp4",
+                        codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F"
+                    )
+                }
+                .filter { it.url.isNotEmpty() }
+
+            val bestAudio = streamInfo.audioStreams
+                ?.filter {
+                    val mime = it.format?.mimeType ?: ""
+                    mime.contains("mp4") || mime.contains("m4a") || mime.contains("aac")
+                }
+                ?.maxByOrNull { it.bitrate }
+
+            val audioUrl = bestAudio?.let { it.content ?: it.url }
+            val audioBitrate = bestAudio?.bitrate?.takeIf { it > 0 } ?: 128_000
+            val audioCodec = bestAudio?.codec?.takeIf { it?.isNotBlank() == true } ?: "mp4a.40.2"
+            val audioMime = bestAudio?.format?.mimeType?.let {
+                if (it.contains("mp4") || it.contains("m4a")) "audio/mp4" else it
+            } ?: "audio/mp4"
+
+            if (videoVariants.isNotEmpty() && audioUrl != null) {
+                Log.d(TAG, "HLS cast: ${videoVariants.size} variants, audio=${audioBitrate / 1000}kbps")
+                castTo(
+                    device = device,
+                    title = title,
+                    videoVariants = videoVariants,
+                    audioUrl = audioUrl,
+                    audioMime = audioMime,
+                    audioBitrate = audioBitrate,
+                    audioCodec = audioCodec,
+                    durationSeconds = duration
+                )
+            } else {
+                val bestMuxed = streamInfo.videoStreams
+                    ?.filter { it.height > 0 }
+                    ?.maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) }
+                val muxedUrl = bestMuxed?.let { it.content ?: it.url } ?: currentPlayerUrl
+                if (muxedUrl != null && muxedUrl.isNotEmpty() && !muxedUrl.startsWith("local://")) {
+                    Log.d(TAG, "Fallback to pre-muxed: ${bestMuxed?.let(VideoCodecUtils::qualityHeightFromStream)}p")
+                    castTo(device = device, title = title, fallbackVideoUrl = muxedUrl)
+                }
+            }
+        } else {
+            if (currentPlayerUrl != null && currentPlayerUrl.isNotEmpty() && !currentPlayerUrl.startsWith("local://")) {
+                castTo(device = device, title = title, fallbackVideoUrl = currentPlayerUrl)
+            }
+        }
+    }
+
     fun castTo(
         device: DlnaDevice,
         title: String,
