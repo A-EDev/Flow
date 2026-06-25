@@ -146,6 +146,17 @@ class NeuroScoringTest {
         assertThat(NeuroScoring.explorationBonus(vec("x" to 0.9), cold, 1.0)).isEqualTo(0.0)
     }
 
+    @Test
+    fun `repeatedly disliked topics are not explored`() {
+        val brain = UserBrain(
+            totalInteractions = 200,
+            topicEvidence = mapOf("hated" to TopicEvidence(negativeSignals = 40))
+        )
+        val hated = NeuroScoring.explorationBonus(vec("hated" to 0.9), brain, 1.0)
+        val fresh = NeuroScoring.explorationBonus(vec("brandnew" to 0.9), brain, 1.0)
+        assertThat(hated).isLessThan(fresh)
+    }
+
     // ── IDF vocabulary cap (I-13 slice) ──
 
     @Test

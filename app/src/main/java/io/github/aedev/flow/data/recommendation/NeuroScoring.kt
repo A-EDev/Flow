@@ -26,6 +26,7 @@ internal object NeuroScoring {
 
     // ── Scoring Weight Constants ──
     const val SUBSCRIPTION_BOOST = 0.15
+    const val SUBSCRIPTION_BOOST_MAX = 0.30
     const val SERENDIPITY_BONUS = 0.10
     const val CURIOSITY_GAP_BONUS = 0.10
     const val NOT_INTERESTED_CHANNEL_FLOOR = 0.20
@@ -100,7 +101,7 @@ internal object NeuroScoring {
     const val PERSONA_STABILITY_THRESHOLD = 3
     const val PERSONA_MAX_STABILITY = 10
     const val EXPLORATION_SCORE_THRESHOLD = 0.1
-    const val EXPLORE_UCB_C = 0.06
+    const val EXPLORE_BETA_C = 0.28
     const val EXPLORE_MAX_BONUS = 0.08
 
     // ── IDF vocabulary bounds ──
@@ -239,7 +240,7 @@ internal object NeuroScoring {
                 else -> 1.0
             }
 
-            signal += subBoost * freshnessMultiplier
+            signal += (subBoost * freshnessMultiplier).coerceAtMost(SUBSCRIPTION_BOOST_MAX)
         }
 
         // V9.3 Fix 4: Sigmoid channel boredom
@@ -756,17 +757,22 @@ internal object NeuroScoring {
     }
 
     /**
-     * UCB-style exploration bonus: rises when the candidate's primary topic has
-     * little positive evidence relative to total interactions. Persona-weighted
-     * by the caller and bounded, so focused users stay mostly exploit.
+     * Beta-posterior exploration bonus. Models per-topic appeal as Beta(1+pos, 1+neg);
+     * the posterior std is the exploration value — high when evidence is thin, low once
+     * a topic is clearly liked OR disliked. Deterministic (no sampling), persona-weighted
+     * by the caller and bounded, so focused users stay mostly exploit and repeatedly
+     * rejected topics are not re-surfaced as "exploration".
      */
     fun explorationBonus(videoVector: ContentVector, brain: UserBrain, exploreWeight: Double): Double {
         if (exploreWeight <= 0.0 || brain.totalInteractions < COLD_START_THRESHOLD) return 0.0
         val primary = videoVector.topics.maxByOrNull { it.value }?.key
             ?.let { stripDomainTag(it) } ?: return 0.0
-        val n = brain.topicEvidence[primary]?.positiveSignals ?: 0
-        val ucb = EXPLORE_UCB_C * sqrt(ln(1.0 + brain.totalInteractions) / (1.0 + n))
-        return (ucb * exploreWeight).coerceAtMost(EXPLORE_MAX_BONUS)
+        val ev = brain.topicEvidence[primary]
+        val alpha = 1.0 + (ev?.positiveSignals ?: 0)
+        val beta = 1.0 + (ev?.negativeSignals ?: 0)
+        val total = alpha + beta
+        val std = sqrt(alpha * beta / (total * total * (total + 1.0)))
+        return (EXPLORE_BETA_C * std * exploreWeight).coerceAtMost(EXPLORE_MAX_BONUS)
     }
 
     /**

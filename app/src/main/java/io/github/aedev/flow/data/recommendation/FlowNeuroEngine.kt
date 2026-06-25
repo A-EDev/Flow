@@ -619,17 +619,47 @@ class FlowNeuroEngine(private val appContext: Context) {
             )
         }
 
-        return if (updated.size <= TOPIC_EVIDENCE_MAX_ENTRIES) {
-            updated
+        return capEvidence(updated)
+    }
+
+    // Cap evidence entries, keeping the strongest signal of either valence.
+    private fun capEvidence(map: MutableMap<String, TopicEvidence>): Map<String, TopicEvidence> =
+        if (map.size <= TOPIC_EVIDENCE_MAX_ENTRIES) {
+            map
         } else {
-            updated.entries
+            map.entries
                 .sortedWith(
-                    compareByDescending<Map.Entry<String, TopicEvidence>> { it.value.positiveScore }
-                        .thenByDescending { it.value.lastSeenAt }
+                    compareByDescending<Map.Entry<String, TopicEvidence>> {
+                        it.value.positiveScore + it.value.negativeSignals
+                    }.thenByDescending { it.value.lastSeenAt }
                 )
                 .take(TOPIC_EVIDENCE_MAX_ENTRIES)
                 .associate { it.key to it.value }
         }
+
+    // Records a negative signal against a video's primary topics (skip/dislike/not-interested).
+    private fun bumpNegativeEvidence(
+        current: Map<String, TopicEvidence>,
+        videoVector: ContentVector
+    ): Map<String, TopicEvidence> {
+        val topics = videoVector.topics.entries
+            .sortedByDescending { it.value }
+            .take(5)
+            .map { NeuroScoring.stripDomainTag(it.key) }
+            .filter { it.length >= 3 }
+            .distinct()
+        if (topics.isEmpty()) return current
+
+        val now = System.currentTimeMillis()
+        val updated = current.toMutableMap()
+        topics.forEach { topic ->
+            val existing = updated[topic]
+            updated[topic] = (existing ?: TopicEvidence(firstSeenAt = now)).copy(
+                negativeSignals = (existing?.negativeSignals ?: 0) + 1,
+                lastSeenAt = now
+            )
+        }
+        return capEvidence(updated)
     }
 
     private fun cappedSet(existing: Set<String>, value: String): Set<String> {
@@ -923,7 +953,8 @@ class FlowNeuroEngine(private val appContext: Context) {
                 consecutiveSkips = newSkips,
                 suppressedVideoIds = newSuppressedVideos,
                 suppressedChannels = newSuppressedChannels,
-                rejectionPatterns = updatedPatterns
+                rejectionPatterns = updatedPatterns,
+                topicEvidence = bumpNegativeEvidence(currentUserBrain.topicEvidence, videoVector)
             )
             storage.save(currentUserBrain)
         }
@@ -1420,7 +1451,7 @@ class FlowNeuroEngine(private val appContext: Context) {
                 percentWatched,
                 video.isShort
             )
-            val newTopicEvidence = updateTopicEvidence(
+            val positiveEvidence = updateTopicEvidence(
                 currentUserBrain.topicEvidence,
                 videoVector,
                 video,
@@ -1429,6 +1460,14 @@ class FlowNeuroEngine(private val appContext: Context) {
                     percentWatched >= 0.40f,
                 isExplicitSignal = interactionType == InteractionType.LIKED
             )
+            val newTopicEvidence = if (
+                interactionType == InteractionType.SKIPPED ||
+                interactionType == InteractionType.DISLIKED
+            ) {
+                bumpNegativeEvidence(positiveEvidence, videoVector)
+            } else {
+                positiveEvidence
+            }
 
             // 6. Update IDF counters on interaction
             if (learningRate > 0) {

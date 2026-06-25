@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toShortVideo
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.shorts.ShortWatchClassifier
 import io.github.aedev.flow.data.shorts.ShortsRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
@@ -406,18 +407,12 @@ class ShortsViewModel @Inject constructor(
     fun recordShortWatched(short: ShortVideo, positionMs: Long, durationMs: Long) {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             val video = short.toVideo()
-            val safeDuration = when {
-                durationMs > 0L -> durationMs
-                video.duration > 0 -> video.duration * 1000L
-                else -> positionMs.coerceAtLeast(1_000L)
-            }
-            val watchedPosition = positionMs.coerceIn(0L, safeDuration)
-            val pct = (watchedPosition.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
+            val signal = ShortWatchClassifier.classify(positionMs, durationMs, video.duration)
 
             viewHistory.savePlaybackPosition(
                 videoId = video.id,
-                position = watchedPosition,
-                duration = safeDuration,
+                position = signal.position,
+                duration = signal.safeDuration,
                 title = video.title,
                 thumbnailUrl = video.thumbnailUrl,
                 channelName = video.channelName,
@@ -427,13 +422,10 @@ class ShortsViewModel @Inject constructor(
             )
 
             runCatching {
-                // Real watched fraction; a quick flick is a skip, not a full watch.
-                val interaction = if (watchedPosition < MIN_SHORT_WATCH_MS)
-                    InteractionType.SKIPPED else InteractionType.WATCHED
                 FlowNeuroEngine.onVideoInteraction(
                     video.copy(isShort = true),
-                    interaction,
-                    percentWatched = pct
+                    signal.interaction,
+                    percentWatched = signal.percent
                 )
                 FlowNeuroEngine.recordSeenShorts(listOf(video.id))
             }.onFailure { e ->
@@ -617,8 +609,6 @@ class ShortsViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "ShortsViewModel"
-        // Quick flicks below this count as skips, not watches.
-        private const val MIN_SHORT_WATCH_MS = 2_000L
     }
 }
 

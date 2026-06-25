@@ -184,6 +184,7 @@ data class RejectionSignal(
 
 data class TopicEvidence(
     val positiveSignals: Int = 0,
+    val negativeSignals: Int = 0,
     val watchSignals: Int = 0,
     val explicitSignals: Int = 0,
     val positiveScore: Double = 0.0,

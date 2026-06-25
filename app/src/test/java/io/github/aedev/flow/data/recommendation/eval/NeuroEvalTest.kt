@@ -125,4 +125,15 @@ class NeuroEvalTest {
         println("I-1 unseen-content score — pool=$poolScore viewport=$viewportScore")
         assertThat(viewportScore).isGreaterThan(poolScore)
     }
+
+    @Test
+    fun `subscription boost is bounded, taming the fresh-short runaway (I-8)`() {
+        val freshShort = video("s", channelId = "subCh")
+            .copy(isShort = true, duration = 30, uploadDate = "1 hour ago")
+        val signal = NeuroScoring.calculateChannelSignal(freshShort, UserBrain(), setOf("subCh"))
+        val uncapped = NeuroScoring.SUBSCRIPTION_BOOST * 3.0 * 2.0  // short x freshness, pre-cap
+        println("I-8 sub boost — uncapped=$uncapped capped=$signal")
+        assertThat(uncapped).isWithin(1e-9).of(0.90)
+        assertThat(signal).isEqualTo(NeuroScoring.SUBSCRIPTION_BOOST_MAX)
+    }
 }
