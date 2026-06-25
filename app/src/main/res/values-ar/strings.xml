@@ -1715,4 +1715,7 @@
     <string name="recognition_history_empty">الموسيقى التي تم التعرف عليها ستظهر هنا</string>
     <string name="recognition_clear_history">مسح التاريخ؟</string>
     <string name="recognition_clear_history_body">يؤدي هذا إلى حذف جميع الأغاني التي تم التعرف عليها. ولا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="player_settings_display">العرض</string>
+    <string name="player_settings_ambient_mode">وضع Ambient</string>
+    <string name="player_settings_ambient_mode_subtitle">إملأ الأشرطة المحيطة بالفيديو بتوهج ناعم من ألوانه</string>
 </resources>
