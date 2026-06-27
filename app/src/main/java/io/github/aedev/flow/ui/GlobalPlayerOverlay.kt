@@ -5,13 +5,14 @@ import android.content.pm.ActivityInfo
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -60,6 +61,7 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
 import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
 import io.github.aedev.flow.ui.components.Media3SubtitleOverlay
+import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.SubtitleStyle
 import io.github.aedev.flow.ui.screens.player.content.PlayerContent
 import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
@@ -76,7 +78,6 @@ import io.github.aedev.flow.ui.screens.player.components.SettingsMenuDialog
 import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.player.PictureInPictureHelper
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
@@ -539,49 +540,58 @@ fun GlobalPlayerOverlay(
             screenState.showPlaybackSpeedSelector ||
             screenState.showSubtitleSelector
         val showLiveChatSidePanel = screenState.showLiveChatFullscreen && playerUiState.isLiveChatAvailable
+        val showSleepTimerSidePanel = screenState.showSleepTimerSheet
         val fullscreenSidePanelVisible = canUseFullscreenSidePanel &&
-            (showSettingsSurface || screenState.showChaptersSheet || showLiveChatSidePanel)
-        val fullscreenSidePanelTargetWidth = maxWidth * 0.36f
-        val fullscreenSidePanelTargetWidthPx = with(density) { fullscreenSidePanelTargetWidth.toPx() }
-        val fullscreenSidePanelWidthPx = remember { Animatable(0f) }
-        LaunchedEffect(fullscreenSidePanelVisible, fullscreenSidePanelTargetWidthPx) {
-            fullscreenSidePanelWidthPx.updateBounds(
+            (showSettingsSurface || screenState.showChaptersSheet || showLiveChatSidePanel || showSleepTimerSidePanel)
+        val fullscreenDrawerWidth = minOf(maxWidth * 0.42f, 420.dp)
+        val fullscreenDrawerWidthPx = with(density) { fullscreenDrawerWidth.toPx() }
+        val fullscreenDrawerOffsetPx = remember { Animatable(0f) }
+
+        LaunchedEffect(fullscreenSidePanelVisible, fullscreenDrawerWidthPx) {
+            fullscreenDrawerOffsetPx.updateBounds(
                 lowerBound = 0f,
-                upperBound = fullscreenSidePanelTargetWidthPx
+                upperBound = fullscreenDrawerWidthPx
             )
-            fullscreenSidePanelWidthPx.animateTo(
-                targetValue = if (fullscreenSidePanelVisible) fullscreenSidePanelTargetWidthPx else 0f,
-                animationSpec = tween(durationMillis = 260)
-            )
+            if (fullscreenSidePanelVisible) {
+                if (fullscreenDrawerOffsetPx.value == 0f) {
+                    fullscreenDrawerOffsetPx.snapTo(fullscreenDrawerWidthPx)
+                }
+                fullscreenDrawerOffsetPx.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 260)
+                )
+            }
         }
+
         fun closeFullscreenSidePanel() {
             scope.launch {
-                fullscreenSidePanelWidthPx.animateTo(
-                    targetValue = 0f,
+                fullscreenDrawerOffsetPx.animateTo(
+                    targetValue = fullscreenDrawerWidthPx,
                     animationSpec = tween(durationMillis = 220)
                 )
                 screenState.dismissMediaSheets()
+                screenState.showSleepTimerSheet = false
             }
         }
-        val fullscreenSidePanelDragModifier = Modifier.pointerInput(fullscreenSidePanelTargetWidthPx, fullscreenSidePanelVisible) {
-            if (!fullscreenSidePanelVisible || fullscreenSidePanelTargetWidthPx <= 0f) return@pointerInput
+        val fullscreenSidePanelDragModifier = Modifier.pointerInput(fullscreenDrawerWidthPx, fullscreenSidePanelVisible) {
+            if (!fullscreenSidePanelVisible || fullscreenDrawerWidthPx <= 0f) return@pointerInput
             val velocityTracker = VelocityTracker()
             detectHorizontalDragGestures(
                 onHorizontalDrag = { change, dragAmount ->
                     velocityTracker.addPointerInputChange(change)
                     change.consume()
                     scope.launch {
-                        fullscreenSidePanelWidthPx.snapTo(
-                            (fullscreenSidePanelWidthPx.value - dragAmount)
-                                .coerceIn(0f, fullscreenSidePanelTargetWidthPx)
+                        fullscreenDrawerOffsetPx.snapTo(
+                            (fullscreenDrawerOffsetPx.value + dragAmount)
+                                .coerceIn(0f, fullscreenDrawerWidthPx)
                         )
                     }
                 },
                 onDragCancel = {
                     velocityTracker.resetTracking()
                     scope.launch {
-                        fullscreenSidePanelWidthPx.animateTo(
-                            targetValue = fullscreenSidePanelTargetWidthPx,
+                        fullscreenDrawerOffsetPx.animateTo(
+                            targetValue = 0f,
                             animationSpec = tween(durationMillis = 220)
                         )
                     }
@@ -590,13 +600,13 @@ fun GlobalPlayerOverlay(
                     val velocityX = velocityTracker.calculateVelocity().x
                     velocityTracker.resetTracking()
                     val shouldDismiss = velocityX > 900f ||
-                        fullscreenSidePanelWidthPx.value < fullscreenSidePanelTargetWidthPx * 0.62f
+                        fullscreenDrawerOffsetPx.value > fullscreenDrawerWidthPx * 0.38f
                     if (shouldDismiss) {
                         closeFullscreenSidePanel()
                     } else {
                         scope.launch {
-                            fullscreenSidePanelWidthPx.animateTo(
-                                targetValue = fullscreenSidePanelTargetWidthPx,
+                            fullscreenDrawerOffsetPx.animateTo(
+                                targetValue = 0f,
                                 animationSpec = tween(durationMillis = 220)
                             )
                         }
@@ -604,9 +614,18 @@ fun GlobalPlayerOverlay(
                 }
             )
         }
-        val fullscreenSidePanelWidth = with(density) { fullscreenSidePanelWidthPx.value.toDp() }
+        val fullscreenDrawerOffset = with(density) { fullscreenDrawerOffsetPx.value.toDp() }
+        val fullscreenReservedWidth = if (fullscreenSidePanelVisible) {
+            (fullscreenDrawerWidth - fullscreenDrawerOffset).coerceIn(0.dp, fullscreenDrawerWidth)
+        } else {
+            0.dp
+        }
         val fullscreenSidePanelHeight = maxHeight
-        val fullscreenPlayerWidth = (maxWidth - fullscreenSidePanelWidth).coerceAtLeast(maxWidth * 0.6f)
+        val fullscreenPlayerWidth = if (fullscreenSidePanelVisible) {
+            (maxWidth - fullscreenReservedWidth).coerceAtLeast(maxWidth * 0.58f)
+        } else {
+            maxWidth
+        }
 
         DraggablePlayerLayout(
                 state = playerSheetState,
@@ -1095,14 +1114,18 @@ fun GlobalPlayerOverlay(
             }
         }
 
-        if (fullscreenSidePanelWidth > 1.dp) {
+        BackHandler(enabled = fullscreenSidePanelVisible, onBack = ::closeFullscreenSidePanel)
+
+        if (fullscreenSidePanelVisible) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .width(fullscreenSidePanelWidth)
+                    .offset(x = fullscreenDrawerOffset)
+                    .width(fullscreenDrawerWidth)
                     .fillMaxHeight()
                     .then(fullscreenSidePanelDragModifier)
                     .background(MaterialTheme.colorScheme.surface)
+                    .zIndex(8f)
             ) {
                 if (showSettingsSurface) {
                     SettingsMenuDialog(
@@ -1110,13 +1133,7 @@ fun GlobalPlayerOverlay(
                         autoplayEnabled = playerUiState.autoplayEnabled,
                         subtitlesEnabled = screenState.subtitlesEnabled,
                         initialPage = settingsInitialPage,
-                        onDismiss = {
-                            screenState.showSettingsMenu = false
-                            screenState.showQualitySelector = false
-                            screenState.showAudioTrackSelector = false
-                            screenState.showPlaybackSpeedSelector = false
-                            screenState.showSubtitleSelector = false
-                        },
+                        onDismiss = { closeFullscreenSidePanel() },
                         onQualitySelected = { option ->
                             EnhancedPlayerManager.getInstance().switchQuality(option)
                         },
@@ -1165,6 +1182,11 @@ fun GlobalPlayerOverlay(
                             }
                         },
                         onSleepTimerClick = {
+                            screenState.showSettingsMenu = false
+                            screenState.showQualitySelector = false
+                            screenState.showAudioTrackSelector = false
+                            screenState.showPlaybackSpeedSelector = false
+                            screenState.showSubtitleSelector = false
                             screenState.showSleepTimerSheet = true
                         },
                         expandedHeight = fullscreenSidePanelHeight,
@@ -1183,7 +1205,15 @@ fun GlobalPlayerOverlay(
                         expandedHeight = fullscreenSidePanelHeight,
                         enableVerticalDismiss = false,
                         modifier = Modifier.fillMaxSize(),
-                        onDismiss = { screenState.showChaptersSheet = false }
+                        onDismiss = { closeFullscreenSidePanel() }
+                    )
+                } else if (showSleepTimerSidePanel) {
+                    SleepTimerSheet(
+                        onDismiss = { closeFullscreenSidePanel() },
+                        expandedHeight = fullscreenSidePanelHeight,
+                        enableVerticalDismiss = false,
+                        asBottomSheet = false,
+                        modifier = Modifier.fillMaxSize()
                     )
                 } else if (showLiveChatSidePanel) {
                     androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
@@ -1199,7 +1229,7 @@ fun GlobalPlayerOverlay(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(Modifier.weight(1f))
-                            IconButton(onClick = { screenState.showLiveChatFullscreen = false }) {
+                            IconButton(onClick = { closeFullscreenSidePanel() }) {
                                 Icon(
                                     Icons.Rounded.Close,
                                     contentDescription = stringResource(R.string.close)
@@ -1298,7 +1328,8 @@ fun GlobalPlayerOverlay(
             onNavigateToChannel = { channelId ->
                 onNavigateToChannel(channelId)
             },
-            renderChaptersSheet = !canUseFullscreenSidePanel
+            renderChaptersSheet = !canUseFullscreenSidePanel,
+            renderSleepTimerSheet = !canUseFullscreenSidePanel
         )
     }
 }

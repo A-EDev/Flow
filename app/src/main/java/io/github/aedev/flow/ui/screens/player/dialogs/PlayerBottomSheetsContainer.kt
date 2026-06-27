@@ -48,7 +48,8 @@ fun PlayerBottomSheetsContainer(
     onLoadReplies: (Comment) -> Unit = {},
     onLoadMoreReplies: (Comment) -> Unit = {},
     onNavigateToChannel: ((String) -> Unit)? = null,
-    renderChaptersSheet: Boolean = true
+    renderChaptersSheet: Boolean = true,
+    renderSleepTimerSheet: Boolean = true
 ) {
     fun relativeTimeToSeconds(timeStr: String): Long {
         val lower = timeStr.lowercase().trim()
@@ -248,8 +249,9 @@ fun PlayerBottomSheetsContainer(
         )
     }
 
-    if (screenState.showSleepTimerSheet) {
+    if (screenState.showSleepTimerSheet && renderSleepTimerSheet) {
         SleepTimerSheet(
+            expandedHeight = mediaSheetExpandedHeight,
             onDismiss = { screenState.showSleepTimerSheet = false }
         )
     }

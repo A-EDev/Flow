@@ -2,11 +2,13 @@ package io.github.aedev.flow.ui.screens.player.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.rounded.VolumeDown
+import androidx.compose.material.icons.automirrored.rounded.VolumeMute
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.rounded.*
@@ -16,9 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -31,7 +33,6 @@ import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.delay
-import kotlin.math.max
 
 @Composable
 fun PlayerGestureOverlays(
@@ -40,23 +41,6 @@ fun PlayerGestureOverlays(
     speedBoostSpeed: Float,
     modifier: Modifier = Modifier,
 ) {
-    val density = LocalDensity.current
-    val layoutDirection = LocalLayoutDirection.current
-    val leftInset = with(density) {
-        max(
-            WindowInsets.displayCutout.getLeft(this, layoutDirection),
-            WindowInsets.systemBars.getLeft(this, layoutDirection)
-        ).toDp()
-    }
-    val rightInset = with(density) {
-        max(
-            WindowInsets.displayCutout.getRight(this, layoutDirection),
-            WindowInsets.systemBars.getRight(this, layoutDirection)
-        ).toDp()
-    }
-    val brightnessPadding = maxOf(leftInset + 36.dp, 72.dp)
-    val volumePadding = maxOf(rightInset + 36.dp, 72.dp)
-
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Box(modifier = modifier.fillMaxSize()) {
             SeekAnimationOverlay(
@@ -70,8 +54,7 @@ fun PlayerGestureOverlays(
                 isVisible = screenState.showBrightnessOverlay,
                 brightnessLevel = screenState.brightnessLevel,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = brightnessPadding)
+                    .align(Alignment.Center)
             )
 
             VolumeOverlay(
@@ -79,8 +62,7 @@ fun PlayerGestureOverlays(
                 volumeLevel = screenState.volumeLevel,
                 maxVolumeLevel = if (allowVolumeBoost) 2f else 1f,
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = volumePadding)
+                    .align(Alignment.Center)
             )
 
             SpeedBoostOverlay(
@@ -187,76 +169,25 @@ fun BrightnessOverlay(
     modifier: Modifier = Modifier
 ) {
     val isAuto = brightnessLevel < 0f
+    val animatedBrightness by animateFloatAsState(
+        targetValue = if (isAuto) 0f else brightnessLevel.coerceIn(0f, 1f),
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "brightness"
+    )
+    val iconVector = if (isAuto) {
+        Icons.Rounded.BrightnessAuto
+    } else if (brightnessLevel > 0.7f) Icons.Rounded.BrightnessHigh
+    else if (brightnessLevel > 0.3f) Icons.Rounded.BrightnessMedium
+    else Icons.Rounded.BrightnessLow
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(tween(200)) + slideInHorizontally(tween(200)) { it / 2 },
-        exit = fadeOut(tween(500)) + slideOutHorizontally(tween(500)) { it / 2 },
+    CircularGestureLevelOverlay(
+        isVisible = isVisible,
+        icon = iconVector,
+        valueLabel = if (isAuto) "Auto" else "${(brightnessLevel.coerceIn(0f, 1f) * 100).toInt()}%",
+        progress = animatedBrightness,
+        indicatorColor = MaterialTheme.colorScheme.tertiary,
         modifier = modifier
-    ) {
-        val animatedBrightness by animateFloatAsState(
-            targetValue = if (isAuto) 0f else brightnessLevel,
-            animationSpec = spring(stiffness = Spring.StiffnessLow),
-            label = "brightness"
-        )
-        
-        Surface(
-            modifier = Modifier
-                .width(46.dp)
-                .height(220.dp),
-            color = Color.Black.copy(alpha = 0.4f),
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                // Progress Fill
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(animatedBrightness)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.8f),
-                                    Color.White.copy(alpha = 0.4f)
-                                )
-                            )
-                        )
-                )
-                
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    val iconVector = if (isAuto) {
-                        Icons.Rounded.BrightnessMedium // Safe fallback, text says "Auto"
-                    } else if (brightnessLevel > 0.7f) Icons.Rounded.BrightnessHigh 
-                    else if (brightnessLevel > 0.3f) Icons.Rounded.BrightnessMedium
-                    else Icons.Rounded.BrightnessLow
-
-                    Icon(
-                        imageVector = iconVector,
-                        contentDescription = null,
-                        tint = if (animatedBrightness > 0.8f) Color.Black.copy(alpha = 0.7f) else Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    
-                    Text(
-                        text = if (isAuto) "Auto" else "${(brightnessLevel * 100).toInt()}",
-                        color = if (animatedBrightness > 0.1f) Color.Black.copy(alpha = 0.7f) else Color.White,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
+    )
 }
 
 @Composable
@@ -266,74 +197,107 @@ fun VolumeOverlay(
     maxVolumeLevel: Float = 2f,
     modifier: Modifier = Modifier
 ) {
+    val animatedVolume by animateFloatAsState(
+        targetValue = volumeLevel.coerceIn(0f, maxVolumeLevel.coerceAtLeast(1f)),
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "volume"
+    )
+    val fillFraction = (animatedVolume / maxVolumeLevel.coerceAtLeast(1f)).coerceIn(0f, 1f)
+    val iconVector = if (volumeLevel > 1.0f) Icons.AutoMirrored.Rounded.VolumeUp
+    else if (volumeLevel > 0.6f) Icons.AutoMirrored.Rounded.VolumeUp
+    else if (volumeLevel > 0.1f) Icons.AutoMirrored.Rounded.VolumeDown
+    else Icons.AutoMirrored.Rounded.VolumeMute
+    val indicatorColor = if (volumeLevel > 1f) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
+    CircularGestureLevelOverlay(
+        isVisible = isVisible,
+        icon = iconVector,
+        valueLabel = "${(volumeLevel * 100).toInt()}%",
+        progress = fillFraction,
+        indicatorColor = indicatorColor,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun CircularGestureLevelOverlay(
+    isVisible: Boolean,
+    icon: ImageVector,
+    valueLabel: String,
+    progress: Float,
+    indicatorColor: Color,
+    modifier: Modifier = Modifier
+) {
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn(tween(200)) + slideInHorizontally(tween(200)) { -it / 2 },
-        exit = fadeOut(tween(500)) + slideOutHorizontally(tween(500)) { -it / 2 },
+        enter = fadeIn(tween(120)) + scaleIn(
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            initialScale = 0.86f
+        ),
+        exit = fadeOut(tween(240)) + scaleOut(tween(240), targetScale = 0.92f),
         modifier = modifier
     ) {
-        val animatedVolume by animateFloatAsState(
-            targetValue = volumeLevel,
-            animationSpec = spring(stiffness = Spring.StiffnessLow),
-            label = "volume"
-        )
-        val fillFraction = (animatedVolume / maxVolumeLevel.coerceAtLeast(1f)).coerceIn(0f, 1f)
-        
         Surface(
             modifier = Modifier
-                .width(46.dp)
-                .height(220.dp),
-            color = Color.Black.copy(alpha = 0.4f),
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                .width(148.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.BottomCenter
+            Column(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                // Progress Fill
+                Box(
+                    modifier = Modifier.size(104.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        progress = { progress.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxSize(),
+                        color = indicatorColor,
+                        strokeWidth = 8.dp,
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                        strokeCap = StrokeCap.Round
+                    )
+                    Surface(
+                        modifier = Modifier.size(56.dp),
+                        shape = CircleShape,
+                        color = indicatorColor.copy(alpha = 0.16f),
+                        contentColor = indicatorColor
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(fillFraction)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = if (volumeLevel > 1f) {
-                                    listOf(
-                                        Color(0xFFFF5252),
-                                        MaterialTheme.colorScheme.primary
-                                    )
-                                } else {
-                                    listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                    )
-                                }
-                            )
-                        )
-                )
-                
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.68f))
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (volumeLevel > 1.0f) Icons.Rounded.VolumeUp
-                                     else if (volumeLevel > 0.6f) Icons.Rounded.VolumeUp 
-                                     else if (volumeLevel > 0.1f) Icons.Rounded.VolumeDown
-                                     else Icons.Rounded.VolumeMute,
-                        contentDescription = null,
-                        tint = if (fillFraction > 0.8f) Color.Black.copy(alpha = 0.7f) else Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    
                     Text(
-                        text = "${(volumeLevel * 100).toInt()}%",
-                        color = if (fillFraction > 0.2f) Color.Black.copy(alpha = 0.7f) else Color.White,
-                        style = MaterialTheme.typography.labelMedium,
+                        text = valueLabel,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }

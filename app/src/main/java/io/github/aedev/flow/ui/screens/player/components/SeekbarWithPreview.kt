@@ -37,8 +37,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import io.github.aedev.flow.data.model.SponsorBlockSegment
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.dp
@@ -64,6 +66,10 @@ fun SeekbarWithPreview(
     edgeAligned: Boolean = false
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.32f)
+    val bufferedTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.56f)
+    val thumbFillColor = MaterialTheme.colorScheme.surface
+    val thumbStateLayerColor = primaryColor.copy(alpha = 0.18f)
 
     var edgePointerActive by remember { mutableStateOf(false) }
 
@@ -82,13 +88,13 @@ fun SeekbarWithPreview(
     }
 
     val trackHeight by animateDpAsState(
-        targetValue = if (isInteracting) 10.dp else 4.dp,
+        targetValue = if (isInteracting) 10.dp else 5.dp,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "trackHeight"
     )
 
     val thumbScale by animateFloatAsState(
-        targetValue = if (isInteracting) 1.8f else 0f,
+        targetValue = if (isInteracting) 1f else 0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "thumbScale"
     )
@@ -108,6 +114,9 @@ fun SeekbarWithPreview(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(if (edgeAligned) 20.dp else trackHeight)
+                .graphicsLayer {
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
         ) {
             val trackHeightPx = trackHeight.toPx()
             val width = size.width
@@ -116,7 +125,7 @@ fun SeekbarWithPreview(
 
             // Draw inactive track (background)
             drawRoundRect(
-                color = Color.White.copy(alpha = 0.15f),
+                color = trackColor,
                 topLeft = Offset(0f, trackTop),
                 size = Size(width, trackHeightPx),
                 cornerRadius = CornerRadius(trackHeightPx / 2)
@@ -126,14 +135,23 @@ fun SeekbarWithPreview(
             if (bufferedValue > 0f) {
                 val bufferWidth = width * bufferedValue.coerceIn(0f, 1f)
                 drawRoundRect(
-                    color = Color.White.copy(alpha = 0.5f), // Increased visibility for buffer
+                    color = bufferedTrackColor,
                     topLeft = Offset(0f, trackTop),
                     size = Size(bufferWidth, trackHeightPx),
                     cornerRadius = CornerRadius(trackHeightPx / 2)
                 )
             }
 
-            // Draw Sponsor Segments
+            // Draw active track (progress)
+            val activeWidth = width * internalValue
+            drawRoundRect(
+                color = primaryColor,
+                topLeft = Offset(0f, trackTop),
+                size = Size(activeWidth, trackHeightPx),
+                cornerRadius = CornerRadius(trackHeightPx / 2)
+            )
+
+            // Draw SponsorBlock segments above progress so they remain visible after playback passes them.
             if (duration > 0) {
                 sponsorSegments.forEach { segment ->
                      val startRatio = (segment.startTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
@@ -152,7 +170,7 @@ fun SeekbarWithPreview(
                              "outro" -> Color(0xFF00FFFF) // Cyan
                              "music_offtopic" -> Color(0xFFFF8000) // Orange
                              else -> Color(0xFF00D100)
-                         }.copy(alpha = 0.5f)
+                         }.copy(alpha = 0.78f)
 
                          drawRoundRect(
                              color = segmentColor,
@@ -164,18 +182,9 @@ fun SeekbarWithPreview(
                 }
             }
 
-            // Draw active track (progress)
-            val activeWidth = width * internalValue
-            drawRoundRect(
-                color = primaryColor,
-                topLeft = Offset(0f, trackTop),
-                size = Size(activeWidth, trackHeightPx),
-                cornerRadius = CornerRadius(trackHeightPx / 2)
-            )
-
-            // Draw Chapter Separators (Gaps)
+            // Cut transparent chapter gaps through every painted layer.
             if (chapters.isNotEmpty() && duration > 0) {
-                val gapWidth = 3.dp.toPx()
+                val gapWidth = if (isInteracting) 4.dp.toPx() else 3.dp.toPx()
 
                 chapters.forEach { chapter ->
                     if (chapter.startTimeSeconds > 0) {
@@ -185,12 +194,18 @@ fun SeekbarWithPreview(
                         if (chapterProgress in 0f..1f) {
                             val gapX = width * chapterProgress
 
-                            // Draw a clear line to simulate a gap
-                            drawLine(
-                                color = Color.Black.copy(alpha = 0.8f),
-                                start = Offset(gapX, trackTop),
-                                end = Offset(gapX, trackTop + trackHeightPx),
-                                strokeWidth = gapWidth
+                            drawRoundRect(
+                                color = Color.Transparent,
+                                topLeft = Offset(
+                                    x = (gapX - gapWidth / 2f).coerceIn(0f, (width - gapWidth).coerceAtLeast(0f)),
+                                    y = trackTop
+                                ),
+                                size = Size(
+                                    width = gapWidth.coerceAtMost(width),
+                                    height = trackHeightPx
+                                ),
+                                cornerRadius = CornerRadius(gapWidth / 2f),
+                                blendMode = BlendMode.Clear
                             )
                         }
                     }
@@ -240,9 +255,11 @@ fun SeekbarWithPreview(
             steps = steps,
             interactionSource = interactionSource,
             colors = SliderDefaults.colors(
-                thumbColor = Color.White,
+                thumbColor = thumbFillColor,
                 activeTrackColor = Color.Transparent,
-                inactiveTrackColor = Color.Transparent
+                inactiveTrackColor = Color.Transparent,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent
             ),
             thumb = {
                 if (edgeAligned) {
@@ -250,21 +267,24 @@ fun SeekbarWithPreview(
                 } else {
                     Box(
                         modifier = Modifier
-                            .size(14.dp)
-                            .scale(thumbScale)
-                            .background(Color.White, CircleShape)
-                            .border(3.dp, primaryColor, CircleShape)
-                            .then(
-                                if (isInteracting) {
-                                    Modifier.background(
-                                        Brush.radialGradient(
-                                            colors = listOf(primaryColor.copy(alpha = 0.4f), Color.Transparent),
-                                            radius = 40f
-                                        )
-                                    )
-                                } else Modifier
+                            .size(40.dp)
+                            .scale(thumbScale),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isInteracting) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(thumbStateLayerColor, CircleShape)
                             )
-                    )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(if (isInteracting) 16.dp else 14.dp)
+                                .background(thumbFillColor, CircleShape)
+                                .border(3.dp, primaryColor, CircleShape)
+                        )
+                    }
                 }
             }
         )

@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-06-25
+DATE: 2026-06-27
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -31,6 +31,9 @@ IMPROVEMENTS
 - Add a delay config for autoplay #620
 - Improve Emojis handling in live chat #617
 - Improve chapters container #588
+- Improve player Lock mode #619
+- Improve player overlays and icons symmetry #654 #634
+- Improve player drawer handling #659
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

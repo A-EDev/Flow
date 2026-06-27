@@ -45,8 +45,14 @@ private const val SAMPLE_W = 96
 private const val SAMPLE_H = 54
 private const val DISPLAY_W = 32
 private const val DISPLAY_H = 18
-private const val UPDATE_MS = 600L
+private const val UPDATE_MS = 900L
 private const val IDLE_MS = 1200L
+private const val AMBIENT_BASE_ALPHA = 0.34f
+private const val AMBIENT_FRAME_ALPHA = 0.38f
+private const val AMBIENT_ACCENT_ALPHA = 0.08f
+private const val AMBIENT_EDGE_ALPHA = 0.28f
+private const val AMBIENT_SCRIM_ALPHA = 0.42f
+private const val AMBIENT_BLUR_DP = 42
 
 /** Latest sampled frame plus the dominant/accent colours extracted from it. */
 data class AmbientFrameState(
@@ -162,12 +168,12 @@ fun VideoAmbientBackground(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(animatedBase.copy(alpha = 0.55f))
+                .background(animatedBase.copy(alpha = AMBIENT_BASE_ALPHA))
         )
 
         Crossfade(
             targetState = frame,
-            animationSpec = tween(600),
+            animationSpec = tween(800),
             label = "ambientFrame",
             modifier = Modifier.matchParentSize()
         ) { img ->
@@ -179,11 +185,11 @@ fun VideoAmbientBackground(
                     modifier = if (supportsBlur) {
                         Modifier
                             .fillMaxSize()
-                            .blur(24.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                            .blur(AMBIENT_BLUR_DP.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
                     } else {
                         Modifier.fillMaxSize()
                     },
-                    alpha = 0.6f
+                    alpha = AMBIENT_FRAME_ALPHA
                 )
             } else {
                 Box(Modifier.fillMaxSize())
@@ -196,12 +202,18 @@ fun VideoAmbientBackground(
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.00f to Color.Black.copy(alpha = 0.20f),
-                            0.50f to animatedAccent.copy(alpha = 0.14f),
-                            1.00f to Color.Black.copy(alpha = 0.20f)
+                            0.00f to Color.Black.copy(alpha = AMBIENT_EDGE_ALPHA),
+                            0.50f to animatedAccent.copy(alpha = AMBIENT_ACCENT_ALPHA),
+                            1.00f to Color.Black.copy(alpha = AMBIENT_EDGE_ALPHA)
                         )
                     )
                 )
+        )
+
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Black.copy(alpha = AMBIENT_SCRIM_ALPHA))
         )
     }
 }
