@@ -253,10 +253,10 @@ fun PremiumControlsOverlay(
                         }
                         // Keep an accessible path to the unlock control once it auto-hides:
                         // the raw pointer handler above exposes no semantics, so give
-                        // assistive tech an explicit action that re-reveals the button.
+                        // assistive tech a one-step unlock action that matches its label.
                         .semantics {
                             onClick(label = revealUnlockHint) {
-                                revealLockOverlay()
+                                onTouchLockToggle()
                                 true
                             }
                         }
