@@ -507,7 +507,6 @@
     <string name="theme_name_cyberpunk">Cyberpunk</string>
     <string name="content_settings_layout_grid">Grade</string>
     <string name="content_settings_layout_list">Lista</string>
-    <string name="content_settings_grid_size_title"></string>
     <string name="content_settings_grid_big_title">Grande</string>
     <string name="content_settings_header_preview">Prévia</string>
     <string name="content_settings_preview_small">Pequeno - 104dp thumbnails</string>
