@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -132,16 +134,25 @@ fun PremiumControlsOverlay(
     // unlock button hides itself after a short delay so the locked view is clean,
     // then a single tap anywhere re-reveals it and restarts the timer.
     var isLockOverlayVisible by remember { mutableStateOf(true) }
+    // Bumped on every reveal so that re-revealing while already visible still
+    // restarts the auto-hide timer (a no-op `isLockOverlayVisible = true` would not).
+    var lockOverlayRevealTick by remember { mutableIntStateOf(0) }
+
+    val revealLockOverlay: () -> Unit = {
+        isLockOverlayVisible = true
+        lockOverlayRevealTick++
+    }
 
     // Reset the unlock affordance to visible whenever lock mode is (re-)entered.
     LaunchedEffect(isTouchLocked) {
         if (isTouchLocked) {
-            isLockOverlayVisible = true
+            revealLockOverlay()
         }
     }
 
     // Auto-hide the unlock affordance after the delay while it is showing in lock mode.
-    LaunchedEffect(isTouchLocked, isLockOverlayVisible) {
+    // Keyed on the reveal tick so each tap restarts the full delay window.
+    LaunchedEffect(isTouchLocked, isLockOverlayVisible, lockOverlayRevealTick) {
         if (isTouchLocked && isLockOverlayVisible) {
             delay(LOCKED_OVERLAY_AUTO_HIDE_MS)
             isLockOverlayVisible = false
@@ -225,6 +236,7 @@ fun PremiumControlsOverlay(
                     )
             ) {
             if (isTouchLocked) {
+                val revealUnlockHint = stringResource(R.string.player_unlock_controls)
                 Box(
                     modifier = Modifier
                         .matchParentSize()
@@ -234,9 +246,18 @@ fun PremiumControlsOverlay(
                                     val event = awaitPointerEvent()
                                     // Any tap on the locked surface re-reveals the unlock
                                     // affordance and restarts its auto-hide timer (#619).
-                                    isLockOverlayVisible = true
+                                    revealLockOverlay()
                                     event.changes.forEach { it.consume() }
                                 }
+                            }
+                        }
+                        // Keep an accessible path to the unlock control once it auto-hides:
+                        // the raw pointer handler above exposes no semantics, so give
+                        // assistive tech an explicit action that re-reveals the button.
+                        .semantics {
+                            onClick(label = revealUnlockHint) {
+                                revealLockOverlay()
+                                true
                             }
                         }
                 )
