@@ -55,6 +55,10 @@ import kotlin.math.abs
 private const val LIVE_SCRUB_SEEK_INTERVAL_MS = 80L
 private const val LIVE_SCRUB_IMMEDIATE_DELTA_MS = 750L
 
+// How long the lock-mode unlock affordance stays on screen before it auto-hides
+// for a clean, unobstructed locked view. A single tap re-reveals it (see issue #619).
+private const val LOCKED_OVERLAY_AUTO_HIDE_MS = 3_000L
+
 @Composable
 fun PremiumControlsOverlay(
     isVisible: Boolean,
@@ -123,6 +127,26 @@ fun PremiumControlsOverlay(
     var lastScrubSeekPosition by remember { mutableLongStateOf(Long.MIN_VALUE) }
     var pendingScrubSeekJob by remember { mutableStateOf<Job?>(null) }
     val displayedPosition = scrubPosition ?: currentPosition
+
+    // Lock-mode unlock affordance auto-hide (issue #619). While touch-locked, the
+    // unlock button hides itself after a short delay so the locked view is clean,
+    // then a single tap anywhere re-reveals it and restarts the timer.
+    var isLockOverlayVisible by remember { mutableStateOf(true) }
+
+    // Reset the unlock affordance to visible whenever lock mode is (re-)entered.
+    LaunchedEffect(isTouchLocked) {
+        if (isTouchLocked) {
+            isLockOverlayVisible = true
+        }
+    }
+
+    // Auto-hide the unlock affordance after the delay while it is showing in lock mode.
+    LaunchedEffect(isTouchLocked, isLockOverlayVisible) {
+        if (isTouchLocked && isLockOverlayVisible) {
+            delay(LOCKED_OVERLAY_AUTO_HIDE_MS)
+            isLockOverlayVisible = false
+        }
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -208,33 +232,42 @@ fun PremiumControlsOverlay(
                             awaitPointerEventScope {
                                 while (true) {
                                     val event = awaitPointerEvent()
+                                    // Any tap on the locked surface re-reveals the unlock
+                                    // affordance and restarts its auto-hide timer (#619).
+                                    isLockOverlayVisible = true
                                     event.changes.forEach { it.consume() }
                                 }
                             }
                         }
                 )
 
-                Surface(
-                    color = Color.Black.copy(alpha = 0.42f),
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(color = Color.White),
-                            onClick = onTouchLockToggle
-                        )
+                AnimatedVisibility(
+                    visible = isLockOverlayVisible,
+                    enter = fadeIn(animationSpec = tween(300)),
+                    exit = fadeOut(animationSpec = tween(300)),
+                    modifier = Modifier.align(Alignment.TopEnd)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.LockOpen,
-                            contentDescription = stringResource(R.string.player_unlock_controls),
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.42f),
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(color = Color.White),
+                                onClick = onTouchLockToggle
+                            )
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.LockOpen,
+                                contentDescription = stringResource(R.string.player_unlock_controls),
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             } else {
