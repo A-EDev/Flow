@@ -27,14 +27,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
 import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -112,6 +110,7 @@ fun PremiumControlsOverlay(
     onToggleRemainingTime: () -> Unit = {},
     isTouchLocked: Boolean = false,
     lockModeEnabled: Boolean = false,
+    lockOverlayRevealSignal: Int = 0,
     onTouchLockToggle: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -144,7 +143,7 @@ fun PremiumControlsOverlay(
     }
 
     // Reset the unlock affordance to visible whenever lock mode is (re-)entered.
-    LaunchedEffect(isTouchLocked) {
+    LaunchedEffect(isTouchLocked, lockOverlayRevealSignal) {
         if (isTouchLocked) {
             revealLockOverlay()
         }
@@ -236,30 +235,10 @@ fun PremiumControlsOverlay(
                     )
             ) {
             if (isTouchLocked) {
-                val revealUnlockHint = stringResource(R.string.player_unlock_controls)
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    // Any tap on the locked surface re-reveals the unlock
-                                    // affordance and restarts its auto-hide timer (#619).
-                                    revealLockOverlay()
-                                    event.changes.forEach { it.consume() }
-                                }
-                            }
-                        }
-                        // Keep an accessible path to the unlock control once it auto-hides:
-                        // the raw pointer handler above exposes no semantics, so give
-                        // assistive tech a one-step unlock action that matches its label.
-                        .semantics {
-                            onClick(label = revealUnlockHint) {
-                                onTouchLockToggle()
-                                true
-                            }
-                        }
+                LockModeTouchShield(
+                    onRevealUnlock = revealLockOverlay,
+                    onUnlock = onTouchLockToggle,
+                    modifier = Modifier.matchParentSize()
                 )
 
                 AnimatedVisibility(
