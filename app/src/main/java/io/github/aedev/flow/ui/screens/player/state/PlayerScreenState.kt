@@ -10,6 +10,7 @@ class PlayerScreenState {
     // UI Visibility States
     var showControls by mutableStateOf(true)
     var isTouchLocked by mutableStateOf(false)
+    var lockOverlayRevealSignal by mutableIntStateOf(0)
     var isFullscreen by mutableStateOf(false)
     var lastInteractionTimestamp by mutableLongStateOf(System.currentTimeMillis())
     
@@ -82,6 +83,7 @@ class PlayerScreenState {
         lastInteractionTimestamp = System.currentTimeMillis()
         showControls = true
         isTouchLocked = false
+        lockOverlayRevealSignal = 0
         currentPosition = 0L
         duration = 0L
         subtitlesEnabled = false
@@ -153,6 +155,10 @@ class PlayerScreenState {
 
     fun onInteraction() {
         lastInteractionTimestamp = System.currentTimeMillis()
+    }
+
+    fun revealLockOverlay() {
+        lockOverlayRevealSignal++
     }
 }
 
