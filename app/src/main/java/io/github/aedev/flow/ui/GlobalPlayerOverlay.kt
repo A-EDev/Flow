@@ -76,6 +76,7 @@ import io.github.aedev.flow.ui.screens.player.components.PlayerGestureOverlays
 import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
 import io.github.aedev.flow.ui.screens.player.components.SettingsMenuDialog
 import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
+import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.player.PictureInPictureHelper
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -1002,10 +1003,14 @@ fun GlobalPlayerOverlay(
                                 onToggleRemainingTime = { showRemainingTime = !showRemainingTime },
                                 isTouchLocked = screenState.isTouchLocked,
                                 lockModeEnabled = lockModeEnabled,
+                                lockOverlayRevealSignal = screenState.lockOverlayRevealSignal,
                                 onTouchLockToggle = {
                                     if (lockModeEnabled || screenState.isTouchLocked) {
                                         screenState.isTouchLocked = !screenState.isTouchLocked
                                         screenState.showControls = true
+                                        if (screenState.isTouchLocked) {
+                                            screenState.revealLockOverlay()
+                                        }
                                         screenState.onInteraction()
                                     }
                                 }
@@ -1014,26 +1019,45 @@ fun GlobalPlayerOverlay(
                     }
                 },
             bodyContent = { alpha, videoHeight ->
-                EnhancedVideoPlayerScreen(
-                    viewModel = playerViewModel,
-                    video = video,
-                    alpha = alpha,
-                    videoPlayerHeight = videoHeight,
-                    screenState = screenState,
-                    onVideoClick = { clickedVideo ->
-                        if (clickedVideo.isShort) {
-                            onClose()
-                            EnhancedPlayerManager.getInstance().stop()
-                            onNavigateToShorts(clickedVideo.id)
-                        } else {
-                            playerViewModel.playVideo(clickedVideo)
-                            GlobalPlayerState.setCurrentVideo(clickedVideo)
+                Box(Modifier.fillMaxSize()) {
+                    EnhancedVideoPlayerScreen(
+                        viewModel = playerViewModel,
+                        video = video,
+                        alpha = alpha,
+                        videoPlayerHeight = videoHeight,
+                        screenState = screenState,
+                        onVideoClick = { clickedVideo ->
+                            if (clickedVideo.isShort) {
+                                onClose()
+                                EnhancedPlayerManager.getInstance().stop()
+                                onNavigateToShorts(clickedVideo.id)
+                            } else {
+                                playerViewModel.playVideo(clickedVideo)
+                                GlobalPlayerState.setCurrentVideo(clickedVideo)
+                            }
+                        },
+                        onChannelClick = { channelId ->
+                            onNavigateToChannel(channelId)
                         }
-                    },
-                    onChannelClick = { channelId ->
-                        onNavigateToChannel(channelId)
+                    )
+
+                    if (screenState.isTouchLocked && !screenState.isFullscreen && !localIsInPipMode && !isLandscape) {
+                        LockModeTouchShield(
+                            onRevealUnlock = {
+                                screenState.revealLockOverlay()
+                                screenState.onInteraction()
+                            },
+                            onUnlock = {
+                                screenState.isTouchLocked = false
+                                screenState.showControls = true
+                                screenState.onInteraction()
+                            },
+                            modifier = Modifier
+                                .matchParentSize()
+                                .zIndex(2f)
+                        )
                     }
-                )
+                }
             },
             miniControls = { _ ->
                 Box(modifier = Modifier.fillMaxSize()) {

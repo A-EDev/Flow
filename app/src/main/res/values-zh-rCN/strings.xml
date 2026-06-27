@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Flow</string>
+    <string name="subscriptions_search_placeholder">搜索订阅...</string>
+    <string name="top_bar_subscriptions_title">订阅</string>
+    <string name="view_all_button_label">所有</string>
+    <string name="subscribed">已订阅</string>
+    <string name="no_subscriptions_yet">尚未订阅</string>
+    <string name="empty_subscriptions_body">订阅频道\n在此查看其最新视频</string>
+    <string name="home_refresh_feed">刷新订阅源</string>
+    <string name="subscriptions_refresh_progress_template">正在刷新 %1$d 个频道（共 %2$d 个）</string>
+    <string name="subscriptions_last_refreshed_template">上次刷新于 %1$s - 已检查 %2$d 个视频</string>
+    <string name="subscriptions_last_refreshed_time_only_template">上次刷新于 %1$s</string>
+    <string name="retry">重试</string>
+    <string name="shorts">Shorts</string>
+    <string name="failed_to_load_channel">加载频道失败</string>
+    <string name="subscribers">订阅者</string>
+    <string name="stats">数据统计</string>
+    <string name="library">媒体库</string>
+    <string name="library_section_header">您的内容</string>
+    <string name="library_history_label">历史</string>
+    <string name="playlist_metadata_public_template">播放列表 • 公开 • %1$d 个视频</string>
+    <string name="total_size">总大小</string>
+    <string name="undo">撤销</string>
+</resources>

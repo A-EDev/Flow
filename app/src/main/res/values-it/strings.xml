@@ -1712,4 +1712,6 @@
     <string name="recognition_clear_history">Cancellare la cronologia?</string>
     <string name="recognition_clear_history_body">Questa operazione rimuove tutti i brani identificati. L\'azione non può essere annullata.</string>
     <string name="content_settings_watched_threshold_title">Segna come visto quando</string>
+    <string name="player_settings_ambient_mode">Modalità Ambient</string>
+    <string name="player_settings_ambient_mode_subtitle">Riempi le barre attorno al video con un leggero bagliore del suo colore</string>
 </resources>
