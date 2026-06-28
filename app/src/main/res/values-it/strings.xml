@@ -1714,4 +1714,5 @@
     <string name="content_settings_watched_threshold_title">Segna come visto quando</string>
     <string name="player_settings_ambient_mode">Modalità Ambient</string>
     <string name="player_settings_ambient_mode_subtitle">Riempi le barre attorno al video con un leggero bagliore del suo colore</string>
+    <string name="player_settings_display">Display</string>
 </resources>
