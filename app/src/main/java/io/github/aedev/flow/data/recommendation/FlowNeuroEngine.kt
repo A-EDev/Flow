@@ -1498,7 +1498,7 @@ class FlowNeuroEngine(private val appContext: Context) {
             if (primaryTopic != null) {
                 sessionTopicHistory.add(primaryTopic)
                 while (sessionTopicHistory.size > SESSION_TOPIC_HISTORY_MAX) {
-                    sessionTopicHistory.removeFirst()
+                    sessionTopicHistory.removeAt(0)
                 }
             }
             sessionVideoCount++
@@ -1555,7 +1555,7 @@ class FlowNeuroEngine(private val appContext: Context) {
             if (primaryTopic != null) {
                 recentInteractions.add(MomentumEntry(primaryTopic, learningRate > 0))
                 while (recentInteractions.size > NeuroScoring.MOMENTUM_WINDOW) {
-                    recentInteractions.removeFirst()
+                    recentInteractions.removeAt(0)
                 }
             }
 
