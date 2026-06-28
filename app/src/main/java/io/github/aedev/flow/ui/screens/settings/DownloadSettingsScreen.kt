@@ -13,9 +13,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Check
@@ -34,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -60,8 +63,11 @@ fun DownloadSettingsScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val coroutineScope = rememberCoroutineScope()
     val preferences = remember { PlayerPreferences(context) }
+    val maxDialogHeight = (configuration.screenHeightDp.dp - 48.dp).coerceAtMost(560.dp)
+    val maxDialogListHeight = (configuration.screenHeightDp.dp * 0.55f).coerceAtMost(360.dp)
     
     val parallelEnabled by preferences.parallelDownloadEnabled.collectAsState(initial = true)
     val threadCount by preferences.downloadThreads.collectAsState(initial = 3)
@@ -551,7 +557,12 @@ fun DownloadSettingsScreen(
             icon = { Icon(Icons.Outlined.HighQuality, null) },
             title = { Text(stringResource(R.string.quality)) },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = maxDialogListHeight)
+                        .verticalScroll(rememberScrollState())
+                ) {
                     qualities.forEach { quality ->
                         Row(
                             modifier = Modifier
@@ -629,7 +640,9 @@ fun DownloadSettingsScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = maxDialogHeight)
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     
@@ -654,15 +667,6 @@ fun DownloadSettingsScreen(
                         stringResource(R.string.location_dialog_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(24.dp))
-
-                    Text(
-                        stringResource(R.string.location_preset_header).uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
                     )
 
                     // HELPER COMPOSABLE FOR ROWS
@@ -742,99 +746,115 @@ fun DownloadSettingsScreen(
                         }
                     }
 
-                    downloadsPath?.let { PresetRow(stringResource(R.string.location_downloads_label), it, isRecommended = dialogTarget == DownloadLocationTarget.VIDEO) }
-                    secondaryPath?.let {
-                        val label = if (dialogTarget == DownloadLocationTarget.MUSIC)
-                            stringResource(R.string.music_download_location_label)
-                        else
-                            stringResource(R.string.location_movies_label)
-                        PresetRow(label, it, isRecommended = dialogTarget == DownloadLocationTarget.MUSIC)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Spacer(Modifier.height(24.dp))
+
+                        Text(
+                            stringResource(R.string.location_preset_header).uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
+                        )
+
+                        downloadsPath?.let { PresetRow(stringResource(R.string.location_downloads_label), it, isRecommended = dialogTarget == DownloadLocationTarget.VIDEO) }
+                        secondaryPath?.let {
+                            val label = if (dialogTarget == DownloadLocationTarget.MUSIC)
+                                stringResource(R.string.music_download_location_label)
+                            else
+                                stringResource(R.string.location_movies_label)
+                            PresetRow(label, it, isRecommended = dialogTarget == DownloadLocationTarget.MUSIC)
+                        }
+                        PresetRow(stringResource(R.string.location_internal_app_label), internalPath)
+
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            stringResource(R.string.location_custom_header).uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
+                        )
+
+                        // SAF PICKER ROW
+                        val safBg = if (isSafCustomSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else Color.Transparent
+                        val safBorder = if (isSafCustomSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+
+                        Surface(
+                            onClick = { folderPickerLauncher.launch(null) },
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = safBg,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, safBorder)
+                        ) {
+                            Row(
+                                Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Outlined.FolderOpen,
+                                    contentDescription = null,
+                                    tint = if (isSafCustomSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        stringResource(R.string.location_custom_saf_label),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = if (isSafCustomSelected) selectedLocation ?: stringResource(R.string.location_custom_saf_desc)
+                                               else stringResource(R.string.location_custom_saf_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        // MANUAL PICKER ROW
+                        Surface(
+                            onClick = { showManualDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.Transparent
+                        ) {
+                            Row(
+                                Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Edit,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        stringResource(R.string.location_custom_manual_label),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        stringResource(R.string.location_custom_manual_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
-                    PresetRow(stringResource(R.string.location_internal_app_label), internalPath)
 
                     Spacer(Modifier.height(16.dp))
-                    Text(
-                        stringResource(R.string.location_custom_header).uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
-                    )
-
-                    // SAF PICKER ROW
-                    val safBg = if (isSafCustomSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else Color.Transparent
-                    val safBorder = if (isSafCustomSelected) MaterialTheme.colorScheme.primary else Color.Transparent
-
-                    Surface(
-                        onClick = { folderPickerLauncher.launch(null) },
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        color = safBg,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, safBorder)
-                    ) {
-                        Row(
-                            Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Outlined.FolderOpen,
-                                contentDescription = null,
-                                tint = if (isSafCustomSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.location_custom_saf_label),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = if (isSafCustomSelected) selectedLocation ?: stringResource(R.string.location_custom_saf_desc)
-                                           else stringResource(R.string.location_custom_saf_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-
-                    // MANUAL PICKER ROW
-                    Surface(
-                        onClick = { showManualDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color.Transparent
-                    ) {
-                        Row(
-                            Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Outlined.Edit,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.location_custom_manual_label),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    stringResource(R.string.location_custom_manual_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(24.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { locationDialogTarget = null }) {
                             Text(stringResource(R.string.close))

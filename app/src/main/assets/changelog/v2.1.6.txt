@@ -35,6 +35,7 @@ IMPROVEMENTS
 - Improve player Lock mode #619
 - Improve player overlays and icons symmetry #654 #634
 - Improve player drawer handling #659
+- Update download settings screen's dialog heights #648
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578
