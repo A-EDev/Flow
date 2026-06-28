@@ -157,8 +157,8 @@
     <string name="copied_to_clipboard">Скопировано: %1$s</string>
     <string name="unknown">Неизвестно</string>
     <string name="comments">Комментарии</string>
-    <string name="filter_top">Лучшие</string>
-    <string name="filter_newest">Сначала новые</string>
+    <string name="filter_top">Популярные</string>
+    <string name="filter_newest">Новые</string>
     <string name="no_comments_yet">Комментариев пока нет</string>
     <string name="read_more">Читать далее</string>
     <string name="reply">Ответить</string>
@@ -700,7 +700,7 @@
     <string name="download_all_confirmation">Скачать все %1$d видео? Это может занять много места на устройстве.</string>
     <string name="saved">Сохранено</string>
     <string name="resume">Возобновить</string>
-    <string name="filter_oldest">Сначала старые</string>
+    <string name="filter_oldest">Старые</string>
     <string name="title_copied">Заголовок скопирован в буфер обмена</string>
     <string name="in_this_video">В этом видео</string>
     <string name="manage_groups">Управлять группами</string>
@@ -973,4 +973,11 @@
     <string name="sleep_timer_input_error">Введите значение от 1 до 1440</string>
     <string name="sleep_timer_custom_label">Ввести время вручную</string>
     <string name="sleep_timer_start">Запустить</string>
+    <string name="normal">Обычная</string>
+    <string name="content_settings_watched_threshold_title">Отметить просмотренным, когда</string>
+    <string name="content_settings_watched_threshold_dialog_body">Выберите, какой фрагмент видео должен быть воспроизведен, прежде чем он будет скрыт.</string>
+    <string name="content_settings_watched_threshold_90">90% воспроизведено</string>
+    <string name="content_settings_watched_threshold_95">95% воспроизведено</string>
+    <string name="content_settings_watched_threshold_99">99% воспроизведено</string>
+    <string name="content_settings_watched_threshold_almost">Осталось менее минуты</string>
 </resources>

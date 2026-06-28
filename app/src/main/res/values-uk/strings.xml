@@ -252,7 +252,7 @@
     <string name="settings_item_app_icon">Значок застосунку</string>
     <string name="settings_item_app_icon_subtitle">Налаштуйте значок запускача</string>
     <string name="settings_item_content_prefs">Налаштування контенту</string>
-    <string name="library_music_playlists_label">Списки відтворення музики</string>
+    <string name="library_music_playlists_label">Списки музики</string>
     <string name="empty_description">Опис відсутній</string>
     <string name="like">Лайк</string>
     <string name="previous">Попереднє</string>
@@ -355,7 +355,7 @@
     <string name="settings_item_quality_subtitle">Роздільність відео та якість аудіо</string>
     <string name="settings_item_content_display">Показ контенту</string>
     <string name="settings_item_content_display_subtitle">Розмір сітки, мініатюри, макет</string>
-    <string name="settings_item_buffer">Розмір сітки, мініатюри, макет</string>
+    <string name="settings_item_buffer">Налаштування буфера</string>
     <string name="settings_item_buffer_subtitle">Налаштування поведінки буферизації відео</string>
     <string name="settings_item_downloads">Налаштування завантаження</string>
     <string name="settings_item_downloads_subtitle">Продуктивність, сховище, потоки</string>
@@ -447,8 +447,8 @@
     <string name="theme_desc_system_default">Синхронізувати з темою пристрою</string>
     <string name="theme_name_pure_light">Чисте світло</string>
     <string name="theme_desc_pure_light">Чиста й мінімалістична</string>
-    <string name="theme_name_mint_fresh">Mint Fresh</string>
-    <string name="theme_desc_mint_fresh">Крута й освіжає</string>
+    <string name="theme_name_mint_fresh">Свіжа м\'ята</string>
+    <string name="theme_desc_mint_fresh">Крута й освіжаюча</string>
     <string name="theme_name_rose_petal">Пелюстка троянди</string>
     <string name="theme_desc_rose_petal">Тепла й ніжна</string>
     <string name="theme_name_sky_blue">Небесно-блакитний</string>
@@ -663,9 +663,9 @@
     <string name="content_settings_explore_region_picker_title">Швидкий вибір регіону в «Дослідити»</string>
     <string name="content_settings_explore_region_picker_subtitle">Показувати значок у вигляді глобуса у верхній панелі «Дослідити», щоб миттєво змінювати регіон трендів.</string>
     <string name="filter_oldest">Найстарше</string>
-    <string name="in_this_video">Блок Shorts у підписках</string>
+    <string name="in_this_video">У цьому відео</string>
     <string name="content_settings_home_layout_title">Режим показу головної</string>
-    <string name="settings_subs_shorts_shelf_title">Блок підписок shorts</string>
+    <string name="settings_subs_shorts_shelf_title">Блок Shorts у підписках</string>
     <string name="settings_home_shorts_shelf_title">Блок Shorts на головній</string>
     <string name="settings_shorts_nav_tab_subtitle">Показувати вкладку Shorts на нижній панелі навігації.</string>
     <string name="settings_music_nav_tab_subtitle">Показувати вкладку музики на нижній панелі навігації.</string>
@@ -704,7 +704,7 @@
     <string name="dearrow_badge_toggle_subtitle">Показувати значок на обкладинках, виправлених DeArrow</string>
     <string name="global_loop">Глобальне зациклення відео</string>
     <string name="global_loop_subtitle">Зациклити всі відео по стандарту</string>
-    <string name="sb_settings_subtitle">Дії сегментів, керування DeArrow та налаштування кількості дизлайків</string>
+    <string name="sb_settings_subtitle">Дії сегментів, керування DeArrow та налаштування дизлайків</string>
     <string name="sb_settings_general_header">Головне</string>
     <string name="player_settings_double_tap_seek">Тривалість перемотування подвійним натисканням</string>
     <string name="player_settings_double_tap_seek_subtitle_template">%d с за подвійне натискання</string>
@@ -852,8 +852,8 @@
     <string name="action_search">Пошук</string>
     <string name="confirm">Підтвердити</string>
     <string name="max_history_size_title">Максимальний розмір історії</string>
-    <string name="settings_subs_shorts_shelf_subtitle">Горизонтальний блок Shorts у підписках.</string>
-    <string name="settings_home_shorts_shelf_subtitle">Горизонтальний блок Shorts у підписках.</string>
+    <string name="settings_subs_shorts_shelf_subtitle">Показувати горизонтальний блок shorts в сітці стрічки підписок.</string>
+    <string name="settings_home_shorts_shelf_subtitle">Показувати горизонтальний блок shorts на головній.</string>
     <string name="settings_shorts_nav_tab_title">Вкладка Shorts в навігації</string>
     <string name="settings_music_nav_tab_title">Вкладка музики в навігації</string>
     <string name="settings_search_nav_tab_title">Вкладка пошуку в навігації</string>
@@ -912,7 +912,7 @@
     <string name="import_yt_playlist">Імпорт списків відтворення YouTube</string>
     <string name="import_yt_playlist_desc">Імпортуйте плейліст із YouTube Takeout CSV (Playlist-&lt;назва&gt;.csv).</string>
     <string name="import_yt_music_playlist">Імопртувати списки відтворення YouTube Music</string>
-    <string name="import_yt_music_playlist_desc">Імпортуйте музичний список відтворення із YouTube Music Takeout CSV. Він з’явиться у розділі «Списки відтворення музики».</string>
+    <string name="import_yt_music_playlist_desc">Імпортуйте музичний список відтворення із YouTube Music Takeout CSV. Він з’явиться у розділі «Списки музики».</string>
     <string name="import_yt_history_success_template">Імпортовано %1$d записів з вашої історії переглядів YouTube</string>
     <string name="import_yt_playlist_success_template">Імпортовано список відтворення «%1$s» з %2$d відео</string>
     <string name="resume">Продовжити</string>
@@ -1066,7 +1066,7 @@
     <string name="header_your_collection">Ваша колекція</string>
     <string name="subtitle_liked_music">Вподобані пісні</string>
     <string name="subtitle_history">Пісні, які ви слухали</string>
-    <string name="empty_music_playlists">Списки відтворення музики відсутні</string>
+    <string name="empty_music_playlists">Списки музики відсутні</string>
     <string name="rename_playlist_title">Перейменувати список відтворення</string>
     <string name="action_rename">Перейменувати</string>
     <string name="link_copied">Посилання скопійоване</string>
@@ -1713,4 +1713,7 @@
     <string name="recognition_history_empty">Розпізнані пісні з’являться тут</string>
     <string name="recognition_clear_history">Очистити історію?</string>
     <string name="recognition_clear_history_body">Це видалить усі розпізнані пісні. Цю дію неможливо скасувати.</string>
+    <string name="player_settings_display">Дисплей</string>
+    <string name="player_settings_ambient_mode">Ambient режим</string>
+    <string name="player_settings_ambient_mode_subtitle">Заповнює \"чорні смуги\" навколо відео м\'яким світінням кольором відео</string>
 </resources>
