@@ -244,63 +244,56 @@ private fun CircularGestureLevelOverlay(
         exit = fadeOut(tween(240)) + scaleOut(tween(240), targetScale = 0.92f),
         modifier = modifier
     ) {
-        Surface(
+        Column(
             modifier = Modifier
-                .width(148.dp),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            tonalElevation = 6.dp,
-            shadowElevation = 8.dp
+                .width(148.dp)
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+            Box(
+                modifier = Modifier.size(104.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.size(104.dp),
-                    contentAlignment = Alignment.Center
+                CircularProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxSize(),
+                    color = indicatorColor,
+                    strokeWidth = 8.dp,
+                    trackColor = Color.Black.copy(alpha = 0.42f),
+                    strokeCap = StrokeCap.Round
+                )
+                Surface(
+                    modifier = Modifier.size(56.dp),
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.54f),
+                    contentColor = Color.White,
+                    shadowElevation = 6.dp
                 ) {
-                    CircularProgressIndicator(
-                        progress = { progress.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxSize(),
-                        color = indicatorColor,
-                        strokeWidth = 8.dp,
-                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
-                        strokeCap = StrokeCap.Round
-                    )
-                    Surface(
-                        modifier = Modifier.size(56.dp),
-                        shape = CircleShape,
-                        color = indicatorColor.copy(alpha = 0.16f),
-                        contentColor = indicatorColor
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(10.dp))
-                Box(
-                    modifier = Modifier
-                        .height(28.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.68f))
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = valueLabel,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .height(28.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.Black.copy(alpha = 0.54f))
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = valueLabel,
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
