@@ -434,7 +434,12 @@ fun FlowApp(
                             onSystemLightThemeChange = onSystemLightThemeChange,
                             onSystemDarkThemeChange = onSystemDarkThemeChange,
                             disableShortsPlayer = disableShortsPlayer,
-                            defaultStartRoute = defaultStartRoute
+                            defaultStartRoute = defaultStartRoute,
+                            bottomNavOverlayPadding = if (showBottomNav.value && isNavScrolledVisible) {
+                                bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
+                            } else {
+                                with(density) { navBarBottomInset.toDp() }
+                            }
                         )
                     }
                 }

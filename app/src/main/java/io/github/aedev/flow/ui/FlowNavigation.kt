@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -72,7 +73,8 @@ fun NavGraphBuilder.flowAppGraph(
     onSystemLightThemeChange: (ThemeMode) -> Unit,
     onSystemDarkThemeChange: (ThemeMode) -> Unit,
     disableShortsPlayer: Boolean = false,
-    defaultStartRoute: String = "home"
+    defaultStartRoute: String = "home",
+    bottomNavOverlayPadding: Dp = 0.dp
 ) {
     // =============================================
     // ONBOARDING (First-time user experience)
@@ -167,6 +169,7 @@ fun NavGraphBuilder.flowAppGraph(
         val startVideoId = backStackEntry.arguments?.getString("startVideoId")
         ShortsScreen(
             startVideoId = startVideoId,
+            bottomNavOverlayPadding = bottomNavOverlayPadding,
             onBack = {
                 navController.popBackStack()
             },
@@ -698,6 +701,7 @@ fun NavGraphBuilder.flowAppGraph(
         ShortsScreen(
             startVideoId = startVideoId,
             isSavedMode = true,
+            bottomNavOverlayPadding = 0.dp,
             onBack = {
                 navController.popBackStack()
             },

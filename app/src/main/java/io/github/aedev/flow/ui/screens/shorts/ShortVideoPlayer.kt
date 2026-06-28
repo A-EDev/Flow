@@ -4,6 +4,7 @@ import android.util.Log
 import android.view.SurfaceHolder
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -45,6 +46,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
 import android.support.v4.media.session.MediaSessionCompat
@@ -64,6 +66,7 @@ fun ShortVideoPage(
     isActive: Boolean,
     pageIndex: Int,
     viewModel: ShortsViewModel,
+    bottomNavOverlayPadding: androidx.compose.ui.unit.Dp = 0.dp,
     onBack: () -> Unit,
     onChannelClick: () -> Unit,
     onCommentsClick: () -> Unit,
@@ -78,6 +81,9 @@ fun ShortVideoPage(
     val playerPreferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
     val shortsPlaybackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
     val shortsAutoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
+    val shortsPlayerUiMode by playerPreferences.shortsPlayerUiMode.collectAsState(initial = ShortsPlayerUiMode.DEFAULT)
+    val isSimpleShortsUi = shortsPlayerUiMode == ShortsPlayerUiMode.SIMPLE
+    val isImpressiveShortsUi = shortsPlayerUiMode == ShortsPlayerUiMode.IMPRESSIVE
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val playerPool = remember { ShortsPlayerPool.getInstance() }
@@ -111,6 +117,11 @@ fun ShortVideoPage(
     var lastProgressSavedAt by remember(video.id, isActive) { mutableStateOf(0L) }
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableStateOf(0f) }
+    var showImpressiveControls by remember(video.id, isActive) { mutableStateOf(false) }
+    val controlsVisible = !isImpressiveShortsUi || showImpressiveControls
+    val seekBarTouchHeight = 48.dp
+    val seekBarBottomPadding = bottomNavOverlayPadding.coerceAtLeast(0.dp)
+    val controlsBottomPadding = seekBarBottomPadding + 34.dp
 
     // ── Audio Track & Quality Selection State ──
     var showShortsOptionsSheet by remember { mutableStateOf(false) }
@@ -320,44 +331,32 @@ fun ShortVideoPage(
         }
     }
 
+    LaunchedEffect(isActive, shortsPlayerUiMode, video.id) {
+        if (!isActive || !isImpressiveShortsUi) {
+            showImpressiveControls = false
+        }
+    }
+
+    LaunchedEffect(showImpressiveControls, isImpressiveShortsUi) {
+        if (isImpressiveShortsUi && showImpressiveControls) {
+            delay(2000)
+            showImpressiveControls = false
+        }
+    }
+
+    fun togglePlaybackWithFeedback() {
+        playerPool.togglePlayPause()
+        val player = playerPool.getPlayerForIndex(pageIndex)
+        if (player != null) isPlaying = player.isPlaying
+        showPauseIndicator = true
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+    }
+
     // ── Main Layout ──
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = {
-                        playerPool.togglePlayPause()
-                        val player = playerPool.getPlayerForIndex(pageIndex)
-                        if (player != null) isPlaying = player.isPlaying
-                        showPauseIndicator = true
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    },
-                    onDoubleTap = {
-                        if (!isLiked) {
-                            scope.launch { viewModel.toggleLike(video.toShortVideo()) }
-                            showLikeAnimation = true
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
-                    },
-                    onPress = {
-                        try {
-                            awaitRelease()
-                        } finally {
-                            if (isFastForwarding) {
-                                isFastForwarding = false
-                                playerPool.resetPlaybackSpeed()
-                            }
-                        }
-                    },
-                    onLongPress = {
-                        isFastForwarding = true
-                        playerPool.setPlaybackSpeed(2.0f)
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }
-                )
-            }
     ) {
         AndroidView(
             factory = { playerView },
@@ -379,6 +378,54 @@ fun ShortVideoPage(
         }
 
         // ── 2x Speed Indicator ──
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(shortsPlayerUiMode, isLiked, showImpressiveControls) {
+                    detectTapGestures(
+                        onTap = { offset ->
+                            val isCenterTap = offset.x in (size.width * 0.25f)..(size.width * 0.75f) &&
+                                offset.y in (size.height * 0.25f)..(size.height * 0.75f)
+                            if (isImpressiveShortsUi && isCenterTap && !showImpressiveControls) {
+                                showImpressiveControls = true
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            } else {
+                                togglePlaybackWithFeedback()
+                            }
+                        },
+                        onDoubleTap = {
+                            if (!isLiked) {
+                                scope.launch { viewModel.toggleLike(video.toShortVideo()) }
+                                showLikeAnimation = true
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                        },
+                        onPress = {
+                            try {
+                                awaitRelease()
+                            } finally {
+                                if (isFastForwarding) {
+                                    isFastForwarding = false
+                                    playerPool.resetPlaybackSpeed()
+                                }
+                            }
+                        },
+                        onLongPress = { offset ->
+                            val isCenterTap = offset.x in (size.width * 0.25f)..(size.width * 0.75f) &&
+                                offset.y in (size.height * 0.25f)..(size.height * 0.75f)
+                            if (isImpressiveShortsUi && isCenterTap) {
+                                onCommentsClick()
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            } else {
+                                isFastForwarding = true
+                                playerPool.setPlaybackSpeed(2.0f)
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                        }
+                    )
+                }
+        )
+
         AnimatedVisibility(
             visible = isFastForwarding,
             enter = slideInVertically { -it } + fadeIn(),
@@ -412,7 +459,7 @@ fun ShortVideoPage(
 
         // ── Buffering Indicator ──
         AnimatedVisibility(
-            visible = isActive && shortsPlaybackMode == "auto_interval",
+            visible = controlsVisible && isActive && shortsPlaybackMode == "auto_interval",
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
@@ -499,6 +546,7 @@ fun ShortVideoPage(
         }
 
         // ── Gradient Overlays ──
+        if (controlsVisible) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -533,8 +581,7 @@ fun ShortVideoPage(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomStart)
-                .navigationBarsPadding()
-                .padding(bottom = 60.dp, start = 16.dp, end = 8.dp),
+                .padding(bottom = controlsBottomPadding, start = 16.dp, end = 8.dp),
             verticalAlignment = Alignment.Bottom
         ) {
             Column(
@@ -566,7 +613,58 @@ fun ShortVideoPage(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    if (!isSubscribed) {
+                    if (isSimpleShortsUi) {
+                        val subscriptionDescription = if (isSubscribed) {
+                            stringResource(R.string.unsubscribe)
+                        } else {
+                            stringResource(R.string.action_subscribe)
+                        }
+                        Surface(
+                            onClick = {
+                                scope.launch {
+                                    viewModel.toggleSubscription(
+                                        video.channelId,
+                                        video.channelName,
+                                        video.channelThumbnailUrl
+                                    )
+                                }
+                                val toastText = if (isSubscribed) {
+                                    context.getString(R.string.unsubscribed_from, video.channelName)
+                                } else {
+                                    context.getString(R.string.subscribed_to, video.channelName)
+                                }
+                                Toast.makeText(context, toastText, Toast.LENGTH_SHORT).show()
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.Transparent,
+                            contentColor = if (isSubscribed) Color.White else onPrimaryColor,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSubscribed) Color.Transparent else primaryColor,
+                                    contentColor = if (isSubscribed) Color.White else onPrimaryColor,
+                                    border = if (isSubscribed) {
+                                        androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.55f))
+                                    } else {
+                                        null
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (isSubscribed) Icons.Default.Check else Icons.Default.Add,
+                                            contentDescription = subscriptionDescription,
+                                            modifier = Modifier.size(22.dp),
+                                            tint = if (isSubscribed) Color.White.copy(alpha = 0.85f) else onPrimaryColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else if (!isSubscribed) {
                         Button(
                             onClick = {
                                 scope.launch {
@@ -665,7 +763,12 @@ fun ShortVideoPage(
             ) {
                 ShortsActionButton(
                     icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    text = video.toShortVideo().likeCountText.takeIf { it.isNotBlank() } ?: stringResource(R.string.action_like),
+                    text = if (isSimpleShortsUi) {
+                        video.toShortVideo().likeCountText.takeIf { it.isNotBlank() }.orEmpty()
+                    } else {
+                        video.toShortVideo().likeCountText.takeIf { it.isNotBlank() } ?: stringResource(R.string.action_like)
+                    },
+                    contentDescription = stringResource(R.string.action_like),
                     tint = if (isLiked) Color.Red else Color.White,
                     onClick = {
                         scope.launch { viewModel.toggleLike(video.toShortVideo()) }
@@ -675,29 +778,44 @@ fun ShortVideoPage(
 
                 ShortsActionButton(
                     icon = Icons.Default.Comment,
-                    text = video.toShortVideo().commentCountText.takeIf { it.isNotBlank() } ?: stringResource(R.string.action_comments),
+                    text = if (isSimpleShortsUi) {
+                        video.toShortVideo().commentCountText.takeIf { it.isNotBlank() }.orEmpty()
+                    } else {
+                        video.toShortVideo().commentCountText.takeIf { it.isNotBlank() } ?: stringResource(R.string.action_comments)
+                    },
+                    contentDescription = stringResource(R.string.action_comments),
                     onClick = onCommentsClick
                 )
 
                 ShortsActionButton(
                     icon = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                    text = stringResource(R.string.action_save),
+                    text = if (isSimpleShortsUi) "" else stringResource(R.string.action_save),
+                    contentDescription = stringResource(R.string.action_save),
                     tint = if (isSaved) primaryColor else Color.White,
                     onClick = {
                         viewModel.toggleSaveShort(video.toShortVideo())
+                        if (isSimpleShortsUi) {
+                            Toast.makeText(
+                                context,
+                                context.getString(if (isSaved) R.string.shorts_unsaved else R.string.shorts_saved),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     }
                 )
 
                 ShortsActionButton(
                     icon = Icons.Default.Share,
-                    text = stringResource(R.string.action_share),
+                    text = if (isSimpleShortsUi) "" else stringResource(R.string.action_share),
+                    contentDescription = stringResource(R.string.action_share),
                     onClick = onShareClick
                 )
 
                 ShortsActionButton(
                     icon = Icons.Default.MoreVert,
-                    text = stringResource(R.string.cd_more_options),
+                    text = if (isSimpleShortsUi) "" else stringResource(R.string.cd_more_options),
+                    contentDescription = stringResource(R.string.cd_more_options),
                     onClick = { showShortsOptionsSheet = true }
                 )
 
@@ -734,6 +852,7 @@ fun ShortVideoPage(
         }
 
         // ── Scrubbable Progress Bar ──
+        }
         if (duration > 0) {
             val progress = if (isDragging) dragProgress else (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
 
@@ -741,15 +860,13 @@ fun ShortVideoPage(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 48.dp)
-                    .height(20.dp)
-                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+                    .padding(bottom = seekBarBottomPadding)
+                    .height(seekBarTouchHeight)
             ) {
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(Unit) {
+                        .pointerInput(duration) {
                             detectHorizontalDragGestures(
                                 onDragStart = { offset ->
                                     isDragging = true
@@ -765,7 +882,7 @@ fun ShortVideoPage(
                                 }
                             )
                         }
-                        .pointerInput(Unit) {
+                        .pointerInput(duration) {
                             detectTapGestures { offset ->
                                 val newProgress = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
                                 playerPool.seekTo((newProgress * duration).toLong())
@@ -774,17 +891,17 @@ fun ShortVideoPage(
                 ) {
                     val barHeight = 2.dp.toPx()
                     val activeHeight = if (isDragging) 4.dp.toPx() else 2.dp.toPx()
-                    val y = size.height - barHeight
+                    val trackCenterY = size.height - 6.dp.toPx()
 
                     drawRect(
                         color = Color.White.copy(alpha = 0.3f),
-                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barHeight),
+                        topLeft = androidx.compose.ui.geometry.Offset(0f, trackCenterY - barHeight / 2f),
                         size = androidx.compose.ui.geometry.Size(size.width, barHeight)
                     )
 
                     drawRect(
                         color = primaryColor,
-                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - activeHeight),
+                        topLeft = androidx.compose.ui.geometry.Offset(0f, trackCenterY - activeHeight / 2f),
                         size = androidx.compose.ui.geometry.Size(size.width * progress, activeHeight)
                     )
 
@@ -792,7 +909,7 @@ fun ShortVideoPage(
                         drawCircle(
                             color = primaryColor,
                             radius = 6.dp.toPx(),
-                            center = androidx.compose.ui.geometry.Offset(size.width * progress, size.height - activeHeight / 2)
+                            center = androidx.compose.ui.geometry.Offset(size.width * progress, trackCenterY)
                         )
                     }
                 }
@@ -1437,6 +1554,7 @@ fun ShortVideoItem(
 fun ShortsActionButton(
     icon: ImageVector,
     text: String,
+    contentDescription: String = text,
     tint: Color = Color.White,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -1444,7 +1562,7 @@ fun ShortsActionButton(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
-            .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -1454,22 +1572,24 @@ fun ShortsActionButton(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = text,
+            contentDescription = contentDescription,
             tint = tint,
             modifier = Modifier.size(26.dp)
         )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall.copy(
-                shadow = androidx.compose.ui.graphics.Shadow(
-                    color = Color.Black,
-                    blurRadius = 4f
-                )
-            ),
-            color = Color.White,
-            fontWeight = FontWeight.Medium
-        )
+        if (text.isNotBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    shadow = androidx.compose.ui.graphics.Shadow(
+                        color = Color.Black,
+                        blurRadius = 4f
+                    )
+                ),
+                color = Color.White,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 

@@ -96,6 +96,7 @@ class PlayerPreferences(context: Context) {
         val GRID_ITEM_SIZE = stringPreferencesKey("grid_item_size")
         val SLIDER_STYLE = stringPreferencesKey("slider_style")
         val MUSIC_PLAYER_BACKGROUND_STYLE = stringPreferencesKey("music_player_background_style")
+        val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
         val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
@@ -556,6 +557,19 @@ class PlayerPreferences(context: Context) {
     suspend fun setMusicPlayerBackgroundStyle(style: MusicPlayerBackgroundStyle) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MUSIC_PLAYER_BACKGROUND_STYLE] = style.name
+        }
+    }
+
+    val shortsPlayerUiMode: Flow<ShortsPlayerUiMode> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHORTS_PLAYER_UI_MODE]
+                ?.let { storedMode -> runCatching { ShortsPlayerUiMode.valueOf(storedMode) }.getOrNull() }
+                ?: ShortsPlayerUiMode.DEFAULT
+        }
+
+    suspend fun setShortsPlayerUiMode(mode: ShortsPlayerUiMode) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_PLAYER_UI_MODE] = mode.name
         }
     }
 
@@ -2334,6 +2348,12 @@ enum class MusicPlayerBackgroundStyle {
     BLUR,
     GRADIENT,
     DEFAULT
+}
+
+enum class ShortsPlayerUiMode {
+    DEFAULT,
+    SIMPLE,
+    IMPRESSIVE
 }
 
 enum class FullscreenSeekbarPaddingMode {

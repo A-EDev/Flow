@@ -38,6 +38,7 @@ import io.github.aedev.flow.data.local.FullscreenSeekbarPaddingMode
 import io.github.aedev.flow.data.local.MAX_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.ui.screens.music.player.components.PlayerSliderTrack
 import io.github.aedev.flow.ui.screens.music.player.components.SquigglySlider
@@ -60,6 +61,9 @@ fun PlayerAppearanceScreen(
     val currentSliderStyle by playerPreferences.sliderStyle.collectAsState(initial = SliderStyle.DEFAULT)
     val currentMusicPlayerBackgroundStyle by playerPreferences.musicPlayerBackgroundStyle.collectAsState(
         initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT
+    )
+    val currentShortsPlayerUiMode by playerPreferences.shortsPlayerUiMode.collectAsState(
+        initial = ShortsPlayerUiMode.DEFAULT
     )
     val brightnessSwipeGesturesEnabled by playerPreferences.brightnessSwipeGesturesEnabled.collectAsState(initial = true)
     val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
@@ -299,6 +303,18 @@ fun PlayerAppearanceScreen(
                         title = stringResource(R.string.player_background_style_title),
                         subtitle = stringResource(getBackgroundStyleLabelResInScreen(currentMusicPlayerBackgroundStyle)),
                         onClick = { showBackgroundStyleSheet = true }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                    ShortsPlayerUiModeItem(
+                        selectedMode = currentShortsPlayerUiMode,
+                        onModeSelected = { mode ->
+                            coroutineScope.launch {
+                                playerPreferences.setShortsPlayerUiMode(mode)
+                            }
+                        }
                     )
                 }
             }
@@ -704,6 +720,104 @@ fun SettingsItem(
 }
 
 @Composable
+private fun ShortsPlayerUiModeItem(
+    selectedMode: ShortsPlayerUiMode,
+    onModeSelected: (ShortsPlayerUiMode) -> Unit
+) {
+    val options = listOf(
+        ShortsPlayerUiMode.DEFAULT,
+        ShortsPlayerUiMode.SIMPLE,
+        ShortsPlayerUiMode.IMPRESSIVE
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_shorts),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.player_appearance_shorts_ui_title),
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = stringResource(R.string.player_appearance_shorts_ui_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)),
+                horizontalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                options.forEach { mode ->
+                    val selected = selectedMode == mode
+                    Surface(
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                        } else {
+                            Color.Transparent
+                        },
+                        contentColor = if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(2.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onModeSelected(mode) }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            if (selected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                            Text(
+                                text = stringResource(getShortsPlayerUiModeLabelRes(mode)),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun SettingsToggleItem(
     icon: androidx.compose.ui.graphics.painter.Painter,
     title: String,
@@ -1099,6 +1213,14 @@ private fun getBackgroundStyleLabelResInScreen(style: MusicPlayerBackgroundStyle
         MusicPlayerBackgroundStyle.BLUR -> R.string.player_background_style_blur
         MusicPlayerBackgroundStyle.GRADIENT -> R.string.player_background_style_gradient
         MusicPlayerBackgroundStyle.DEFAULT -> R.string.player_background_style_default
+    }
+}
+
+private fun getShortsPlayerUiModeLabelRes(mode: ShortsPlayerUiMode): Int {
+    return when (mode) {
+        ShortsPlayerUiMode.DEFAULT -> R.string.shorts_player_ui_default
+        ShortsPlayerUiMode.SIMPLE -> R.string.shorts_player_ui_simple
+        ShortsPlayerUiMode.IMPRESSIVE -> R.string.shorts_player_ui_impressive
     }
 }
 

@@ -39,6 +39,7 @@ fun ShortsScreen(
     onChannelClick: (String) -> Unit,
     startVideoId: String? = null,
     isSavedMode: Boolean = false,
+    bottomNavOverlayPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
     viewModel: ShortsViewModel = hiltViewModel()
 ) {
@@ -280,6 +281,7 @@ fun ShortsScreen(
                         isActive = isActive,
                         pageIndex = page,
                         viewModel = viewModel,
+                        bottomNavOverlayPadding = bottomNavOverlayPadding,
                         onBack = onBack,
                         onChannelClick = { onChannelClick(short.channelId) },
                         onCommentsClick = {
