@@ -968,4 +968,33 @@
     <string name="deep_flow_save_history_subtitle">Angesehene Videos im Verlauf speichern (mit Fortschrittsanzeige). Die Engine lernt jedoch weiterhin nicht daraus. Aus = Es wird nichts gespeichert.</string>
     <string name="content_settings_watched_threshold_title">Als „gesehen“ markieren, wenn</string>
     <string name="content_settings_watched_threshold_dialog_body">Legen Sie fest, wie viel von einem Video abgespielt werden muss, bevor es als angesehen gilt und ausgeblendet wird.</string>
+    <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
+    <string name="content_settings_share_without_text_title">Links ohne Text teilen</string>
+    <string name="content_settings_share_without_text_subtitle">Teile nur den Videolink, ohne die Meldung „Schau dir dieses Video an“</string>
+    <string name="content_settings_watched_threshold_90">90 % abgespielt</string>
+    <string name="content_settings_watched_threshold_95">95 % abgespielt</string>
+    <string name="content_settings_watched_threshold_99">99 % abgespielt</string>
+    <string name="content_settings_watched_threshold_almost">Fast fertig (in letzter Minute)</string>
+    <string name="content_settings_navbar_hide_on_scroll_title">Navigationsleiste beim Scrollen ausblenden</string>
+    <string name="content_settings_navbar_hide_on_scroll_subtitle">Die untere Navigationsleiste beim Herunterscrollen ausblenden. Deaktivieren, damit sie immer sichtbar bleibt (hilft, wenn die Animation ruckelt).</string>
+    <string name="player_settings_queue_autoplay">Videos in der Warteschlange automatisch abspielen</string>
+    <string name="player_settings_queue_autoplay_subtitle">Das nächste Video in einer Wiedergabeliste oder in der Warteschlange „Später ansehen“ wird automatisch abgespielt. Wenn diese Funktion deaktiviert ist, kannst du die Videos weiterhin manuell überspringen.</string>
+    <string name="player_settings_autoplay_countdown_title">Verzögerung bei der automatischen Wiedergabe</string>
+    <string name="player_settings_autoplay_countdown_none">Keine (sofort wechseln)</string>
+    <string name="player_settings_autoplay_countdown_seconds_template">%1$d Sekunden</string>
+    <string name="player_settings_autoplay_countdown_dialog_body">Zeige einen Countdown an, bevor automatisch zum nächsten Video gewechselt wird. Während des Countdowns kannst du das aktuelle Video erneut starten, den Wechsel abbrechen oder das nächste Video sofort abspielen.</string>
+    <string name="autoplay_countdown_up_next">Als Nächstes</string>
+    <string name="autoplay_countdown_next_video">Nächstes Video</string>
+    <string name="autoplay_countdown_cancel">Abbrechen</string>
+    <string name="autoplay_countdown_restart">Neustart</string>
+    <string name="autoplay_countdown_play_now">Jetzt abspielen</string>
+    <string name="player_appearance_controls_while_loading_title">Bedienelemente während des Ladens</string>
+    <string name="player_appearance_controls_while_loading_subtitle">Zeige die Steuerelemente des Players an, bevor das Video vollständig geladen ist, damit du die Lautstärke sofort einstellen kannst</string>
+    <string name="player_settings_ambient_mode">Ambient-Modus</string>
+    <string name="player_settings_ambient_mode_subtitle">Fülle die Balken rund um das Video mit einem sanften Schimmer seiner Farben</string>
+    <string name="sleep_timer_active_label">Schlaftimer aktiv</string>
+    <string name="sleep_timer_close_app">App schließen, wenn der Timer abgelaufen ist</string>
+    <string name="sleep_timer_close_app_desc">App beenden, um den Akku zu schonen</string>
+    <string name="sleep_timer_will_close_app">Die App wird geschlossen, sobald der Timer abgelaufen ist</string>
+    <string name="search_history_title">Suche &amp; Verlauf</string>
 </resources>
