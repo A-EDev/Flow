@@ -346,7 +346,7 @@
     <string name="kbps">كيبي بت</string>
     <string name="filter_discover">اكتشف</string>
     <string name="audio_info_not_available">معلومات التدفق الصوتي غير متوفرة حاليا.</string>
-    <string name="unsubscribed_from">أُلغي الاشتراك من %s</string>
+    <string name="unsubscribed_from">تم إلغاء الاشتراك من %s</string>
     <string name="play_mode_suggestion_body">هذا المقطع اقل من دقيقتين. هل تود الانتقال الى مشغّل مخصص؟</string>
     <string name="shorts_player">مشغّل الشورتز</string>
     <plurals name="channels_count">
@@ -1718,4 +1718,11 @@
     <string name="player_settings_display">العرض</string>
     <string name="player_settings_ambient_mode">وضع Ambient</string>
     <string name="player_settings_ambient_mode_subtitle">إملأ الأشرطة المحيطة بالفيديو بتوهج ناعم من ألوانه</string>
+    <string name="player_appearance_shorts_ui_title">واجهة مشغل Shorts</string>
+    <string name="player_appearance_shorts_ui_subtitle">إختر مقدار الجزء المرئي من طبقة ال Shorts</string>
+    <string name="shorts_player_ui_default">إفتراضي</string>
+    <string name="shorts_player_ui_simple">بسيط</string>
+    <string name="shorts_player_ui_impressive">مُبهر</string>
+    <string name="shorts_saved">تم حفظ المقطع القصير</string>
+    <string name="shorts_unsaved">إلغاء حفظ المقطع القصير</string>
 </resources>
