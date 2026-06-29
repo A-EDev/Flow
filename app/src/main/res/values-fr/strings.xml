@@ -1755,4 +1755,11 @@
     <string name="player_settings_display">Affichage</string>
     <string name="player_settings_ambient_mode">Mode ambiant</string>
     <string name="player_settings_ambient_mode_subtitle">Remplissez les bandes autour de la vidéo d\'une douce lueur aux couleurs de celle-ci</string>
+    <string name="player_appearance_shorts_ui_title">Interface utilisateur de Shorts</string>
+    <string name="player_appearance_shorts_ui_subtitle">Choisissez la partie de la superposition « Shorts » qui restera visible</string>
+    <string name="shorts_player_ui_default">Par défaut</string>
+    <string name="shorts_player_ui_simple">Simple</string>
+    <string name="shorts_player_ui_impressive">Impressionnante</string>
+    <string name="shorts_saved">Short enregistré</string>
+    <string name="shorts_unsaved">Short non enregistré</string>
 </resources>
