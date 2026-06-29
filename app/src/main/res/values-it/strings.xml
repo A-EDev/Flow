@@ -1715,4 +1715,8 @@
     <string name="player_settings_ambient_mode">Modalità Ambient</string>
     <string name="player_settings_ambient_mode_subtitle">Riempi le barre attorno al video con un leggero bagliore del suo colore</string>
     <string name="player_settings_display">Display</string>
+    <string name="player_appearance_shorts_ui_title">UI player degli Shorts</string>
+    <string name="player_appearance_shorts_ui_subtitle">Scegli quanto dell\'overlay degli Shorts rimane visibile</string>
+    <string name="shorts_player_ui_default">Predefinito</string>
+    <string name="shorts_player_ui_simple">Semplice</string>
 </resources>
