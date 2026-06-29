@@ -98,6 +98,8 @@
                 <data android:host="www.youtube.com" />
                 <data android:host="youtube.com" />
                 <data android:host="m.youtube.com" />
+                <data android:host="music.youtube.com" />
+                <data android:host="m.music.youtube.com" />
                 <data android:pathPrefix="/watch" />
                 <data android:pathPrefix="/v" />
                 <data android:pathPrefix="/channel" />
@@ -115,6 +117,21 @@
                 <data android:scheme="http" />
                 <data android:scheme="https" />
                 <data android:host="youtu.be" />
+            </intent-filter>
+
+            <!-- Piped frontend links (same video IDs as YouTube) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="piped.video" />
+                <data android:host="www.piped.video" />
+                <data android:pathPrefix="/watch" />
+                <data android:pathPrefix="/playlist" />
+                <data android:pathPrefix="/shorts" />
             </intent-filter>
 
             <!-- Share Intent for text/plain -->

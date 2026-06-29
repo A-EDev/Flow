@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import io.github.aedev.flow.BuildConfig
+import io.github.aedev.flow.util.AppIcons
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
@@ -212,19 +213,9 @@ class BackupRepository(private val context: Context) {
     private fun detectActiveIconSuffix(): String? {
         val pm = context.packageManager
         val pkg = context.packageName
-        val knownSuffixes = listOf(
-            ".IconFlowRed",
-            ".IconFlowLight",
-            ".IconAmoled",
-            ".IconMonochrome",
-            ".IconGhost",
-            ".IconDynamic",
-            ".IconMaterialSky",
-            ".IconMaterialMint"
-        )
-        return knownSuffixes.firstOrNull { suffix ->
+        return AppIcons.ALL_SUFFIXES.firstOrNull { suffix ->
             pm.getComponentEnabledSetting(
-                ComponentName(pkg, "io.github.aedev.flow$suffix")
+                ComponentName(pkg, "${AppIcons.NAMESPACE}$suffix")
             ) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
         }
     }
@@ -1952,22 +1943,12 @@ class BackupRepository(private val context: Context) {
             playerPreferences.restoreData(settings)
             localDataManager.restoreData(settings)
             val savedIconSuffix = settings.strings["app_icon_suffix"]
-            if (!savedIconSuffix.isNullOrEmpty()) {
+            if (!savedIconSuffix.isNullOrEmpty() && AppIcons.ALL_SUFFIXES.contains(savedIconSuffix)) {
                 withContext(Dispatchers.Main) {
                     val pm = context.packageManager
                     val pkg = context.packageName
-                    val allSuffixes = listOf(
-                        ".IconFlowRed",
-                        ".IconFlowLight",
-                        ".IconAmoled",
-                        ".IconMonochrome",
-                        ".IconGhost",
-                        ".IconDynamic",
-                        ".IconMaterialSky",
-                        ".IconMaterialMint"
-                    )
-                    for (suffix in allSuffixes) {
-                        val cn = ComponentName(pkg, "io.github.aedev.flow$suffix")
+                    for (suffix in AppIcons.ALL_SUFFIXES) {
+                        val cn = ComponentName(pkg, "${AppIcons.NAMESPACE}$suffix")
                         val want = if (suffix == savedIconSuffix)
                             PackageManager.COMPONENT_ENABLED_STATE_ENABLED
                         else

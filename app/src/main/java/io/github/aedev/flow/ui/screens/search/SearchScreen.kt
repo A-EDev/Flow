@@ -447,7 +447,7 @@ fun SearchScreen(
 }
 
 private fun extractVideoId(url: String): String? {
-    if (!url.contains("youtube.com") && !url.contains("youtu.be")) return null
+    if (!isSupportedVideoUrl(url)) return null
     val patterns = listOf(
         Regex("v=([^&]+)"),
         Regex("shorts/([^/?]+)"),
@@ -460,6 +460,16 @@ private fun extractVideoId(url: String): String? {
         if (match != null) return match.groupValues[1]
     }
     return url.substringAfterLast("/").substringBefore("?").ifEmpty { null }
+}
+
+private fun isSupportedVideoUrl(url: String): Boolean {
+    val lower = url.lowercase()
+    return lower.contains("youtube.com") ||
+        lower.contains("youtu.be") ||
+        lower.contains("youtube-nocookie.com") ||
+        lower.contains("piped") ||
+        lower.contains("invidious") ||
+        lower.contains("yewtu.be")
 }
 
 @Composable

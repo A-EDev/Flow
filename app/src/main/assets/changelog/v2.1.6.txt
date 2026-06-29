@@ -36,6 +36,7 @@ IMPROVEMENTS
 - Improve player overlays and icons symmetry #654 #634
 - Improve player drawer handling #659
 - Update download settings screen's dialog heights #648
+- Add support for all Youtube Music, piped and invidious Url formats
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578
@@ -50,6 +51,7 @@ FIXES AND STABILITY
 - Fix videos playing in the wrong (AI-dubbed) audio language on some networks by always preferring the original audio track
 - Fix missing Shorts metadata
 - Fix missing playlist videos metadata
+- Fix icon backup crashes
 
 ENGINE
 - Improve measurements foundation, add evaluation harness and deterministic scorers
