@@ -157,7 +157,7 @@
     <string name="copied_to_clipboard">Скопировано: %1$s</string>
     <string name="unknown">Неизвестно</string>
     <string name="comments">Комментарии</string>
-    <string name="filter_top">Популярные</string>
+    <string name="filter_top">Лучшие</string>
     <string name="filter_newest">Новые</string>
     <string name="no_comments_yet">Комментариев пока нет</string>
     <string name="read_more">Читать далее</string>
