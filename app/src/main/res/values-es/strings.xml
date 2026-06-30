@@ -1656,4 +1656,26 @@
     <string name="subscriptions_last_refreshed_time_only_template">Última actualización %1$s</string>
     <string name="player_appearance_long_press_speed_title">Velocidad de reproducción con pulsación larga</string>
     <string name="player_appearance_long_press_speed_subtitle">Elige la velocidad temporal que se utiliza mientras mantienes pulsado</string>
+    <string name="library_local_media_subtitle">Reproduce videos y música en este dispositivo</string>
+    <string name="local_media_scanning">Escaneando su dispositivo…</string>
+    <string name="local_media_grant">Proporcionar acceso</string>
+    <string name="history_tab_local_videos">Videos locales</string>
+    <string name="history_tab_local_music">Música local</string>
+    <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
+    <string name="content_settings_share_without_text_title">Compartir enlaces sin texto</string>
+    <string name="shorts_player_ui_default">Por defecto</string>
+    <string name="shorts_player_ui_simple">Simple</string>
+    <string name="shorts_saved">Short guardado</string>
+    <string name="content_settings_watched_threshold_90">90% reproducido</string>
+    <string name="content_settings_watched_threshold_95">95% reproducido</string>
+    <string name="content_settings_watched_threshold_99">99% reproducido</string>
+    <string name="player_settings_autoplay_countdown_seconds_template">%1$d segundos</string>
+    <string name="autoplay_countdown_next_video">Siguiente vídeo</string>
+    <string name="autoplay_countdown_cancel">Cancelar</string>
+    <string name="autoplay_countdown_restart">Reiniciar</string>
+    <string name="autoplay_countdown_play_now">Reproducir ahora</string>
+    <string name="sync_collection_playlists">Listas de reproducción</string>
+    <string name="sync_collection_watch_history">Historial de visionado</string>
+    <string name="sync_send_to_device">Enviar a un dispositivo</string>
+    <string name="sync_receive_from_device">Recibir de un dispositivo</string>
 </resources>
