@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,8 +29,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,31 +40,40 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.aedev.flow.R
 import io.github.aedev.flow.sync.SyncState
 import io.github.aedev.flow.sync.protocol.SyncCollection
 import io.github.aedev.flow.sync.protocol.SyncRole
 import kotlinx.coroutines.delay
 
-private val COLLECTION_LABELS = linkedMapOf(
-    SyncCollection.PLAYLISTS to "Playlists",
-    SyncCollection.WATCH_HISTORY to "Watch history",
-    SyncCollection.LIKES to "Likes",
-    SyncCollection.SUBSCRIPTIONS to "Subscriptions",
-    SyncCollection.SETTINGS to "Settings",
-    SyncCollection.FLOW_NEURO_BRAIN to "Recommendation profile",
+private val COLLECTION_KEYS = listOf(
+    SyncCollection.PLAYLISTS,
+    SyncCollection.WATCH_HISTORY,
+    SyncCollection.LIKES,
+    SyncCollection.SUBSCRIPTIONS,
+    SyncCollection.SETTINGS,
+    SyncCollection.FLOW_NEURO_BRAIN,
 )
 
-/**
- * Role and transport are independent (see SyncManager): the user first picks Send/Receive, then
- * picks whether *this* device shows the QR or scans the other device's. Showing a QR lets a
- * camera-less peer (e.g. desktop) take the other role by scanning.
- */
+@Composable
+private fun collectionLabel(key: String): String = when (key) {
+    SyncCollection.PLAYLISTS -> stringResource(R.string.sync_collection_playlists)
+    SyncCollection.WATCH_HISTORY -> stringResource(R.string.sync_collection_watch_history)
+    SyncCollection.LIKES -> stringResource(R.string.sync_collection_likes)
+    SyncCollection.SUBSCRIPTIONS -> stringResource(R.string.sync_collection_subscriptions)
+    SyncCollection.SETTINGS -> stringResource(R.string.sync_collection_settings)
+    SyncCollection.FLOW_NEURO_BRAIN -> stringResource(R.string.sync_collection_recommendation_profile)
+    else -> key
+}
+
 private enum class Step { CHOOSER, SEND_SELECT, SEND_TRANSPORT, SEND_SCAN, RECEIVE_TRANSPORT, RECEIVE_SCAN }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,18 +84,30 @@ fun SyncScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var step by remember { mutableStateOf(Step.CHOOSER) }
-    val selected = remember { mutableStateOf(COLLECTION_LABELS.keys.toMutableSet()) }
+    val selected = remember { mutableStateOf(COLLECTION_KEYS.toMutableSet()) }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text("Sync devices") },
-                navigationIcon = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.background,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     IconButton(onClick = { viewModel.cancel(); onNavigateBack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.btn_back))
                     }
-                },
-            )
+                    Text(
+                        text = stringResource(R.string.sync_devices_title),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    )
+                }
+            }
         },
     ) { padding ->
         Column(
@@ -106,8 +128,8 @@ fun SyncScreen(
                     onHost = { role -> viewModel.host(role, selected.value.toList()) },
                     onJoin = { role, qr -> viewModel.join(role, qr, selected.value.toList()) },
                 )
-                is SyncState.Preparing -> Busy("Preparing…")
-                is SyncState.Connecting -> Busy("Connecting…")
+                is SyncState.Preparing -> Busy(stringResource(R.string.sync_preparing))
+                is SyncState.Connecting -> Busy(stringResource(R.string.sync_connecting))
                 is SyncState.ShowingQr -> QrContent(s)
                 is SyncState.AwaitingSas -> SasContent(s.sas, onConfirm = { viewModel.confirmSas(it) })
                 is SyncState.AwaitingConsent -> ConsentContent(
@@ -138,16 +160,16 @@ private fun IdleContent(
     when (step) {
         Step.CHOOSER -> {
             Text(
-                "Sync your library, history, likes, settings and recommendation profile with another device over your local Wi-Fi. Nothing leaves your network.",
+                stringResource(R.string.sync_intro),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(8.dp))
             Button(onClick = { onStepChange(Step.SEND_SELECT) }, modifier = Modifier.fillMaxWidth()) {
-                Text("Send to a device")
+                Text(stringResource(R.string.sync_send_to_device))
             }
             OutlinedButton(onClick = { onStepChange(Step.RECEIVE_TRANSPORT) }, modifier = Modifier.fillMaxWidth()) {
-                Text("Receive from a device")
+                Text(stringResource(R.string.sync_receive_from_device))
             }
         }
         Step.SEND_SELECT -> SelectSendContent(
@@ -156,30 +178,29 @@ private fun IdleContent(
             onContinue = { onStepChange(Step.SEND_TRANSPORT) },
         )
         Step.SEND_TRANSPORT -> TransportChooser(
-            title = "How should the devices pair?",
-            showQrLabel = "Show a QR code here",
-            showQrHint = "The other device scans it. Use this if the other device has a camera.",
-            scanLabel = "Scan the other device's QR",
-            scanHint = "Use this to send to a device with no camera (e.g. desktop) that is showing a receive code.",
+            title = stringResource(R.string.sync_pairing_title),
+            showQrLabel = stringResource(R.string.sync_show_qr_here),
+            showQrHint = stringResource(R.string.sync_send_show_qr_hint),
+            scanLabel = stringResource(R.string.sync_scan_other_qr),
+            scanHint = stringResource(R.string.sync_send_scan_hint),
             onShowQr = { onHost(SyncRole.SENDER) },
             onScan = { onStepChange(Step.SEND_SCAN) },
         )
         Step.SEND_SCAN -> ScanContent(
-            prompt = "Point the camera at the other device's receive code",
+            prompt = stringResource(R.string.sync_scan_prompt_receive_code),
             onScanned = { onJoin(SyncRole.SENDER, it) },
         )
         Step.RECEIVE_TRANSPORT -> TransportChooser(
-            title = "How should the devices pair?",
-            showQrLabel = "Scan the other device's QR",
-            showQrHint = "Use this if this device has a camera and the other is showing a send code.",
-            scanLabel = "Show a QR code here",
-            scanHint = "The sender scans it. Use this if this device has no camera or you'd rather show a code.",
-            // Note: for Receive the primary (first) button is the scanner, the secondary is show-QR.
+            title = stringResource(R.string.sync_pairing_title),
+            showQrLabel = stringResource(R.string.sync_scan_other_qr),
+            showQrHint = stringResource(R.string.sync_receive_scan_hint),
+            scanLabel = stringResource(R.string.sync_show_qr_here),
+            scanHint = stringResource(R.string.sync_receive_show_qr_hint),
             onShowQr = { onStepChange(Step.RECEIVE_SCAN) },
             onScan = { onHost(SyncRole.RECEIVER) },
         )
         Step.RECEIVE_SCAN -> ScanContent(
-            prompt = "Point the camera at the other device's send code",
+            prompt = stringResource(R.string.sync_scan_prompt_send_code),
             onScanned = { onJoin(SyncRole.RECEIVER, it) },
         )
     }
@@ -210,10 +231,10 @@ private fun SelectSendContent(
     onSelectedChange: (MutableSet<String>) -> Unit,
     onContinue: () -> Unit,
 ) {
-    Text("Choose what to send", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.sync_choose_what_to_send), style = MaterialTheme.typography.titleMedium)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(8.dp)) {
-            COLLECTION_LABELS.forEach { (key, label) ->
+            COLLECTION_KEYS.forEach { key ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -227,13 +248,13 @@ private fun SelectSendContent(
                         },
                     )
                     Spacer(Modifier.height(0.dp))
-                    Text(label, style = MaterialTheme.typography.bodyLarge)
+                    Text(collectionLabel(key), style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
     }
     Text(
-        "A safety backup is taken automatically on the receiving device before anything is merged.",
+        stringResource(R.string.sync_safety_backup_note),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -242,7 +263,7 @@ private fun SelectSendContent(
         enabled = selected.isNotEmpty(),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text("Continue")
+        Text(stringResource(R.string.sync_continue))
     }
 }
 
@@ -268,11 +289,13 @@ private fun ScanContent(prompt: String, onScanned: (String) -> Unit) {
         )
     } else {
         Text(
-            "Camera permission is needed to scan the QR code.",
+            stringResource(R.string.sync_camera_permission_rationale),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )
-        Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) { Text("Grant camera access") }
+        Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) {
+            Text(stringResource(R.string.sync_grant_camera))
+        }
     }
 }
 
@@ -286,15 +309,15 @@ private fun QrContent(s: SyncState.ShowingQr) {
         }
     }
     Text(
-        if (s.sending) "Scan this on the device you're sending to" else "Scan this on the device you're receiving from",
+        if (s.sending) stringResource(R.string.sync_qr_scan_on_target_sending) else stringResource(R.string.sync_qr_scan_on_target_receiving),
         style = MaterialTheme.typography.titleMedium,
         textAlign = TextAlign.Center,
     )
     QrCodeImage(text = s.qrText, modifier = Modifier.fillMaxWidth().aspectRatio(1f).padding(8.dp))
-    Text("Confirmation code: ${s.sas}", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Monospace)
-    Text("Expires in ${remaining}s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(stringResource(R.string.sync_confirmation_code, s.sas), style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Monospace)
+    Text(stringResource(R.string.sync_expires_in, remaining), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Text(
-        "Both devices must be on the same Wi-Fi (or one device's hotspot). You may need to allow Flow through a firewall.",
+        stringResource(R.string.sync_qr_network_note),
         style = MaterialTheme.typography.bodySmall,
         textAlign = TextAlign.Center,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -303,65 +326,65 @@ private fun QrContent(s: SyncState.ShowingQr) {
 
 @Composable
 private fun SasContent(sas: String, onConfirm: (Boolean) -> Unit) {
-    Text("Do the codes match?", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.sync_sas_title), style = MaterialTheme.typography.titleMedium)
     Text(sas, style = MaterialTheme.typography.displaySmall, fontFamily = FontFamily.Monospace)
     Text(
-        "Confirm this 6-digit code is identical on both devices before continuing.",
+        stringResource(R.string.sync_sas_body),
         style = MaterialTheme.typography.bodyMedium,
         textAlign = TextAlign.Center,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedButton(onClick = { onConfirm(false) }) { Text("They differ") }
-        Button(onClick = { onConfirm(true) }) { Text("They match") }
+        OutlinedButton(onClick = { onConfirm(false) }) { Text(stringResource(R.string.sync_sas_differ)) }
+        Button(onClick = { onConfirm(true) }) { Text(stringResource(R.string.sync_sas_match)) }
     }
 }
 
 @Composable
 private fun ConsentContent(collections: List<String>, onDecision: (Boolean) -> Unit) {
-    Text("Merge incoming data?", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.sync_consent_title), style = MaterialTheme.typography.titleMedium)
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            collections.forEach { Text("• ${COLLECTION_LABELS[it] ?: it}") }
+            collections.forEach { Text(stringResource(R.string.sync_bullet_item, collectionLabel(it))) }
         }
     }
     Text(
-        "A safety backup will be taken before merging, and the merge is conflict-free — nothing is overwritten or double-counted.",
+        stringResource(R.string.sync_consent_note),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedButton(onClick = { onDecision(false) }) { Text("Decline") }
-        Button(onClick = { onDecision(true) }) { Text("Merge") }
+        OutlinedButton(onClick = { onDecision(false) }) { Text(stringResource(R.string.sync_decline)) }
+        Button(onClick = { onDecision(true) }) { Text(stringResource(R.string.sync_merge)) }
     }
 }
 
 @Composable
 private fun TransferContent(s: SyncState.Transferring) {
-    Text("Syncing ${COLLECTION_LABELS[s.collection] ?: s.collection}…", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.sync_transferring, collectionLabel(s.collection)), style = MaterialTheme.typography.titleMedium)
     val progress = if (s.total > 0) s.done.toFloat() / s.total else 0f
     LinearProgressIndicator(progress = { progress.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
-    Text("${s.done} / ${s.total}", style = MaterialTheme.typography.bodySmall)
+    Text(stringResource(R.string.sync_progress_fraction, s.done, s.total), style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable
 private fun DoneContent(s: SyncState.Done, onDone: () -> Unit) {
-    Text("Sync complete 🎉", style = MaterialTheme.typography.headlineSmall)
-    Text("Synced with ${s.peerName}", style = MaterialTheme.typography.bodyMedium)
+    Text(stringResource(R.string.sync_complete), style = MaterialTheme.typography.headlineSmall)
+    Text(stringResource(R.string.sync_synced_with, s.peerName), style = MaterialTheme.typography.bodyMedium)
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             s.stats.forEach { (collection, st) ->
-                Text("${COLLECTION_LABELS[collection] ?: collection}: +${st.added} added, ${st.updated} updated, ${st.skipped} skipped")
+                Text(stringResource(R.string.sync_done_collection_stats, collectionLabel(collection), st.added, st.updated, st.skipped))
             }
         }
     }
-    Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Done") }
+    Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.sync_done_button)) }
 }
 
 @Composable
 private fun FailedContent(message: String, onRetry: () -> Unit) {
-    Text("Sync failed", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+    Text(stringResource(R.string.sync_failed_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
     Text(message, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-    Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text("Try again") }
+    Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.sync_try_again)) }
 }
 
 @Composable

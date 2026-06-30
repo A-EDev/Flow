@@ -14,7 +14,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
+import io.github.aedev.flow.R
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.zxing.BarcodeFormat
@@ -34,7 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 fun QrCodeImage(text: String, modifier: Modifier = Modifier) {
     val bitmap = remember(text) { generateQrBitmap(text, 640) }
     if (bitmap != null) {
-        Image(bitmap = bitmap.asImageBitmap(), contentDescription = "Sync QR code", modifier = modifier)
+        Image(bitmap = bitmap.asImageBitmap(), contentDescription = stringResource(R.string.sync_qr_content_description), modifier = modifier)
     }
 }
 

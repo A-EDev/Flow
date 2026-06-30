@@ -80,7 +80,12 @@ class SyncProtocolSequenceTest {
         Selection(send = emptyList(), accept = listOf(SyncCollection.PLAYLISTS))
     }
 
-    private fun runSession(hostRole: SyncRole, clientRole: SyncRole) = runBlocking {
+    private fun runSession(
+        hostRole: SyncRole,
+        clientRole: SyncRole,
+        payload: Map<String, CollectionWire> = playlistsPayload(),
+        expectedRecords: Int = 2,
+    ) = runBlocking {
         val master = SyncCrypto.randomMasterKey()
         val sid = SyncCrypto.randomSessionId()
         val keys = SyncCrypto.deriveKeys(master, sid)
@@ -98,10 +103,10 @@ class SyncProtocolSequenceTest {
             localCaps = caps(),
             localSelection = selection(role),
             callbacks = autoApprove,
-            buildPayload = { _ -> playlistsPayload() },
-            applyReceived = { _: PeerInfo, payload: Map<String, ReceivedCollection> ->
-                received.set(payload)
-                payload.mapValues { ApplyStats(added = it.value.lines.size) }
+            buildPayload = { _ -> payload },
+            applyReceived = { _: PeerInfo, p: Map<String, ReceivedCollection> ->
+                received.set(p)
+                p.mapValues { ApplyStats(added = it.value.lines.size) }
             },
         )
 
@@ -112,10 +117,10 @@ class SyncProtocolSequenceTest {
 
         val got = received.get()
         assertNotNull("receiver applied a payload", got)
-        assertEquals("both playlist records arrived, hash-verified", 2, got!![SyncCollection.PLAYLISTS]!!.lines.size)
+        assertEquals("all records arrived, hash-verified", expectedRecords, got!![SyncCollection.PLAYLISTS]!!.lines.size)
         // The sender's aggregate APPLY_RESULT reflects the receiver's stats.
         val senderResult = if (hostRole == SyncRole.SENDER) hostResult else clientResult
-        assertEquals(2, senderResult.stats[SyncCollection.PLAYLISTS]!!.added)
+        assertEquals(expectedRecords, senderResult.stats[SyncCollection.PLAYLISTS]!!.added)
     }
 
     @Test
@@ -123,4 +128,14 @@ class SyncProtocolSequenceTest {
 
     @Test
     fun receiver_hosts_sender_scans() = runSession(hostRole = SyncRole.RECEIVER, clientRole = SyncRole.SENDER)
+
+    @Test
+    fun large_collection_streams_across_many_chunks() {
+        val lines = (0 until 20_000).map { """{"syncId":"p$it","title":"t$it"}""" }
+        val payload = mapOf(
+            SyncCollection.PLAYLISTS to
+                CollectionWire(lines, lines.size, SyncSerialization.sha256Hex(lines.joinToString("\n"))),
+        )
+        runSession(SyncRole.SENDER, SyncRole.RECEIVER, payload = payload, expectedRecords = 20_000)
+    }
 }

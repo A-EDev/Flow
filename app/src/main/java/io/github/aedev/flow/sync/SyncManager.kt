@@ -1,6 +1,7 @@
 package io.github.aedev.flow.sync
 
 import android.content.Context
+import io.github.aedev.flow.R
 import io.github.aedev.flow.sync.apply.PeerInfo
 import io.github.aedev.flow.sync.apply.ReceivedCollection
 import io.github.aedev.flow.sync.apply.SyncApplier
@@ -114,7 +115,7 @@ class SyncManager @Inject constructor(
             val sas = SyncCrypto.sas(master, sessionId)
 
             val ip = LanAddress.resolve()
-                ?: throw IllegalStateException("No Wi-Fi/LAN connection. Connect both devices to the same network or a hotspot.")
+                ?: throw IllegalStateException(context.getString(R.string.sync_error_no_network))
 
             SyncForegroundService.start(context)
             val srv = WsServer()
@@ -151,8 +152,9 @@ class SyncManager @Inject constructor(
             val weAreSender = role == SyncRole.SENDER
             if (parsed.displayerIsSender == weAreSender) {
                 throw IllegalArgumentException(
-                    if (weAreSender) "The other device is also set to Send. Set it to Receive, then scan again."
-                    else "The other device is also set to Receive. Set it to Send, then scan again."
+                    context.getString(
+                        if (weAreSender) R.string.sync_error_peer_also_send else R.string.sync_error_peer_also_receive,
+                    ),
                 )
             }
             val master = parsed.masterKey
@@ -264,11 +266,13 @@ class SyncManager @Inject constructor(
         runCatching { SyncForegroundService.stop(context) }
     }
 
-    private fun qrErrorMessage(error: QrCodec.QrError): String = when (error) {
-        QrCodec.QrError.EXPIRED -> "This QR code has expired. Ask the other device to show a fresh one."
-        QrCodec.QrError.WRONG_VERSION -> "Incompatible app version on the other device."
-        QrCodec.QrError.MALFORMED, QrCodec.QrError.BAD_KEY, QrCodec.QrError.BAD_SESSION ->
-            "That doesn't look like a Flow sync code."
-        QrCodec.QrError.BAD_ADDRESS -> "The sync code is missing a valid network address."
-    }
+    private fun qrErrorMessage(error: QrCodec.QrError): String = context.getString(
+        when (error) {
+            QrCodec.QrError.EXPIRED -> R.string.sync_error_qr_expired
+            QrCodec.QrError.WRONG_VERSION -> R.string.sync_error_qr_wrong_version
+            QrCodec.QrError.MALFORMED, QrCodec.QrError.BAD_KEY, QrCodec.QrError.BAD_SESSION ->
+                R.string.sync_error_qr_not_flow
+            QrCodec.QrError.BAD_ADDRESS -> R.string.sync_error_qr_bad_address
+        },
+    )
 }
