@@ -87,6 +87,7 @@ fun SettingsScreen(
     onNavigateToAppIconPicker: () -> Unit,
     onNavigateToDiagnostics: () -> Unit,
     onNavigateToAutoBackup: () -> Unit,
+    onNavigateToSyncDevices: () -> Unit,
     onNavigateToExport: () -> Unit,
     onNavigateToSponsorBlockSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -247,6 +248,7 @@ fun SettingsScreen(
         SettingSearchEntry(Icons.Outlined.FileUpload, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_export_data), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_export_data_subtitle), secDataManagement, onNavigateToExport),
         SettingSearchEntry(Icons.Outlined.FileDownload, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data_subtitle), secDataManagement, onNavigateToImport),
         SettingSearchEntry(Icons.Outlined.Schedule, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.auto_backup_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.auto_backup_subtitle), secDataManagement, onNavigateToAutoBackup),
+        SettingSearchEntry(Icons.Outlined.Devices, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sync_devices_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sync_devices_subtitle), secDataManagement, onNavigateToSyncDevices),
         SettingSearchEntry(Icons.Outlined.Info, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow_subtitle), secAbout, onNavigateToAbout),
         SettingSearchEntry(Icons.Outlined.BugReport, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics_subtitle), secAbout, onNavigateToDiagnostics),
         SettingSearchEntry(Icons.Outlined.VolunteerActivism, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support_subtitle), secAbout, onNavigateToDonations)
@@ -875,6 +877,13 @@ item {
                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.auto_backup_title),
                         subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.auto_backup_subtitle),
                         onClick = onNavigateToAutoBackup
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Devices,
+                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sync_devices_title),
+                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sync_devices_subtitle),
+                        onClick = onNavigateToSyncDevices
                     )
                 }
             }

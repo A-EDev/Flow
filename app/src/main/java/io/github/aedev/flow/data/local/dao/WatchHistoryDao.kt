@@ -21,6 +21,9 @@ interface WatchHistoryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(entries: List<WatchHistoryEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(entries: List<WatchHistoryEntity>)
+
     @Query("DELETE FROM watch_history WHERE videoId = :videoId")
     suspend fun deleteEntry(videoId: String)
 

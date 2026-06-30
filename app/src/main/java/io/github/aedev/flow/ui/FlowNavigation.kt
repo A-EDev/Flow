@@ -321,6 +321,7 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToAppIconPicker = { navController.navigate("settings/app_icon") },
             onNavigateToDiagnostics = { navController.navigate("settings/diagnostics") },
             onNavigateToAutoBackup = { navController.navigate("settings/auto_backup") },
+            onNavigateToSyncDevices = { navController.navigate("settings/sync_devices") },
             onNavigateToExport = { navController.navigate("settings/export") },
             onNavigateToSponsorBlockSettings = { navController.navigate("settings/sponsorblock") }
         )
@@ -330,6 +331,14 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "settings/auto_backup"
         showBottomNav.value = false
         io.github.aedev.flow.ui.screens.settings.AutoBackupSettingsScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    composable("settings/sync_devices") {
+        currentRoute.value = "settings/sync_devices"
+        showBottomNav.value = false
+        io.github.aedev.flow.ui.screens.sync.SyncScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }

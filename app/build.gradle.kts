@@ -208,6 +208,16 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.client.encoding)
 
+    // --- Device Sync (FLOW-SYNC/1) ---
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.websockets)
+    implementation(libs.zxing.core)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+
     // Serialization & JSON
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.gson)
@@ -263,6 +273,8 @@ dependencies {
     testImplementation("com.google.dagger:hilt-android-testing:2.51.1")
     kspTest("com.google.dagger:hilt-android-compiler:2.51.1")
 
+    // Room migration tests (device-sync schema 20→23)
+    androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))

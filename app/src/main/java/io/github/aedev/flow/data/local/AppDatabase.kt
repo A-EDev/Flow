@@ -11,6 +11,8 @@ import io.github.aedev.flow.data.local.dao.NotificationDao
 import io.github.aedev.flow.data.local.dao.PlaylistDao
 import io.github.aedev.flow.data.local.dao.RecognitionHistoryDao
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
+import io.github.aedev.flow.data.local.dao.SyncLogDao
+import io.github.aedev.flow.data.local.dao.SyncPeerDao
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.local.entity.DownloadEntity
@@ -24,6 +26,8 @@ import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeChipEntity
 import io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
+import io.github.aedev.flow.data.local.entity.SyncLogEntity
+import io.github.aedev.flow.data.local.entity.SyncPeerEntity
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 
@@ -41,9 +45,11 @@ import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
         DownloadItemEntity::class,
         WatchHistoryEntity::class,
         SubscriptionGroupEntity::class,
-        RecognitionHistoryEntity::class
+        RecognitionHistoryEntity::class,
+        SyncLogEntity::class,
+        SyncPeerEntity::class
     ],
-    version = 20,
+    version = 22,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -56,6 +62,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun watchHistoryDao(): WatchHistoryDao
     abstract fun subscriptionGroupDao(): SubscriptionGroupDao
     abstract fun recognitionHistoryDao(): RecognitionHistoryDao
+    abstract fun syncLogDao(): SyncLogDao
+    abstract fun syncPeerDao(): SyncPeerDao
 
     companion object {
         @Volatile
@@ -176,6 +184,43 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Device Sync (FLOW-SYNC/1): stable cross-device playlist identity.
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE playlists ADD COLUMN syncId TEXT")
+                db.execSQL("UPDATE playlists SET syncId = lower(hex(randomblob(16))) WHERE syncId IS NULL")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_playlists_syncId ON playlists(syncId)")
+            }
+        }
+
+        // Device Sync (FLOW-SYNC/1): idempotency ledger + known peers.
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS sync_log (
+                        peerDeviceId TEXT NOT NULL,
+                        collection   TEXT NOT NULL,
+                        payloadHash  TEXT NOT NULL,
+                        appliedAt    INTEGER NOT NULL,
+                        hwmHlc       TEXT NOT NULL,
+                        PRIMARY KEY(peerDeviceId, collection, payloadHash)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS sync_peers (
+                        deviceId     TEXT NOT NULL PRIMARY KEY,
+                        deviceName   TEXT NOT NULL,
+                        platform     TEXT NOT NULL,
+                        lastSyncedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: android.content.Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = androidx.room.Room.databaseBuilder(
@@ -183,7 +228,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flow_database"
                 )
-                .addMigrations(MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
+                .addMigrations(MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

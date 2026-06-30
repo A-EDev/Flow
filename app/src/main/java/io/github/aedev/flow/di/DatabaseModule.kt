@@ -51,4 +51,24 @@ object DatabaseModule {
     fun provideRecognitionHistoryDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.RecognitionHistoryDao {
         return database.recognitionHistoryDao()
     }
+
+    @Provides
+    fun provideSubscriptionGroupDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.SubscriptionGroupDao {
+        return database.subscriptionGroupDao()
+    }
+
+    @Provides
+    fun provideWatchHistoryDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.WatchHistoryDao {
+        return database.watchHistoryDao()
+    }
+
+    @Provides
+    fun provideSyncLogDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.SyncLogDao {
+        return database.syncLogDao()
+    }
+
+    @Provides
+    fun provideSyncPeerDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.SyncPeerDao {
+        return database.syncPeerDao()
+    }
 }

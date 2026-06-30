@@ -1530,6 +1530,13 @@
     <string name="import_master_backup_desc">Restore both app data and engine profile from a single master backup file</string>
     <string name="import_master_backup_success">Master backup restored successfully</string>
     <string name="import_master_backup_failed">Failed to import master backup</string>
+    <!-- Device Sync (FLOW-SYNC/1) -->
+    <string name="sync_devices_title">Sync devices</string>
+    <string name="sync_devices_subtitle">Sync library, history &amp; profile over local Wi-Fi</string>
+    <string name="sync_notification_title">Syncing devices</string>
+    <string name="sync_notification_text">Transferring your library over local Wi-Fi…</string>
+    <string name="sync_notification_channel">Device sync</string>
+
     <!-- Automated Backups -->
     <string name="auto_backup_title">Automated Backups</string>
     <string name="auto_backup_subtitle">Schedule automatic backups to a folder</string>

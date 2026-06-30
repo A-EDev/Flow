@@ -41,6 +41,12 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
+    <!-- Device Sync (FLOW-SYNC/1): resolve the host LAN IP for the QR code. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Device Sync: scan the peer's QR code to receive the session key out-of-band. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
     <application
         android:name=".FlowApplication"
         android:allowBackup="true"
@@ -189,6 +195,15 @@
             <intent-filter>
                 <action android:name="androidx.media3.exoplayer.downloadService.action.INIT"/>
             </intent-filter>
+        </service>
+
+        <!-- Device Sync (FLOW-SYNC/1) foreground service: keeps the LAN WebSocket
+             transfer alive while the screen is off / app is backgrounded. -->
+        <service
+            android:name=".sync.transport.SyncForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync">
         </service>
         
         <!-- Notification action receiver for downloads and other actions -->
