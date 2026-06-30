@@ -1716,4 +1716,11 @@
     <string name="player_settings_display">Дисплей</string>
     <string name="player_settings_ambient_mode">Ambient режим</string>
     <string name="player_settings_ambient_mode_subtitle">Заповнює \"чорні смуги\" навколо відео м\'яким світінням кольором відео</string>
+    <string name="player_appearance_shorts_ui_title">Інтерфейс програвача shorts</string>
+    <string name="player_appearance_shorts_ui_subtitle">Виберіть, яка частина накладання Shorts має бути видимою</string>
+    <string name="shorts_player_ui_default">Стандартне</string>
+    <string name="shorts_player_ui_simple">Просте</string>
+    <string name="shorts_player_ui_impressive">Ефектний</string>
+    <string name="shorts_saved">Short збережено</string>
+    <string name="shorts_unsaved">Short не збережено</string>
 </resources>
