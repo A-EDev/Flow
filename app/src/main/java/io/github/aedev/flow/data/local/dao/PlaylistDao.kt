@@ -104,13 +104,20 @@ interface PlaylistDao {
     @Query("SELECT v.thumbnailUrl FROM videos v INNER JOIN playlist_video_cross_ref r ON v.id = r.videoId WHERE r.playlistId = :playlistId ORDER BY r.position ASC LIMIT 1")
     suspend fun getFirstVideoThumbnail(playlistId: String): String?
 
-    /** Returns stub VideoEntities (empty title) that live inside music playlists. Used for background enrichment. */
+    /**
+     * Returns stub VideoEntities inside music playlists that are missing a title OR a thumbnail.
+     * Used for background enrichment — e.g. synced album tracks arrive with a title but no artwork.
+     */
     @Query("""
         SELECT DISTINCT v.* FROM videos v
         INNER JOIN playlist_video_cross_ref r ON v.id = r.videoId
         INNER JOIN playlists p ON p.id = r.playlistId
-        WHERE p.isMusic = 1 AND (v.title = '' OR v.title IS NULL)
+        WHERE p.isMusic = 1 AND (v.title = '' OR v.title IS NULL OR v.thumbnailUrl = '' OR v.thumbnailUrl IS NULL)
         LIMIT 200
     """)
     suspend fun getMusicPlaylistStubVideos(): List<VideoEntity>
+
+    /** Music playlist/album ids whose cover is blank — recompute from the first track after enrichment. */
+    @Query("SELECT id FROM playlists WHERE isMusic = 1 AND (thumbnailUrl = '' OR thumbnailUrl IS NULL)")
+    suspend fun getMusicPlaylistsMissingThumbnail(): List<String>
 }

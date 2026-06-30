@@ -70,6 +70,14 @@ data class CanonicalPlaylist(
     }
 }
 
+/** Minimal display metadata for a like (desktop §6.3 `meta`). `artist` ⇄ Android `channelName`. */
+@Serializable
+data class CanonicalLikeMeta(
+    val title: String = "",
+    val artist: String = "",
+    val thumbnailUrl: String = "",
+)
+
 @Serializable
 data class CanonicalLike(
     val kind: String, // "video" | "music"
@@ -77,6 +85,7 @@ data class CanonicalLike(
     val state: String, // "liked" | "disliked" | "none"
     val updatedAtMs: Long = 0,
     val hlc: String = "",
+    val meta: CanonicalLikeMeta = CanonicalLikeMeta(),
     val title: String = "",
     val channelName: String = "",
     val thumbnailUrl: String = "",

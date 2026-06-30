@@ -11,15 +11,43 @@ import io.github.aedev.flow.sync.canonical.CanonicalPlaylistItem
  */
 object PlaylistMerger {
 
+    private val WHITESPACE = Regex("\\s+")
+
     fun merge(local: List<CanonicalPlaylist>, remote: List<CanonicalPlaylist>): List<CanonicalPlaylist> {
-        val byId = LinkedHashMap<String, CanonicalPlaylist>(local.size + remote.size)
+        val reconciled = reconcileBySyncId(local, remote)
+        val byId = LinkedHashMap<String, CanonicalPlaylist>(local.size + reconciled.size)
         for (p in local) byId[p.syncId] = normalize(p)
-        for (p in remote) {
+        for (p in reconciled) {
             val e = byId[p.syncId]
             byId[p.syncId] = if (e == null) normalize(p) else mergeOne(e, p)
         }
         return byId.values.sortedBy { it.syncId }
     }
+
+    private fun reconcileBySyncId(
+        local: List<CanonicalPlaylist>,
+        remote: List<CanonicalPlaylist>,
+    ): List<CanonicalPlaylist> {
+        val localSyncIds = local.mapTo(HashSet()) { it.syncId }
+        val localByTitle = HashMap<String, String>()
+        for (p in local) if (isReconcilable(p)) localByTitle.putIfAbsent(titleKey(p), p.syncId)
+        if (localByTitle.isEmpty()) return remote
+        return remote.map { r ->
+            if (r.syncId in localSyncIds || !isReconcilable(r)) return@map r
+            val adopted = localByTitle[titleKey(r)] ?: return@map r
+            r.copy(syncId = adopted)
+        }
+    }
+
+    private fun isReconcilable(p: CanonicalPlaylist): Boolean =
+        !p.deleted &&
+            p.isUserCreated &&
+            p.origin == CanonicalPlaylist.ORIGIN_LOCAL &&
+            p.syncId != CanonicalPlaylist.RESERVED_WATCH_LATER &&
+            p.title.isNotBlank()
+
+    private fun titleKey(p: CanonicalPlaylist): String =
+        (if (p.isMusic) "m:" else "v:") + p.title.trim().lowercase().replace(WHITESPACE, " ")
 
     fun mergeOne(x: CanonicalPlaylist, y: CanonicalPlaylist): CanonicalPlaylist {
         val winner = Crdt.preferByHlc(x, x.updatedHlc, y, y.updatedHlc) { it.title }

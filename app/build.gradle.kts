@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "io.github.aedev.flow"
-        minSdk = 21
+        minSdk = 26
         targetSdk = 34
         versionCode = 16
         versionName = "2.1.5"

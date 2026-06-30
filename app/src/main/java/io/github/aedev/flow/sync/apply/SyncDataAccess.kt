@@ -112,7 +112,7 @@ class SyncDataAccess @Inject constructor(
 
     suspend fun writePlaylists(merged: List<CanonicalPlaylist>) {
         val locals = playlistDao.getAllPlaylists().first()
-        val bySyncId = locals.mapNotNull { p -> p.syncId?.let { it to p } }.toMap()
+        val bySyncId = locals.associateBy { it.syncId ?: it.id }
         val byYoutubeId = locals.filter { !it.isUserCreated }.associateBy { it.id }
         val allRefs = playlistDao.getAllPlaylistVideoCrossRefs().groupBy { it.playlistId }
 

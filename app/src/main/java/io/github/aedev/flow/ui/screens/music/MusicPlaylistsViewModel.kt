@@ -51,9 +51,11 @@ class MusicPlaylistsViewModel @Inject constructor(
     }
 
     /**
-     * Background-enriches any imported music playlist stubs (videos with empty title).
-     * Mirrors the lazy enrichment that PlaylistDetailScreen does, but runs proactively
-     * so the music library shows proper titles/thumbnails without needing to open each playlist.
+     * Background-enriches imported music playlist/album stubs — tracks missing a title OR a
+     * thumbnail (e.g. synced album tracks arrive with a title but no artwork). Mirrors the lazy
+     * enrichment PlaylistDetailScreen does, but runs proactively so the library shows proper
+     * titles/thumbnails without opening each one. Afterwards it recovers any blank album cover from
+     * the first (now-enriched) track, so synced albums get a poster.
      */
     fun enrichMusicPlaylistStubs() {
         if (!isEnrichingMusic.compareAndSet(false, true)) return
@@ -63,37 +65,49 @@ class MusicPlaylistsViewModel @Inject constructor(
                 val videoDao = db.videoDao()
                 val playlistDao = db.playlistDao()
                 val stubs = playlistDao.getMusicPlaylistStubVideos()
-                if (stubs.isEmpty()) return@launch
-                Log.d("MusicPlaylistsVM", "Enriching ${stubs.size} music playlist stubs")
-                stubs.chunked(5).forEach { chunk ->
-                    chunk.forEach { stub ->
-                        try {
-                            val video = youTubeRepository.getVideo(stub.id) ?: return@forEach
-                            val e = VideoEntity.fromDomain(video)
-                            videoDao.insertVideoOrIgnore(e)
-                            videoDao.updateVideoMetadata(
-                                id = e.id,
-                                title = e.title,
-                                channelName = e.channelName,
-                                channelId = e.channelId,
-                                thumbnailUrl = e.thumbnailUrl,
-                                duration = e.duration,
-                                viewCount = e.viewCount,
-                                uploadDate = e.uploadDate,
-                                description = e.description,
-                                channelThumbnailUrl = e.channelThumbnailUrl
-                            )
-                        } catch (e: Exception) {
-                            Log.w("MusicPlaylistsVM", "Failed to enrich stub ${stub.id}", e)
+                if (stubs.isNotEmpty()) {
+                    Log.d("MusicPlaylistsVM", "Enriching ${stubs.size} music playlist stubs")
+                    stubs.chunked(5).forEach { chunk ->
+                        chunk.forEach { stub ->
+                            try {
+                                val video = youTubeRepository.getVideo(stub.id) ?: return@forEach
+                                val e = VideoEntity.fromDomain(video)
+                                videoDao.insertVideoOrIgnore(e)
+                                videoDao.updateVideoMetadata(
+                                    id = e.id,
+                                    title = e.title,
+                                    channelName = e.channelName,
+                                    channelId = e.channelId,
+                                    thumbnailUrl = e.thumbnailUrl,
+                                    duration = e.duration,
+                                    viewCount = e.viewCount,
+                                    uploadDate = e.uploadDate,
+                                    description = e.description,
+                                    channelThumbnailUrl = e.channelThumbnailUrl
+                                )
+                            } catch (e: Exception) {
+                                Log.w("MusicPlaylistsVM", "Failed to enrich stub ${stub.id}", e)
+                            }
                         }
+                        delay(300L)
                     }
-                    delay(300L)
                 }
+                recoverBlankAlbumCovers(playlistDao)
             } catch (e: Exception) {
                 Log.e("MusicPlaylistsVM", "enrichMusicPlaylistStubs failed", e)
             } finally {
                 isEnrichingMusic.set(false)
             }
+        }
+    }
+
+    /** Seed a blank music playlist/album cover from its first track's thumbnail (post-enrichment). */
+    private suspend fun recoverBlankAlbumCovers(
+        playlistDao: io.github.aedev.flow.data.local.dao.PlaylistDao,
+    ) {
+        playlistDao.getMusicPlaylistsMissingThumbnail().forEach { id ->
+            val thumb = playlistDao.getFirstVideoThumbnail(id)
+            if (!thumb.isNullOrBlank()) playlistDao.updatePlaylistThumbnail(id, thumb)
         }
     }
 

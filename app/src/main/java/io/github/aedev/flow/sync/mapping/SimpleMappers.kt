@@ -4,6 +4,7 @@ import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.sync.canonical.CanonicalLike
+import io.github.aedev.flow.sync.canonical.CanonicalLikeMeta
 import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
 import io.github.aedev.flow.sync.identity.Hlc
@@ -86,6 +87,11 @@ object LikesMapper {
             state = CanonicalLike.STATE_LIKED,
             updatedAtMs = info.likedAt,
             hlc = Hlc(info.likedAt, 0, node).encode(),
+            meta = CanonicalLikeMeta(
+                title = info.title,
+                artist = info.channelName,
+                thumbnailUrl = info.thumbnail,
+            ),
             title = info.title,
             channelName = info.channelName,
             thumbnailUrl = info.thumbnail,
@@ -94,9 +100,9 @@ object LikesMapper {
     fun toLikedInfo(c: CanonicalLike): LikedVideoInfo =
         LikedVideoInfo(
             videoId = c.id,
-            title = c.title,
-            thumbnail = c.thumbnailUrl,
-            channelName = c.channelName,
+            title = c.meta.title.ifBlank { c.title },
+            thumbnail = c.meta.thumbnailUrl.ifBlank { c.thumbnailUrl },
+            channelName = c.meta.artist.ifBlank { c.channelName },
             likedAt = if (c.updatedAtMs > 0) c.updatedAtMs else System.currentTimeMillis(),
             isMusic = c.kind == CanonicalLike.KIND_MUSIC,
         )

@@ -71,7 +71,7 @@ object PlaylistMapper {
             id = localId,
             name = c.title,
             description = c.description,
-            thumbnailUrl = "", // recomputed from first item by existing repo logic
+            thumbnailUrl = coverThumbnail(c),
             isPrivate = c.isProtected,
             createdAt = if (c.createdAtMs > 0) c.createdAtMs else System.currentTimeMillis(),
             videoCount = c.items.count { !it.deleted },
@@ -79,6 +79,9 @@ object PlaylistMapper {
             isUserCreated = c.isUserCreated,
             syncId = if (localId == WATCH_LATER_ID) null else c.syncId,
         )
+
+    private fun coverThumbnail(c: CanonicalPlaylist): String =
+        c.items.filter { !it.deleted }.minByOrNull { it.position }?.thumbnailUrl.orEmpty()
 
     /** Cross-refs for a merged canonical playlist; canonical rank → ascending Android position. */
     fun toCrossRefs(c: CanonicalPlaylist, localId: String): List<PlaylistVideoCrossRef> =

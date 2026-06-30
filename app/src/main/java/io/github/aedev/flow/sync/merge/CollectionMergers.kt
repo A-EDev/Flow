@@ -1,6 +1,7 @@
 package io.github.aedev.flow.sync.merge
 
 import io.github.aedev.flow.sync.canonical.CanonicalLike
+import io.github.aedev.flow.sync.canonical.CanonicalLikeMeta
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
@@ -64,6 +65,11 @@ object LikesMerger {
         return winner.copy(
             hlc = Crdt.maxHlc(x.hlc, y.hlc),
             updatedAtMs = maxOf(x.updatedAtMs, y.updatedAtMs),
+            meta = CanonicalLikeMeta(
+                title = Crdt.ifEmptyOther(winner.meta.title, loser.meta.title),
+                artist = Crdt.ifEmptyOther(winner.meta.artist, loser.meta.artist),
+                thumbnailUrl = Crdt.ifEmptyOther(winner.meta.thumbnailUrl, loser.meta.thumbnailUrl),
+            ),
             title = Crdt.ifEmptyOther(winner.title, loser.title),
             channelName = Crdt.ifEmptyOther(winner.channelName, loser.channelName),
             thumbnailUrl = Crdt.ifEmptyOther(winner.thumbnailUrl, loser.thumbnailUrl),
