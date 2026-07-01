@@ -715,9 +715,13 @@ class FlowDownloadService : Service() {
                 Log.w(TAG, "executeDownload: AV1 stream CDN-gated (403) → will retry with ${mission.fallbackCodec} fallback")
                 attemptCodecFallback = true
             } else {
-                Log.e(TAG, "executeDownload: parallelDownloader.start returned false")
+                Log.e(TAG, "executeDownload: parallelDownloader.start returned false (gated403=${mission.gatedHttp403})")
                 mission.status = MissionStatus.FAILED
-                mission.error = "Download failed"
+                mission.error = if (mission.gatedHttp403) {
+                    "Stream blocked or expired (HTTP 403). Try another quality/codec or try again later."
+                } else {
+                    mission.error ?: "Download failed"
+                }
                 updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
                 stopForeground(false)
                 updateNotification(mission, videoId)

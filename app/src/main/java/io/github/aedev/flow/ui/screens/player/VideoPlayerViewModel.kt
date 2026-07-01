@@ -288,6 +288,24 @@ class VideoPlayerViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            EnhancedPlayerManager.getInstance().playbackAbandonedEvent.collect {
+                val videoId = _uiState.value.cachedVideo?.id ?: return@collect
+                if (activeLoadJob?.isActive == true) {
+                    Log.d("VideoPlayerViewModel", "Playback abandoned for $videoId but a fresh load is already in flight — ignoring")
+                    return@collect
+                }
+                Log.w("VideoPlayerViewModel", "Playback abandoned for $videoId — surfacing terminal error")
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Unable to play this video. All stream sources returned errors.",
+                        errorHint = "Try again later or check your network connection."
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch {
             EnhancedPlayerManager.getInstance().playerState.collect { playerState ->
                 _uiState.update {
                     it.copy(

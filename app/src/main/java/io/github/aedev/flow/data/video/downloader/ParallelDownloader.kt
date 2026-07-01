@@ -368,6 +368,7 @@ class ParallelDownloader @Inject constructor() {
                 val result = downloadBlock(client, mission, file, url, startByte, endByte, isAudio, blockIndex)
                 if (result) return true
                 if (mission.status == MissionStatus.PAUSED) return false
+                if (mission.gatedHttp403) return false
             } catch (e: Exception) {
                 lastError = e
                 Log.w(TAG, "Block $blockName attempt ${attempt + 1} failed: ${e.message}")

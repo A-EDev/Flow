@@ -357,6 +357,9 @@ class EnhancedPlayerManager private constructor() {
     private val _streamExpiredEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val streamExpiredEvent: SharedFlow<Unit> = _streamExpiredEvent.asSharedFlow()
 
+    private val _playbackAbandonedEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val playbackAbandonedEvent: SharedFlow<Unit> = _playbackAbandonedEvent.asSharedFlow()
+
     private val _queueAutoAdvanceEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val queueAutoAdvanceEvent: SharedFlow<Unit> = _queueAutoAdvanceEvent.asSharedFlow()
 
@@ -439,6 +442,7 @@ class EnhancedPlayerManager private constructor() {
             onQualityDowngrade = { attemptQualityDowngrade() },
             onPlaybackShutdown = { onPlaybackShutdown() },
             onStreamExpired = { scope.launch { _streamExpiredEvent.emit(Unit) } },
+            onPlaybackAbandoned = { scope.launch { _playbackAbandonedEvent.emit(Unit) } },
             onGatedCodecFallback = { position -> qualityManager?.fallbackToAlternateCodec(position) ?: false },
             getFailedStreamUrls = { qualityManager?.let { qm ->
                 availableVideoStreams.filter { qm.hasStreamFailed(it.getContent()) }.map { it.getContent() }.toSet()
@@ -2173,6 +2177,8 @@ class EnhancedPlayerManager private constructor() {
             p.currentMediaItem != null &&
             p.playbackState != Player.STATE_IDLE
     }
+
+    fun hasAbandonedPlayback(): Boolean = errorHandler?.hasGivenUp() == true
 
     private fun buildAvailableQualityOptions(): List<QualityOption> {
         val directOptions = qualityManager?.buildQualityOptions().orEmpty()

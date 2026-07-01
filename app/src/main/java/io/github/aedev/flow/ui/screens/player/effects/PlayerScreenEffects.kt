@@ -620,6 +620,10 @@ fun PlaybackStartupRecoveryEffect(
         delay(STARTUP_RECOVERY_DELAY_MS)
 
         val manager = EnhancedPlayerManager.getInstance()
+        if (manager.hasAbandonedPlayback()) {
+            Log.w(TAG, "Startup recovery: playback abandoned for $videoId — not re-preparing")
+            return@LaunchedEffect
+        }
         val player = manager.getPlayer()
         var snapshot = captureStartupRecoverySnapshot(manager, videoId, uiState, screenState)
         if (!snapshot.belongsToVideo) return@LaunchedEffect

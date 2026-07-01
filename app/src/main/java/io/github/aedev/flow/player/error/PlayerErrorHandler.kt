@@ -36,6 +36,7 @@ class PlayerErrorHandler(
     private val onQualityDowngrade: () -> Unit,
     private val onPlaybackShutdown: () -> Unit,
     private val onStreamExpired: () -> Unit,
+    private val onPlaybackAbandoned: () -> Unit,
     private val onGatedCodecFallback: (Long) -> Boolean,
     private val getFailedStreamUrls: () -> Set<String>,
     private val markStreamFailed: (String) -> Unit,
@@ -59,6 +60,7 @@ class PlayerErrorHandler(
     private var consecutiveExpiryCount = 0
     private var lastExpiryVideoUrl: String? = null
     private var lastExpiryTriggerMs = 0L
+    private var gaveUpUrl: String? = null
 
     // ── Public entry point ────────────────────────────────────────────────────
 
@@ -262,6 +264,13 @@ class PlayerErrorHandler(
     }
 
     private fun handleStreamExpired(reason: String) {
+        val currentUrl = getCurrentVideoStream()?.getContent()
+
+        if (gaveUpUrl != null && currentUrl == gaveUpUrl) {
+            Log.d(TAG, "Stream expiry ($reason) on an already-abandoned URL — ignoring")
+            return
+        }
+
         val now = System.currentTimeMillis()
         if (now - lastExpiryTriggerMs < EXPIRY_DEBOUNCE_MS) {
             Log.d(TAG, "Stream expiry ($reason) within debounce window — coalescing into the in-flight reload")
@@ -269,7 +278,6 @@ class PlayerErrorHandler(
         }
         lastExpiryTriggerMs = now
 
-        val currentUrl = getCurrentVideoStream()?.getContent()
         if (currentUrl != null && currentUrl == lastExpiryVideoUrl) {
             consecutiveExpiryCount++
         } else {
@@ -278,6 +286,7 @@ class PlayerErrorHandler(
         }
 
         if (consecutiveExpiryCount > MAX_CONSECUTIVE_EXPIRY) {
+            gaveUpUrl = currentUrl
             Log.e(TAG, "Stream expiry limit reached ($consecutiveExpiryCount/$MAX_CONSECUTIVE_EXPIRY) for reason=$reason — stopping playback")
             PlayerDiagnostics.logError(TAG, "Giving up after $consecutiveExpiryCount consecutive stream expiry errors")
             onPlaybackShutdown()
@@ -287,6 +296,7 @@ class PlayerErrorHandler(
                 error = "Unable to play — stream URLs keep expiring.",
                 recoveryAttempted = true
             )
+            onPlaybackAbandoned()
             return
         }
 
@@ -303,7 +313,10 @@ class PlayerErrorHandler(
         consecutiveExpiryCount = 0
         lastExpiryVideoUrl = null
         lastExpiryTriggerMs = 0L
+        gaveUpUrl = null
     }
+
+    fun hasGivenUp(): Boolean = gaveUpUrl != null
 
     private fun handleParsingError(error: PlaybackException) {
         Log.e(TAG, "Source validation error: ${error.errorCode} - ${error.message}")

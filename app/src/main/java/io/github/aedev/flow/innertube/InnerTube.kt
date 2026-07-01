@@ -63,13 +63,15 @@ class InnerTube {
 
     var proxy: Proxy? = null
         set(value) {
+            if (field == value) return
             field = value
             httpClient.close()
             httpClient = createClient()
         }
-    
+
     var proxyAuth: String? = null
         set(value) {
+            if (field == value) return
             field = value
             httpClient.close()
             httpClient = createClient()
