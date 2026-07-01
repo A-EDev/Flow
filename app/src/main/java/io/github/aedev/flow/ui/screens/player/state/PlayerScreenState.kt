@@ -39,6 +39,7 @@ class PlayerScreenState {
     var showLiveChatSheet by mutableStateOf(false)
     var showLiveChatPanel by mutableStateOf(true)
     var showLiveChatFullscreen by mutableStateOf(false)
+    var showCommentsFullscreen by mutableStateOf(false)
 
     // Comment Sorting
     var commentSortFilter by mutableStateOf(CommentSortFilter.TOP)
@@ -113,6 +114,7 @@ class PlayerScreenState {
         showLiveChatSheet = false
         showLiveChatPanel = true
         showLiveChatFullscreen = false
+        showCommentsFullscreen = false
         zoomScale = 1f
         zoomOffsetX = 0f
         zoomOffsetY = 0f
@@ -126,6 +128,7 @@ class PlayerScreenState {
         showChaptersSheet = false
         showLiveChatSheet = false
         showLiveChatFullscreen = false
+        showCommentsFullscreen = false
         showPlaylistQueueSheet = false
         showSettingsMenu = false
         showQualitySelector = false

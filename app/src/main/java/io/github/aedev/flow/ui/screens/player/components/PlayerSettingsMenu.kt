@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.*
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import kotlinx.coroutines.launch
@@ -431,18 +432,101 @@ private fun PlayerSettingsQualityPage(
     currentQualityKey: String?,
     onQualitySelected: (QualityOption) -> Unit
 ) {
-    availableQualities.sortedByDescending { it.height }.forEach { quality ->
-        val isSelected = quality.isSelected(currentQuality, currentQualityKey)
+    availableQualities.firstOrNull { it.height == 0 }?.let { auto ->
         PlayerSettingsSelectionRow(
-            label = if (quality.height == 0) stringResource(R.string.quality_auto) else quality.displayLabel(),
-            selected = isSelected,
-            onClick = { onQualitySelected(quality) }
+            label = stringResource(R.string.quality_auto),
+            selected = currentQuality == 0,
+            onClick = { onQualitySelected(auto) }
         )
+    }
+    availableQualities
+        .filter { it.height != 0 }
+        .groupBy { it.height }
+        .entries
+        .sortedByDescending { it.key }
+        .forEach { (_, options) ->
+            val codecOptions = options.filter { it.codecKey.isNotBlank() }
+            if (codecOptions.isEmpty()) {
+                val option = options.first()
+                PlayerSettingsSelectionRow(
+                    label = option.displayLabel(),
+                    selected = option.isSelected(currentQuality, currentQualityKey),
+                    onClick = { onQualitySelected(option) }
+                )
+            } else {
+                PlayerSettingsQualityCodecRow(
+                    qualityLabel = options.first().resolutionLabel(),
+                    codecOptions = codecOptions,
+                    currentQuality = currentQuality,
+                    currentQualityKey = currentQualityKey,
+                    onQualitySelected = onQualitySelected
+                )
+            }
+        }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun PlayerSettingsQualityCodecRow(
+    qualityLabel: String,
+    codecOptions: List<QualityOption>,
+    currentQuality: Int,
+    currentQualityKey: String?,
+    onQualitySelected: (QualityOption) -> Unit
+) {
+    val rowSelected = codecOptions.any { it.isSelected(currentQuality, currentQualityKey) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = qualityLabel,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (rowSelected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (rowSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            modifier = Modifier.width(84.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        FlowRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            codecOptions.forEach { option ->
+                val selected = option.isSelected(currentQuality, currentQualityKey)
+                FilterChip(
+                    selected = selected,
+                    onClick = { onQualitySelected(option) },
+                    label = { Text(VideoCodecUtils.codecLabelFromKey(option.codecKey)) },
+                    leadingIcon = if (selected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    } else null
+                )
+            }
+        }
     }
 }
 
 private fun QualityOption.displayLabel(): String {
     return label.takeIf { it.isNotBlank() } ?: "${height}p"
+}
+
+private fun QualityOption.resolutionLabel(): String {
+    val codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey)
+    return if (codecKey.isNotBlank() && label.endsWith(" $codecLabel")) {
+        label.removeSuffix(" $codecLabel")
+    } else {
+        displayLabel()
+    }
 }
 
 private fun QualityOption.isSelected(currentQuality: Int, currentQualityKey: String?): Boolean {

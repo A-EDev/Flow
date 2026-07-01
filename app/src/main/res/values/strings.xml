@@ -1690,6 +1690,8 @@
     <string name="player_settings_overlay_lock_mode_subtitle">Show a player lock button to block accidental touches</string>
     <string name="player_settings_overlay_speed_indicator">Playback Speed Indicator</string>
     <string name="player_settings_overlay_speed_indicator_subtitle">Show the current speed on the video player overlay</string>
+    <string name="player_settings_overlay_comments">Comments Button</string>
+    <string name="player_settings_overlay_comments_subtitle">Show a comments button on the fullscreen player to open comments in a side panel</string>
     <string name="player_action_background">Background</string>
     <string name="player_action_copy_link">Copy link</string>
     <string name="player_action_copy_link_at_time">Copy at time</string>

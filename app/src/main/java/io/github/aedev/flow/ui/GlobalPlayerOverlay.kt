@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -60,6 +61,10 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
 import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
+import io.github.aedev.flow.ui.components.CommentSortFilterChips
+import io.github.aedev.flow.ui.components.FlowCommentsList
+import io.github.aedev.flow.ui.components.commentTimestampToMs
+import io.github.aedev.flow.ui.components.sortCommentsByFilter
 import io.github.aedev.flow.ui.components.Media3SubtitleOverlay
 import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.SubtitleStyle
@@ -163,6 +168,10 @@ fun GlobalPlayerOverlay(
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
     val lockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
     val commentsEnabled by playerPreferences.commentsEnabled.collectAsState(initial = true)
+    val isCommentsAvailable = commentsEnabled && playerUiState.hlsUrl.isNullOrEmpty()
+    val sortedComments = remember(comments, screenState.commentSortFilter) {
+        sortCommentsByFilter(comments, screenState.commentSortFilter)
+    }
 
     LaunchedEffect(allowVolumeBoost) {
         if (!allowVolumeBoost && screenState.volumeLevel > 1f) {
@@ -528,9 +537,10 @@ fun GlobalPlayerOverlay(
             screenState.showPlaybackSpeedSelector ||
             screenState.showSubtitleSelector
         val showLiveChatSidePanel = screenState.showLiveChatFullscreen && playerUiState.isLiveChatAvailable
+        val showCommentsSidePanel = screenState.showCommentsFullscreen && commentsEnabled
         val showSleepTimerSidePanel = screenState.showSleepTimerSheet
         val fullscreenSidePanelVisible = canUseFullscreenSidePanel &&
-            (showSettingsSurface || screenState.showChaptersSheet || showLiveChatSidePanel || showSleepTimerSidePanel)
+            (showSettingsSurface || screenState.showChaptersSheet || showLiveChatSidePanel || showCommentsSidePanel || showSleepTimerSidePanel)
         val fullscreenDrawerWidth = minOf(maxWidth * 0.42f, 420.dp)
         val fullscreenDrawerWidthPx = with(density) { fullscreenDrawerWidth.toPx() }
         val fullscreenDrawerOffsetPx = remember { Animatable(0f) }
@@ -984,6 +994,16 @@ fun GlobalPlayerOverlay(
                                         screenState.showLiveChatFullscreen = true
                                     }
                                 },
+                                isCommentsAvailable = isCommentsAvailable,
+                                isCommentsPanelOpen = screenState.showCommentsFullscreen,
+                                onCommentsClick = {
+                                    if (screenState.showCommentsFullscreen) {
+                                        screenState.showCommentsFullscreen = false
+                                    } else {
+                                        screenState.dismissMediaSheets()
+                                        screenState.showCommentsFullscreen = true
+                                    }
+                                },
                                 onSleepTimerClick = { screenState.showSleepTimerSheet = true },
                                 isSleepTimerActive = io.github.aedev.flow.player.SleepTimerManager.isActive,
                                 showRemainingTime = showRemainingTime,
@@ -1252,6 +1272,56 @@ fun GlobalPlayerOverlay(
                         io.github.aedev.flow.ui.components.LiveChatList(
                             messages = playerUiState.liveChatMessages,
                             isLoading = playerUiState.isLiveChatLoading,
+                            modifier = Modifier.fillMaxWidth().weight(1f)
+                        )
+                    }
+                } else if (showCommentsSidePanel) {
+                    Column(Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.comments),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.weight(1f))
+                            IconButton(onClick = { closeFullscreenSidePanel() }) {
+                                Icon(
+                                    Icons.Rounded.Close,
+                                    contentDescription = stringResource(R.string.close)
+                                )
+                            }
+                        }
+                        CommentSortFilterChips(
+                            selectedFilter = screenState.commentSortFilter,
+                            onFilterChanged = { screenState.commentSortFilter = it },
+                            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp)
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                        val commentsListState = rememberLazyListState()
+                        LaunchedEffect(screenState.commentSortFilter) {
+                            commentsListState.scrollToItem(0)
+                        }
+                        FlowCommentsList(
+                            comments = sortedComments,
+                            isLoading = isLoadingComments,
+                            listState = commentsListState,
+                            selectedFilter = screenState.commentSortFilter,
+                            onTimestampClick = { EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(it)) },
+                            onLoadReplies = { playerViewModel.loadCommentReplies(it) },
+                            onLoadMoreReplies = { playerViewModel.loadMoreCommentReplies(it) },
+                            onAuthorClick = { handle ->
+                                closeFullscreenSidePanel()
+                                onNavigateToChannel("@$handle")
+                            },
+                            onAvatarClick = {},
+                            isLoadingMore = isLoadingMoreComments,
+                            onLoadMore = { playerViewModel.loadMoreComments(video.id) },
+                            hasMore = hasMoreComments,
                             modifier = Modifier.fillMaxWidth().weight(1f)
                         )
                     }

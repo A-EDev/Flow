@@ -173,6 +173,7 @@ class PlayerPreferences(context: Context) {
         val OVERLAY_SLEEPTIMER_ENABLED = booleanPreferencesKey("overlay_sleeptimer_enabled")
         val OVERLAY_LOCK_MODE_ENABLED = booleanPreferencesKey("overlay_lock_mode_enabled")
         val OVERLAY_SPEED_INDICATOR_ENABLED = booleanPreferencesKey("overlay_speed_indicator_enabled")
+        val OVERLAY_COMMENTS_ENABLED = booleanPreferencesKey("overlay_comments_enabled")
         
         // Fullscreen Player
         val SHOW_FULLSCREEN_TITLE = booleanPreferencesKey("show_fullscreen_title")
@@ -1053,7 +1054,16 @@ class PlayerPreferences(context: Context) {
             preferences[Keys.OVERLAY_CAST_ENABLED] = enabled
         }
     }
-    
+
+    val overlayCommentsEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.OVERLAY_COMMENTS_ENABLED] ?: true }
+
+    suspend fun setOverlayCommentsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.OVERLAY_COMMENTS_ENABLED] = enabled
+        }
+    }
+
     val overlayCcEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
         .map { preferences -> preferences[Keys.OVERLAY_CC_ENABLED] ?: false }
 

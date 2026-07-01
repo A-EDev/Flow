@@ -134,7 +134,8 @@ fun PlayerSettingsScreen(
     val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = true)
     val overlayLockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
     val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
-    
+    val overlayCommentsEnabled by playerPreferences.overlayCommentsEnabled.collectAsState(initial = true)
+
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
     val queueAutoplayEnabled by playerPreferences.queueAutoplayEnabled.collectAsState(initial = true)
     val autoplayCountdownSeconds by playerPreferences.autoplayCountdownSeconds.collectAsState(initial = 0)
@@ -282,6 +283,14 @@ fun PlayerSettingsScreen(
                         subtitle = stringResource(R.string.player_settings_overlay_speed_indicator_subtitle),
                         checked = overlaySpeedIndicatorEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlaySpeedIndicatorEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.ChatBubbleOutline,
+                        title = stringResource(R.string.player_settings_overlay_comments),
+                        subtitle = stringResource(R.string.player_settings_overlay_comments_subtitle),
+                        checked = overlayCommentsEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlayCommentsEnabled(it) } }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(

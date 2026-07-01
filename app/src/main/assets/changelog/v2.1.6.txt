@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-06-30
+DATE: 2026-07-01
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -38,6 +38,8 @@ IMPROVEMENTS
 - Improve player drawer handling #659
 - Update download settings screen's dialog heights #648
 - Add support for all Youtube Music, piped and invidious Url formats
+- Add comment drawer in landscape #644
+- Video Quality selection menu redesign #660
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

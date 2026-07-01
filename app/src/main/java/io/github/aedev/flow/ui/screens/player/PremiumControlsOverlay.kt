@@ -107,6 +107,9 @@ fun PremiumControlsOverlay(
     onLiveClick: () -> Unit = {},
     isLiveChatAvailable: Boolean = false,
     onLiveChatClick: () -> Unit = {},
+    isCommentsAvailable: Boolean = false,
+    isCommentsPanelOpen: Boolean = false,
+    onCommentsClick: () -> Unit = {},
     onSleepTimerClick: () -> Unit = {},
     isSleepTimerActive: Boolean = false,
     showRemainingTime: Boolean = false,
@@ -194,6 +197,7 @@ fun PremiumControlsOverlay(
     val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
     val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = false)
     val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
+    val overlayCommentsEnabled by playerPreferences.overlayCommentsEnabled.collectAsState(initial = true)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
     val fullscreenSeekbarHorizontalPaddingDp by playerPreferences.fullscreenSeekbarHorizontalPaddingDp.collectAsState(
         initial = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
@@ -637,6 +641,24 @@ fun PremiumControlsOverlay(
                         horizontalArrangement = Arrangement.spacedBy(OverlayActionSpacing),
                         modifier = Modifier.weight(1f)
                     ) {
+                        if (overlayCommentsEnabled && isCommentsAvailable && isFullscreen) {
+                            Box(
+                                modifier = Modifier
+                                    .size(OverlayPillHeight)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.4f))
+                                    .clickable(onClick = onCommentsClick),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ChatBubbleOutline,
+                                    contentDescription = stringResource(R.string.comments),
+                                    tint = if (isCommentsPanelOpen) primaryColor else Color.White,
+                                    modifier = Modifier.size(OverlayExpandIconSize)
+                                )
+                            }
+                        }
+
                         // Time Pill
                         Surface(
                             color = Color.Black.copy(alpha = 0.4f),

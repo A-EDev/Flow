@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -67,6 +68,44 @@ enum class CommentSortFilter {
     OLDEST
 }
 
+private fun relativeTimeToSeconds(timeStr: String): Long {
+    val lower = timeStr.lowercase().trim()
+    val number = Regex("\\d+").find(lower)?.value?.toLongOrNull() ?: 0L
+    return when {
+        "second" in lower -> number
+        "minute" in lower -> number * 60L
+        "hour" in lower -> number * 3_600L
+        "day" in lower -> number * 86_400L
+        "week" in lower -> number * 604_800L
+        "month" in lower -> number * 2_592_000L
+        "year" in lower -> number * 31_536_000L
+        else -> Long.MAX_VALUE
+    }
+}
+
+/** Sorts comments for the given filter, keeping pinned comments first. */
+fun sortCommentsByFilter(comments: List<Comment>, filter: CommentSortFilter): List<Comment> {
+    val pinned = comments.filter { it.isPinned }
+    val unpinned = comments.filterNot { it.isPinned }
+    val sortedUnpinned = when (filter) {
+        CommentSortFilter.TOP -> unpinned.sortedByDescending { it.likeCount }
+        CommentSortFilter.NEWEST -> unpinned.sortedBy { relativeTimeToSeconds(it.publishedTime) }
+        CommentSortFilter.OLDEST -> unpinned.sortedByDescending { relativeTimeToSeconds(it.publishedTime) }
+    }
+    return pinned + sortedUnpinned
+}
+
+/** Converts a "H:MM:SS" / "MM:SS" comment timestamp into milliseconds. */
+fun commentTimestampToMs(timestamp: String): Long {
+    val parts = timestamp.split(":").map { it.toLongOrNull() ?: 0L }
+    val seconds = when (parts.size) {
+        3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
+        2 -> parts[0] * 60 + parts[1]
+        else -> 0L
+    }
+    return seconds * 1000L
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FlowCommentsBottomSheet(
@@ -96,7 +135,6 @@ fun FlowCommentsBottomSheet(
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
 
-    val latestOnLoadMore by rememberUpdatedState(onLoadMore)
     val commentsListState = rememberLazyListState()
 
     fun animateToExpanded() {
@@ -223,86 +261,134 @@ fun FlowCommentsBottomSheet(
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                         }
                     }
-                    Row(
-                        modifier = Modifier.padding(top = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterChip(
-                            selected = selectedFilter == CommentSortFilter.TOP,
-                            onClick = { onFilterChanged(CommentSortFilter.TOP) },
-                            label = { Text(stringResource(R.string.filter_top)) }
-                        )
-                        FilterChip(
-                            selected = selectedFilter == CommentSortFilter.NEWEST,
-                            onClick = { onFilterChanged(CommentSortFilter.NEWEST) },
-                            label = { Text(stringResource(R.string.filter_newest)) }
-                        )
-                        FilterChip(
-                            selected = selectedFilter == CommentSortFilter.OLDEST,
-                            onClick = { onFilterChanged(CommentSortFilter.OLDEST) },
-                            label = { Text(stringResource(R.string.filter_oldest)) }
-                        )
-                    }
+                    CommentSortFilterChips(
+                        selectedFilter = selectedFilter,
+                        onFilterChanged = onFilterChanged,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
 
-                LazyColumn(
-                    state = commentsListState,
+                FlowCommentsList(
+                    comments = comments,
+                    isLoading = isLoading,
+                    listState = commentsListState,
+                    selectedFilter = selectedFilter,
+                    onTimestampClick = onTimestampClick,
+                    onLoadReplies = onLoadReplies,
+                    onLoadMoreReplies = onLoadMoreReplies,
+                    onAuthorClick = onAuthorClick,
+                    onAvatarClick = onAvatarClick,
+                    isLoadingMore = isLoadingMore,
+                    onLoadMore = onLoadMore,
+                    hasMore = hasMore,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(bottom = 32.dp)
+                        .weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CommentSortFilterChips(
+    selectedFilter: CommentSortFilter,
+    onFilterChanged: (CommentSortFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = selectedFilter == CommentSortFilter.TOP,
+            onClick = { onFilterChanged(CommentSortFilter.TOP) },
+            label = { Text(stringResource(R.string.filter_top)) }
+        )
+        FilterChip(
+            selected = selectedFilter == CommentSortFilter.NEWEST,
+            onClick = { onFilterChanged(CommentSortFilter.NEWEST) },
+            label = { Text(stringResource(R.string.filter_newest)) }
+        )
+        FilterChip(
+            selected = selectedFilter == CommentSortFilter.OLDEST,
+            onClick = { onFilterChanged(CommentSortFilter.OLDEST) },
+            label = { Text(stringResource(R.string.filter_oldest)) }
+        )
+    }
+}
+
+@Composable
+fun FlowCommentsList(
+    comments: List<Comment>,
+    isLoading: Boolean,
+    listState: LazyListState,
+    selectedFilter: CommentSortFilter,
+    onTimestampClick: (String) -> Unit,
+    onLoadReplies: (Comment) -> Unit,
+    onLoadMoreReplies: (Comment) -> Unit,
+    onAuthorClick: (String) -> Unit,
+    onAvatarClick: (String) -> Unit,
+    isLoadingMore: Boolean,
+    onLoadMore: () -> Unit,
+    hasMore: Boolean,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(bottom = 32.dp)
+) {
+    val latestOnLoadMore by rememberUpdatedState(onLoadMore)
+    LazyColumn(
+        state = listState,
+        modifier = modifier,
+        contentPadding = contentPadding
+    ) {
+        if (isLoading) {
+            item(key = "loading") {
+                Column(Modifier.padding(16.dp)) {
+                    repeat(6) { CommentSkeleton() }
+                }
+            }
+        } else if (comments.isEmpty()) {
+            item(key = "empty") {
+                Box(
+                    modifier = Modifier
+                        .fillParentMaxWidth()
+                        .height(120.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if (isLoading) {
-                        item(key = "loading") {
-                            Column(Modifier.padding(16.dp)) {
-                                repeat(6) { CommentSkeleton() }
-                            }
-                        }
-                    } else if (comments.isEmpty()) {
-                        item(key = "empty") {
-                            Box(
-                                modifier = Modifier
-                                    .fillParentMaxWidth()
-                                    .height(120.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    stringResource(R.string.no_comments_yet),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    } else {
-                        items(
-                            items = comments,
-                            key = { comment -> "${selectedFilter.name}_${comment.id}" }
-                        ) { comment ->
-                            FlowCommentItem(
-                                comment = comment,
-                                onTimestampClick = onTimestampClick,
-                                onLoadReplies = onLoadReplies,
-                                onLoadMoreReplies = onLoadMoreReplies,
-                                onAuthorClick = onAuthorClick,
-                                onAvatarClick = onAvatarClick
-                            )
-                        }
-                        if (hasMore) {
-                            item(key = "load_more_trigger") {
-                                LaunchedEffect(comments.size) {
-                                    latestOnLoadMore()
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isLoadingMore) {
-                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                    }
-                                }
-                            }
+                    Text(
+                        stringResource(R.string.no_comments_yet),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            items(
+                items = comments,
+                key = { comment -> "${selectedFilter.name}_${comment.id}" }
+            ) { comment ->
+                FlowCommentItem(
+                    comment = comment,
+                    onTimestampClick = onTimestampClick,
+                    onLoadReplies = onLoadReplies,
+                    onLoadMoreReplies = onLoadMoreReplies,
+                    onAuthorClick = onAuthorClick,
+                    onAvatarClick = onAvatarClick
+                )
+            }
+            if (hasMore) {
+                item(key = "load_more_trigger") {
+                    LaunchedEffect(comments.size) {
+                        latestOnLoadMore()
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoadingMore) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         }
                     }
                 }
