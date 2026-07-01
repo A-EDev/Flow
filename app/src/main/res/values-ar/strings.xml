@@ -1791,4 +1791,5 @@
     <string name="default_download_codec_auto_subtitle">يستخدم آخر اختيار لك أو برنامج الترميز الخاص بالفيديو الحالي</string>
     <string name="player_settings_overlay_comments">زر التعليقات</string>
     <string name="player_settings_overlay_comments_subtitle">اعرض زر التعليقات في مشغل ملء الشاشة لفتح التعليقات في لوحة جانبية</string>
+    <string name="sb_skip_segment">تخطي %1$s</string>
 </resources>
