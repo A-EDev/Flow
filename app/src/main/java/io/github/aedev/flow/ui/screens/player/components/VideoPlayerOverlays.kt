@@ -185,7 +185,7 @@ fun BrightnessOverlay(
         icon = iconVector,
         valueLabel = if (isAuto) "Auto" else "${(brightnessLevel.coerceIn(0f, 1f) * 100).toInt()}%",
         progress = animatedBrightness,
-        indicatorColor = MaterialTheme.colorScheme.tertiary,
+        indicatorColor = MaterialTheme.colorScheme.primary,
         modifier = modifier
     )
 }
@@ -263,20 +263,19 @@ private fun CircularGestureLevelOverlay(
                     trackColor = Color.Black.copy(alpha = 0.42f),
                     strokeCap = StrokeCap.Round
                 )
-                Surface(
-                    modifier = Modifier.size(56.dp),
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.54f),
-                    contentColor = Color.White,
-                    shadowElevation = 6.dp
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.54f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(10.dp))
@@ -339,6 +338,9 @@ fun SpeedBoostOverlay(
     }
 }
 
+private const val SB_SKIP_DIM_DELAY_MS = 5_000L
+private const val SB_SKIP_DIMMED_ALPHA = 0.45f
+
 /**
  * Overlay button that lets the user manually skip a SponsorBlock segment.
  */
@@ -347,6 +349,7 @@ fun SponsorBlockSkipButton(
     sponsorSegments: List<SponsorBlockSegment>,
     currentPositionMs: Long,
     categoryActions: Map<String, SponsorBlockAction>,
+    controlsVisible: Boolean,
     onSkipClick: (endPositionMs: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -359,37 +362,41 @@ fun SponsorBlockSkipButton(
     }
 
     var displaySegment by remember { mutableStateOf<SponsorBlockSegment?>(null) }
-    var buttonVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(activeSegment) {
+        if (activeSegment != null) displaySegment = activeSegment
+    }
 
-    LaunchedEffect(activeSegment?.uuid) {
-        if (activeSegment != null) {
-            displaySegment = activeSegment
-            buttonVisible = true
-            val remainingMs = ((activeSegment.endTime * 1000f).toLong() - currentPositionMs).coerceAtLeast(0L)
-            val showMs = minOf(remainingMs, 4_000L)
-            delay(showMs)
-            buttonVisible = false
+    var isDimmed by remember { mutableStateOf(false) }
+    LaunchedEffect(activeSegment?.uuid, controlsVisible) {
+        if (activeSegment == null || controlsVisible) {
+            isDimmed = false
         } else {
-            buttonVisible = false
+            isDimmed = false
+            delay(SB_SKIP_DIM_DELAY_MS)
+            isDimmed = true
         }
     }
 
+    val buttonAlpha by animateFloatAsState(
+        targetValue = if (isDimmed) SB_SKIP_DIMMED_ALPHA else 1f,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        label = "sbSkipAlpha"
+    )
+
     AnimatedVisibility(
-        visible = buttonVisible,
+        visible = activeSegment != null,
         enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(200)),
         exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
         modifier = modifier
     ) {
         val seg = displaySegment ?: return@AnimatedVisibility
         Surface(
-            onClick = {
-                onSkipClick((seg.endTime * 1000L).toLong())
-                buttonVisible = false
-            },
-            color = Color(0xFF00D400),
+            onClick = { onSkipClick((seg.endTime * 1000L).toLong()) },
+            color = Color.Black.copy(alpha = 0.5f),
+            contentColor = Color.White,
             shape = RoundedCornerShape(50),
-            shadowElevation = 4.dp,
-            tonalElevation = 0.dp
+            tonalElevation = 0.dp,
+            modifier = Modifier.alpha(buttonAlpha)
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),

@@ -35,12 +35,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import io.github.aedev.flow.data.model.SponsorBlockSegment
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.dp
@@ -114,98 +115,88 @@ fun SeekbarWithPreview(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(if (edgeAligned) 20.dp else trackHeight)
-                .graphicsLayer {
-                    compositingStrategy = CompositingStrategy.Offscreen
-                }
         ) {
             val trackHeightPx = trackHeight.toPx()
             val width = size.width
             val trackTop = if (edgeAligned) size.height - trackHeightPx else 0f
+            val trackBottom = trackTop + trackHeightPx
             val trackCenterY = trackTop + trackHeightPx / 2f
+            val capRadius = CornerRadius(trackHeightPx / 2f)
 
-            // Draw inactive track (background)
-            drawRoundRect(
-                color = trackColor,
-                topLeft = Offset(0f, trackTop),
-                size = Size(width, trackHeightPx),
-                cornerRadius = CornerRadius(trackHeightPx / 2)
-            )
-
-            // Draw buffer track (the NewPipe feature)
-            if (bufferedValue > 0f) {
-                val bufferWidth = width * bufferedValue.coerceIn(0f, 1f)
-                drawRoundRect(
-                    color = bufferedTrackColor,
-                    topLeft = Offset(0f, trackTop),
-                    size = Size(bufferWidth, trackHeightPx),
-                    cornerRadius = CornerRadius(trackHeightPx / 2)
-                )
+            val gapWidth = if (isInteracting) 5.dp.toPx() else 4.dp.toPx()
+            val boundaries = if (chapters.isNotEmpty() && duration > 0) {
+                chapters.asSequence()
+                    .map { it.startTimeSeconds }
+                    .filter { it > 0 }
+                    .map { (it * 1000f) / duration.toFloat() }
+                    .filter { it in 0f..1f }
+                    .map { it * width }
+                    .sorted()
+                    .toList()
+            } else {
+                emptyList()
             }
 
-            // Draw active track (progress)
-            val activeWidth = width * internalValue
-            drawRoundRect(
-                color = primaryColor,
-                topLeft = Offset(0f, trackTop),
-                size = Size(activeWidth, trackHeightPx),
-                cornerRadius = CornerRadius(trackHeightPx / 2)
-            )
-
-            // Draw SponsorBlock segments above progress so they remain visible after playback passes them.
-            if (duration > 0) {
-                sponsorSegments.forEach { segment ->
-                     val startRatio = (segment.startTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
-                     val endRatio = (segment.endTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
-
-                     if (endRatio > startRatio) {
-                         val startX = startRatio * width
-                         val endX = endRatio * width
-                         val segWidth = endX - startX
-
-                         val segmentColor = when (segment.category) {
-                             "sponsor" -> Color(0xFF00D100) // Green
-                             "selfpromo" -> Color(0xFFFFFF00) // Yellow
-                             "interaction" -> Color(0xFFFF00FF) // Magenta
-                             "intro" -> Color(0xFF00FFFF) // Cyan
-                             "outro" -> Color(0xFF00FFFF) // Cyan
-                             "music_offtopic" -> Color(0xFFFF8000) // Orange
-                             else -> Color(0xFF00D100)
-                         }.copy(alpha = 0.78f)
-
-                         drawRoundRect(
-                             color = segmentColor,
-                             topLeft = Offset(startX, trackTop),
-                             size = Size(segWidth, trackHeightPx),
-                             cornerRadius = CornerRadius(trackHeightPx / 2)
-                         )
-                     }
+            val trackPath = Path().apply {
+                var segStart = 0f
+                for (boundary in boundaries) {
+                    val segEnd = boundary - gapWidth / 2f
+                    if (segEnd > segStart) {
+                        addRoundRect(RoundRect(Rect(segStart, trackTop, segEnd, trackBottom), capRadius))
+                    }
+                    segStart = (boundary + gapWidth / 2f).coerceAtMost(width)
+                }
+                if (width > segStart) {
+                    addRoundRect(RoundRect(Rect(segStart, trackTop, width, trackBottom), capRadius))
                 }
             }
 
-            // Cut transparent chapter gaps through every painted layer.
-            if (chapters.isNotEmpty() && duration > 0) {
-                val gapWidth = if (isInteracting) 4.dp.toPx() else 3.dp.toPx()
+            clipPath(trackPath) {
+                drawRect(
+                    color = trackColor,
+                    topLeft = Offset(0f, trackTop),
+                    size = Size(width, trackHeightPx)
+                )
 
-                chapters.forEach { chapter ->
-                    if (chapter.startTimeSeconds > 0) {
-                        val chapterStartMs = chapter.startTimeSeconds * 1000
-                        val chapterProgress = chapterStartMs.toFloat() / duration.toFloat()
+                if (bufferedValue > 0f) {
+                    drawRect(
+                        color = bufferedTrackColor,
+                        topLeft = Offset(0f, trackTop),
+                        size = Size(width * bufferedValue.coerceIn(0f, 1f), trackHeightPx)
+                    )
+                }
 
-                        if (chapterProgress in 0f..1f) {
-                            val gapX = width * chapterProgress
+                // Active track (progress)
+                drawRect(
+                    color = primaryColor,
+                    topLeft = Offset(0f, trackTop),
+                    size = Size(width * internalValue, trackHeightPx)
+                )
 
-                            drawRoundRect(
-                                color = Color.Transparent,
-                                topLeft = Offset(
-                                    x = (gapX - gapWidth / 2f).coerceIn(0f, (width - gapWidth).coerceAtLeast(0f)),
-                                    y = trackTop
-                                ),
-                                size = Size(
-                                    width = gapWidth.coerceAtMost(width),
-                                    height = trackHeightPx
-                                ),
-                                cornerRadius = CornerRadius(gapWidth / 2f),
-                                blendMode = BlendMode.Clear
+                // SponsorBlock segments above progress so they remain visible after playback passes them.
+                if (duration > 0) {
+                    sponsorSegments.forEach { segment ->
+                        val startRatio = (segment.startTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
+                        val endRatio = (segment.endTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
+
+                        if (endRatio > startRatio) {
+                            val startX = startRatio * width
+                            val segWidth = (endRatio * width) - startX
+
+                            val segmentColor = when (segment.category) {
+                                "sponsor" -> Color(0xFF00D100) // Green
+                                "selfpromo" -> Color(0xFFFFFF00) // Yellow
+                                "interaction" -> Color(0xFFFF00FF) // Magenta
+                                "intro" -> Color(0xFF00FFFF) // Cyan
+                                "outro" -> Color(0xFF00FFFF) // Cyan
+                                "music_offtopic" -> Color(0xFFFF8000) // Orange
+                                else -> Color(0xFF00D100)
+                            }.copy(alpha = 0.78f)
+
+                            drawRect(
+                                color = segmentColor,
+                                topLeft = Offset(startX, trackTop),
+                                size = Size(segWidth, trackHeightPx)
                             )
                         }
                     }

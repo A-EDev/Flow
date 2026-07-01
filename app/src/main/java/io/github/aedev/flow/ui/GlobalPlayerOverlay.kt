@@ -498,23 +498,10 @@ fun GlobalPlayerOverlay(
     // ===== UI =====
     val isMinimized = playerSheetState.fraction > 0.5f
     val density = LocalDensity.current
-    val controlsOverlayVisible =
-        !playerUiState.isUpcoming &&
-            !isMinimized &&
-            !localIsInPipMode &&
-            (screenState.showControls || screenState.isTouchLocked || !screenState.isFullscreen)
     val floatingSponsorSkipBottomPadding = if (isLandscape && !isTablet) {
-        if (controlsOverlayVisible) {
-            maxOf(sponsorSkipBottomInset + 220.dp, 232.dp)
-        } else {
-            maxOf(sponsorSkipBottomInset + 96.dp, 104.dp)
-        }
+        maxOf(sponsorSkipBottomInset + 128.dp, 136.dp)
     } else {
-        if (controlsOverlayVisible) {
-            maxOf(sponsorSkipBottomInset + 116.dp, 124.dp)
-        } else {
-            maxOf(sponsorSkipBottomInset + 80.dp, 80.dp)
-        }
+        maxOf(sponsorSkipBottomInset + 116.dp, 124.dp)
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -877,7 +864,7 @@ fun GlobalPlayerOverlay(
                         
                         // Controls overlay - fully expanded only
                         var showRemainingTime by rememberSaveable { mutableStateOf(false) }
-                        if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode && (screenState.showControls || screenState.isTouchLocked || !screenState.isFullscreen)) {
+                        if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode) {
                             PremiumControlsOverlay(
                                 isVisible = screenState.showControls || screenState.isTouchLocked,
                                 isPlaying = playerState.playWhenReady,
@@ -1125,6 +1112,7 @@ fun GlobalPlayerOverlay(
                     sponsorSegments = sponsorSegments,
                     currentPositionMs = screenState.currentPosition,
                     categoryActions = EnhancedPlayerManager.getInstance().sbCategoryActions,
+                    controlsVisible = screenState.showControls,
                     onSkipClick = { endPositionMs ->
                         EnhancedPlayerManager.getInstance().seekTo(endPositionMs)
                     },

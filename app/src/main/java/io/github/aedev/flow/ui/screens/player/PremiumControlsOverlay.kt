@@ -54,7 +54,8 @@ private const val LIVE_SCRUB_IMMEDIATE_DELTA_MS = 750L
 private val OverlayActionButtonSize = 40.dp
 private val OverlayActionIconSize = 24.dp
 private val OverlayActionSpacing = 8.dp
-private val OverlayPillHeight = 32.dp
+private val OverlayPillHeight = 28.dp
+private val OverlayExpandIconSize = 18.dp
 private val OverlayControlRowMinHeight = 44.dp
 
 // How long the lock-mode unlock affordance stays on screen before it auto-hides
@@ -198,9 +199,10 @@ fun PremiumControlsOverlay(
         initial = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
     )
     val fullscreenSeekbarBottomPadding = if (isFullscreen) 30.dp else 0.dp
-    val topControlHorizontalPadding = if (isFullscreen) 56.dp else 20.dp
+    val portraitControlHorizontalPadding = 12.dp
+    val topControlHorizontalPadding = if (isFullscreen) 56.dp else portraitControlHorizontalPadding
     val topControlVerticalPadding = if (isFullscreen) 8.dp else 4.dp
-    val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 10.dp
+    val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else portraitControlHorizontalPadding
     val bottomControlsSeekbarOverlap = 0.dp
     val seekbarHorizontalPadding = if (isFullscreen) fullscreenSeekbarHorizontalPaddingDp.dp else 0.dp
     val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
@@ -221,10 +223,8 @@ fun PremiumControlsOverlay(
     ) {
         AnimatedVisibility(
             visible = isVisible,
-            enter = fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.985f),
-            exit = fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                scaleOut(animationSpec = tween(180, easing = FastOutSlowInEasing), targetScale = 0.985f),
+            enter = fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)),
+            exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)),
             modifier = Modifier.matchParentSize()
         ) {
             Box(
@@ -640,10 +640,10 @@ fun PremiumControlsOverlay(
                         // Time Pill
                         Surface(
                             color = Color.Black.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier
                                 .height(OverlayPillHeight)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(CircleShape)
                                 .clickable { if (isLive) onLiveClick() else onToggleRemainingTime() }
                         ) {
                             Row(
@@ -717,10 +717,10 @@ fun PremiumControlsOverlay(
                         if (currentChapter != null) {
                             Surface(
                                 color = Color.Black.copy(alpha = 0.4f),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = CircleShape,
                                 modifier = Modifier
                                     .height(OverlayPillHeight)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(CircleShape)
                                     .clickable { onChapterClick() }
                             ) {
                                 Row(
@@ -765,7 +765,7 @@ fun PremiumControlsOverlay(
                             ) {
                                 Box(
                                     contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(horizontal = 14.dp)
+                                    modifier = Modifier.padding(horizontal = 12.dp)
                                 ) {
                                     Text(
                                         text = compactQualityLabel,
@@ -780,7 +780,7 @@ fun PremiumControlsOverlay(
 
                         Box(
                             modifier = Modifier
-                                .size(OverlayActionButtonSize)
+                                .size(OverlayPillHeight)
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(alpha = 0.4f))
                                 .clickable(onClick = onFullscreenClick),
@@ -790,7 +790,7 @@ fun PremiumControlsOverlay(
                                 imageVector = if (isFullscreen) Icons.Rounded.CloseFullscreen else Icons.Rounded.OpenInFull,
                                 contentDescription = stringResource(R.string.fullscreen),
                                 tint = Color.White,
-                                modifier = Modifier.size(OverlayActionIconSize)
+                                modifier = Modifier.size(OverlayExpandIconSize)
                             )
                         }
                     }
