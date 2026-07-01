@@ -2042,6 +2042,26 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    fun skipToSegmentEnd(endPositionMs: Long) {
+        val p = player ?: return
+        val isLive = currentIsLiveStream || p.isCurrentMediaItemLive
+        if (!isLive && mediaLoader?.getActiveSabrOrchestrator() != null) {
+            sabrSeekTo(resolveSeekTarget(p, endPositionMs))
+            return
+        }
+        val target = resolveSeekTarget(p, endPositionMs)
+        p.setSeekParameters(SeekParameters.EXACT)
+        if (isLive) {
+            markLiveDisplaySeek(target)
+        }
+        p.seekTo(target)
+        if (isLive) {
+            updateLiveEdgeState(p)
+        } else {
+            p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+        }
+    }
+
     private fun sabrSeekTo(positionMs: Long) {
         val shouldPlay = player?.playWhenReady ?: true
         Log.d(TAG, "SABR seek: rebuilding session at ${positionMs}ms")

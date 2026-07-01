@@ -254,6 +254,7 @@
     <string name="tags">Tags</string>
     <string name="in_this_video">In this video</string>
     <string name="sb_manual_skip">Skip</string>
+    <string name="sb_skip_segment">Skip %1$s</string>
     <string name="ago">Ago</string>
     <string name="since">Since</string>
     <string name="add_to_playlist">Add to playlist</string>

@@ -5,9 +5,11 @@ import android.os.Build
 import android.os.Bundle
 import android.app.AlertDialog
 import android.content.Context
+import android.media.AudioManager
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
@@ -495,6 +497,40 @@ class MainActivity : ComponentActivity() {
         videoLifecycleLog("onResume")
         pendingAutoPip = false
         pipDismissCheckJob?.cancel()
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (
+            (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) &&
+            io.github.aedev.flow.player.PlayerHardwareController.fullscreenVideoActive.value
+        ) {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            if (audioManager != null) {
+                val direction = if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                    AudioManager.ADJUST_RAISE
+                } else {
+                    AudioManager.ADJUST_LOWER
+                }
+                audioManager.adjustStreamVolume(
+                    AudioManager.STREAM_MUSIC,
+                    direction,
+                    0
+                )
+                io.github.aedev.flow.player.PlayerHardwareController.notifyVolumeKey()
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (
+            (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) &&
+            io.github.aedev.flow.player.PlayerHardwareController.fullscreenVideoActive.value
+        ) {
+            return true
+        }
+        return super.onKeyUp(keyCode, event)
     }
 
     override fun onStop() {

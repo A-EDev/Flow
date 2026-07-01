@@ -42,6 +42,8 @@ IMPROVEMENTS
 - Add comment drawer in landscape #644
 - Video Quality selection menu redesign #660
 - Improve upcoming videos reminder #470
+- Improve volume gesture and rotation handling
+- Improve Theme color schemes
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

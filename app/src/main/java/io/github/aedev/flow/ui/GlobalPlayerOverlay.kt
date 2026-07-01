@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui
 
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.media.AudioManager
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -52,6 +53,7 @@ import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.PlayerHardwareController
 import io.github.aedev.flow.ui.components.DraggablePlayerLayout
 import io.github.aedev.flow.ui.components.PlayerDraggableState
 import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
@@ -177,6 +179,34 @@ fun GlobalPlayerOverlay(
         if (!allowVolumeBoost && screenState.volumeLevel > 1f) {
             screenState.volumeLevel = 1f
             EnhancedPlayerManager.getInstance().setVolumeBoost(1f)
+        }
+    }
+
+    val syncVolumeFromSystem: () -> Unit = {
+        val max = audioSystemInfo.maxVolume
+        if (max > 0) {
+            val systemVolume = audioSystemInfo.audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            screenState.volumeLevel = (systemVolume.toFloat() / max).coerceIn(0f, 1f)
+            EnhancedPlayerManager.getInstance().setVolumeBoost(1f)
+        }
+    }
+
+    LaunchedEffect(video.id) {
+        syncVolumeFromSystem()
+    }
+
+    LaunchedEffect(screenState.isFullscreen) {
+        PlayerHardwareController.setFullscreenVideoActive(screenState.isFullscreen)
+    }
+    DisposableEffect(Unit) {
+        onDispose { PlayerHardwareController.setFullscreenVideoActive(false) }
+    }
+
+    val volumeKeySignal by PlayerHardwareController.volumeKeySignal.collectAsState()
+    LaunchedEffect(volumeKeySignal) {
+        if (volumeKeySignal > 0L) {
+            syncVolumeFromSystem()
+            screenState.showVolumeOverlay = true
         }
     }
 
@@ -520,10 +550,10 @@ fun GlobalPlayerOverlay(
     // ===== UI =====
     val isMinimized = playerSheetState.fraction > 0.5f
     val density = LocalDensity.current
-    val floatingSponsorSkipBottomPadding = if (isLandscape && !isTablet) {
+    val floatingSponsorSkipBottomPadding = if (screenState.isFullscreen) {
         maxOf(sponsorSkipBottomInset + 128.dp, 136.dp)
     } else {
-        maxOf(sponsorSkipBottomInset + 116.dp, 124.dp)
+        56.dp
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -682,9 +712,10 @@ fun GlobalPlayerOverlay(
                             isFullscreen = screenState.isFullscreen,
                             onBrightnessChange = updateBrightnessLevel,
                             onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
-                            onVolumeChange = { 
-                                screenState.volumeLevel = it 
-                                EnhancedPlayerManager.getInstance().setVolumeBoost(it)
+                            onVolumeChange = { level ->
+                                screenState.volumeLevel = level
+                                EnhancedPlayerManager.getInstance()
+                                    .setVolumeBoost(if (level > 1f) level else 1f)
                             },
                             onShowVolumeChange = { screenState.showVolumeOverlay = it },
                             onBack = { 
@@ -1134,11 +1165,16 @@ fun GlobalPlayerOverlay(
         )
 
         if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode) {
+            val sponsorLayerModifier = if (screenState.isFullscreen || expandedPlayerBottom <= 0.dp) {
+                Modifier.fillMaxHeight()
+            } else {
+                Modifier.height(expandedPlayerBottom)
+            }
             Box(
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
+                    .align(Alignment.TopStart)
                     .width(fullscreenPlayerWidth)
-                    .fillMaxHeight()
+                    .then(sponsorLayerModifier)
                     .zIndex(3f)
             ) {
                 SponsorBlockSkipButton(
@@ -1147,7 +1183,7 @@ fun GlobalPlayerOverlay(
                     categoryActions = EnhancedPlayerManager.getInstance().sbCategoryActions,
                     controlsVisible = screenState.showControls,
                     onSkipClick = { endPositionMs ->
-                        EnhancedPlayerManager.getInstance().seekTo(endPositionMs)
+                        EnhancedPlayerManager.getInstance().skipToSegmentEnd(endPositionMs)
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)

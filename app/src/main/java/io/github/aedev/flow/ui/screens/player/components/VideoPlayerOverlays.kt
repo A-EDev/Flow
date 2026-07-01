@@ -341,6 +341,19 @@ fun SpeedBoostOverlay(
 private const val SB_SKIP_DIM_DELAY_MS = 5_000L
 private const val SB_SKIP_DIMMED_ALPHA = 0.45f
 
+private fun sbCategoryLabelRes(category: String): Int? = when (category) {
+    "sponsor" -> R.string.sb_category_sponsor
+    "selfpromo" -> R.string.sb_category_selfpromo
+    "interaction" -> R.string.sb_category_interaction
+    "intro" -> R.string.sb_category_intro
+    "outro" -> R.string.sb_category_outro
+    "music_offtopic" -> R.string.sb_category_music_offtopic
+    "filler" -> R.string.sb_category_filler
+    "preview" -> R.string.sb_category_preview
+    "exclusive_access" -> R.string.sb_category_exclusive_access
+    else -> null
+}
+
 /**
  * Overlay button that lets the user manually skip a SponsorBlock segment.
  */
@@ -353,10 +366,13 @@ fun SponsorBlockSkipButton(
     onSkipClick: (endPositionMs: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val activeSegment = remember(sponsorSegments, currentPositionMs) {
+    var skippedUuids by remember(sponsorSegments) { mutableStateOf(emptySet<String>()) }
+
+    val activeSegment = remember(sponsorSegments, currentPositionMs, skippedUuids) {
         val posSec = currentPositionMs / 1000f
         sponsorSegments.find { seg ->
             posSec >= seg.startTime && posSec < seg.endTime &&
+                seg.uuid !in skippedUuids &&
                 (categoryActions[seg.category] ?: SponsorBlockAction.SKIP) != SponsorBlockAction.SKIP
         }
     }
@@ -390,8 +406,17 @@ fun SponsorBlockSkipButton(
         modifier = modifier
     ) {
         val seg = displaySegment ?: return@AnimatedVisibility
+        val categoryRes = sbCategoryLabelRes(seg.category)
+        val skipLabel = if (categoryRes != null) {
+            stringResource(R.string.sb_skip_segment, stringResource(categoryRes))
+        } else {
+            stringResource(R.string.sb_manual_skip)
+        }
         Surface(
-            onClick = { onSkipClick((seg.endTime * 1000L).toLong()) },
+            onClick = {
+                skippedUuids = skippedUuids + seg.uuid
+                onSkipClick((seg.endTime * 1000L).toLong())
+            },
             color = Color.Black.copy(alpha = 0.5f),
             contentColor = Color.White,
             shape = RoundedCornerShape(50),
@@ -404,10 +429,11 @@ fun SponsorBlockSkipButton(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.sb_manual_skip),
+                    text = skipLabel,
                     color = Color.White,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
                 )
                 Icon(
                     imageVector = Icons.Rounded.SkipNext,

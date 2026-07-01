@@ -12,7 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.graphics.ColorUtils
 
 enum class ThemeMode {
     LIGHT, DARK, OLED, SYSTEM, LAVENDER_MIST, OCEAN_BLUE, FOREST_GREEN, SUNSET_ORANGE, PURPLE_NEBULA, MIDNIGHT_BLACK,
@@ -67,6 +69,155 @@ val LocalExtendedColors = staticCompositionLocalOf {
         textSecondary = Color.Unspecified,
         border = Color.Unspecified,
         success = Color.Unspecified
+    )
+}
+
+private fun Color.adjust(
+    saturationFactor: Float = 1.0f,
+    lightnessFactor: Float = 1.0f,
+    lightnessOverride: Float? = null
+): Color {
+    val hsl = FloatArray(3)
+    ColorUtils.colorToHSL(this.toArgb(), hsl)
+    hsl[1] = (hsl[1] * saturationFactor).coerceIn(0.0f, 1.0f)
+    hsl[2] = lightnessOverride ?: (hsl[2] * lightnessFactor).coerceIn(0.0f, 1.0f)
+    return Color(ColorUtils.HSLToColor(hsl))
+}
+
+fun ColorScheme.complete(isDark: Boolean, isOled: Boolean = false): ColorScheme {
+    val primaryContainerColor = if (isDark) {
+        if (isOled) Color.Black else primary.adjust(saturationFactor = 0.45f, lightnessOverride = 0.15f)
+    } else {
+        primary.adjust(saturationFactor = 0.35f, lightnessOverride = 0.94f)
+    }
+    val onPrimaryContainerColor = if (isDark) {
+        primary.adjust(saturationFactor = 0.30f, lightnessOverride = 0.88f)
+    } else {
+        primary.adjust(saturationFactor = 0.90f, lightnessOverride = 0.15f)
+    }
+
+    val secondaryContainerColor = if (isDark) {
+        if (isOled) Color(0xFF161616) else secondary.adjust(saturationFactor = 0.40f, lightnessOverride = 0.14f)
+    } else {
+        secondary.adjust(saturationFactor = 0.30f, lightnessOverride = 0.94f)
+    }
+    val onSecondaryContainerColor = if (isDark) {
+        secondary.adjust(saturationFactor = 0.30f, lightnessOverride = 0.88f)
+    } else {
+        secondary.adjust(saturationFactor = 0.90f, lightnessOverride = 0.15f)
+    }
+
+    val tertiaryColor = if (tertiary == Color.Unspecified || tertiary == primary) {
+        val hsl = FloatArray(3)
+        ColorUtils.colorToHSL(primary.toArgb(), hsl)
+        hsl[0] = (hsl[0] + 60f) % 360f // Shift by 60 degrees for analogous/complementary balance
+        Color(ColorUtils.HSLToColor(hsl))
+    } else {
+        tertiary
+    }
+    
+    val tertiaryContainerColor = if (isDark) {
+        if (isOled) Color.Black else tertiaryColor.adjust(saturationFactor = 0.40f, lightnessOverride = 0.14f)
+    } else {
+        tertiaryColor.adjust(saturationFactor = 0.30f, lightnessOverride = 0.94f)
+    }
+    val onTertiaryContainerColor = if (isDark) {
+        tertiaryColor.adjust(saturationFactor = 0.30f, lightnessOverride = 0.88f)
+    } else {
+        tertiaryColor.adjust(saturationFactor = 0.90f, lightnessOverride = 0.15f)
+    }
+
+    val errorContainerColor = if (isDark) {
+        error.adjust(saturationFactor = 0.40f, lightnessOverride = 0.15f)
+    } else {
+        error.adjust(saturationFactor = 0.30f, lightnessOverride = 0.94f)
+    }
+    val onErrorContainerColor = if (isDark) {
+        error.adjust(saturationFactor = 0.30f, lightnessOverride = 0.88f)
+    } else {
+        error.adjust(saturationFactor = 0.90f, lightnessOverride = 0.15f)
+    }
+
+    val surfaceVariantColor = if (isDark) {
+        if (isOled) Color(0xFF0C0C0C) else surface.adjust(lightnessOverride = 0.12f)
+    } else {
+        surface.adjust(saturationFactor = 0.10f, lightnessOverride = 0.92f)
+    }
+    val onSurfaceVariantColor = if (isDark) {
+        onSurface.adjust(lightnessOverride = 0.75f)
+    } else {
+        onSurface.adjust(lightnessOverride = 0.35f)
+    }
+    
+    val outlineColor = if (isDark) {
+        surface.adjust(lightnessOverride = 0.38f)
+    } else {
+        surface.adjust(lightnessOverride = 0.50f)
+    }
+    val outlineVariantColor = if (isDark) {
+        surface.adjust(lightnessOverride = 0.22f)
+    } else {
+        surface.adjust(lightnessOverride = 0.85f)
+    }
+
+    val inverseSurfaceColor = if (isDark) {
+        Color.White
+    } else {
+        Color(0xFF1E1E1E)
+    }
+    val inverseOnSurfaceColor = if (isDark) {
+        Color(0xFF121212)
+    } else {
+        Color.White
+    }
+
+    val surfaceContainerLowestColor = if (isDark) Color.Black else Color.White
+    val surfaceContainerLowColor = if (isDark) {
+        if (isOled) Color(0xFF0A0A0A) else surface.adjust(lightnessOverride = 0.06f)
+    } else {
+        surface.adjust(lightnessOverride = 0.96f)
+    }
+    val surfaceContainerColor = if (isDark) {
+        if (isOled) Color(0xFF0F0F0F) else surface.adjust(lightnessOverride = 0.08f)
+    } else {
+        surface.adjust(lightnessOverride = 0.94f)
+    }
+    val surfaceContainerHighColor = if (isDark) {
+        if (isOled) Color(0xFF161616) else surface.adjust(lightnessOverride = 0.10f)
+    } else {
+        surface.adjust(lightnessOverride = 0.92f)
+    }
+    val surfaceContainerHighestColor = if (isDark) {
+        if (isOled) Color(0xFF202020) else surface.adjust(lightnessOverride = 0.14f)
+    } else {
+        surface.adjust(lightnessOverride = 0.90f)
+    }
+
+    return this.copy(
+        primaryContainer = primaryContainerColor,
+        onPrimaryContainer = onPrimaryContainerColor,
+        secondaryContainer = secondaryContainerColor,
+        onSecondaryContainer = onSecondaryContainerColor,
+        tertiary = tertiaryColor,
+        onTertiary = if (isDark) Color.Black else Color.White,
+        tertiaryContainer = tertiaryContainerColor,
+        onTertiaryContainer = onTertiaryContainerColor,
+        errorContainer = errorContainerColor,
+        onErrorContainer = onErrorContainerColor,
+        surfaceVariant = surfaceVariantColor,
+        onSurfaceVariant = onSurfaceVariantColor,
+        outline = outlineColor,
+        outlineVariant = outlineVariantColor,
+        inverseSurface = inverseSurfaceColor,
+        inverseOnSurface = inverseOnSurfaceColor,
+        inversePrimary = primary.adjust(lightnessOverride = if (isDark) 0.4f else 0.8f),
+        surfaceTint = primary,
+        scrim = Color.Black.copy(alpha = 0.32f),
+        surfaceContainerLowest = surfaceContainerLowestColor,
+        surfaceContainerLow = surfaceContainerLowColor,
+        surfaceContainer = surfaceContainerColor,
+        surfaceContainerHigh = surfaceContainerHighColor,
+        surfaceContainerHighest = surfaceContainerHighestColor
     )
 }
 
@@ -436,40 +587,39 @@ fun FlowTheme(
         systemLightThemeMode = systemLightThemeMode,
         systemDarkThemeMode = systemDarkThemeMode
     )
-
     val colorScheme = when (effectiveThemeMode) {
-        ThemeMode.LIGHT -> LightColorScheme
-        ThemeMode.DARK -> DarkColorScheme
-        ThemeMode.OLED -> OLEDColorScheme
-        ThemeMode.SYSTEM -> if (darkTheme) DarkColorScheme else LightColorScheme
-        ThemeMode.LAVENDER_MIST -> LavenderMistColorScheme
-        ThemeMode.OCEAN_BLUE -> OceanBlueColorScheme
-        ThemeMode.FOREST_GREEN -> ForestGreenColorScheme
-        ThemeMode.SUNSET_ORANGE -> SunsetOrangeColorScheme
-        ThemeMode.PURPLE_NEBULA -> PurpleNebulaColorScheme
-        ThemeMode.MIDNIGHT_BLACK -> MidnightBlackColorScheme
-        ThemeMode.ROSE_GOLD -> RoseGoldColorScheme
-        ThemeMode.ARCTIC_ICE -> ArcticIceColorScheme
-        ThemeMode.CRIMSON_RED -> CrimsonRedColorScheme
-        ThemeMode.MINTY_FRESH -> MintyFreshColorScheme
-        ThemeMode.COSMIC_VOID -> CosmicVoidColorScheme
-        ThemeMode.SOLAR_FLARE -> SolarFlareColorScheme
-        ThemeMode.CYBERPUNK -> CyberpunkColorScheme
-        ThemeMode.ROYAL_GOLD -> RoyalGoldColorScheme
-        ThemeMode.NORDIC_HORIZON -> NordicHorizonColorScheme
-        ThemeMode.ESPRESSO -> EspressoColorScheme
-        ThemeMode.GUNMETAL -> GunmetalColorScheme
-        ThemeMode.MINT_LIGHT -> MintLightColorScheme
-        ThemeMode.ROSE_LIGHT -> RoseLightColorScheme
-        ThemeMode.SKY_LIGHT -> SkyLightColorScheme
-        ThemeMode.CREAM_LIGHT -> CreamLightColorScheme
-        ThemeMode.MONOCHROME -> MonochromeColorScheme
-        ThemeMode.CUSTOM -> customThemeColorScheme(customThemeColors)
+        ThemeMode.LIGHT -> LightColorScheme.complete(isDark = false)
+        ThemeMode.DARK -> DarkColorScheme.complete(isDark = true)
+        ThemeMode.OLED -> OLEDColorScheme.complete(isDark = true, isOled = true)
+        ThemeMode.SYSTEM -> (if (darkTheme) DarkColorScheme else LightColorScheme).complete(isDark = darkTheme)
+        ThemeMode.LAVENDER_MIST -> LavenderMistColorScheme.complete(isDark = true)
+        ThemeMode.OCEAN_BLUE -> OceanBlueColorScheme.complete(isDark = true)
+        ThemeMode.FOREST_GREEN -> ForestGreenColorScheme.complete(isDark = true)
+        ThemeMode.SUNSET_ORANGE -> SunsetOrangeColorScheme.complete(isDark = true)
+        ThemeMode.PURPLE_NEBULA -> PurpleNebulaColorScheme.complete(isDark = true)
+        ThemeMode.MIDNIGHT_BLACK -> MidnightBlackColorScheme.complete(isDark = true, isOled = true)
+        ThemeMode.ROSE_GOLD -> RoseGoldColorScheme.complete(isDark = true)
+        ThemeMode.ARCTIC_ICE -> ArcticIceColorScheme.complete(isDark = true)
+        ThemeMode.CRIMSON_RED -> CrimsonRedColorScheme.complete(isDark = true)
+        ThemeMode.MINTY_FRESH -> MintyFreshColorScheme.complete(isDark = true)
+        ThemeMode.COSMIC_VOID -> CosmicVoidColorScheme.complete(isDark = true)
+        ThemeMode.SOLAR_FLARE -> SolarFlareColorScheme.complete(isDark = true)
+        ThemeMode.CYBERPUNK -> CyberpunkColorScheme.complete(isDark = true)
+        ThemeMode.ROYAL_GOLD -> RoyalGoldColorScheme.complete(isDark = true)
+        ThemeMode.NORDIC_HORIZON -> NordicHorizonColorScheme.complete(isDark = true)
+        ThemeMode.ESPRESSO -> EspressoColorScheme.complete(isDark = true)
+        ThemeMode.GUNMETAL -> GunmetalColorScheme.complete(isDark = true)
+        ThemeMode.MINT_LIGHT -> MintLightColorScheme.complete(isDark = false)
+        ThemeMode.ROSE_LIGHT -> RoseLightColorScheme.complete(isDark = false)
+        ThemeMode.SKY_LIGHT -> SkyLightColorScheme.complete(isDark = false)
+        ThemeMode.CREAM_LIGHT -> CreamLightColorScheme.complete(isDark = false)
+        ThemeMode.MONOCHROME -> MonochromeColorScheme.complete(isDark = true)
+        ThemeMode.CUSTOM -> customThemeColorScheme(customThemeColors).complete(isDark = true)
         ThemeMode.MATERIAL_YOU -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             } else {
-                if (darkTheme) DarkColorScheme else LightColorScheme
+                (if (darkTheme) DarkColorScheme else LightColorScheme).complete(isDark = darkTheme)
             }
         }
     }
@@ -603,6 +753,7 @@ fun FlowTheme(
     CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
         MaterialTheme(
             colorScheme = colorScheme,
+            typography = Typography,
             content = content
         )
     }

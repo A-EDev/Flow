@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player.effects
 import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
@@ -442,7 +443,7 @@ fun GestureOverlayAutoHideEffect(
     }
     
     // Volume overlay auto-hide
-    LaunchedEffect(screenState.showVolumeOverlay) {
+    LaunchedEffect(screenState.showVolumeOverlay, screenState.volumeLevel) {
         if (screenState.showVolumeOverlay) {
             delay(1000)
             screenState.showVolumeOverlay = false
@@ -478,6 +479,7 @@ fun FullscreenEffect(
     suppressFullscreenRequest: Boolean = false
 ) {
     var resumeTrigger by remember { mutableIntStateOf(0) }
+    var forcePortraitLock by remember { mutableStateOf(false) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) resumeTrigger++
@@ -491,6 +493,7 @@ fun FullscreenEffect(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && act.isInPictureInPictureMode) return@let
             if (suppressFullscreenRequest && isFullscreen) return@let
             if (isFullscreen) {
+                forcePortraitLock = false
                 val orientation = if (videoAspectRatio < 1f) {
                     ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                 } else {
@@ -513,9 +516,23 @@ fun FullscreenEffect(
                     act.window.attributes = layoutParams
                 }
             } else {
-                // Return to unspecified mode when exiting fullscreen
-                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                
+                val cfgLandscape =
+                    act.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                val autoRotateOn = try {
+                    Settings.System.getInt(
+                        act.contentResolver,
+                        Settings.System.ACCELEROMETER_ROTATION
+                    ) == 1
+                } catch (e: Exception) { false }
+
+                if (cfgLandscape && autoRotateOn) {
+                    act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    forcePortraitLock = true
+                } else {
+                    act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    forcePortraitLock = false
+                }
+
                 // Reset screen brightness to default when exiting fullscreen
                 val layoutParams = act.window.attributes
                 layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
@@ -525,6 +542,25 @@ fun FullscreenEffect(
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
+        }
+    }
+
+    val lockActivity = activity
+    if (forcePortraitLock && lockActivity != null) {
+        DisposableEffect(lockActivity) {
+            val listener = object : OrientationEventListener(lockActivity) {
+                override fun onOrientationChanged(orientation: Int) {
+                    if (orientation == ORIENTATION_UNKNOWN) return
+                    val physicallyPortrait =
+                        orientation in 0..30 || orientation in 330..359 || orientation in 150..210
+                    if (physicallyPortrait) {
+                        lockActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                        forcePortraitLock = false
+                    }
+                }
+            }
+            listener.enable()
+            onDispose { listener.disable() }
         }
     }
 }

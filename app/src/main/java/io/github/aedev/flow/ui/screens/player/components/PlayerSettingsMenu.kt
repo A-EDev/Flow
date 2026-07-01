@@ -120,7 +120,7 @@ fun SettingsMenuDialog(
     }
 
     LaunchedEffect(expandedHeightPx) {
-        isAnimatingOut = false
+        if (isAnimatingOut) return@LaunchedEffect
         sheetHeightPx.updateBounds(lowerBound = 0f, upperBound = expandedHeightPx)
         if (!enableVerticalDismiss) {
             sheetHeightPx.snapTo(expandedHeightPx)
@@ -375,14 +375,14 @@ fun SettingsMenuDialog(
                     currentQualityKey = playerState.currentQualityKey,
                     onQualitySelected = {
                         onQualitySelected(it)
-                        currentPage = PlayerSettingsPage.Main
+                        animateToDismiss()
                     }
                 )
                 PlayerSettingsPage.Speed -> PlayerSettingsSpeedPage(
                     currentSpeed = playerState.playbackSpeed,
                     onSpeedSelected = {
                         onSpeedSelected(it)
-                        currentPage = PlayerSettingsPage.Main
+                        animateToDismiss()
                     }
                 )
                 PlayerSettingsPage.Audio -> PlayerSettingsAudioPage(
@@ -390,7 +390,7 @@ fun SettingsMenuDialog(
                     currentAudioTrack = playerState.currentAudioTrack,
                     onTrackSelected = {
                         onAudioTrackSelected(it)
-                        currentPage = PlayerSettingsPage.Main
+                        animateToDismiss()
                     }
                 )
                 PlayerSettingsPage.Subtitles -> PlayerSettingsSubtitlesPage(
@@ -399,11 +399,11 @@ fun SettingsMenuDialog(
                     subtitlesEnabled = subtitlesEnabled,
                     onSubtitleSelected = { index, url ->
                         onSubtitleSelected(index, url)
-                        currentPage = PlayerSettingsPage.Main
+                        animateToDismiss()
                     },
                     onDisableSubtitles = {
                         onDisableSubtitles()
-                        currentPage = PlayerSettingsPage.Main
+                        animateToDismiss()
                     },
                     onShowStyleCustomizer = {
                         currentPage = PlayerSettingsPage.Main
