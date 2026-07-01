@@ -1785,4 +1785,10 @@
     <string name="sync_error_qr_wrong_version">إصدار التطبيق غير متوافق على الجهاز الآخر.</string>
     <string name="sync_error_qr_not_flow">لا يبدو هذا كرمز مزامنة Flow.</string>
     <string name="sync_error_qr_bad_address">رمز المزامنة يفتقر إلى عنوان شبكة صالح.</string>
+    <string name="upcoming_video_starts_in">يبدأ خلال</string>
+    <string name="player_settings_header_video">فيديو</string>
+    <string name="default_download_codec_label">برنامج الترميز الفتراضي للتنزيل</string>
+    <string name="default_download_codec_auto_subtitle">يستخدم آخر اختيار لك أو برنامج الترميز الخاص بالفيديو الحالي</string>
+    <string name="player_settings_overlay_comments">زر التعليقات</string>
+    <string name="player_settings_overlay_comments_subtitle">اعرض زر التعليقات في مشغل ملء الشاشة لفتح التعليقات في لوحة جانبية</string>
 </resources>
