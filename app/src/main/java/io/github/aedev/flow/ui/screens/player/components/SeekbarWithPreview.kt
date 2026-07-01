@@ -108,13 +108,13 @@ fun SeekbarWithPreview(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(if (edgeAligned) 20.dp else 32.dp),
+                .height(if (edgeAligned) 14.dp else 32.dp),
             contentAlignment = if (edgeAligned) Alignment.BottomCenter else Alignment.Center
         ) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(if (edgeAligned) 20.dp else trackHeight)
+                .height(if (edgeAligned) 14.dp else trackHeight)
         ) {
             val trackHeightPx = trackHeight.toPx()
             val width = size.width

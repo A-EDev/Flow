@@ -57,6 +57,7 @@ private val OverlayActionSpacing = 8.dp
 private val OverlayPillHeight = 28.dp
 private val OverlayExpandIconSize = 18.dp
 private val OverlayControlRowMinHeight = 44.dp
+private val OverlayActionIconInset = (OverlayActionButtonSize - OverlayActionIconSize) / 2f
 
 // How long the lock-mode unlock affordance stays on screen before it auto-hides
 // for a clean, unobstructed locked view. A single tap re-reveals it (see issue #619).
@@ -203,12 +204,12 @@ fun PremiumControlsOverlay(
         initial = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
     )
     val fullscreenSeekbarBottomPadding = if (isFullscreen) 30.dp else 0.dp
-    val portraitControlHorizontalPadding = 12.dp
-    val topControlHorizontalPadding = if (isFullscreen) 56.dp else portraitControlHorizontalPadding
+    val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 12.dp
+    val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
     val topControlVerticalPadding = if (isFullscreen) 8.dp else 4.dp
-    val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else portraitControlHorizontalPadding
     val bottomControlsSeekbarOverlap = 0.dp
     val seekbarHorizontalPadding = if (isFullscreen) fullscreenSeekbarHorizontalPaddingDp.dp else 0.dp
+    val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
     val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
     val compactQualityLabel = remember(qualityLabel) { qualityLabel?.toCompactQualityLabel() }
     val speedIndicatorLabel = remember(playbackSpeed) { VideoPlayerUtils.formatSpeedLabel(playbackSpeed) }
@@ -320,7 +321,7 @@ fun PremiumControlsOverlay(
                             imageVector = Icons.Rounded.KeyboardArrowDown,
                             contentDescription = stringResource(R.string.btn_minimize),
                             tint = Color.White,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(OverlayActionIconSize)
                         )
                     }
 
@@ -624,7 +625,7 @@ fun PremiumControlsOverlay(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = OverlayControlRowMinHeight)
+                        .heightIn(min = pillsRowMinHeight)
                         .zIndex(1f)
                         .offset(y = bottomControlsSeekbarOverlap)
                         .padding(
@@ -899,12 +900,13 @@ fun PremiumControlsOverlay(
         }
         }
 
-        if (!isVisible && !isFullscreen && !isInitialLoading && !isTouchLocked) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-            ) {
+        AnimatedVisibility(
+            visible = !isVisible && !isFullscreen && !isInitialLoading && !isTouchLocked,
+            enter = fadeIn(tween(300, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(350, easing = FastOutSlowInEasing)),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
                 if (isLive && duration <= 0L) {
                     Box(
                         modifier = Modifier
