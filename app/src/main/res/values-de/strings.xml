@@ -1036,4 +1036,10 @@
     <string name="import_flow_backup_item_title">Flow-Backup importieren</string>
     <string name="import_flow_backup_desc">Stellen Sie Ihren Verlauf, Ihre Einstellungen und Ihre Abonnements aus einer Flow-Backup wieder her.</string>
     <string name="import_from_newpipe">Aus NewPipe importieren</string>
+    <string name="player_settings_display">Anzeige</string>
+    <string name="sleep_timer_stops_in">Schaltet sich nach</string>
+    <string name="days_count_template">%1$d Tage</string>
+    <string name="import_data_title">Daten importieren</string>
+    <string name="import_from_newpipe_desc">NewPipe-Exportdatei (JSON).</string>
+    <string name="import_from_libretube">Aus LibreTube importieren</string>
 </resources>
