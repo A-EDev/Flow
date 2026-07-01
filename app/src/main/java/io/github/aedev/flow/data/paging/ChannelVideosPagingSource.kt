@@ -116,7 +116,9 @@ class ChannelVideosPagingSource(
             duration = this.duration.toInt().coerceAtLeast(0),
             uploadDate = displayUploadDate,
             timestamp = uploadTimestamp,
-            description = ""
+            description = "",
+            isUpcoming = this.streamType == org.schabi.newpipe.extractor.stream.StreamType.NONE,
+            isLive = this.streamType == org.schabi.newpipe.extractor.stream.StreamType.LIVE_STREAM
         )
     }
     

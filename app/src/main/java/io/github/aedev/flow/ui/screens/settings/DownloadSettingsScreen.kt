@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.RocketLaunch
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material.icons.outlined.VideoSettings
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,6 +50,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoQuality
+import io.github.aedev.flow.data.local.VideoCodec
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -73,12 +75,14 @@ fun DownloadSettingsScreen(
     val threadCount by preferences.downloadThreads.collectAsState(initial = 3)
     val wifiOnly by preferences.downloadOverWifiOnly.collectAsState(initial = false)
     val defaultQuality by preferences.defaultDownloadQuality.collectAsState(initial = VideoQuality.Q_720p)
+    val defaultCodec by preferences.defaultDownloadCodec.collectAsState(initial = VideoCodec.AUTO)
     val downloadLocation by preferences.downloadLocation.collectAsState(initial = null)
     val musicDownloadLocation by preferences.musicDownloadLocation.collectAsState(initial = null)
-    
+
     // Dialog states
     var showThreadDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
+    var showCodecDialog by remember { mutableStateOf(false) }
     var locationDialogTarget by remember { mutableStateOf<DownloadLocationTarget?>(null) }
 
     // Permission states (Android 11+ only)
@@ -449,6 +453,16 @@ fun DownloadSettingsScreen(
                         Modifier.padding(start = 56.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
+                    SettingsItem(
+                        icon = Icons.Outlined.VideoSettings,
+                        title = stringResource(R.string.default_download_codec_label),
+                        subtitle = defaultCodec.label,
+                        onClick = { showCodecDialog = true }
+                    )
+                    HorizontalDivider(
+                        Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Wifi,
                         title = stringResource(R.string.download_over_wifi_only),
@@ -594,10 +608,71 @@ fun DownloadSettingsScreen(
                     }
                 }
             },
-            confirmButton = { 
-                TextButton(onClick = { showQualityDialog = false }) { 
-                    Text(stringResource(R.string.cancel)) 
-                } 
+            confirmButton = {
+                TextButton(onClick = { showQualityDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    if (showCodecDialog) {
+        AlertDialog(
+            onDismissRequest = { showCodecDialog = false },
+            icon = { Icon(Icons.Outlined.VideoSettings, null) },
+            title = { Text(stringResource(R.string.default_download_codec_label)) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = maxDialogListHeight)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    VideoCodec.values().forEach { codec ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    coroutineScope.launch {
+                                        preferences.setDefaultDownloadCodec(codec)
+                                        showCodecDialog = false
+                                    }
+                                }
+                                .padding(horizontal = 12.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = defaultCodec == codec,
+                                onClick = null,
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = codec.label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (codec == VideoCodec.AUTO) {
+                                    Text(
+                                        text = stringResource(R.string.default_download_codec_auto_subtitle),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCodecDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
             },
             containerColor = MaterialTheme.colorScheme.surface
         )

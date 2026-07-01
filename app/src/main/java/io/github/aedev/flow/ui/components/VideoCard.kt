@@ -911,7 +911,7 @@ fun CompactVideoCard(
                 contentScale = ContentScale.Crop
             )
 
-            if (video.viewCount < 0L) {
+            if (video.isUpcoming || video.viewCount < 0L) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)

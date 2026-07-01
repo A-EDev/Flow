@@ -69,7 +69,18 @@ data class PlayerResponse(
             @Serializable
             data class LiveStreamabilityRenderer(
                 val videoId: String? = null,
-            )
+                val offlineSlate: OfflineSlate? = null,
+            ) {
+                @Serializable
+                data class OfflineSlate(
+                    val liveStreamOfflineSlateRenderer: LiveStreamOfflineSlateRenderer? = null,
+                ) {
+                    @Serializable
+                    data class LiveStreamOfflineSlateRenderer(
+                        val scheduledStartTime: String? = null,
+                    )
+                }
+            }
         }
     }
 

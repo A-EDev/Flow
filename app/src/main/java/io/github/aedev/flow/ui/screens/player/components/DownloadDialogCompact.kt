@@ -50,6 +50,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -94,6 +95,8 @@ fun DownloadQualityDialogCompact(
     val lastHeight by prefs.lastDownloadHeight.collectAsState(initial = null)
     val lastCodec by prefs.lastDownloadCodec.collectAsState(initial = null)
     val lastAudioLabel by prefs.lastDownloadAudioLabel.collectAsState(initial = null)
+    val defaultDownloadCodec by prefs.defaultDownloadCodec.collectAsState(initial = VideoCodec.AUTO)
+    val preferredDownloadCodecKey = defaultDownloadCodec.takeIf { it != VideoCodec.AUTO }?.codecKey
 
     val currentPlayingCodec = remember {
         EnhancedPlayerManager.getInstance().getPlayer()?.videoFormat?.sampleMimeType
@@ -143,9 +146,10 @@ fun DownloadQualityDialogCompact(
         .map { VideoPlayerUtils.codecKeyFromStream(it) }
         .distinct()
         .sortedBy { CODEC_PRIORITY[it] ?: 99 }
-    var selectedCodec by remember(selectedHeight, lastCodec) {
+    var selectedCodec by remember(selectedHeight, lastCodec, preferredDownloadCodecKey) {
         mutableStateOf(
-            codecsForHeight.firstOrNull { it == lastCodec }
+            codecsForHeight.firstOrNull { it == preferredDownloadCodecKey }
+                ?: codecsForHeight.firstOrNull { it == lastCodec }
                 ?: codecsForHeight.firstOrNull { it == currentPlayingCodec }
                 ?: codecsForHeight.firstOrNull() ?: ""
         )

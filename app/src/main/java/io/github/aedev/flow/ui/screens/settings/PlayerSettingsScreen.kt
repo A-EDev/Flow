@@ -529,6 +529,24 @@ fun PlayerSettingsScreen(
                 }
             }
             
+            // Video Settings Section
+            item {
+                Text(
+                    text = stringResource(R.string.player_settings_header_video),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                SettingsGroup {
+                    SettingsClickItem(
+                        icon = Icons.Outlined.HighQuality,
+                        title = stringResource(R.string.player_settings_video_codec),
+                        subtitle = defaultVideoCodec.label,
+                        onClick = { showVideoCodecDialog = true }
+                    )
+                }
+            }
+
             // Audio Settings Section
             item {
                 Text(
@@ -544,13 +562,6 @@ fun PlayerSettingsScreen(
                         subtitle = audioLanguageOptions.find { it.first == preferredAudioLanguage }?.second
                             ?: stringResource(R.string.player_settings_audio_original),
                         onClick = { showAudioLanguageDialog = true }
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp))
-                    SettingsClickItem(
-                        icon = Icons.Outlined.HighQuality,
-                        title = stringResource(R.string.player_settings_video_codec),
-                        subtitle = defaultVideoCodec.label,
-                        onClick = { showVideoCodecDialog = true }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp))
                     SettingsSwitchItem(

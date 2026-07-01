@@ -14,6 +14,7 @@ NEW FEATURES
 - Add new video ambient mode
 - Add shorts UI customizations
 - Add new native local cross-platform sync 
+- Add default codec selection for downloads #675
 
 IMPROVEMENTS
 - Improve media notification handling #577
@@ -40,6 +41,7 @@ IMPROVEMENTS
 - Add support for all Youtube Music, piped and invidious Url formats
 - Add comment drawer in landscape #644
 - Video Quality selection menu redesign #660
+- Improve upcoming videos reminder #470
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

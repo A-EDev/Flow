@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import kotlinx.coroutines.delay
@@ -54,58 +57,74 @@ internal fun UpcomingVideoOverlay(
 
     Surface(
         modifier = modifier
-            .padding(horizontal = 24.dp)
-            .widthIn(max = 420.dp),
-        shape = RoundedCornerShape(24.dp),
-        color = Color.Black.copy(alpha = 0.78f),
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .widthIn(max = 360.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.Black.copy(alpha = 0.8f),
         tonalElevation = 0.dp
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Schedule,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(42.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Schedule,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.9f),
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = stringResource(
+                        if (releaseTimeMs != null) R.string.upcoming_video_starts_in
+                        else R.string.premiere_soon
+                    ),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (releaseTimeMs != null) {
+                Text(
+                    text = formatCountdown(releaseTimeMs - nowMs),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                maxLines = 2
-            )
-            Text(
-                text = stringResource(R.string.upcoming_video_overlay_title),
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.78f),
-                textAlign = TextAlign.Center
+                color = Color.White.copy(alpha = 0.75f),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = releaseTimeMs?.let { formatCountdown(it - nowMs) }
-                    ?: stringResource(R.string.premiere_soon),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
+
             if (releaseTimeMs != null) {
-                FilledTonalButton(onClick = onToggleReminder) {
+                FilledTonalButton(
+                    onClick = onToggleReminder,
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding
+                ) {
                     Icon(
                         imageVector = if (isReminderSet) Icons.Rounded.NotificationsActive else Icons.Rounded.Notifications,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(ButtonDefaults.IconSize)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(
                         text = stringResource(
                             if (isReminderSet) R.string.upcoming_video_reminder_enabled
                             else R.string.upcoming_video_reminder_action
-                        )
+                        ),
+                        maxLines = 1
                     )
                 }
             }

@@ -67,6 +67,7 @@ class PlayerPreferences(context: Context) {
         val PARALLEL_DOWNLOAD_ENABLED = booleanPreferencesKey("parallel_download_enabled")
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
+        val DEFAULT_DOWNLOAD_CODEC = stringPreferencesKey("default_download_codec")
         val DOWNLOAD_LOCATION = stringPreferencesKey("download_location")
         val MUSIC_DOWNLOAD_LOCATION = stringPreferencesKey("music_download_location")
 
@@ -1872,6 +1873,17 @@ class PlayerPreferences(context: Context) {
     suspend fun setDefaultDownloadQuality(quality: VideoQuality) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DEFAULT_DOWNLOAD_QUALITY] = quality.label
+        }
+    }
+
+    val defaultDownloadCodec: Flow<VideoCodec> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            VideoCodec.fromString(preferences[Keys.DEFAULT_DOWNLOAD_CODEC] ?: VideoCodec.AUTO.label)
+        }
+
+    suspend fun setDefaultDownloadCodec(codec: VideoCodec) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DEFAULT_DOWNLOAD_CODEC] = codec.label
         }
     }
 

@@ -20,6 +20,7 @@ import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.notification.UpcomingVideoReminderWorker
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.parsePremiereTimestamp
@@ -457,6 +458,7 @@ class VideoPlayerViewModel @Inject constructor(
 
     private fun applyUpcomingState(video: Video, preserveQueueTitle: String? = _uiState.value.queueTitle): Boolean {
         if (!video.isUpcoming) return false
+        val releaseTimeMs = resolveUpcomingReleaseTime(video) ?: return false
         _uiState.update {
             it.copy(
                 cachedVideo = video,
@@ -478,10 +480,92 @@ class VideoPlayerViewModel @Inject constructor(
                 localFileVideoId = null,
                 queueTitle = preserveQueueTitle,
                 isUpcoming = true,
-                upcomingReleaseTimeMs = resolveUpcomingReleaseTime(video)
+                upcomingReleaseTimeMs = releaseTimeMs
             )
         }
         return true
+    }
+
+    private suspend fun probeUpcomingPremiere(videoId: String): Pair<Boolean, Long?> {
+        return try {
+            val response = withTimeoutOrNull(6_000L) {
+                YouTube.player(videoId, client = YouTubeClient.MOBILE).getOrNull()
+            } ?: return false to null
+            val status = response.playabilityStatus
+            val streamingData = response.streamingData
+            val hasManifest = !streamingData?.hlsManifestUrl.isNullOrBlank()
+            val hasFormats = (streamingData?.formats?.isNotEmpty() == true) ||
+                (streamingData?.adaptiveFormats?.isNotEmpty() == true)
+            val reason = status.reason.orEmpty()
+            val looksUpcoming = !hasManifest && !hasFormats && (
+                status.status.equals("LIVE_STREAM_OFFLINE", ignoreCase = true) ||
+                    status.liveStreamability != null ||
+                    reason.contains("premiere", ignoreCase = true) ||
+                    reason.contains("will begin", ignoreCase = true) ||
+                    reason.contains("scheduled", ignoreCase = true)
+                )
+            if (!looksUpcoming) return false to null
+            val scheduledMs = status.liveStreamability
+                ?.liveStreamabilityRenderer?.offlineSlate
+                ?.liveStreamOfflineSlateRenderer?.scheduledStartTime
+                ?.toLongOrNull()?.times(1000L)
+                ?.takeIf { it > System.currentTimeMillis() }
+            true to scheduledMs
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false to null
+        }
+    }
+
+    private fun enterUpcomingState(videoId: String, cached: Video?, releaseMs: Long?, relatedVideos: List<Video>, loadToken: Long): Boolean {
+        if (!isPlaybackLoadCurrent(loadToken)) return true
+        val base = cached ?: Video(
+            id = videoId, title = "", channelName = "", channelId = "",
+            thumbnailUrl = "", duration = 0, viewCount = 0L, uploadDate = ""
+        )
+        val upcomingVideo = base.copy(
+            isUpcoming = true,
+            timestamp = releaseMs ?: base.timestamp
+        )
+        _uiState.update {
+            it.copy(
+                cachedVideo = upcomingVideo,
+                isLoading = false,
+                error = null,
+                errorHint = null,
+                metadataError = null,
+                streamInfo = null,
+                videoStream = null,
+                audioStream = null,
+                relatedVideos = relatedVideos.ifEmpty { it.relatedVideos },
+                hlsUrl = null,
+                isLive = false,
+                isUpcoming = true,
+                upcomingReleaseTimeMs = releaseMs
+            )
+        }
+        GlobalPlayerState.setCurrentVideo(upcomingVideo)
+        return true
+    }
+
+    private suspend fun tryEnterUpcomingState(
+        videoId: String,
+        relatedVideos: List<Video>,
+        loadToken: Long,
+        knownUpcoming: Boolean = false
+    ): Boolean {
+        val cached = _uiState.value.cachedVideo?.takeIf { it.id == videoId }
+        val flagged = knownUpcoming || cached?.isUpcoming == true
+        val listReleaseMs = cached?.let { resolveUpcomingReleaseTime(it) }
+        if (flagged && listReleaseMs != null) {
+            PlayerDiagnostics.logWarning("Upcoming", "enter flagged videoId=$videoId release=$listReleaseMs")
+            return enterUpcomingState(videoId, cached, listReleaseMs, relatedVideos, loadToken)
+        }
+        val probe = probeUpcomingPremiere(videoId)
+        PlayerDiagnostics.logWarning("Upcoming", "videoId=$videoId flagged=$flagged known=$knownUpcoming probe=${probe.first} probeTime=${probe.second}")
+        if (!flagged && !probe.first) return false
+        return enterUpcomingState(videoId, cached, listReleaseMs ?: probe.second, relatedVideos, loadToken)
     }
 
     fun toggleUpcomingReminder() {
@@ -875,7 +959,7 @@ class VideoPlayerViewModel @Inject constructor(
             ?.takeIf { it.id == videoId && it.isUpcoming }
             ?.let { cachedVideo ->
                 val releaseTimeMs = resolveUpcomingReleaseTime(cachedVideo)
-                if (releaseTimeMs == null || releaseTimeMs > System.currentTimeMillis()) {
+                if (releaseTimeMs != null) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -1095,6 +1179,11 @@ class VideoPlayerViewModel @Inject constructor(
                         emptyList()
                     }
 
+                    if (streamInfo != null && streamInfo.streamType == StreamType.NONE && !isOfflineAvailable) {
+                        tryEnterUpcomingState(videoId, relatedVideos, loadToken, knownUpcoming = true)
+                        return@withTimeout
+                    }
+
                     if (streamInfo != null) {
                         // Record interaction for Flow Neuro Engine
                         try {
@@ -1209,7 +1298,20 @@ class VideoPlayerViewModel @Inject constructor(
                             ?: innerTubeResult?.liveHlsUrl?.takeIf { liveFromInnerTube }
                         val effectiveDashUrl = streamInfo.dashMpdUrl?.takeIf { it.isNotEmpty() }
                             ?: innerTubeResult?.liveDashUrl?.takeIf { liveFromInnerTube }
-                        
+
+                        val hasPlayableContent = effectiveVideoStreams.isNotEmpty() ||
+                            !liveHlsUrl.isNullOrEmpty() ||
+                            !effectiveDashUrl.isNullOrEmpty() ||
+                            localFilePath != null ||
+                            innerTubeResult?.sabrInfo != null
+                        if (!hasPlayableContent && !isOfflineAvailable) {
+                            val definitelyUpcoming = liveType || streamInfo.streamType == StreamType.NONE
+                            PlayerDiagnostics.logWarning("Upcoming", "no playable content videoId=$videoId type=${streamInfo.streamType} liveType=$liveType")
+                            if (tryEnterUpcomingState(videoId, relatedVideos, loadToken, knownUpcoming = definitelyUpcoming)) {
+                                return@withTimeout
+                            }
+                        }
+
                         // Load saved playback position
                         val savedPosition = viewHistory.getPlaybackPosition(videoId)
                         
@@ -1440,19 +1542,21 @@ class VideoPlayerViewModel @Inject constructor(
                                 throw e
                             } catch (e: Exception) {
                                 Log.e("VideoPlayerViewModel", "InnerTube VOD fallback failed for $videoId", e)
-                                val videoError = VideoErrorMapper.from(context, streamError ?: e, videoId)
-                                if (isPlaybackLoadCurrent(loadToken)) {
-                                    _uiState.update {
-                                        it.copy(
-                                            isLoading = false,
-                                            relatedVideos = relatedVideos,
-                                            error = videoError.message,
-                                            errorHint = videoError.hint
-                                        )
+                                if (!tryEnterUpcomingState(videoId, relatedVideos, loadToken)) {
+                                    val videoError = VideoErrorMapper.from(context, streamError ?: e, videoId)
+                                    if (isPlaybackLoadCurrent(loadToken)) {
+                                        _uiState.update {
+                                            it.copy(
+                                                isLoading = false,
+                                                relatedVideos = relatedVideos,
+                                                error = videoError.message,
+                                                errorHint = videoError.hint
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        } else {
+                        } else if (!tryEnterUpcomingState(videoId, relatedVideos, loadToken)) {
                             Log.e("VideoPlayerViewModel", "Stream info is null for $videoId and no offline copy found.")
                             val videoError = VideoErrorMapper.from(context, streamError, videoId)
                             if (isPlaybackLoadCurrent(loadToken)) {
@@ -1482,9 +1586,9 @@ class VideoPlayerViewModel @Inject constructor(
                              loadToken = loadToken
                          )
                      }
-                } else if (isPlaybackLoadCurrent(loadToken)) {
+                } else if (isPlaybackLoadCurrent(loadToken) && !tryEnterUpcomingState(videoId, emptyList(), loadToken)) {
                     val videoError = VideoErrorMapper.fromTimeout(context)
-                    _uiState.update { 
+                    _uiState.update {
                         it.copy(
                             isLoading = false,
                             error = videoError.message,
@@ -1538,9 +1642,9 @@ class VideoPlayerViewModel @Inject constructor(
                             savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
                             loadToken = loadToken
                         )
-                    } else {
+                    } else if (!tryEnterUpcomingState(videoId, emptyList(), loadToken)) {
                         val videoError = VideoErrorMapper.from(context, e, videoId)
-                        _uiState.update { 
+                        _uiState.update {
                             it.copy(
                                 isLoading = false,
                                 error = videoError.message,

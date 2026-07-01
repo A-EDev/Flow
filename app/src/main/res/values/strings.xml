@@ -192,6 +192,7 @@
     <string name="premiere_soon">Premieres soon</string>
     <string name="premiere_date_prefix">Premieres %1$s</string>
     <string name="upcoming_video_overlay_title">This video is scheduled. Playback will unlock when it goes live.</string>
+    <string name="upcoming_video_starts_in">Starts in</string>
     <string name="upcoming_video_reminder_action">Remind me</string>
     <string name="upcoming_video_reminder_enabled">Reminder set</string>
     <string name="upcoming_video_reminder_badge">Reminder enabled</string>
@@ -889,6 +890,7 @@
     <string name="btn_cancel">Cancel</string>
     <string name="player_settings_show_pip">Show PiP Button</string>
     <string name="player_settings_show_pip_subtitle">Show manual PiP button in player controls</string>
+    <string name="player_settings_header_video">Video</string>
     <string name="player_settings_header_audio">Audio</string>
     <string name="player_settings_play_during_calls">Play During Calls</string>
     <string name="player_settings_play_during_calls_subtitle">Continue playback during phone or VoIP calls (e.g. WhatsApp)</string>
@@ -1148,6 +1150,8 @@
     <string name="internal_app_storage_label">Internal App Storage</string>
     <string name="preferences_header">Preferences</string>
     <string name="default_video_quality_label">Default Video Quality</string>
+    <string name="default_download_codec_label">Default Download Codec</string>
+    <string name="default_download_codec_auto_subtitle">Uses your last choice or the current video\'s codec</string>
     <string name="download_over_wifi_only">Download over Wi-Fi only</string>
     <string name="reduce_data_usage_subtitle">Reduce data usage</string>
     <string name="performance_header">Performance</string>

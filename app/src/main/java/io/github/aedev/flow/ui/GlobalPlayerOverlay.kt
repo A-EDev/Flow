@@ -459,6 +459,19 @@ fun GlobalPlayerOverlay(
         lifecycleOwner = lifecycleOwner
     )
 
+    LaunchedEffect(video.id, playerUiState.isUpcoming, playerUiState.upcomingReleaseTimeMs) {
+        val releaseMs = playerUiState.upcomingReleaseTimeMs
+        if (!playerUiState.isUpcoming || releaseMs == null) return@LaunchedEffect
+        val waitMs = (releaseMs - System.currentTimeMillis()).coerceAtLeast(0L)
+        delay(waitMs + 3_000L)
+        var attempts = 0
+        while (playerViewModel.uiState.value.isUpcoming && attempts < 20) {
+            playerViewModel.loadVideoInfo(video.id, forceRefresh = true)
+            attempts++
+            delay(30_000L)
+        }
+    }
+
     LaunchedEffect(playerState.hasEnded, playerSheetState.fraction, localIsInPipMode) {
         if (playerState.hasEnded && playerSheetState.fraction <= 0.5f && !localIsInPipMode) {
             screenState.showControls = true
