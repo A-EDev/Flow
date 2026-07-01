@@ -1822,4 +1822,10 @@
     <string name="sync_merge">Fusionner</string>
     <string name="sync_transferring">Synchronisation de %1$s…</string>
     <string name="sync_collection_likes">Favoris</string>
+    <string name="upcoming_video_starts_in">Commence dans</string>
+    <string name="player_settings_header_video">Vidéo</string>
+    <string name="default_download_codec_label">Codec de téléchargement par défaut</string>
+    <string name="default_download_codec_auto_subtitle">Utilise le codec que vous avez sélectionné en dernier ou celui de la vidéo en cours de lecture</string>
+    <string name="player_settings_overlay_comments">Bouton « Commentaires »</string>
+    <string name="player_settings_overlay_comments_subtitle">Afficher un bouton « Commentaires » sur le lecteur en plein écran pour ouvrir les commentaires dans un panneau latéral</string>
 </resources>
