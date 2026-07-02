@@ -61,6 +61,7 @@ fun VideoInfoSection(
     viewCount: Long,
     uploadDate: String?,
     description: String?,
+    isUpcoming: Boolean = false,
     channelName: String,
     channelAvatarUrl: String,
     subscriberCount: Long?,
@@ -125,12 +126,16 @@ fun VideoInfoSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = stringResource(R.string.views_count_short_template, formatViewCount(viewCount)),
+                text = when {
+                    isUpcoming && viewCount > 0L -> stringResource(R.string.upcoming_waiting_count, formatViewCount(viewCount))
+                    isUpcoming -> stringResource(R.string.upcoming_label)
+                    else -> stringResource(R.string.views_count_short_template, formatViewCount(viewCount))
+                },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isUpcoming) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
-            
-            if (!uploadDate.isNullOrBlank()) {
+
+            if (!isUpcoming && !uploadDate.isNullOrBlank()) {
                 Text(
                     text = " • ",
                     style = MaterialTheme.typography.bodySmall,

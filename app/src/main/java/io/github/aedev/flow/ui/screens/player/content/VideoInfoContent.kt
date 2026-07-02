@@ -223,6 +223,7 @@ fun VideoInfoContent(
         viewCount = uiState.streamInfo?.viewCount ?: video.viewCount,
         uploadDate = streamUploadDate ?: video.uploadDate,
         description = uiState.streamInfo?.description?.content ?: video.description,
+        isUpcoming = uiState.isUpcoming,
         channelName = uiState.streamInfo?.uploaderName ?: video.channelName,
         channelAvatarUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
         subscriberCount = uiState.channelSubscriberCount,

@@ -549,23 +549,27 @@ class VideoPlayerViewModel @Inject constructor(
         return true
     }
 
+    private suspend fun resolveUpcoming(videoId: String, knownUpcoming: Boolean): Pair<Boolean, Long?> {
+        val cached = _uiState.value.cachedVideo?.takeIf { it.id == videoId }
+        val flagged = knownUpcoming || cached?.isUpcoming == true
+        val listReleaseMs = cached?.let { resolveUpcomingReleaseTime(it) }
+        if (flagged && listReleaseMs != null) return true to listReleaseMs
+        val probe = probeUpcomingPremiere(videoId)
+        PlayerDiagnostics.logWarning("Upcoming", "videoId=$videoId flagged=$flagged known=$knownUpcoming probe=${probe.first} probeTime=${probe.second}")
+        if (!flagged && !probe.first) return false to null
+        return true to (listReleaseMs ?: probe.second)
+    }
+
     private suspend fun tryEnterUpcomingState(
         videoId: String,
         relatedVideos: List<Video>,
         loadToken: Long,
         knownUpcoming: Boolean = false
     ): Boolean {
+        val (isUpcoming, releaseMs) = resolveUpcoming(videoId, knownUpcoming)
+        if (!isUpcoming) return false
         val cached = _uiState.value.cachedVideo?.takeIf { it.id == videoId }
-        val flagged = knownUpcoming || cached?.isUpcoming == true
-        val listReleaseMs = cached?.let { resolveUpcomingReleaseTime(it) }
-        if (flagged && listReleaseMs != null) {
-            PlayerDiagnostics.logWarning("Upcoming", "enter flagged videoId=$videoId release=$listReleaseMs")
-            return enterUpcomingState(videoId, cached, listReleaseMs, relatedVideos, loadToken)
-        }
-        val probe = probeUpcomingPremiere(videoId)
-        PlayerDiagnostics.logWarning("Upcoming", "videoId=$videoId flagged=$flagged known=$knownUpcoming probe=${probe.first} probeTime=${probe.second}")
-        if (!flagged && !probe.first) return false
-        return enterUpcomingState(videoId, cached, listReleaseMs ?: probe.second, relatedVideos, loadToken)
+        return enterUpcomingState(videoId, cached, releaseMs, relatedVideos, loadToken)
     }
 
     fun toggleUpcomingReminder() {
@@ -1304,12 +1308,13 @@ class VideoPlayerViewModel @Inject constructor(
                             !effectiveDashUrl.isNullOrEmpty() ||
                             localFilePath != null ||
                             innerTubeResult?.sabrInfo != null
-                        if (!hasPlayableContent && !isOfflineAvailable) {
-                            val definitelyUpcoming = liveType || streamInfo.streamType == StreamType.NONE
-                            PlayerDiagnostics.logWarning("Upcoming", "no playable content videoId=$videoId type=${streamInfo.streamType} liveType=$liveType")
-                            if (tryEnterUpcomingState(videoId, relatedVideos, loadToken, knownUpcoming = definitelyUpcoming)) {
-                                return@withTimeout
-                            }
+                        val (isUpcomingContent, upcomingReleaseMs) = if (!hasPlayableContent && !isOfflineAvailable) {
+                            resolveUpcoming(videoId, knownUpcoming = liveType || streamInfo.streamType == StreamType.NONE)
+                        } else {
+                            false to null
+                        }
+                        if (isUpcomingContent) {
+                            PlayerDiagnostics.logWarning("Upcoming", "no playable content videoId=$videoId type=${streamInfo.streamType} liveType=$liveType release=$upcomingReleaseMs")
                         }
 
                         // Load saved playback position
@@ -1331,8 +1336,8 @@ class VideoPlayerViewModel @Inject constructor(
                         _uiState.value = _uiState.value.copy(
                             streamInfo = streamInfo,
                             relatedVideos = relatedVideos,
-                            videoStream = selectedStreams.first,
-                            audioStream = selectedStreams.second,
+                            videoStream = if (isUpcomingContent) null else selectedStreams.first,
+                            audioStream = if (isUpcomingContent) null else selectedStreams.second,
                             availableQualities = availableQualities,
                             selectedQuality = selectedStreams.third,
                             subtitles = subtitles,
@@ -1345,10 +1350,10 @@ class VideoPlayerViewModel @Inject constructor(
                             localFilePath = localFilePath,
                             localFileVideoId = if (localFilePath != null) videoId else null,
                             offlineSponsorBlockSegments = offlineSegments,
-                            hlsUrl = liveHlsUrl,
-                            isLive = streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true,
-                            isUpcoming = false,
-                            upcomingReleaseTimeMs = null,
+                            hlsUrl = if (isUpcomingContent) null else liveHlsUrl,
+                            isLive = !isUpcomingContent && (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true),
+                            isUpcoming = isUpcomingContent,
+                            upcomingReleaseTimeMs = upcomingReleaseMs,
                             innerTubeVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
                             innerTubeAudioFormats = innerTubeResult?.audioFormats ?: emptyList()
                         )
@@ -1356,30 +1361,32 @@ class VideoPlayerViewModel @Inject constructor(
                         ensureActive()
                         if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
 
-                        prepareLoadedMediaForPlayback(
-                            videoId = videoId,
-                            streamInfo = streamInfo,
-                            videoStream = selectedStreams.first,
-                            audioStream = selectedStreams.second,
-                            videoStreams = effectiveVideoStreams,
-                            audioStreams = effectiveAudioStreams,
-                            subtitles = mergedSubtitleStreams,
-                            savedPosition = savedPosition.first(),
-                            localFilePath = localFilePath,
-                            offlineSegments = offlineSegments,
-                            hlsUrl = liveHlsUrl,
-                            dashManifestUrl = effectiveDashUrl,
-                            isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
-                            loadToken = loadToken,
-                            sabrInfo = resolvedSabrInfo,
-                            itVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
-                            itAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),
-                            preferredVideoCodec = preferredCodecKey,
-                            preferSabr = escalateToSabr,
-                            preferredLiveQualityHeight = preferredQuality.height
-                        )
+                        if (!isUpcomingContent) {
+                            prepareLoadedMediaForPlayback(
+                                videoId = videoId,
+                                streamInfo = streamInfo,
+                                videoStream = selectedStreams.first,
+                                audioStream = selectedStreams.second,
+                                videoStreams = effectiveVideoStreams,
+                                audioStreams = effectiveAudioStreams,
+                                subtitles = mergedSubtitleStreams,
+                                savedPosition = savedPosition.first(),
+                                localFilePath = localFilePath,
+                                offlineSegments = offlineSegments,
+                                hlsUrl = liveHlsUrl,
+                                dashManifestUrl = effectiveDashUrl,
+                                isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
+                                loadToken = loadToken,
+                                sabrInfo = resolvedSabrInfo,
+                                itVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
+                                itAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),
+                                preferredVideoCodec = preferredCodecKey,
+                                preferSabr = escalateToSabr,
+                                preferredLiveQualityHeight = preferredQuality.height
+                            )
+                        }
 
-                        if (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true) {
+                        if (!isUpcomingContent && (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true)) {
                             maybeStartLiveChat(videoId)
                             refreshLiveWatchMetadata(
                                 videoId = videoId,

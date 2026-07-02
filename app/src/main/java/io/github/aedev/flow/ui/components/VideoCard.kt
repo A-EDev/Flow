@@ -186,7 +186,7 @@ fun VideoCard(
                 }
             }
 
-            if (video.id in upcomingReminderIds) {
+            if (video.isUpcoming && video.id in upcomingReminderIds) {
                 UpcomingReminderBadge(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -452,7 +452,7 @@ fun VideoCardHorizontal(
                 }
             }
 
-            if (video.id in upcomingReminderIds) {
+            if (video.isUpcoming && video.id in upcomingReminderIds) {
                 UpcomingReminderBadge(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -626,7 +626,7 @@ fun VideoCardFullWidth(
                 }
             }
 
-            if (video.id in upcomingReminderIds) {
+            if (video.isUpcoming && video.id in upcomingReminderIds) {
                 UpcomingReminderBadge(
                     modifier = Modifier
                         .align(Alignment.TopStart)

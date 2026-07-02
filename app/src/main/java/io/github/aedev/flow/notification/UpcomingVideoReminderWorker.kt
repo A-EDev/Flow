@@ -7,6 +7,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import io.github.aedev.flow.data.local.PlayerPreferences
 import java.util.concurrent.TimeUnit
 
 class UpcomingVideoReminderWorker(
@@ -31,6 +32,7 @@ class UpcomingVideoReminderWorker(
             channelName = channelName,
             thumbnailUrl = thumbnailUrl
         )
+        PlayerPreferences(applicationContext).setUpcomingVideoReminder(videoId, enabled = false)
         return Result.success()
     }
 
