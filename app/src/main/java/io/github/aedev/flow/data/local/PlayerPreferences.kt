@@ -97,6 +97,7 @@ class PlayerPreferences(context: Context) {
         val GRID_ITEM_SIZE = stringPreferencesKey("grid_item_size")
         val SLIDER_STYLE = stringPreferencesKey("slider_style")
         val MUSIC_PLAYER_BACKGROUND_STYLE = stringPreferencesKey("music_player_background_style")
+        val HIDE_MUSIC_PLAYER_ARTWORK = booleanPreferencesKey("hide_music_player_artwork")
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
         val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
@@ -559,6 +560,17 @@ class PlayerPreferences(context: Context) {
     suspend fun setMusicPlayerBackgroundStyle(style: MusicPlayerBackgroundStyle) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MUSIC_PLAYER_BACKGROUND_STYLE] = style.name
+        }
+    }
+
+    val hideMusicPlayerArtwork: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.HIDE_MUSIC_PLAYER_ARTWORK] ?: false
+        }
+
+    suspend fun setHideMusicPlayerArtwork(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HIDE_MUSIC_PLAYER_ARTWORK] = enabled
         }
     }
 

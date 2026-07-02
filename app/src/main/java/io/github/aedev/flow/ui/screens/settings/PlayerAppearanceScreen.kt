@@ -62,6 +62,7 @@ fun PlayerAppearanceScreen(
     val currentMusicPlayerBackgroundStyle by playerPreferences.musicPlayerBackgroundStyle.collectAsState(
         initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT
     )
+    val hideMusicPlayerArtwork by playerPreferences.hideMusicPlayerArtwork.collectAsState(initial = false)
     val currentShortsPlayerUiMode by playerPreferences.shortsPlayerUiMode.collectAsState(
         initial = ShortsPlayerUiMode.DEFAULT
     )
@@ -303,6 +304,21 @@ fun PlayerAppearanceScreen(
                         title = stringResource(R.string.player_background_style_title),
                         subtitle = stringResource(getBackgroundStyleLabelResInScreen(currentMusicPlayerBackgroundStyle)),
                         onClick = { showBackgroundStyleSheet = true }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_music_note),
+                        title = stringResource(R.string.player_appearance_hide_music_artwork_title),
+                        subtitle = stringResource(R.string.player_appearance_hide_music_artwork_subtitle),
+                        checked = hideMusicPlayerArtwork,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setHideMusicPlayerArtwork(enabled)
+                            }
+                        }
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),

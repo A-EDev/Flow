@@ -47,6 +47,16 @@ object ThumbnailUrlResolver {
             .distinct()
     }
 
+    fun preferredVideoThumbnail(videoId: String, urls: List<String?>): String {
+        return urls
+            .asSequence()
+            .map { it?.trim().orEmpty() }
+            .filter { it.isNotBlank() }
+            .map { normalizeVideoThumbnail(videoId, it) }
+            .maxWithOrNull(compareBy<String> { videoThumbnailQualityRank(it) }.thenBy { it.length })
+            ?: normalizeVideoThumbnail(videoId, null)
+    }
+
     fun normalizeVideoThumbnail(videoId: String, rawUrl: String?): String {
         val raw = rawUrl?.trim().orEmpty()
         if (raw.isEmpty()) return buildHighQualityYoutubeThumbnail(videoId)
@@ -142,6 +152,18 @@ object ThumbnailUrlResolver {
             ?.getOrNull(1)
             ?.takeIf { it.isNotBlank() }
             ?: videoId.trim()
+    }
+
+    private fun videoThumbnailQualityRank(rawUrl: String): Int {
+        val raw = rawUrl.lowercase()
+        return when {
+            "maxresdefault" in raw -> 5
+            "hq720" in raw || "sddefault" in raw -> 4
+            "hqdefault" in raw -> 3
+            "mqdefault" in raw -> 2
+            "default" in raw -> 1
+            else -> 0
+        }
     }
 
     fun resizeImageThumbnail(rawUrl: String?, width: Int? = null, height: Int? = null): String {

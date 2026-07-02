@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.music.player
 
 import android.view.ViewGroup
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
@@ -24,12 +26,15 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
+import io.github.aedev.flow.R
 
 @Composable
 fun PlayerArtwork(
     thumbnailUrl: String?,
     isVideoMode: Boolean,
     isLoading: Boolean,
+    hideArtwork: Boolean,
+    hiddenArtworkColor: Color,
     player: Player?,
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
@@ -83,6 +88,30 @@ fun PlayerArtwork(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+        } else if (hideArtwork) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(hiddenArtworkColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_launcher_foreground),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(0.42f)
+                )
+            }
+
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                }
+            }
         } else {
             AsyncImage(
                 model = artworkRequest,

@@ -117,6 +117,12 @@ class ShortsPlayerPool private constructor() {
             }
         }
 
+        scope.launch {
+            PlayerPreferences(context).shortsPlaybackSpeed.collect { speed ->
+                setBasePlaybackSpeed(speed)
+            }
+        }
+
         for (i in 0 until POOL_SIZE) {
             players[i] = createShortsPlayer(context)
             playerOwnerIndices[i] = null
@@ -257,6 +263,7 @@ class ShortsPlayerPool private constructor() {
         preparePlayerInternal(player, videoUrl, audioUrl)
 
         // Set playback state
+        player.setPlaybackSpeed(basePlaybackSpeed)
         player.playWhenReady = shouldPlay
         // Set repeat mode based on playback preference: "loop" → REPEAT_MODE_ONE, "auto_next" → REPEAT_MODE_OFF
         player.repeatMode = if (shortsPlaybackMode == "loop") Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -297,6 +304,7 @@ class ShortsPlayerPool private constructor() {
             if (isTarget) {
                 if (playerOwnerIndices[i] == index) {
                     player.playWhenReady = true
+                    player.setPlaybackSpeed(basePlaybackSpeed)
                     player.setAudioAttributes(
                         AudioAttributes.Builder()
                             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
@@ -348,6 +356,7 @@ class ShortsPlayerPool private constructor() {
         playerAudioUrls[slot] = newAudioUrl
 
         preparePlayerInternal(player, videoUrl, newAudioUrl)
+        player.setPlaybackSpeed(basePlaybackSpeed)
         player.playWhenReady = wasPlaying
         player.repeatMode = if (shortsPlaybackMode == "loop") Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
     }
@@ -371,6 +380,7 @@ class ShortsPlayerPool private constructor() {
 
         val audioUrl = playerAudioUrls[slot]
         preparePlayerInternal(player, newVideoUrl, audioUrl)
+        player.setPlaybackSpeed(basePlaybackSpeed)
         player.playWhenReady = wasPlaying
         player.seekTo(position)
         player.repeatMode = if (shortsPlaybackMode == "loop") Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -391,6 +401,7 @@ class ShortsPlayerPool private constructor() {
         }
 
         player.prepare()
+        player.setPlaybackSpeed(basePlaybackSpeed)
     }
 
 

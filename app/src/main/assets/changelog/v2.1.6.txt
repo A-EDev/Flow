@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-07-01
+DATE: 2026-07-02
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -15,6 +15,7 @@ NEW FEATURES
 - Add shorts UI customizations
 - Add new native local cross-platform sync 
 - Add default codec selection for downloads #675
+- Add hide music artwork option #639
 
 IMPROVEMENTS
 - Improve media notification handling #577

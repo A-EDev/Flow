@@ -89,6 +89,7 @@ fun EnhancedMusicPlayerScreen(
     val backgroundStyle by playerPreferences.musicPlayerBackgroundStyle.collectAsState(
         initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT
     )
+    val hideMusicPlayerArtwork by playerPreferences.hideMusicPlayerArtwork.collectAsState(initial = false)
     
     val isVideoMode = false 
     var sheetColor by remember { mutableStateOf<Color?>(null) }
@@ -448,6 +449,8 @@ fun EnhancedMusicPlayerScreen(
                                 thumbnailUrl = (uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl),
                                 isVideoMode = isVideoMode,
                                 isLoading = uiState.isLoading,
+                                hideArtwork = hideMusicPlayerArtwork,
+                                hiddenArtworkColor = animatedSheetColor,
                                 player = EnhancedMusicPlayerManager.player,
                                 onSkipPrevious = {
                                     viewModel.skipToPrevious()

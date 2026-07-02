@@ -436,11 +436,10 @@ class SubscriptionsViewModel : ViewModel() {
         }
         val bestChannelThumbnail = candidates.firstOrNull { it.channelThumbnailUrl.isNotBlank() }?.channelThumbnailUrl
             ?: primary.channelThumbnailUrl
-        val bestVideoThumbnail = candidates
-            .asSequence()
-            .map { ThumbnailUrlResolver.normalizeVideoThumbnail(it.id, it.thumbnailUrl) }
-            .firstOrNull { it.isNotBlank() }
-            ?: ThumbnailUrlResolver.normalizeVideoThumbnail(primary.id, primary.thumbnailUrl)
+        val bestVideoThumbnail = ThumbnailUrlResolver.preferredVideoThumbnail(
+            videoId = primary.id,
+            urls = candidates.map { it.thumbnailUrl }
+        )
         val bestDescription = candidates.firstOrNull { it.description.isNotBlank() }?.description
             ?: primary.description
 
@@ -463,7 +462,10 @@ class SubscriptionsViewModel : ViewModel() {
         return copy(
             duration = if (duration > 0) duration else prior.duration,
             viewCount = maxOf(viewCount, prior.viewCount),
-            thumbnailUrl = thumbnailUrl.ifBlank { prior.thumbnailUrl },
+            thumbnailUrl = ThumbnailUrlResolver.preferredVideoThumbnail(
+                videoId = id,
+                urls = listOf(thumbnailUrl, prior.thumbnailUrl)
+            ),
             channelThumbnailUrl = channelThumbnailUrl.ifBlank { prior.channelThumbnailUrl },
             description = description.ifBlank { prior.description }
         )
