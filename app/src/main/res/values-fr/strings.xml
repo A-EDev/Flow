@@ -1828,4 +1828,5 @@
     <string name="default_download_codec_auto_subtitle">Utilise le codec que vous avez sélectionné en dernier ou celui de la vidéo en cours de lecture</string>
     <string name="player_settings_overlay_comments">Bouton « Commentaires »</string>
     <string name="player_settings_overlay_comments_subtitle">Afficher un bouton « Commentaires » sur le lecteur en plein écran pour ouvrir les commentaires dans un panneau latéral</string>
+    <string name="sb_skip_segment">Passer %1$s</string>
 </resources>
