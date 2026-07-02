@@ -1785,4 +1785,13 @@
     <string name="sync_error_qr_bad_address">У коді синхронізації відсутня дійсна мережева адреса.</string>
     <string name="player_settings_overlay_comments">Кнопка коментарів</string>
     <string name="player_settings_overlay_comments_subtitle">Показувати кнопку коментарів у повноекранному програвачі для відкриття їх у бічній панелі</string>
+    <string name="upcoming_label">Прийдешнє</string>
+    <string name="upcoming_waiting_count">%1$s очікує</string>
+    <string name="upcoming_video_starts_in">Початок через</string>
+    <string name="sb_skip_segment">Пропустити %1$s</string>
+    <string name="player_appearance_hide_music_artwork_title">Приховати обкладинку музичного програвача</string>
+    <string name="player_appearance_hide_music_artwork_subtitle">Використовувати колір обкладинки як фон для значка застосунку</string>
+    <string name="player_settings_header_video">Відео</string>
+    <string name="default_download_codec_label">Типовий кодек завантаження</string>
+    <string name="default_download_codec_auto_subtitle">Використовує ваш останній вибір або кодек поточного відео</string>
 </resources>
