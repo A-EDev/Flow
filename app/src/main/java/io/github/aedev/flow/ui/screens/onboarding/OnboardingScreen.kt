@@ -149,7 +149,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 importViewModel.dismiss()
             }
             is ImportViewModel.State.Error -> {
-                importMessage = "Import failed: ${s.message}"
+                importMessage = context.getString(R.string.onboarding_import_failed_template, s.message)
                 importViewModel.dismiss()
             }
             else -> {}
@@ -555,7 +555,7 @@ private fun OnboardingBottomBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Skip",
+                    text = stringResource(R.string.onboarding_btn_skip),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                     modifier = Modifier
@@ -581,7 +581,10 @@ private fun OnboardingBottomBar(
                     )
                 ) {
                     Text(
-                        text = if (isLastStep) "Finish" else "Continue",
+                        text = if (isLastStep)
+                            stringResource(R.string.onboarding_btn_finish)
+                        else
+                            stringResource(R.string.onboarding_btn_continue),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -618,7 +621,7 @@ private fun InterestsStep(
     ) {
         item {
             StepHeader(
-                title = "What do you enjoy?",
+                title = stringResource(R.string.onboarding_interests_title),
                 subtitle = if (remaining > 0)
                     "Pick at least $MIN_TOPICS topics to personalise your feed. $remaining more to go."
                 else
@@ -677,8 +680,8 @@ private fun ChannelsStep(
     ) {
         item {
             StepHeader(
-                title = "Find channels",
-                subtitle = "Search for channels you already follow and subscribe in one tap."
+                title = stringResource(R.string.onboarding_channels_title),
+                subtitle = stringResource(R.string.onboarding_channels_subtitle)
             )
         }
 
@@ -893,14 +896,14 @@ private fun ImportStep(
     ) {
         item {
             StepHeader(
-                title = "Import your data",
-                subtitle = "Bring your subscriptions and history from other apps. Everything is optional."
+                title = stringResource(R.string.onboarding_import_title),
+                subtitle = stringResource(R.string.onboarding_import_subtitle)
             )
         }
         item { ImportProgressBanner(importState) }
 
         item {
-            ImportSectionLabel(title = "Backup & Restore")
+            ImportSectionLabel(title = stringResource(R.string.onboarding_backup_restore_section))
         }
 
         item {
@@ -1214,7 +1217,7 @@ private fun CategoryCard(
                     )
                     if (selectedCount > 0) {
                         Text(
-                            text = "$selectedCount selected",
+                            text = stringResource(R.string.onboarding_n_selected, selectedCount),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -1273,6 +1276,9 @@ private fun TopicChip(
         animationSpec = tween(180),
         label = "chip_fg"
     )
+    val topicStateDescription = stringResource(
+        if (isSelected) R.string.onboarding_topic_selected else R.string.onboarding_topic_not_selected
+    )
 
     Surface(
         onClick = onClick,
@@ -1283,7 +1289,7 @@ private fun TopicChip(
         else
             BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
         modifier = Modifier.semantics {
-            stateDescription = if (isSelected) "Selected" else "Not selected"
+            stateDescription = topicStateDescription
             role = Role.Checkbox
         }
     ) {

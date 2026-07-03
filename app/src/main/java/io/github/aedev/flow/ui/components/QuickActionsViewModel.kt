@@ -125,7 +125,11 @@ class QuickActionsViewModel @Inject constructor(
                     Toast.makeText(context, "Subscribed to $channelName", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(io.github.aedev.flow.R.string.quick_actions_error_template, e.message),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -148,7 +152,11 @@ class QuickActionsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 android.util.Log.e("QuickActionsViewModel", "Error toggling Watch Later", e)
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(io.github.aedev.flow.R.string.quick_actions_error_template, e.message),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -170,7 +178,11 @@ class QuickActionsViewModel @Inject constructor(
                     Toast.LENGTH_SHORT
                 ).show()
             } catch (e: Exception) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(io.github.aedev.flow.R.string.quick_actions_error_template, e.message),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -188,11 +200,15 @@ class QuickActionsViewModel @Inject constructor(
                 )
                 Toast.makeText(
                     context,
-                    "Got it! You'll see less content like this.",
+                    context.getString(io.github.aedev.flow.R.string.not_interested_toast),
                     Toast.LENGTH_SHORT
                 ).show()
             } catch (e: Exception) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(io.github.aedev.flow.R.string.quick_actions_error_template, e.message),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -235,7 +251,11 @@ class QuickActionsViewModel @Inject constructor(
                     Toast.LENGTH_SHORT
                 ).show()
             } catch (e: Exception) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(io.github.aedev.flow.R.string.quick_actions_error_template, e.message),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -260,7 +280,11 @@ class QuickActionsViewModel @Inject constructor(
                     Toast.LENGTH_SHORT
                 ).show()
             } catch (e: Exception) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(io.github.aedev.flow.R.string.quick_actions_error_template, e.message),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -449,7 +473,11 @@ class QuickActionsViewModel @Inject constructor(
                     trySabrDownload(video, 0)
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(io.github.aedev.flow.R.string.quick_actions_error_template, e.message),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
