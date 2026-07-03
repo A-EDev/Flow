@@ -14,6 +14,8 @@
 
 package io.github.aedev.flow.data.recommendation
 
+import androidx.annotation.StringRes
+import io.github.aedev.flow.R
 import java.util.Calendar
 
 /**
@@ -126,20 +128,20 @@ enum class InteractionType {
 // ── Persona ──
 
 enum class FlowPersona(
-    val title: String,
-    val description: String,
+    @StringRes val titleRes: Int,
+    @StringRes val descriptionRes: Int,
     val icon: String
 ) {
-    INITIATE("The Initiate", "Just getting started. Your profile is still forming.", "🌱"),
-    AUDIOPHILE("The Audiophile", "You use Flow mostly for Music. The vibe is everything.", "🎧"),
-    LIVEWIRE("The Livewire", "You love the raw energy of Livestreams and premieres.", "🔴"),
-    NIGHT_OWL("The Night Owl", "You thrive in the dark. Most watching happens after midnight.", "🦉"),
-    BINGER("The Binger", "Once you start, you can't stop. Massive content waves.", "🍿"),
-    SCHOLAR("The Scholar", "High-complexity content. Here to grow, not just be entertained.", "🎓"),
-    DEEP_DIVER("The Deep Diver", "Long-form video essays and documentaries are your world.", "🤿"),
-    SKIMMER("The Skimmer", "Fast-paced, short content. Dopamine on demand.", "⚡"),
-    SPECIALIST("The Specialist", "Laser-focused on a few niches. You know what you like.", "🎯"),
-    EXPLORER("The Explorer", "Chaotic and beautiful. A bit of everything.", "🧭")
+    INITIATE(R.string.persona_initiate_title, R.string.persona_initiate_description, "🌱"),
+    AUDIOPHILE(R.string.persona_audiophile_title, R.string.persona_audiophile_description, "🎧"),
+    LIVEWIRE(R.string.persona_livewire_title, R.string.persona_livewire_description, "🔴"),
+    NIGHT_OWL(R.string.persona_night_owl_title, R.string.persona_night_owl_description, "🦉"),
+    BINGER(R.string.persona_binger_title, R.string.persona_binger_description, "🍿"),
+    SCHOLAR(R.string.persona_scholar_title, R.string.persona_scholar_description, "🎓"),
+    DEEP_DIVER(R.string.persona_deep_diver_title, R.string.persona_deep_diver_description, "🤿"),
+    SKIMMER(R.string.persona_skimmer_title, R.string.persona_skimmer_description, "⚡"),
+    SPECIALIST(R.string.persona_specialist_title, R.string.persona_specialist_description, "🎯"),
+    EXPLORER(R.string.persona_explorer_title, R.string.persona_explorer_description, "🧭")
 }
 
 // ── Topic Category (Onboarding) ──

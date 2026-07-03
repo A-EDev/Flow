@@ -485,13 +485,13 @@ item {
                 if (persona != null) {
                     Column {
                         Text(
-                            text = persona.title, // e.g. "The Deep Diver"
+                            text = androidx.compose.ui.res.stringResource(persona.titleRes),
                             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = persona.description,
+                            text = androidx.compose.ui.res.stringResource(persona.descriptionRes),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
                             maxLines = 2,
