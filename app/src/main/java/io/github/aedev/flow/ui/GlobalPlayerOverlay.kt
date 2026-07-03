@@ -541,7 +541,8 @@ fun GlobalPlayerOverlay(
                     title = title,
                     thumbnailUrl = thumbnailUrl,
                     channelName = channelName,
-                    channelId = channelId
+                    channelId = channelId,
+                    isShort = video.isShort
                 )
             }
         }

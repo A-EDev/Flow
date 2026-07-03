@@ -10,6 +10,9 @@ import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.GraphSeedSelector
 import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import io.github.aedev.flow.data.recommendation.UserBrain
+import io.github.aedev.flow.data.local.CachedHomeVideo
+import io.github.aedev.flow.data.local.HomeFeedCacheFilters
+import io.github.aedev.flow.data.local.HomeFeedCacheRepository
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.SubscriptionRepository
@@ -395,6 +398,7 @@ class HomeViewModel @Inject constructor(
     private val likedVideosRepository by lazy { LikedVideosRepository.getInstance(appContext) }
     private val playlistRepository by lazy { PlaylistRepository(appContext) }
     private val historyRepository by lazy { ViewHistory.getInstance(appContext) }
+    private val persistentHomeFeedCache by lazy { HomeFeedCacheRepository(appContext) }
     private val savedSeedCooldown = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     
@@ -435,6 +439,7 @@ class HomeViewModel @Inject constructor(
                 )
             }
         } else {
+            hydratePersistentHomeFeed()
             loadFlowFeed(forceRefresh = true)
             loadHomeShorts()
         }
@@ -467,6 +472,9 @@ class HomeViewModel @Inject constructor(
                 when (event) {
                     is FeedInvalidationBus.Event.ChannelBlocked -> {
                         HomeFeedCache.filterOut(channelId = event.channelId)
+                        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                            persistentHomeFeedCache.deleteChannel(event.channelId)
+                        }
                         _uiState.update { state ->
                             state.copy(
                                 videos = state.videos.filter { it.channelId != event.channelId },
@@ -478,6 +486,9 @@ class HomeViewModel @Inject constructor(
                     }
                     is FeedInvalidationBus.Event.NotInterested -> {
                         HomeFeedCache.filterOut(videoId = event.videoId)
+                        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                            persistentHomeFeedCache.deleteVideo(event.videoId)
+                        }
                         _uiState.update { state ->
                             state.copy(
                                 videos = state.videos.filter { it.id != event.videoId },
@@ -489,6 +500,9 @@ class HomeViewModel @Inject constructor(
                     }
                     is FeedInvalidationBus.Event.MarkedWatched -> {
                         HomeFeedCache.filterOut(videoId = event.videoId)
+                        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                            persistentHomeFeedCache.deleteVideo(event.videoId)
+                        }
                         _uiState.update { state ->
                             state.copy(
                                 videos = state.videos.filter { it.id != event.videoId },
@@ -548,6 +562,36 @@ class HomeViewModel @Inject constructor(
                     _uiState.update { it.copy(shorts = shorts) }
                 }
             } catch (e: Exception) {
+            }
+        }
+    }
+
+    private suspend fun cacheFilters(): HomeFeedCacheFilters {
+        val brain = runCatching { FlowNeuroEngine.getBrainSnapshot() }.getOrElse { UserBrain() }
+        return HomeFeedCacheFilters(
+            watchedVideoIds = watchedVideoIds.value,
+            suppressedVideoIds = brain.suppressedVideoIds.keys,
+            blockedChannelIds = brain.blockedChannels,
+            suppressedChannelIds = brain.suppressedChannels.keys
+        )
+    }
+
+    private fun hydratePersistentHomeFeed() {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val cached = runCatching {
+                persistentHomeFeedCache.loadLastFeed(cacheFilters())
+            }.getOrElse { emptyList() }
+            if (cached.isEmpty()) return@launch
+
+            _uiState.update { state ->
+                if (state.videos.isNotEmpty()) return@update state
+                HomeFeedCache.update(cached, state.shorts)
+                state.copy(
+                    videos = cached,
+                    isFlowFeed = true,
+                    error = null,
+                    lastRefreshTime = System.currentTimeMillis()
+                )
             }
         }
     }
@@ -765,6 +809,12 @@ class HomeViewModel @Inject constructor(
                 )
 
                 val spacedMix = spaceByChannel(finalMix)
+                val renderedIds = spacedMix.mapTo(HashSet()) { it.id }
+                val reserveCandidates =
+                    cacheCandidates(FeedSource.RELATED, bestRelated, renderedIds) +
+                    cacheCandidates(FeedSource.DISCOVERY, bestDiscovery, renderedIds) +
+                    cacheCandidates(FeedSource.SUBS, bestSubs, renderedIds) +
+                    cacheCandidates(FeedSource.VIRAL, bestViral, renderedIds)
                 _uiState.update { it.copy(
                     videos = spacedMix,
                     isLoading = false,
@@ -774,6 +824,8 @@ class HomeViewModel @Inject constructor(
                     lastRefreshTime = now
                 )}
                 HomeFeedCache.update(spacedMix, _uiState.value.shorts)
+                persistentHomeFeedCache.saveLastFeed(spacedMix)
+                persistentHomeFeedCache.saveReserve(reserveCandidates)
 
                 // Enrich (post-paint) with related neighbours of saved/watched videos.
                 enrichFeedWithSavedInterest(userSubs, taste)
@@ -801,15 +853,18 @@ class HomeViewModel @Inject constructor(
                                 .take(15)
 
                             if (wave2Ranked.isNotEmpty()) {
+                                var updatedSnapshot: List<Video>? = null
                                 _uiState.update { state ->
                                     val currentIds = state.videos.map { it.id }.toHashSet()
                                     val uniqueNew = wave2Ranked.filter { !currentIds.contains(it.id) }
                                         .distinctBy { it.channelId }
                                     if (uniqueNew.isEmpty()) return@update state
                                     val updated = state.videos + uniqueNew
+                                    updatedSnapshot = updated
                                     HomeFeedCache.update(updated, state.shorts)
                                     state.copy(videos = updated)
                                 }
+                                updatedSnapshot?.let { persistentHomeFeedCache.saveLastFeed(it) }
                                 currentQueryIndex = discoveryQueries.size
                                 Log.d(TAG, "Wave 2 merged ${wave2Ranked.size} extra candidates")
                             }
@@ -976,6 +1031,16 @@ class HomeViewModel @Inject constructor(
         loadFlowFeed(forceRefresh = true)
     }
 
+    private fun cacheCandidates(
+        source: FeedSource,
+        videos: List<Video>,
+        excludedIds: Set<String> = emptySet()
+    ): List<CachedHomeVideo> =
+        videos.asSequence()
+            .filterNot { it.id in excludedIds }
+            .distinctBy { it.id }
+            .map { CachedHomeVideo(it, source.name) }
+            .toList()
 
     private fun addUnique(
         video: Video?, 
@@ -992,10 +1057,22 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun fetchRelatedVideos(seedId: String): List<Video> {
         val ts = System.currentTimeMillis()
-        return relatedCache[seedId]?.takeIf { ts - it.ts < RELATED_TTL_MS }?.videos
-            ?: (relatedSemaphore.withPermit {
-                withTimeoutOrNull(4_000L) { repository.getRelatedCandidates(seedId) } ?: emptyList()
-            }).also { relatedCache[seedId] = CachedRelated(it, ts) }
+        relatedCache[seedId]?.takeIf { ts - it.ts < RELATED_TTL_MS }?.videos?.let { return it }
+
+        val persisted = runCatching {
+            persistentHomeFeedCache.loadRelated(seedId, cacheFilters(), ts)
+        }.getOrElse { emptyList() }
+        if (persisted.isNotEmpty()) {
+            relatedCache[seedId] = CachedRelated(persisted, ts)
+            return persisted
+        }
+
+        return (relatedSemaphore.withPermit {
+            withTimeoutOrNull(4_000L) { repository.getRelatedCandidates(seedId) } ?: emptyList()
+        }).also {
+            relatedCache[seedId] = CachedRelated(it, ts)
+            persistentHomeFeedCache.saveRelated(seedId, it, ts)
+        }
     }
 
     /** Expands seed video ids into related (/next) neighbours with graph metadata. */

@@ -364,7 +364,8 @@ fun WatchProgressSaveEffect(
                 title = title,
                 thumbnailUrl = thumbnailUrl,
                 channelName = channelName,
-                channelId = channelId
+                channelId = channelId,
+                isShort = video.isShort
             )
         }
     }
@@ -388,7 +389,8 @@ fun WatchProgressSaveEffect(
                     title = title,
                     thumbnailUrl = thumbnailUrl,
                     channelName = channelName,
-                    channelId = channelId
+                    channelId = channelId,
+                    isShort = video.isShort
                 )
             }
         }
@@ -747,7 +749,8 @@ fun VideoCleanupEffect(
                     title = lastKnownTitle,
                     thumbnailUrl = lastKnownThumbnail,
                     channelName = lastKnownChannelName,
-                    channelId = lastKnownChannelId
+                    channelId = lastKnownChannelId,
+                    isShort = video.isShort
                 )
 
                 viewModel.reportWatchProgress(video, lastKnownPosition, lastKnownDuration)

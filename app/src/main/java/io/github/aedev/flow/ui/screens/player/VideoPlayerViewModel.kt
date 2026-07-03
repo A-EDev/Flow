@@ -103,6 +103,8 @@ class VideoPlayerViewModel @Inject constructor(
     private var loadingVideoId: String? = null
     private var liveChatJob: Job? = null
     private var liveChatVideoId: String? = null
+    private val homeFeedCacheRepository by lazy { HomeFeedCacheRepository(context) }
+    private val prewarmedRelatedVideoIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private var streamExpiryVideoId: String? = null
     private var streamExpiryCount: Int = 0
@@ -2175,7 +2177,8 @@ class VideoPlayerViewModel @Inject constructor(
         title: String,
         thumbnailUrl: String,
         channelName: String = "",
-        channelId: String = ""
+        channelId: String = "",
+        isShort: Boolean = false
     ) {
         val isLocal = isLocalMediaId(videoId)
         viewModelScope.launch {
@@ -2187,9 +2190,62 @@ class VideoPlayerViewModel @Inject constructor(
                 thumbnailUrl = thumbnailUrl,
                 channelName = channelName,
                 channelId = channelId,
+                isShort = isShort,
                 isLocal = isLocal
             )
         }
+        maybePrewarmRelatedForPlayback(
+            videoId = videoId,
+            positionMs = position,
+            durationMs = duration,
+            isShort = isShort,
+            isLocal = isLocal
+        )
+    }
+
+    private fun maybePrewarmRelatedForPlayback(
+        videoId: String,
+        positionMs: Long,
+        durationMs: Long,
+        isShort: Boolean,
+        isLocal: Boolean
+    ) {
+        val alreadyPrewarmed = videoId in prewarmedRelatedVideoIds
+        if (!shouldPrewarmRelatedPlayback(videoId, positionMs, durationMs, isShort, isLocal, alreadyPrewarmed)) {
+            return
+        }
+        if (!prewarmedRelatedVideoIds.add(videoId)) return
+
+        val playerRelated = relatedVideosForPrewarm(videoId)
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            runCatching {
+                val related = playerRelated.ifEmpty {
+                    withTimeoutOrNull(4_000L) { repository.getRelatedCandidates(videoId) }.orEmpty()
+                }.filter { it.id.isNotBlank() && it.id != videoId }
+                    .distinctBy { it.id }
+
+                if (related.isEmpty()) return@runCatching
+
+                homeFeedCacheRepository.saveRelated(videoId, related)
+                homeFeedCacheRepository.saveReserve(
+                    related.map { video ->
+                        CachedHomeVideo(
+                            video = video,
+                            source = HomeFeedCacheRepository.SOURCE_RELATED,
+                            relatedSeedId = videoId
+                        )
+                    }
+                )
+            }.onFailure { error ->
+                Log.w("VideoPlayerViewModel", "Related prewarm failed for $videoId", error)
+            }
+        }
+    }
+
+    private fun relatedVideosForPrewarm(videoId: String): List<Video> {
+        val state = _uiState.value
+        val belongsToCurrentVideo = state.streamInfo?.id == videoId || state.cachedVideo?.id == videoId
+        return if (belongsToCurrentVideo) state.relatedVideos else emptyList()
     }
     
     fun reportWatchProgress(video: io.github.aedev.flow.data.model.Video, position: Long, duration: Long) {

@@ -7,6 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.aedev.flow.data.local.dao.CacheDao
 import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.dao.DownloadedSongDao
+import io.github.aedev.flow.data.local.dao.HomeFeedCacheDao
 import io.github.aedev.flow.data.local.dao.NotificationDao
 import io.github.aedev.flow.data.local.dao.PlaylistDao
 import io.github.aedev.flow.data.local.dao.RecognitionHistoryDao
@@ -18,6 +19,7 @@ import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.local.entity.DownloadEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.DownloadedSongEntity
+import io.github.aedev.flow.data.local.entity.HomeFeedCacheEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeCacheEntity
 import io.github.aedev.flow.data.local.entity.NotificationEntity
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
@@ -44,12 +46,13 @@ import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
         DownloadEntity::class,
         DownloadItemEntity::class,
         WatchHistoryEntity::class,
+        HomeFeedCacheEntity::class,
         SubscriptionGroupEntity::class,
         RecognitionHistoryEntity::class,
         SyncLogEntity::class,
         SyncPeerEntity::class
     ],
-    version = 22,
+    version = 23,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -60,6 +63,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun downloadedSongDao(): DownloadedSongDao
     abstract fun downloadDao(): DownloadDao
     abstract fun watchHistoryDao(): WatchHistoryDao
+    abstract fun homeFeedCacheDao(): HomeFeedCacheDao
     abstract fun subscriptionGroupDao(): SubscriptionGroupDao
     abstract fun recognitionHistoryDao(): RecognitionHistoryDao
     abstract fun syncLogDao(): SyncLogDao
@@ -221,6 +225,47 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS home_feed_cache (
+                        cacheKey            TEXT    NOT NULL PRIMARY KEY,
+                        bucket              TEXT    NOT NULL,
+                        videoId             TEXT    NOT NULL,
+                        title               TEXT    NOT NULL,
+                        channelName         TEXT    NOT NULL,
+                        channelId           TEXT    NOT NULL,
+                        thumbnailUrl        TEXT    NOT NULL,
+                        duration            INTEGER NOT NULL,
+                        viewCount           INTEGER NOT NULL,
+                        likeCount           INTEGER NOT NULL,
+                        uploadDate          TEXT    NOT NULL,
+                        timestamp           INTEGER NOT NULL,
+                        description         TEXT    NOT NULL,
+                        channelThumbnailUrl TEXT    NOT NULL,
+                        tagsJson            TEXT    NOT NULL,
+                        isMusic             INTEGER NOT NULL,
+                        isLive              INTEGER NOT NULL,
+                        isShort             INTEGER NOT NULL,
+                        isUpcoming          INTEGER NOT NULL,
+                        commentCountText    TEXT    NOT NULL,
+                        source              TEXT    NOT NULL,
+                        relatedSeedId       TEXT,
+                        cachedAt            INTEGER NOT NULL,
+                        expiresAt           INTEGER NOT NULL,
+                        orderIndex          INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_home_feed_cache_bucket_expiresAt ON home_feed_cache(bucket, expiresAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_home_feed_cache_bucket_source ON home_feed_cache(bucket, source)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_home_feed_cache_relatedSeedId ON home_feed_cache(relatedSeedId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_home_feed_cache_videoId ON home_feed_cache(videoId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_home_feed_cache_channelId ON home_feed_cache(channelId)")
+            }
+        }
+
         fun getDatabase(context: android.content.Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = androidx.room.Room.databaseBuilder(
@@ -228,7 +273,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flow_database"
                 )
-                .addMigrations(MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22)
+                .addMigrations(MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
