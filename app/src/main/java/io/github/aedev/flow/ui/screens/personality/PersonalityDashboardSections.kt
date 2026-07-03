@@ -115,14 +115,14 @@ internal fun PersonalityOverviewSection(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = displayPersona.title,
+                            text = stringResource(displayPersona.titleRes),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = displayPersona.description,
+                            text = stringResource(displayPersona.descriptionRes),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
@@ -132,9 +132,9 @@ internal fun PersonalityOverviewSection(
                 }
 
                 MetricBar(
-                    label = "Profile maturity",
+                    label = stringResource(R.string.profile_maturity_label),
                     value = brain.profileMaturity(),
-                    detail = "Higher maturity means the profile has enough signals to be stable"
+                    detail = stringResource(R.string.profile_maturity_detail)
                 )
             }
         }
