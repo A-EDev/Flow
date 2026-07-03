@@ -6,7 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
-import io.github.aedev.flow.data.recommendation.SeedInput
+import io.github.aedev.flow.data.recommendation.GraphSeedInput
+import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
@@ -39,12 +40,24 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
-/** Seed candidates for related-graph retrieval: recent, mostly-watched, non-Short videos. */
-internal fun seedInputsFrom(history: List<VideoHistoryEntry>, max: Int = 10): List<SeedInput> =
-    history.filter { !it.isShort && it.progressPercentage >= 70f }
+/** Watch-history seed candidates for related-graph retrieval, newest first. */
+internal fun graphSeedInputsFromHistory(history: List<VideoHistoryEntry>, max: Int = 40): List<GraphSeedInput> =
+    history.filter { !it.isShort }
         .sortedByDescending { it.timestamp }
         .take(max)
-        .map { SeedInput(it.videoId, it.title, (it.progressPercentage / 100f).toDouble()) }
+        .map {
+            GraphSeedInput(
+                id = it.videoId,
+                title = it.title,
+                channelId = it.channelId,
+                source = GraphSeedSource.WATCH_HISTORY,
+                engagementWeight = (it.progressPercentage / 100.0).coerceIn(0.0, 1.0),
+                timestamp = it.timestamp,
+                durationSec = it.duration.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                percentWatched = it.progressPercentage.toDouble(),
+                isShort = it.isShort
+            )
+        }
 
 /** Keeps only visible grid keys that map to real feed videos (drops shelf/loader keys). */
 internal fun feedImpressionIds(visibleKeys: List<String>, knownIds: Set<String>): List<String> =
@@ -52,38 +65,18 @@ internal fun feedImpressionIds(visibleKeys: List<String>, knownIds: Set<String>)
 
 /** Saved-interest seed pools: watch history (newest-first), liked videos, and saved playlists. */
 internal data class SavedSeedSources(
-    val historyIds: List<String>,
-    val likedIds: List<String>,
-    val playlistIds: List<String>
+    val history: List<GraphSeedInput>,
+    val liked: List<GraphSeedInput>,
+    val playlists: List<GraphSeedInput>
 )
 
-private fun sampleIds(ids: List<String>, range: IntRange, random: kotlin.random.Random): List<String> {
-    if (ids.isEmpty() || range.last <= 0) return emptyList()
-    val n = random.nextInt(range.first, range.last + 1).coerceAtMost(ids.size)
-    return ids.shuffled(random).take(n)
-}
-
-/**
- * Picks seed video ids to expand via the related (/next) graph: the latest watched video plus a
- * random sample from history, liked, and saved playlists. Ids on cooldown are excluded.
- */
-internal fun selectSavedInterestSeeds(
+internal fun savedInterestSeedInputs(
     sources: SavedSeedSources,
     cooldown: Set<String>,
-    random: kotlin.random.Random,
-    historyRandom: IntRange = 1..2,
-    likedPicks: IntRange = 1..2,
-    playlistPicks: IntRange = 1..4,
-    maxSeeds: Int = 5
-): List<String> {
-    val picked = LinkedHashSet<String>()
-    val history = sources.historyIds.filterNot { it in cooldown }
-    history.firstOrNull()?.let { picked.add(it) } 
-    picked += sampleIds(history.drop(1), historyRandom, random)
-    picked += sampleIds(sources.likedIds.filterNot { it in cooldown }, likedPicks, random)
-    picked += sampleIds(sources.playlistIds.filterNot { it in cooldown }, playlistPicks, random)
-    return picked.take(maxSeeds)
-}
+    maxPerSource: Int = 40
+): List<GraphSeedInput> =
+    listOf(sources.history, sources.liked, sources.playlists)
+        .flatMap { seeds -> seeds.filterNot { it.id in cooldown }.take(maxPerSource) }
 
 // Format signals often tied to low-effort feed filler. NOT a blocklist: they only demote
 // exploration candidates, and only when the user shows no matching interest.
@@ -824,9 +817,9 @@ class HomeViewModel @Inject constructor(
         return true
     }
 
-    private suspend fun buildSeedInputs(): List<SeedInput> {
+    private suspend fun buildSeedInputs(): List<GraphSeedInput> {
         val history = viewHistory?.getVideoHistoryFlow()?.first() ?: return emptyList()
-        return seedInputsFrom(history)
+        return graphSeedInputsFromHistory(history)
     }
 
     /** Expands seed video ids into their related (/next) neighbours, cached and concurrency-bounded. */
@@ -844,19 +837,38 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun gatherSavedSeedSources(): SavedSeedSources {
-        val historyIds = runCatching {
-            historyRepository.getVideoHistoryFlow().first()
-                .filter { !it.isShort }
-                .sortedByDescending { it.timestamp }
-                .map { it.videoId }
+        val historySeeds = runCatching {
+            graphSeedInputsFromHistory(historyRepository.getVideoHistoryFlow().first())
         }.getOrElse { emptyList() }
-        val likedIds = runCatching {
-            likedVideosRepository.getLikedVideosFlow().first().map { it.videoId }
+        val likedSeeds = runCatching {
+            likedVideosRepository.getLikedVideosFlow().first().map {
+                GraphSeedInput(
+                    id = it.videoId,
+                    title = it.title,
+                    channelId = "",
+                    source = GraphSeedSource.LIKED,
+                    engagementWeight = 1.0,
+                    timestamp = it.likedAt,
+                    durationSec = 0,
+                    percentWatched = 0.0
+                )
+            }
         }.getOrElse { emptyList() }
-        val playlistIds = runCatching {
-            playlistRepository.getSavedVideoPlaylistVideoIds()
+        val playlistSeeds = runCatching {
+            playlistRepository.getSavedVideoPlaylistVideos().map {
+                GraphSeedInput(
+                    id = it.id,
+                    title = it.title,
+                    channelId = it.channelId,
+                    source = GraphSeedSource.PLAYLIST,
+                    engagementWeight = 1.0,
+                    timestamp = it.timestamp,
+                    durationSec = it.duration,
+                    percentWatched = 0.0
+                )
+            }
         }.getOrElse { emptyList() }
-        return SavedSeedSources(historyIds, likedIds, playlistIds)
+        return SavedSeedSources(historySeeds, likedSeeds, playlistSeeds)
     }
 
     private fun activeSavedSeedCooldown(now: Long): Set<String> {
@@ -872,9 +884,9 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 val now = System.currentTimeMillis()
-                val seeds = selectSavedInterestSeeds(
-                    gatherSavedSeedSources(), activeSavedSeedCooldown(now),
-                    kotlin.random.Random.Default, maxSeeds = MAX_SAVED_SEEDS
+                val seeds = FlowNeuroEngine.selectRelatedSeeds(
+                    savedInterestSeedInputs(gatherSavedSeedSources(), activeSavedSeedCooldown(now)),
+                    MAX_SAVED_SEEDS
                 )
                 if (seeds.isEmpty()) return@launch
                 seeds.forEach { savedSeedCooldown[it] = now }

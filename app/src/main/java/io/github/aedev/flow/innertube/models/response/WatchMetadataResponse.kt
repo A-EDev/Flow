@@ -98,7 +98,10 @@ data class WatchMetadataResponse(
         val lengthText: SimpleText? = null,
         val publishedTimeText: SimpleText? = null,
         val isLive: Boolean = false,
-    )
+    ) {
+        fun channelId(): String? = longBylineText?.firstBrowseId()
+            ?.takeIf { it.startsWith("UC") }
+    }
 
     @Serializable
     data class LockupViewModel(
@@ -236,9 +239,15 @@ data class WatchMetadataResponse(
     @Serializable
     data class Runs(val runs: List<Run> = emptyList(), val simpleText: String? = null) {
         @Serializable
-        data class Run(val text: String? = null)
+        data class Run(
+            val text: String? = null,
+            val navigationEndpoint: NavEndpoint? = null,
+        )
 
         fun text(): String? = simpleText ?: runs.joinToString("") { it.text.orEmpty() }.takeIf { it.isNotEmpty() }
+        fun firstBrowseId(): String? = runs.firstNotNullOfOrNull {
+            it.navigationEndpoint?.browseEndpoint?.browseId?.takeIf(String::isNotBlank)
+        }
     }
 
     @Serializable

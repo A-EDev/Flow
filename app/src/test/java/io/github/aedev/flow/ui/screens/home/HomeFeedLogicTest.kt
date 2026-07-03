@@ -10,6 +10,8 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowPersona
+import io.github.aedev.flow.data.recommendation.GraphSeedInput
+import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import io.github.aedev.flow.data.recommendation.UserBrain
 import org.junit.Test
 
@@ -23,22 +25,23 @@ class HomeFeedLogicTest {
         )
 
     @Test
-    fun `seeds keep only mostly-watched non-shorts, newest first`() {
+    fun `history graph seeds keep non-shorts newest first with progress metadata`() {
         val history = listOf(
             entry("a", 90, 100, ts = 1),                  // 90% ✓
             entry("b", 50, 100, ts = 2),                  // 50% ✗ below threshold
             entry("c", 80, 100, ts = 3, isShort = true),  // short ✗
             entry("d", 100, 100, ts = 4)                  // 100% ✓ newest
         )
-        val seeds = seedInputsFrom(history)
-        assertThat(seeds.map { it.id }).containsExactly("d", "a").inOrder()
-        assertThat(seeds.first { it.id == "a" }.weight).isWithin(1e-6).of(0.9)
+        val seeds = graphSeedInputsFromHistory(history)
+        assertThat(seeds.map { it.id }).containsExactly("d", "b", "a").inOrder()
+        assertThat(seeds.first { it.id == "a" }.engagementWeight).isWithin(1e-6).of(0.9)
+        assertThat(seeds.first { it.id == "a" }.percentWatched).isWithin(1e-6).of(90.0)
     }
 
     @Test
-    fun `seeds are capped at max`() {
+    fun `history graph seeds are capped at max`() {
         val history = (1..20).map { entry("v$it", 100, 100, ts = it.toLong()) }
-        assertThat(seedInputsFrom(history, max = 4)).hasSize(4)
+        assertThat(graphSeedInputsFromHistory(history, max = 4)).hasSize(4)
     }
 
     @Test
@@ -130,45 +133,66 @@ class HomeFeedLogicTest {
         assertThat(spaceByChannel(related).map { it.id }).containsExactly("r1", "r2", "r3").inOrder()
     }
 
-    private val seededRandom get() = kotlin.random.Random(42)
+    private fun graphSeed(
+        id: String,
+        source: GraphSeedSource,
+        timestamp: Long = 100L
+    ) = GraphSeedInput(
+        id = id,
+        title = "title-$id",
+        channelId = "",
+        source = source,
+        engagementWeight = 1.0,
+        timestamp = timestamp,
+        durationSec = 600,
+        percentWatched = 100.0
+    )
 
     @Test
-    fun `selectSavedInterestSeeds always considers the latest watched video first`() {
+    fun `saved interest seed inputs preserve source order before engine selection`() {
         val sources = SavedSeedSources(
-            historyIds = listOf("h_latest", "h2", "h3"), likedIds = emptyList(), playlistIds = emptyList()
+            history = listOf(graphSeed("h_latest", GraphSeedSource.WATCH_HISTORY)),
+            liked = listOf(graphSeed("l1", GraphSeedSource.LIKED)),
+            playlists = listOf(graphSeed("p1", GraphSeedSource.PLAYLIST))
         )
-        val seeds = selectSavedInterestSeeds(sources, cooldown = emptySet(), random = seededRandom)
-        assertThat(seeds).contains("h_latest")
+        val seeds = savedInterestSeedInputs(sources, cooldown = emptySet())
+        assertThat(seeds.map { it.id }).containsExactly("h_latest", "l1", "p1").inOrder()
     }
 
     @Test
-    fun `selectSavedInterestSeeds pulls from history, liked, and playlists within bounds`() {
+    fun `saved interest seed inputs pull from history liked and playlists within bounds`() {
         val sources = SavedSeedSources(
-            historyIds = (1..10).map { "h$it" },
-            likedIds = (1..10).map { "l$it" },
-            playlistIds = (1..10).map { "p$it" }
+            history = (1..10).map { graphSeed("h$it", GraphSeedSource.WATCH_HISTORY) },
+            liked = (1..10).map { graphSeed("l$it", GraphSeedSource.LIKED) },
+            playlists = (1..10).map { graphSeed("p$it", GraphSeedSource.PLAYLIST) }
         )
-        val seeds = selectSavedInterestSeeds(sources, cooldown = emptySet(), random = seededRandom)
-        assertThat(seeds.size).isAtMost(5) // maxSeeds
-        assertThat(seeds.any { it.startsWith("h") }).isTrue()
-        assertThat(seeds.any { it.startsWith("l") }).isTrue()
-        assertThat(seeds.any { it.startsWith("p") }).isTrue()
+        val seeds = savedInterestSeedInputs(sources, cooldown = emptySet(), maxPerSource = 2)
+        val ids = seeds.map { it.id }
+        assertThat(seeds.size).isEqualTo(6)
+        assertThat(ids.any { it.startsWith("h") }).isTrue()
+        assertThat(ids.any { it.startsWith("l") }).isTrue()
+        assertThat(ids.any { it.startsWith("p") }).isTrue()
     }
 
     @Test
-    fun `selectSavedInterestSeeds excludes ids on cooldown`() {
+    fun `saved interest seed inputs exclude ids on cooldown`() {
         val sources = SavedSeedSources(
-            historyIds = listOf("h_latest", "h2"), likedIds = listOf("l1"), playlistIds = listOf("p1")
+            history = listOf(
+                graphSeed("h_latest", GraphSeedSource.WATCH_HISTORY),
+                graphSeed("h2", GraphSeedSource.WATCH_HISTORY)
+            ),
+            liked = listOf(graphSeed("l1", GraphSeedSource.LIKED)),
+            playlists = listOf(graphSeed("p1", GraphSeedSource.PLAYLIST))
         )
         val cooldown = setOf("h_latest", "l1", "p1")
-        val seeds = selectSavedInterestSeeds(sources, cooldown = cooldown, random = seededRandom)
-        assertThat(seeds).containsNoneIn(cooldown)
-        assertThat(seeds).contains("h2") // newest non-cooled history is now the latest considered
+        val seeds = savedInterestSeedInputs(sources, cooldown = cooldown)
+        assertThat(seeds.map { it.id }).containsNoneIn(cooldown)
+        assertThat(seeds.map { it.id }).contains("h2")
     }
 
     @Test
-    fun `selectSavedInterestSeeds returns empty when nothing is saved`() {
+    fun `saved interest seed inputs return empty when nothing is saved`() {
         val empty = SavedSeedSources(emptyList(), emptyList(), emptyList())
-        assertThat(selectSavedInterestSeeds(empty, cooldown = emptySet(), random = seededRandom)).isEmpty()
+        assertThat(savedInterestSeedInputs(empty, cooldown = emptySet())).isEmpty()
     }
 }

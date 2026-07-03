@@ -215,11 +215,23 @@ internal data class IdfSnapshot(
  * Bundles every shared input so candidate scoring is a pure, deterministic
  * function (no engine state, no Context) — testable and replayable offline.
  */
-/** A candidate seed (recent positive) for related-graph retrieval. */
-data class SeedInput(
+enum class GraphSeedSource {
+    WATCH_HISTORY,
+    LIKED,
+    PLAYLIST
+}
+
+/** A candidate seed for related-graph retrieval, with enough context for one shared selector. */
+data class GraphSeedInput(
     val id: String,
     val title: String,
-    val weight: Double
+    val channelId: String,
+    val source: GraphSeedSource,
+    val engagementWeight: Double,
+    val timestamp: Long,
+    val durationSec: Int,
+    val percentWatched: Double,
+    val isShort: Boolean = false
 )
 
 /** A seed annotated with its interest cluster, for diversified selection. */

@@ -96,7 +96,7 @@ class FlowNeuroEngine(private val appContext: Context) {
         suspend fun generateDiscoveryQueries(): List<String> =
             requireInstance().generateDiscoveryQueries()
 
-        suspend fun selectRelatedSeeds(candidates: List<SeedInput>, maxSeeds: Int = 4): List<String> =
+        suspend fun selectRelatedSeeds(candidates: List<GraphSeedInput>, maxSeeds: Int = 4): List<String> =
             requireInstance().selectRelatedSeeds(candidates, maxSeeds)
 
         suspend fun needsOnboarding(): Boolean = requireInstance().needsOnboarding()
@@ -1037,27 +1037,19 @@ class FlowNeuroEngine(private val appContext: Context) {
         } }
 
     suspend fun selectRelatedSeeds(
-        candidates: List<SeedInput>,
+        candidates: List<GraphSeedInput>,
         maxSeeds: Int = 4
     ): List<String> = withContext(Dispatchers.Default) {
         if (candidates.isEmpty()) return@withContext emptyList()
-        val ranked = candidates.map {
-            SeedRank(it.id, seedClusterKey(it.title), it.weight)
+        val now = System.currentTimeMillis()
+        val excludedChannelIds = brainMutex.withLock {
+            val channelSuppressionCutoff = now - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
+            currentUserBrain.blockedChannels +
+                currentUserBrain.suppressedChannels
+                    .filter { (_, ts) -> ts > channelSuppressionCutoff }
+                    .keys
         }
-        NeuroScoring.pickDiverseSeeds(ranked, maxSeeds, maxPerCluster = 2)
-    }
-
-    // Cluster key for a seed = its primary topic's catalog category, else the lemma.
-    private fun seedClusterKey(title: String): String {
-        val tokens = tokenizer.tokenize(title)
-        for (token in tokens) {
-            val lemma = tokenizer.normalizeLemma(token)
-            val cat = NeuroTopicCatalog.TOPIC_CATEGORIES.firstOrNull { c ->
-                c.topics.any { tokenizer.normalizeLemma(it) == lemma }
-            }
-            if (cat != null) return "cat:${cat.name}"
-        }
-        return tokens.firstOrNull()?.let { tokenizer.normalizeLemma(it) } ?: "misc"
+        GraphSeedSelector.select(candidates, maxSeeds, now, excludedChannelIds)
     }
 
     // =================================================

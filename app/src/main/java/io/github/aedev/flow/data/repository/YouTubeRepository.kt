@@ -26,6 +26,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
+import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.first
 import java.util.Locale
@@ -785,7 +786,7 @@ class YouTubeRepository @Inject constructor(
 
     suspend fun getLiveWatchMetadata(videoId: String): LiveWatchMetadata? = withContext(Dispatchers.IO) {
         val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext null
-        val related = mapWatchMetadataRelated(resp)
+        val related = WatchMetadataVideoMapper.relatedVideos(resp)
         Log.i(TAG, "InnerTube watch metadata for $videoId: rawRelated=${resp.relatedResultCount()} parsedRelated=${related.size}")
         LiveWatchMetadata(
             title = resp.title(),
@@ -799,30 +800,10 @@ class YouTubeRepository @Inject constructor(
         )
     }
 
-    private fun mapWatchMetadataRelated(
-        resp: io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
-    ): List<Video> = resp.relatedVideos().mapNotNull { cv ->
-        val id = cv.videoId ?: return@mapNotNull null
-        val viewText = cv.viewCountText?.text()
-        val isLive = cv.isLive || viewText.isLiveViewCountText()
-        Video(
-            id = id,
-            title = cv.title?.text() ?: "",
-            channelName = cv.longBylineText?.text() ?: "",
-            channelId = "",
-            thumbnailUrl = cv.thumbnail?.bestUrl()?.let { ThumbnailUrlResolver.normalizeVideoThumbnail(id, it) }
-                ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
-            duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
-            viewCount = parseAbbreviatedCount(viewText) ?: 0L,
-            uploadDate = cv.publishedTimeText?.text() ?: "",
-            isLive = isLive
-        )
-    }
-
     /** Light related-video harvest for the feed (InnerTube /next, no stream resolution). */
     suspend fun getRelatedCandidates(videoId: String): List<Video> = withContext(Dispatchers.IO) {
         val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext emptyList()
-        mapWatchMetadataRelated(resp)
+        WatchMetadataVideoMapper.relatedVideos(resp)
             .filter { it.id.isNotBlank() && it.id != videoId }
             .distinctBy { it.id }
     }
@@ -883,36 +864,6 @@ class YouTubeRepository @Inject constructor(
         }
         Log.w(TAG, "NewPipe watch metadata unavailable for $videoId: ${lastError?.message}")
         return null
-    }
-
-    private fun parseAbbreviatedCount(text: String?): Long? {
-        if (text.isNullOrBlank()) return null
-        val match = Regex("""([\d.,]+)\s*([KkMmBb])?""").find(text) ?: return null
-        val number = match.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
-        val mult = when (match.groupValues[2].lowercase(Locale.US)) {
-            "k" -> 1_000.0
-            "m" -> 1_000_000.0
-            "b" -> 1_000_000_000.0
-            else -> 1.0
-        }
-        return (number * mult).toLong()
-    }
-
-    private fun parseDurationTextToSeconds(text: String?): Int {
-        if (text.isNullOrBlank()) return 0
-        val parts = text.split(":").mapNotNull { it.trim().toIntOrNull() }
-        return when (parts.size) {
-            3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
-            2 -> parts[0] * 60 + parts[1]
-            1 -> parts[0]
-            else -> 0
-        }
-    }
-
-    private fun String?.isLiveViewCountText(): Boolean {
-        if (isNullOrBlank()) return false
-        val lower = lowercase(Locale.US)
-        return lower.contains("watching") || lower.contains("viewer")
     }
 
     private suspend fun fetchInnertubePlaylistVideos(
@@ -1177,5 +1128,55 @@ class YouTubeRepository @Inject constructor(
         fun getInstance(): YouTubeRepository {
             return instance ?: error("YouTubeRepository not initialized. Call getInstance(playerPreferences) first.")
         }
+    }
+}
+
+internal fun parseAbbreviatedCount(text: String?): Long? {
+    if (text.isNullOrBlank()) return null
+    val match = Regex("""([\d.,]+)\s*([KkMmBb])?""").find(text) ?: return null
+    val number = match.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
+    val mult = when (match.groupValues[2].lowercase(Locale.US)) {
+        "k" -> 1_000.0
+        "m" -> 1_000_000.0
+        "b" -> 1_000_000_000.0
+        else -> 1.0
+    }
+    return (number * mult).toLong()
+}
+
+internal fun parseDurationTextToSeconds(text: String?): Int {
+    if (text.isNullOrBlank()) return 0
+    val parts = text.split(":").mapNotNull { it.trim().toIntOrNull() }
+    return when (parts.size) {
+        3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
+        2 -> parts[0] * 60 + parts[1]
+        1 -> parts[0]
+        else -> 0
+    }
+}
+
+internal fun String?.isLiveViewCountText(): Boolean {
+    if (isNullOrBlank()) return false
+    val lower = lowercase(Locale.US)
+    return lower.contains("watching") || lower.contains("viewer")
+}
+
+internal object WatchMetadataVideoMapper {
+    fun relatedVideos(resp: WatchMetadataResponse): List<Video> = resp.relatedVideos().mapNotNull { cv ->
+        val id = cv.videoId ?: return@mapNotNull null
+        val viewText = cv.viewCountText?.text()
+        val isLive = cv.isLive || viewText.isLiveViewCountText()
+        Video(
+            id = id,
+            title = cv.title?.text() ?: "",
+            channelName = cv.longBylineText?.text() ?: "",
+            channelId = cv.channelId().orEmpty(),
+            thumbnailUrl = cv.thumbnail?.bestUrl()?.let { ThumbnailUrlResolver.normalizeVideoThumbnail(id, it) }
+                ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
+            duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
+            viewCount = parseAbbreviatedCount(viewText) ?: 0L,
+            uploadDate = cv.publishedTimeText?.text() ?: "",
+            isLive = isLive
+        )
     }
 }
