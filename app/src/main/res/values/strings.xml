@@ -1272,8 +1272,17 @@
     <string name="onboarding_instructions">Select at least 3 topics to personalize your experience</string>
     <string name="selected_with_more_needed_template">%1$d selected (%2$d more needed)</string>
     <string name="onboarding_interests_title">What do you enjoy?</string>
+    <string name="onboarding_interests_hint">Pick at least %1$d topics to personalise your feed. %2$d more to go.</string>
+    <string name="onboarding_interests_ready">Great selection. You can always update this later in settings.</string>
     <string name="onboarding_channels_title">Find channels</string>
     <string name="onboarding_channels_subtitle">Search for channels you already follow and subscribe in one tap.</string>
+    <string name="onboarding_channels_search_placeholder">Search channels…</string>
+    <string name="onboarding_channels_empty_prompt">Type a channel name to search</string>
+    <string name="onboarding_channels_no_results">No channels found for \"%1$s\"</string>
+    <string name="onboarding_channels_added_count">%1$d channels added</string>
+    <string name="onboarding_channels_subscribers">%1$s subscribers</string>
+    <string name="onboarding_channels_subscribed">Subscribed</string>
+    <string name="onboarding_channels_subscribe">Subscribe</string>
     <string name="onboarding_import_title">Import your data</string>
     <string name="onboarding_import_subtitle">Bring your subscriptions and history from other apps. Everything is optional.</string>
     <string name="onboarding_backup_restore_section">Backup &amp; Restore</string>
@@ -1285,6 +1294,7 @@
     <string name="onboarding_btn_finish">Finish</string>
     <string name="btn_skip_for_now">Skip for now</string>
     <string name="onboarding_btn_continue">Continue</string>
+    <string name="onboarding_btn_back">Back</string>
     <string name="cd_collapse_category">Collapse</string>
     <string name="cd_expand_category">Expand</string>
     <!-- Categories -->

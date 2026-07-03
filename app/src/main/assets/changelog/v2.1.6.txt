@@ -47,6 +47,7 @@ IMPROVEMENTS
 - Improve volume gesture and rotation handling
 - Improve Theme color schemes
 - Refine the subscriptions feed cards to match the home layout #678
+- Onboarding screen redesign
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

@@ -50,6 +50,7 @@ import io.github.aedev.flow.ui.components.PersistentMiniMusicPlayer
 import io.github.aedev.flow.ui.components.rememberMusicPlayerSheetState
 import io.github.aedev.flow.ui.components.PlayerSheetValue
 import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
+import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.EnhancedMusicPlayerScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.theme.CustomThemeColors
@@ -385,6 +386,11 @@ fun FlowApp(
                     .nestedScroll(nestedScrollConnection)
             ) {
                 if (needsOnboarding != null) {
+                    val homeViewModel: HomeViewModel = hiltViewModel(activity!!)
+                    LaunchedEffect(homeViewModel) {
+                        homeViewModel.initialize(context.applicationContext)
+                    }
+
                     NavHost(
                         navController = navController,
                         startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
@@ -422,6 +428,7 @@ fun FlowApp(
                             selectedBottomNavIndex = selectedBottomNavIndex,
                             playerSheetState = playerSheetState,
                             musicPlayerSheetState = musicPlayerSheetState,
+                            homeViewModel = homeViewModel,
                             playerViewModel = playerViewModel,
                             playerUiStateResult = playerUiStateResult,
                             playerVisibleState = playerVisibleState,

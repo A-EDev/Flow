@@ -27,6 +27,7 @@ import io.github.aedev.flow.ui.components.PlayerSheetValue
 import io.github.aedev.flow.ui.components.PlayerDraggableState
 import io.github.aedev.flow.ui.components.MusicPlayerSheetState
 import io.github.aedev.flow.ui.screens.home.HomeScreen
+import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.history.HistoryScreen
 import io.github.aedev.flow.ui.screens.library.LibraryScreen
 import io.github.aedev.flow.ui.screens.likedvideos.LikesScreen
@@ -61,6 +62,7 @@ fun NavGraphBuilder.flowAppGraph(
     selectedBottomNavIndex: MutableIntState,
     playerSheetState: PlayerDraggableState,
     musicPlayerSheetState: MusicPlayerSheetState,
+    homeViewModel: HomeViewModel,
     playerViewModel: VideoPlayerViewModel,
     playerUiStateResult: State<VideoPlayerUiState>, 
     playerVisibleState: MutableState<Boolean>, 
@@ -137,7 +139,8 @@ fun NavGraphBuilder.flowAppGraph(
             onChannelClick = { channelId ->
                 val encodedUrl = java.net.URLEncoder.encode("https://www.youtube.com/channel/$channelId", "UTF-8")
                 navController.navigate("channel?url=$encodedUrl")
-            }
+            },
+            viewModel = homeViewModel
         )
     }
 
