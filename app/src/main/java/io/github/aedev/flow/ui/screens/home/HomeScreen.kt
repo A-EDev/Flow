@@ -67,44 +67,22 @@ private data class HomeLayoutConfig(
 
 @Composable
 private fun rememberHomeLayoutConfig(maxWidth: Dp): HomeLayoutConfig {
-    return remember(maxWidth) {
-        when {
-            maxWidth < 480.dp -> HomeLayoutConfig(
-                columns = 1,
-                contentPadding = 0.dp,
-                cardSpacing = 12.dp,
-                shortsShelfAfterIndex = 1,
-                shimmerColumns = 1
-            )
-            maxWidth < 700.dp -> HomeLayoutConfig(
-                columns = 1,
-                contentPadding = 12.dp,
-                cardSpacing = 14.dp,
-                shortsShelfAfterIndex = 2,
-                shimmerColumns = 1
-            )
-            maxWidth < 900.dp -> HomeLayoutConfig(
-                columns = 2,
-                contentPadding = 16.dp,
-                cardSpacing = 12.dp,
-                shortsShelfAfterIndex = 2,
-                shimmerColumns = 2
-            )
-            maxWidth < 1200.dp -> HomeLayoutConfig(
-                columns = 3,
-                contentPadding = 20.dp,
-                cardSpacing = 14.dp,
-                shortsShelfAfterIndex = 3,
-                shimmerColumns = 3
-            )
-            else -> HomeLayoutConfig(
-                columns = 4,
-                contentPadding = 24.dp,
-                cardSpacing = 16.dp,
-                shortsShelfAfterIndex = 4,
-                shimmerColumns = 4
-            )
+    val base = rememberFeedGridLayout(maxWidth)
+    return remember(base, maxWidth) {
+        val shortsShelfAfterIndex = when {
+            maxWidth < 480.dp -> 1
+            maxWidth < 700.dp -> 2
+            maxWidth < 900.dp -> 2
+            maxWidth < 1200.dp -> 3
+            else -> 4
         }
+        HomeLayoutConfig(
+            columns = base.columns,
+            contentPadding = base.contentPadding,
+            cardSpacing = base.cardSpacing,
+            shortsShelfAfterIndex = shortsShelfAfterIndex,
+            shimmerColumns = base.columns
+        )
     }
 }
 

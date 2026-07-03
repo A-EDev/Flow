@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-07-02
+DATE: 2026-07-03
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -16,6 +16,7 @@ NEW FEATURES
 - Add new native local cross-platform sync 
 - Add default codec selection for downloads #675
 - Add hide music artwork option #639
+- Add channel sorting options in subscriptions (default, name A–Z, recently updated) #498
 
 IMPROVEMENTS
 - Improve media notification handling #577
@@ -45,6 +46,7 @@ IMPROVEMENTS
 - Improve upcoming videos reminder #470
 - Improve volume gesture and rotation handling
 - Improve Theme color schemes
+- Refine the subscriptions feed cards to match the home layout #678
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578
@@ -60,6 +62,8 @@ FIXES AND STABILITY
 - Fix missing Shorts metadata
 - Fix missing playlist videos metadata
 - Fix icon backup crashes
+- Fix low-quality thumbnails in the subscriptions feed #678
+- Fix custom player brightness leaking into PiP and the rest of the app #679
 
 ENGINE
 - Improve measurements foundation, add evaluation harness and deterministic scorers

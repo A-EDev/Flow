@@ -194,6 +194,7 @@ class PlayerPreferences(context: Context) {
 
         // Subscriptions feed view mode
         val SUBS_FULL_WIDTH_VIEW = booleanPreferencesKey("subs_full_width_view")
+        val SUBS_SORT_MODE = stringPreferencesKey("subs_sort_mode")
         val SUBS_SELECTED_GROUP = stringPreferencesKey("subs_selected_group")
         val SUBS_REFRESH_ON_STARTUP = booleanPreferencesKey("subs_refresh_on_startup")
         val SUBS_LAST_REFRESH_TIME = longPreferencesKey("subs_last_refresh_time")
@@ -1344,6 +1345,16 @@ class PlayerPreferences(context: Context) {
     suspend fun setSubsFullWidthView(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SUBS_FULL_WIDTH_VIEW] = enabled
+        }
+    }
+
+    // Subscriptions channel sort mode (persisted as the enum name)
+    val subsSortMode: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SUBS_SORT_MODE] ?: "" }
+
+    suspend fun setSubsSortMode(mode: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBS_SORT_MODE] = mode
         }
     }
 

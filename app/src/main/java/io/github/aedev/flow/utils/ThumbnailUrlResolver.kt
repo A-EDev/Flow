@@ -2,7 +2,7 @@ package io.github.aedev.flow.utils
 
 object ThumbnailUrlResolver {
     private val youtubeVideoThumbnailPattern =
-        Regex("""(?:https?:)?//(?:i\.ytimg\.com|img\.youtube\.com)/(?:vi|vi_webp)/([^/?#]+)/[^/?#]+""")
+        Regex("""(?:https?:)?//(?:i\d*\.ytimg\.com|img\.youtube\.com)/(?:vi|vi_webp)/([^/?#]+)/[^/?#]+""")
     private val googleCdnSizePattern = Regex("""w\d+-h\d+""")
     private val googleCdnParamStartPattern = Regex("""=(?:w|s|h)""")
 

@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
@@ -89,6 +90,7 @@ fun SubscriptionsScreen(
     
     var isManagingSubs by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     var showGroupsDialog by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -118,8 +120,20 @@ fun SubscriptionsScreen(
     }
     
     val subscribedChannels = uiState.subscribedChannels
-    val videoSubscriptions = remember(subscribedChannels) { subscribedChannels.filterNot { it.isMusic } }
-    val musicSubscriptions = remember(subscribedChannels) { subscribedChannels.filter { it.isMusic } }
+    val sortedChannels = remember(subscribedChannels, uiState.sortMode, uiState.recentVideos) {
+        when (uiState.sortMode) {
+            SubscriptionSortMode.DEFAULT -> subscribedChannels
+            SubscriptionSortMode.NAME_ASC -> subscribedChannels.sortedBy { it.name.lowercase() }
+            SubscriptionSortMode.RECENTLY_UPDATED -> {
+                val latestUploadByChannel = uiState.recentVideos
+                    .groupBy { it.channelId }
+                    .mapValues { (_, videos) -> videos.maxOf { it.timestamp } }
+                subscribedChannels.sortedByDescending { latestUploadByChannel[it.id] ?: 0L }
+            }
+        }
+    }
+    val videoSubscriptions = remember(sortedChannels) { sortedChannels.filterNot { it.isMusic } }
+    val musicSubscriptions = remember(sortedChannels) { sortedChannels.filter { it.isMusic } }
     val topChannels = remember(videoSubscriptions, musicSubscriptions) {
         (videoSubscriptions + musicSubscriptions)
             .distinctBy(Channel::id)
@@ -167,6 +181,36 @@ fun SubscriptionsScreen(
                         }
                     },
                     actions = {
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(Icons.AutoMirrored.Filled.Sort, stringResource(R.string.subscriptions_sort_label))
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.subscriptions_sort_label),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                                SubscriptionSortMode.entries.forEach { mode ->
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(mode.labelRes())) },
+                                        onClick = {
+                                            viewModel.setSortMode(mode)
+                                            showSortMenu = false
+                                        },
+                                        trailingIcon = {
+                                            if (uiState.sortMode == mode) {
+                                                Icon(Icons.Default.Check, contentDescription = null)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
                         IconButton(onClick = { launcher.launch("application/json") }) {
                             Icon(Icons.Default.Upload, stringResource(R.string.import_newpipe_backup))
                         }
@@ -235,11 +279,11 @@ fun SubscriptionsScreen(
                 if (manageMode) {
                     var selectedTabIndex by remember { mutableIntStateOf(0) }
                 
-                    val activeList = remember(subscribedChannels, selectedTabIndex) {
+                    val activeList = remember(sortedChannels, selectedTabIndex) {
                         if (selectedTabIndex == 0) {
-                            subscribedChannels.filterNot { it.isMusic }
+                            sortedChannels.filterNot { it.isMusic }
                         } else {
-                            subscribedChannels.filter { it.isMusic }
+                            sortedChannels.filter { it.isMusic }
                         }
                     }
                 
@@ -368,18 +412,20 @@ fun SubscriptionsScreen(
                         if (subscribedChannels.isEmpty()) {
                             EmptySubscriptionsState(modifier = Modifier.fillMaxSize())
                         } else {
+                            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                            val feedLayout = rememberFeedGridLayout(maxWidth)
                             LazyVerticalGrid(
-                                columns = if (uiState.isFullWidthView) GridCells.Adaptive(320.dp) else GridCells.Fixed(1),
+                                columns = if (uiState.isFullWidthView) GridCells.Fixed(feedLayout.columns) else GridCells.Fixed(1),
                                 state = feedGridState,
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(
-                                    start = if (uiState.isFullWidthView) 16.dp else 0.dp,
-                                    end = if (uiState.isFullWidthView) 16.dp else 0.dp,
+                                    start = if (uiState.isFullWidthView) feedLayout.contentPadding else 0.dp,
+                                    end = if (uiState.isFullWidthView) feedLayout.contentPadding else 0.dp,
                                     top = 4.dp,
                                     bottom = 80.dp
                                 ),
-                                verticalArrangement = Arrangement.spacedBy(if (uiState.isFullWidthView) 16.dp else 0.dp),
-                                horizontalArrangement = Arrangement.spacedBy(if (uiState.isFullWidthView) 16.dp else 0.dp)
+                                verticalArrangement = Arrangement.spacedBy(if (uiState.isFullWidthView) feedLayout.cardSpacing else 0.dp),
+                                horizontalArrangement = Arrangement.spacedBy(if (uiState.isFullWidthView) feedLayout.cardSpacing else 0.dp)
                             ) {
                                 // Channel Chips Row
                                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -492,7 +538,8 @@ fun SubscriptionsScreen(
                                         VideoCardFullWidth(
                                             video = video,
                                             onClick = { onVideoClick(video) },
-                                            onChannelClick = openVideoChannel
+                                            onChannelClick = openVideoChannel,
+                                            useInternalPadding = false
                                         )
                                     } else {
                                         VideoCardHorizontal(
@@ -506,6 +553,7 @@ fun SubscriptionsScreen(
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     Spacer(modifier = Modifier.height(80.dp))
                                 }
+                            }
                             }
                         }
                     }
@@ -556,6 +604,12 @@ fun SubscriptionsScreen(
             }
         )
     }
+}
+
+private fun SubscriptionSortMode.labelRes(): Int = when (this) {
+    SubscriptionSortMode.DEFAULT -> R.string.subscriptions_sort_default
+    SubscriptionSortMode.NAME_ASC -> R.string.subscriptions_sort_name
+    SubscriptionSortMode.RECENTLY_UPDATED -> R.string.subscriptions_sort_recent
 }
 
 @Composable

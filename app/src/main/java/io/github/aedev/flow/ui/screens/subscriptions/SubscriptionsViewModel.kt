@@ -149,6 +149,13 @@ class SubscriptionsViewModel : ViewModel() {
         }
 
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.subsSortMode.collect { stored ->
+                val mode = SubscriptionSortMode.fromStorage(stored)
+                _uiState.update { it.copy(sortMode = mode) }
+            }
+        }
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             playerPreferences.selectedSubscriptionGroup.collect { groupName ->
                 _uiState.update { it.copy(selectedGroupName = groupName) }
                 if (latestFeedVideos.isNotEmpty()) {
@@ -1057,6 +1064,13 @@ class SubscriptionsViewModel : ViewModel() {
         }
     }
 
+    fun setSortMode(mode: SubscriptionSortMode) {
+        _uiState.update { it.copy(sortMode = mode) }
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.setSubsSortMode(mode.name)
+        }
+    }
+
     /**
      * Get a single subscription snapshot (suspend)
      */
@@ -1092,6 +1106,17 @@ class SubscriptionsViewModel : ViewModel() {
     }
 }
 
+enum class SubscriptionSortMode {
+    DEFAULT,
+    NAME_ASC,
+    RECENTLY_UPDATED;
+
+    companion object {
+        fun fromStorage(value: String?): SubscriptionSortMode =
+            entries.firstOrNull { it.name == value } ?: DEFAULT
+    }
+}
+
 data class SubscriptionsUiState(
     val subscribedChannels: List<Channel> = emptyList(),
     val recentVideos: List<Video> = emptyList(),
@@ -1099,6 +1124,7 @@ data class SubscriptionsUiState(
     val selectedChannelId: String? = null,
     val isLoading: Boolean = false,
     val isFullWidthView: Boolean = false,
+    val sortMode: SubscriptionSortMode = SubscriptionSortMode.DEFAULT,
     val isShortsShelfEnabled: Boolean = true,
     val notificationStates: Map<String, Boolean> = emptyMap(),
     val groups: List<SubscriptionGroup> = emptyList(),

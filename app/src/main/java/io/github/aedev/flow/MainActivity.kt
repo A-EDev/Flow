@@ -478,6 +478,8 @@ class MainActivity : ComponentActivity() {
         GlobalPlayerState.setPipMode(isInPictureInPictureMode)
         pendingAutoPip = false
 
+        clearWindowBrightnessOverride()
+
         pipDismissCheckJob?.cancel()
         if (!isInPictureInPictureMode) {
             pipDismissCheckJob = lifecycleScope.launch {
@@ -489,6 +491,14 @@ class MainActivity : ComponentActivity() {
                     io.github.aedev.flow.player.EnhancedPlayerManager.getInstance().stopBackgroundService()
                 }
             }
+        }
+    }
+
+    private fun clearWindowBrightnessOverride() {
+        val layoutParams = window.attributes
+        if (layoutParams.screenBrightness != android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE) {
+            layoutParams.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            window.attributes = layoutParams
         }
     }
 

@@ -2,6 +2,10 @@
 <resources>
     <string name="app_name">Flow</string>
     <string name="subscriptions_search_placeholder">Search subscriptions...</string>
+    <string name="subscriptions_sort_label">Sort channels</string>
+    <string name="subscriptions_sort_default">Default</string>
+    <string name="subscriptions_sort_name">Name (A–Z)</string>
+    <string name="subscriptions_sort_recent">Recently updated</string>
     <string name="top_bar_subscriptions_title">Subscriptions</string>
     <string name="view_all_button_label">All</string>
     <string name="subscribed">Subscribed</string>
