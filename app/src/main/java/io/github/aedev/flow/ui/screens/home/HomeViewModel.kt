@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
+import io.github.aedev.flow.data.recommendation.GraphSeedSelector
 import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.local.LikedVideosRepository
@@ -70,6 +71,21 @@ internal data class SavedSeedSources(
     val playlists: List<GraphSeedInput>
 )
 
+internal data class GraphCandidate(
+    val video: Video,
+    val seedId: String,
+    val seedScore: Double,
+    val graphRank: Int,
+    val seedCluster: String,
+    val seedResultCount: Int,
+    val hitCount: Int = 1
+)
+
+private data class GraphCandidateAccumulator(
+    var candidate: GraphCandidate,
+    val seedIds: MutableSet<String>
+)
+
 internal fun savedInterestSeedInputs(
     sources: SavedSeedSources,
     cooldown: Set<String>,
@@ -77,6 +93,199 @@ internal fun savedInterestSeedInputs(
 ): List<GraphSeedInput> =
     listOf(sources.history, sources.liked, sources.playlists)
         .flatMap { seeds -> seeds.filterNot { it.id in cooldown }.take(maxPerSource) }
+
+internal fun mergeGraphCandidates(candidates: List<GraphCandidate>): List<GraphCandidate> {
+    if (candidates.isEmpty()) return emptyList()
+    val merged = LinkedHashMap<String, GraphCandidateAccumulator>()
+    for (candidate in candidates) {
+        val videoId = candidate.video.id
+        val accumulator = merged[videoId]
+        if (accumulator == null) {
+            merged[videoId] = GraphCandidateAccumulator(
+                candidate = candidate,
+                seedIds = mutableSetOf(candidate.seedId)
+            )
+            continue
+        }
+
+        accumulator.seedIds.add(candidate.seedId)
+        val current = accumulator.candidate
+        val strongerSeed = candidate.seedScore > current.seedScore
+        accumulator.candidate = current.copy(
+            video = if (strongerSeed) candidate.video else current.video,
+            seedId = if (strongerSeed) candidate.seedId else current.seedId,
+            seedScore = maxOf(current.seedScore, candidate.seedScore),
+            graphRank = minOf(current.graphRank, candidate.graphRank),
+            seedCluster = if (strongerSeed) candidate.seedCluster else current.seedCluster,
+            seedResultCount = maxOf(current.seedResultCount, candidate.seedResultCount),
+            hitCount = accumulator.seedIds.size
+        )
+    }
+    return merged.values.map { it.candidate }
+}
+
+internal fun graphBoost(candidate: GraphCandidate): Double {
+    val highSeedBoost = if (candidate.seedScore >= 1.0) 0.04 else 0.0
+    val convergenceBoost = if (candidate.hitCount > 1) 0.03 else 0.0
+    val topThirdCount = (candidate.seedResultCount + 2) / 3
+    val graphRankBoost = if (candidate.graphRank < topThirdCount.coerceAtLeast(1)) 0.02 else 0.0
+    return (highSeedBoost + convergenceBoost + graphRankBoost).coerceAtMost(0.08)
+}
+
+internal fun applyGraphBoost(
+    ranked: List<Video>,
+    metadata: Map<String, GraphCandidate>
+): List<Video> {
+    if (ranked.size <= 1 || metadata.isEmpty()) return ranked
+    val maxIndex = (ranked.size - 1).coerceAtLeast(1)
+    return ranked.withIndex()
+        .sortedWith(
+            compareByDescending<IndexedValue<Video>> { indexed ->
+                val base = 1.0 - (indexed.index.toDouble() / maxIndex)
+                base + (metadata[indexed.value.id]?.let(::graphBoost) ?: 0.0)
+            }.thenBy { it.index }
+        )
+        .map { it.value }
+}
+
+private data class Wave1FeedResults(
+    val subs: List<Video>,
+    val discovery: List<Video>,
+    val viral: List<Video>,
+    val related: List<GraphCandidate>
+)
+
+internal enum class FeedSource {
+    SUBS,
+    RELATED,
+    DISCOVERY,
+    VIRAL
+}
+
+internal data class FeedCandidate(
+    val video: Video,
+    val source: FeedSource
+)
+
+internal data class FeedMixResult(
+    val items: List<FeedCandidate>,
+    val sourceCounts: Map<FeedSource, Int>
+) {
+    val videos: List<Video> get() = items.map { it.video }
+}
+
+internal fun homeFeedQuotas(
+    remaining: Int,
+    subCount: Int,
+    totalInteractions: Int
+): Map<FeedSource, Int> {
+    val slots = remaining.coerceAtLeast(0)
+    if (slots == 0) {
+        return FeedSource.entries.associateWith { 0 }
+    }
+
+    val subs = when {
+        subCount <= 0 -> 0
+        totalInteractions > 50 -> (slots * 0.40).toInt()
+        else -> (slots * 0.35).toInt()
+    }.coerceAtLeast(0)
+    val related = when {
+        subCount <= 0 -> (slots * 0.35).toInt()
+        totalInteractions > 50 -> (slots * 0.25).toInt()
+        else -> (slots * 0.30).toInt()
+    }.coerceAtLeast(0)
+    val discovery = when {
+        subCount <= 0 -> (slots * 0.45).toInt()
+        else -> (slots * 0.25).toInt()
+    }.coerceAtLeast(0)
+    val viral = (slots - subs - related - discovery).coerceAtLeast(0)
+
+    return mapOf(
+        FeedSource.SUBS to subs,
+        FeedSource.RELATED to related,
+        FeedSource.DISCOVERY to discovery,
+        FeedSource.VIRAL to viral
+    )
+}
+
+internal fun addUniqueVideo(
+    video: Video?,
+    targetList: MutableList<Video>,
+    channelCounts: MutableMap<String, Int>,
+    usedVideoIds: MutableSet<String>,
+    maxPerChannel: Int = 2
+): Boolean {
+    if (video == null) return false
+
+    val hasChannel = video.channelId.isNotBlank()
+    val count = channelCounts[video.channelId] ?: 0
+    if (hasChannel && count >= maxPerChannel) return false
+    if (!usedVideoIds.add(video.id)) return false
+    targetList.add(video)
+    if (hasChannel) channelCounts[video.channelId] = count + 1
+    return true
+}
+
+private fun addUniqueCandidate(
+    candidate: FeedCandidate?,
+    targetList: MutableList<FeedCandidate>,
+    channelCounts: MutableMap<String, Int>,
+    usedVideoIds: MutableSet<String>,
+    maxPerChannel: Int = 2
+): Boolean {
+    if (candidate == null) return false
+    val temp = mutableListOf<Video>()
+    if (!addUniqueVideo(candidate.video, temp, channelCounts, usedVideoIds, maxPerChannel)) return false
+    targetList.add(candidate)
+    return true
+}
+
+internal fun blendFeedSources(
+    lanes: Map<FeedSource, List<Video>>,
+    quotas: Map<FeedSource, Int>,
+    targetSize: Int,
+    channelCounts: MutableMap<String, Int> = mutableMapOf(),
+    usedVideoIds: MutableSet<String> = mutableSetOf()
+): FeedMixResult {
+    val target = targetSize.coerceAtLeast(0)
+    if (target == 0) return FeedMixResult(emptyList(), emptyMap())
+
+    val queues = FeedSource.entries.associateWith { source ->
+        java.util.ArrayDeque(lanes[source].orEmpty().map { FeedCandidate(it, source) })
+    }
+    val quotaOrder = listOf(FeedSource.SUBS, FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.VIRAL)
+    val scarcityOrder = listOf(FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.SUBS, FeedSource.VIRAL)
+    val addedBySource = mutableMapOf<FeedSource, Int>()
+    val out = mutableListOf<FeedCandidate>()
+
+    while (out.size < target && queues.any { it.value.isNotEmpty() }) {
+        var addedThisRound = false
+        for (source in quotaOrder) {
+            if (out.size >= target) break
+            val added = addedBySource[source] ?: 0
+            val quota = quotas[source] ?: 0
+            if (added < quota && addUniqueCandidate(queues[source]?.pollFirst(), out, channelCounts, usedVideoIds)) {
+                addedBySource[source] = added + 1
+                addedThisRound = true
+            }
+        }
+
+        if (!addedThisRound) {
+            val forced = scarcityOrder.any { source ->
+                if (out.size >= target) true
+                else addUniqueCandidate(queues[source]?.pollFirst(), out, channelCounts, usedVideoIds).also { added ->
+                    if (added) addedBySource[source] = (addedBySource[source] ?: 0) + 1
+                }
+            }
+            if (!forced) break
+        }
+    }
+
+    return FeedMixResult(
+        items = out,
+        sourceCounts = FeedSource.entries.associateWith { source -> addedBySource[source] ?: 0 }
+    )
+}
 
 // Format signals often tied to low-effort feed filler. NOT a blocklist: they only demote
 // exploration candidates, and only when the user shows no matching interest.
@@ -410,7 +619,9 @@ class HomeViewModel @Inject constructor(
 
                     // ── Related-graph lane: harvest /next neighbours of recent positives ──
                     val deferredRelated = async {
-                        fetchRelatedFor(FlowNeuroEngine.selectRelatedSeeds(buildSeedInputs(), MAX_RELATED_SEEDS))
+                        val seedInputs = buildSeedInputs()
+                        val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, MAX_RELATED_SEEDS)
+                        fetchRelatedGraphCandidates(seedInputs, seedIds)
                     }
 
                     // ── Fast first paint ────────────────────────────────────────
@@ -434,13 +645,18 @@ class HomeViewModel @Inject constructor(
                         }
                     }
 
-                    listOf(deferredSubs.await(), deferredDiscovery.await(), viralResult, deferredRelated.await())
+                    Wave1FeedResults(
+                        subs = deferredSubs.await(),
+                        discovery = deferredDiscovery.await(),
+                        viral = viralResult,
+                        related = deferredRelated.await()
+                    )
                 }
 
-                val rawSubs = results[0]
-                val rawDiscovery = results[1]
-                val rawViral = results[2]
-                val rawRelated = results[3]
+                val rawSubs = results.subs
+                val rawDiscovery = results.discovery
+                val rawViral = results.viral
+                val rawRelated = results.related
 
                 Log.d(TAG, "Wave 1 fetch completed in ${System.currentTimeMillis() - fetchStart}ms")
 
@@ -484,7 +700,7 @@ class HomeViewModel @Inject constructor(
 
                 Log.d(
                     TAG,
-                    "Flow candidates: subs=${subsPool.size}, discovery=${discoveryPool.size}, viral=${viralPool.size}, subCount=${userSubs.size}"
+                    "Flow candidates: subs=${subsPool.size}, discovery=${discoveryPool.size}, viral=${viralPool.size}, related=${rawRelated.size}, subCount=${userSubs.size}"
                 )
 
                 val subsByRecency = subsPool.sortedByDescending { it.timestamp }
@@ -502,76 +718,39 @@ class HomeViewModel @Inject constructor(
                 val bestDiscovery = demoteByFit(FlowNeuroEngine.rank(discoveryPool, userSubs), taste).take(15)
                 val bestViral = demoteByFit(FlowNeuroEngine.rank(viralPool, userSubs), taste).take(6)
 
-                val relatedPool = rawRelated.filterValid().filterWatched(watched)
-                    .filterRecentHomeSuggestion(now)
-                val bestRelated = demoteByFit(FlowNeuroEngine.rank(relatedPool, userSubs), taste).take(12)
+                val relatedCandidates = rawRelated.filterValidGraph().filterWatchedGraph(watched)
+                    .filterRecentHomeSuggestionGraph(now)
+                val relatedPool = relatedCandidates.map { it.video }
+                val relatedMetadata = relatedCandidates.associateBy { it.video.id }
+                val bestRelated = demoteByFit(
+                    applyGraphBoost(FlowNeuroEngine.rank(relatedPool, userSubs), relatedMetadata),
+                    taste
+                ).take(12)
 
                 val finalMix = mutableListOf<Video>()
                 val usedChannelCounts = mutableMapOf<String, Int>()
                 val usedVideoIds = mutableSetOf<String>()
+                var freshAdded = 0
 
                 freshSubsLane.forEach { video ->
-                    addUnique(video, finalMix, usedChannelCounts, usedVideoIds)
+                    if (addUnique(video, finalMix, usedChannelCounts, usedVideoIds)) freshAdded++
                 }
 
                 val remaining = (HOME_TARGET_SIZE - finalMix.size).coerceAtLeast(0)
-                val subsQuota = (remaining * 0.40).toInt().coerceAtLeast(0)
-                val relatedQuota = (remaining * 0.25).toInt().coerceAtLeast(0)
-                val discoveryQuota = (remaining * 0.25).toInt().coerceAtLeast(0)
-                val viralQuota = (remaining - subsQuota - relatedQuota - discoveryQuota).coerceAtLeast(0)
-
-                val qSubs = java.util.ArrayDeque(bestSubs)
-                val qRelated = java.util.ArrayDeque(bestRelated)
-                val qDisc = java.util.ArrayDeque(bestDiscovery)
-                val qViral = java.util.ArrayDeque(bestViral)
-
-                var subsAdded = 0
-                var relatedAdded = 0
-                var discoveryAdded = 0
-                var viralAdded = 0
-                
-                while (
-                    finalMix.size < HOME_TARGET_SIZE &&
-                    (qSubs.isNotEmpty() || qRelated.isNotEmpty() || qDisc.isNotEmpty() || qViral.isNotEmpty())
-                ) {
-                    var addedThisRound = false
-
-                    if (subsAdded < subsQuota && addUnique(qSubs.pollFirst(), finalMix, usedChannelCounts, usedVideoIds)) {
-                        subsAdded++
-                        addedThisRound = true
-                    }
-
-                    if (relatedAdded < relatedQuota && addUnique(qRelated.pollFirst(), finalMix, usedChannelCounts, usedVideoIds)) {
-                        relatedAdded++
-                        addedThisRound = true
-                    }
-
-                    if (discoveryAdded < discoveryQuota && addUnique(qDisc.pollFirst(), finalMix, usedChannelCounts, usedVideoIds)) {
-                        discoveryAdded++
-                        addedThisRound = true
-                    }
-
-                    if (viralAdded < viralQuota && addUnique(qViral.pollFirst(), finalMix, usedChannelCounts, usedVideoIds)) {
-                        viralAdded++
-                        addedThisRound = true
-                    }
-
-                    if (!addedThisRound) {
-                        val forced = addUnique(qSubs.pollFirst(), finalMix, usedChannelCounts, usedVideoIds) ||
-                            addUnique(qRelated.pollFirst(), finalMix, usedChannelCounts, usedVideoIds) ||
-                            addUnique(qDisc.pollFirst(), finalMix, usedChannelCounts, usedVideoIds) ||
-                            addUnique(qViral.pollFirst(), finalMix, usedChannelCounts, usedVideoIds)
-                        if (!forced) break
-                    }
-                }
-
-                if (finalMix.size < HOME_TARGET_SIZE) {
-                    val fallback = bestSubs + bestRelated + bestDiscovery + bestViral
-                    fallback.forEach { video ->
-                        if (finalMix.size >= HOME_TARGET_SIZE) return@forEach
-                        addUnique(video, finalMix, usedChannelCounts, usedVideoIds)
-                    }
-                }
+                val quotas = homeFeedQuotas(remaining, userSubs.size, brain.totalInteractions)
+                val sourceMix = blendFeedSources(
+                    lanes = mapOf(
+                        FeedSource.SUBS to bestSubs,
+                        FeedSource.RELATED to bestRelated,
+                        FeedSource.DISCOVERY to bestDiscovery,
+                        FeedSource.VIRAL to bestViral
+                    ),
+                    quotas = quotas,
+                    targetSize = remaining,
+                    channelCounts = usedChannelCounts,
+                    usedVideoIds = usedVideoIds
+                )
+                finalMix += sourceMix.videos
 
                 subsBacklog = subsByRecency.filterNot { usedVideoIds.contains(it.id) }
 
@@ -582,7 +761,7 @@ class HomeViewModel @Inject constructor(
 
                 Log.d(
                     TAG,
-                    "Flow mix: freshLane=${freshSubsLane.size}, final=${finalMix.size}, quotas=s:$subsQuota r:$relatedQuota d:$discoveryQuota v:$viralQuota"
+                    "Flow mix: freshLane=$freshAdded, final=${finalMix.size}, quotas=${quotas}, selected=${sourceMix.sourceCounts}"
                 )
 
                 val spacedMix = spaceByChannel(finalMix)
@@ -804,36 +983,51 @@ class HomeViewModel @Inject constructor(
         channelCounts: MutableMap<String, Int>,
         usedVideoIds: MutableSet<String>,
         maxPerChannel: Int = 2
-    ): Boolean {
-        if (video == null) return false
-
-        // Related-graph items carry no channelId; cap per-channel only when present.
-        val hasChannel = video.channelId.isNotBlank()
-        val count = channelCounts[video.channelId] ?: 0
-        if (hasChannel && count >= maxPerChannel) return false
-        if (!usedVideoIds.add(video.id)) return false
-        targetList.add(video)
-        if (hasChannel) channelCounts[video.channelId] = count + 1
-        return true
-    }
+    ): Boolean = addUniqueVideo(video, targetList, channelCounts, usedVideoIds, maxPerChannel)
 
     private suspend fun buildSeedInputs(): List<GraphSeedInput> {
         val history = viewHistory?.getVideoHistoryFlow()?.first() ?: return emptyList()
         return graphSeedInputsFromHistory(history)
     }
 
-    /** Expands seed video ids into their related (/next) neighbours, cached and concurrency-bounded. */
-    private suspend fun fetchRelatedFor(seedIds: List<String>): List<Video> = coroutineScope {
+    private suspend fun fetchRelatedVideos(seedId: String): List<Video> {
+        val ts = System.currentTimeMillis()
+        return relatedCache[seedId]?.takeIf { ts - it.ts < RELATED_TTL_MS }?.videos
+            ?: (relatedSemaphore.withPermit {
+                withTimeoutOrNull(4_000L) { repository.getRelatedCandidates(seedId) } ?: emptyList()
+            }).also { relatedCache[seedId] = CachedRelated(it, ts) }
+    }
+
+    /** Expands seed video ids into related (/next) neighbours with graph metadata. */
+    private suspend fun fetchRelatedGraphCandidates(
+        seedInputs: List<GraphSeedInput>,
+        seedIds: List<String>
+    ): List<GraphCandidate> = coroutineScope {
         if (seedIds.isEmpty()) return@coroutineScope emptyList()
+        val now = System.currentTimeMillis()
+        val seedMetadata = seedInputs
+            .filter { it.id in seedIds }
+            .groupBy { it.id }
+            .mapValues { (_, seeds) -> seeds.maxBy { GraphSeedSelector.scoreSeed(it, now) } }
+
         seedIds.map { seedId ->
             async {
-                val ts = System.currentTimeMillis()
-                relatedCache[seedId]?.takeIf { ts - it.ts < RELATED_TTL_MS }?.videos
-                    ?: (relatedSemaphore.withPermit {
-                        withTimeoutOrNull(4_000L) { repository.getRelatedCandidates(seedId) } ?: emptyList()
-                    }).also { relatedCache[seedId] = CachedRelated(it, ts) }
+                val seed = seedMetadata[seedId]
+                val videos = fetchRelatedVideos(seedId)
+                val seedScore = seed?.let { GraphSeedSelector.scoreSeed(it, now) } ?: 0.0
+                val seedCluster = seed?.let { GraphSeedSelector.clusterKey(it) } ?: "misc"
+                videos.mapIndexed { index, video ->
+                    GraphCandidate(
+                        video = video,
+                        seedId = seedId,
+                        seedScore = seedScore,
+                        graphRank = index,
+                        seedCluster = seedCluster,
+                        seedResultCount = videos.size
+                    )
+                }
             }
-        }.awaitAll().flatten()
+        }.awaitAll().flatten().let(::mergeGraphCandidates)
     }
 
     private suspend fun gatherSavedSeedSources(): SavedSeedSources {
@@ -884,23 +1078,30 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 val now = System.currentTimeMillis()
+                val seedInputs = savedInterestSeedInputs(gatherSavedSeedSources(), activeSavedSeedCooldown(now))
                 val seeds = FlowNeuroEngine.selectRelatedSeeds(
-                    savedInterestSeedInputs(gatherSavedSeedSources(), activeSavedSeedCooldown(now)),
+                    seedInputs,
                     MAX_SAVED_SEEDS
                 )
                 if (seeds.isEmpty()) return@launch
                 seeds.forEach { savedSeedCooldown[it] = now }
 
-                val related = fetchRelatedFor(seeds)
-                if (related.isEmpty()) return@launch
+                val relatedCandidates = fetchRelatedGraphCandidates(seedInputs, seeds)
+                    .filterValidGraph()
+                    .filterWatchedGraph(watchedVideoIds.value)
+                    .filterRecentHomeSuggestionGraph(now)
+                if (relatedCandidates.isEmpty()) return@launch
 
                 val existing = _uiState.value.videos.mapTo(HashSet()) { it.id }
+                val relatedMetadata = relatedCandidates.associateBy { it.video.id }
                 val enriched = demoteByFit(
-                    FlowNeuroEngine.rank(
-                        related.filterValid().filterWatched(watchedVideoIds.value)
-                            .filterRecentHomeSuggestion(now)
-                            .filterNot { existing.contains(it.id) },
-                        userSubs
+                    applyGraphBoost(
+                        FlowNeuroEngine.rank(
+                            relatedCandidates.map { it.video }
+                                .filterNot { existing.contains(it.id) },
+                            userSubs
+                        ),
+                        relatedMetadata
                     ),
                     taste
                 ).take(SAVED_RELATED_SLOTS)
@@ -960,6 +1161,12 @@ class HomeViewModel @Inject constructor(
             ((it.duration > 120) || (it.duration == 0 && it.isLive)) 
         }
     }
+
+    private fun List<GraphCandidate>.filterValidGraph(): List<GraphCandidate> =
+        filter { candidate ->
+            !candidate.video.isShort &&
+                ((candidate.video.duration > 120) || (candidate.video.duration == 0 && candidate.video.isLive))
+        }
     
     /**
      * Filter that extracts shorts from a video list for the shelf.
@@ -973,6 +1180,9 @@ class HomeViewModel @Inject constructor(
 
     private fun List<Video>.filterRecentHomeSuggestion(now: Long): List<Video> =
         filter { video -> isRecentHomeSuggestion(video, now) }
+
+    private fun List<GraphCandidate>.filterRecentHomeSuggestionGraph(now: Long): List<GraphCandidate> =
+        filter { candidate -> isRecentHomeSuggestion(candidate.video, now) }
 
     private fun isRecentHomeSuggestion(video: Video, now: Long): Boolean {
         val text = video.uploadDate.lowercase()
@@ -999,6 +1209,11 @@ class HomeViewModel @Inject constructor(
     private fun List<Video>.filterWatched(watchedIds: Set<String>): List<Video> {
         if (watchedIds.isEmpty()) return this
         return this.filter { !watchedIds.contains(it.id) }
+    }
+
+    private fun List<GraphCandidate>.filterWatchedGraph(watchedIds: Set<String>): List<GraphCandidate> {
+        if (watchedIds.isEmpty()) return this
+        return filter { !watchedIds.contains(it.video.id) }
     }
 }
 

@@ -106,6 +106,23 @@ class HomeFeedLogicTest {
         thumbnailUrl = "", duration = 600, viewCount = 1, uploadDate = "1 day ago"
     )
 
+    private fun gc(
+        video: Video,
+        seedId: String,
+        seedScore: Double,
+        graphRank: Int = 0,
+        seedResultCount: Int = 12,
+        hitCount: Int = 1
+    ) = GraphCandidate(
+        video = video,
+        seedId = seedId,
+        seedScore = seedScore,
+        graphRank = graphRank,
+        seedCluster = "cluster-$seedId",
+        seedResultCount = seedResultCount,
+        hitCount = hitCount
+    )
+
     private fun adjacentSameChannel(videos: List<Video>) =
         videos.zipWithNext().count { (a, b) -> a.channelId.isNotBlank() && a.channelId == b.channelId }
 
@@ -131,6 +148,129 @@ class HomeFeedLogicTest {
     fun `spaceByChannel ignores blank channel ids`() {
         val related = listOf(vc("r1", ""), vc("r2", ""), vc("r3", ""))
         assertThat(spaceByChannel(related).map { it.id }).containsExactly("r1", "r2", "r3").inOrder()
+    }
+
+    @Test
+    fun `home feed quotas adapt to no subscription maturing and mature profiles`() {
+        assertThat(homeFeedQuotas(40, subCount = 0, totalInteractions = 200))
+            .containsExactly(
+                FeedSource.SUBS, 0,
+                FeedSource.RELATED, 14,
+                FeedSource.DISCOVERY, 18,
+                FeedSource.VIRAL, 8
+            )
+
+        assertThat(homeFeedQuotas(40, subCount = 12, totalInteractions = 20))
+            .containsExactly(
+                FeedSource.SUBS, 14,
+                FeedSource.RELATED, 12,
+                FeedSource.DISCOVERY, 10,
+                FeedSource.VIRAL, 4
+            )
+
+        assertThat(homeFeedQuotas(40, subCount = 12, totalInteractions = 200))
+            .containsExactly(
+                FeedSource.SUBS, 16,
+                FeedSource.RELATED, 10,
+                FeedSource.DISCOVERY, 10,
+                FeedSource.VIRAL, 4
+            )
+    }
+
+    @Test
+    fun `blendFeedSources reports source distribution`() {
+        val result = blendFeedSources(
+            lanes = mapOf(
+                FeedSource.SUBS to listOf(vc("s1", "S")),
+                FeedSource.RELATED to listOf(vc("r1", "R")),
+                FeedSource.DISCOVERY to listOf(vc("d1", "D")),
+                FeedSource.VIRAL to listOf(vc("v1", "V"))
+            ),
+            quotas = mapOf(
+                FeedSource.SUBS to 1,
+                FeedSource.RELATED to 1,
+                FeedSource.DISCOVERY to 1,
+                FeedSource.VIRAL to 1
+            ),
+            targetSize = 4
+        )
+
+        assertThat(result.videos.map { it.id }).containsExactly("s1", "r1", "d1", "v1").inOrder()
+        assertThat(result.sourceCounts)
+            .containsExactly(
+                FeedSource.SUBS, 1,
+                FeedSource.RELATED, 1,
+                FeedSource.DISCOVERY, 1,
+                FeedSource.VIRAL, 1
+            )
+    }
+
+    @Test
+    fun `blendFeedSources relaxes scarce quota in related discovery subs viral order`() {
+        val result = blendFeedSources(
+            lanes = mapOf(
+                FeedSource.SUBS to listOf(vc("s1", "S"), vc("s2", "S")),
+                FeedSource.RELATED to listOf(vc("r1", "R1"), vc("r2", "R2")),
+                FeedSource.DISCOVERY to listOf(vc("d1", "D1"), vc("d2", "D2")),
+                FeedSource.VIRAL to listOf(vc("v1", "V1"), vc("v2", "V2"))
+            ),
+            quotas = FeedSource.entries.associateWith { 0 },
+            targetSize = 3
+        )
+
+        assertThat(result.items.map { it.source })
+            .containsExactly(FeedSource.RELATED, FeedSource.RELATED, FeedSource.DISCOVERY)
+            .inOrder()
+        assertThat(result.videos.map { it.id }).containsExactly("r1", "r2", "d1").inOrder()
+    }
+
+    @Test
+    fun `mergeGraphCandidates counts multi-seed convergence and keeps strongest metadata`() {
+        val weak = gc(vc("shared", "A"), seedId = "s1", seedScore = 0.7, graphRank = 5)
+        val strong = gc(vc("shared", "B"), seedId = "s2", seedScore = 1.2, graphRank = 2)
+
+        val merged = mergeGraphCandidates(listOf(weak, strong)).single()
+
+        assertThat(merged.hitCount).isEqualTo(2)
+        assertThat(merged.seedId).isEqualTo("s2")
+        assertThat(merged.seedScore).isWithin(1e-6).of(1.2)
+        assertThat(merged.graphRank).isEqualTo(2)
+    }
+
+    @Test
+    fun `graph boost lets multi-seed candidate beat an adjacent weak graph candidate`() {
+        val ranked = (0 until 20).map { vc("v$it", "C$it") }.toMutableList()
+        val oneOff = vc("one_off", "one")
+        val multiSeed = vc("multi_seed", "multi")
+        ranked[10] = oneOff
+        ranked[11] = multiSeed
+
+        val boosted = applyGraphBoost(
+            ranked,
+            mapOf(
+                oneOff.id to gc(oneOff, seedId = "s1", seedScore = 0.4, graphRank = 0),
+                multiSeed.id to gc(multiSeed, seedId = "s2", seedScore = 1.2, graphRank = 0, hitCount = 2)
+            )
+        )
+
+        assertThat(boosted.indexOf(multiSeed)).isLessThan(boosted.indexOf(oneOff))
+    }
+
+    @Test
+    fun `fit demotion still wins after graph boost`() {
+        val clean = v("Kotlin coroutines explained", 900)
+        val poorFit = v("3 Hour Baking Compilation Marathon", 11_000)
+        val ranked = (0 until 20).map { vc("v$it", "C$it") }.toMutableList()
+        ranked[10] = clean
+        ranked[11] = poorFit
+
+        val boosted = applyGraphBoost(
+            ranked,
+            mapOf(poorFit.id to gc(poorFit, seedId = "s1", seedScore = 1.2, graphRank = 0, hitCount = 2))
+        )
+        val demoted = demoteByFit(boosted, defaultTaste)
+
+        assertThat(demoted.indexOf(clean)).isLessThan(demoted.indexOf(poorFit))
     }
 
     private fun graphSeed(

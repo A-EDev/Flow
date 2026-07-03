@@ -33,6 +33,12 @@ internal object GraphSeedSelector {
         return NeuroScoring.pickDiverseSeeds(ranked, maxSeeds, maxPerCluster)
     }
 
+    fun scoreSeed(seed: GraphSeedInput, now: Long = System.currentTimeMillis()): Double =
+        seed.score(now)
+
+    fun clusterKey(seed: GraphSeedInput): String =
+        clusterKey(seed.title, NeuroTokenizer())
+
     private fun GraphSeedInput.isEligible(excludedChannelIds: Set<String>): Boolean {
         if (id.isBlank() || isShort) return false
         if (channelId.isNotBlank() && channelId in excludedChannelIds) return false
