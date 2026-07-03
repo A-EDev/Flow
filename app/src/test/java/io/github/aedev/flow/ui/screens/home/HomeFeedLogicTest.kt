@@ -273,6 +273,79 @@ class HomeFeedLogicTest {
         assertThat(demoted.indexOf(clean)).isLessThan(demoted.indexOf(poorFit))
     }
 
+    @Test
+    fun `addUniquePageVideos fills page without duplicates or channel overflow`() {
+        val page = mutableListOf<Video>()
+        val channelCounts = mutableMapOf<String, Int>()
+        val usedIds = mutableSetOf("existing")
+        val candidates = listOf(
+            vc("existing", "A"),
+            vc("a1", "A"),
+            vc("a2", "A"),
+            vc("a3", "A"),
+            vc("b1", "B")
+        )
+
+        val added = addUniquePageVideos(
+            candidates = candidates,
+            targetList = page,
+            channelCounts = channelCounts,
+            usedVideoIds = usedIds,
+            targetSize = 3,
+            maxPerChannel = 2
+        )
+
+        assertThat(added).isEqualTo(3)
+        assertThat(page.map { it.id }).containsExactly("a1", "a2", "b1").inOrder()
+    }
+
+    @Test
+    fun `sourceEntropy is normalized across active sources`() {
+        assertThat(sourceEntropy(mapOf(FeedSource.RELATED to 4))).isEqualTo(0.0)
+        assertThat(sourceEntropy(FeedSource.entries.associateWith { 1 })).isWithin(1e-6).of(1.0)
+    }
+
+    @Test
+    fun `related lane metrics summarize graph quality signals`() {
+        val seeds = listOf(
+            graphSeed("h1", GraphSeedSource.WATCH_HISTORY),
+            graphSeed("l1", GraphSeedSource.LIKED),
+            graphSeed("p1", GraphSeedSource.PLAYLIST)
+        )
+        val r1 = vc("r1", "R")
+        val r2 = vc("r2", "R")
+        val metrics = buildRelatedLaneMetrics(
+            seedInputs = seeds,
+            seedIds = listOf("h1", "l1"),
+            fetchedPerSeed = mapOf("h1" to 3, "l1" to 0),
+            mergedRelatedCandidates = listOf(gc(r1, "h1", 1.2), gc(r2, "h1", 1.1)),
+            filteredRelatedCandidates = listOf(gc(r1, "h1", 1.2)),
+            selectedSourceCounts = mapOf(
+                FeedSource.RELATED to 2,
+                FeedSource.DISCOVERY to 1,
+                FeedSource.SUBS to 1
+            ),
+            finalFeedCount = 4,
+            finalRelatedVideoIds = setOf("r1", "r2"),
+            brain = UserBrain(
+                watchHistoryMap = mapOf("r1" to 0.8f),
+                suppressedVideoIds = mapOf("r2" to 100L)
+            )
+        )
+
+        assertThat(metrics.seedCandidatesAvailable).isEqualTo(3)
+        assertThat(metrics.seedsSelected).isEqualTo(2)
+        assertThat(metrics.seedSourceCounts)
+            .containsExactly(GraphSeedSource.WATCH_HISTORY, 1, GraphSeedSource.LIKED, 1)
+        assertThat(metrics.nextEmptyRate).isWithin(1e-6).of(0.5)
+        assertThat(metrics.relatedDedupeRate).isWithin(1e-6).of(1.0 - (2.0 / 3.0))
+        assertThat(metrics.relatedCandidatesSurvivingFilters).isEqualTo(1)
+        assertThat(metrics.finalRelatedShare).isWithin(1e-6).of(0.5)
+        assertThat(metrics.relatedWatchThroughProxy).isWithin(1e-6).of(0.5)
+        assertThat(metrics.relatedSkipDislikeProxy).isWithin(1e-6).of(0.5)
+        assertThat(metrics.sourceEntropy).isGreaterThan(0.0)
+    }
+
     private fun graphSeed(
         id: String,
         source: GraphSeedSource,
