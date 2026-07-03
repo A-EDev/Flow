@@ -361,7 +361,7 @@ fun GlobalPlayerOverlay(
         }
     }
 
-    BackHandler(enabled = playerSheetState.fraction < 0.5f && !localIsInPipMode) {
+    BackHandler(enabled = playerSheetState.fraction < 0.5f && !localIsInPipMode && !screenState.isFullscreen) {
         playerSheetState.collapse()
     }
     

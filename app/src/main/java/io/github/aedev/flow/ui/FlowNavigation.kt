@@ -140,6 +140,12 @@ fun NavGraphBuilder.flowAppGraph(
                 val encodedUrl = java.net.URLEncoder.encode("https://www.youtube.com/channel/$channelId", "UTF-8")
                 navController.navigate("channel?url=$encodedUrl")
             },
+            onNavigateToHistory = {
+                navController.navigate("history")
+            },
+            onOpenShortsFeed = {
+                navController.navigate("shorts")
+            },
             viewModel = homeViewModel
         )
     }

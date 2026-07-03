@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -23,10 +22,8 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartDisplay
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,7 +83,7 @@ private fun rememberHomeLayoutConfig(maxWidth: Dp): HomeLayoutConfig {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onVideoClick: (Video) -> Unit,
@@ -95,6 +92,8 @@ fun HomeScreen(
     onNotificationClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onChannelClick: (String) -> Unit = {},
+    onNavigateToHistory: () -> Unit = {},
+    onOpenShortsFeed: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
     notificationViewModel: NotificationViewModel = hiltViewModel()
@@ -153,11 +152,6 @@ fun HomeScreen(
                 viewModel.refreshFeed()
             }
     }
-
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = uiState.isRefreshing,
-        onRefresh = { viewModel.refreshFeed() }
-    )
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -257,13 +251,15 @@ fun HomeScreen(
             }
         }
     ) { padding ->
-        BoxWithConstraints(
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.refreshFeed() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .pullRefresh(pullRefreshState)
                 .background(MaterialTheme.colorScheme.background)
         ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isListView = homeViewMode == io.github.aedev.flow.data.local.HomeViewMode.LIST
             val layoutConfig = rememberHomeLayoutConfig(maxWidth)
             val gridCells = if (isListView) GridCells.Fixed(1) else GridCells.Fixed(layoutConfig.columns)
@@ -374,7 +370,8 @@ fun HomeScreen(
                                         },
                                         onRemove = { videoId ->
                                             viewModel.removeContinueWatchingEntry(videoId)
-                                        }
+                                        },
+                                        onSeeAllClick = onNavigateToHistory
                                     )
                                 }
                             }
@@ -387,7 +384,8 @@ fun HomeScreen(
                                 ) {
                                     ShortsShelf(
                                         shorts = uiState.shorts,
-                                        onShortClick = { onShortClick(it) }
+                                        onShortClick = { onShortClick(it) },
+                                        onSeeAllClick = onOpenShortsFeed
                                     )
                                 }
                             }
@@ -449,14 +447,7 @@ fun HomeScreen(
                     }
                 }
             }
-            
-            PullRefreshIndicator(
-                refreshing = uiState.isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter),
-                backgroundColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary
-            )
+        }
         }
     }
 }
