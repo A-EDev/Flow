@@ -33,8 +33,8 @@ object NetworkModule {
     private const val CACHE_SIZE_MB = 100L * 1024L * 1024L // 100MB cache
     
     // Connection pool configuration
-    private const val MAX_IDLE_CONNECTIONS = 15
-    private const val KEEP_ALIVE_DURATION_MINUTES = 5L
+    private const val MAX_IDLE_CONNECTIONS = 6
+    private const val KEEP_ALIVE_DURATION_MINUTES = 2L
     
     // Timeout configuration (in seconds)
     private const val CONNECT_TIMEOUT = 15L
@@ -43,8 +43,8 @@ object NetworkModule {
     private const val CALL_TIMEOUT = 60L
     
     // Dispatcher configuration
-    private const val MAX_REQUESTS_TOTAL = 64 // Max concurrent requests
-    private const val MAX_REQUESTS_PER_HOST = 10 // Max per host
+    private const val MAX_REQUESTS_TOTAL = 32 // Max concurrent requests
+    private const val MAX_REQUESTS_PER_HOST = 5 // Max per host
 
     @Provides
     @Singleton
@@ -104,7 +104,7 @@ object NetworkModule {
     fun provideMetadataClient(@ApplicationContext context: Context): OkHttpClient {
         return AppProxyManager.applyTo(OkHttpClient.Builder())
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
-            .connectionPool(ConnectionPool(5, 2, TimeUnit.MINUTES))
+            .connectionPool(ConnectionPool(2, 1, TimeUnit.MINUTES))
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(10, TimeUnit.SECONDS)

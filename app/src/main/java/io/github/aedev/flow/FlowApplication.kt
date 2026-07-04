@@ -22,6 +22,7 @@ import org.schabi.newpipe.extractor.localization.Localization
 import dagger.hilt.android.HiltAndroidApp
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import okhttp3.OkHttpClient
 import javax.inject.Inject
 import java.security.Security
 import org.conscrypt.Conscrypt
@@ -45,6 +46,9 @@ class FlowApplication : Application(), ImageLoaderFactory {
     
     @Inject
     lateinit var imageLoader: ImageLoader
+
+    @Inject
+    lateinit var okHttpClient: OkHttpClient
 
     override fun newImageLoader(): ImageLoader = imageLoader
     
@@ -252,19 +256,23 @@ class FlowApplication : Application(), ImageLoaderFactory {
 
     override fun onLowMemory() {
         super.onLowMemory()
-        clearImageMemoryCache()
+        releaseVolatileMemory()
     }
 
+    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
-            clearImageMemoryCache()
+            releaseVolatileMemory()
         }
     }
 
-    private fun clearImageMemoryCache() {
+    private fun releaseVolatileMemory() {
         if (::imageLoader.isInitialized) {
             imageLoader.memoryCache?.clear()
+        }
+        if (::okHttpClient.isInitialized) {
+            okHttpClient.connectionPool.evictAll()
         }
     }
 }

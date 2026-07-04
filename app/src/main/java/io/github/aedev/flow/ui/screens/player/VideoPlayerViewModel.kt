@@ -401,6 +401,21 @@ class VideoPlayerViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            playerPreferences.autoplayEnabled
+                .distinctUntilChanged()
+                .collect { autoplay ->
+                    _uiState.update { it.copy(autoplayEnabled = autoplay) }
+                    _uiState.value.cachedVideo?.id?.let { videoId ->
+                        EnhancedPlayerManager.getInstance().setAutoplayCandidates(
+                            sourceVideoId = videoId,
+                            videos = _uiState.value.relatedVideos,
+                            enabled = autoplay
+                        )
+                    }
+                }
+        }
+
+        viewModelScope.launch {
             combine(
                 playerPreferences.upcomingVideoReminderIds,
                 uiState.map { it.cachedVideo?.id }.distinctUntilChanged()

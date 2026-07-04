@@ -263,6 +263,9 @@ fun PlaybackRefocusEffect(
 
         val mgr = EnhancedPlayerManager.getInstance()
         val player = mgr.getPlayer() ?: return@LaunchedEffect
+        if (mgr.isInAudioOnlyMode() || mgr.isVideoSurfaceRestorePending()) {
+            mgr.restoreVideoOutput()
+        }
         val playerMgrState = mgr.playerState.value
 
         if (!playerMgrState.hasEnded &&

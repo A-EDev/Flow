@@ -2022,7 +2022,12 @@ class EnhancedPlayerManager private constructor() {
 
     // ===== Playback Controls =====
     
-    fun play() = player?.play()
+    fun play() {
+        if (isAudioOnlyMode || videoSurfaceRestorePending) {
+            restoreVideoOutput()
+        }
+        player?.play()
+    }
     fun pause() = player?.pause()
     fun seekTo(position: Long) {
         val p = player ?: return

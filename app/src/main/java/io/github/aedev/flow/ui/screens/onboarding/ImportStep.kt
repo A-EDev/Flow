@@ -83,15 +83,6 @@ internal fun ImportStep(
         }
         item {
             ImportCard(
-                painter = rememberVectorPainter(Icons.Outlined.Archive),
-                title = stringResource(R.string.import_master_backup_title),
-                description = stringResource(R.string.import_master_backup_desc),
-                iconTint = MaterialTheme.colorScheme.primary,
-                onClick = onImportMasterBackup
-            )
-        }
-        item {
-            ImportCard(
                 painter = rememberVectorPainter(Icons.Outlined.Psychology),
                 title = stringResource(R.string.import_engine_data),
                 description = stringResource(R.string.import_engine_data_desc),
@@ -99,6 +90,16 @@ internal fun ImportStep(
                 onClick = onImportEngineData
             )
         }
+        item {
+            ImportCard(
+                painter = rememberVectorPainter(Icons.Outlined.Archive),
+                title = stringResource(R.string.import_master_backup_title),
+                description = stringResource(R.string.import_master_backup_desc),
+                iconTint = MaterialTheme.colorScheme.primary,
+                onClick = onImportMasterBackup
+            )
+        }
+        
 
         item { ImportSectionLabel(stringResource(R.string.import_subscriptions_section_title)) }
         item {

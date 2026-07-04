@@ -40,9 +40,10 @@ object PerformanceDispatcher {
     private val availableProcessors = Runtime.getRuntime().availableProcessors()
     
     // Network I/O dispatcher - Optimized for high-concurrency network operations
-    // Uses more threads than CPU cores since network ops are I/O bound
+    // Uses more threads than CPU cores since network ops are I/O bound, but keeps
+    // TLS/socket allocation pressure bounded on 256 MB heap devices.
     private val networkExecutor = Executors.newFixedThreadPool(
-        (availableProcessors * 4).coerceIn(8, 32)
+        (availableProcessors * 2).coerceIn(4, 16)
     ) { runnable ->
         Thread(runnable, "FlowNetwork-${networkThreadCounter.incrementAndGet()}").apply {
             isDaemon = true
