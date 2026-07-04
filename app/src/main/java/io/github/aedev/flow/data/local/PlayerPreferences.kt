@@ -99,6 +99,7 @@ class PlayerPreferences(context: Context) {
         val MUSIC_PLAYER_BACKGROUND_STYLE = stringPreferencesKey("music_player_background_style")
         val HIDE_MUSIC_PLAYER_ARTWORK = booleanPreferencesKey("hide_music_player_artwork")
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
+        val GROUPED_QUALITY_SELECTOR_ENABLED = booleanPreferencesKey("grouped_quality_selector_enabled")
         val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
@@ -585,6 +586,17 @@ class PlayerPreferences(context: Context) {
     suspend fun setShortsPlayerUiMode(mode: ShortsPlayerUiMode) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_PLAYER_UI_MODE] = mode.name
+        }
+    }
+
+    val groupedQualitySelectorEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.GROUPED_QUALITY_SELECTOR_ENABLED] ?: false
+        }
+
+    suspend fun setGroupedQualitySelectorEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.GROUPED_QUALITY_SELECTOR_ENABLED] = enabled
         }
     }
 

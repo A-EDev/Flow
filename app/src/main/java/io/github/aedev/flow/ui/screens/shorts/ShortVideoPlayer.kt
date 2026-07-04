@@ -10,6 +10,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.AudioFile
@@ -36,6 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -56,6 +59,8 @@ import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
+import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorContent
+import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorOption
 import io.github.aedev.flow.utils.DateContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -129,6 +134,7 @@ fun ShortVideoPage(
     var showQualitySheet by remember { mutableStateOf(false) }
     var showSpeedSheet by remember { mutableStateOf(false) }
     val shortsSpeed by playerPreferences.shortsPlaybackSpeed.collectAsState(initial = 1f)
+    val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
 
     LaunchedEffect(isActive, shortsSpeed) {
         if (isActive) playerPool.setBasePlaybackSpeed(shortsSpeed)
@@ -1031,6 +1037,7 @@ fun ShortVideoPage(
                 selectedQualityUrl = quality.videoUrl
                 showQualitySheet = false
             },
+            groupedByResolution = groupedQualitySelectorEnabled,
             onDismiss = { showQualitySheet = false }
         )
     }
@@ -1457,12 +1464,15 @@ private fun ShortsQualitySheet(
     selectedHeight: Int?,
     selectedVideoUrl: String?,
     onQualitySelected: (io.github.aedev.flow.data.shorts.ShortVideoQuality) -> Unit,
+    groupedByResolution: Boolean,
     onDismiss: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = configuration.screenHeightDp.dp * 0.75f)
                 .padding(bottom = 32.dp)
         ) {
             Text(
@@ -1472,49 +1482,31 @@ private fun ShortsQualitySheet(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
             HorizontalDivider()
-            LazyColumn {
-                items(qualities) { quality ->
-                    val isSelected = selectedVideoUrl?.let { it == quality.videoUrl }
-                        ?: (quality.heightClass == selectedHeight)
-                    val label = quality.label
-                    val formatLabel = quality.codecLabel
-                    Surface(
-                        onClick = { onQualitySelected(quality) },
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurface
-                                )
-                                if (formatLabel.isNotEmpty()) {
-                                    Text(
-                                        text = formatLabel,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
+            val selectorOptions = qualities.map { quality ->
+                val isSelected = selectedVideoUrl?.let { it == quality.videoUrl }
+                    ?: (quality.heightClass == selectedHeight)
+                PlayerQualitySelectorOption(
+                    item = quality,
+                    height = quality.heightClass,
+                    label = quality.label,
+                    selected = isSelected,
+                    supportingText = quality.codecLabel.takeIf { it.isNotBlank() },
+                    codecKey = quality.codecKey,
+                    codecLabel = quality.codecLabel,
+                    streamKey = quality.videoUrl
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                PlayerQualitySelectorContent(
+                    options = selectorOptions,
+                    groupedByResolution = groupedByResolution,
+                    onOptionSelected = onQualitySelected
+                )
             }
         }
     }

@@ -558,6 +558,8 @@
     <string name="shorts_player_ui_default">Default</string>
     <string name="shorts_player_ui_simple">Simple</string>
     <string name="shorts_player_ui_impressive">Impressive</string>
+    <string name="player_appearance_grouped_quality_selector_title">Grouped quality selector</string>
+    <string name="player_appearance_grouped_quality_selector_subtitle">Show one row per resolution with codec choices inside it</string>
     <string name="shorts_saved">Short saved</string>
     <string name="shorts_unsaved">Short unsaved</string>
     <string name="settings_item_player_appearance">Player Appearance</string>

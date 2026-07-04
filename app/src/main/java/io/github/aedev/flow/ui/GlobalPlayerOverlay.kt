@@ -168,6 +168,7 @@ fun GlobalPlayerOverlay(
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
     val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
+    val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
     val lockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
     val commentsEnabled by playerPreferences.commentsEnabled.collectAsState(initial = true)
     val isCommentsAvailable = commentsEnabled && playerUiState.hlsUrl.isNullOrEmpty()
@@ -1278,6 +1279,7 @@ fun GlobalPlayerOverlay(
                         },
                         expandedHeight = fullscreenSidePanelHeight,
                         enableVerticalDismiss = false,
+                        useGroupedQualitySelector = groupedQualitySelectorEnabled,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else if (screenState.showChaptersSheet) {

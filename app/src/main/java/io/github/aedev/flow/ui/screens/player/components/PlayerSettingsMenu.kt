@@ -62,6 +62,7 @@ fun SettingsMenuDialog(
     onSleepTimerClick: () -> Unit = {},
     expandedHeight: Dp? = null,
     enableVerticalDismiss: Boolean = true,
+    useGroupedQualitySelector: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -373,6 +374,7 @@ fun SettingsMenuDialog(
                     availableQualities = playerState.availableQualities,
                     currentQuality = playerState.currentQuality,
                     currentQualityKey = playerState.currentQualityKey,
+                    useGroupedQualitySelector = useGroupedQualitySelector,
                     onQualitySelected = {
                         onQualitySelected(it)
                         animateToDismiss()
@@ -430,36 +432,90 @@ private fun PlayerSettingsQualityPage(
     availableQualities: List<QualityOption>,
     currentQuality: Int,
     currentQualityKey: String?,
+    useGroupedQualitySelector: Boolean,
     onQualitySelected: (QualityOption) -> Unit
 ) {
-    availableQualities.firstOrNull { it.height == 0 }?.let { auto ->
-        PlayerSettingsSelectionRow(
-            label = stringResource(R.string.quality_auto),
-            selected = currentQuality == 0,
-            onClick = { onQualitySelected(auto) }
+    val autoLabel = stringResource(R.string.quality_auto)
+    val selectorOptions = availableQualities.map { quality ->
+        PlayerQualitySelectorOption(
+            item = quality,
+            height = quality.height,
+            label = if (quality.height == 0) autoLabel else quality.displayLabel(),
+            codecKey = quality.codecKey,
+            codecLabel = quality.codecKey
+                .takeIf { it.isNotBlank() }
+                ?.let(VideoCodecUtils::codecLabelFromKey)
+                .orEmpty(),
+            streamKey = quality.streamKey,
+            selected = quality.isSelected(currentQuality, currentQualityKey)
         )
     }
-    availableQualities
+
+    PlayerQualitySelectorContent(
+        options = selectorOptions,
+        groupedByResolution = useGroupedQualitySelector,
+        onOptionSelected = onQualitySelected
+    )
+}
+
+data class PlayerQualitySelectorOption<T>(
+    val item: T,
+    val height: Int,
+    val label: String,
+    val selected: Boolean,
+    val supportingText: String? = null,
+    val codecKey: String = "",
+    val codecLabel: String = "",
+    val streamKey: String? = null
+)
+
+@Composable
+fun <T> PlayerQualitySelectorContent(
+    options: List<PlayerQualitySelectorOption<T>>,
+    groupedByResolution: Boolean,
+    onOptionSelected: (T) -> Unit
+) {
+    if (!groupedByResolution) {
+        options
+            .sortedByDescending { it.height }
+            .forEach { option ->
+                PlayerSettingsSelectionRow(
+                    label = option.label,
+                    supportingText = option.supportingText,
+                    selected = option.selected,
+                    onClick = { onOptionSelected(option.item) }
+                )
+            }
+        return
+    }
+
+    options.firstOrNull { it.height == 0 }?.let { auto ->
+        PlayerSettingsSelectionRow(
+            label = auto.label,
+            selected = auto.selected,
+            onClick = { onOptionSelected(auto.item) }
+        )
+    }
+    options
         .filter { it.height != 0 }
         .groupBy { it.height }
         .entries
         .sortedByDescending { it.key }
         .forEach { (_, options) ->
-            val codecOptions = options.filter { it.codecKey.isNotBlank() }
+            val codecOptions = options.filter { it.codecKey.isNotBlank() || it.codecLabel.isNotBlank() }
             if (codecOptions.isEmpty()) {
                 val option = options.first()
                 PlayerSettingsSelectionRow(
-                    label = option.displayLabel(),
-                    selected = option.isSelected(currentQuality, currentQualityKey),
-                    onClick = { onQualitySelected(option) }
+                    label = option.label,
+                    supportingText = option.supportingText,
+                    selected = option.selected,
+                    onClick = { onOptionSelected(option.item) }
                 )
             } else {
                 PlayerSettingsQualityCodecRow(
                     qualityLabel = options.first().resolutionLabel(),
                     codecOptions = codecOptions,
-                    currentQuality = currentQuality,
-                    currentQualityKey = currentQualityKey,
-                    onQualitySelected = onQualitySelected
+                    onOptionSelected = onOptionSelected
                 )
             }
         }
@@ -467,14 +523,12 @@ private fun PlayerSettingsQualityPage(
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun PlayerSettingsQualityCodecRow(
+private fun <T> PlayerSettingsQualityCodecRow(
     qualityLabel: String,
-    codecOptions: List<QualityOption>,
-    currentQuality: Int,
-    currentQualityKey: String?,
-    onQualitySelected: (QualityOption) -> Unit
+    codecOptions: List<PlayerQualitySelectorOption<T>>,
+    onOptionSelected: (T) -> Unit
 ) {
-    val rowSelected = codecOptions.any { it.isSelected(currentQuality, currentQualityKey) }
+    val rowSelected = codecOptions.any { it.selected }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -496,12 +550,11 @@ private fun PlayerSettingsQualityCodecRow(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             codecOptions.forEach { option ->
-                val selected = option.isSelected(currentQuality, currentQualityKey)
                 FilterChip(
-                    selected = selected,
-                    onClick = { onQualitySelected(option) },
-                    label = { Text(VideoCodecUtils.codecLabelFromKey(option.codecKey)) },
-                    leadingIcon = if (selected) {
+                    selected = option.selected,
+                    onClick = { onOptionSelected(option.item) },
+                    label = { Text(option.codecLabel.ifBlank { option.label }) },
+                    leadingIcon = if (option.selected) {
                         {
                             Icon(
                                 imageVector = Icons.Filled.Check,
@@ -520,12 +573,11 @@ private fun QualityOption.displayLabel(): String {
     return label.takeIf { it.isNotBlank() } ?: "${height}p"
 }
 
-private fun QualityOption.resolutionLabel(): String {
-    val codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey)
-    return if (codecKey.isNotBlank() && label.endsWith(" $codecLabel")) {
+private fun PlayerQualitySelectorOption<*>.resolutionLabel(): String {
+    return if (codecLabel.isNotBlank() && label.endsWith(" $codecLabel")) {
         label.removeSuffix(" $codecLabel")
     } else {
-        displayLabel()
+        label
     }
 }
 
@@ -919,4 +971,3 @@ private fun SpeedSliderContent(
         }
     }
 }
-

@@ -33,6 +33,7 @@ fun PlayerDialogsContainer(
     val playerPreferences = remember { PlayerPreferences(context) }
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
     val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
+    val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -149,7 +150,8 @@ fun PlayerDialogsContainer(
                 screenState.showSettingsMenu = false
                 screenState.showSleepTimerSheet = true
             },
-            expandedHeight = mediaSheetExpandedHeight
+            expandedHeight = mediaSheetExpandedHeight,
+            useGroupedQualitySelector = groupedQualitySelectorEnabled
         )
     }
 

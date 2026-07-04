@@ -66,6 +66,7 @@ fun PlayerAppearanceScreen(
     val currentShortsPlayerUiMode by playerPreferences.shortsPlayerUiMode.collectAsState(
         initial = ShortsPlayerUiMode.DEFAULT
     )
+    val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
     val brightnessSwipeGesturesEnabled by playerPreferences.brightnessSwipeGesturesEnabled.collectAsState(initial = true)
     val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
@@ -329,6 +330,21 @@ fun PlayerAppearanceScreen(
                         onModeSelected = { mode ->
                             coroutineScope.launch {
                                 playerPreferences.setShortsPlayerUiMode(mode)
+                            }
+                        }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_progress_bar_style),
+                        title = stringResource(R.string.player_appearance_grouped_quality_selector_title),
+                        subtitle = stringResource(R.string.player_appearance_grouped_quality_selector_subtitle),
+                        checked = groupedQualitySelectorEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setGroupedQualitySelectorEnabled(enabled)
                             }
                         }
                     )
