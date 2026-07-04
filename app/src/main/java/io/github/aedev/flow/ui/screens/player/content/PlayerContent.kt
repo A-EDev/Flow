@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player.content
 import android.app.Activity
 import android.media.AudioManager
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -91,6 +92,11 @@ fun PlayerContent(
         if (!allowVolumeBoost && screenState.volumeLevel > 1f) {
             screenState.volumeLevel = 1f
         }
+    }
+
+    BackHandler(enabled = screenState.isTouchLocked && !isInPipMode) {
+        screenState.revealLockOverlay()
+        screenState.onInteraction()
     }
 
     Box(
@@ -315,10 +321,15 @@ fun PlayerContent(
             onToggleRemainingTime = { showRemainingTime = !showRemainingTime },
             isTouchLocked = screenState.isTouchLocked,
             lockModeEnabled = lockModeEnabled,
+            lockOverlayRevealSignal = screenState.lockOverlayRevealSignal,
             onTouchLockToggle = {
                 if (lockModeEnabled || screenState.isTouchLocked) {
                     screenState.isTouchLocked = !screenState.isTouchLocked
                     screenState.showControls = true
+                    if (screenState.isTouchLocked) {
+                        screenState.revealLockOverlay()
+                    }
+                    screenState.onInteraction()
                 }
             }
         )

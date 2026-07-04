@@ -44,6 +44,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.player.CastHelper
 import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.ui.components.pressScale
 import org.schabi.newpipe.extractor.stream.StreamSegment
@@ -278,6 +279,27 @@ fun PremiumControlsOverlay(
                             )
                         }
                     }
+                }
+
+                AnimatedVisibility(
+                    visible = isLockOverlayVisible,
+                    enter = fadeIn(animationSpec = tween(300)),
+                    exit = fadeOut(animationSpec = tween(300)),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    LockedSeekbar(
+                        currentPosition = displayedPosition,
+                        duration = duration,
+                        isLive = isLive,
+                        isFullscreen = isFullscreen,
+                        bufferedPercentage = bufferedPercentage,
+                        chapters = chapters,
+                        sponsorSegments = sponsorSegments,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = seekbarHorizontalPadding)
+                            .padding(bottom = fullscreenSeekbarBottomPadding)
+                    )
                 }
             } else {
                 // Top Bar
@@ -992,6 +1014,50 @@ fun SleekLoadingAnimation(modifier: Modifier = Modifier) {
         trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
         strokeWidth = 4.dp,
         strokeCap = StrokeCap.Round
+    )
+}
+
+@Composable
+private fun LockedSeekbar(
+    currentPosition: Long,
+    duration: Long,
+    isLive: Boolean,
+    isFullscreen: Boolean,
+    bufferedPercentage: Float,
+    chapters: List<StreamSegment>,
+    sponsorSegments: List<SponsorBlockSegment>,
+    modifier: Modifier = Modifier
+) {
+    val seekDuration = if (isLive) {
+        duration.coerceAtLeast(currentPosition)
+    } else {
+        duration
+    }
+
+    if (isLive && duration <= 0L) {
+        Box(
+            modifier = modifier
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Color.Red)
+        )
+        return
+    }
+
+    SeekbarWithPreview(
+        value = if (seekDuration > 0) {
+            (currentPosition.toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        },
+        onValueChange = {},
+        enabled = false,
+        chapters = chapters,
+        sponsorSegments = sponsorSegments,
+        duration = seekDuration,
+        bufferedValue = bufferedPercentage,
+        edgeAligned = !isFullscreen,
+        modifier = modifier
     )
 }
 
