@@ -12,6 +12,7 @@ class PlayerScreenState {
     var isTouchLocked by mutableStateOf(false)
     var lockOverlayRevealSignal by mutableIntStateOf(0)
     var isFullscreen by mutableStateOf(false)
+    var isFullscreenPortrait by mutableStateOf(false)
     var lastInteractionTimestamp by mutableLongStateOf(System.currentTimeMillis())
     
     // Playback Position
@@ -83,6 +84,7 @@ class PlayerScreenState {
     fun resetForNewVideo() {
         lastInteractionTimestamp = System.currentTimeMillis()
         showControls = true
+        isFullscreenPortrait = false
         isTouchLocked = false
         lockOverlayRevealSignal = 0
         currentPosition = 0L

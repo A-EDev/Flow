@@ -57,6 +57,7 @@ private val miniResizeSpringSpec   = spring<Float>(dampingRatio = 0.72f, stiffne
 private val miniDismissSpringSpec  = spring<Float>(dampingRatio = 0.9f,  stiffness = 340f)
 private val dragPressSpringSpec    = spring<Float>(dampingRatio = 0.7f,  stiffness = 600f)
 private val dragReleaseSpringSpec  = spring<Float>(dampingRatio = 0.55f, stiffness = 500f)
+private val portraitFsSettleSpec   = spring<Float>(dampingRatio = 1f,    stiffness = 360f)
 
 private fun playerExpandSpring() = playerExpandSpringSpec
 private fun miniSnapSpring()     = miniSnapSpringSpec
@@ -279,6 +280,7 @@ fun DraggablePlayerLayout(
     onDismiss: () -> Unit = {},
     onCollapseGesture: (() -> Unit)? = null,
     onFullscreenGesture: (() -> Unit)? = null,
+    onEnterPortraitFullscreen: (() -> Unit)? = null,
     onExpandedPlayerBottomChanged: (Dp) -> Unit = {},
     videoAspectRatio: Float = 16f / 9f,
     modifier: Modifier = Modifier
@@ -294,6 +296,17 @@ fun DraggablePlayerLayout(
 
     var playerHeightFraction by remember { mutableFloatStateOf(1f) }
     LaunchedEffect(videoAspectRatio) { playerHeightFraction = 1f }
+
+    var portraitFsFraction by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(isFullscreen) {
+        if (!isFullscreen && portraitFsFraction > 0f) {
+            androidx.compose.animation.core.animate(
+                initialValue = portraitFsFraction,
+                targetValue = 0f,
+                animationSpec = portraitFsSettleSpec
+            ) { value, _ -> portraitFsFraction = value }
+        }
+    }
 
     val statusBarHeight = WindowInsets.statusBars.getTop(density).toFloat()
     val systemLayoutDirection = LocalLayoutDirection.current
@@ -332,8 +345,12 @@ fun DraggablePlayerLayout(
             val maxWideWidth = ((screenWidth * maxWideFraction) - (margin * 2f))
                 .coerceAtLeast(baseMiniWidth)
 
-            val miniWidth  = (baseMiniWidth * currentSizeScale).coerceAtMost(maxWideWidth)
-            val miniHeight = miniWidth * (9f / 16f)
+            val clampedAspect = videoAspectRatio.coerceAtMost(2.0f)
+            fun miniBoxWidth(envelopeSide: Float) =
+                if (clampedAspect >= 1f) envelopeSide else envelopeSide * clampedAspect
+
+            val miniWidth  = miniBoxWidth(baseMiniWidth * currentSizeScale).coerceAtMost(maxWideWidth)
+            val miniHeight = miniWidth / clampedAspect
             val bottomNavPad = with(density) { bottomPadding.toPx() }
             val topBarPad    = with(density) { topPadding.toPx() }
 
@@ -341,7 +358,6 @@ fun DraggablePlayerLayout(
 
             val expandedVideoWidth  = if (isSplitLayout) screenWidth * 0.65f else screenWidth
             val baseVideoHeight     = expandedVideoWidth * (9f / 16f)
-            val clampedAspect       = videoAspectRatio.coerceAtMost(2.0f)
             val expandedVideoHeight = expandedVideoWidth / clampedAspect
             val currentExpandedVideoHeight =
                 if (expandedVideoHeight > baseVideoHeight) {
@@ -362,12 +378,13 @@ fun DraggablePlayerLayout(
             val minY = statusBarHeight + topBarPad + margin
             val maxY = (screenHeight - miniHeight - bottomNavPad - margin).coerceAtLeast(minY)
 
-            val normalMiniWidth = baseMiniWidth
-            val normalMiniHeight = normalMiniWidth * (9f / 16f)
+            val normalMiniWidth = miniBoxWidth(baseMiniWidth)
+            val normalMiniHeight = normalMiniWidth / clampedAspect
             val normalMaxX = (screenWidth - normalMiniWidth - margin).coerceAtLeast(margin)
             val normalMaxY = (screenHeight - normalMiniHeight - bottomNavPad - margin).coerceAtLeast(minY)
-            val stablePhoneCenteredX = ((screenWidth - maxWideWidth) / 2f).coerceAtLeast(margin)
-            val stableWideHeight = maxWideWidth * (9f / 16f)
+            val stableWideWidth = miniBoxWidth(maxWideWidth)
+            val stablePhoneCenteredX = ((screenWidth - stableWideWidth) / 2f).coerceAtLeast(margin)
+            val stableWideHeight = stableWideWidth / clampedAspect
             val stableWideMaxY = (screenHeight - stableWideHeight - bottomNavPad - margin).coerceAtLeast(minY)
             val stableWideTargetY = when (state.corner) {
                 MiniPlayerCorner.TopLeft,
@@ -474,13 +491,35 @@ fun DraggablePlayerLayout(
             }
 
             // 3. Nested scroll
+            val portraitFsTravel = (screenHeight - expandedVideoHeight).coerceAtLeast(1f)
+            val portraitFsEnabled = !isLandscape && !isTablet && !isFullscreen &&
+                onEnterPortraitFullscreen != null
+            val portraitFsActivationPx = with(density) { 28.dp.toPx() }
+            val _portraitFsTravel     = rememberUpdatedState(portraitFsTravel)
+            val _portraitFsEnabled    = rememberUpdatedState(portraitFsEnabled)
+            val _portraitFsActivation = rememberUpdatedState(portraitFsActivationPx)
+            val _onEnterPortraitFs    = rememberUpdatedState(onEnterPortraitFullscreen)
+
             val nestedScrollConnection = remember(expandedVideoHeight, baseVideoHeight) {
                 object : NestedScrollConnection {
+                    var listScrolledThisGesture = false
+                    var pullAccum = 0f
+
                     override fun onPreScroll(
                         available: Offset,
                         source: NestedScrollSource
                     ): Offset {
                         val delta       = available.y
+                        if (source == NestedScrollSource.UserInput &&
+                            delta < 0f && portraitFsFraction > 0f && _portraitFsEnabled.value
+                        ) {
+                            val travel        = _portraitFsTravel.value
+                            val maxConsumable = portraitFsFraction * travel
+                            val consumed      = maxOf(delta, -maxConsumable)
+                            portraitFsFraction =
+                                (portraitFsFraction + consumed / travel).coerceIn(0f, 1f)
+                            return Offset(0f, consumed)
+                        }
                         val playerDelta = expandedVideoHeight - baseVideoHeight
                         if (delta < 0 && playerHeightFraction > 0f && playerDelta > 1f) {
                             val maxConsumable = playerHeightFraction * playerDelta
@@ -497,6 +536,7 @@ fun DraggablePlayerLayout(
                         available: Offset,
                         source: NestedScrollSource
                     ): Offset {
+                        if (consumed.y != 0f) listScrolledThisGesture = true
                         val delta       = available.y
                         val playerDelta = expandedVideoHeight - baseVideoHeight
                         if (delta > 0 && playerHeightFraction < 1f && playerDelta > 1f) {
@@ -506,7 +546,41 @@ fun DraggablePlayerLayout(
                                 (playerHeightFraction + consumable / playerDelta).coerceIn(0f, 1f)
                             return Offset(0f, consumable)
                         }
+                        val canPull = source == NestedScrollSource.UserInput &&
+                            !listScrolledThisGesture &&
+                            _portraitFsEnabled.value &&
+                            state.expandFraction.value < 0.05f
+                        if (delta > 0f && portraitFsFraction < 1f && canPull) {
+                            pullAccum += delta
+                            val past = pullAccum - _portraitFsActivation.value
+                            if (past <= 0f) return Offset(0f, delta)
+                            val travel        = _portraitFsTravel.value
+                            val effective     = minOf(delta, past)
+                            val maxConsumable = (1f - portraitFsFraction) * travel
+                            val consumable    = minOf(effective, maxConsumable)
+                            portraitFsFraction =
+                                (portraitFsFraction + consumable / travel).coerceIn(0f, 1f)
+                            return Offset(0f, delta)
+                        }
                         return Offset.Zero
+                    }
+
+                    override suspend fun onPreFling(
+                        available: androidx.compose.ui.unit.Velocity
+                    ): androidx.compose.ui.unit.Velocity {
+                        val frac = portraitFsFraction
+                        listScrolledThisGesture = false
+                        pullAccum = 0f
+                        if (frac <= 0f || frac >= 1f) return androidx.compose.ui.unit.Velocity.Zero
+                        val shouldEnter = frac > 0.4f || available.y > 1400f
+                        androidx.compose.animation.core.animate(
+                            initialValue = frac,
+                            targetValue = if (shouldEnter) 1f else 0f,
+                            initialVelocity = available.y,
+                            animationSpec = portraitFsSettleSpec
+                        ) { value, _ -> portraitFsFraction = value }
+                        if (shouldEnter) _onEnterPortraitFs.value?.invoke()
+                        return available
                     }
                 }
             }
@@ -570,8 +644,9 @@ fun DraggablePlayerLayout(
                             .fillMaxSize()
                             .padding(top = with(density) { bodyPaddingTop.toDp() })
                             .graphicsLayer {
-                                alpha = bodyAlphaProvider()
-                                translationY = state.expandFraction.value * 80f
+                                val pf = portraitFsFraction
+                                alpha = bodyAlphaProvider() * (1f - pf)
+                                translationY = state.expandFraction.value * 80f + pf * screenHeight
                             }
                             .nestedScroll(nestedScrollConnection)
                     ) {
@@ -613,11 +688,13 @@ fun DraggablePlayerLayout(
                         Modifier
                             .layout { measurable, constraints ->
                                 val fraction = state.expandFraction.value
+                                val grownHeight =
+                                    lerpFloat(currentExpandedVideoHeight, screenHeight, portraitFsFraction)
                                 val targetW =
                                     lerpFloat(expandedVideoWidth, miniWidth, fraction).toInt()
                                         .coerceIn(1, constraints.maxWidth)
                                 val targetH =
-                                    lerpFloat(currentExpandedVideoHeight, miniHeight, fraction).toInt()
+                                    lerpFloat(grownHeight, miniHeight, fraction).toInt()
                                         .coerceIn(1, constraints.maxHeight)
                                 val placeable = measurable.measure(
                                     constraints.copy(
@@ -629,10 +706,11 @@ fun DraggablePlayerLayout(
                             }
                             .graphicsLayer {
                                 val fraction = state.expandFraction.value
+                                val expandedTopY = lerpFloat(statusBarHeight, 0f, portraitFsFraction)
                                 translationX =
                                     lerpFloat(0f, state.offsetX.value, fraction)
                                 translationY =
-                                    lerpFloat(statusBarHeight, state.offsetY.value, fraction)
+                                    lerpFloat(expandedTopY, state.offsetY.value, fraction)
                                 val miniScale =
                                     if (fraction > 0.6f) state.dragScale.value else 1f
                                 scaleX = miniScale

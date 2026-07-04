@@ -265,6 +265,8 @@ fun PlaybackRefocusEffect(
         val player = mgr.getPlayer() ?: return@LaunchedEffect
         if (mgr.isInAudioOnlyMode() || mgr.isVideoSurfaceRestorePending()) {
             mgr.restoreVideoOutput()
+        } else {
+            mgr.reprimeVideoOutputIfPending()
         }
         val playerMgrState = mgr.playerState.value
 
@@ -481,7 +483,8 @@ fun FullscreenEffect(
     videoAspectRatio: Float = 16f / 9f,
     lifecycleOwner: LifecycleOwner,
     fullscreenBrightnessLevel: Float? = null,
-    suppressFullscreenRequest: Boolean = false
+    suppressFullscreenRequest: Boolean = false,
+    isPortrait: Boolean = false
 ) {
     var resumeTrigger by remember { mutableIntStateOf(0) }
     var forcePortraitLock by remember { mutableStateOf(false) }
@@ -493,16 +496,16 @@ fun FullscreenEffect(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(isFullscreen, videoAspectRatio, resumeTrigger, suppressFullscreenRequest) {
+    LaunchedEffect(isFullscreen, videoAspectRatio, resumeTrigger, suppressFullscreenRequest, isPortrait) {
         activity?.let { act ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && act.isInPictureInPictureMode) return@let
             if (suppressFullscreenRequest && isFullscreen) return@let
             if (isFullscreen) {
                 forcePortraitLock = false
-                val orientation = if (videoAspectRatio < 1f) {
-                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-                } else {
-                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                val orientation = when {
+                    isPortrait -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    videoAspectRatio < 1f -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                    else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 }
                 act.requestedOrientation = orientation
 
@@ -827,6 +830,7 @@ fun OrientationListenerEffect(
     isExpanded: Boolean,
     isFullscreen: Boolean,
     videoAspectRatio: Float = 16f / 9f,
+    isPortraitFullscreen: Boolean = false,
     onEnterFullscreen: () -> Unit,
     onExitFullscreen: () -> Unit
 ) {
@@ -834,6 +838,7 @@ fun OrientationListenerEffect(
 
     val currentIsFullscreen by rememberUpdatedState(isFullscreen)
     val currentAspectRatio by rememberUpdatedState(videoAspectRatio)
+    val currentIsPortraitFullscreen by rememberUpdatedState(isPortraitFullscreen)
     val currentEnter by rememberUpdatedState(onEnterFullscreen)
     val currentExit by rememberUpdatedState(onExitFullscreen)
 
@@ -869,6 +874,8 @@ fun OrientationListenerEffect(
         if (physicalOrientation == -1) return@LaunchedEffect
 
         val isVerticalVideo = currentAspectRatio < 1f
+
+        if (currentIsPortraitFullscreen) return@LaunchedEffect
 
         if (physicalOrientation == 1 && isExpanded && !currentIsFullscreen && !isVerticalVideo) {
             currentEnter()

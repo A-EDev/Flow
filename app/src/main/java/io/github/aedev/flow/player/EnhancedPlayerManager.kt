@@ -147,6 +147,7 @@ class EnhancedPlayerManager private constructor() {
     private var isAudioOnlyMode = false
     private var videoTracksDisabled = false
     @Volatile private var videoSurfaceRestorePending = false
+    @Volatile private var videoReprimePending = false
 
     // Queue management
     private var playbackQueue: List<io.github.aedev.flow.data.model.Video> = emptyList()
@@ -2547,10 +2548,19 @@ class EnhancedPlayerManager private constructor() {
             return
         }
         autoNextLog("restoreVideoOutput")
+        val wasAudioOnly = isAudioOnlyMode
         isAudioOnlyMode = false
         videoSurfaceRestorePending = false
+        videoReprimePending = false
         setVideoTracksDisabled(false)
         p.setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
+        if (wasAudioOnly &&
+            !currentIsLiveStream &&
+            !p.isCurrentMediaItemLive &&
+            p.playbackState != Player.STATE_IDLE
+        ) {
+            p.seekTo(p.currentPosition)
+        }
         if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
             p.play()
         }
@@ -2562,6 +2572,23 @@ class EnhancedPlayerManager private constructor() {
 
     fun markVideoSurfaceRestored() {
         videoSurfaceRestorePending = false
+    }
+
+    fun markVideoReprimePending() {
+        val p = player ?: return
+        if (currentIsLiveStream || p.isCurrentMediaItemLive) return
+        videoReprimePending = true
+    }
+
+    fun reprimeVideoOutputIfPending() {
+        if (!videoReprimePending) return
+        videoReprimePending = false
+        val p = player ?: return
+        if (isAudioOnlyMode) return
+        if (currentIsLiveStream || p.isCurrentMediaItemLive) return
+        if (p.playbackState == Player.STATE_IDLE || p.playbackState == Player.STATE_ENDED) return
+        autoNextLog("reprimeVideoOutputIfPending seek")
+        p.seekTo(p.currentPosition)
     }
     
     fun setSurfaceReady(ready: Boolean) {

@@ -76,10 +76,7 @@ fun VideoPlayerSurface(
     val videoSizeListener = remember {
         object : Player.Listener {
             override fun onVideoSizeChanged(videoSize: VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    val ratio = videoSize.width.toFloat() / videoSize.height.toFloat()
-                    onVideoAspectRatioChanged?.invoke(ratio.coerceIn(0.56f, 2.5f))
-                }
+                videoSize.toDisplayAspectRatioOrNull()?.let { onVideoAspectRatioChanged?.invoke(it) }
             }
         }
     }
@@ -142,6 +139,7 @@ fun VideoPlayerSurface(
                 val videoChanged = attachedVideoId != video.id
 
                 if (oldPlayer !== newPlayer || videoChanged) {
+                    val isVideoSwitch = attachedVideoId != null && videoChanged
                     oldPlayer?.removeListener(videoSizeListener)
                     if (oldPlayer === newPlayer && oldPlayer != null) {
                         view.player = null
@@ -149,6 +147,10 @@ fun VideoPlayerSurface(
                     newPlayer?.addListener(videoSizeListener)
                     view.player = newPlayer
                     attachedVideoId = video.id
+                    onVideoAspectRatioChanged?.invoke(
+                        if (isVideoSwitch) 16f / 9f
+                        else newPlayer?.videoSize?.toDisplayAspectRatioOrNull() ?: (16f / 9f)
+                    )
                 }
 
                 if (newPlayer != null && manager.isInAudioOnlyMode()) {
@@ -223,6 +225,12 @@ private fun applyOutlineCornerRadius(view: PlayerView, radiusPx: Float) {
     }
     view.invalidateOutline()
     view.setTag(R.id.player_view, radiusPx)
+}
+
+private fun VideoSize.toDisplayAspectRatioOrNull(): Float? {
+    if (width <= 0 || height <= 0) return null
+    val par = if (pixelWidthHeightRatio > 0f) pixelWidthHeightRatio else 1f
+    return (width * par / height).coerceIn(0.56f, 2.5f)
 }
 
 private fun Context.isDisplayInteractive(): Boolean =

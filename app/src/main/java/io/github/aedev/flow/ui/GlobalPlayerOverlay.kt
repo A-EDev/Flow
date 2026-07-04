@@ -221,7 +221,6 @@ fun GlobalPlayerOverlay(
     var pipForcedFullscreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(video.id) {
-        videoAspectRatio = 16f / 9f
         screenState.zoomScale = 1f
         screenState.zoomOffsetX = 0f
         screenState.zoomOffsetY = 0f
@@ -267,6 +266,7 @@ fun GlobalPlayerOverlay(
     LaunchedEffect(playerSheetState.currentValue) {
         if (playerSheetState.currentValue == PlayerSheetValue.Collapsed) {
             screenState.isFullscreen = false
+            screenState.isFullscreenPortrait = false
             screenState.dismissMediaSheets()
             screenState.zoomScale = 1f
             screenState.zoomOffsetX = 0f
@@ -318,6 +318,7 @@ fun GlobalPlayerOverlay(
     // Handle Back press in Fullscreen
     BackHandler(enabled = screenState.isFullscreen) {
         screenState.isFullscreen = false
+        screenState.isFullscreenPortrait = false
     }
     
     // ===== EFFECTS =====
@@ -409,7 +410,8 @@ fun GlobalPlayerOverlay(
         videoAspectRatio = effectiveVideoAspectRatio,
         lifecycleOwner = lifecycleOwner,
         fullscreenBrightnessLevel = if (rememberBrightnessEnabled) screenState.brightnessLevel else null,
-        suppressFullscreenRequest = pipForcedFullscreen
+        suppressFullscreenRequest = pipForcedFullscreen,
+        isPortrait = screenState.isFullscreenPortrait
     )
     
     OrientationResetEffect(activity)
@@ -485,8 +487,12 @@ fun GlobalPlayerOverlay(
         isExpanded = playerSheetState.fraction < 0.1f,
         isFullscreen = screenState.isFullscreen,
         videoAspectRatio = effectiveVideoAspectRatio,
+        isPortraitFullscreen = screenState.isFullscreenPortrait,
         onEnterFullscreen = { screenState.isFullscreen = true },
-        onExitFullscreen = { screenState.isFullscreen = false }
+        onExitFullscreen = {
+            screenState.isFullscreen = false
+            screenState.isFullscreenPortrait = false
+        }
     )
     
     KeepScreenOnEffect(
@@ -688,10 +694,17 @@ fun GlobalPlayerOverlay(
                 onDismiss = onClose,
                 onCollapseGesture = {
                     screenState.isFullscreen = false
+                    screenState.isFullscreenPortrait = false
                     screenState.dismissMediaSheets()
                 },
                 onFullscreenGesture = {
                     screenState.dismissMediaSheets()
+                    screenState.isFullscreenPortrait = false
+                    screenState.isFullscreen = true
+                },
+                onEnterPortraitFullscreen = {
+                    screenState.dismissMediaSheets()
+                    screenState.isFullscreenPortrait = true
                     screenState.isFullscreen = true
                 },
                 onExpandedPlayerBottomChanged = { bottom ->
@@ -725,9 +738,10 @@ fun GlobalPlayerOverlay(
                                     .setVolumeBoost(if (level > 1f) level else 1f)
                             },
                             onShowVolumeChange = { screenState.showVolumeOverlay = it },
-                            onBack = { 
+                            onBack = {
                                 screenState.isFullscreen = false
-                                playerSheetState.collapse() 
+                                screenState.isFullscreenPortrait = false
+                                playerSheetState.collapse()
                             },
                             brightnessLevel = screenState.brightnessLevel,
                             volumeLevel = screenState.volumeLevel,
@@ -739,7 +753,10 @@ fun GlobalPlayerOverlay(
                             allowVolumeBoost = allowVolumeBoost,
                             doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
                             longPressPlaybackSpeed = longPressPlaybackSpeed,
-                            onExitFullscreen = { screenState.isFullscreen = false },
+                            onExitFullscreen = {
+                                screenState.isFullscreen = false
+                                screenState.isFullscreenPortrait = false
+                            },
                             isSeekForwardActive = screenState.showSeekForwardAnimation,
                             isSeekBackActive = screenState.showSeekBackAnimation
                         )

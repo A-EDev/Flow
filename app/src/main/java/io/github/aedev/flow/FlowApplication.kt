@@ -272,7 +272,9 @@ class FlowApplication : Application(), ImageLoaderFactory {
             imageLoader.memoryCache?.clear()
         }
         if (::okHttpClient.isInitialized) {
-            okHttpClient.connectionPool.evictAll()
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                okHttpClient.connectionPool.evictAll()
+            }
         }
     }
 }

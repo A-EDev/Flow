@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-07-03
+DATE: 2026-07-04
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -17,6 +17,7 @@ NEW FEATURES
 - Add default codec selection for downloads #675
 - Add hide music artwork option #639
 - Add channel sorting options in subscriptions (default, name A–Z, recently updated) #498
+- Add new vetrical video fullscreen drag gesture
 
 IMPROVEMENTS
 - Improve media notification handling #577

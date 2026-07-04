@@ -646,7 +646,12 @@ class MainActivity : ComponentActivity() {
             playerState.currentVideoId != null &&
                 (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
 
-        if (!hasActiveVideo) return
+        if (!hasActiveVideo) {
+            if (playerState.currentVideoId != null) {
+                playerManager.markVideoReprimePending()
+            }
+            return
+        }
 
         if (cachedBackgroundPlayEnabled) {
             videoLifecycleLog("handleBackgroundPlaybackOnStop handoff")
@@ -655,6 +660,7 @@ class MainActivity : ComponentActivity() {
             videoLifecycleLog("handleBackgroundPlaybackOnStop pause")
             playerManager.pause()
             playerManager.stopBackgroundService()
+            playerManager.markVideoReprimePending()
         }
     }
 
