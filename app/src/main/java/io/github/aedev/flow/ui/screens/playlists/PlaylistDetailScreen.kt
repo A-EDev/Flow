@@ -70,6 +70,7 @@ import kotlinx.coroutines.sync.withPermit
 import androidx.compose.foundation.lazy.items
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
+import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.utils.DateContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -85,6 +86,7 @@ fun PlaylistDetailScreen(
     onVideoClick: (Video) -> Unit,
     onPlayPlaylist: (List<Video>, Int) -> Unit,
     modifier: Modifier = Modifier,
+    onChannelClick: ((String) -> Unit)? = null,
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -100,10 +102,16 @@ fun PlaylistDetailScreen(
     var showDownloadAllDialog by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectionMode by remember { mutableStateOf(false) }
     var showRemoveSelectedDialog by remember { mutableStateOf(false) }
     val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
     val canReorder = isUserCreatedPlaylist && sortOrder == PlaylistSortOrder.MANUAL
-    val inSelectionMode = selectedIds.isNotEmpty()
+    val canModify = uiState.isLocalPlaylist
+    val inSelectionMode = selectionMode
+    val exitSelection = {
+        selectionMode = false
+        selectedIds = emptySet()
+    }
     val listState = rememberLazyListState()
     var displayVideos by remember { mutableStateOf(uiState.videos) }
     var heroTitleBottomPx by remember { mutableIntStateOf(Int.MAX_VALUE) }
@@ -112,6 +120,7 @@ fun PlaylistDetailScreen(
     LaunchedEffect(uiState.videos, sortOrder) {
         displayVideos = uiState.videos.sortedForPlaylist(sortOrder)
         selectedIds = selectedIds.intersect(uiState.videos.map { it.id }.toSet())
+        if (uiState.videos.isEmpty()) exitSelection()
     }
 
     val reorderState = rememberReorderableLazyListState(
@@ -131,7 +140,7 @@ fun PlaylistDetailScreen(
         }
     )
 
-    BackHandler(enabled = inSelectionMode) { selectedIds = emptySet() }
+    BackHandler(enabled = inSelectionMode) { exitSelection() }
 
     Box(modifier = modifier.fillMaxSize()) {
         val heroThumbnail = displayVideos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl
@@ -183,12 +192,14 @@ fun PlaylistDetailScreen(
                     inSelectionMode = inSelectionMode,
                     selectedCount = selectedIds.size,
                     allSelected = selectedIds.size == displayVideos.size && displayVideos.isNotEmpty(),
+                    canSelect = canModify && displayVideos.isNotEmpty(),
                     isUserCreatedPlaylist = isUserCreatedPlaylist,
                     isWatchLater = uiState.isWatchLater,
                     isSaved = uiState.isSaved,
                     showOptionsMenu = showOptionsMenu,
                     onNavigateBack = onNavigateBack,
-                    onClearSelection = { selectedIds = emptySet() },
+                    onEnterSelection = { selectionMode = true },
+                    onClearSelection = exitSelection,
                     onSelectAll = {
                         selectedIds =
                             if (selectedIds.size == displayVideos.size) emptySet()
@@ -276,6 +287,7 @@ fun PlaylistDetailScreen(
                             position = index + 1,
                             isSelected = isSelected,
                             inSelectionMode = inSelectionMode,
+                            canModify = canModify,
                             reorderModifier = if (canReorder) reorderState.itemModifier(index) else Modifier,
                             dragHandleModifier = if (canReorder && !inSelectionMode) reorderState.handleModifier(index) else Modifier,
                             showDragHandle = canReorder,
@@ -286,11 +298,10 @@ fun PlaylistDetailScreen(
                                     onPlayPlaylist(displayVideos, index)
                                 }
                             },
-                            onLongClick = {
-                                if (!reorderState.isDragging) selectedIds = selectedIds + video.id
-                            },
                             onRemove = { viewModel.removeVideo(video.id) },
-                            isWatchLater = uiState.isWatchLater
+                            onChannelClick = onChannelClick,
+                            isWatchLater = uiState.isWatchLater,
+                            showAddedDate = isUserCreatedPlaylist
                         )
                     }
                 }
@@ -422,11 +433,13 @@ private fun PlaylistDetailTopBar(
     inSelectionMode: Boolean,
     selectedCount: Int,
     allSelected: Boolean,
+    canSelect: Boolean,
     isUserCreatedPlaylist: Boolean,
     isWatchLater: Boolean,
     isSaved: Boolean,
     showOptionsMenu: Boolean,
     onNavigateBack: () -> Unit,
+    onEnterSelection: () -> Unit,
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
     onDeleteSelected: () -> Unit,
@@ -463,7 +476,7 @@ private fun PlaylistDetailTopBar(
             IconButton(onClick = if (inSelectionMode) onClearSelection else onNavigateBack) {
                 Icon(
                     imageVector = if (inSelectionMode) Icons.Default.Close else Icons.Default.ArrowBack,
-                    contentDescription = if (inSelectionMode) "Cancel selection" else stringResource(R.string.btn_back)
+                    contentDescription = if (inSelectionMode) stringResource(R.string.cancel_selection) else stringResource(R.string.btn_back)
                 )
             }
             Box(modifier = Modifier.weight(1f)) {
@@ -481,17 +494,25 @@ private fun PlaylistDetailTopBar(
                 IconButton(onClick = onSelectAll) {
                     Icon(
                         imageVector = if (allSelected) Icons.Outlined.CheckBox else Icons.Default.SelectAll,
-                        contentDescription = if (allSelected) "Deselect all" else "Select all"
+                        contentDescription = if (allSelected) stringResource(R.string.deselect_all) else stringResource(R.string.select_all)
                     )
                 }
                 IconButton(onClick = onDeleteSelected) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete selected",
+                        contentDescription = stringResource(R.string.delete_selected),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
             } else {
+                if (canSelect) {
+                    IconButton(onClick = onEnterSelection) {
+                        Icon(
+                            imageVector = Icons.Default.Checklist,
+                            contentDescription = stringResource(R.string.select_videos)
+                        )
+                    }
+                }
                 if (!isUserCreatedPlaylist) {
                     IconButton(onClick = onMergeClick) {
                         Icon(
@@ -805,16 +826,18 @@ private fun PlaylistVideoItem(
     position: Int,
     isSelected: Boolean,
     inSelectionMode: Boolean,
+    canModify: Boolean,
     reorderModifier: Modifier,
     dragHandleModifier: Modifier,
     showDragHandle: Boolean,
     onVideoClick: () -> Unit,
-    onLongClick: () -> Unit,
     onRemove: () -> Unit,
+    onChannelClick: ((String) -> Unit)?,
     isWatchLater: Boolean,
+    showAddedDate: Boolean,
     modifier: Modifier = Modifier
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+    var showQuickActions by remember { mutableStateOf(false) }
     val selectionBg = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.24f) else Color.Transparent
 
     Row(
@@ -824,9 +847,9 @@ private fun PlaylistVideoItem(
             .background(selectionBg)
             .combinedClickable(
                 onClick = onVideoClick,
-                onLongClick = {
-                    if (!inSelectionMode) onLongClick()
-                }
+                onLongClick = if (!inSelectionMode) {
+                    { showQuickActions = true }
+                } else null
             )
             .padding(vertical = 12.dp, horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -926,12 +949,17 @@ private fun PlaylistVideoItem(
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
                 val uploadDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                val addedAt = video.addedAtInPlaylist
+                val isPremiere = video.viewCount < 0L
+                val showAdded = showAddedDate && addedAt != null
                 Text(
-                    text = if (video.viewCount < 0L)
-                           premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                           else stringResource(R.string.video_metadata_short_template, formatViewCount(video.viewCount), uploadDate),
+                    text = when {
+                        showAdded -> stringResource(R.string.playlist_video_added_template, formatYouTubeRelativeTime(addedAt!!))
+                        isPremiere -> premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
+                        else -> stringResource(R.string.video_metadata_short_template, formatViewCount(video.viewCount), uploadDate)
+                    },
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
+                    color = if (isPremiere && !showAdded) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     maxLines = 1
                 )
@@ -939,47 +967,33 @@ private fun PlaylistVideoItem(
         }
 
         if (!inSelectionMode) {
-            Box {
-                IconButton(
-                    onClick = { showMenu = true },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.more_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    if (isWatchLater) R.string.remove_from_watch_later
-                                    else R.string.remove_from_playlist_action
-                                )
-                            )
-                        },
-                        onClick = {
-                            onRemove()
-                            showMenu = false
-                        },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    )
-                }
+            IconButton(
+                onClick = { showQuickActions = true },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = stringResource(R.string.more_options),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
+    }
+
+    if (showQuickActions) {
+        VideoQuickActionsBottomSheet(
+            video = video,
+            onChannelClick = onChannelClick,
+            onRemoveFromCollection = if (canModify) onRemove else null,
+            removeFromCollectionLabel = if (canModify) {
+                stringResource(
+                    if (isWatchLater) R.string.remove_from_watch_later
+                    else R.string.remove_from_playlist_action
+                )
+            } else null,
+            onDismiss = { showQuickActions = false }
+        )
     }
 }
 
@@ -1448,6 +1462,29 @@ class PlaylistDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Fresh online fetch for a saved (not-owned) playlist. Reconciles the local copy with the
+     * creator's current playlist — real view counts / release dates plus any added or removed
+     * videos — then lets the DB flow re-emit the updated list. No-op on failure (stays offline).
+     */
+    private fun refreshSavedPlaylist() {
+        viewModelScope.launch {
+            try {
+                val details = youTubeRepository.getPlaylistDetails(playlistId) ?: return@launch
+                repository.syncSavedPlaylistVideos(playlistId, details.videos)
+                _uiState.update { state ->
+                    state.copy(
+                        playlistName = details.name.ifBlank { state.playlistName },
+                        description = (details.description ?: "").ifBlank { state.description },
+                        thumbnailUrl = details.thumbnailUrl.ifBlank { state.thumbnailUrl }
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("PlaylistDetailVM", "Saved playlist refresh failed", e)
+            }
+        }
+    }
+
     private fun loadPlaylist() {
         viewModelScope.launch {
             if (playlistId == PlaylistRepository.WATCH_LATER_ID) {
@@ -1489,7 +1526,10 @@ class PlaylistDetailViewModel @Inject constructor(
                     isSaved = isSaved,
                     isWatchLater = false
                 )}
-                repository.getPlaylistVideosFlow(playlistId).collect { videos ->
+                if (isSaved) {
+                    refreshSavedPlaylist()
+                }
+                repository.getPlaylistVideosWithAddedAtFlow(playlistId).collect { videos ->
                     _uiState.update { it.copy(videos = videos) }
                     val stubs = videos.filter { it.title.isEmpty() }.take(50)
                     if (stubs.isNotEmpty()) {

@@ -692,6 +692,9 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onPlayPlaylist = { videos, index ->
                 playerViewModel.playPlaylist(videos, index, "Playlist")
+            },
+            onChannelClick = { channelId ->
+                navController.navigate("channel?url=$channelId")
             }
         )
     }

@@ -379,6 +379,42 @@ class PlaylistRepository @Inject constructor(
             entities.map { it.toDomain() }
         }
 
+    /** Like [getPlaylistVideosFlow] but each video carries when it was added to this playlist. */
+    fun getPlaylistVideosWithAddedAtFlow(playlistId: String): Flow<List<Video>> =
+        playlistDao.getVideosWithMetaForPlaylist(playlistId).map { rows ->
+            // addedAt <= 0 means "unknown" (legacy rows reordered before the addedAt column
+            // existed) — surface null so the UI falls back instead of showing an epoch date.
+            rows.map { it.video.toDomain().copy(addedAtInPlaylist = it.addedAt.takeIf { ts -> ts > 0L }) }
+        }
+
+    /**
+     * Reconciles a saved (not-owned) playlist's local copy with a fresh remote fetch: upserts each
+     * remote video's metadata, restores creator order, adds newly-published videos and drops ones
+     * the creator removed. Keeps the playlist available offline while showing real, current data.
+     */
+    suspend fun syncSavedPlaylistVideos(playlistId: String, remoteVideos: List<Video>) {
+        if (remoteVideos.isEmpty()) return
+        val remoteIds = remoteVideos.mapTo(HashSet()) { it.id }
+        val existingIds = playlistDao.getVideosForPlaylist(playlistId).firstOrNull()
+            ?.map { it.id }?.toSet() ?: emptySet()
+
+        remoteVideos.forEachIndexed { index, video ->
+            persistVideoWithoutDroppingPlaylistRefs(video)
+            playlistDao.insertPlaylistVideoCrossRef(
+                PlaylistVideoCrossRef(
+                    playlistId = playlistId,
+                    videoId = video.id,
+                    position = index.toLong()
+                )
+            )
+        }
+        existingIds.filterNot { it in remoteIds }.forEach { videoId ->
+            playlistDao.removeVideoFromPlaylist(playlistId, videoId)
+        }
+        val newThumb = playlistDao.getFirstVideoThumbnail(playlistId) ?: ""
+        playlistDao.updatePlaylistThumbnail(playlistId, newThumb)
+    }
+
     suspend fun getPlaylistInfo(playlistId: String): PlaylistInfo? {
         val entity = playlistDao.getPlaylist(playlistId) ?: return null
         return PlaylistInfo(

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PlaylistAdd
+import androidx.compose.material.icons.outlined.PlaylistRemove
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Block
@@ -73,6 +74,8 @@ fun VideoQuickActionsBottomSheet(
     onDownload: (() -> Unit)? = null,
     onNotInterested: () -> Unit = {},
     onChannelClick: ((String) -> Unit)? = null,
+    onRemoveFromCollection: (() -> Unit)? = null,
+    removeFromCollectionLabel: String? = null,
     viewModel: QuickActionsViewModel = hiltViewModel()
 ) {
     val watchLaterIds by viewModel.watchLaterIds.collectAsState()
@@ -491,6 +494,37 @@ fun VideoQuickActionsBottomSheet(
                     },
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
+            }
+
+            // Destructive Group — Remove from this playlist / Watch Later (contextual)
+            if (onRemoveFromCollection != null && removeFromCollectionLabel != null) {
+                item { Spacer(modifier = Modifier.height(4.dp)) }
+                item {
+                    FlowMenuGroup(
+                        items = listOf(
+                            FlowMenuItemData(
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.PlaylistRemove,
+                                        null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                title = {
+                                    Text(
+                                        removeFromCollectionLabel,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                onClick = {
+                                    onRemoveFromCollection()
+                                    onDismiss()
+                                }
+                            )
+                        ),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
             }
         }
     }

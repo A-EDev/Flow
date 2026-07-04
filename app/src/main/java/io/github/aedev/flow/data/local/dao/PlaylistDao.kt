@@ -11,6 +11,12 @@ data class PlaylistWithCount(
     @ColumnInfo(name = "video_count") val videoCount: Int
 )
 
+/** A playlist's video joined with per-playlist metadata (when it was added to that playlist). */
+data class PlaylistVideoWithMeta(
+    @Embedded val video: VideoEntity,
+    @ColumnInfo(name = "addedAt") val addedAt: Long
+)
+
 @Dao
 interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -67,6 +73,10 @@ interface PlaylistDao {
     @Transaction
     @Query("SELECT videos.* FROM videos INNER JOIN playlist_video_cross_ref ON videos.id = playlist_video_cross_ref.videoId WHERE playlist_video_cross_ref.playlistId = :playlistId ORDER BY playlist_video_cross_ref.position ASC")
     fun getVideosForPlaylist(playlistId: String): Flow<List<VideoEntity>>
+
+    @Transaction
+    @Query("SELECT videos.*, playlist_video_cross_ref.addedAt AS addedAt FROM videos INNER JOIN playlist_video_cross_ref ON videos.id = playlist_video_cross_ref.videoId WHERE playlist_video_cross_ref.playlistId = :playlistId ORDER BY playlist_video_cross_ref.position ASC")
+    fun getVideosWithMetaForPlaylist(playlistId: String): Flow<List<PlaylistVideoWithMeta>>
     
     @Query("SELECT COUNT(*) FROM playlist_video_cross_ref WHERE playlistId = :playlistId")
     fun getPlaylistVideoCount(playlistId: String): Flow<Int>

@@ -195,6 +195,7 @@
     <string name="status_live">LIVE</string>
     <string name="video_metadata_template">%1$s • %2$s • %3$s</string>
     <string name="video_metadata_short_template">%1$s • %2$s</string>
+    <string name="playlist_video_added_template">Added %1$s</string>
     <string name="premiere_soon">Premieres soon</string>
     <string name="premiere_date_prefix">Premieres %1$s</string>
     <string name="upcoming_label">Upcoming</string>
@@ -1016,6 +1017,11 @@
     <string name="desc_remove_topic">Remove %1$s</string>
     <string name="desc_unblock_topic">Unblock %1$s</string>
     <string name="selected_count_template">%1$d selected</string>
+    <string name="select_videos">Select</string>
+    <string name="cancel_selection">Cancel selection</string>
+    <string name="select_all">Select all</string>
+    <string name="deselect_all">Deselect all</string>
+    <string name="delete_selected">Delete selected</string>
     <!-- Time Management Screen -->
     <string name="time_management_title">Time management</string>
     <string name="time_management_subtitle">Track and control your screen time</string>

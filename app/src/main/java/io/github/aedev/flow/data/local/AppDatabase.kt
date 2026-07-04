@@ -52,7 +52,7 @@ import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
         SyncLogEntity::class,
         SyncPeerEntity::class
     ],
-    version = 23,
+    version = 24,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -266,6 +266,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Per-playlist "added at" timestamp so owned playlists can show when a video was added
+        // instead of stale cached view counts / upload dates.
+        val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE playlist_video_cross_ref ADD COLUMN addedAt INTEGER NOT NULL DEFAULT 0")
+                // Freshly-added rows historically stored -System.currentTimeMillis() in `position`
+                // (before manual reordering overwrote it) — recover that as the add time.
+                db.execSQL("UPDATE playlist_video_cross_ref SET addedAt = -position WHERE position < 0")
+            }
+        }
+
         fun getDatabase(context: android.content.Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = androidx.room.Room.databaseBuilder(
@@ -273,7 +284,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flow_database"
                 )
-                .addMigrations(MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23)
+                .addMigrations(MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

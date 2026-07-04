@@ -1,7 +1,10 @@
 package io.github.aedev.flow.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +33,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
@@ -213,15 +217,22 @@ class ReorderableLazyListState internal constructor(
     fun handleModifier(index: Int): Modifier = Modifier.composed {
         val latestIndex by rememberUpdatedState(index)
         pointerInput(this@ReorderableLazyListState) {
-            detectDragGesturesAfterLongPress(
-                onDragStart = { startDrag(latestIndex) },
-                onDrag = { change, dragAmount ->
+            awaitEachGesture {
+                // A gesture that begins on the drag handle belongs exclusively to reordering.
+                // Consuming the initial down claims the pointer, so the parent row's
+                // combinedClickable never starts its own click / long-press (quick-actions)
+                // detection here. Long-press on the rest of the row is therefore free to open
+                // quick actions without racing the drag.
+                val down = awaitFirstDown(requireUnconsumed = false)
+                down.consume()
+                val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                startDrag(latestIndex)
+                drag(longPress.id) { change ->
+                    dragBy(change.positionChange().y)
                     change.consume()
-                    dragBy(dragAmount.y)
-                },
-                onDragEnd = { endDrag() },
-                onDragCancel = { endDrag() }
-            )
+                }
+                endDrag()
+            }
         }
     }
 
