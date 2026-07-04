@@ -682,7 +682,7 @@
     <string name="content_settings_title_lines_1">1 строка</string>
     <string name="content_settings_title_lines_2">2 строки</string>
     <string name="content_settings_title_lines_3">3 строки</string>
-    <string name="content_settings_title_lines_unlimited">Неограниченно</string>
+    <string name="content_settings_title_lines_unlimited">Полностью</string>
     <string name="content_settings_video_card_actions_title">Кнопки «Нравится» и «Не нравится» на карточке видео</string>
     <string name="content_settings_video_card_actions_subtitle">Отображать кнопки «Нравится» и «Не нравится» на карточках видео, чтобы быстро настроить рекомендации</string>
     <string name="content_settings_show_app_logo_title">Отображать логотип приложения</string>
@@ -980,4 +980,10 @@
     <string name="content_settings_watched_threshold_95">95% воспроизведено</string>
     <string name="content_settings_watched_threshold_99">99% воспроизведено</string>
     <string name="content_settings_watched_threshold_almost">Осталось менее минуты</string>
+    <string name="sb_skip_segment">Пропустить %1$s</string>
+    <string name="onboarding_btn_skip">Пропустить</string>
+    <string name="btn_skip_for_now">Пропустить в этот раз</string>
+    <string name="sync_done_collection_stats">%1$s: +%2$d добавлено, %3$d обновлено, %4$d пропущено</string>
+    <string name="metric_interactions_detail">клики, просмотры, пропуски</string>
+    <string name="player_settings">Настройки плеера</string>
 </resources>
