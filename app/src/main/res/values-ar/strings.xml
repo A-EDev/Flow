@@ -1844,4 +1844,5 @@
     <string name="persona_livewire_description">أنت تعشق الطاقة الخام للبث المباشر والعروض الأولى.</string>
     <string name="persona_night_owl_title">بومة الليل</string>
     <string name="persona_night_owl_description">تزدهر في الظلام. معظم عمليات المشاهدة تحدث بعد منتصف الليل.</string>
+    <string name="player_appearance_grouped_quality_selector_subtitle">إعرض صفًا واحدًا لكل دقة عرض مع خيارات الترميز بداخله</string>
 </resources>
