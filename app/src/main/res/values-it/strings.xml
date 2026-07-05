@@ -1787,4 +1787,15 @@
     <string name="sync_error_qr_bad_address">Nel codice di sincronizzazione manca un indirizzo di rete valido.</string>
     <string name="player_settings_overlay_comments">Pulsante Commenti</string>
     <string name="player_settings_overlay_comments_subtitle">Mostra un pulsante per i commenti nel lettore a schermo intero per aprirli in un pannello laterale</string>
+    <string name="subscriptions_sort_label">Ordina canali</string>
+    <string name="subscriptions_sort_default">Predefinito</string>
+    <string name="subscriptions_sort_name">Nome (A–Z)</string>
+    <string name="subscriptions_sort_recent">Aggiornati di recente</string>
+    <string name="not_interested_toast">Capito! Vedrai meno contenuti di questo tipo.</string>
+    <string name="quick_actions_error_template">Errore: %1$s</string>
+    <string name="playlist_video_added_template">%1$s aggiunto</string>
+    <string name="upcoming_label">In arrivo</string>
+    <string name="upcoming_waiting_count">%1$s in attesa</string>
+    <string name="player_appearance_hide_music_artwork_title">Nascondi copertina nel player musicale</string>
+    <string name="player_appearance_grouped_quality_selector_title">Selettore della qualità raggruppato</string>
 </resources>
