@@ -1846,4 +1846,10 @@
     <string name="persona_night_owl_description">تزدهر في الظلام. معظم عمليات المشاهدة تحدث بعد منتصف الليل.</string>
     <string name="player_appearance_grouped_quality_selector_subtitle">إعرض صفًا واحدًا لكل دقة عرض مع خيارات الترميز بداخله</string>
     <string name="player_appearance_grouped_quality_selector_title">تجميع خيارات الجودة</string>
+    <string name="playlist_video_added_template">تمت إضافة %1$s</string>
+    <string name="select_videos">حدد</string>
+    <string name="cancel_selection">‪إلغاء التحديد</string>
+    <string name="select_all">تحديد الكل</string>
+    <string name="deselect_all">إلغاء تحديد الكل</string>
+    <string name="delete_selected">حذف المحدد</string>
 </resources>
