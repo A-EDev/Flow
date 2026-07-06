@@ -92,6 +92,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -258,9 +259,15 @@ fun GlobalPlayerOverlay(
     val localIsInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     var keepMiniOnQueueAutoAdvance by remember { mutableStateOf(false) }
     
-    val progress = if (screenState.duration > 0) {
-        (screenState.currentPosition.toFloat() / screenState.duration.toFloat()).coerceIn(0f, 1f)
-    } else 0f
+    val progressProvider = remember {
+        {
+            if (screenState.duration > 0) {
+                (screenState.currentPosition.toFloat() / screenState.duration.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+        }
+    }
     
     // Sync fullscreen state with player sheet state
     LaunchedEffect(playerSheetState.currentValue) {
@@ -363,7 +370,11 @@ fun GlobalPlayerOverlay(
         }
     }
 
-    BackHandler(enabled = playerSheetState.fraction < 0.5f && !localIsInPipMode && !screenState.isFullscreen) {
+    BackHandler(
+        enabled = playerSheetState.currentValue == PlayerSheetValue.Expanded &&
+            !localIsInPipMode &&
+            !screenState.isFullscreen
+    ) {
         playerSheetState.collapse()
     }
 
@@ -484,7 +495,7 @@ fun GlobalPlayerOverlay(
     
     OrientationListenerEffect(
         context = context,
-        isExpanded = playerSheetState.fraction < 0.1f,
+        isExpanded = playerSheetState.currentValue == PlayerSheetValue.Expanded,
         isFullscreen = screenState.isFullscreen,
         videoAspectRatio = effectiveVideoAspectRatio,
         isPortraitFullscreen = screenState.isFullscreenPortrait,
@@ -514,8 +525,12 @@ fun GlobalPlayerOverlay(
         }
     }
 
-    LaunchedEffect(playerState.hasEnded, playerSheetState.fraction, localIsInPipMode) {
-        if (playerState.hasEnded && playerSheetState.fraction <= 0.5f && !localIsInPipMode) {
+    LaunchedEffect(playerState.hasEnded, playerSheetState.currentValue, localIsInPipMode) {
+        if (
+            playerState.hasEnded &&
+            playerSheetState.currentValue == PlayerSheetValue.Expanded &&
+            !localIsInPipMode
+        ) {
             screenState.showControls = true
         }
     }
@@ -561,7 +576,9 @@ fun GlobalPlayerOverlay(
     }
     
     // ===== UI =====
-    val isMinimized = playerSheetState.fraction > 0.5f
+    val isMinimized by remember(playerSheetState) {
+        derivedStateOf { playerSheetState.fraction > 0.5f }
+    }
     val density = LocalDensity.current
     val floatingSponsorSkipBottomPadding = if (screenState.isFullscreen) {
         maxOf(sponsorSkipBottomInset + 128.dp, 136.dp)
@@ -683,7 +700,7 @@ fun GlobalPlayerOverlay(
 
         DraggablePlayerLayout(
                 state = playerSheetState,
-                progress = progress,
+                progress = progressProvider,
                 isFullscreen = screenState.isFullscreen,
                 thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
                     ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
@@ -841,7 +858,9 @@ fun GlobalPlayerOverlay(
                             resizeMode = screenState.resizeMode,
                             modifier = Modifier.fillMaxSize(),
                             onVideoAspectRatioChanged = { videoAspectRatio = it },
-                            cornerRadiusDp = if (isMinimized && !localIsInPipMode) 12f else 0f,
+                            cornerRadiusDp = if (isMinimized && !localIsInPipMode) {
+                                12f / playerSheetState.miniVisualScale
+                            } else 0f,
                             ambientMode = ambientModeEnabled && !isMinimized && !localIsInPipMode
                         )
                         if (!isMinimized && !localIsInPipMode) {
@@ -860,7 +879,15 @@ fun GlobalPlayerOverlay(
                             coil.compose.AsyncImage(
                                 model = thumbUrl,
                                 contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(
+                                        RoundedCornerShape(
+                                            if (isMinimized && !localIsInPipMode) {
+                                                (12f / playerSheetState.miniVisualScale).dp
+                                            } else 0.dp
+                                        )
+                                    ),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
                             )
                         }
@@ -943,12 +970,21 @@ fun GlobalPlayerOverlay(
                         // Controls overlay - fully expanded only
                         var showRemainingTime by rememberSaveable { mutableStateOf(false) }
                         if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode) {
+                            val controlsShown = screenState.showControls || screenState.isTouchLocked
+                            val frozenPosition = remember { longArrayOf(0L) }
+                            val frozenBuffered = remember { floatArrayOf(0f) }
+                            if (controlsShown) {
+                                frozenPosition[0] = screenState.currentPosition
+                                frozenBuffered[0] = (if (screenState.duration > 0) {
+                                    screenState.bufferedPosition.toFloat() / screenState.duration.toFloat()
+                                } else 0f).coerceIn(0f, 1f)
+                            }
                             PremiumControlsOverlay(
-                                isVisible = screenState.showControls || screenState.isTouchLocked,
+                                isVisible = controlsShown,
                                 isPlaying = playerState.playWhenReady,
                                 hasEnded = playerState.hasEnded,
                                 isBuffering = playerState.isBuffering,
-                                currentPosition = screenState.currentPosition,
+                                currentPosition = frozenPosition[0],
                                 duration = screenState.duration,
                                 qualityLabel = if (playerState.currentQuality == 0) 
                                     context.getString(R.string.quality_auto_template, playerState.effectiveQuality) 
@@ -1037,7 +1073,7 @@ fun GlobalPlayerOverlay(
                                 },
                                 hasPrevious = playerState.hasPrevious || canGoPrevious,
                                 hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
-                                bufferedPercentage = (if (screenState.duration > 0) screenState.bufferedPosition.toFloat() / screenState.duration.toFloat() else 0f).coerceIn(0f, 1f),
+                                bufferedPercentage = frozenBuffered[0],
                                 windowInsets = WindowInsets(0, 0, 0, 0),
                                 sbSubmitEnabled = sbSubmitEnabled,
                                 onSbSubmitClick = {
@@ -1136,7 +1172,7 @@ fun GlobalPlayerOverlay(
             },
             miniControls = { _ ->
                 Box(modifier = Modifier.fillMaxSize()) {
-                    val currentSizeScale by remember { derivedStateOf { playerSheetState.miniSizeScale.value } }
+                    val currentSizeScale = playerSheetState.miniSizeScale.targetValue
                     MiniPlayerControls(
                         playerState = playerState,
                         showSkipControls = miniPlayerShowSkipControls,
@@ -1188,7 +1224,10 @@ fun GlobalPlayerOverlay(
             }
         )
 
-        if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode) {
+        if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode && sponsorSegments.isNotEmpty()) {
+            val sponsorButtonPositionMs by remember {
+                derivedStateOf { (screenState.currentPosition / 1_000L) * 1_000L }
+            }
             val sponsorLayerModifier = if (screenState.isFullscreen || expandedPlayerBottom <= 0.dp) {
                 Modifier.fillMaxHeight()
             } else {
@@ -1203,7 +1242,7 @@ fun GlobalPlayerOverlay(
             ) {
                 SponsorBlockSkipButton(
                     sponsorSegments = sponsorSegments,
-                    currentPositionMs = screenState.currentPosition,
+                    currentPositionMs = sponsorButtonPositionMs,
                     categoryActions = EnhancedPlayerManager.getInstance().sbCategoryActions,
                     controlsVisible = screenState.showControls,
                     onSkipClick = { endPositionMs ->
@@ -1300,9 +1339,12 @@ fun GlobalPlayerOverlay(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else if (screenState.showChaptersSheet) {
+                    val chaptersPositionMs by remember {
+                        derivedStateOf { (screenState.currentPosition / 1_000L) * 1_000L }
+                    }
                     FlowChaptersBottomSheet(
                         chapters = playerUiState.chapters,
-                        currentPosition = screenState.currentPosition,
+                        currentPosition = chaptersPositionMs,
                         durationMs = screenState.duration,
                         onChapterClick = { newPosition ->
                             EnhancedPlayerManager.getInstance().seekTo(newPosition)

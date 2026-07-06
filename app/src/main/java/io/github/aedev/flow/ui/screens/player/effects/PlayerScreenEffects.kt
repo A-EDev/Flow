@@ -44,7 +44,8 @@ private const val LIVE_DISPLAY_MAX_TICK_MS = 1_000L
 private const val LIVE_DISPLAY_RECENT_SEEK_MS = 2_000L
 private const val STARTUP_RECOVERY_DELAY_MS = 5_000L
 private const val STARTUP_BUFFERING_GRACE_MS = 4_000L
-private const val ACTIVE_POSITION_TRACKING_INTERVAL_MS = 100L
+private const val ACTIVE_POSITION_TRACKING_INTERVAL_MS = 250L
+private const val IDLE_POSITION_TRACKING_INTERVAL_MS = 1_000L
 
 private var liveDisplayVideoId: String? = null
 private var liveDisplayRawPositionMs: Long = 0L
@@ -203,26 +204,14 @@ fun PositionTrackingEffect(
     isPlaying: Boolean,
     screenState: PlayerScreenState
 ) {
-    // High-frequency active tracking (only while playing)
     LaunchedEffect(isPlaying) {
-        while (isPlaying) {
-            EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
-                if (player.playbackState != Player.STATE_IDLE) {
-                    updateScreenPositionFromPlayer(player, screenState)
-                }
-            }
-            delay(ACTIVE_POSITION_TRACKING_INTERVAL_MS)
-        }
-    }
-
-    LaunchedEffect(Unit) {
         while (true) {
-            delay(500L)
             EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
                 if (player.playbackState != Player.STATE_IDLE) {
                     updateScreenPositionFromPlayer(player, screenState)
                 }
             }
+            delay(if (isPlaying) ACTIVE_POSITION_TRACKING_INTERVAL_MS else IDLE_POSITION_TRACKING_INTERVAL_MS)
         }
     }
 }

@@ -200,7 +200,7 @@ fun InlineLyricsPanel(
         var previousPosition = lastPlayerPos
 
         while (isActive) {
-            delay(32)
+            delay(80)
             val now = System.currentTimeMillis()
             val managerPosition = EnhancedMusicPlayerManager.getCurrentPosition()
             if (managerPosition != lastPlayerPos) {

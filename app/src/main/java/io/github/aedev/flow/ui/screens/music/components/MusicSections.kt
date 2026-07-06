@@ -101,7 +101,7 @@ fun QuickPicksGrid(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(songs) { track ->
+        items(songs, key = { it.videoId }) { track ->
             QuickPickItem(
                 track = track, 
                 isPlaying = track.videoId == currentVideoId,
@@ -149,7 +149,7 @@ fun GenreSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
-            items(tracks.take(10)) { track ->
+            items(tracks.take(10), key = { it.videoId }) { track ->
                 io.github.aedev.flow.ui.screens.music.components.AlbumCard(
                     title = track.title,
                     subtitle = track.artist,

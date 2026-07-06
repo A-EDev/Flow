@@ -58,6 +58,7 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.isActive
 
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
@@ -241,10 +242,12 @@ fun EnhancedMusicPlayerScreen(
         }
     }
     
-    LaunchedEffect(Unit) {
-        while (true) {
+    LaunchedEffect(isPlayerSheetExpanded, uiState.isPlaying) {
+        if (!isPlayerSheetExpanded) return@LaunchedEffect
+
+        while (isActive) {
             viewModel.updateProgress()
-            delay(100)
+            delay(if (uiState.isPlaying) 250 else 1_000)
         }
     }
 

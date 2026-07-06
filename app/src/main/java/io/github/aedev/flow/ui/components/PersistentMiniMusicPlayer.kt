@@ -50,26 +50,16 @@ fun PersistentMiniMusicPlayer(
     val playerState by EnhancedMusicPlayerManager.playerState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    var currentPosition by remember { mutableLongStateOf(0L) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var isDismissing by remember { mutableStateOf(false) }
 
     val animatedProgress by animateFloatAsState(
         targetValue = if (playerState.duration > 0) {
-            (currentPosition.toFloat() / playerState.duration.toFloat()).coerceIn(0f, 1f)
+            (playerState.position.toFloat() / playerState.duration.toFloat()).coerceIn(0f, 1f)
         } else 0f,
-        animationSpec = tween(150, easing = LinearEasing),
+        animationSpec = tween(900, easing = LinearEasing),
         label = "progress"
     )
-
-    LaunchedEffect(playerState.isPlaying) {
-        if (playerState.isPlaying) {
-            while (playerState.isPlaying) {
-                kotlinx.coroutines.delay(250)
-                currentPosition = EnhancedMusicPlayerManager.getCurrentPosition()
-            }
-        }
-    }
 
     var playPauseScale by remember { mutableFloatStateOf(1f) }
     val animatedScale by animateFloatAsState(

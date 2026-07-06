@@ -55,7 +55,7 @@ fun MediaTrackListSection(
                 .height(336.dp)
                 .padding(bottom = 12.dp)
         ) {
-            items(tracks.take(16)) { track ->
+            items(tracks.take(16), key = { it.videoId }) { track ->
                 WideMediaTrackItem(
                     track = track,
                     isDownloaded = downloadedTrackIds.contains(track.videoId),

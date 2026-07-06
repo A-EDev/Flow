@@ -216,7 +216,7 @@ fun EnhancedMusicScreen(
                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    items(uiState.listenAgain) { track ->
+                                    items(uiState.listenAgain, key = { it.videoId }) { track ->
                                         GridItem(
                                             title = track.title,
                                             subtitle = track.artist,
@@ -239,7 +239,7 @@ fun EnhancedMusicScreen(
                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    items(uiState.homeChips) { chip ->
+                                    items(uiState.homeChips, key = { it.title }) { chip ->
                                         val isChipSelected = uiState.selectedHomeChip?.title == chip.title
                                         ContentFilterChip(
                                             title = chip.title,
@@ -265,7 +265,7 @@ fun EnhancedMusicScreen(
                                     }
                                 }
                             } else {
-                                items(uiState.allSongs) { track ->
+                                items(uiState.allSongs, key = { it.videoId }) { track ->
                                     MusicTrackRow(
                                         track = track,
                                         isPlaying = currentTrack?.videoId == track.videoId,
@@ -317,7 +317,10 @@ fun EnhancedMusicScreen(
                                                         .height(336.dp)
                                                         .padding(bottom = 16.dp)
                                                 ) {
-                                                    items(uiState.dailyDiscover.filter { it.recommendation.isAudioMusicCandidate() }) { item ->
+                                                    items(
+                                                        uiState.dailyDiscover.filter { it.recommendation.isAudioMusicCandidate() },
+                                                        key = { it.recommendation.videoId }
+                                                    ) { item ->
                                                         DailyDiscoverCard(
                                                             item = item,
                                                             isDownloaded = uiState.downloadedTrackIds.contains(item.recommendation.videoId),
@@ -353,7 +356,7 @@ fun EnhancedMusicScreen(
                                                         .height(Dimensions.ListItemHeight * 4 + 12.dp)
                                                         .fillMaxWidth()
                                                 ) {
-                                                    items(quickPickTracks) { track ->
+                                                    items(quickPickTracks, key = { it.videoId }) { track ->
                                                         TrackListItem(
                                                             track = track,
                                                             isPlaying = currentTrack?.videoId == track.videoId,
@@ -401,7 +404,7 @@ fun EnhancedMusicScreen(
                                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                                 ) {
-                                                    items(uiState.recommendedTracks) { track ->
+                                                    items(uiState.recommendedTracks, key = { it.videoId }) { track ->
                                                         GridItem(
                                                             title = track.title,
                                                             subtitle = track.artist,
@@ -460,7 +463,7 @@ fun EnhancedMusicScreen(
                                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                                 ) {
-                                                    items(section.tracks) { track ->
+                                                    items(section.tracks, key = { it.videoId }) { track ->
                                                         GridItem(
                                                             title = track.title,
                                                             subtitle = track.artist,
@@ -558,7 +561,7 @@ fun EnhancedMusicScreen(
                                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                                 ) {
-                                                    items(tracks) { track ->
+                                                    items(tracks, key = { it.videoId }) { track ->
                                                         GridItem(
                                                             title = track.title,
                                                             subtitle = track.artist,
@@ -594,7 +597,7 @@ fun EnhancedMusicScreen(
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                                                     ) {
-                                                        items(section.tracks) { track ->
+                                                        items(section.tracks, key = { it.videoId }) { track ->
                                                             GridItem(
                                                                 title = track.title,
                                                                 subtitle = track.artist,
@@ -637,7 +640,7 @@ fun EnhancedMusicScreen(
                                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                                 ) {
-                                                    items(uiState.topAlbums) { album ->
+                                                    items(uiState.topAlbums, key = { it.id }) { album ->
                                                         GridItem(
                                                             title = album.title,
                                                             subtitle = album.author,
@@ -662,7 +665,7 @@ fun EnhancedMusicScreen(
                                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                                 ) {
-                                                    items(uiState.newReleases.take(10)) { track ->
+                                                    items(uiState.newReleases.take(10), key = { it.videoId }) { track ->
                                                         GridItem(
                                                             title = track.title,
                                                             subtitle = stringResource(R.string.subtitle_single_template, track.artist),
@@ -709,7 +712,10 @@ fun EnhancedMusicScreen(
                                                         .height(Dimensions.ListItemHeight * 4 + 12.dp)
                                                         .fillMaxWidth()
                                                 ) {
-                                                    items(uiState.trendingSongs.take(20).size) { index ->
+                                                    items(
+                                                        count = uiState.trendingSongs.take(20).size,
+                                                        key = { index -> uiState.trendingSongs[index].videoId }
+                                                    ) { index ->
                                                         val track = uiState.trendingSongs[index]
                                                         ChartTrackItem(
                                                             rank = index + 1,
@@ -738,7 +744,7 @@ fun EnhancedMusicScreen(
                                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                                 ) {
-                                                    items(popularArtists) { track ->
+                                                    items(popularArtists, key = { it.videoId }) { track ->
                                                         Column(
                                                             horizontalAlignment = Alignment.CenterHorizontally,
                                                             modifier = Modifier
@@ -770,7 +776,7 @@ fun EnhancedMusicScreen(
                                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                                 ) {
-                                                    items(uiState.featuredPlaylists) { playlist ->
+                                                    items(uiState.featuredPlaylists, key = { it.id }) { playlist ->
                                                         GridItem(
                                                             title = playlist.title,
                                                             subtitle = playlist.author,
@@ -812,7 +818,7 @@ fun EnhancedMusicScreen(
                                                         .height(gridHeight)
                                                         .fillMaxWidth()
                                                 ) {
-                                                    items(moodItems) { item ->
+                                                    items(moodItems, key = { it.title }) { item ->
                                                         MoodAndGenresButton(
                                                             title = item.title,
                                                             onClick = { onMoodsClick(item) },

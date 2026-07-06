@@ -81,11 +81,14 @@ class PlaybackTracker(
             }
             
             val duration = player.duration.coerceAtLeast(1)
-            val bufferedPct = (bufferedPos.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-            
-            stateFlow.value = stateFlow.value.copy(
-                bufferedPercentage = bufferedPct
-            )
+            val bufferedPct = ((bufferedPos.toFloat() / duration.toFloat())
+                .coerceIn(0f, 1f) * 100f).toInt() / 100f
+
+            if (stateFlow.value.bufferedPercentage != bufferedPct) {
+                stateFlow.value = stateFlow.value.copy(
+                    bufferedPercentage = bufferedPct
+                )
+            }
             onLivePlaybackTick(player)
 
             // Periodic auto-save signal (every 30 seconds)

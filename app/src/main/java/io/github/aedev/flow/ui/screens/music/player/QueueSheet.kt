@@ -228,7 +228,7 @@ fun QueueSheet(
                                             .fillMaxWidth()
                                             .padding(vertical = 8.dp)
                                     ) {
-                                        items(filters) { (filter, label) ->
+                                        items(filters, key = { it.first }) { (filter, label) ->
                                             FilterChip(
                                                 selected = selectedFilter == filter,
                                                 onClick = { onFilterSelect(filter) },
@@ -287,7 +287,7 @@ fun QueueSheet(
                                         )
                                     }
                                 } else {
-                                    items(automixTracks) { track ->
+                                    items(automixTracks, key = { it.videoId }) { track ->
                                         TrackListItem(
                                             track = track,
                                             isDownloaded = downloadedTrackIds.contains(track.videoId),

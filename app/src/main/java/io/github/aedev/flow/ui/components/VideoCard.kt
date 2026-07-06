@@ -99,6 +99,7 @@ fun VideoCard(
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val dateSettings = rememberDateDisplaySettings()
     val watchProgress by produceState<Float?>(initialValue = null, video.id) {
         ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
             value = if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
@@ -263,7 +264,9 @@ fun VideoCard(
                 // Metadata Row
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val premiereDate = formatPremiereDate(video.uploadDate)
-                    val displayDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                    val displayDate = remember(video.uploadDate, video.timestamp, dateSettings) {
+                        dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                    }
                     Text(
                         text = if (video.isUpcoming)
                             premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
@@ -373,6 +376,7 @@ fun VideoCardHorizontal(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val dateSettings = rememberDateDisplaySettings()
     val playerPrefs = remember { PlayerPreferences(context) }
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
     val deArrowResult by produceState<DeArrowResult?>(
@@ -497,7 +501,9 @@ fun VideoCardHorizontal(
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
-                val displayDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                val displayDate = remember(video.uploadDate, video.timestamp, dateSettings) {
+                    dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                }
                 Text(
                     text = if (video.isUpcoming)
                                premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
@@ -533,6 +539,7 @@ fun VideoCardFullWidth(
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val dateSettings = rememberDateDisplaySettings()
     val watchProgress by produceState<Float?>(initialValue = null, video.id) {
         ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
             value = if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
@@ -704,7 +711,9 @@ fun VideoCardFullWidth(
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
-                val displayDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                val displayDate = remember(video.uploadDate, video.timestamp, dateSettings) {
+                    dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                }
                 Text(
                     text = if (video.isUpcoming)
                                premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
@@ -857,6 +866,7 @@ fun CompactVideoCard(
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val dateSettings = rememberDateDisplaySettings()
     val watchProgress by produceState<Float?>(initialValue = null, video.id) {
         ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
             value = if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
@@ -1010,7 +1020,9 @@ fun CompactVideoCard(
             )
             
             val premiereDate = formatPremiereDate(video.uploadDate)
-            val displayDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
+            val displayDate = remember(video.uploadDate, video.timestamp, dateSettings) {
+                dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
+            }
             Text(
                 text = if (video.viewCount < 0L)
                            premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)

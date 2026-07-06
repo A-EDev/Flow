@@ -143,7 +143,7 @@ fun UpNextContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(filters) { filter ->
+            items(filters, key = { it }) { filter ->
                 FilterChip(
                     selected = selectedFilter == filter,
                     onClick = { onFilterSelect(filter) },
@@ -168,7 +168,7 @@ fun UpNextContent(
             modifier = Modifier.fillMaxHeight(),
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            itemsIndexed(queue) { index, track ->
+            itemsIndexed(queue, key = { index, track -> "${track.videoId}_$index" }) { index, track ->
                 UpNextTrackItem(
                     track = track,
                     isCurrentlyPlaying = index == currentIndex,
@@ -236,7 +236,7 @@ fun LyricsContent(
 
     LaunchedEffect(Unit) {
         while (true) {
-            delay(16)
+            delay(100)
             activePosition = EnhancedMusicPlayerManager.getCurrentPosition()
         }
     }
@@ -272,7 +272,7 @@ fun LyricsContent(
                 verticalArrangement = Arrangement.spacedBy(32.dp),
                 contentPadding = PaddingValues(top = 24.dp, bottom = 200.dp, start = 24.dp, end = 24.dp)
             ) {
-                itemsIndexed(syncedLyrics) { index, entry ->
+                itemsIndexed(syncedLyrics, key = { index, entry -> "${entry.time}_${entry.text}_$index" }) { index, entry ->
                     val isCurrent = index == currentLineIndex || index in activeLineIndices
                     val isPast = index < currentLineIndex
                     
@@ -454,7 +454,7 @@ fun RelatedContent(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 100.dp, top = 16.dp)
             ) {
-                items(relatedTracks) { track ->
+                items(relatedTracks, key = { it.videoId }) { track ->
                     RelatedTrackItem(
                         track = track,
                         onClick = { onTrackClick(track) }

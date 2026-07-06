@@ -29,3 +29,6 @@ local.properties
 *.jks
 key.properties
 pipepipe
+graphify-out/
+.claude/
+claude.md
