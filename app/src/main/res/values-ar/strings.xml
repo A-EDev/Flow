@@ -326,7 +326,7 @@
     <string name="content_settings_related_card_full_width">عرض كامل</string>
     <string name="content_settings_related_card_full_width_desc">صورة مصغرة كبيرة مع العنوان أسفله</string>
     <string name="subscriptions_search_placeholder">إبحث في الاشتراكات...</string>
-    <string name="empty_subscriptions_body">اشترك بالقنوات لترى\nأحدث مقاطعهم هنا</string>
+    <string name="empty_subscriptions_body">اشترك بالقنوات لترى، أحدث مقاطعهم هنا</string>
     <string name="shorts">شورتز</string>
     <string name="subscribers">المشتركون</string>
     <string name="library_section_header">محتواك</string>
@@ -1794,7 +1794,7 @@
     <string name="sb_skip_segment">تخطي %1$s</string>
     <string name="subscriptions_sort_label">فرز القنوات</string>
     <string name="subscriptions_sort_default">إفتراضي</string>
-    <string name="subscriptions_sort_name">الأسم (A–Z)</string>
+    <string name="subscriptions_sort_name">الاسم (A–Z)</string>
     <string name="upcoming_waiting_count">%1$s في الإنتظار</string>
     <string name="player_appearance_hide_music_artwork_title">إخفاء صورة مشغل الموسيقى</string>
     <string name="player_appearance_hide_music_artwork_subtitle">إعرض أيقونة التطبيق على لون العمل الفني المستخرج بدلاً من ذلك</string>
@@ -1844,4 +1844,6 @@
     <string name="persona_livewire_description">أنت تعشق الطاقة الخام للبث المباشر والعروض الأولى.</string>
     <string name="persona_night_owl_title">بومة الليل</string>
     <string name="persona_night_owl_description">تزدهر في الظلام. معظم عمليات المشاهدة تحدث بعد منتصف الليل.</string>
+    <string name="player_appearance_grouped_quality_selector_subtitle">إعرض صفًا واحدًا لكل دقة عرض مع خيارات الترميز بداخله</string>
+    <string name="player_appearance_grouped_quality_selector_title">تجميع خيارات الجودة</string>
 </resources>

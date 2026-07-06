@@ -1881,4 +1881,12 @@
     <string name="persona_specialist_description">On se concentre exclusivement sur quelques niches. Vous savez ce que vous aimez.</string>
     <string name="persona_explorer_title">L\'Explorateur</string>
     <string name="persona_explorer_description">Chaotique et magnifique. Un peu de tout.</string>
+    <string name="player_appearance_grouped_quality_selector_title">Sélecteur de qualité groupé</string>
+    <string name="player_appearance_grouped_quality_selector_subtitle">Afficher une ligne par résolution, avec les choix de codecs à l\'intérieur de celle-ci</string>
+    <string name="playlist_video_added_template">Ajouté %1$s</string>
+    <string name="select_videos">Sélectionner</string>
+    <string name="cancel_selection">Annuler la sélection</string>
+    <string name="select_all">Tout sélectionner</string>
+    <string name="deselect_all">Tout désélectionner</string>
+    <string name="delete_selected">Supprimer la sélection</string>
 </resources>
