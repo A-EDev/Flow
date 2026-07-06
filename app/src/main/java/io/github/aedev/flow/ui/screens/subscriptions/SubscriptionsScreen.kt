@@ -533,7 +533,7 @@ fun SubscriptionsScreen(
                                     }
                                 }
     
-                                items(videos) { video ->
+                                items(videos, key = { it.id }) { video ->
                                     if (uiState.isFullWidthView) {
                                         VideoCardFullWidth(
                                             video = video,
@@ -832,7 +832,7 @@ private fun CreateEditGroupDialog(
                     modifier = Modifier.heightIn(max = 280.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    items(filteredChannels) { channel ->
+                    items(filteredChannels, key = { it.id }) { channel ->
                         val isChecked = channel.id in selectedChannelIds.value
                         Row(
                             modifier = Modifier

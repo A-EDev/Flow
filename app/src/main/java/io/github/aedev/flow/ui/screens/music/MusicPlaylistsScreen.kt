@@ -93,7 +93,7 @@ fun MusicPlaylistsScreen(
                             }
                         }
                     } else {
-                        items(uiState.playlists) { playlist ->
+                        items(uiState.playlists, key = { it.id }) { playlist ->
                             MusicPlaylistCard(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },
@@ -110,7 +110,7 @@ fun MusicPlaylistsScreen(
                             MusicLibrarySectionHeader(stringResource(R.string.saved_playlists_header))
                         }
 
-                        items(uiState.savedPlaylists) { playlist ->
+                        items(uiState.savedPlaylists, key = { it.id }) { playlist ->
                             MusicPlaylistCard(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },

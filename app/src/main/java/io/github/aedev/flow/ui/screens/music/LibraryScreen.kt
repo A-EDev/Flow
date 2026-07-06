@@ -210,7 +210,7 @@ private fun PlaylistsTab(
                 )
             }
         } else {
-            items(playlists) { playlist ->
+            items(playlists, key = { it.id }) { playlist ->
                 PlaylistCard(
                     playlist = playlist,
                     onClick = { onPlaylistClick(playlist) }
@@ -259,7 +259,7 @@ private fun FavoritesTab(
                 }
             }
             
-            items(favorites) { track ->
+            items(favorites, key = { it.videoId }) { track ->
                 CompactSleekCard(
                     track = track,
                     onClick = { onTrackClick(track, favorites) },
@@ -316,7 +316,7 @@ private fun HistoryTab(
                 }
             }
             
-            items(history) { track ->
+            items(history, key = { it.videoId }) { track ->
                 CompactSleekCard(
                     track = track,
                     onClick = { onTrackClick(track, history) },
@@ -350,7 +350,7 @@ private fun DownloadsTab(
                 DownloadStatsCard(downloads)
             }
             
-            items(downloads) { download ->
+            items(downloads, key = { download -> download.downloadId.takeIf { it >= 0 } ?: download.track.videoId }) { download ->
                 DownloadedTrackCard(
                     download = download,
                     onClick = { onTrackClick(download.track, downloads.map { it.track }) },

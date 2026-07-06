@@ -1335,7 +1335,7 @@ private fun SuggestionsCard(
                     }
                 }
             }
-            items(suggestions) { s ->
+            items(suggestions, key = { it }) { s ->
                 SuggestionRow(
                     s, query,
                     { onSuggestionClick(s) },

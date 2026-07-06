@@ -109,8 +109,8 @@ fun ShortVideoPage(
 
     // ── Local UI-only state ──
     var isPlaying by remember { mutableStateOf(false) }
-    var currentPosition by remember { mutableStateOf(0L) }
-    var duration by remember { mutableStateOf(0L) }
+    var currentPosition by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
     var isBuffering by remember { mutableStateOf(false) }
     var showPauseIndicator by remember { mutableStateOf(false) }
     var showLikeAnimation by remember { mutableStateOf(false) }
@@ -278,15 +278,29 @@ fun ShortVideoPage(
         }
     }
 
-    // ── Efficient progress tracker: 250ms interval, only while active ──
-    LaunchedEffect(isActive) {
+    // ── Efficient progress tracker: throttles Compose writes while active ──
+    LaunchedEffect(isActive, pageIndex, shortsPlaybackMode, shortsAutoScrollSeconds) {
         if (isActive) {
             while (true) {
                 val p = playerPool.getPlayerForIndex(pageIndex)
                 if (p != null) {
-                    currentPosition = p.currentPosition
-                    duration = p.duration.coerceAtLeast(0)
-                    isBuffering = p.playbackState == androidx.media3.common.Player.STATE_BUFFERING
+                    val position = p.currentPosition.coerceAtLeast(0L)
+                    val safeDuration = p.duration.coerceAtLeast(0L)
+                    val newBuffering = p.playbackState == androidx.media3.common.Player.STATE_BUFFERING
+
+                    if (safeDuration != duration) {
+                        duration = safeDuration
+                    }
+                    if (
+                        currentPosition == 0L ||
+                        position < currentPosition ||
+                        kotlin.math.abs(position - currentPosition) >= 1_000L
+                    ) {
+                        currentPosition = position
+                    }
+                    if (isBuffering != newBuffering) {
+                        isBuffering = newBuffering
+                    }
 
                     val playerIsPlaying = p.isPlaying
                     if (isPlaying != playerIsPlaying) {
@@ -296,6 +310,30 @@ fun ShortVideoPage(
                     if (playerIsPlaying && !hasStartedPlaying) {
                         hasStartedPlaying = true
                     }
+
+                    if (!isDragging && !newBuffering && playerIsPlaying) {
+                        if (!hasTouchedHistory && position >= 1_500L) {
+                            recordShortProgress(position, safeDuration)
+                        } else if (hasTouchedHistory && position - lastProgressSavedAt >= 5_000L) {
+                            recordShortProgress(position, safeDuration)
+                        }
+
+                        if (!hasRecordedWatched && safeDuration > 0L && position >= (safeDuration * 0.9f).toLong()) {
+                            recordShortWatched(position, safeDuration)
+                        }
+
+                        if (shortsPlaybackMode == "auto_interval" && !hasAutoAdvanced) {
+                            val intervalMs = shortsAutoScrollSeconds.coerceIn(5, 20) * 1000L
+                            val shouldWaitForEnd = safeDuration in 1..intervalMs
+                            if (!shouldWaitForEnd && position >= intervalMs) {
+                                recordShortWatched(
+                                    positionMs = position,
+                                    durationMs = safeDuration.takeIf { it > 0L } ?: intervalMs
+                                )
+                                requestAutoAdvance()
+                            }
+                        }
+                    }
                 }
                 delay(500)
             }
@@ -303,33 +341,6 @@ fun ShortVideoPage(
     }
 
     // ── Pause indicator auto-hide ──
-    LaunchedEffect(isActive, currentPosition, duration, isPlaying, isBuffering, isDragging, shortsPlaybackMode, shortsAutoScrollSeconds) {
-        if (!isActive || isDragging || isBuffering || !isPlaying) return@LaunchedEffect
-
-        val safeDuration = duration.coerceAtLeast(0L)
-        if (!hasTouchedHistory && currentPosition >= 1_500L) {
-            recordShortProgress(currentPosition, safeDuration)
-        } else if (hasTouchedHistory && currentPosition - lastProgressSavedAt >= 5_000L) {
-            recordShortProgress(currentPosition, safeDuration)
-        }
-
-        if (!hasRecordedWatched && safeDuration > 0L && currentPosition >= (safeDuration * 0.9f).toLong()) {
-            recordShortWatched(currentPosition, safeDuration)
-        }
-
-        if (shortsPlaybackMode == "auto_interval" && !hasAutoAdvanced) {
-            val intervalMs = shortsAutoScrollSeconds.coerceIn(5, 20) * 1000L
-            val shouldWaitForEnd = safeDuration in 1..intervalMs
-            if (!shouldWaitForEnd && currentPosition >= intervalMs) {
-                recordShortWatched(
-                    positionMs = currentPosition,
-                    durationMs = safeDuration.takeIf { it > 0L } ?: intervalMs
-                )
-                requestAutoAdvance()
-            }
-        }
-    }
-
     LaunchedEffect(showPauseIndicator) {
         if (showPauseIndicator) {
             delay(600)

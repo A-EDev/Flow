@@ -152,7 +152,7 @@ fun AddToPlaylistDialog(
                         )
                     }
                 } else {
-                    items(playlists) { playlist ->
+                    items(playlists, key = { it.id }) { playlist ->
                         val isAdded = playlist.id in addedIds
                         MusicPlaylistSheetRow(
                             playlist = playlist,

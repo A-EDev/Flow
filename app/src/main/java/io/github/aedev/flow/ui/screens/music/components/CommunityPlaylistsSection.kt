@@ -61,7 +61,7 @@ fun CommunityPlaylistsSection(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(bottom = 12.dp)
         ) {
-            items(playlists) { item ->
+            items(playlists, key = { it.playlist.id }) { item ->
                 CommunityPlaylistCard(
                     item = item,
                     onPlaylistClick = { onPlaylistClick(item) },

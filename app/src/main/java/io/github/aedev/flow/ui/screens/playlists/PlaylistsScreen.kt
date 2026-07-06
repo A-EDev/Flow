@@ -93,7 +93,7 @@ fun PlaylistsScreen(
                             )
                         }
                         
-                        items(uiState.playlists) { playlist ->
+                        items(uiState.playlists, key = { it.id }) { playlist ->
                             PlaylistCard(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },
@@ -121,7 +121,7 @@ fun PlaylistsScreen(
                             )
                         }
 
-                        items(uiState.savedPlaylists) { playlist ->
+                        items(uiState.savedPlaylists, key = { it.id }) { playlist ->
                             PlaylistCard(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },

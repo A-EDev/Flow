@@ -198,7 +198,7 @@ fun MusicSearchScreen(
             if (!uiState.isSearching) {
                 // Show suggestions
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(uiState.recommendedItems) { item ->
+                    items(uiState.recommendedItems, key = { it.stableLazyKey("recommended") }) { item ->
                         RecommendedItemRow(
                             item = item,
                             onClick = {
@@ -226,7 +226,7 @@ fun MusicSearchScreen(
                             isDownloaded = isDownloaded(item)
                         )
                     }
-                    items(uiState.suggestions) { suggestion ->
+                    items(uiState.suggestions, key = { it }) { suggestion ->
                         SearchSuggestionRow(
                             suggestion = suggestion,
                             onClick = {
@@ -320,7 +320,10 @@ fun MusicSearchScreen(
                                             )
                                         }
                                         // Skip the first item as it's in the TopResultCard
-                                        items(summary.items.drop(1)) { item ->
+                                        items(
+                                            items = summary.items.drop(1),
+                                            key = { it.stableLazyKey("summary_${summary.title}") }
+                                        ) { item ->
                                             YTItemRow(
                                                 item = item,
                                                 onClick = {
@@ -346,7 +349,10 @@ fun MusicSearchScreen(
                                             )
                                         }
                                     } else {
-                                        items(summary.items) { item ->
+                                        items(
+                                            items = summary.items,
+                                            key = { it.stableLazyKey("summary_${summary.title}") }
+                                        ) { item ->
                                             YTItemRow(
                                                 item = item,
                                                 onClick = {
@@ -375,7 +381,7 @@ fun MusicSearchScreen(
                                 }
                             } else {
                                 // Filtered results
-                                items(uiState.filteredResults) { item ->
+                                items(uiState.filteredResults, key = { it.stableLazyKey("filtered") }) { item ->
                                     YTItemRow(
                                         item = item,
                                         onClick = {

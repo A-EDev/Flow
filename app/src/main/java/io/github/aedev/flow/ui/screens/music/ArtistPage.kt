@@ -456,7 +456,7 @@ fun ArtistPage(
                             contentPadding = PaddingValues(horizontal = 24.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(artistDetails.videos) { video ->
+                            items(artistDetails.videos, key = { it.videoId }) { video ->
                                 VideoCard(video = video, onClick = { onTrackClick(video, listOf(video)) })
                             }
                         }

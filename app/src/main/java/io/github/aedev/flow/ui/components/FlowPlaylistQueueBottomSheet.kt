@@ -210,7 +210,7 @@ fun FlowPlaylistQueueBottomSheet(
                         .weight(1f),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
                 ) {
-                    itemsIndexed(queueVideos) { index, video ->
+                    itemsIndexed(queueVideos, key = { index, video -> "${video.id}_$index" }) { index, video ->
                         PlaylistQueueItem(
                             video = video,
                             index = index,

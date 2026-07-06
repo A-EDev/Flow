@@ -8,7 +8,6 @@ import io.github.aedev.flow.notification.SubscriptionCheckWorker
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import io.github.aedev.flow.data.repository.NewPipeDownloader
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.notification.NotificationHelper
@@ -68,11 +67,6 @@ class FlowApplication : Application(), ImageLoaderFactory {
         appContext = applicationContext
 
         val playerPreferences = PlayerPreferences(this)
-        val selectedLanguage = runBlocking { playerPreferences.appLanguage.first() }
-        AppLanguageManager.wrapContext(this, selectedLanguage)
-        runBlocking {
-            applyProxyConfig(playerPreferences.getProxyConfig())
-        }
         
         // Injects modern TLS/SSL certificates so OkHttp and Ktor don't crash
         if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.N_MR1) {
@@ -115,8 +109,13 @@ class FlowApplication : Application(), ImageLoaderFactory {
         */
         
         // Schedule periodic subscription checks for new videos
-        val savedIntervalMinutes = runBlocking { playerPreferences.subscriptionCheckIntervalMinutes.first() }
-        SubscriptionCheckWorker.schedulePeriodicCheck(this, intervalMinutes = savedIntervalMinutes.toLong())
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            val savedIntervalMinutes = playerPreferences.subscriptionCheckIntervalMinutes.first()
+            SubscriptionCheckWorker.schedulePeriodicCheck(
+                this@FlowApplication,
+                intervalMinutes = savedIntervalMinutes.toLong()
+            )
+        }
         
         // Schedule periodic update checks (every 12 hours) — github flavor only
         if (BuildConfig.UPDATER_ENABLED) {

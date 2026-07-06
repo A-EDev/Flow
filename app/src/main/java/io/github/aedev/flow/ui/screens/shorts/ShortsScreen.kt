@@ -180,17 +180,11 @@ fun ShortsScreen(
                 // Pre-resolve lightweight playback streams for the visible page and near neighbors.
                 LaunchedEffect(pagerState.currentPage) {
                     val currentIdx = pagerState.currentPage
-                    val idsToPreload = listOfNotNull(
-                        uiState.shorts.getOrNull(currentIdx)?.id,
-                        uiState.shorts.getOrNull(currentIdx + 1)?.id,
-                        uiState.shorts.getOrNull(currentIdx + 2)?.id
-                    )
-                    if (idsToPreload.isNotEmpty()) {
+                    val nextPreloadId = uiState.shorts.getOrNull(currentIdx + 2)?.id
+                    if (nextPreloadId != null) {
                         val preferredLang = audioLangPref.preferredAudioLanguage.first()
-                        idsToPreload.forEach { id ->
-                            launch {
-                                viewModel.getPlaybackStreams(id, shortsTargetHeight, preferredLang)
-                            }
+                        launch {
+                            viewModel.getPlaybackStreams(nextPreloadId, shortsTargetHeight, preferredLang)
                         }
                     }
                 }

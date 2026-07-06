@@ -50,7 +50,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.github.aedev.flow.utils.AppLanguageManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -162,10 +161,6 @@ class MainActivity : ComponentActivity() {
         }
 
         val dataManager = LocalDataManager(applicationContext)
-        val initialThemeMode = runBlocking { dataManager.themeMode.first() }
-        val initialCustomThemeColors = runBlocking { dataManager.customThemeColors.first() }
-        val initialSystemLightThemeMode = runBlocking { dataManager.systemLightThemeMode.first() }
-        val initialSystemDarkThemeMode = runBlocking { dataManager.systemDarkThemeMode.first() }
 
         handleIntent(intent)
 
@@ -177,10 +172,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val scope = rememberCoroutineScope()
-            var themeMode by remember { mutableStateOf(initialThemeMode) }
-            var customThemeColors by remember { mutableStateOf(initialCustomThemeColors) }
-            var systemLightThemeMode by remember { mutableStateOf(initialSystemLightThemeMode) }
-            var systemDarkThemeMode by remember { mutableStateOf(initialSystemDarkThemeMode) }
+            var themeMode by remember { mutableStateOf(ThemeMode.SYSTEM) }
+            var customThemeColors by remember { mutableStateOf(CustomThemeColors.default()) }
+            var systemLightThemeMode by remember { mutableStateOf(ThemeMode.LIGHT) }
+            var systemDarkThemeMode by remember { mutableStateOf(ThemeMode.DARK) }
             // State to control splash visibility
             var showSplash by remember { mutableStateOf(true) }
 

@@ -162,7 +162,10 @@ fun YouTubeBrowseScreen(
                                                 .height(Dimensions.ListItemHeight * 4 + 12.dp)
                                                 .fillMaxWidth()
                                         ) {
-                                            items(section.items) { item ->
+                                            items(
+                                                items = section.items,
+                                                key = { it.stableLazyKey("browse_grid_${section.title}") }
+                                            ) { item ->
                                                 val song = item as SongItem
                                                 ListItem(
                                                     title = song.title,
@@ -181,7 +184,10 @@ fun YouTubeBrowseScreen(
                                             contentPadding = PaddingValues(horizontal = 12.dp),
                                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
-                                            items(section.items) { item ->
+                                            items(
+                                                items = section.items,
+                                                key = { it.stableLazyKey("browse_row_${section.title}") }
+                                            ) { item ->
                                                 when (item) {
                                                     is SongItem -> {
                                                         GridItem(
