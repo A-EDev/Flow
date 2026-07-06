@@ -767,4 +767,18 @@
     <string name="settings_subs_shorts_shelf_subtitle">Wyświetl poziomą półkę z shorts w siatce kanału subskrypcji.</string>
     <string name="settings_home_shorts_shelf_title">Półka z shorts na ekranie głównym</string>
     <string name="settings_home_shorts_shelf_subtitle">Wyświetl poziomą półkę z shorts na ekranie głównym.</string>
+    <string name="settings_continue_watching_title">Półka „Kontynuuj Oglądanie”</string>
+    <string name="settings_continue_watching_subtitle">Pokaż sekcję „Kontynuuj Oglądanie” na ekranie głównym.</string>
+    <string name="content_settings_comments_enabled_subtitle">Załaduj i wyświetl sekcję komentarzy na ekranie odtwarzacza wideo</string>
+    <string name="content_settings_comments_preview_subtitle">Pokaż najnowszy komentarz w ramce komentarzy</string>
+    <string name="content_settings_hide_watched_title">Ukryj Obejrzane Filmy</string>
+    <string name="content_settings_hide_watched_subtitle">Odfiltruj filmy, które już obejrzałeś, z głównego kanału i subskrypcji</string>
+    <string name="content_settings_disable_shorts_player_title">Wyłącz Odtwarzacz Shorts</string>
+    <string name="content_settings_disable_shorts_player_subtitle">Odtwarzaj wszystkie filmy (w tym YouTube Shorts) w standardowym odtwarzaczu wideo</string>
+    <string name="content_settings_explore_region_picker_title">Szybki wybór regionu w sekcji „Odkrywaj”</string>
+    <string name="content_settings_explore_region_picker_subtitle">Wyświetl ikonę globu na górnym pasku ekranu „Odkrywaj”, aby błyskawicznie zmienić region, w którym panują aktualne trendy.</string>
+    <string name="content_settings_video_card_actions_title">Przyciski „Lubię” i „Nie lubię” pod miniaturkami filmów</string>
+    <string name="content_settings_video_card_actions_subtitle">Pokazuj przyciski „Lubię” i „Nie lubię” na miniaturkach filmów, aby lepiej dopasować rekomendacje</string>
+    <string name="content_settings_video_card_mark_watched_title">Przycisk „Oznacz jako obejrzane” na miniaturze filmu</string>
+    <string name="content_settings_video_card_mark_watched_subtitle">Wyświetlaj przycisk „Oka” na miniaturach filmów w trybie pełnym i kompaktowym, które umożliwia szybkie oznaczanie filmów jako obejrzane</string>
 </resources>
