@@ -461,6 +461,9 @@ private suspend fun trySabrDownloadFromDialog(context: Context, video: Video) {
                 audioLmt = sabrInfo.audioLmt,
                 videoItag = sabrInfo.videoItag,
                 videoLmt = sabrInfo.videoLmt,
+                poToken = sabrInfo.poToken,
+                visitorId = sabrInfo.visitorId,
+                ustreamerConfig = sabrInfo.ustreamerConfig,
                 durationMs = sabrInfo.durationMs,
                 videoCodec = codecHint
             )

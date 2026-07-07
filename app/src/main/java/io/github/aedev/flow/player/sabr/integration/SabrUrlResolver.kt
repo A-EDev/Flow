@@ -45,6 +45,7 @@ object SabrUrlResolver {
      */
     fun resolve(
         playerResponse: PlayerResponse,
+        preferredCodec: String? = null,
         injectedPoToken: String? = null,
         injectedVisitorData: String? = null
     ): SabrStreamInfo? {
@@ -72,8 +73,8 @@ object SabrUrlResolver {
         val audioFormats = adaptiveFormats.filter { it.isAudio }
         val videoFormats = adaptiveFormats.filter { !it.isAudio }
 
-        val selectedAudio = selectBestAudio(audioFormats)
-        val selectedVideo = selectBestVideo(videoFormats)
+        val selectedVideo = selectBestVideo(videoFormats, preferredCodec)
+        val selectedAudio = selectedVideo?.let { selectBestAudio(audioFormats, it) }
 
         if (selectedAudio == null || selectedVideo == null) {
             Log.w(TAG, "Could not select audio/video format: audio=${selectedAudio != null}, video=${selectedVideo != null}")
@@ -107,6 +108,7 @@ object SabrUrlResolver {
     fun resolveForQuality(
         playerResponse: PlayerResponse,
         targetHeight: Int,
+        preferredCodec: String? = null,
         injectedPoToken: String? = null,
         injectedVisitorData: String? = null
     ): SabrStreamInfo? {
@@ -125,8 +127,8 @@ object SabrUrlResolver {
         val audioFormats = adaptiveFormats.filter { it.isAudio }
         val videoFormats = adaptiveFormats.filter { !it.isAudio }
 
-        val selectedAudio = selectBestAudio(audioFormats) ?: return null
-        val selectedVideo = selectVideoForHeight(videoFormats, targetHeight) ?: return null
+        val selectedVideo = selectVideoForHeight(videoFormats, targetHeight, preferredCodec) ?: return null
+        val selectedAudio = selectBestAudio(audioFormats, selectedVideo) ?: return null
 
         val durationMs = selectedVideo.approxDurationMs?.toLongOrNull()
             ?: selectedAudio.approxDurationMs?.toLongOrNull()
@@ -187,27 +189,51 @@ object SabrUrlResolver {
     }
 
     private fun selectBestAudio(
-        audioFormats: List<PlayerResponse.StreamingData.Format>
+        audioFormats: List<PlayerResponse.StreamingData.Format>,
+        selectedVideo: PlayerResponse.StreamingData.Format
     ): PlayerResponse.StreamingData.Format? {
         val candidates = audioFormats.filter(::isOriginalAudioTrack).ifEmpty { audioFormats }
-        for (preferredItag in PREFERRED_AUDIO_ITAGS) {
-            candidates.find { it.itag == preferredItag }?.let { return it }
+        val videoMime = selectedVideo.mimeType.lowercase()
+        val videoCodec = VideoCodecUtils.codecKeyFromMimeType(selectedVideo.mimeType)
+        val wantsMp4Audio = videoMime.contains("mp4") && videoCodec == "h264"
+        val compatibleCandidates = if (wantsMp4Audio) {
+            candidates.filter { it.mimeType.contains("mp4", ignoreCase = true) }
+                .ifEmpty { audioFormats.filter { it.mimeType.contains("mp4", ignoreCase = true) } }
+        } else {
+            candidates.filter { it.mimeType.contains("webm", ignoreCase = true) }
+                .ifEmpty { audioFormats.filter { it.mimeType.contains("webm", ignoreCase = true) } }
         }
-        val webmAudio = candidates
+        val audioPool = compatibleCandidates.ifEmpty { candidates }
+
+        if (wantsMp4Audio) {
+            return audioPool.maxByOrNull { it.bitrate }
+        }
+
+        for (preferredItag in PREFERRED_AUDIO_ITAGS) {
+            audioPool.find { it.itag == preferredItag }?.let { return it }
+        }
+        val webmAudio = audioPool
             .filter { it.mimeType.contains("webm", ignoreCase = true) }
             .maxByOrNull { it.bitrate }
         if (webmAudio != null) return webmAudio
 
-        return candidates.maxByOrNull { it.bitrate }
+        return audioPool.maxByOrNull { it.bitrate }
     }
 
     private fun selectBestVideo(
-        videoFormats: List<PlayerResponse.StreamingData.Format>
+        videoFormats: List<PlayerResponse.StreamingData.Format>,
+        preferredCodec: String?
     ): PlayerResponse.StreamingData.Format? {
+        val normalizedCodec = preferredCodec?.trim()?.lowercase()?.takeIf { it.isNotBlank() && it != "auto" }
         return videoFormats
             .sortedWith(
                 compareByDescending<PlayerResponse.StreamingData.Format> { it.height ?: 0 }
-                    .thenBy { VideoCodecUtils.playbackCodecRank(VideoCodecUtils.codecKeyFromMimeType(it.mimeType)) }
+                    .thenBy {
+                        VideoCodecUtils.codecRankWithPreference(
+                            VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
+                            normalizedCodec
+                        )
+                    }
                     .thenByDescending { it.averageBitrate ?: it.bitrate }
             )
             .firstOrNull()
@@ -215,8 +241,17 @@ object SabrUrlResolver {
 
     private fun selectVideoForHeight(
         videoFormats: List<PlayerResponse.StreamingData.Format>,
-        targetHeight: Int
+        targetHeight: Int,
+        preferredCodec: String?
     ): PlayerResponse.StreamingData.Format? {
+        val normalizedCodec = preferredCodec?.trim()?.lowercase()?.takeIf { it.isNotBlank() && it != "auto" }
+        if (normalizedCodec != null) {
+            videoFormats
+                .filter { it.height == targetHeight && VideoCodecUtils.codecKeyFromMimeType(it.mimeType) == normalizedCodec }
+                .maxByOrNull { it.averageBitrate ?: it.bitrate }
+                ?.let { return it }
+        }
+
         val preferredItags = PREFERRED_VIDEO_ITAGS_BY_HEIGHT[targetHeight]
         if (preferredItags != null) {
             for (itag in preferredItags) {
@@ -228,7 +263,10 @@ object SabrUrlResolver {
             .filter { it.height == targetHeight }
             .sortedWith(
                 compareBy<PlayerResponse.StreamingData.Format> {
-                    VideoCodecUtils.playbackCodecRank(VideoCodecUtils.codecKeyFromMimeType(it.mimeType))
+                    VideoCodecUtils.codecRankWithPreference(
+                        VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
+                        normalizedCodec
+                    )
                 }.thenByDescending { it.averageBitrate ?: it.bitrate }
             )
             .firstOrNull()
@@ -237,7 +275,12 @@ object SabrUrlResolver {
         return videoFormats
             .sortedWith(
                 compareBy<PlayerResponse.StreamingData.Format> { kotlin.math.abs((it.height ?: 0) - targetHeight) }
-                    .thenBy { VideoCodecUtils.playbackCodecRank(VideoCodecUtils.codecKeyFromMimeType(it.mimeType)) }
+                    .thenBy {
+                        VideoCodecUtils.codecRankWithPreference(
+                            VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
+                            normalizedCodec
+                        )
+                    }
                     .thenByDescending { it.averageBitrate ?: it.bitrate }
             )
             .firstOrNull()

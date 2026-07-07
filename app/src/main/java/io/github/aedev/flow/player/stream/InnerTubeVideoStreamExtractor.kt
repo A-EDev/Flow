@@ -102,6 +102,24 @@ object InnerTubeVideoStreamExtractor {
         null
     }
 
+    suspend fun resolveSabrDownload(
+        videoId: String,
+        targetHeight: Int = 0,
+        preferredCodec: String? = null,
+    ): SabrStreamInfo? = withContext(Dispatchers.IO) {
+        val failureReasons = mutableListOf<String>()
+        tryWebSabr(
+            videoId = videoId,
+            failureReasons = failureReasons,
+            targetHeight = targetHeight,
+            preferredCodec = preferredCodec,
+        )?.sabrInfo.also { sabrInfo ->
+            if (sabrInfo == null) {
+                Log.w(TAG, "SABR download resolve failed for $videoId: ${failureReasons.joinToString(" | ")}")
+            }
+        }
+    }
+
     private suspend fun tryDirectClients(
         videoId: String,
         clients: List<YouTubeClient>,
@@ -200,6 +218,8 @@ object InnerTubeVideoStreamExtractor {
     private suspend fun tryWebSabr(
         videoId: String,
         failureReasons: MutableList<String>,
+        targetHeight: Int = 0,
+        preferredCodec: String? = null,
     ): VideoExtractionResult? {
         try {
             val visitorData = WebPoTokenSession.sessionVisitorData()
@@ -241,11 +261,22 @@ object InnerTubeVideoStreamExtractor {
                 return null
             }
 
-            val resolved = SabrUrlResolver.resolve(
-                playerResponse,
-                injectedPoToken = poToken.streamingDataPoToken,
-                injectedVisitorData = visitorData,
-            )
+            val resolved = if (targetHeight > 0) {
+                SabrUrlResolver.resolveForQuality(
+                    playerResponse,
+                    targetHeight = targetHeight,
+                    preferredCodec = preferredCodec,
+                    injectedPoToken = poToken.streamingDataPoToken,
+                    injectedVisitorData = visitorData,
+                )
+            } else {
+                SabrUrlResolver.resolve(
+                    playerResponse,
+                    preferredCodec = preferredCodec,
+                    injectedPoToken = poToken.streamingDataPoToken,
+                    injectedVisitorData = visitorData,
+                )
+            }
             if (resolved == null) {
                 failureReasons.add("WEB: SABR resolve failed (no serverAbrStreamingUrl / formats)")
                 Log.w(TAG, "WEB+SABR: resolve failed — no serverAbrStreamingUrl/formats (pot/ustreamer present?)")
