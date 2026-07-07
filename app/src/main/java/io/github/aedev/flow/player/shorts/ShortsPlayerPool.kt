@@ -1,5 +1,6 @@
 package io.github.aedev.flow.player.shorts
 
+import android.app.ActivityManager
 import android.content.Context
 import android.util.Log
 import androidx.annotation.OptIn
@@ -58,7 +59,7 @@ class ShortsPlayerPool private constructor() {
         private const val POOL_SIZE = 3
 
         private const val MIN_BUFFER_MS = 1_500
-        private const val MAX_BUFFER_MS = 12_000
+        private const val MAX_BUFFER_MS = 8_000
         private const val BUFFER_FOR_PLAYBACK_MS = 250
         private const val BUFFER_FOR_REBUFFER_MS = 750
         private const val BACK_BUFFER_MS = 2_000
@@ -152,6 +153,7 @@ class ShortsPlayerPool private constructor() {
 
     private fun createShortsPlayer(context: Context): ExoPlayer {
         val allocator = DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE)
+        val (maxVideoWidth, maxVideoHeight) = maxVideoSizeForHeap(context)
 
         val loadControl = DefaultLoadControl.Builder()
             .setAllocator(allocator)
@@ -175,7 +177,7 @@ class ShortsPlayerPool private constructor() {
                 .setAllowVideoMixedMimeTypeAdaptiveness(true)
                 .setForceHighestSupportedBitrate(false)
                 .setViewportSizeToPhysicalDisplaySize(context, true)
-                .setMaxVideoSize(3840, 3840)
+                .setMaxVideoSize(maxVideoWidth, maxVideoHeight)
             
             if (preferredAudioLanguage != "original" && preferredAudioLanguage.isNotEmpty()) {
                 builder.setPreferredAudioLanguage(preferredAudioLanguage)
@@ -207,6 +209,17 @@ class ShortsPlayerPool private constructor() {
                 videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
                 addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { _currentVideoId.value })
             }
+    }
+
+    private fun maxVideoSizeForHeap(context: Context): Pair<Int, Int> {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val memoryClassMb = activityManager?.memoryClass ?: 256
+        val isLowMemoryDevice = activityManager?.isLowRamDevice == true || memoryClassMb <= 256
+        return when {
+            isLowMemoryDevice -> 1080 to 1920
+            memoryClassMb <= 384 -> 1440 to 2560
+            else -> 2160 to 3840
+        }
     }
 
     // PLAYER ACCESS

@@ -593,6 +593,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
+            io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+                .handleCriticalMemoryPressure()
+        }
+    }
+
     fun enterPlayerPictureInPictureMode(
         aspectRatioWidth: Int = 16,
         aspectRatioHeight: Int = 9,

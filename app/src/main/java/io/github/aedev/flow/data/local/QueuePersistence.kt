@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -22,7 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-private val Context.queueDataStore: DataStore<Preferences> by preferencesDataStore(name = "music_queue")
+private val Context.queueDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "music_queue")
 
 class QueuePersistence private constructor(private val context: Context) {
     

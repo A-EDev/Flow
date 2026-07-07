@@ -3,7 +3,6 @@ package io.github.aedev.flow.data.local
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
@@ -17,7 +16,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import dagger.hilt.android.qualifiers.ApplicationContext
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "flow_preferences")
+val Context.dataStore: DataStore<Preferences> by safePreferencesDataStore(name = "flow_preferences")
 
 class LocalDataManager @Inject constructor(@ApplicationContext private val context: Context) {
     private val gson = Gson()

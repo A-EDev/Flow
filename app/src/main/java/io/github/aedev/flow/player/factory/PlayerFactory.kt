@@ -81,6 +81,7 @@ class PlayerFactory {
     fun createTrackSelector(context: Context): DefaultTrackSelector {
         val trackSelectionFactory = AdaptiveTrackSelection.Factory()
         val prefs = ensurePrefs(context)
+        val (maxVideoWidth, maxVideoHeight) = maxVideoSizeForHeap(context)
 
         return DefaultTrackSelector(context, trackSelectionFactory).apply {
             val builder = buildUponParameters()
@@ -90,7 +91,7 @@ class PlayerFactory {
                 .setForceHighestSupportedBitrate(false)
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 .setViewportSizeToPhysicalDisplaySize(context, true)
-                .setMaxVideoSize(PlayerConfig.MAX_VIDEO_WIDTH, PlayerConfig.MAX_VIDEO_HEIGHT)
+                .setMaxVideoSize(maxVideoWidth, maxVideoHeight)
 
             when (prefs.audioLanguage) {
                 "original", "" -> {}
@@ -106,6 +107,7 @@ class PlayerFactory {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
         val memoryClassMb = activityManager?.memoryClass ?: 256
         val isLowMemoryDevice = activityManager?.isLowRamDevice == true || memoryClassMb <= 256
+        val isConstrainedHeap = isLowMemoryDevice || memoryClassMb <= 384
         val maxSafeMinBufferMs = if (isLowMemoryDevice) {
             PlayerConfig.LOW_MEMORY_MAX_SAFE_MAIN_MIN_BUFFER_MS
         } else {
@@ -118,10 +120,10 @@ class PlayerFactory {
         }
         val targetBufferBytes = when {
             isLowMemoryDevice -> PlayerConfig.LOW_MEMORY_MAIN_TARGET_BUFFER_BYTES
-            memoryClassMb <= 384 -> PlayerConfig.MID_MEMORY_MAIN_TARGET_BUFFER_BYTES
+            isConstrainedHeap -> PlayerConfig.MID_MEMORY_MAIN_TARGET_BUFFER_BYTES
             else -> PlayerConfig.MAIN_TARGET_BUFFER_BYTES
         }
-        val backBufferMs = if (isLowMemoryDevice) {
+        val backBufferMs = if (isConstrainedHeap) {
             PlayerConfig.LOW_MEMORY_BACK_BUFFER_DURATION_MS
         } else {
             PlayerConfig.BACK_BUFFER_DURATION_MS
@@ -142,6 +144,17 @@ class PlayerFactory {
             .setPrioritizeTimeOverSizeThresholds(false)
             .setTargetBufferBytes(targetBufferBytes)
             .build()
+    }
+
+    private fun maxVideoSizeForHeap(context: Context): Pair<Int, Int> {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val memoryClassMb = activityManager?.memoryClass ?: 256
+        val isLowMemoryDevice = activityManager?.isLowRamDevice == true || memoryClassMb <= 256
+        return when {
+            isLowMemoryDevice -> 1920 to 1080
+            memoryClassMb <= 384 -> 2560 to 1440
+            else -> PlayerConfig.MAX_VIDEO_WIDTH to PlayerConfig.MAX_VIDEO_HEIGHT
+        }
     }
 
     fun createRenderersFactory(context: Context): DefaultRenderersFactory {

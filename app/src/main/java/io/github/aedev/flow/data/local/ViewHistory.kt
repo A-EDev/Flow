@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +23,7 @@ import kotlinx.coroutines.yield
  * Legacy DataStore kept only for one-time migration of existing user data.
  * After migration it is left empty (cleared).
  */
-private val Context.viewHistoryDataStore: DataStore<Preferences> by preferencesDataStore(name = "view_history")
+private val Context.viewHistoryDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "view_history")
 
 /**
  * Watch-history repository backed by Room SQLite.

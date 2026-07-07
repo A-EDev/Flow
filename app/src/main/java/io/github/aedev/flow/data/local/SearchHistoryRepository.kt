@@ -3,7 +3,6 @@ package io.github.aedev.flow.data.local
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
@@ -11,7 +10,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 
-private val Context.searchDataStore: DataStore<Preferences> by preferencesDataStore(name = "search_history")
+private val Context.searchDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "search_history")
 
 data class SearchHistoryItem(
     val id: String = UUID.randomUUID().toString(),

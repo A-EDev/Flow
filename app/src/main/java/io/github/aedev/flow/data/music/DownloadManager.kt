@@ -6,7 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import io.github.aedev.flow.data.local.safePreferencesDataStore
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.data.download.DownloadUtil
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
@@ -35,7 +35,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 
-private val Context.downloadDataStore: DataStore<Preferences> by preferencesDataStore(name = "downloads")
+private val Context.downloadDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "downloads")
 
 enum class DownloadStatus {
     NOT_DOWNLOADED,

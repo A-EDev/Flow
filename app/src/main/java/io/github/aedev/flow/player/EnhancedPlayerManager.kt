@@ -2527,6 +2527,21 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    fun handleCriticalMemoryPressure() {
+        Log.w(TAG, "Critical memory pressure; releasing video-heavy player state")
+        mediaLoader?.releaseSabr()
+        val p = player ?: return
+        val shouldKeepPlaying = p.playWhenReady || p.isPlaying
+        if (shouldKeepPlaying) {
+            switchToAudioOnly()
+            clearSurface()
+        } else {
+            p.stop()
+            p.clearMediaItems()
+            markVideoReprimePending()
+        }
+    }
+
     
     fun switchToAudioOnly() {
         val p = player ?: return

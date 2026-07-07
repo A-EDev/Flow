@@ -1209,7 +1209,8 @@ fun NavGraphBuilder.flowAppGraph(
 
         LaunchedEffect(Unit) {
             musicPlayerSheetState.expand()
-            navController.popBackStack()
+            withFrameNanos { }
+            navController.popTransientRouteOrNavigateStart(defaultStartRoute)
         }
     }
 
@@ -1291,9 +1292,20 @@ fun NavGraphBuilder.flowAppGraph(
             } else {
                 playerSheetState.expand()
             }
-            navController.popBackStack()
+            withFrameNanos { }
+            navController.popTransientRouteOrNavigateStart(defaultStartRoute)
         }
         
         Box(modifier = Modifier.fillMaxSize())
+    }
+}
+
+private fun NavHostController.popTransientRouteOrNavigateStart(defaultStartRoute: String) {
+    if (previousBackStackEntry != null) {
+        popBackStack()
+    } else {
+        navigate(defaultStartRoute) {
+            launchSingleTop = true
+        }
     }
 }

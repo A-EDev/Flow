@@ -4,7 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import io.github.aedev.flow.data.local.safePreferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.BuildConfig
 import kotlinx.coroutines.flow.first
@@ -12,7 +12,7 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.syncIdentityDataStore by preferencesDataStore(name = "sync_identity")
+private val Context.syncIdentityDataStore by safePreferencesDataStore(name = "sync_identity")
 
 /**
  * Stable per-install identity for sync: a persisted [deviceId] (UUID v4, generated once), a

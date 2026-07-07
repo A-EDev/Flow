@@ -3,7 +3,7 @@ package io.github.aedev.flow.sync.merge
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import io.github.aedev.flow.data.local.safePreferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import kotlinx.coroutines.flow.first
@@ -12,7 +12,7 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.brainCrdtDataStore by preferencesDataStore(name = "sync_brain_crdt")
+private val Context.brainCrdtDataStore by safePreferencesDataStore(name = "sync_brain_crdt")
 
 /**
  * Per-device G-Counter state for the brain's additive counters (idf docs/interactions/word-freq),

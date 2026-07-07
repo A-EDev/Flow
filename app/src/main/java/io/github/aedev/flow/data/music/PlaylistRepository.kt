@@ -5,7 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import io.github.aedev.flow.data.local.safePreferencesDataStore
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 
-private val Context.playlistDataStore: DataStore<Preferences> by preferencesDataStore(name = "playlists")
+private val Context.playlistDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "playlists")
 
 /**
  * Repository for managing playlists and favorites

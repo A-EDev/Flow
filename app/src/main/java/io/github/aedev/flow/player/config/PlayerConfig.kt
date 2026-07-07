@@ -25,31 +25,31 @@ object PlayerConfig {
     /** Allocator buffer size (64 KB optimal for DASH segments) */
     const val ALLOCATOR_BUFFER_SIZE = 64 * 1024
     
-    /** Back buffer duration in milliseconds (15 seconds for instant rewind) */
-    const val BACK_BUFFER_DURATION_MS = 15_000
+    /** Back buffer duration in milliseconds (10 seconds for instant rewind) */
+    const val BACK_BUFFER_DURATION_MS = 10_000
 
     /** Back buffer duration for low-memory devices. */
     const val LOW_MEMORY_BACK_BUFFER_DURATION_MS = 0
 
     /** Hard runtime cap for main-player max buffer */
-    const val MAX_SAFE_MAIN_BUFFER_MS = 60_000
+    const val MAX_SAFE_MAIN_BUFFER_MS = 45_000
 
     /** Hard runtime cap for main-player min buffer so low-RAM devices do not over-retain media. */
-    const val MAX_SAFE_MAIN_MIN_BUFFER_MS = 30_000
+    const val MAX_SAFE_MAIN_MIN_BUFFER_MS = 20_000
 
     /** Runtime caps used when Android reports a small app heap. */
-    const val LOW_MEMORY_MAX_SAFE_MAIN_BUFFER_MS = 25_000
-    const val LOW_MEMORY_MAX_SAFE_MAIN_MIN_BUFFER_MS = 12_000
+    const val LOW_MEMORY_MAX_SAFE_MAIN_BUFFER_MS = 18_000
+    const val LOW_MEMORY_MAX_SAFE_MAIN_MIN_BUFFER_MS = 8_000
 
 
-    const val MAIN_TARGET_BUFFER_BYTES = 64 * 1024 * 1024
+    const val MAIN_TARGET_BUFFER_BYTES = 32 * 1024 * 1024
 
     /** Smaller target buffer budgets for devices with 256-384 MB app heaps. */
-    const val LOW_MEMORY_MAIN_TARGET_BUFFER_BYTES = 8 * 1024 * 1024
-    const val MID_MEMORY_MAIN_TARGET_BUFFER_BYTES = 24 * 1024 * 1024
+    const val LOW_MEMORY_MAIN_TARGET_BUFFER_BYTES = 4 * 1024 * 1024
+    const val MID_MEMORY_MAIN_TARGET_BUFFER_BYTES = 12 * 1024 * 1024
 
     /** Explicit target buffer budget per shorts player in the pooled shorts stack. */
-    const val SHORTS_TARGET_BUFFER_BYTES = 8 * 1024 * 1024
+    const val SHORTS_TARGET_BUFFER_BYTES = 4 * 1024 * 1024
 
     /** Preferred delay from the true live edge. Keeps YouTube live playback stable. */
     const val LIVE_EDGE_GAP_MS = 10_000L
