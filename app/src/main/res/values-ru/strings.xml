@@ -22,7 +22,7 @@
     <string name="library_liked_videos_label">Лайки</string>
     <string name="library_saved_shorts_label">Сохраненные Shorts</string>
     <string name="library_watch_later_label">Смотреть позже</string>
-    <string name="library_downloads_label">Загруженные</string>
+    <string name="library_downloads_label">Скачанные</string>
     <string name="library_settings_data_header"><![CDATA[Настройки и данные]]></string>
     <string name="library_manage_data_label">Управление данными</string>
     <string name="library_manage_data_subtitle">Очистить кэш и историю</string>
@@ -122,7 +122,7 @@
     <string name="save_to">Сохранить в...</string>
     <string name="watch_later">Смотреть позже</string>
     <string name="watch_later_unsave">Удалить из «Смотреть позже»</string>
-    <string name="playlist_private">Приватный</string>
+    <string name="playlist_private">Ограниченный доступ</string>
     <string name="playlist_public">Публичный</string>
     <string name="create_new_playlist">Создать новый плейлист</string>
     <string name="playlist_name">Название</string>
@@ -133,7 +133,7 @@
     <string name="details_metadata">Детали и метаданные</string>
     <string name="mark_as_watched">Пометить как просмотренное</string>
     <string name="mark_as_watched_toast">Помечено как просмотренное — ваши рекомендации станут лучше!</string>
-    <string name="i_like_this">Я Хочу больше такого контента</string>
+    <string name="i_like_this">Я хочу больше такого контента</string>
     <string name="i_like_this_toast">Принято! Вы будете видеть больше подобного контента.</string>
     <string name="go_to_channel">Перейти на канал</string>
     <string name="track_info">Информация о треке</string>
@@ -217,7 +217,7 @@
     <string name="empty_downloads">Скачанных файлов пока нет</string>
     <string name="play_all">Воспроизвести все</string>
     <string name="remove_from_watch_later">Удалить из «Смотреть позже»</string>
-    <string name="playlist_metadata_template">Плейлист • Приватный • %1$d видео</string>
+    <string name="playlist_metadata_template">Плейлист • Ограниченный доступ • %1$d видео</string>
     <string name="explicit">E</string>
     <string name="no_videos_saved">Нет сохраненных видео</string>
     <string name="no_videos_saved_body">Здесь будут видео для просмотра позже</string>
@@ -515,7 +515,7 @@
     <string name="player_settings_stable_voice">Стабильный голос</string>
     <string name="player_settings_stable_voice_subtitle">Нормализовать громкость звука для стабильного воспроизведения</string>
     <string name="loop_video">Зациклить видео</string>
-    <string name="player_settings_sponsorblock">Спонсорский блок</string>
+    <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Пропускать спонсорские сегменты</string>
     <string name="player_settings_dearrow">DeArrow</string>
     <string name="player_settings_dearrow_subtitle">Заменять кликбейтные заголовки и превью на варианты от сообщества</string>
@@ -566,7 +566,7 @@
     <string name="player_settings_show_pip_subtitle">Показывать кнопку ручного включения режима «Картинка в картинке»</string>
     <string name="player_settings_header_audio">Аудио</string>
     <string name="player_settings_play_during_calls">Играть во время звонков</string>
-    <string name="player_settings_play_during_calls_subtitle">Продолжать воспроизведение во время телефонных или VoIP-звонков (напр. WhatsApp)</string>
+    <string name="player_settings_play_during_calls_subtitle">Продолжать воспроизведение во время телефонных или VoIP-звонков (например, WhatsApp)</string>
     <string name="player_settings_audio_language">Предпочтительный язык аудио</string>
     <string name="player_settings_audio_language_dialog_title">Язык аудио</string>
     <string name="player_settings_audio_language_dialog_body">Выберите предпочтительный язык аудиодорожки. Если он недоступен, будет использован язык оригинала.</string>
@@ -737,7 +737,7 @@
     <string name="settings_item_proxy">Настройки прокси</string>
     <string name="settings_item_proxy_subtitle">Направлять удаленный трафик через HTTP или SOCKS5</string>
     <string name="settings_item_app_language">Язык приложения</string>
-    <string name="settings_item_app_language_subtitle">Использовать язык вашего устройства или выберите его вручную</string>
+    <string name="settings_item_app_language_subtitle">Используйте язык вашего устройства или выберите язык вручную</string>
     <string name="settings_language_dialog_title">Выберите язык приложения</string>
     <string name="settings_language_system_default">Значение по умолчанию системы</string>
     <string name="appearance_category_custom">Пользовательский</string>
@@ -904,8 +904,8 @@
     <string name="error_http_forbidden">Доступ отказан (403)</string>
     <string name="error_not_available">Видео недоступен</string>
     <string name="error_not_available_hint">Возможно, это видео удалено, скрыто автором или заблокировано YouTube.</string>
-    <string name="subscriptions_video_section_title">Видео (подписки)</string>
-    <string name="subscriptions_music_section_title">Музыка (подписки)</string>
+    <string name="subscriptions_video_section_title">Видео</string>
+    <string name="subscriptions_music_section_title">Музыка</string>
     <string name="upcoming_video_reminder_action">Напомнить</string>
     <string name="upcoming_video_overlay_title">Это видео запланировано. Воспроизведение станет доступно после начала трансляции.</string>
     <string name="subscriptions_quick_access_title">Быстрый доступ</string>
@@ -1134,7 +1134,7 @@
     <string name="edit_playlist_action">Редактировать плейлист</string>
     <string name="delete_playlist_action">Удалить плейлист</string>
     <string name="make_public_action">Сделать публичным</string>
-    <string name="make_private_action">Сделать приватным</string>
+    <string name="make_private_action">Ограничить доступ</string>
     <string name="remove_from_playlist_action">Удалить из плейлиста</string>
     <string name="playlist_empty_title">Плейлист пуст</string>
     <string name="playlist_empty_desc">Добавляйте видео прямо из плеера,\nчтобы собрать свой плейлист</string>
@@ -1460,7 +1460,7 @@
     <string name="location_movies_label">Фильмы / Flow</string>
     <string name="location_internal_app_label">Внутреннее хранилище приложения</string>
     <string name="location_custom_saf_label">Просмотр…</string>
-    <string name="location_internal_app_desc">Приватно — файлы могут быть удалены при удалении приложения</string>
+    <string name="location_internal_app_desc">Доступно только в приложении — файлы могут быть удалены при удалении приложения</string>
     <string name="location_custom_saf_desc">Выберите любую папку с помощью системного средства выбора файлов</string>
     <string name="location_custom_manual_label">Введите путь вручную</string>
     <string name="location_custom_manual_desc">Введите полный путь, например, /storage/emulated/0/MyFolder</string>
@@ -1608,4 +1608,7 @@
     <string name="live_chat_connecting">Подключение к онлайн-чату…</string>
     <string name="live_chat_empty">Ожидание сообщений…</string>
     <string name="live_chat_show">Показать чат</string>
+    <string name="no_watch_data">Данных о просмотрах пока нет</string>
+    <string name="playlist_metadata_private_template">Плейлист • Ограниченный доступ • %1$d видео</string>
+    <string name="error_private_video">Видео с ограниченным доступом</string>
 </resources>
