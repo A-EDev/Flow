@@ -27,6 +27,8 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
+import io.github.aedev.flow.utils.avatarImageIdentityKey
+import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.first
 import java.util.Locale
@@ -45,6 +47,7 @@ class YouTubeRepository @Inject constructor(
 
     // Cache for channel avatar URLs to avoid redundant network calls
     private val channelAvatarCache = LruCache<String, String>(300)
+    private val videoAvatarStackCache = LruCache<String, List<String>>(300)
 
     /**
      * Fetch channel avatar by channelId, with in-memory caching.
@@ -84,7 +87,12 @@ class YouTubeRepository @Inject constructor(
         if (avatarMap.isEmpty()) return@supervisorScope videos
         videos.map { video ->
             if (video.channelThumbnailUrl.isEmpty())
-                avatarMap[video.channelId]?.let { video.copy(channelThumbnailUrl = it) } ?: video
+                avatarMap[video.channelId]?.let { avatar ->
+                    video.copy(
+                        channelThumbnailUrl = avatar,
+                        channelThumbnailUrls = video.channelThumbnailUrls.ifEmpty { listOf(avatar) }
+                    )
+                } ?: video
             else video
         }
     }
@@ -119,7 +127,7 @@ class YouTubeRepository @Inject constructor(
                 .filterIsInstance<StreamInfoItem>()
                 .map { item -> item.toVideo() }
             
-            Pair(videos, infoItems.nextPage)
+            Pair(enrichLikelyCollabAvatarStacks(videos), infoItems.nextPage)
         } catch (e: Exception) {
             Log.w(TAG, "Trending unavailable: ${e.message}")
             Pair(emptyList(), null)
@@ -180,7 +188,10 @@ class YouTubeRepository @Inject constructor(
                 .filterIsInstance<StreamInfoItem>()
                 .map { item -> item.toVideo() }
             
-            Pair(videos, infoItems.nextPage)
+            val enriched = enrichLikelyCollabAvatarStacks(
+                enrichVideosWithSearchAvatarStacks(query, videos)
+            )
+            Pair(enriched, infoItems.nextPage)
         } catch (e: Exception) {
             Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             Pair(emptyList(), null)
@@ -225,7 +236,9 @@ class YouTubeRepository @Inject constructor(
             }
             
             io.github.aedev.flow.data.model.SearchResult(
-                videos = videos,
+                videos = enrichLikelyCollabAvatarStacks(
+                    enrichVideosWithSearchAvatarStacks(query, videos)
+                ),
                 channels = channels,
                 playlists = playlists
             )
@@ -233,6 +246,102 @@ class YouTubeRepository @Inject constructor(
             Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             io.github.aedev.flow.data.model.SearchResult()
         }
+    }
+
+    private suspend fun enrichVideosWithSearchAvatarStacks(
+        query: String,
+        videos: List<Video>,
+    ): List<Video> {
+        if (videos.isEmpty() || videos.all { it.channelThumbnailUrls.size > 1 }) return videos
+
+        val avatarStacks = withTimeoutOrNull(4_000L) {
+            YouTube.searchVideoAvatarStacks(query).getOrNull()
+        }.orEmpty()
+        if (avatarStacks.isEmpty()) return videos
+
+        return videos.map { video ->
+            val stack = avatarStacks[video.id].orEmpty()
+            if (stack.size <= 1) return@map video
+
+            val merged = (stack + video.channelThumbnailUrls + video.channelThumbnailUrl)
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinctBy { it.avatarImageIdentityKey() }
+                .take(2)
+
+            if (merged.size > 1) {
+                video.copy(
+                    channelThumbnailUrl = merged.first(),
+                    channelThumbnailUrls = merged,
+                )
+            } else {
+                video
+            }
+        }
+    }
+
+    suspend fun enrichLikelyCollabAvatarStacks(
+        videos: List<Video>,
+        limit: Int = 10,
+    ): List<Video> = supervisorScope {
+        val candidates = videos
+            .filter { it.needsCollabAvatarStack() }
+            .take(limit)
+
+        if (candidates.isEmpty()) return@supervisorScope videos
+
+        val fetched = candidates
+            .chunked(3)
+            .flatMap { batch ->
+                batch.map { video ->
+                    async(Dispatchers.IO) {
+                        val stack = videoAvatarStackCache[video.id]
+                            ?: withTimeoutOrNull(4_000L) {
+                                YouTube.videoAvatarStack(video.id).getOrNull()
+                            }.orEmpty().also { urls ->
+                                videoAvatarStackCache.put(video.id, urls)
+                            }
+                        video.id to stack
+                    }
+                }.awaitAll()
+            }
+            .filter { (_, urls) -> urls.size > 1 }
+            .toMap()
+
+        if (fetched.isEmpty()) return@supervisorScope videos
+
+        videos.map { video ->
+            val stack = fetched[video.id].orEmpty()
+            if (stack.size <= 1) return@map video
+
+            val merged = (stack + video.channelThumbnailUrls + video.channelThumbnailUrl)
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinctBy { it.avatarImageIdentityKey() }
+                .take(2)
+
+            if (merged.size > 1) {
+                video.copy(
+                    channelThumbnailUrl = merged.first(),
+                    channelThumbnailUrls = merged,
+                )
+            } else {
+                video
+            }
+        }
+    }
+
+    private fun Video.needsCollabAvatarStack(): Boolean =
+        id.isNotBlank() &&
+            channelThumbnailUrls.size < 2 &&
+            channelName.isLikelyCollaborationByline()
+
+    private fun String.isLikelyCollaborationByline(): Boolean {
+        val normalized = " ${trim().lowercase(Locale.US)} "
+        return normalized.contains(" and ") ||
+            normalized.contains(" & ") ||
+            normalized.contains(" x ") ||
+            normalized.contains(" with ")
     }
     
     /**
@@ -309,9 +418,8 @@ class YouTubeRepository @Inject constructor(
                 .firstOrNull()
                 .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
             
-            val bestAvatar = info.uploaderAvatars
-                .sortedByDescending { it.height }
-                .firstOrNull()?.url ?: ""
+            val avatarUrls = info.uploaderAvatars.distinctBestImageUrls()
+            val bestAvatar = avatarUrls.firstOrNull().orEmpty()
             
             Video(
                 id = videoId,
@@ -323,7 +431,8 @@ class YouTubeRepository @Inject constructor(
                 viewCount = info.viewCount,
                 uploadDate = info.textualUploadDate ?: "Unknown",
                 timestamp = System.currentTimeMillis(), // Best effort for single video fetch
-                channelThumbnailUrl = bestAvatar
+                channelThumbnailUrl = bestAvatar,
+                channelThumbnailUrls = avatarUrls
             )
         } catch (e: Exception) {
             Log.w(TAG, "${e::class.simpleName}: ${e.message}")
@@ -803,7 +912,7 @@ class YouTubeRepository @Inject constructor(
     /** Light related-video harvest for the feed (InnerTube /next, no stream resolution). */
     suspend fun getRelatedCandidates(videoId: String): List<Video> = withContext(Dispatchers.IO) {
         val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext emptyList()
-        WatchMetadataVideoMapper.relatedVideos(resp)
+        enrichLikelyCollabAvatarStacks(WatchMetadataVideoMapper.relatedVideos(resp))
             .filter { it.id.isNotBlank() && it.id != videoId }
             .distinctBy { it.id }
     }
@@ -934,9 +1043,8 @@ class YouTubeRepository @Inject constructor(
             .firstOrNull()
             .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
         
-        val bestAvatar = uploaderAvatars
-            .sortedByDescending { it.height }
-            .firstOrNull()?.url ?: ""
+        val avatarUrls = uploaderAvatars.distinctBestImageUrls()
+        val bestAvatar = avatarUrls.firstOrNull().orEmpty()
         
         var durationSecs = if (duration > 0) duration.toInt() else 0
         
@@ -988,6 +1096,7 @@ class YouTubeRepository @Inject constructor(
                 textualUploadDate
             ),
             channelThumbnailUrl = bestAvatar,
+            channelThumbnailUrls = avatarUrls,
             isUpcoming = streamType == StreamType.NONE,
             isLive = isLiveStream,
             isShort = isShortUrl,

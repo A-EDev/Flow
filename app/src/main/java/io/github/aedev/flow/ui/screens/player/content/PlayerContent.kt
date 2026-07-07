@@ -322,6 +322,7 @@ fun PlayerContent(
             isTouchLocked = screenState.isTouchLocked,
             lockModeEnabled = lockModeEnabled,
             lockOverlayRevealSignal = screenState.lockOverlayRevealSignal,
+            isPortraitFullscreen = screenState.isFullscreenPortrait,
             onTouchLockToggle = {
                 if (lockModeEnabled || screenState.isTouchLocked) {
                     screenState.isTouchLocked = !screenState.isTouchLocked

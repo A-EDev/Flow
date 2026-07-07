@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -62,6 +63,7 @@ import io.github.aedev.flow.data.model.DeArrowResult
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatPremiereDate
@@ -70,6 +72,13 @@ import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.flow.collectLatest
 
 private const val AVATAR_TAG = "ChannelAvatarImage"
+
+private fun Video.channelAvatarUrls(): List<String> =
+    (channelThumbnailUrls + channelThumbnailUrl)
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinctBy { it.avatarImageIdentityKey() }
+        .take(2)
 
 @Composable
 private fun UpcomingReminderBadge(modifier: Modifier = Modifier) {
@@ -238,28 +247,26 @@ fun VideoCard(
                 .padding(horizontal = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Channel Avatar
-            ChannelAvatarImage(
-                url = video.channelThumbnailUrl,
+            ChannelAvatarStack(
+                urls = video.channelAvatarUrls(),
                 contentDescription = video.channelName,
+                avatarSize = 32.dp,
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
             )
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = displayTitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.12f
+                    ),
                     fontWeight = FontWeight.SemiBold, // Stronger weight for readability
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 18.sp
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 
                 // Metadata Row
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -684,29 +691,27 @@ fun VideoCardFullWidth(
                 .padding(vertical = 12.dp, horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Channel avatar
-            ChannelAvatarImage(
-                url = video.channelThumbnailUrl,
+            ChannelAvatarStack(
+                urls = video.channelAvatarUrls(),
                 contentDescription = video.channelName,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .then(
-                        if (onChannelClick != null)
-                            Modifier.clickable { onChannelClick(video.channelId) }
-                        else Modifier
-                    )
+                avatarSize = 40.dp,
+                modifier = if (onChannelClick != null) {
+                    Modifier.clickable { onChannelClick(video.channelId) }
+                } else {
+                    Modifier
+                }
             )
 
             // Video details
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = displayTitle,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        lineHeight = MaterialTheme.typography.bodyLarge.fontSize * 1.12f
+                    ),
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -1001,14 +1006,16 @@ fun CompactVideoCard(
         ) {
             Text(
                 text = displayTitle,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.12f
+                ),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = video.channelName,
@@ -1472,6 +1479,63 @@ fun ChannelAvatarImage(
                     currentModel = Icons.Default.AccountCircle
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun ChannelAvatarStack(
+    urls: List<String>,
+    contentDescription: String?,
+    avatarSize: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier
+) {
+    val avatarUrls = urls.ifEmpty { listOf("") }
+    val primaryUrl = avatarUrls.first()
+    val collaboratorUrl = avatarUrls.getOrNull(1)
+    val stackedAvatarSize = if (collaboratorUrl.isNullOrBlank()) avatarSize else avatarSize * 0.78f
+
+    Box(
+        modifier = modifier
+            .size(avatarSize)
+    ) {
+        if (!collaboratorUrl.isNullOrBlank()) {
+            ChannelAvatarImage(
+                url = collaboratorUrl,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(stackedAvatarSize)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(
+                        width = 1.5.dp,
+                        color = MaterialTheme.colorScheme.background,
+                        shape = CircleShape
+                    )
+            )
+        }
+
+        ChannelAvatarImage(
+            url = primaryUrl,
+            contentDescription = contentDescription,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .size(stackedAvatarSize)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .then(
+                    if (!collaboratorUrl.isNullOrBlank()) {
+                        Modifier
+                            .border(
+                                width = 1.5.dp,
+                                color = MaterialTheme.colorScheme.background,
+                                shape = CircleShape
+                            )
+                    } else {
+                        Modifier
+                    }
+                )
         )
     }
 }

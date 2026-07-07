@@ -693,12 +693,13 @@ class HomeViewModel @Inject constructor(
                 persistentHomeFeedCache.loadLastFeed(cacheFilters())
             }.getOrElse { emptyList() }
             if (cached.isEmpty()) return@launch
+            val hydratedCached = repository.enrichLikelyCollabAvatarStacks(cached, limit = 8)
 
             _uiState.update { state ->
                 if (state.videos.isNotEmpty()) return@update state
-                HomeFeedCache.update(cached, state.shorts)
+                HomeFeedCache.update(hydratedCached, state.shorts)
                 state.copy(
-                    videos = cached,
+                    videos = hydratedCached,
                     isFlowFeed = true,
                     error = null,
                     lastRefreshTime = System.currentTimeMillis()
@@ -826,7 +827,12 @@ class HomeViewModel @Inject constructor(
                     if (subAvatarMap.isEmpty()) this
                     else map { v ->
                         if (v.channelThumbnailUrl.isEmpty() && subAvatarMap.containsKey(v.channelId))
-                            v.copy(channelThumbnailUrl = subAvatarMap.getValue(v.channelId))
+                            v.copy(
+                                channelThumbnailUrl = subAvatarMap.getValue(v.channelId),
+                                channelThumbnailUrls = v.channelThumbnailUrls.ifEmpty {
+                                    listOf(subAvatarMap.getValue(v.channelId))
+                                }
+                            )
                         else v
                     }
 
@@ -938,7 +944,10 @@ class HomeViewModel @Inject constructor(
                     "Flow mix: freshLane=$freshAdded, final=${finalMix.size}, quotas=${quotas}, selected=${sourceMix.sourceCounts}"
                 )
 
-                val spacedMix = spaceByChannel(finalMix)
+                val spacedMix = repository.enrichLikelyCollabAvatarStacks(
+                    spaceByChannel(finalMix),
+                    limit = 8
+                )
                 val renderedIds = spacedMix.mapTo(HashSet()) { it.id }
                 val reserveCandidates =
                     cacheRelatedCandidates(bestRelated, relatedMetadata, renderedIds) +

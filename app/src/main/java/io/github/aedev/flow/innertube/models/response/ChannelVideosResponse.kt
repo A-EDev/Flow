@@ -82,7 +82,67 @@ data class ChannelVideosResponse(
         val viewCountText: SimpleText? = null,
         @SerialName("lengthText")
         val lengthText: SimpleText? = null,
-    )
+        @SerialName("channelThumbnailSupportedRenderers")
+        val channelThumbnailSupportedRenderers: ChannelThumbnailSupportedRenderers? = null,
+        @SerialName("avatarStackViewModel")
+        val avatarStackViewModel: AvatarStackViewModel? = null,
+    ) {
+        @Serializable
+        data class ChannelThumbnailSupportedRenderers(
+            @SerialName("channelThumbnailWithLinkRenderer")
+            val channelThumbnailWithLinkRenderer: ChannelThumbnailWithLinkRenderer? = null,
+            @SerialName("avatarStackViewModel")
+            val avatarStackViewModel: AvatarStackViewModel? = null,
+        )
+
+        @Serializable
+        data class ChannelThumbnailWithLinkRenderer(
+            @SerialName("thumbnail")
+            val thumbnail: ThumbnailContainer? = null,
+            @SerialName("avatarStack")
+            val avatarStack: AvatarStack? = null,
+        ) {
+            @Serializable
+            data class AvatarStack(
+                @SerialName("avatarStackViewModel")
+                val avatarStackViewModel: AvatarStackViewModel? = null,
+            )
+        }
+
+        @Serializable
+        data class AvatarStackViewModel(
+            @SerialName("avatars")
+            val avatars: List<Avatar>? = null,
+        ) {
+            @Serializable
+            data class Avatar(
+                @SerialName("avatarViewModel")
+                val avatarViewModel: AvatarViewModel? = null,
+            )
+
+            @Serializable
+            data class AvatarViewModel(
+                @SerialName("image")
+                val image: Image? = null,
+            )
+
+            @Serializable
+            data class Image(
+                @SerialName("sources")
+                val sources: List<Source>? = null,
+            )
+
+            @Serializable
+            data class Source(
+                @SerialName("url")
+                val url: String? = null,
+                @SerialName("width")
+                val width: Int? = null,
+                @SerialName("height")
+                val height: Int? = null,
+            )
+        }
+    }
 
     @Serializable
     data class LockupViewModel(

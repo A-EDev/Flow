@@ -120,6 +120,7 @@ fun PremiumControlsOverlay(
     lockModeEnabled: Boolean = false,
     lockOverlayRevealSignal: Int = 0,
     onTouchLockToggle: () -> Unit = {},
+    isPortraitFullscreen: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -208,6 +209,14 @@ fun PremiumControlsOverlay(
     val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 12.dp
     val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
     val topControlVerticalPadding = if (isFullscreen) 8.dp else 4.dp
+    val portraitFullscreenTopPadding = if (isFullscreen && isPortraitFullscreen) {
+        WindowInsets.displayCutout
+            .asPaddingValues()
+            .calculateTopPadding()
+            .coerceAtLeast(16.dp)
+    } else {
+        0.dp
+    }
     val bottomControlsSeekbarOverlap = 0.dp
     val seekbarHorizontalPadding = if (isFullscreen) fullscreenSeekbarHorizontalPaddingDp.dp else 0.dp
     val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
@@ -261,6 +270,7 @@ fun PremiumControlsOverlay(
                         color = Color.Black.copy(alpha = 0.42f),
                         shape = CircleShape,
                         modifier = Modifier
+                            .padding(top = portraitFullscreenTopPadding)
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                             .size(44.dp)
                             .clip(CircleShape)
@@ -308,6 +318,7 @@ fun PremiumControlsOverlay(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopStart)
+                        .padding(top = portraitFullscreenTopPadding)
                         .background(
                             brush = Brush.verticalGradient(
                                 colors = listOf(Color.Black.copy(alpha = 0.38f), Color.Transparent)

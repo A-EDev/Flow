@@ -443,6 +443,10 @@ class SubscriptionsViewModel : ViewModel() {
         }
         val bestChannelThumbnail = candidates.firstOrNull { it.channelThumbnailUrl.isNotBlank() }?.channelThumbnailUrl
             ?: primary.channelThumbnailUrl
+        val bestChannelThumbnails = candidates
+            .flatMap { video -> video.channelThumbnailUrls.ifEmpty { listOf(video.channelThumbnailUrl) } }
+            .filter { it.isNotBlank() }
+            .distinct()
         val bestVideoThumbnail = ThumbnailUrlResolver.preferredVideoThumbnail(
             videoId = primary.id,
             urls = candidates.map { it.thumbnailUrl }
@@ -458,6 +462,7 @@ class SubscriptionsViewModel : ViewModel() {
             duration = candidates.maxOf { it.duration },
             description = bestDescription,
             channelThumbnailUrl = bestChannelThumbnail,
+            channelThumbnailUrls = bestChannelThumbnails,
             isShort = candidates.any { it.isShort },
             isLive = candidates.any { it.isLive },
             isUpcoming = isFutureUpcoming
@@ -474,6 +479,7 @@ class SubscriptionsViewModel : ViewModel() {
                 urls = listOf(thumbnailUrl, prior.thumbnailUrl)
             ),
             channelThumbnailUrl = channelThumbnailUrl.ifBlank { prior.channelThumbnailUrl },
+            channelThumbnailUrls = channelThumbnailUrls.ifEmpty { prior.channelThumbnailUrls },
             description = description.ifBlank { prior.description }
         )
     }
@@ -652,7 +658,10 @@ class SubscriptionsViewModel : ViewModel() {
             val normalizedExistingAvatar = ThumbnailUrlResolver.resolveChannelAvatar(video.channelThumbnailUrl)
             if (video.channelThumbnailUrl.isBlank()) {
                 avatarByChannelId[video.channelId]?.let { avatar ->
-                    video.copy(channelThumbnailUrl = avatar)
+                    video.copy(
+                        channelThumbnailUrl = avatar,
+                        channelThumbnailUrls = video.channelThumbnailUrls.ifEmpty { listOf(avatar) }
+                    )
                 } ?: video
             } else if (normalizedExistingAvatar != video.channelThumbnailUrl) {
                 video.copy(channelThumbnailUrl = normalizedExistingAvatar)

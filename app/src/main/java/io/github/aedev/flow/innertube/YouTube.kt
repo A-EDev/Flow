@@ -66,12 +66,15 @@ import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.toShortsPage
+import io.github.aedev.flow.utils.avatarImageIdentityKey
 import android.util.Log
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -205,6 +208,103 @@ object YouTube {
             continuation = response.continuationContents?.musicShelfContinuation?.continuations?.getContinuation()
         )
     }
+
+    /**
+     * Main YouTube search exposes collaboration avatars in a modern entity block:
+     * searchVideoResultEntityKey + avatar.avatarStackViewModel. NewPipe only returns
+     * the uploader avatar, so callers can merge this lightweight map by video id.
+     */
+    suspend fun searchVideoAvatarStacks(query: String): Result<Map<String, List<String>>> = runCatching {
+        val rawBody = innerTube.webSearch(WEB, query).bodyAsText()
+        val root = Json { ignoreUnknownKeys = true; explicitNulls = false }.parseToJsonElement(rawBody)
+        buildMap {
+            collectSearchVideoAvatarStacks(root, this)
+        }
+    }
+
+    suspend fun videoAvatarStack(videoId: String): Result<List<String>> = runCatching {
+        val rawBody = innerTube.next(WEB, videoId, null, null, null, null, null).bodyAsText()
+        val root = Json { ignoreUnknownKeys = true; explicitNulls = false }.parseToJsonElement(rawBody)
+        root.findVideoOwnerAvatarStackUrls()
+    }
+
+    private fun collectSearchVideoAvatarStacks(
+        element: JsonElement,
+        result: MutableMap<String, List<String>>,
+    ) {
+        when (element) {
+            is JsonArray -> element.forEach { collectSearchVideoAvatarStacks(it, result) }
+            is JsonObject -> {
+                if (element.containsKey("searchVideoResultEntityKey") && element.containsKey("avatar")) {
+                    val videoId = element.findFirstString("videoId")
+                    val avatarUrls = element["avatar"]
+                        ?.collectAvatarImageUrls()
+                        .orEmpty()
+
+                    if (!videoId.isNullOrBlank() && avatarUrls.isNotEmpty()) {
+                        result[videoId] = avatarUrls
+                    }
+                }
+                element.values.forEach { collectSearchVideoAvatarStacks(it, result) }
+            }
+            else -> Unit
+        }
+    }
+
+    private fun JsonElement.findFirstString(key: String): String? =
+        when (this) {
+            is JsonObject -> {
+                (this[key] as? JsonPrimitive)?.contentOrNull
+                    ?: values.firstNotNullOfOrNull { it.findFirstString(key) }
+            }
+            is JsonArray -> firstNotNullOfOrNull { it.findFirstString(key) }
+            else -> null
+        }
+
+    private fun JsonElement.collectAvatarImageUrls(): List<String> {
+        val urls = mutableListOf<String>()
+
+        fun collect(element: JsonElement) {
+            when (element) {
+                is JsonArray -> element.forEach(::collect)
+                is JsonObject -> {
+                    val url = (element["url"] as? JsonPrimitive)?.contentOrNull
+                    if (!url.isNullOrBlank() && url.contains("yt3.ggpht.com")) {
+                        urls += url
+                    }
+                    element.values.forEach(::collect)
+                }
+                else -> Unit
+            }
+        }
+
+        collect(this)
+        return urls
+            .distinctBy { it.avatarImageIdentityKey() }
+            .take(5)
+    }
+
+    private fun JsonElement.findVideoOwnerAvatarStackUrls(): List<String> =
+        when (this) {
+            is JsonObject -> {
+                val owner = this["videoOwnerRenderer"] as? JsonObject
+                val ownerStack = owner?.get("avatarStack")
+                    ?.collectAvatarImageUrls()
+                    .orEmpty()
+                    .take(2)
+                if (ownerStack.size > 1) {
+                    ownerStack
+                } else {
+                    values.firstNotNullOfOrNull { child ->
+                        child.findVideoOwnerAvatarStackUrls().takeIf { it.size > 1 }
+                    }.orEmpty()
+                }
+            }
+            is JsonArray -> firstNotNullOfOrNull { child ->
+                child.findVideoOwnerAvatarStackUrls().takeIf { it.size > 1 }
+            }.orEmpty()
+            else -> emptyList()
+        }
 
     // ── Channel-scoped video search (YouTube.com WEB API) ─────────────────────
 
@@ -454,6 +554,7 @@ object YouTube {
             ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
         val uploadText = r.publishedTimeText?.textValue().orEmpty()
         val viewsText = r.viewCountText?.textValue()
+        val avatarUrls = r.channelAvatarUrls(channelThumbnailUrl)
         return io.github.aedev.flow.data.model.Video(
             id = videoId,
             title = title,
@@ -464,13 +565,40 @@ object YouTube {
             viewCount = parseViewCountText(viewsText),
             uploadDate = uploadText,
             timestamp = parseRelativeUploadDate(uploadText) ?: 0L,
-            channelThumbnailUrl = channelThumbnailUrl,
+            channelThumbnailUrl = avatarUrls.firstOrNull().orEmpty(),
+            channelThumbnailUrls = avatarUrls,
             isLive = isLive || viewsText?.contains("watching", ignoreCase = true) == true,
         )
     }
 
     private fun ChannelVideosResponse.SimpleText.textValue(): String? =
         simpleText ?: runs?.joinToString("") { it.text.orEmpty() }
+
+    private fun ChannelVideosResponse.VideoRenderer.channelAvatarUrls(fallback: String): List<String> {
+        val supported = channelThumbnailSupportedRenderers
+        val stackAvatars = listOfNotNull(
+            avatarStackViewModel,
+            supported?.avatarStackViewModel,
+            supported?.channelThumbnailWithLinkRenderer?.avatarStack?.avatarStackViewModel,
+        ).flatMap { stack ->
+            stack.avatars.orEmpty().mapNotNull { avatar ->
+                avatar.avatarViewModel?.image?.sources
+                    ?.maxByOrNull { maxOf(it.width ?: 0, it.height ?: 0) }
+                    ?.url
+            }
+        }
+        val linkedAvatar = supported?.channelThumbnailWithLinkRenderer
+            ?.thumbnail
+            ?.thumbnails
+            ?.maxByOrNull { maxOf(it.width ?: 0, it.height ?: 0) }
+            ?.url
+
+        return (stackAvatars + linkedAvatar + fallback)
+            .filter { !it.isNullOrBlank() }
+            .distinctBy { it.avatarImageIdentityKey() }
+            .take(2)
+            .filterNotNull()
+    }
 
     private fun parseChannelSearchResponse(
         response: io.github.aedev.flow.innertube.models.response.ChannelSearchResponse,
@@ -532,6 +660,7 @@ object YouTube {
             ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
         val duration = parseLengthText(r.lengthText?.simpleText)
         val viewCount = parseViewCountText(r.viewCountText?.simpleText)
+        val avatarUrls = r.channelAvatarUrls(channelThumbnailUrl)
         return io.github.aedev.flow.data.model.Video(
             id = videoId,
             title = title,
@@ -541,8 +670,37 @@ object YouTube {
             duration = duration,
             viewCount = viewCount,
             uploadDate = r.publishedTimeText?.simpleText ?: "",
-            channelThumbnailUrl = channelThumbnailUrl,
+            channelThumbnailUrl = avatarUrls.firstOrNull().orEmpty(),
+            channelThumbnailUrls = avatarUrls,
         )
+    }
+
+    private fun io.github.aedev.flow.innertube.models.response.ChannelSearchResponse.VideoRenderer.channelAvatarUrls(
+        fallback: String
+    ): List<String> {
+        val supported = channelThumbnailSupportedRenderers
+        val stackAvatars = listOfNotNull(
+            avatarStackViewModel,
+            supported?.avatarStackViewModel,
+            supported?.channelThumbnailWithLinkRenderer?.avatarStack?.avatarStackViewModel,
+        ).flatMap { stack ->
+            stack.avatars.orEmpty().mapNotNull { avatar ->
+                avatar.avatarViewModel?.image?.sources
+                    ?.maxByOrNull { maxOf(it.width ?: 0, it.height ?: 0) }
+                    ?.url
+            }
+        }
+        val linkedAvatar = supported?.channelThumbnailWithLinkRenderer
+            ?.thumbnail
+            ?.thumbnails
+            ?.maxByOrNull { maxOf(it.width ?: 0, it.height ?: 0) }
+            ?.url
+
+        return (stackAvatars + linkedAvatar + fallback)
+            .filter { !it.isNullOrBlank() }
+            .distinctBy { it.avatarImageIdentityKey() }
+            .take(2)
+            .filterNotNull()
     }
 
     private fun parseLengthText(text: String?): Int {

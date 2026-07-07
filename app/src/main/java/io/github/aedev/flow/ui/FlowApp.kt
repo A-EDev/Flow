@@ -372,6 +372,22 @@ fun FlowApp(
             animationSpec = tween(durationMillis = 220),
             label = "musicMiniPlayerContentPadding"
         )
+        val bottomNavContentPadding by animateDpAsState(
+            targetValue = if (
+                !bottomNavHideOnScroll &&
+                !isInPipMode &&
+                showBottomNav.value &&
+                isNavScrolledVisible &&
+                currentRoute.value != "shorts" &&
+                currentRoute.value != "savedShortsPlayer"
+            ) {
+                bottomNavContentHeightDp
+            } else {
+                0.dp
+            },
+            animationSpec = tween(durationMillis = 220),
+            label = "bottomNavContentPadding"
+        )
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -382,6 +398,7 @@ fun FlowApp(
             Box(
                 modifier = Modifier
                     .padding(if (isInPipMode) PaddingValues(0.dp) else paddingValues)
+                    .padding(bottom = bottomNavContentPadding)
                     .padding(bottom = musicMiniPlayerContentPadding.coerceAtLeast(0.dp))
                     .nestedScroll(nestedScrollConnection)
             ) {

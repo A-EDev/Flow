@@ -12,9 +12,12 @@ import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.utils.avatarImageIdentityKey
+import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem
@@ -75,6 +78,14 @@ class SearchPagingSource(
                     extractor.initialPage
                 }
 
+                val searchAvatarStacks = if (page == null) {
+                    withTimeoutOrNull(4_000L) {
+                        YouTube.searchVideoAvatarStacks(query).getOrNull()
+                    }.orEmpty()
+                } else {
+                    emptyMap()
+                }
+
                 val items: List<SearchResultItem> = infoPage.items.mapNotNull { item ->
                     when (item) {
                         is StreamInfoItem -> {
@@ -119,9 +130,17 @@ class SearchPagingSource(
                                 videoId,
                                 item.thumbnails.maxByOrNull { it.width }?.url
                             )
-                            val channelThumb = try {
-                                item.uploaderAvatars.maxByOrNull { it.width }?.url ?: ""
-                            } catch (_: Exception) { "" }
+                            val channelThumbs = try {
+                                item.uploaderAvatars.distinctBestImageUrls()
+                            } catch (_: Exception) { emptyList() }
+                            val mergedChannelThumbs = (
+                                searchAvatarStacks[videoId].orEmpty() + channelThumbs
+                            )
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .distinctBy { it.avatarImageIdentityKey() }
+                                .take(2)
+                            val channelThumb = mergedChannelThumbs.firstOrNull().orEmpty()
 
                             SearchResultItem.VideoResult(
                                 Video(
@@ -135,6 +154,7 @@ class SearchPagingSource(
                                     uploadDate = item.textualUploadDate ?: "",
                                     timestamp = System.currentTimeMillis(),
                                     channelThumbnailUrl = channelThumb,
+                                    channelThumbnailUrls = mergedChannelThumbs,
                                     isShort = item.duration in 1..60,
                                     isLive = isLiveStream
                                 )
@@ -189,11 +209,12 @@ class SearchPagingSource(
                         else -> listOf(items.first(), SearchResultItem.ShortsShelfResult(shorts)) + items.drop(1)
                     }
                 } else items
+                val enrichedCombined = enrichCollabVideoResults(combined)
 
                 Log.d(TAG, "Loaded ${items.size} items | query='$query' | nextPage=${infoPage.nextPage != null}")
 
                 LoadResult.Page(
-                    data = sortVideoItems(searchFilter = searchFilter, combined),
+                    data = sortVideoItems(searchFilter = searchFilter, enrichedCombined),
                     prevKey = null,
                     nextKey = infoPage.nextPage
                 )
@@ -205,6 +226,68 @@ class SearchPagingSource(
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    private suspend fun enrichCollabVideoResults(items: List<SearchResultItem>): List<SearchResultItem> {
+        val stacks = mutableMapOf<String, List<String>>()
+
+        items.asSequence()
+            .flatMap { item ->
+                when (item) {
+                    is SearchResultItem.VideoResult -> sequenceOf(item.video)
+                    is SearchResultItem.ShortsShelfResult -> item.shorts.asSequence()
+                    else -> emptySequence()
+                }
+            }
+            .filter { it.needsCollabAvatarStack() }
+            .take(10)
+            .forEach { video ->
+                val stack = withTimeoutOrNull(4_000L) {
+                    YouTube.videoAvatarStack(video.id).getOrNull()
+                }.orEmpty()
+                if (stack.size > 1) stacks[video.id] = stack
+            }
+
+        if (stacks.isEmpty()) return items
+
+        fun Video.withCollabStack(): Video {
+            val stack = stacks[id].orEmpty()
+            if (stack.size <= 1) return this
+            val merged = (stack + channelThumbnailUrls + channelThumbnailUrl)
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinctBy { it.avatarImageIdentityKey() }
+                .take(2)
+            return if (merged.size > 1) {
+                copy(
+                    channelThumbnailUrl = merged.first(),
+                    channelThumbnailUrls = merged,
+                )
+            } else {
+                this
+            }
+        }
+
+        return items.map { item ->
+            when (item) {
+                is SearchResultItem.VideoResult -> item.copy(video = item.video.withCollabStack())
+                is SearchResultItem.ShortsShelfResult -> item.copy(shorts = item.shorts.map { it.withCollabStack() })
+                else -> item
+            }
+        }
+    }
+
+    private fun Video.needsCollabAvatarStack(): Boolean =
+        id.isNotBlank() &&
+            channelThumbnailUrls.size < 2 &&
+            channelName.isLikelyCollaborationByline()
+
+    private fun String.isLikelyCollaborationByline(): Boolean {
+        val normalized = " ${trim().lowercase()} "
+        return normalized.contains(" and ") ||
+            normalized.contains(" & ") ||
+            normalized.contains(" x ") ||
+            normalized.contains(" with ")
+    }
 
     /** Shorts from the web-client search shelf, as [Video]s flagged [Video.isShort]. */
     private suspend fun fetchShortVideos(): List<Video> =

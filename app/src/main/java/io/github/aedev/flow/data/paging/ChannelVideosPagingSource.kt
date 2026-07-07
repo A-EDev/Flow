@@ -4,9 +4,12 @@ import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.channel.ChannelInfo
@@ -59,7 +62,7 @@ class ChannelVideosPagingSource(
                     
                     // Convert items to videos
                     tabInfo.relatedItems.filterIsInstance<StreamInfoItem>().forEach { item ->
-                        videos.add(item.toVideo(channelInfo))
+                        videos.add(item.toVideo(channelInfo).withCollabAvatarStack())
                     }
                     
                     Log.d(TAG, "Initial load: ${videos.size} videos, hasNextPage: ${nextPage != null}")
@@ -70,7 +73,7 @@ class ChannelVideosPagingSource(
                     
                     // Convert items to videos
                     moreItems.items.filterIsInstance<StreamInfoItem>().forEach { item ->
-                        videos.add(item.toVideo(channelInfo))
+                        videos.add(item.toVideo(channelInfo).withCollabAvatarStack())
                     }
                     
                     Log.d(TAG, "More load: ${videos.size} videos, hasNextPage: ${nextPage != null}")
@@ -120,6 +123,35 @@ class ChannelVideosPagingSource(
             isUpcoming = this.streamType == org.schabi.newpipe.extractor.stream.StreamType.NONE,
             isLive = this.streamType == org.schabi.newpipe.extractor.stream.StreamType.LIVE_STREAM
         )
+    }
+
+    private suspend fun Video.withCollabAvatarStack(): Video {
+        if (channelThumbnailUrls.size > 1 || !channelName.isLikelyCollaborationByline()) return this
+        val stack = withTimeoutOrNull(4_000L) {
+            YouTube.videoAvatarStack(id).getOrNull()
+        }.orEmpty()
+        if (stack.size <= 1) return this
+        val merged = (stack + channelThumbnailUrls + channelThumbnailUrl)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.avatarImageIdentityKey() }
+            .take(2)
+        return if (merged.size > 1) {
+            copy(
+                channelThumbnailUrl = merged.first(),
+                channelThumbnailUrls = merged,
+            )
+        } else {
+            this
+        }
+    }
+
+    private fun String.isLikelyCollaborationByline(): Boolean {
+        val normalized = " ${trim().lowercase()} "
+        return normalized.contains(" and ") ||
+            normalized.contains(" & ") ||
+            normalized.contains(" x ") ||
+            normalized.contains(" with ")
     }
     
     private fun extractVideoId(url: String): String {

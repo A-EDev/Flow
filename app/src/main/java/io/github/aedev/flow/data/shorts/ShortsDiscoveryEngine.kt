@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.utils.distinctBestImageUrls
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -460,6 +461,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
         val isShort = item.isShortFormContent == true ||
                 url.contains("/shorts/", ignoreCase = true)
         val timestamp = resolveUploadTimestamp(item) ?: System.currentTimeMillis()
+        val avatarUrls = item.uploaderAvatars.distinctBestImageUrls()
 
         return Video(
             id = videoId,
@@ -475,6 +477,8 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
             likeCount = 0L,
             uploadDate = item.textualUploadDate ?: "",
             timestamp = timestamp,
+            channelThumbnailUrl = avatarUrls.firstOrNull().orEmpty(),
+            channelThumbnailUrls = avatarUrls,
             isShort = isShort,
             isLive = false,
             description = ""

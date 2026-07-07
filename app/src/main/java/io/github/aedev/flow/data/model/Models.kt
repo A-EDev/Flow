@@ -21,6 +21,7 @@ data class Video(
     val isShort: Boolean = false,
     val isUpcoming: Boolean = false,
     val commentCountText: String = "",
+    val channelThumbnailUrls: List<String> = emptyList(),
     // Transient: when this video was added to the playlist currently being viewed. Not persisted
     // on the video row — populated only by playlist-scoped queries.
     val addedAtInPlaylist: Long? = null
