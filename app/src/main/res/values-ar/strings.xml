@@ -1852,4 +1852,6 @@
     <string name="select_all">تحديد الكل</string>
     <string name="deselect_all">إلغاء تحديد الكل</string>
     <string name="delete_selected">حذف المحدد</string>
+    <string name="content_settings_shorts_player_prompt_title">إقتراح مشغل الـ Shorts</string>
+    <string name="content_settings_shorts_player_prompt_subtitle">اسأل قبل الإنتقال إلى مشغل الفيديوهات القصيرة (للفيديوهات أقل من 2 دقيقة)</string>
 </resources>
