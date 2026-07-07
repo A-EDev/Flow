@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.PlaybackResumePolicy
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.stream.StreamMergeUtils
@@ -1712,7 +1713,6 @@ class VideoPlayerViewModel @Inject constructor(
         if (manager.isPreparedForPlayback(videoId)) return@withContext
 
         manager.initialize(context)
-        val queueSize = manager.playerState.value.queueSize
 
         val durationMs = when {
             streamInfo.duration > 0L -> streamInfo.duration * 1000L
@@ -1721,9 +1721,8 @@ class VideoPlayerViewModel @Inject constructor(
         val isLiveStream = streamInfo.streamType == StreamType.LIVE_STREAM
         val resumePosition = savedPosition
             .takeIf { it > 500L }
-            ?.takeIf { queueSize <= 1 }
             ?.takeIf { !isLiveStream && hlsUrl.isNullOrEmpty() }
-            ?.takeUnless { shouldRestartCompletedPlayback(it, durationMs) }
+            ?.takeUnless { PlaybackResumePolicy.shouldRestartCompletedPlayback(it, durationMs) }
             ?: 0L
 
         if (localFilePath != null) {
@@ -1932,7 +1931,7 @@ class VideoPlayerViewModel @Inject constructor(
         val durationMs = durationSeconds * 1000L
         val resumePosition = savedPositionMs
             .takeIf { it > 500L }
-            ?.takeUnless { shouldRestartCompletedPlayback(it, durationMs) }
+            ?.takeUnless { PlaybackResumePolicy.shouldRestartCompletedPlayback(it, durationMs) }
             ?: 0L
         val isAdaptiveMode = preferredQuality == VideoQuality.AUTO
 
@@ -2103,15 +2102,6 @@ class VideoPlayerViewModel @Inject constructor(
         }
     }
 
-    private fun shouldRestartCompletedPlayback(savedPosition: Long, durationMs: Long): Boolean {
-        if (savedPosition <= 0L) return false
-        if (durationMs > 0L) {
-            val remainingMs = durationMs - savedPosition
-            return remainingMs <= 1_500L || savedPosition >= (durationMs * 0.98f).toLong()
-        }
-        return savedPosition > 4 * 60 * 60 * 1000L
-    }
-    
     fun switchQuality(quality: VideoQuality) {
         val state = _uiState.value
         val streamInfo = state.streamInfo ?: return

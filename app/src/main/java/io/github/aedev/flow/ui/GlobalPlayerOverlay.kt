@@ -198,11 +198,15 @@ fun GlobalPlayerOverlay(
         syncVolumeFromSystem()
     }
 
-    LaunchedEffect(screenState.isFullscreen) {
+    LaunchedEffect(screenState.isFullscreen, volumeSwipeGesturesEnabled) {
         PlayerHardwareController.setFullscreenVideoActive(screenState.isFullscreen)
+        PlayerHardwareController.setInAppVolumeOverlayEnabled(volumeSwipeGesturesEnabled)
     }
     DisposableEffect(Unit) {
-        onDispose { PlayerHardwareController.setFullscreenVideoActive(false) }
+        onDispose {
+            PlayerHardwareController.setFullscreenVideoActive(false)
+            PlayerHardwareController.setInAppVolumeOverlayEnabled(true)
+        }
     }
 
     val volumeKeySignal by PlayerHardwareController.volumeKeySignal.collectAsState()

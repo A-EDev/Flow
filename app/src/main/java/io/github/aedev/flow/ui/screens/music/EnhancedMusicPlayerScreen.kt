@@ -138,14 +138,18 @@ fun EnhancedMusicPlayerScreen(
     var showInfoDialog by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
     var skipDirection by remember { mutableStateOf<SkipDirection?>(null) }
+    val musicPlayer by EnhancedMusicPlayerManager.playerInstance.collectAsState()
 
     // ── Sleep Timer ──────────────────────────────────────────────────────
-    LaunchedEffect(Unit) {
+    LaunchedEffect(musicPlayer) {
         SleepTimerManager.attachToPlayer(
-            player = EnhancedMusicPlayerManager.player
+            player = musicPlayer
         ) {
             EnhancedMusicPlayerManager.player?.pause()
         }
+    }
+
+    LaunchedEffect(Unit) {
         SleepTimerManager.attachExitCallback {
             EnhancedMusicPlayerManager.stop()
             context.stopService(

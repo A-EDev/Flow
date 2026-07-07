@@ -46,6 +46,9 @@ object EnhancedMusicPlayerManager {
     var player: Player? = null
         private set
     private var appContext: Context? = null
+
+    private val _playerInstance = MutableStateFlow<Player?>(null)
+    val playerInstance: StateFlow<Player?> = _playerInstance.asStateFlow()
         
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var isInitialized = false
@@ -194,6 +197,7 @@ object EnhancedMusicPlayerManager {
             try {
                 val controller = controllerFuture?.get()
                 player = controller
+                _playerInstance.value = controller
                 if (controller != null) {
                     setupPlayerListener(controller)
                     

@@ -638,6 +638,7 @@ private fun PlayerSettingsAudioPage(
             label = track.label,
             supportingText = track.language.takeIf { it.isNotBlank() },
             selected = index == currentAudioTrack,
+            showSelectedContainer = false,
             onClick = { onTrackSelected(index) }
         )
     }
@@ -679,11 +680,16 @@ private fun PlayerSettingsSelectionRow(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    supportingText: String? = null
+    supportingText: String? = null,
+    showSelectedContainer: Boolean = true
 ) {
     Surface(
         onClick = onClick,
-        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else Color.Transparent,
+        color = if (selected && showSelectedContainer) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+        } else {
+            Color.Transparent
+        },
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(

@@ -519,9 +519,15 @@ class MainActivity : ComponentActivity() {
                 audioManager.adjustStreamVolume(
                     AudioManager.STREAM_MUSIC,
                     direction,
-                    0
+                    if (io.github.aedev.flow.player.PlayerHardwareController.inAppVolumeOverlayEnabled.value) {
+                        0
+                    } else {
+                        AudioManager.FLAG_SHOW_UI
+                    }
                 )
-                io.github.aedev.flow.player.PlayerHardwareController.notifyVolumeKey()
+                if (io.github.aedev.flow.player.PlayerHardwareController.inAppVolumeOverlayEnabled.value) {
+                    io.github.aedev.flow.player.PlayerHardwareController.notifyVolumeKey()
+                }
                 return true
             }
         }

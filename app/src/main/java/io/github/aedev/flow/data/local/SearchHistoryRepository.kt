@@ -225,6 +225,31 @@ class SearchHistoryRepository(private val context: Context) {
             preferences[HISTORY_RETENTION_DAYS_KEY] ?: DEFAULT_RETENTION_DAYS
         }
     }
+
+    suspend fun getSettingsBackup(): SettingsBackup {
+        val preferences = context.searchDataStore.data.first()
+        return SettingsBackup(
+            booleans = mapOf(
+                SEARCH_HISTORY_ENABLED_KEY.name to (preferences[SEARCH_HISTORY_ENABLED_KEY] ?: true),
+                SEARCH_SUGGESTIONS_ENABLED_KEY.name to (preferences[SEARCH_SUGGESTIONS_ENABLED_KEY] ?: true),
+                AUTO_DELETE_HISTORY_KEY.name to (preferences[AUTO_DELETE_HISTORY_KEY] ?: false)
+            ),
+            ints = mapOf(
+                MAX_HISTORY_SIZE_KEY.name to (preferences[MAX_HISTORY_SIZE_KEY] ?: DEFAULT_MAX_HISTORY_SIZE),
+                HISTORY_RETENTION_DAYS_KEY.name to (preferences[HISTORY_RETENTION_DAYS_KEY] ?: DEFAULT_RETENTION_DAYS)
+            )
+        )
+    }
+
+    suspend fun restoreSettings(backup: SettingsBackup) {
+        context.searchDataStore.edit { preferences ->
+            backup.booleans[SEARCH_HISTORY_ENABLED_KEY.name]?.let { preferences[SEARCH_HISTORY_ENABLED_KEY] = it }
+            backup.booleans[SEARCH_SUGGESTIONS_ENABLED_KEY.name]?.let { preferences[SEARCH_SUGGESTIONS_ENABLED_KEY] = it }
+            backup.booleans[AUTO_DELETE_HISTORY_KEY.name]?.let { preferences[AUTO_DELETE_HISTORY_KEY] = it }
+            backup.ints[MAX_HISTORY_SIZE_KEY.name]?.let { preferences[MAX_HISTORY_SIZE_KEY] = it }
+            backup.ints[HISTORY_RETENTION_DAYS_KEY.name]?.let { preferences[HISTORY_RETENTION_DAYS_KEY] = it }
+        }
+    }
     
     // Helper: Parse JSON to list
     private fun getSearchHistoryList(preferences: Preferences): List<SearchHistoryItem> {

@@ -162,6 +162,28 @@ class BackupRepository(private val context: Context) {
         )
     }
 
+    private suspend fun getMergedSettingsBackup(): SettingsBackup {
+        val playerSettings = playerPreferences.getExportData()
+        val localSettings = localDataManager.getExportData()
+        val searchSettings = searchHistoryRepo.getSettingsBackup()
+        val activeIconSuffix = detectActiveIconSuffix()
+        val exportedStrings = if (activeIconSuffix != null) {
+            playerSettings.strings +
+                mapOf("app_icon_suffix" to activeIconSuffix) +
+                localSettings.strings +
+                searchSettings.strings
+        } else {
+            playerSettings.strings + localSettings.strings + searchSettings.strings
+        }
+        return SettingsBackup(
+            strings = exportedStrings,
+            booleans = playerSettings.booleans + localSettings.booleans + searchSettings.booleans,
+            ints = playerSettings.ints + localSettings.ints + searchSettings.ints,
+            floats = playerSettings.floats + localSettings.floats + searchSettings.floats,
+            longs = playerSettings.longs + localSettings.longs + searchSettings.longs
+        )
+    }
+
     private suspend fun exportBrainBytes(): ByteArray {
         val engine = FlowNeuroEngine.getInstance(context)
         engine.initialize()
@@ -222,23 +244,6 @@ class BackupRepository(private val context: Context) {
 
     suspend fun exportData(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val playerSettings = playerPreferences.getExportData()
-            val localSettings = localDataManager.getExportData()
-
-            val activeIconSuffix = detectActiveIconSuffix()
-            val exportedStrings = if (activeIconSuffix != null)
-                playerSettings.strings + mapOf("app_icon_suffix" to activeIconSuffix) + localSettings.strings
-            else
-                playerSettings.strings + localSettings.strings
-
-            val mergedSettings = SettingsBackup(
-                strings = exportedStrings,
-                booleans = playerSettings.booleans + localSettings.booleans,
-                ints = playerSettings.ints + localSettings.ints,
-                floats = playerSettings.floats + localSettings.floats,
-                longs = playerSettings.longs + localSettings.longs
-            )
-
             val backupData = BackupData(
                 viewHistory = viewHistory.getAllHistory().first(),
                 searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
@@ -249,7 +254,7 @@ class BackupRepository(private val context: Context) {
                 subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
                 likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                 contentPreferences = getContentPreferencesBackup(),
-                settings = mergedSettings
+                settings = getMergedSettingsBackup()
             )
 
             val json = gson.toJson(backupData)
@@ -1805,20 +1810,6 @@ class BackupRepository(private val context: Context) {
 
     suspend fun exportMasterBackup(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val playerSettings = playerPreferences.getExportData()
-            val localSettings = localDataManager.getExportData()
-            val activeIconSuffix = detectActiveIconSuffix()
-            val exportedStrings = if (activeIconSuffix != null)
-                playerSettings.strings + mapOf("app_icon_suffix" to activeIconSuffix) + localSettings.strings
-            else
-                playerSettings.strings + localSettings.strings
-            val mergedSettings = SettingsBackup(
-                strings = exportedStrings,
-                booleans = playerSettings.booleans + localSettings.booleans,
-                ints = playerSettings.ints + localSettings.ints,
-                floats = playerSettings.floats + localSettings.floats,
-                longs = playerSettings.longs + localSettings.longs
-            )
             val backupData = BackupData(
                 viewHistory = viewHistory.getAllHistory().first(),
                 searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
@@ -1829,7 +1820,7 @@ class BackupRepository(private val context: Context) {
                 subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
                 likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                 contentPreferences = getContentPreferencesBackup(),
-                settings = mergedSettings
+                settings = getMergedSettingsBackup()
             )
             val appDataJson = gson.toJson(backupData)
 
@@ -1942,6 +1933,7 @@ class BackupRepository(private val context: Context) {
         backupData.settings?.let { settings ->
             playerPreferences.restoreData(settings)
             localDataManager.restoreData(settings)
+            searchHistoryRepo.restoreSettings(settings)
             val savedIconSuffix = settings.strings["app_icon_suffix"]
             if (!savedIconSuffix.isNullOrEmpty() && AppIcons.ALL_SUFFIXES.contains(savedIconSuffix)) {
                 withContext(Dispatchers.Main) {
@@ -2027,20 +2019,6 @@ class BackupRepository(private val context: Context) {
 
     suspend fun exportDataToFolder(folderUri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val playerSettings = playerPreferences.getExportData()
-            val localSettings = localDataManager.getExportData()
-            val activeIconSuffix = detectActiveIconSuffix()
-            val exportedStrings = if (activeIconSuffix != null)
-                playerSettings.strings + mapOf("app_icon_suffix" to activeIconSuffix) + localSettings.strings
-            else
-                playerSettings.strings + localSettings.strings
-            val mergedSettings = SettingsBackup(
-                strings = exportedStrings,
-                booleans = playerSettings.booleans + localSettings.booleans,
-                ints = playerSettings.ints + localSettings.ints,
-                floats = playerSettings.floats + localSettings.floats,
-                longs = playerSettings.longs + localSettings.longs
-            )
             val backupData = BackupData(
                 viewHistory = viewHistory.getAllHistory().first(),
                 searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
@@ -2051,7 +2029,7 @@ class BackupRepository(private val context: Context) {
                 subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
                 likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                 contentPreferences = getContentPreferencesBackup(),
-                settings = mergedSettings
+                settings = getMergedSettingsBackup()
             )
             val json = gson.toJson(backupData)
             writeToFolder(folderUri, "flow_backup.json", "application/json") { out ->
@@ -2075,20 +2053,6 @@ class BackupRepository(private val context: Context) {
 
     suspend fun exportMasterToFolder(folderUri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val playerSettings = playerPreferences.getExportData()
-            val localSettings = localDataManager.getExportData()
-            val activeIconSuffix = detectActiveIconSuffix()
-            val exportedStrings = if (activeIconSuffix != null)
-                playerSettings.strings + mapOf("app_icon_suffix" to activeIconSuffix) + localSettings.strings
-            else
-                playerSettings.strings + localSettings.strings
-            val mergedSettings = SettingsBackup(
-                strings = exportedStrings,
-                booleans = playerSettings.booleans + localSettings.booleans,
-                ints = playerSettings.ints + localSettings.ints,
-                floats = playerSettings.floats + localSettings.floats,
-                longs = playerSettings.longs + localSettings.longs
-            )
             val backupData = BackupData(
                 viewHistory = viewHistory.getAllHistory().first(),
                 searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
@@ -2099,7 +2063,7 @@ class BackupRepository(private val context: Context) {
                 subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
                 likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                 contentPreferences = getContentPreferencesBackup(),
-                settings = mergedSettings
+                settings = getMergedSettingsBackup()
             )
             val appDataJson = gson.toJson(backupData)
             val brainBytes = exportBrainBytes()

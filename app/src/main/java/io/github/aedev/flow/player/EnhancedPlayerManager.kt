@@ -29,6 +29,7 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
@@ -1363,6 +1364,23 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    private suspend fun savedResumePosition(
+        context: Context,
+        videoId: String,
+        durationMs: Long,
+        isLive: Boolean,
+        hlsUrl: String?
+    ): Long {
+        if (isLive || !hlsUrl.isNullOrEmpty()) return 0L
+        val savedPosition = withContext(Dispatchers.IO) {
+            ViewHistory.getInstance(context).getSavedPosition(videoId)
+        }
+        return savedPosition
+            .takeIf { it > 500L }
+            ?.takeUnless { PlaybackResumePolicy.shouldRestartCompletedPlayback(it, durationMs) }
+            ?: 0L
+    }
+
     private fun playVideoFromServiceLayer(video: Video, reason: String) {
         val context = appContext ?: return
         val resumeInAudioOnly = isAudioOnlyMode
@@ -1451,6 +1469,15 @@ class EnhancedPlayerManager private constructor() {
                 }
 
                 val selected = selectStreamsForServicePlayback(mergedVideoStreams, mergedAudioStreams, preferredQuality, preferredAudioLanguage, preferredCodecKey)
+                val isLivePlayback = streamInfo.streamType == StreamType.LIVE_STREAM ||
+                    streamInfo.streamType == StreamType.POST_LIVE_STREAM
+                val resumePosition = savedResumePosition(
+                    context = context,
+                    videoId = enrichedVideo.id,
+                    durationMs = streamInfo.duration * 1000L,
+                    isLive = isLivePlayback,
+                    hlsUrl = streamInfo.hlsUrl
+                )
                 setStreams(
                     videoId = enrichedVideo.id,
                     videoStream = selected.first,
@@ -1462,7 +1489,7 @@ class EnhancedPlayerManager private constructor() {
                     dashManifestUrl = streamInfo.dashMpdUrl,
                     hlsUrl = streamInfo.hlsUrl,
                     streamType = streamInfo.streamType,
-                    startPosition = 0L,
+                    startPosition = resumePosition,
                     sabrInfo = sabrInfo,
                     itVideoFormats = extraction?.videoFormats ?: emptyList(),
                     itAudioFormats = extraction?.audioFormats ?: emptyList(),
@@ -1841,6 +1868,21 @@ class EnhancedPlayerManager private constructor() {
             val idx = p.currentMediaItemIndex
             for (i in idx - 1 downTo 0) {
                 runCatching { p.removeMediaItem(i) }
+            }
+        }
+
+        appContext?.let { ctx ->
+            scope.launch {
+                val resumePosition = savedResumePosition(
+                    context = ctx,
+                    videoId = data.enrichedVideo.id,
+                    durationMs = data.durationSeconds * 1000L,
+                    isLive = false,
+                    hlsUrl = null
+                )
+                if (resumePosition > 0L && currentVideoId == data.enrichedVideo.id) {
+                    player?.seekTo(resumePosition)
+                }
             }
         }
 

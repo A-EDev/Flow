@@ -13,6 +13,13 @@ object PlayerHardwareController {
         _fullscreenVideoActive.value = active
     }
 
+    private val _inAppVolumeOverlayEnabled = MutableStateFlow(true)
+    val inAppVolumeOverlayEnabled: StateFlow<Boolean> = _inAppVolumeOverlayEnabled.asStateFlow()
+
+    fun setInAppVolumeOverlayEnabled(enabled: Boolean) {
+        _inAppVolumeOverlayEnabled.value = enabled
+    }
+
     private val _volumeKeySignal = MutableStateFlow(0L)
     val volumeKeySignal: StateFlow<Long> = _volumeKeySignal.asStateFlow()
 
