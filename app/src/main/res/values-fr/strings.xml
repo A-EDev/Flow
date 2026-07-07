@@ -1889,4 +1889,6 @@
     <string name="select_all">Tout sélectionner</string>
     <string name="deselect_all">Tout désélectionner</string>
     <string name="delete_selected">Supprimer la sélection</string>
+    <string name="content_settings_shorts_player_prompt_title">Suggestion concernant le lecteur de « Shorts »</string>
+    <string name="content_settings_shorts_player_prompt_subtitle">Demander confirmation avant de basculer les vidéos de moins de 2 minutes vers le lecteur Shorts</string>
 </resources>
