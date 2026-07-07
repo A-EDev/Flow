@@ -728,6 +728,8 @@
     <string name="content_settings_navbar_hide_on_scroll_subtitle">Hide the bottom navigation bar when scrolling down. Turn off to keep it always visible (helps if the animation lags).</string>
     <string name="content_settings_disable_shorts_player_title">Disable Shorts Player</string>
     <string name="content_settings_disable_shorts_player_subtitle">Play all videos (including YouTube Shorts) in the regular video player</string>
+    <string name="content_settings_shorts_player_prompt_title">Shorts player suggestion</string>
+    <string name="content_settings_shorts_player_prompt_subtitle">Ask before switching videos under 2 minutes to the Shorts player</string>
     <string name="content_settings_explore_region_picker_title">Quick region picker in Explore</string>
     <string name="content_settings_explore_region_picker_subtitle">Show a globe icon in the Explore screen top bar to instantly change the trending region.</string>
     <string name="categories_region_picker_desc">Change trending region (current: %1$s)</string>

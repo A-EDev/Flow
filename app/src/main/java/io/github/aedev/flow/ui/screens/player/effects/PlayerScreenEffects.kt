@@ -760,17 +760,18 @@ fun ShortVideoPromptEffect(
     videoDuration: Int,
     screenState: PlayerScreenState,
     isInQueue: Boolean,
-    disableShortsPlayer: Boolean
+    disableShortsPlayer: Boolean,
+    showShortsPlayerPrompt: Boolean
 ) {
-    LaunchedEffect(videoDuration, screenState.hasShownShortsPrompt, isInQueue, disableShortsPlayer) {
-        if (disableShortsPlayer) {
+    LaunchedEffect(videoDuration, screenState.hasShownShortsPrompt, isInQueue, disableShortsPlayer, showShortsPlayerPrompt) {
+        if (disableShortsPlayer || !showShortsPlayerPrompt) {
             screenState.showShortsPrompt = false
             return@LaunchedEffect
         }
 
         if (!isInQueue && !screenState.hasShownShortsPrompt && videoDuration > 0 && videoDuration <= 80) {
             delay(1000)
-            if (!disableShortsPlayer) {
+            if (!disableShortsPlayer && showShortsPlayerPrompt) {
                 screenState.showShortsPrompt = true
                 screenState.hasShownShortsPrompt = true
             }

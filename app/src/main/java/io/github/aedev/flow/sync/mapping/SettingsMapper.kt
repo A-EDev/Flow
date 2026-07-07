@@ -47,6 +47,7 @@ object SettingsMapper {
         Entry("app_language", "app_language", Ty.STRING),
         Entry("trending_region", "trending_region", Ty.STRING),
         Entry("hide_watched_videos", "hide_watched_videos", Ty.BOOL),
+        Entry("show_shorts_player_prompt", "show_shorts_player_prompt", Ty.BOOL),
         Entry("comments_enabled", "comments_enabled", Ty.BOOL),
         Entry("comments_preview_enabled", "comments_preview_enabled", Ty.BOOL),
         Entry("return_youtube_dislikes", "rytd_enabled", Ty.BOOL),

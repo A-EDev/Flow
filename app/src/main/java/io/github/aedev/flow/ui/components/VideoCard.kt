@@ -513,7 +513,9 @@ fun VideoCardHorizontal(
                                "${video.channelName} · $displayDate",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.extendedColors.textSecondary
+                            else MaterialTheme.extendedColors.textSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -724,7 +726,7 @@ fun VideoCardFullWidth(
                     style = MaterialTheme.typography.bodySmall,
                     color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                             else MaterialTheme.extendedColors.textSecondary,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = if (onChannelClick != null)
                         Modifier.clickable { onChannelClick(video.channelId) }
@@ -1030,7 +1032,7 @@ fun CompactVideoCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
                         else MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.8f),
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 fontSize = 11.sp
             )

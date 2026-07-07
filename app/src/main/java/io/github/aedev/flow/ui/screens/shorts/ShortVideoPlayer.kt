@@ -7,11 +7,9 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -31,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -61,6 +58,9 @@ import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorContent
 import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorOption
+import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
+import io.github.aedev.flow.ui.screens.player.components.VideoAmbientBackground
+import io.github.aedev.flow.ui.screens.player.components.rememberAmbientFrame
 import io.github.aedev.flow.utils.DateContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -87,6 +87,7 @@ fun ShortVideoPage(
     val shortsPlaybackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
     val shortsAutoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
     val shortsPlayerUiMode by playerPreferences.shortsPlayerUiMode.collectAsState(initial = ShortsPlayerUiMode.DEFAULT)
+    val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val isSimpleShortsUi = shortsPlayerUiMode == ShortsPlayerUiMode.SIMPLE
     val isImpressiveShortsUi = shortsPlayerUiMode == ShortsPlayerUiMode.IMPRESSIVE
     val haptic = LocalHapticFeedback.current
@@ -124,9 +125,10 @@ fun ShortVideoPage(
     var dragProgress by remember { mutableStateOf(0f) }
     var showImpressiveControls by remember(video.id, isActive) { mutableStateOf(false) }
     val controlsVisible = !isImpressiveShortsUi || showImpressiveControls
-    val seekBarTouchHeight = 48.dp
-    val seekBarBottomPadding = bottomNavOverlayPadding.coerceAtLeast(0.dp)
+    val seekBarTouchHeight = 28.dp
+    val seekBarBottomPadding = (bottomNavOverlayPadding + 2.dp).coerceAtLeast(2.dp)
     val controlsBottomPadding = seekBarBottomPadding + 34.dp
+    val seekBarInteractionSource = remember { MutableInteractionSource() }
 
     // ── Audio Track & Quality Selection State ──
     var showShortsOptionsSheet by remember { mutableStateOf(false) }
@@ -164,8 +166,13 @@ fun ShortVideoPage(
             )
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
             setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
             keepScreenOn = true
         }
+    }
+    val ambientActive = isActive && ambientModeEnabled
+    val ambientFrame = rememberAmbientFrame(playerView, ambientActive) {
+        playerPool.getPlayerForIndex(pageIndex)?.isPlaying == true
     }
 
     // Register a MediaSessionCompat so earphone / Bluetooth media buttons (play-pause)
@@ -375,6 +382,15 @@ fun ShortVideoPage(
             .fillMaxSize()
             .background(Color.Black)
     ) {
+        if (ambientActive) {
+            VideoAmbientBackground(
+                frame = ambientFrame.frame,
+                baseColor = ambientFrame.base,
+                accentColor = ambientFrame.accent,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
         AndroidView(
             factory = { playerView },
             modifier = Modifier.fillMaxSize()
@@ -562,45 +578,14 @@ fun ShortVideoPage(
             }
         }
 
-        // ── Gradient Overlays ──
         if (controlsVisible) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = 0.5f),
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-                .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.7f)
-                        )
-                    )
-                )
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomStart)
-                .padding(bottom = controlsBottomPadding, start = 16.dp, end = 8.dp),
-            verticalAlignment = Alignment.Bottom
-        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomStart)
+                    .padding(bottom = controlsBottomPadding, start = 16.dp, end = 8.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -873,64 +858,25 @@ fun ShortVideoPage(
         if (duration > 0) {
             val progress = if (isDragging) dragProgress else (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
 
-            BoxWithConstraints(
+            SeekbarWithPreview(
+                value = progress,
+                onValueChange = { newProgress ->
+                    isDragging = true
+                    dragProgress = newProgress.coerceIn(0f, 1f)
+                },
+                onValueChangeFinished = {
+                    playerPool.seekTo((dragProgress.coerceIn(0f, 1f) * duration).toLong())
+                    isDragging = false
+                },
+                interactionSource = seekBarInteractionSource,
+                duration = duration,
+                edgeAligned = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
                     .padding(bottom = seekBarBottomPadding)
                     .height(seekBarTouchHeight)
-            ) {
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(duration) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { offset ->
-                                    isDragging = true
-                                    dragProgress = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
-                                },
-                                onDragEnd = {
-                                    isDragging = false
-                                    playerPool.seekTo((dragProgress * duration).toLong())
-                                },
-                                onDragCancel = { isDragging = false },
-                                onHorizontalDrag = { change, _ ->
-                                    dragProgress = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
-                                }
-                            )
-                        }
-                        .pointerInput(duration) {
-                            detectTapGestures { offset ->
-                                val newProgress = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
-                                playerPool.seekTo((newProgress * duration).toLong())
-                            }
-                        }
-                ) {
-                    val barHeight = 2.dp.toPx()
-                    val activeHeight = if (isDragging) 4.dp.toPx() else 2.dp.toPx()
-                    val trackCenterY = size.height - 6.dp.toPx()
-
-                    drawRect(
-                        color = Color.White.copy(alpha = 0.3f),
-                        topLeft = androidx.compose.ui.geometry.Offset(0f, trackCenterY - barHeight / 2f),
-                        size = androidx.compose.ui.geometry.Size(size.width, barHeight)
-                    )
-
-                    drawRect(
-                        color = primaryColor,
-                        topLeft = androidx.compose.ui.geometry.Offset(0f, trackCenterY - activeHeight / 2f),
-                        size = androidx.compose.ui.geometry.Size(size.width * progress, activeHeight)
-                    )
-
-                    if (isDragging) {
-                        drawCircle(
-                            color = primaryColor,
-                            radius = 6.dp.toPx(),
-                            center = androidx.compose.ui.geometry.Offset(size.width * progress, trackCenterY)
-                        )
-                    }
-                }
-            }
+            )
         }
     }
 

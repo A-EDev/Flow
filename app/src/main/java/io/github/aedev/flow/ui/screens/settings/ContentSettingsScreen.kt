@@ -91,6 +91,7 @@ fun ContentSettingsScreen(
     val bottomNavHideOnScroll by preferences.bottomNavHideOnScroll.collectAsState(initial = true)
     val shareWithoutText by preferences.shareWithoutText.collectAsState(initial = false)
     val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
+    val showShortsPlayerPrompt by preferences.showShortsPlayerPrompt.collectAsState(initial = true)
     val showRegionPickerInExplore by preferences.showRegionPickerInExplore.collectAsState(initial = true)
     val videoTitleMaxLines by preferences.videoTitleMaxLines.collectAsState(initial = 1)
     val videoCardActionsEnabled by preferences.videoCardActionsEnabled.collectAsState(initial = false)
@@ -458,6 +459,19 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setDisableShortsPlayer(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.SmartDisplay,
+                        title = stringResource(R.string.content_settings_shorts_player_prompt_title),
+                        subtitle = stringResource(R.string.content_settings_shorts_player_prompt_subtitle),
+                        checked = showShortsPlayerPrompt,
+                        enabled = !disableShortsPlayer,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShowShortsPlayerPrompt(enabled)
                             }
                         }
                     )

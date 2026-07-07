@@ -20,11 +20,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -47,12 +47,14 @@ private const val DISPLAY_W = 32
 private const val DISPLAY_H = 18
 private const val UPDATE_MS = 900L
 private const val IDLE_MS = 1200L
-private const val AMBIENT_BASE_ALPHA = 0.34f
-private const val AMBIENT_FRAME_ALPHA = 0.38f
-private const val AMBIENT_ACCENT_ALPHA = 0.08f
-private const val AMBIENT_EDGE_ALPHA = 0.28f
-private const val AMBIENT_SCRIM_ALPHA = 0.42f
+private const val AMBIENT_BASE_ALPHA = 0.52f
+private const val AMBIENT_FRAME_ALPHA = 0.46f
+private const val AMBIENT_ACCENT_ALPHA = 0.24f
+private const val AMBIENT_SCRIM_ALPHA = 0.24f
 private const val AMBIENT_BLUR_DP = 42
+private const val MIN_COLOR_POPULATION = 3
+private const val MIN_PREFERRED_LUMA = 0.20f
+private const val MAX_PREFERRED_LUMA = 0.86f
 
 /** Latest sampled frame plus the dominant/accent colours extracted from it. */
 data class AmbientFrameState(
@@ -63,8 +65,15 @@ data class AmbientFrameState(
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-fun rememberAmbientFrame(playerView: PlayerView, active: Boolean): AmbientFrameState {
+fun rememberAmbientFrame(
+    playerView: PlayerView,
+    active: Boolean,
+    isPlayingProvider: () -> Boolean = {
+        EnhancedPlayerManager.getInstance().getPlayer()?.isPlaying == true
+    }
+): AmbientFrameState {
     var state by remember { mutableStateOf(AmbientFrameState()) }
+    val currentIsPlayingProvider by rememberUpdatedState(isPlayingProvider)
 
     LaunchedEffect(active, playerView) {
         if (!active) {
@@ -76,8 +85,7 @@ fun rememberAmbientFrame(playerView: PlayerView, active: Boolean): AmbientFrameS
         try {
             while (isActive) {
                 val surface = playerView.videoSurfaceView
-                val player = EnhancedPlayerManager.getInstance().getPlayer()
-                val playing = player?.isPlaying == true
+                val playing = currentIsPlayingProvider()
                 if (playing && surface != null && surface.width > 0 && surface.height > 0) {
                     val captured = captureSurface(surface, sample, handler)
                     if (captured) {
@@ -133,9 +141,21 @@ private suspend fun captureSurface(surface: View, dst: Bitmap, handler: Handler)
 
 private fun extractColors(bmp: Bitmap): Pair<Color?, Color?> {
     val palette = Palette.from(bmp).clearFilters().generate()
-    val baseSwatch = palette.darkMutedSwatch ?: palette.darkVibrantSwatch ?: palette.dominantSwatch
+    val usableSwatches = palette.swatches
+        .filter { it.population >= MIN_COLOR_POPULATION }
+        .sortedWith(
+            compareByDescending<Palette.Swatch> { swatch ->
+                val hsl = swatch.hsl
+                val lumaFit = 1f - kotlin.math.abs(hsl[2].coerceIn(0f, 1f) - 0.56f)
+                (hsl[1] * 1.5f + lumaFit) * swatch.population
+            }
+        )
+    val baseSwatch = usableSwatches.firstOrNull { swatch ->
+        swatch.hsl[2] in MIN_PREFERRED_LUMA..MAX_PREFERRED_LUMA
+    } ?: palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: palette.dominantSwatch
     val accentSwatch = palette.vibrantSwatch
         ?: palette.lightVibrantSwatch
+        ?: usableSwatches.firstOrNull()
         ?: palette.mutedSwatch
         ?: palette.dominantSwatch
     return baseSwatch?.let { Color(it.rgb) } to accentSwatch?.let { Color(it.rgb) }
@@ -199,15 +219,7 @@ fun VideoAmbientBackground(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.00f to Color.Black.copy(alpha = AMBIENT_EDGE_ALPHA),
-                            0.50f to animatedAccent.copy(alpha = AMBIENT_ACCENT_ALPHA),
-                            1.00f to Color.Black.copy(alpha = AMBIENT_EDGE_ALPHA)
-                        )
-                    )
-                )
+                .background(animatedAccent.copy(alpha = AMBIENT_ACCENT_ALPHA))
         )
 
         Box(

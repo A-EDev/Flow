@@ -226,6 +226,7 @@ class PlayerPreferences(context: Context) {
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
         val WATCHED_THRESHOLD = stringPreferencesKey("watched_threshold")
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
+        val SHOW_SHORTS_PLAYER_PROMPT = booleanPreferencesKey("show_shorts_player_prompt")
         val SHARE_WITHOUT_TEXT = booleanPreferencesKey("share_without_text")
 
         // Shorts background playback
@@ -1578,6 +1579,17 @@ class PlayerPreferences(context: Context) {
     suspend fun setDisableShortsPlayer(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DISABLE_SHORTS_PLAYER] = enabled
+        }
+    }
+
+    val showShortsPlayerPrompt: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHOW_SHORTS_PLAYER_PROMPT] ?: true
+        }
+
+    suspend fun setShowShortsPlayerPrompt(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHOW_SHORTS_PLAYER_PROMPT] = enabled
         }
     }
 

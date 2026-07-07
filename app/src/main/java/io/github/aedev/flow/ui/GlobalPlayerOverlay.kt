@@ -165,6 +165,7 @@ fun GlobalPlayerOverlay(
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
+    val showShortsPlayerPrompt by playerPreferences.showShortsPlayerPrompt.collectAsState(initial = true)
     val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
     val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
@@ -488,7 +489,8 @@ fun GlobalPlayerOverlay(
         videoDuration = completeVideo.duration,
         screenState = screenState,
         isInQueue = playerState.queueSize > 1,
-        disableShortsPlayer = disableShortsPlayer
+        disableShortsPlayer = disableShortsPlayer,
+        showShortsPlayerPrompt = showShortsPlayerPrompt
     )
 
     SponsorSkipEffect(context)
@@ -1502,6 +1504,7 @@ fun GlobalPlayerOverlay(
             video = video,
             completeVideo = completeVideo,
             disableShortsPlayer = disableShortsPlayer,
+            showShortsPlayerPrompt = showShortsPlayerPrompt,
             comments = comments,
             commentsEnabled = commentsEnabled,
             isLoadingComments = isLoadingComments,

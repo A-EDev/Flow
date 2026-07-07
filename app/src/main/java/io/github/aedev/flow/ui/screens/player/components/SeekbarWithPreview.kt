@@ -102,7 +102,8 @@ fun SeekbarWithPreview(
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
+            .fillMaxWidth(),
+        contentAlignment = if (edgeAligned) Alignment.BottomCenter else Alignment.TopStart
     ) {
 
         Box(
