@@ -1848,4 +1848,7 @@
     <string name="persona_specialist_description">Puntato dritto sulle tue nicchie. Sai esattamente cosa ti piace.</string>
     <string name="persona_explorer_title">L\'Esploratore</string>
     <string name="persona_explorer_description">Caotico e meraviglioso. Un po\' di tutto, ovunque.</string>
+    <string name="content_settings_shorts_player_prompt_title">Suggerimento player degli Shorts</string>
+    <string name="content_settings_shorts_player_prompt_subtitle">Chiedi prima di cambiare i video sotto i 2 minuti nel player degli Shorts</string>
+    <string name="persona_deep_diver_description">I saggi video e i documentari sono il tuo mondo.</string>
 </resources>
