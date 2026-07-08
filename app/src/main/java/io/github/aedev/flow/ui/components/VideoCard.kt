@@ -78,12 +78,15 @@ import kotlinx.coroutines.flow.collectLatest
 private const val AVATAR_TAG = "ChannelAvatarImage"
 
 private fun Video.channelAvatarUrls(collaborators: List<VideoCollaborator> = emptyList()): List<String> {
-    val collaboratorAvatars = if (collaborators.size > 1) {
-        collaborators.map { it.thumbnailUrl }
-    } else {
-        emptyList()
+    if (collaborators.size <= 1) {
+        return (listOf(channelThumbnailUrl) + channelThumbnailUrls)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.avatarImageIdentityKey() }
+            .take(1)
     }
-    return (collaboratorAvatars + channelThumbnailUrls + channelThumbnailUrl)
+
+    return collaborators.map { it.thumbnailUrl }
         .map { it.trim() }
         .filter { it.isNotEmpty() }
         .distinctBy { it.avatarImageIdentityKey() }
@@ -98,9 +101,14 @@ internal fun Video.collaboratorItems(resolvedCollaborators: List<VideoCollaborat
     if (modelItems.size > 1) return modelItems
 
     val names = channelName.splitCollaboratorNames()
-    val avatars = channelAvatarUrls()
+    if (names.size <= 1) return emptyList()
+
+    val avatars = (channelThumbnailUrls + channelThumbnailUrl)
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinctBy { it.avatarImageIdentityKey() }
+        .take(3)
     val count = maxOf(names.size, avatars.size)
-    if (count <= 1) return emptyList()
 
     return List(count) { index ->
         VideoCollaborator(

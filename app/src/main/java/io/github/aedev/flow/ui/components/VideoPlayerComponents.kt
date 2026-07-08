@@ -47,6 +47,7 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.formatSubscriberCount
 import io.github.aedev.flow.utils.formatViewCount
 import io.github.aedev.flow.utils.formatRichText
@@ -94,16 +95,16 @@ fun VideoInfoSection(
     var showCollaborators by remember { mutableStateOf(false) }
     val displayChannelName = rememberCollaboratorChannelDisplayName(channelName, collaborators)
     val avatarUrls = remember(channelAvatarUrl, channelAvatarUrls, collaborators, video.channelThumbnailUrl) {
-        val collaboratorAvatars = if (collaborators.size > 1) {
+        val sources = if (collaborators.size > 1) {
             collaborators.map { it.thumbnailUrl }
         } else {
-            emptyList()
+            listOf(channelAvatarUrl, video.channelThumbnailUrl) + channelAvatarUrls
         }
-        (collaboratorAvatars + channelAvatarUrls + channelAvatarUrl + video.channelThumbnailUrl)
+        sources
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-            .distinct()
-            .take(3)
+            .distinctBy { it.avatarImageIdentityKey() }
+            .take(if (collaborators.size > 1) 3 else 1)
     }
     val openChannelOrCollaborators = {
         if (collaborators.size > 1) {
