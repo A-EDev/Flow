@@ -49,6 +49,7 @@ import io.github.aedev.flow.ui.components.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.PersistentMiniMusicPlayer
 import io.github.aedev.flow.ui.components.rememberMusicPlayerSheetState
 import io.github.aedev.flow.ui.components.PlayerSheetValue
+import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.EnhancedMusicPlayerScreen
@@ -276,6 +277,7 @@ fun FlowApp(
     
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
     var suppressMusicMiniAfterVideo by remember { mutableStateOf(false) }
+    var showMusicSleepTimerSheet by remember { mutableStateOf(false) }
     var handledMusicPlayerRequest by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(activeVideo?.id) {
@@ -592,6 +594,7 @@ fun FlowApp(
                     track = currentMusicTrack!!,
                     isPlayerSheetExpanded = musicPlayerSheetState.isExpanded,
                     onBackClick = { musicPlayerSheetState.collapse() },
+                    onSleepTimerClick = { showMusicSleepTimerSheet = true },
                     onArtistClick = { channelId ->
                         musicPlayerSheetState.collapse()
                         navController.navigate("artist/${android.net.Uri.encode(channelId)}")
@@ -602,6 +605,12 @@ fun FlowApp(
                     },
                 )
             }
+        )
+    }
+
+    if (showMusicSleepTimerSheet) {
+        SleepTimerSheet(
+            onDismiss = { showMusicSleepTimerSheet = false }
         )
     }
 

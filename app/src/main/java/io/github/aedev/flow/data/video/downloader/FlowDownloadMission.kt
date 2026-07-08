@@ -67,6 +67,14 @@ data class FlowDownloadMission(
     @Transient val partialAudioBlockBytes: ConcurrentHashMap<Int, Long> = ConcurrentHashMap()
 
     @Transient val activeCalls: MutableList<Call> = Collections.synchronizedList(mutableListOf())
+
+    fun cancelActiveCalls(): Int {
+        val calls = synchronized(activeCalls) {
+            activeCalls.toList().also { activeCalls.clear() }
+        }
+        calls.forEach { it.cancel() }
+        return calls.size
+    }
     
     /** Convenience accessors for current downloaded bytes */
     val downloadedBytes: Long get() = downloadedBytesAtomic.get()

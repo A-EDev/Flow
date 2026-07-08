@@ -1110,10 +1110,8 @@ class FlowDownloadService : Service() {
 
         activeSabrEngines.remove(videoId)?.cancel()
 
-        val calls = mission.activeCalls.toList()
-        mission.activeCalls.clear()
-        calls.forEach { it.cancel() }
-        Log.d(TAG, "handlePause: Cancelled ${calls.size} in-flight OkHttp call(s) for $videoId")
+        val cancelledCalls = mission.cancelActiveCalls()
+        Log.d(TAG, "handlePause: Cancelled $cancelledCalls in-flight OkHttp call(s) for $videoId")
 
         serviceScope.launch {
             updateAllItemStatuses(videoId, DownloadItemStatus.PAUSED)
@@ -1184,12 +1182,8 @@ class FlowDownloadService : Service() {
 
         activeSabrEngines.remove(videoId)?.cancel()
 
-        mission?.let { m ->
-            val calls = m.activeCalls.toList()
-            m.activeCalls.clear()
-            calls.forEach { it.cancel() }
-            Log.d(TAG, "handleCancel: Cancelled ${calls.size} in-flight OkHttp call(s) for $videoId")
-        }
+        val cancelledCalls = mission?.cancelActiveCalls() ?: 0
+        Log.d(TAG, "handleCancel: Cancelled $cancelledCalls in-flight OkHttp call(s) for $videoId")
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(getNotificationId(videoId))

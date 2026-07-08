@@ -7,6 +7,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.VideoStream
@@ -57,10 +58,10 @@ class PlayerErrorHandler(
         private const val EXPIRY_DEBOUNCE_MS = 1500L
     }
 
-    private var consecutiveExpiryCount = 0
-    private var lastExpiryVideoUrl: String? = null
-    private var lastExpiryTriggerMs = 0L
-    private var gaveUpUrl: String? = null
+    private val expiryRetryLimiter = StreamExpiryRetryLimiter(
+        maxConsecutiveFailures = MAX_CONSECUTIVE_EXPIRY,
+        debounceMs = EXPIRY_DEBOUNCE_MS
+    )
 
     // ── Public entry point ────────────────────────────────────────────────────
 
@@ -221,7 +222,9 @@ class PlayerErrorHandler(
      */
     private fun handleBadHttpStatus(error: PlaybackException, player: ExoPlayer?): Boolean {
         val httpCode = extractHttpStatusCode(error)
+        val context = buildFailureContext("http-$httpCode", httpCode)
         val urlFragment = error.cause?.message?.take(120) ?: ""
+        PlayerDiagnostics.logError(TAG, "HTTP $httpCode stream context: ${context.toLogString()}")
         PlayerDiagnostics.logError(
             TAG,
             "HTTP $httpCode error — stream may have expired. url_fragment=$urlFragment"
@@ -233,6 +236,8 @@ class PlayerErrorHandler(
                     PlayerDiagnostics.logWarning(TAG, "AV1 stream CDN-gated (HTTP $httpCode) — switched to a compatible codec")
                     resetExpiryCounter()
                 } else {
+                    getCurrentVideoStream()?.getContent()?.let { markStreamFailed(it) }
+                    PlayerDiagnostics.logWarning(TAG, "Failed stream variant: ${context.toLogString()}")
                     Log.w(TAG, "HTTP $httpCode — stream URL expired ('YouTube changed data'). Triggering extractor reload.")
                     PlayerDiagnostics.logWarning(TAG, "YouTube stream URL expired (HTTP $httpCode) — requesting fresh stream info")
                     handleStreamExpired("http-$httpCode")
@@ -240,6 +245,7 @@ class PlayerErrorHandler(
                 true
             }
             404 -> {
+                getCurrentVideoStream()?.getContent()?.let { markStreamFailed(it) }
                 PlayerDiagnostics.logError(TAG, "HTTP 404 — stream resource not found")
                 handleStreamExpired("http-404")
                 true
@@ -264,43 +270,35 @@ class PlayerErrorHandler(
     }
 
     private fun handleStreamExpired(reason: String) {
-        val currentUrl = getCurrentVideoStream()?.getContent()
+        val context = buildFailureContext(reason)
 
-        if (gaveUpUrl != null && currentUrl == gaveUpUrl) {
-            Log.d(TAG, "Stream expiry ($reason) on an already-abandoned URL — ignoring")
-            return
+        when (val decision = expiryRetryLimiter.record(context)) {
+            StreamExpiryRetryLimiter.Decision.AlreadyAbandoned -> {
+                Log.d(TAG, "Stream expiry on an already-abandoned variant - ignoring. ${context.toLogString()}")
+                return
+            }
+            StreamExpiryRetryLimiter.Decision.Debounced -> {
+                Log.d(TAG, "Stream expiry within debounce window - coalescing into the in-flight reload. ${context.toLogString()}")
+                return
+            }
+            is StreamExpiryRetryLimiter.Decision.GiveUp -> {
+                Log.e(TAG, "Stream expiry limit reached (${decision.attempts}/${decision.limit}) - stopping playback. ${context.toLogString()}")
+                PlayerDiagnostics.logError(TAG, "Giving up after ${decision.attempts} consecutive stream expiry errors. ${context.toLogString()}")
+                onPlaybackShutdown()
+                stateFlow.value = stateFlow.value.copy(
+                    isBuffering = false,
+                    isPlaying = false,
+                    error = "Unable to play - stream URLs keep expiring.",
+                    recoveryAttempted = true
+                )
+                onPlaybackAbandoned()
+                return
+            }
+            is StreamExpiryRetryLimiter.Decision.Retry -> {
+                Log.w(TAG, "Stream expired - requesting full extractor reload (attempt ${decision.attempt}/${decision.limit}). ${context.toLogString()}")
+            }
         }
 
-        val now = System.currentTimeMillis()
-        if (now - lastExpiryTriggerMs < EXPIRY_DEBOUNCE_MS) {
-            Log.d(TAG, "Stream expiry ($reason) within debounce window — coalescing into the in-flight reload")
-            return
-        }
-        lastExpiryTriggerMs = now
-
-        if (currentUrl != null && currentUrl == lastExpiryVideoUrl) {
-            consecutiveExpiryCount++
-        } else {
-            consecutiveExpiryCount = 1
-            lastExpiryVideoUrl = currentUrl
-        }
-
-        if (consecutiveExpiryCount > MAX_CONSECUTIVE_EXPIRY) {
-            gaveUpUrl = currentUrl
-            Log.e(TAG, "Stream expiry limit reached ($consecutiveExpiryCount/$MAX_CONSECUTIVE_EXPIRY) for reason=$reason — stopping playback")
-            PlayerDiagnostics.logError(TAG, "Giving up after $consecutiveExpiryCount consecutive stream expiry errors")
-            onPlaybackShutdown()
-            stateFlow.value = stateFlow.value.copy(
-                isBuffering = false,
-                isPlaying = false,
-                error = "Unable to play — stream URLs keep expiring.",
-                recoveryAttempted = true
-            )
-            onPlaybackAbandoned()
-            return
-        }
-
-        Log.w(TAG, "Stream expired ($reason) — requesting full extractor reload (attempt $consecutiveExpiryCount/$MAX_CONSECUTIVE_EXPIRY)")
         stateFlow.value = stateFlow.value.copy(
             isBuffering = true,
             error = null,
@@ -310,13 +308,28 @@ class PlayerErrorHandler(
     }
 
     fun resetExpiryCounter() {
-        consecutiveExpiryCount = 0
-        lastExpiryVideoUrl = null
-        lastExpiryTriggerMs = 0L
-        gaveUpUrl = null
+        expiryRetryLimiter.reset()
     }
 
-    fun hasGivenUp(): Boolean = gaveUpUrl != null
+    fun hasGivenUp(): Boolean = expiryRetryLimiter.hasGivenUp()
+
+    private fun buildFailureContext(reason: String, httpCode: Int? = null): StreamFailureContext {
+        val video = getCurrentVideoStream()
+        val audio = getCurrentAudioStream()
+        return StreamFailureContext(
+            reason = reason,
+            httpCode = httpCode,
+            url = video?.getContent(),
+            videoHeight = video?.let(VideoCodecUtils::qualityHeightFromStream),
+            videoCodec = video?.let(VideoCodecUtils::codecKeyFromStream),
+            videoItag = video?.itagItem?.id?.toString()
+                ?: runCatching { video?.id }.getOrNull()?.takeIf { !it.isNullOrBlank() },
+            videoMimeType = video?.format?.mimeType,
+            audioItag = audio?.itagItem?.id?.toString()
+                ?: runCatching { audio?.id }.getOrNull()?.takeIf { !it.isNullOrBlank() },
+            audioMimeType = audio?.format?.mimeType
+        )
+    }
 
     private fun handleParsingError(error: PlaybackException) {
         Log.e(TAG, "Source validation error: ${error.errorCode} - ${error.message}")

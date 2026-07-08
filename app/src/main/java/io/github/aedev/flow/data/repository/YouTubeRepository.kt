@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.repository
 
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import android.util.Log
 import android.util.LruCache
@@ -48,6 +49,7 @@ class YouTubeRepository @Inject constructor(
     // Cache for channel avatar URLs to avoid redundant network calls
     private val channelAvatarCache = LruCache<String, String>(300)
     private val videoAvatarStackCache = LruCache<String, List<String>>(300)
+    private val videoCollaboratorCache = LruCache<String, List<VideoCollaborator>>(300)
 
     /**
      * Fetch channel avatar by channelId, with in-memory caching.
@@ -267,7 +269,7 @@ class YouTubeRepository @Inject constructor(
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
                 .distinctBy { it.avatarImageIdentityKey() }
-                .take(2)
+                .take(3)
 
             if (merged.size > 1) {
                 video.copy(
@@ -295,35 +297,56 @@ class YouTubeRepository @Inject constructor(
             .flatMap { batch ->
                 batch.map { video ->
                     async(Dispatchers.IO) {
-                        val stack = videoAvatarStackCache[video.id]
+                        val collaborators = videoCollaboratorCache[video.id]
                             ?: withTimeoutOrNull(4_000L) {
-                                YouTube.videoAvatarStack(video.id).getOrNull()
-                            }.orEmpty().also { urls ->
-                                videoAvatarStackCache.put(video.id, urls)
+                                YouTube.videoCollaborators(video.id).getOrNull()
+                            }.orEmpty().also { items ->
+                                if (items.isNotEmpty()) {
+                                    videoCollaboratorCache.put(video.id, items)
+                                }
                             }
-                        video.id to stack
+                        val stack = collaborators
+                            .map { it.thumbnailUrl }
+                            .filter { it.isNotBlank() }
+                            .ifEmpty {
+                                videoAvatarStackCache[video.id]
+                                    ?: withTimeoutOrNull(4_000L) {
+                                        YouTube.videoAvatarStack(video.id).getOrNull()
+                                    }.orEmpty().also { urls ->
+                                        videoAvatarStackCache.put(video.id, urls)
+                                    }
+                            }
+                        video.id to (collaborators to stack)
                     }
                 }.awaitAll()
             }
-            .filter { (_, urls) -> urls.size > 1 }
+            .filter { (_, result) -> result.first.size > 1 || result.second.size > 1 }
             .toMap()
 
         if (fetched.isEmpty()) return@supervisorScope videos
 
         videos.map { video ->
-            val stack = fetched[video.id].orEmpty()
-            if (stack.size <= 1) return@map video
+            val (collaborators, stack) = fetched[video.id]
+                ?: (emptyList<VideoCollaborator>() to emptyList())
+            if (stack.size <= 1 && collaborators.size <= 1) return@map video
 
             val merged = (stack + video.channelThumbnailUrls + video.channelThumbnailUrl)
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
                 .distinctBy { it.avatarImageIdentityKey() }
-                .take(2)
+                .take(3)
 
-            if (merged.size > 1) {
+            if (merged.size > 1 || collaborators.size > 1) {
                 video.copy(
-                    channelThumbnailUrl = merged.first(),
-                    channelThumbnailUrls = merged,
+                    channelName = collaborators
+                        .map { it.name }
+                        .filter { it.isNotBlank() }
+                        .takeIf { it.size > 1 }
+                        ?.joinToString(" and ")
+                        ?: video.channelName,
+                    channelThumbnailUrl = merged.firstOrNull() ?: video.channelThumbnailUrl,
+                    channelThumbnailUrls = merged.ifEmpty { video.channelThumbnailUrls },
+                    collaborators = collaborators.ifEmpty { video.collaborators },
                 )
             } else {
                 video
@@ -333,8 +356,8 @@ class YouTubeRepository @Inject constructor(
 
     private fun Video.needsCollabAvatarStack(): Boolean =
         id.isNotBlank() &&
-            channelThumbnailUrls.size < 2 &&
-            channelName.isLikelyCollaborationByline()
+            collaborators.size < 2 &&
+            (channelThumbnailUrls.size > 1 || channelName.isLikelyCollaborationByline())
 
     private fun String.isLikelyCollaborationByline(): Boolean {
         val normalized = " ${trim().lowercase(Locale.US)} "

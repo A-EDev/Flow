@@ -2,6 +2,13 @@ package io.github.aedev.flow.data.model
 
 import org.schabi.newpipe.extractor.Page
 
+data class VideoCollaborator(
+    val name: String,
+    val channelId: String = "",
+    val thumbnailUrl: String = "",
+    val subscriberCountText: String = ""
+)
+
 data class Video(
     val id: String,
     val title: String,
@@ -22,6 +29,7 @@ data class Video(
     val isUpcoming: Boolean = false,
     val commentCountText: String = "",
     val channelThumbnailUrls: List<String> = emptyList(),
+    val collaborators: List<VideoCollaborator> = emptyList(),
     // Transient: when this video was added to the playlist currently being viewed. Not persisted
     // on the video row — populated only by playlist-scoped queries.
     val addedAtInPlaylist: Long? = null

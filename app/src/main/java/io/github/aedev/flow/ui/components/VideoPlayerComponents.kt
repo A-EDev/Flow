@@ -45,6 +45,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
 import coil.compose.AsyncImage
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.formatSubscriberCount
 import io.github.aedev.flow.utils.formatViewCount
@@ -64,6 +65,8 @@ fun VideoInfoSection(
     isUpcoming: Boolean = false,
     channelName: String,
     channelAvatarUrl: String,
+    channelAvatarUrls: List<String> = emptyList(),
+    collaborators: List<VideoCollaborator> = emptyList(),
     subscriberCount: Long?,
     isSubscribed: Boolean,
     isNotificationsEnabled: Boolean = false,
@@ -74,6 +77,7 @@ fun VideoInfoSection(
     onUnsubscribeClick: () -> Unit = {},
     onNotificationChange: (Boolean) -> Unit = {},
     onChannelClick: () -> Unit,
+    onCollaboratorClick: (String) -> Unit = {},
     onLikeClick: () -> Unit,
     onDislikeClick: () -> Unit,
     onShareClick: () -> Unit,
@@ -87,6 +91,28 @@ fun VideoInfoSection(
     isDownloaded: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    var showCollaborators by remember { mutableStateOf(false) }
+    val displayChannelName = rememberCollaboratorChannelDisplayName(channelName, collaborators)
+    val avatarUrls = remember(channelAvatarUrl, channelAvatarUrls, collaborators, video.channelThumbnailUrl) {
+        val collaboratorAvatars = if (collaborators.size > 1) {
+            collaborators.map { it.thumbnailUrl }
+        } else {
+            emptyList()
+        }
+        (collaboratorAvatars + channelAvatarUrls + channelAvatarUrl + video.channelThumbnailUrl)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .take(3)
+    }
+    val openChannelOrCollaborators = {
+        if (collaborators.size > 1) {
+            showCollaborators = true
+        } else {
+            onChannelClick()
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -170,22 +196,19 @@ fun VideoInfoSection(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .weight(1f)
-                    .clickable(onClick = onChannelClick)
+                    .clickable { openChannelOrCollaborators() }
             ) {
-                AsyncImage(
-                    model = channelAvatarUrl.ifEmpty { video.channelThumbnailUrl },
-                    contentDescription = "Channel Avatar",
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ChannelAvatarStack(
+                    urls = avatarUrls,
+                    contentDescription = displayChannelName,
+                    avatarSize = 44.dp
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))
                 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = channelName,
+                        text = displayChannelName,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
@@ -235,6 +258,14 @@ fun VideoInfoSection(
             onCopyLinkAtTimeClick = onCopyLinkAtTimeClick,
             isSaved = isSaved,
             isDownloaded = isDownloaded
+        )
+    }
+
+    if (showCollaborators) {
+        CollaboratorsBottomSheet(
+            collaborators = collaborators,
+            onChannelClick = onCollaboratorClick,
+            onDismiss = { showCollaborators = false }
         )
     }
 }

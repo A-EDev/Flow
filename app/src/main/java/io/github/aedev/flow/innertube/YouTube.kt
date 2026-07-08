@@ -66,6 +66,7 @@ import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.toShortsPage
+import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import android.util.Log
 import io.ktor.client.call.body
@@ -228,6 +229,12 @@ object YouTube {
         root.findVideoOwnerAvatarStackUrls()
     }
 
+    suspend fun videoCollaborators(videoId: String): Result<List<VideoCollaborator>> = runCatching {
+        val rawBody = innerTube.next(WEB, videoId, null, null, null, null, null).bodyAsText()
+        val root = Json { ignoreUnknownKeys = true; explicitNulls = false }.parseToJsonElement(rawBody)
+        root.findVideoOwnerCollaborators()
+    }
+
     private fun collectSearchVideoAvatarStacks(
         element: JsonElement,
         result: MutableMap<String, List<String>>,
@@ -260,6 +267,41 @@ object YouTube {
             is JsonArray -> firstNotNullOfOrNull { it.findFirstString(key) }
             else -> null
         }
+
+    private fun JsonElement.findDirectOrNestedString(key: String): String? =
+        when (this) {
+            is JsonObject -> {
+                (this[key] as? JsonPrimitive)?.contentOrNull
+                    ?: values.firstNotNullOfOrNull { it.findDirectOrNestedString(key) }
+            }
+            is JsonArray -> firstNotNullOfOrNull { it.findDirectOrNestedString(key) }
+            else -> null
+        }
+
+    private fun JsonElement.collectChannelBrowseIds(): List<String> {
+        val ids = mutableListOf<String>()
+
+        fun collect(element: JsonElement) {
+            when (element) {
+                is JsonArray -> element.forEach(::collect)
+                is JsonObject -> {
+                    val browseId = (element["browseId"] as? JsonPrimitive)?.contentOrNull
+                    if (!browseId.isNullOrBlank() && browseId.startsWith("UC")) {
+                        ids += browseId
+                    }
+                    val channelId = (element["channelId"] as? JsonPrimitive)?.contentOrNull
+                    if (!channelId.isNullOrBlank() && channelId.startsWith("UC")) {
+                        ids += channelId
+                    }
+                    element.values.forEach(::collect)
+                }
+                else -> Unit
+            }
+        }
+
+        collect(this)
+        return ids.distinct()
+    }
 
     private fun JsonElement.collectAvatarImageUrls(): List<String> {
         val urls = mutableListOf<String>()
@@ -305,6 +347,111 @@ object YouTube {
             }.orEmpty()
             else -> emptyList()
         }
+
+    private fun JsonElement.findVideoOwnerCollaborators(): List<VideoCollaborator> =
+        when (this) {
+            is JsonObject -> {
+                val owner = this["videoOwnerRenderer"] as? JsonObject
+                val collaborators = owner?.extractCollaboratorDialogRows().orEmpty()
+                if (collaborators.size > 1) {
+                    collaborators
+                } else {
+                    values.firstNotNullOfOrNull { child ->
+                        child.findVideoOwnerCollaborators().takeIf { it.size > 1 }
+                    }.orEmpty()
+                }
+            }
+            is JsonArray -> firstNotNullOfOrNull { child ->
+                child.findVideoOwnerCollaborators().takeIf { it.size > 1 }
+            }.orEmpty()
+            else -> emptyList()
+        }
+
+    private fun JsonObject.extractCollaboratorDialogRows(): List<VideoCollaborator> {
+        val listItems = getPath(
+            "navigationEndpoint",
+            "showDialogCommand",
+            "panelLoadingStrategy",
+            "inlineContent",
+            "dialogViewModel",
+            "customContent",
+            "listViewModel",
+            "listItems",
+        ) as? JsonArray ?: return emptyList()
+
+        return listItems
+            .mapNotNull { item ->
+                ((item as? JsonObject)?.get("listItemViewModel") as? JsonObject)
+                    ?.toVideoCollaborator()
+            }
+            .filter { it.name.isNotBlank() }
+            .distinctBy { it.channelId.ifBlank { it.name.lowercase(Locale.US) } }
+            .take(5)
+    }
+
+    private fun JsonObject.toVideoCollaborator(): VideoCollaborator? {
+        val channelId = collectChannelBrowseIds().firstOrNull().orEmpty()
+        val avatarUrl = collectAvatarImageUrls().firstOrNull().orEmpty()
+        val title = (getPath("title", "content") as? JsonPrimitive)?.contentOrNull
+        val subtitle = (getPath("subtitle", "content") as? JsonPrimitive)?.contentOrNull
+        val label = ((getPath("rendererContext", "accessibilityContext", "label") as? JsonPrimitive)?.contentOrNull)
+            ?: findDirectOrNestedString("label")
+        val parsedName = title
+            ?: label
+            ?.substringBefore(". Go to channel")
+            ?.substringBefore(" Go to channel")
+            ?.substringBefore(" - ")
+            ?.substringBefore(" • ")
+            ?.substringBefore(" subscribers")
+            ?.substringBefore(" subscriber")
+            ?.substringBefore(", ")
+            ?.takeIf { it.isNotBlank() }
+        val subscriberText = label
+            ?.substringAfter(" - ", missingDelimiterValue = "")
+            ?.substringBefore(". Go to channel")
+            ?.takeIf { it.contains("subscriber", ignoreCase = true) }
+            ?: subtitle
+                ?.substringAfter("•", missingDelimiterValue = "")
+                ?.takeIf { it.contains("subscriber", ignoreCase = true) }
+            .orEmpty()
+            .cleanYouTubeDecoratedText()
+
+        val content = findDirectOrNestedString("content")
+            ?.takeIf { !it.contains("@") && !it.contains("subscriber", ignoreCase = true) }
+        val name = parsedName ?: content ?: return null
+        if (name.isSubscriptionOptionLabel()) return null
+
+        val hasChannelMetadata = channelId.startsWith("UC") && avatarUrl.isNotBlank()
+        if (!hasChannelMetadata) return null
+
+        return VideoCollaborator(
+            name = name.cleanYouTubeDecoratedText(),
+            channelId = channelId,
+            thumbnailUrl = avatarUrl,
+            subscriberCountText = subscriberText,
+        )
+    }
+
+    private fun JsonObject.getPath(vararg keys: String): JsonElement? =
+        keys.fold(this as JsonElement?) { current, key ->
+            (current as? JsonObject)?.get(key)
+        }
+
+    private fun String.cleanYouTubeDecoratedText(): String =
+        replace("\u200E", "")
+            .replace("\u2068", "")
+            .replace("\u2069", "")
+            .trim()
+
+    private fun String.isSubscriptionOptionLabel(): Boolean =
+        trim().lowercase(Locale.US) in setOf(
+            "personalized",
+            "all",
+            "none",
+            "unsubscribe",
+            "subscribed",
+            "subscribe",
+        )
 
     // ── Channel-scoped video search (YouTube.com WEB API) ─────────────────────
 

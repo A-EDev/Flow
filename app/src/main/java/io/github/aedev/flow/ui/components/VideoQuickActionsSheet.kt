@@ -49,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,6 +64,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +81,35 @@ fun VideoQuickActionsBottomSheet(
     removeFromCollectionLabel: String? = null,
     viewModel: QuickActionsViewModel = hiltViewModel()
 ) {
+    var showCollaborators by remember { mutableStateOf(false) }
+    val resolvedCollaborators by produceState<List<VideoCollaborator>>(
+        initialValue = emptyList(),
+        key1 = video.id,
+        key2 = video.collaborators
+    ) {
+        value = if (video.collaborators.size > 1) {
+            emptyList()
+        } else {
+            VideoCollaboratorResolver.resolve(video.id)
+        }
+    }
+    val collaboratorItems = remember(video, resolvedCollaborators) {
+        video.collaboratorItems(resolvedCollaborators)
+    }
+    val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
+
+    if (showCollaborators) {
+        CollaboratorsBottomSheet(
+            collaborators = collaboratorItems,
+            onChannelClick = onChannelClick,
+            onDismiss = {
+                showCollaborators = false
+                onDismiss()
+            }
+        )
+        return
+    }
+
     val watchLaterIds by viewModel.watchLaterIds.collectAsState()
     val isInWatchLater = remember(watchLaterIds, video.id) { watchLaterIds.contains(video.id) }
 
@@ -169,7 +201,7 @@ fun VideoQuickActionsBottomSheet(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = video.channelName,
+                            text = displayChannelName,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -300,8 +332,12 @@ fun VideoQuickActionsBottomSheet(
                                 icon = { Icon(Icons.Outlined.VideoLibrary, null) },
                                 title = { Text(stringResource(R.string.go_to_channel)) },
                                 onClick = {
-                                    onChannelClick?.invoke(video.channelId)
-                                    onDismiss()
+                                    if (collaboratorItems.size > 1) {
+                                        showCollaborators = true
+                                    } else {
+                                        onChannelClick?.invoke(video.channelId)
+                                        onDismiss()
+                                    }
                                 }
                             ),
                             FlowMenuItemData(

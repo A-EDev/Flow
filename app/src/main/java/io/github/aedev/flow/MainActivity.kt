@@ -587,15 +587,11 @@ class MainActivity : ComponentActivity() {
         
         // Only enter PiP for video, not for music (which uses background service)
         if (isVideoPlaying && !isMusicPlaying && cachedAutoPipEnabled) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                pendingAutoPip = true
-            } else {
-                enterPlayerPictureInPictureMode(
-                    aspectRatioWidth = 16,
-                    aspectRatioHeight = 9,
-                    isPlaying = true
-                )
-            }
+            enterPlayerPictureInPictureMode(
+                aspectRatioWidth = 16,
+                aspectRatioHeight = 9,
+                isPlaying = true
+            )
         }
     }
 
@@ -610,9 +606,16 @@ class MainActivity : ComponentActivity() {
     fun enterPlayerPictureInPictureMode(
         aspectRatioWidth: Int = 16,
         aspectRatioHeight: Int = 9,
-        isPlaying: Boolean = true
+        isPlaying: Boolean = true,
+        openSettingsOnDenied: Boolean = false
     ): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        if (!PictureInPictureHelper.isPipAllowed(this)) {
+            if (openSettingsOnDenied) {
+                PictureInPictureHelper.openPipSettings(this)
+            }
+            return false
+        }
 
         pendingAutoPip = true
         val entered = PictureInPictureHelper.enterPipMode(

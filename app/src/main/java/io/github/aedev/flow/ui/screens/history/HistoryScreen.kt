@@ -48,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -69,6 +70,8 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.components.ShortsCard
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicTrackRow
@@ -581,6 +584,21 @@ private fun HistoryVideoCard(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val resolvedCollaborators by produceState<List<VideoCollaborator>>(
+        initialValue = emptyList(),
+        key1 = entry.videoId
+    ) {
+        value = VideoCollaboratorResolver.resolve(entry.videoId)
+    }
+    val displayChannelName = remember(entry.channelName, resolvedCollaborators) {
+        resolvedCollaborators
+            .map { it.name }
+            .filter { it.isNotBlank() }
+            .takeIf { it.size > 1 }
+            ?.joinToString(" and ")
+            ?: entry.channelName
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -662,10 +680,10 @@ private fun HistoryVideoCard(
                 }
             }
 
-            if (entry.channelName.isNotBlank()) {
+            if (displayChannelName.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = entry.channelName,
+                    text = displayChannelName,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

@@ -84,6 +84,7 @@ enum class VideoFilter { Latest, Popular, Oldest }
 fun ChannelScreen(
     channelUrl: String,
     onVideoClick: (Video) -> Unit,
+    onChannelClick: (String) -> Unit,
     onShortClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onBackClick: () -> Unit,
@@ -181,6 +182,7 @@ fun ChannelScreen(
                         allLiveVideos = allLiveVideos,
                         playlistsLazyPagingItems = playlistsLazyPagingItems,
                         onVideoClick = onVideoClick,
+                        onChannelClick = onChannelClick,
                         onShortClick = onShortClick,
                         onPlaylistClick = onPlaylistClick,
                         onSubscribeClick = { viewModel.toggleSubscription() },
@@ -210,6 +212,7 @@ private fun ChannelContent(
     allLiveVideos: List<Video>,
     playlistsLazyPagingItems: LazyPagingItems<io.github.aedev.flow.data.model.Playlist>?,
     onVideoClick: (Video) -> Unit,
+    onChannelClick: (String) -> Unit,
     onShortClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onSubscribeClick: () -> Unit,
@@ -455,7 +458,8 @@ private fun ChannelContent(
                                             sortedItems = uiState.searchResults,
                                             isGridView = isGridView,
                                             listKeyPrefix = "Search_${uiState.searchQuery}",
-                                            onVideoClick = onVideoClick
+                                            onVideoClick = onVideoClick,
+                                            onChannelClick = onChannelClick
                                         )
                                         item { Spacer(Modifier.height(16.dp)) }
                                     }
@@ -483,7 +487,8 @@ private fun ChannelContent(
                                     sortedItems = sortedVideos,
                                     isGridView = isGridView,
                                     listKeyPrefix = selectedFilter.name,
-                                    onVideoClick = onVideoClick
+                                    onVideoClick = onVideoClick,
+                                    onChannelClick = onChannelClick
                                 )
                                 item { Spacer(Modifier.height(16.dp)) }
                             }
@@ -519,7 +524,8 @@ private fun ChannelContent(
                                 sortedItems = sortedLive,
                                 isGridView = isGridView,
                                 listKeyPrefix = selectedFilter.name,
-                                onVideoClick = onVideoClick
+                                onVideoClick = onVideoClick,
+                                onChannelClick = onChannelClick
                             )
                             item { Spacer(Modifier.height(16.dp)) }
                         }
@@ -1025,7 +1031,8 @@ private fun LazyListScope.videosContent(
     sortedItems: SortedVideos,
     isGridView: Boolean,
     listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit
+    onVideoClick: (Video) -> Unit,
+    onChannelClick: (String) -> Unit
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
@@ -1035,9 +1042,9 @@ private fun LazyListScope.videosContent(
         items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
             val video = sortedItems[idx]
             if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
+                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
             } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
+                CompactVideoCard(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
             }
         }
         return
@@ -1051,9 +1058,9 @@ private fun LazyListScope.videosContent(
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
         pagingItems[index]?.let { video ->
             if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
+                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
             } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
+                CompactVideoCard(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
             }
         }
     }
@@ -1098,7 +1105,8 @@ private fun LazyListScope.liveContent(
     sortedItems: SortedVideos,
     isGridView: Boolean,
     listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit
+    onVideoClick: (Video) -> Unit,
+    onChannelClick: (String) -> Unit
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
@@ -1108,9 +1116,9 @@ private fun LazyListScope.liveContent(
         items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
             val video = sortedItems[idx]
             if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
+                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
             } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
+                CompactVideoCard(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
             }
         }
         return
@@ -1124,9 +1132,9 @@ private fun LazyListScope.liveContent(
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
         pagingItems[index]?.let { video ->
             if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
+                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
             } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
+                CompactVideoCard(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
             }
         }
     }

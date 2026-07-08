@@ -275,6 +275,9 @@ class ParallelDownloader @Inject constructor() {
                     } else {
                         if (mission.status == MissionStatus.PAUSED) {
                             Log.d(TAG, "start: Download paused")
+                        } else if (mission.gatedHttp403) {
+                            Log.w(TAG, "start: Download stopped because direct stream returned HTTP 403")
+                            mission.error = mission.error ?: "URL expired (403). Re-fetch needed."
                         } else {
                             Log.e(TAG, "start: One or more workers failed")
                             mission.status = MissionStatus.FAILED
@@ -285,7 +288,7 @@ class ParallelDownloader @Inject constructor() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Critical download error", e)
-                if (mission.status != MissionStatus.PAUSED) {
+                if (mission.status != MissionStatus.PAUSED && !mission.gatedHttp403) {
                     mission.status = MissionStatus.FAILED
                     mission.error = e.message
                 }
@@ -363,6 +366,7 @@ class ParallelDownloader @Inject constructor() {
 
         while (attempt < MAX_RETRIES) {
             if (mission.status != MissionStatus.RUNNING) return false
+            if (mission.gatedHttp403) return false
 
             try {
                 val result = downloadBlock(client, mission, file, url, startByte, endByte, isAudio, blockIndex)
@@ -372,6 +376,7 @@ class ParallelDownloader @Inject constructor() {
             } catch (e: Exception) {
                 lastError = e
                 Log.w(TAG, "Block $blockName attempt ${attempt + 1} failed: ${e.message}")
+                if (mission.gatedHttp403) return false
             }
 
             attempt++
@@ -454,6 +459,7 @@ class ParallelDownloader @Inject constructor() {
                 if (code == 403) {
                     mission.error = "URL expired (403). Re-fetch needed."
                     mission.gatedHttp403 = true
+                    mission.cancelActiveCalls()
                 }
                 return false
             }

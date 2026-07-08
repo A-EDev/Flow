@@ -36,6 +36,7 @@ import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.DeArrowResult
 import io.github.aedev.flow.data.repository.DeArrowRepository
+import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.CommentsPreview
 import io.github.aedev.flow.ui.components.CompactVideoCard
@@ -76,6 +77,26 @@ fun VideoInfoContent(
         value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
     }
     val resolvedVideoTitle = deArrowResult?.title ?: uiState.streamInfo?.name ?: video.title
+    val resolvedCollaborators by produceState(
+        initialValue = video.collaborators,
+        key1 = video.id,
+        key2 = video.collaborators
+    ) {
+        value = if (video.collaborators.size > 1) {
+            video.collaborators
+        } else {
+            VideoCollaboratorResolver.resolve(video.id)
+        }
+    }
+    val resolvedChannelName = remember(video.channelName, uiState.streamInfo?.uploaderName, resolvedCollaborators) {
+        resolvedCollaborators
+            .map { it.name }
+            .filter { it.isNotBlank() }
+            .takeIf { it.size > 1 }
+            ?.joinToString(" and ")
+            ?: uiState.streamInfo?.uploaderName
+            ?: video.channelName
+    }
     val streamUploadDate = uiState.streamInfo?.let { streamInfo ->
         val rawDate = streamInfo.textualUploadDate?.takeIf { it.isNotBlank() }
             ?: streamInfo.uploadDate?.toString()
@@ -224,8 +245,10 @@ fun VideoInfoContent(
         uploadDate = streamUploadDate ?: video.uploadDate,
         description = uiState.streamInfo?.description?.content ?: video.description,
         isUpcoming = uiState.isUpcoming,
-        channelName = uiState.streamInfo?.uploaderName ?: video.channelName,
+        channelName = resolvedChannelName,
         channelAvatarUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
+        channelAvatarUrls = video.channelThumbnailUrls,
+        collaborators = resolvedCollaborators,
         subscriberCount = uiState.channelSubscriberCount,
         isSubscribed = uiState.isSubscribed,
         isNotificationsEnabled = uiState.isNotificationsEnabled,
@@ -306,6 +329,7 @@ fun VideoInfoContent(
                 onChannelClick(channelIdSafe)
             } ?: onChannelClick(video.channelId)
         },
+        onCollaboratorClick = onChannelClick,
         onSaveClick = { showAddToPlaylistDialog = true },
         onShareClick = {
             val shareText = if (shareWithoutText) {

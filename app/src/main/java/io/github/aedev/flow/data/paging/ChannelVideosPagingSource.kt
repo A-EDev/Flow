@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -126,20 +127,37 @@ class ChannelVideosPagingSource(
     }
 
     private suspend fun Video.withCollabAvatarStack(): Video {
-        if (channelThumbnailUrls.size > 1 || !channelName.isLikelyCollaborationByline()) return this
-        val stack = withTimeoutOrNull(4_000L) {
-            YouTube.videoAvatarStack(id).getOrNull()
+        if (collaborators.size > 1) return this
+        if (channelThumbnailUrls.size < 2 && !channelName.isLikelyCollaborationByline()) return this
+        val collaborators = withTimeoutOrNull(4_000L) {
+            YouTube.videoCollaborators(id).getOrNull()
         }.orEmpty()
-        if (stack.size <= 1) return this
+        val stack = collaborators
+            .map { it.thumbnailUrl }
+            .filter { it.isNotBlank() }
+            .ifEmpty {
+                channelThumbnailUrls.takeIf { it.size > 1 }
+                    ?: withTimeoutOrNull(4_000L) {
+                        YouTube.videoAvatarStack(id).getOrNull()
+                    }.orEmpty()
+            }
+        if (stack.size <= 1 && collaborators.size <= 1) return this
         val merged = (stack + channelThumbnailUrls + channelThumbnailUrl)
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinctBy { it.avatarImageIdentityKey() }
             .take(2)
-        return if (merged.size > 1) {
+        return if (merged.size > 1 || collaborators.size > 1) {
             copy(
-                channelThumbnailUrl = merged.first(),
-                channelThumbnailUrls = merged,
+                channelName = collaborators
+                    .map { it.name }
+                    .filter { it.isNotBlank() }
+                    .takeIf { it.size > 1 }
+                    ?.joinToString(" and ")
+                    ?: channelName,
+                channelThumbnailUrl = merged.firstOrNull() ?: channelThumbnailUrl,
+                channelThumbnailUrls = merged.ifEmpty { channelThumbnailUrls },
+                collaborators = collaborators.ifEmpty { emptyList<VideoCollaborator>() },
             )
         } else {
             this

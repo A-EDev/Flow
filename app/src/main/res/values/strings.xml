@@ -19,6 +19,9 @@
     <string name="shorts">Shorts</string>
     <string name="failed_to_load_channel">Failed to load channel</string>
     <string name="subscribers">Subscribers</string>
+    <string name="collaborators">Collaborators</string>
+    <string name="collaborator">Collaborator</string>
+    <string name="channel_and_more_template">%1$s and %2$d more</string>
     <string name="stats">Stats</string>
     <string name="library">Library</string>
     <string name="library_section_header">Your Content</string>

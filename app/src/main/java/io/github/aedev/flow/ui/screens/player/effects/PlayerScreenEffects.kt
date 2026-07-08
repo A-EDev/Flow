@@ -55,6 +55,21 @@ private var liveDisplayLastSeekAtMs: Long = 0L
 private fun VideoPlayerUiState.isCurrentLiveStream(): Boolean =
     streamInfo?.streamType == StreamType.LIVE_STREAM || !hlsUrl.isNullOrEmpty()
 
+private fun resolveHistoryChannelName(video: Video, extractedName: String?): String {
+    val cachedName = video.channelName
+    val normalized = " ${cachedName.trim().lowercase()} "
+    val isCollaboration = normalized.contains(" and ") ||
+        normalized.contains(" & ") ||
+        normalized.contains(" x ") ||
+        normalized.contains(" with ")
+
+    return when {
+        isCollaboration && cachedName.isNotBlank() -> cachedName
+        !extractedName.isNullOrBlank() -> extractedName
+        else -> cachedName
+    }
+}
+
 private data class StartupRecoverySnapshot(
     val belongsToVideo: Boolean,
     val hasMedia: Boolean,
@@ -345,7 +360,7 @@ fun WatchProgressSaveEffect(
         val streamInfo = currentUi.streamInfo
         if (currentUi.isCurrentLiveStream()) return@LaunchedEffect
         val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-        val channelName = streamInfo?.uploaderName ?: video.channelName
+        val channelName = resolveHistoryChannelName(video, streamInfo?.uploaderName)
         val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
             ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
             ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
@@ -370,7 +385,7 @@ fun WatchProgressSaveEffect(
             val streamInfo = currentUi.streamInfo
             if (currentUi.isCurrentLiveStream()) continue
             val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-            val channelName = streamInfo?.uploaderName ?: video.channelName
+            val channelName = resolveHistoryChannelName(video, streamInfo?.uploaderName)
             val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
                 ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
                 ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
@@ -729,7 +744,7 @@ fun VideoCleanupEffect(
             lastKnownThumbnail = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
                 ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
                 ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
-            lastKnownChannelName = streamInfo?.uploaderName ?: video.channelName
+            lastKnownChannelName = resolveHistoryChannelName(video, streamInfo?.uploaderName)
             lastKnownChannelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
         }
     }

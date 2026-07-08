@@ -53,6 +53,7 @@ class QualityManager(
     
     // Track failed streams
     private val failedStreamUrls = mutableSetOf<String>()
+    private val failedStreamVariants = mutableSetOf<String>()
     var streamErrorCount = 0
         private set
     
@@ -82,6 +83,7 @@ class QualityManager(
      */
     fun resetForNewVideo() {
         failedStreamUrls.clear()
+        failedStreamVariants.clear()
         streamErrorCount = 0
         currentVideoStream = null
         isAdaptiveQualityEnabled = true
@@ -106,6 +108,9 @@ class QualityManager(
      */
     fun markStreamFailed(url: String) {
         failedStreamUrls.add(url)
+        availableVideoStreams.firstOrNull { streamKey(it) == url }?.let { stream ->
+            failedStreamVariants.add(failureVariantKey(stream))
+        }
         streamErrorCount++
         Log.w(TAG, "Stream marked as failed: $url - Error count: $streamErrorCount")
     }
@@ -120,13 +125,22 @@ class QualityManager(
     /**
      * Check if a stream URL has failed.
      */
-    fun hasStreamFailed(url: String): Boolean = failedStreamUrls.contains(url)
+    fun hasStreamFailed(url: String): Boolean {
+        if (failedStreamUrls.contains(url)) return true
+        return availableVideoStreams
+            .firstOrNull { streamKey(it) == url }
+            ?.let { failedStreamVariants.contains(failureVariantKey(it)) }
+            ?: false
+    }
     
     /**
      * Get all working streams (streams that haven't failed).
      */
-    fun getWorkingStreams(): List<VideoStream> = 
-        availableVideoStreams.filter { !failedStreamUrls.contains(it.getContent()) }
+    fun getWorkingStreams(): List<VideoStream> =
+        availableVideoStreams.filter {
+            !failedStreamUrls.contains(streamKey(it)) &&
+                !failedStreamVariants.contains(failureVariantKey(it))
+        }
 
     private fun qualityHeight(stream: VideoStream): Int {
         return normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(stream))
@@ -139,7 +153,7 @@ class QualityManager(
         val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 2_000_000L
         val targetHeight = PlayerConfig.calculateInitialQualityTarget(estimatedBandwidth)
         
-        val smartStream = availableVideoStreams
+        val smartStream = getWorkingStreams()
             .sortedWith(
                 compareBy<VideoStream> { kotlin.math.abs(qualityHeight(it) - targetHeight) }
                     .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
@@ -203,7 +217,7 @@ class QualityManager(
         Log.d(TAG, "Switching to FIXED quality: ${height}p")
         
         // Find the stream matching this height
-        val targetStream = availableVideoStreams
+        val targetStream = getWorkingStreams()
             .filter { qualityHeight(it) == height }
             .minWithOrNull(
                 compareBy<VideoStream> { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
@@ -306,7 +320,7 @@ class QualityManager(
      * Called periodically when playback is smooth.
      */
     fun checkAdaptiveQualityUpgrade(currentPosition: Long) {
-        if (!isAdaptiveQualityEnabled || availableVideoStreams.isEmpty()) return
+        if (!isAdaptiveQualityEnabled || getWorkingStreams().isEmpty()) return
         
         val currentHeight = currentVideoStream?.let(::qualityHeight) ?: return
         val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: return
@@ -315,7 +329,7 @@ class QualityManager(
         
         // Only upgrade if target is significantly higher than current
         if (targetHeight > currentHeight) {
-            val nextHigherStream = availableVideoStreams
+            val nextHigherStream = getWorkingStreams()
                 .filter { qualityHeight(it) > currentHeight && qualityHeight(it) <= targetHeight }
                 .minByOrNull { qualityHeight(it) }
             
@@ -336,12 +350,12 @@ class QualityManager(
      * Check if we need to downgrade quality due to buffering or low bandwidth.
      */
     fun checkAdaptiveQualityDowngrade(forceCheck: Boolean, currentPosition: Long) {
-        if (!isAdaptiveQualityEnabled || availableVideoStreams.isEmpty()) return
+        if (!isAdaptiveQualityEnabled || getWorkingStreams().isEmpty()) return
         
         val currentHeight = currentVideoStream?.let(::qualityHeight) ?: return
         val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 1_000_000L
         
-        val nextLowerStream = availableVideoStreams
+        val nextLowerStream = getWorkingStreams()
             .filter { qualityHeight(it) < currentHeight }
             .maxByOrNull { qualityHeight(it) }
         
@@ -434,6 +448,14 @@ class QualityManager(
     }
 
     private fun streamKey(stream: VideoStream): String = stream.getContent().takeIf { it.isNotBlank() } ?: stream.hashCode().toString()
+
+    private fun failureVariantKey(stream: VideoStream): String {
+        val height = qualityHeight(stream)
+        val codec = VideoCodecUtils.codecKeyFromStream(stream)
+        val itag = stream.itagItem?.id?.toString()
+            ?: runCatching { stream.id }.getOrNull()?.takeIf { it.isNotBlank() }
+        return listOfNotNull("${height}p", codec, itag?.let { "itag=$it" }).joinToString("|")
+    }
     
     /**
      * Increment buffering count for adaptive quality tracking.

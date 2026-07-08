@@ -102,6 +102,7 @@ class VideoPlayerViewModel @Inject constructor(
     private var activeLoadJob: Job? = null
     private var playbackLoadToken: Long = 0L
     private var loadingVideoId: String? = null
+    private var playbackAbandonedVideoId: String? = null
     private var liveChatJob: Job? = null
     private var liveChatVideoId: String? = null
     private val homeFeedCacheRepository by lazy { HomeFeedCacheRepository(context) }
@@ -131,9 +132,13 @@ class VideoPlayerViewModel @Inject constructor(
     private fun isPlaybackLoadCurrent(token: Long): Boolean = playbackLoadToken == token
     private fun isLocalMediaId(id: String?): Boolean = id?.startsWith("local_") == true
 
-    private fun cancelActivePlaybackLoad() {
+    private fun cancelActivePlaybackLoad(invalidateToken: Boolean = false) {
+        if (invalidateToken) {
+            nextPlaybackLoadToken()
+        }
         activeLoadJob?.cancel()
         activeLoadJob = null
+        loadingVideoId = null
     }
 
     fun maybeStartLiveChat(videoId: String) {
@@ -249,6 +254,10 @@ class VideoPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             EnhancedPlayerManager.getInstance().streamExpiredEvent.collect {
                 val videoId = _uiState.value.cachedVideo?.id ?: return@collect
+                if (playbackAbandonedVideoId == videoId) {
+                    Log.d("VideoPlayerViewModel", "Ignoring stream expiry for abandoned playback $videoId")
+                    return@collect
+                }
                 if (activeLoadJob?.isActive == true) {
                     Log.d("VideoPlayerViewModel", "Stream expiry for $videoId coalesced — a stream load is already in flight")
                     return@collect
@@ -262,6 +271,8 @@ class VideoPlayerViewModel @Inject constructor(
 
                 if (streamExpiryCount > MAX_STREAM_EXPIRY_RETRIES) {
                     Log.e("VideoPlayerViewModel", "Stream expiry retry limit ($MAX_STREAM_EXPIRY_RETRIES) reached for $videoId — giving up")
+                    playbackAbandonedVideoId = videoId
+                    cancelActivePlaybackLoad(invalidateToken = true)
                     EnhancedPlayerManager.getInstance().getPlayer()?.let { p ->
                         p.stop()
                         p.clearMediaItems()
@@ -294,10 +305,8 @@ class VideoPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             EnhancedPlayerManager.getInstance().playbackAbandonedEvent.collect {
                 val videoId = _uiState.value.cachedVideo?.id ?: return@collect
-                if (activeLoadJob?.isActive == true) {
-                    Log.d("VideoPlayerViewModel", "Playback abandoned for $videoId but a fresh load is already in flight — ignoring")
-                    return@collect
-                }
+                playbackAbandonedVideoId = videoId
+                cancelActivePlaybackLoad(invalidateToken = true)
                 Log.w("VideoPlayerViewModel", "Playback abandoned for $videoId — surfacing terminal error")
                 _uiState.update {
                     it.copy(
@@ -658,6 +667,7 @@ class VideoPlayerViewModel @Inject constructor(
         nextPlaybackLoadToken()
         cancelActivePlaybackLoad()
 
+        playbackAbandonedVideoId = null
         streamExpiryVideoId = null
         streamExpiryCount = 0
 
@@ -707,6 +717,7 @@ class VideoPlayerViewModel @Inject constructor(
         val loadToken = nextPlaybackLoadToken()
         cancelActivePlaybackLoad()
 
+        playbackAbandonedVideoId = null
         streamExpiryVideoId = null
         streamExpiryCount = 0
 
@@ -758,6 +769,7 @@ class VideoPlayerViewModel @Inject constructor(
     fun clearVideo() {
         nextPlaybackLoadToken()
         cancelActivePlaybackLoad()
+        playbackAbandonedVideoId = null
         EnhancedPlayerManager.getInstance().stop()
         EnhancedPlayerManager.getInstance().stopBackgroundService()
         EnhancedPlayerManager.getInstance().clearAll()
@@ -815,6 +827,9 @@ class VideoPlayerViewModel @Inject constructor(
         if (applyUpcomingState(_uiState.value.cachedVideo ?: return)) {
             return
         }
+        playbackAbandonedVideoId = null
+        streamExpiryVideoId = null
+        streamExpiryCount = 0
         EnhancedPlayerManager.getInstance().clearCurrentVideo()
         _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
         loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
@@ -976,6 +991,9 @@ class VideoPlayerViewModel @Inject constructor(
         }
         val currentState = _uiState.value
         Log.d("VideoPlayerViewModel", "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh, escalateToSabr=$escalateToSabr")
+        if (playbackAbandonedVideoId != null && playbackAbandonedVideoId != videoId) {
+            playbackAbandonedVideoId = null
+        }
 
         currentState.cachedVideo
             ?.takeIf { it.id == videoId && it.isUpcoming }

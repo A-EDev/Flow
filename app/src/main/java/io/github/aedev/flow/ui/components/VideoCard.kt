@@ -27,8 +27,10 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,7 +63,9 @@ import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.DeArrowResult
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.repository.DeArrowRepository
+import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -73,12 +77,96 @@ import kotlinx.coroutines.flow.collectLatest
 
 private const val AVATAR_TAG = "ChannelAvatarImage"
 
-private fun Video.channelAvatarUrls(): List<String> =
-    (channelThumbnailUrls + channelThumbnailUrl)
+private fun Video.channelAvatarUrls(collaborators: List<VideoCollaborator> = emptyList()): List<String> {
+    val collaboratorAvatars = if (collaborators.size > 1) {
+        collaborators.map { it.thumbnailUrl }
+    } else {
+        emptyList()
+    }
+    return (collaboratorAvatars + channelThumbnailUrls + channelThumbnailUrl)
         .map { it.trim() }
         .filter { it.isNotEmpty() }
         .distinctBy { it.avatarImageIdentityKey() }
-        .take(2)
+        .take(3)
+}
+
+internal fun Video.collaboratorItems(resolvedCollaborators: List<VideoCollaborator> = emptyList()): List<VideoCollaborator> {
+    val modelItems = (collaborators + resolvedCollaborators)
+        .filter { it.name.isNotBlank() }
+        .filter { it.hasChannelCollaboratorSignal() }
+        .distinctBy { it.channelId.ifBlank { it.name.lowercase() } }
+    if (modelItems.size > 1) return modelItems
+
+    val names = channelName.splitCollaboratorNames()
+    val avatars = channelAvatarUrls()
+    val count = maxOf(names.size, avatars.size)
+    if (count <= 1) return emptyList()
+
+    return List(count) { index ->
+        VideoCollaborator(
+            name = names.getOrNull(index).orEmpty(),
+            channelId = if (index == 0) channelId else "",
+            thumbnailUrl = avatars.getOrNull(index).orEmpty(),
+            subscriberCountText = "",
+        )
+    }
+}
+
+private fun String.splitCollaboratorNames(): List<String> =
+    split(Regex("""\s+(?:and|&|x|with)\s+""", RegexOption.IGNORE_CASE))
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+
+private fun VideoCollaborator.hasChannelCollaboratorSignal(): Boolean =
+    channelId.startsWith("UC") ||
+        thumbnailUrl.isNotBlank() ||
+        subscriberCountText.contains("subscriber", ignoreCase = true)
+
+internal fun List<VideoCollaborator>.displayCollaboratorChannelName(
+    fallback: String,
+    moreCollaboratorsText: String? = null,
+): String {
+    val names = map { it.name }.filter { it.isNotBlank() }
+    return when {
+        names.size > 2 && moreCollaboratorsText != null -> moreCollaboratorsText
+        names.size > 1 -> names.joinToString(" and ")
+        else -> fallback
+    }
+}
+
+@Composable
+internal fun rememberCollaboratorChannelDisplayName(
+    fallback: String,
+    collaborators: List<VideoCollaborator>,
+): String {
+    val firstName = collaborators.firstOrNull()?.name.orEmpty()
+    val compactName = stringResource(
+        R.string.channel_and_more_template,
+        firstName,
+        (collaborators.size - 1).coerceAtLeast(0)
+    )
+    return remember(fallback, collaborators, compactName) {
+        collaborators.displayCollaboratorChannelName(fallback, compactName)
+    }
+}
+
+@Composable
+internal fun rememberCollaboratorItems(video: Video): List<VideoCollaborator> {
+    val fetchedCollaborators by produceState<List<VideoCollaborator>>(
+        initialValue = emptyList(),
+        key1 = video.id,
+        key2 = video.collaborators
+    ) {
+        value = if (video.collaborators.size > 1) {
+            emptyList()
+        } else {
+            VideoCollaboratorResolver.resolve(video.id)
+        }
+    }
+    return remember(video, fetchedCollaborators) {
+        video.collaboratorItems(fetchedCollaborators)
+    }
+}
 
 @Composable
 private fun UpcomingReminderBadge(modifier: Modifier = Modifier) {
@@ -107,6 +195,16 @@ fun VideoCard(
     onChannelClick: ((String) -> Unit)? = null
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
+    var showCollaborators by remember { mutableStateOf(false) }
+    val collaboratorItems = rememberCollaboratorItems(video)
+    val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
+    val openChannelOrCollaborators = {
+        if (collaboratorItems.size > 1) {
+            showCollaborators = true
+        } else {
+            onChannelClick?.invoke(video.channelId)
+        }
+    }
     val context = LocalContext.current
     val dateSettings = rememberDateDisplaySettings()
     val watchProgress by produceState<Float?>(initialValue = null, video.id) {
@@ -248,10 +346,14 @@ fun VideoCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             ChannelAvatarStack(
-                urls = video.channelAvatarUrls(),
-                contentDescription = video.channelName,
+                urls = video.channelAvatarUrls(collaboratorItems),
+                contentDescription = displayChannelName,
                 avatarSize = 32.dp,
-                modifier = Modifier
+                modifier = if (onChannelClick != null) {
+                    Modifier.clickable { openChannelOrCollaborators() }
+                } else {
+                    Modifier
+                }
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -278,14 +380,19 @@ fun VideoCard(
                         text = if (video.isUpcoming)
                             premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
                         else if (video.viewCount >= 0L)
-                            stringResource(R.string.video_metadata_short_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)))
+                            stringResource(R.string.video_metadata_short_template, displayChannelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)))
                         else
-                            "${video.channelName} · $displayDate",
+                            "$displayChannelName · $displayDate",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = if (onChannelClick != null) {
+                            Modifier.clickable { openChannelOrCollaborators() }
+                        } else {
+                            Modifier
+                        }
                     )
                 }
             }
@@ -373,6 +480,14 @@ fun VideoCard(
             onDismiss = { showQuickActions = false }
         )
     }
+
+    if (showCollaborators) {
+        CollaboratorsBottomSheet(
+            collaborators = collaboratorItems,
+            onChannelClick = onChannelClick,
+            onDismiss = { showCollaborators = false }
+        )
+    }
 }
 
 @Composable
@@ -403,6 +518,16 @@ fun VideoCardHorizontal(
     }
 
     var showQuickActions by remember { mutableStateOf(false) }
+    var showCollaborators by remember { mutableStateOf(false) }
+    val collaboratorItems = rememberCollaboratorItems(video)
+    val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
+    val openChannelOrCollaborators = {
+        if (collaboratorItems.size > 1) {
+            showCollaborators = true
+        } else {
+            onChannelClick?.invoke(video.channelId)
+        }
+    }
     val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
@@ -500,11 +625,16 @@ fun VideoCardHorizontal(
 
             Column {
                 Text(
-                    text = video.channelName,
+                    text = displayChannelName,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.extendedColors.textSecondary,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (onChannelClick != null) {
+                        Modifier.clickable { openChannelOrCollaborators() }
+                    } else {
+                        Modifier
+                    }
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
@@ -517,7 +647,7 @@ fun VideoCardHorizontal(
                            else if (video.viewCount >= 0L)
                                stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), displayDate)
                            else
-                               "${video.channelName} · $displayDate",
+                               "$displayChannelName · $displayDate",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                             else MaterialTheme.extendedColors.textSecondary,
@@ -535,6 +665,14 @@ fun VideoCardHorizontal(
             onDismiss = { showQuickActions = false }
         )
     }
+
+    if (showCollaborators) {
+        CollaboratorsBottomSheet(
+            collaborators = collaboratorItems,
+            onChannelClick = onChannelClick,
+            onDismiss = { showCollaborators = false }
+        )
+    }
 }
 
 @Composable
@@ -547,6 +685,16 @@ fun VideoCardFullWidth(
     onMoreClick: () -> Unit = {}
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
+    var showCollaborators by remember { mutableStateOf(false) }
+    val collaboratorItems = rememberCollaboratorItems(video)
+    val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
+    val openChannelOrCollaborators = {
+        if (collaboratorItems.size > 1) {
+            showCollaborators = true
+        } else {
+            onChannelClick?.invoke(video.channelId)
+        }
+    }
     val context = LocalContext.current
     val dateSettings = rememberDateDisplaySettings()
     val watchProgress by produceState<Float?>(initialValue = null, video.id) {
@@ -692,11 +840,11 @@ fun VideoCardFullWidth(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             ChannelAvatarStack(
-                urls = video.channelAvatarUrls(),
-                contentDescription = video.channelName,
+                urls = video.channelAvatarUrls(collaboratorItems),
+                contentDescription = displayChannelName,
                 avatarSize = 40.dp,
                 modifier = if (onChannelClick != null) {
-                    Modifier.clickable { onChannelClick(video.channelId) }
+                    Modifier.clickable { openChannelOrCollaborators() }
                 } else {
                     Modifier
                 }
@@ -723,18 +871,18 @@ fun VideoCardFullWidth(
                 }
                 Text(
                     text = if (video.isUpcoming)
-                               premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
+                           premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
                            else if (video.viewCount >= 0L)
-                               stringResource(R.string.video_metadata_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)), displayDate)
+                               stringResource(R.string.video_metadata_template, displayChannelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)), displayDate)
                            else
-                               "${video.channelName} · $displayDate",
+                               "$displayChannelName · $displayDate",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                             else MaterialTheme.extendedColors.textSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = if (onChannelClick != null)
-                        Modifier.clickable { onChannelClick(video.channelId) }
+                        Modifier.clickable { openChannelOrCollaborators() }
                     else Modifier
                 )
             }
@@ -857,6 +1005,14 @@ fun VideoCardFullWidth(
             onDismiss = { showQuickActions = false }
         )
     }
+
+    if (showCollaborators) {
+        CollaboratorsBottomSheet(
+            collaborators = collaboratorItems,
+            onChannelClick = onChannelClick,
+            onDismiss = { showCollaborators = false }
+        )
+    }
 }
 
 /**
@@ -872,6 +1028,16 @@ fun CompactVideoCard(
     onChannelClick: ((String) -> Unit)? = null
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
+    var showCollaborators by remember { mutableStateOf(false) }
+    val collaboratorItems = rememberCollaboratorItems(video)
+    val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
+    val openChannelOrCollaborators = {
+        if (collaboratorItems.size > 1) {
+            showCollaborators = true
+        } else {
+            onChannelClick?.invoke(video.channelId)
+        }
+    }
     val context = LocalContext.current
     val dateSettings = rememberDateDisplaySettings()
     val watchProgress by produceState<Float?>(initialValue = null, video.id) {
@@ -1018,13 +1184,13 @@ fun CompactVideoCard(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = video.channelName,
+                text = displayChannelName,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.extendedColors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = if (onChannelClick != null)
-                    Modifier.clickable { onChannelClick(video.channelId) }
+                    Modifier.clickable { openChannelOrCollaborators() }
                 else Modifier
             )
             
@@ -1086,6 +1252,118 @@ fun CompactVideoCard(
             onChannelClick = onChannelClick,
             onDismiss = { showQuickActions = false }
         )
+    }
+
+    if (showCollaborators) {
+        CollaboratorsBottomSheet(
+            collaborators = collaboratorItems,
+            onChannelClick = onChannelClick,
+            onDismiss = { showCollaborators = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CollaboratorsBottomSheet(
+    collaborators: List<VideoCollaborator>,
+    onChannelClick: ((String) -> Unit)?,
+    onDismiss: () -> Unit,
+    viewModel: QuickActionsViewModel = hiltViewModel()
+) {
+    val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsState()
+    val collaboratorChannelIds = remember(collaborators) {
+        collaborators.map { it.channelId }.filter { it.isNotBlank() }.distinct()
+    }
+    androidx.compose.runtime.LaunchedEffect(collaboratorChannelIds) {
+        collaboratorChannelIds.forEach { channelId ->
+            viewModel.loadSubscriptionState(channelId)
+        }
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.collaborators),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+            )
+
+            collaborators.forEach { collaborator ->
+                val canOpenChannel = onChannelClick != null && collaborator.channelId.isNotBlank()
+                val isSubscribed = subscribedChannelIds.contains(collaborator.channelId)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    ChannelAvatarStack(
+                        urls = listOf(collaborator.thumbnailUrl).filter { it.isNotBlank() },
+                        contentDescription = collaborator.name,
+                        avatarSize = 48.dp,
+                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(
+                                if (canOpenChannel) {
+                                    Modifier.clickable {
+                                        onDismiss()
+                                        onChannelClick?.invoke(collaborator.channelId)
+                                    }
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    ) {
+                        val collaboratorName = collaborator.name.ifBlank { stringResource(R.string.collaborator) }
+                        Text(
+                            text = collaboratorName,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (collaborator.subscriberCountText.isNotBlank()) {
+                            Text(
+                                text = collaborator.subscriberCountText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    if (collaborator.channelId.isNotBlank()) {
+                        SubscribeButton(
+                            isSubscribed = isSubscribed,
+                            onSubscribeClick = {
+                                viewModel.toggleSubscription(
+                                    channelId = collaborator.channelId,
+                                    channelName = collaborator.name,
+                                    channelThumbnail = collaborator.thumbnailUrl
+                                )
+                            },
+                            onUnsubscribeClick = {
+                                viewModel.toggleSubscription(
+                                    channelId = collaborator.channelId,
+                                    channelName = collaborator.name,
+                                    channelThumbnail = collaborator.thumbnailUrl
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1151,6 +1429,13 @@ private fun ContinueWatchingCard(
     onRemove: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val resolvedCollaborators by produceState<List<VideoCollaborator>>(
+        initialValue = emptyList(),
+        key1 = entry.videoId
+    ) {
+        value = VideoCollaboratorResolver.resolve(entry.videoId)
+    }
+    val displayChannelName = rememberCollaboratorChannelDisplayName(entry.channelName, resolvedCollaborators)
     Column(
         modifier = Modifier
             .width(350.dp)
@@ -1215,13 +1500,15 @@ private fun ContinueWatchingCard(
                     text = entry.title,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
-                    lineHeight = 16.sp
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        lineHeight = MaterialTheme.typography.bodySmall.fontSize * 1.12f
+                    ),
+                    fontWeight = FontWeight.SemiBold
                 )
-                if (entry.channelName.isNotEmpty()) {
+                if (displayChannelName.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = entry.channelName,
+                        text = displayChannelName,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1484,27 +1771,49 @@ fun ChannelAvatarImage(
 }
 
 @Composable
-private fun ChannelAvatarStack(
+fun ChannelAvatarStack(
     urls: List<String>,
     contentDescription: String?,
     avatarSize: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier
 ) {
-    val avatarUrls = urls.ifEmpty { listOf("") }
+    val avatarUrls = urls.ifEmpty { listOf("") }.take(3)
     val primaryUrl = avatarUrls.first()
-    val collaboratorUrl = avatarUrls.getOrNull(1)
-    val stackedAvatarSize = if (collaboratorUrl.isNullOrBlank()) avatarSize else avatarSize * 0.78f
+    val secondaryUrl = avatarUrls.getOrNull(1)
+    val tertiaryUrl = avatarUrls.getOrNull(2)
+    val stackedAvatarSize = when {
+        !tertiaryUrl.isNullOrBlank() -> avatarSize * 0.64f
+        !secondaryUrl.isNullOrBlank() -> avatarSize * 0.78f
+        else -> avatarSize
+    }
 
     Box(
         modifier = modifier
             .size(avatarSize)
     ) {
-        if (!collaboratorUrl.isNullOrBlank()) {
+        if (!tertiaryUrl.isNullOrBlank()) {
             ChannelAvatarImage(
-                url = collaboratorUrl,
+                url = tertiaryUrl,
                 contentDescription = contentDescription,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .size(stackedAvatarSize)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(
+                        width = 1.5.dp,
+                        color = MaterialTheme.colorScheme.background,
+                        shape = CircleShape
+                    )
+            )
+        }
+
+        if (!secondaryUrl.isNullOrBlank()) {
+            ChannelAvatarImage(
+                url = secondaryUrl,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .align(if (tertiaryUrl.isNullOrBlank()) Alignment.BottomEnd else Alignment.BottomStart)
                     .size(stackedAvatarSize)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
@@ -1520,12 +1829,12 @@ private fun ChannelAvatarStack(
             url = primaryUrl,
             contentDescription = contentDescription,
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(if (tertiaryUrl.isNullOrBlank()) Alignment.TopStart else Alignment.TopCenter)
                 .size(stackedAvatarSize)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .then(
-                    if (!collaboratorUrl.isNullOrBlank()) {
+                    if (!secondaryUrl.isNullOrBlank()) {
                         Modifier
                             .border(
                                 width = 1.5.dp,

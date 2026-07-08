@@ -65,7 +65,6 @@ import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
-import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.screens.music.player.*
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import androidx.compose.foundation.clickable
@@ -79,6 +78,7 @@ fun EnhancedMusicPlayerScreen(
     onBackClick: () -> Unit,
     onArtistClick: (String) -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
+    onSleepTimerClick: () -> Unit = {},
     isPlayerSheetExpanded: Boolean = true,
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
@@ -136,7 +136,6 @@ fun EnhancedMusicPlayerScreen(
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
-    var showSleepTimer by remember { mutableStateOf(false) }
     var skipDirection by remember { mutableStateOf<SkipDirection?>(null) }
     val musicPlayer by EnhancedMusicPlayerManager.playerInstance.collectAsState()
 
@@ -218,12 +217,6 @@ fun EnhancedMusicPlayerScreen(
     if (showAudioSettings) {
         AudioSettingsSheet(
             onDismiss = { showAudioSettings = false }
-        )
-    }
-
-    if (showSleepTimer) {
-        SleepTimerSheet(
-            onDismiss = { showSleepTimer = false }
         )
     }
 
@@ -429,7 +422,7 @@ fun EnhancedMusicPlayerScreen(
                             PlayerTopBar(
                                 playingFrom = uiState.playingFrom,
                                 onBackClick = onBackClick,
-                                onSleepTimerClick = { showSleepTimer = true },
+                                onSleepTimerClick = onSleepTimerClick,
                                 onMoreOptionsClick = { showMoreOptions = true },
                                 modifier = Modifier.statusBarsPadding(),
                                 activeColor = animatedAccentColor,
@@ -592,7 +585,7 @@ fun EnhancedMusicPlayerScreen(
                         animateQueueSheet(queueExpandedY)
                     }
                 },
-                onSleepTimerClick = { showSleepTimer = true },
+                onSleepTimerClick = onSleepTimerClick,
                 modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
             )
 

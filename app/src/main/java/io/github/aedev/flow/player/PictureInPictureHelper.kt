@@ -1,6 +1,7 @@
 package io.github.aedev.flow.player
 
 import android.app.Activity
+import android.app.AppOpsManager
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
@@ -8,8 +9,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.Process
+import android.provider.Settings
 import android.util.Rational
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
@@ -32,6 +36,7 @@ object PictureInPictureHelper {
     private const val REQUEST_CODE_PREVIOUS = 3
     private const val REQUEST_CODE_NEXT = 4
     private const val REQUEST_CODE_CLOSE = 5
+    private const val ACTION_PICTURE_IN_PICTURE_SETTINGS = "android.settings.PICTURE_IN_PICTURE_SETTINGS"
 
     @Volatile
     var sourceRectHint: android.graphics.Rect? = null
@@ -42,6 +47,45 @@ object PictureInPictureHelper {
     fun isPipSupported(context: Context): Boolean {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+    }
+
+    fun isPipAllowed(context: Context): Boolean {
+        if (!isPipSupported(context)) return false
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return true
+        return try {
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                appOps.unsafeCheckOpNoThrow(
+                    AppOpsManager.OPSTR_PICTURE_IN_PICTURE,
+                    Process.myUid(),
+                    context.packageName
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                appOps.checkOpNoThrow(
+                    AppOpsManager.OPSTR_PICTURE_IN_PICTURE,
+                    Process.myUid(),
+                    context.packageName
+                )
+            }
+            mode == AppOpsManager.MODE_ALLOWED || mode == AppOpsManager.MODE_DEFAULT
+        } catch (_: Exception) {
+            true
+        }
+    }
+
+    fun openPipSettings(activity: Activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val packageUri = Uri.parse("package:${activity.packageName}")
+        val intents = listOf(
+            Intent(ACTION_PICTURE_IN_PICTURE_SETTINGS, packageUri),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri),
+        )
+        for (intent in intents) {
+            runCatching {
+                activity.startActivity(intent)
+                return
+            }
+        }
     }
     
     /**
@@ -80,11 +124,16 @@ object PictureInPictureHelper {
         isPlaying: Boolean = true,
         autoEnterEnabled: Boolean = false
     ): Boolean {
+        if (!isPipAllowed(activity)) {
+            openPipSettings(activity)
+            return false
+        }
         return if (activity is MainActivity) {
             activity.enterPlayerPictureInPictureMode(
                 aspectRatioWidth = aspectRatioWidth,
                 aspectRatioHeight = aspectRatioHeight,
-                isPlaying = isPlaying
+                isPlaying = isPlaying,
+                openSettingsOnDenied = true
             )
         } else {
             enterPipMode(

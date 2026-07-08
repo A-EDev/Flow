@@ -564,7 +564,13 @@ class EnhancedPlayerManager private constructor() {
 
         scope.launch {
             prefs.autoplayCountdownSeconds.collect { seconds ->
+                val previousSeconds = autoplayCountdownSeconds
                 autoplayCountdownSeconds = seconds
+                if (seconds > 0) {
+                    clearPreload()
+                } else if (previousSeconds > 0 && player?.playbackState == Player.STATE_READY) {
+                    requestPreloadNext("autoplay-countdown-disabled")
+                }
             }
         }
 
@@ -1594,6 +1600,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun nextPreloadTarget(): Pair<Video, Boolean>? {
+        if (autoplayCountdownSeconds > 0) return null
         val fromQueue = hasNext()
         val nextVideo = when {
             fromQueue -> if (queueAutoplayEnabled) playbackQueue.getOrNull(currentQueueIndex + 1) else null
@@ -2866,7 +2873,12 @@ class EnhancedPlayerManager private constructor() {
         }
     }
     
-    private fun onPlaybackShutdown() = errorHandler?.handlePlaybackShutdown(player)
+    private fun onPlaybackShutdown() {
+        clearAutoplayCountdownInternal()
+        clearPreload()
+        releaseAdvanceWakeLock()
+        errorHandler?.handlePlaybackShutdown(player)
+    }
 
     /**
      * Called by [PlaybackRefocusEffect] when the player is stuck in an unrecoverable state
