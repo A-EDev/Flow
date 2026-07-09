@@ -1854,4 +1854,7 @@
     <string name="delete_selected">حذف المحدد</string>
     <string name="content_settings_shorts_player_prompt_title">إقتراح مشغل الـ Shorts</string>
     <string name="content_settings_shorts_player_prompt_subtitle">اسأل قبل الإنتقال إلى مشغل الفيديوهات القصيرة (للفيديوهات أقل من 2 دقيقة)</string>
+    <string name="collaborators">المساهمون</string>
+    <string name="collaborator">المتعاون</string>
+    <string name="channel_and_more_template">%1$s و %2$d أخرى</string>
 </resources>

@@ -593,7 +593,7 @@
     <string name="buffer_settings_desc">Настройте параметры буферизации видео для оптимизации под ваше сетевое соединение.</string>
     <string name="buffer_settings_header_profile">Профиль производительности</string>
     <string name="buffer_settings_header_custom">Ручная настройка</string>
-    <string name="buffer_profile_stable">Стабильный (По умолчанию)</string>
+    <string name="buffer_profile_stable">Стабильный (по умолчанию)</string>
     <string name="buffer_profile_aggressive">Быстрый старт / Агрессивный</string>
     <string name="buffer_profile_datasaver">Экономия данных / Низкая задержка</string>
     <string name="buffer_profile_custom">Пользовательский</string>
@@ -714,7 +714,7 @@
     <string name="channel_search_no_results">Результаты поиска для %1$s не найдена</string>
     <string name="deep_flow_mode_subtitle">Приостановить обучение - просматривать контент, не влияя на свой профиль</string>
     <string name="deep_flow_learning_paused">ОБУЧЕНИЕ ПРИОСТАНОВЛЕНО</string>
-    <string name="deep_flow_expires_in">Истекает в %s</string>
+    <string name="deep_flow_expires_in">Истекает через %s</string>
     <string name="deep_flow_expire_duration_title">Автоматическое отключение</string>
     <string name="deep_flow_expire_duration_subtitle">Обучение возобновится автоматически через: %s</string>
     <string name="deep_flow_dialog_title">Продолжительность паузы</string>
@@ -797,7 +797,7 @@
     <string name="search_watch_history">Поиск в истории просмотров</string>
     <string name="history_filter_all_years">Все годы</string>
     <string name="history_sort_newest">Сначала новые</string>
-    <string name="history_sort_oldest">Сначала самые старые</string>
+    <string name="history_sort_oldest">Сначала старые</string>
     <string name="history_no_results">Нет совпадающих записей</string>
     <string name="history_no_results_body">Попробуйте другой поиск или фильтр</string>
     <string name="history_tab_videos">Видео</string>
@@ -1611,4 +1611,5 @@
     <string name="no_watch_data">Данных о просмотрах пока нет</string>
     <string name="playlist_metadata_private_template">Плейлист • Ограниченный доступ • %1$d видео</string>
     <string name="error_private_video">Видео с ограниченным доступом</string>
+    <string name="playlist_metadata_public_template">Плейлист • Публичный • %1$d видео</string>
 </resources>

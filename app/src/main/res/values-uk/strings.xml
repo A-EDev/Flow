@@ -1850,4 +1850,9 @@
     <string name="persona_explorer_description">Хаотичний та прекрасний. Всього по трохи.</string>
     <string name="player_appearance_grouped_quality_selector_title">Згрупований селектор якості</string>
     <string name="player_appearance_grouped_quality_selector_subtitle">Показувати один рядок для кожної роздільної здатності з вибором кодека всередині нього</string>
+    <string name="collaborators">Співавтори</string>
+    <string name="collaborator">Співавтор</string>
+    <string name="channel_and_more_template">%1$s та ще %2$d</string>
+    <string name="content_settings_shorts_player_prompt_title">Пропозиція для програвача Shorts</string>
+    <string name="content_settings_shorts_player_prompt_subtitle">Запитувати перед перемиканням відео тривалістю менше 2 хвилин у програвач Shorts</string>
 </resources>
