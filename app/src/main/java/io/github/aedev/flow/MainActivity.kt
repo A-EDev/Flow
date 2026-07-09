@@ -499,6 +499,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        FlowCrashHandler.recordPhase("activity", "onResume pip=$isInPictureInPictureMode")
         videoLifecycleLog("onResume")
         pendingAutoPip = false
         pipDismissCheckJob?.cancel()
@@ -546,6 +547,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        FlowCrashHandler.recordPhase(
+            "activity",
+            "onStop pip=$isInPictureInPictureMode backgroundPlay=$cachedBackgroundPlayEnabled shortsBackground=$cachedShortsBackgroundPlay"
+        )
         videoLifecycleLog("onStop")
         if (!isInPictureInPictureMode) {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -573,6 +578,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        FlowCrashHandler.recordPhase("activity", "onUserLeaveHint autoPip=$cachedAutoPipEnabled")
         videoLifecycleLog("onUserLeaveHint")
         // Only enter PiP mode if video is playing and has progressed
         // We use the EnhancedPlayerManager directly to get the immediate state
@@ -597,6 +603,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
+        FlowCrashHandler.recordPhase("memory", "MainActivity.onTrimMemory level=$level")
         if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
             io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
                 .handleCriticalMemoryPressure()
@@ -632,6 +639,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handOffVideoPlaybackToBackground() {
+        FlowCrashHandler.recordPhase("background-handoff", "handOffVideoPlaybackToBackground")
         videoLifecycleLog("handOffVideoPlaybackToBackground")
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
         val playerState = playerManager.playerState.value
@@ -651,6 +659,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleBackgroundPlaybackOnStop() {
+        FlowCrashHandler.recordPhase("background-handoff", "handleBackgroundPlaybackOnStop")
         videoLifecycleLog("handleBackgroundPlaybackOnStop")
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
         val playerState = playerManager.playerState.value

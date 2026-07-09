@@ -20,6 +20,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.error.PlayerDiagnostics
+import io.github.aedev.flow.utils.FlowCrashHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -78,6 +79,7 @@ class VideoPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        FlowCrashHandler.recordPhase("video-service", "onCreate")
         val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(MEDIA_CHANNEL_ID)
             .setChannelName(R.string.app_name)
@@ -117,6 +119,10 @@ class VideoPlayerService : MediaSessionService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
+        FlowCrashHandler.recordPhase(
+            "video-service",
+            "onStartCommand action=${intent?.action} startId=$startId"
+        )
         serviceLog("onStartCommand action=${intent?.action}")
 
         if (EnhancedPlayerManager.getInstance().getVideoMediaSession() == null) {

@@ -6,9 +6,7 @@ import android.util.Log
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.concurrent.ConcurrentLinkedDeque
 
 private const val CRASH_PREFS_NAME = "flow_crash_prefs"
 private const val CRASH_PREFS_KEY_LAST = "last_crash"
@@ -26,6 +24,8 @@ class FlowCrashHandler private constructor(
         private const val TAG = "FlowCrashHandler"
         private const val CRASH_LOG_FILE = "flow_crashes.log"
         private const val MAX_CRASH_LOG_SIZE = 500_000L // 500KB
+        private const val MAX_BREADCRUMBS = 40
+        private val breadcrumbs = ConcurrentLinkedDeque<FlowCrashBreadcrumb>()
         
         @Volatile
         private var instance: FlowCrashHandler? = null
@@ -86,6 +86,19 @@ class FlowCrashHandler private constructor(
                 Log.e(TAG, "Error clearing crash logs", e)
             }
         }
+
+        fun recordPhase(phase: String, detail: String) {
+            breadcrumbs.addLast(
+                FlowCrashBreadcrumb(
+                    timestampMs = System.currentTimeMillis(),
+                    phase = phase.take(48),
+                    detail = detail.take(240)
+                )
+            )
+            while (breadcrumbs.size > MAX_BREADCRUMBS) {
+                breadcrumbs.pollFirst()
+            }
+        }
     }
     
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
@@ -99,17 +112,7 @@ class FlowCrashHandler private constructor(
             // Save to SharedPreferences synchronously (commit) so the next launch
             // can detect the crash even if the app is killed before the file write completes.
             val stackTrace = getStackTraceString(throwable)
-            val deviceInfo = buildDeviceInfo()
-            val summary = buildString {
-                appendLine("Exception: ${throwable.javaClass.name}")
-                appendLine("Message: ${throwable.message}")
-                appendLine()
-                appendLine("Device Info:")
-                appendLine(deviceInfo)
-                appendLine()
-                appendLine("Stack Trace:")
-                appendLine(stackTrace)
-            }
+            val summary = buildCrashReport(thread, throwable, stackTrace)
             context.getSharedPreferences(CRASH_PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putString(CRASH_PREFS_KEY_LAST, summary)
@@ -136,24 +139,11 @@ class FlowCrashHandler private constructor(
                 file.renameTo(backup)
             }
             
-            val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
-            val deviceInfo = buildDeviceInfo()
             val stackTrace = getStackTraceString(throwable)
+            val formattedCrash = buildCrashReport(thread, throwable, stackTrace)
             
             val crashReport = buildString {
-                appendLine("=" .repeat(60))
-                appendLine("CRASH REPORT - $timestamp")
-                appendLine("=" .repeat(60))
-                appendLine()
-                appendLine("Device Info:")
-                appendLine(deviceInfo)
-                appendLine()
-                appendLine("Thread: ${thread.name} (id=${thread.id})")
-                appendLine("Exception: ${throwable.javaClass.name}")
-                appendLine("Message: ${throwable.message}")
-                appendLine()
-                appendLine("Stack Trace:")
-                appendLine(stackTrace)
+                appendLine(formattedCrash)
                 appendLine()
             }
             
@@ -171,6 +161,25 @@ class FlowCrashHandler private constructor(
         throwable.printStackTrace(pw)
         return sw.toString()
     }
+
+    private fun buildCrashReport(
+        thread: Thread,
+        throwable: Throwable,
+        stackTrace: String
+    ): String {
+        val snapshot = FlowCrashReportSnapshot(
+            timestampMs = System.currentTimeMillis(),
+            threadName = thread.name,
+            threadId = thread.id,
+            exceptionClass = throwable.javaClass.name,
+            exceptionMessage = throwable.message,
+            stackTrace = stackTrace,
+            deviceInfo = buildDeviceInfo(),
+            memoryInfo = buildMemoryInfo(),
+            breadcrumbs = breadcrumbs.toList()
+        )
+        return FlowCrashReportFormatter.build(snapshot)
+    }
     
     private fun buildDeviceInfo(): String {
         return buildString {
@@ -186,5 +195,16 @@ class FlowCrashHandler private constructor(
                 appendLine("  App Version: Unknown")
             }
         }
+    }
+
+    private fun buildMemoryInfo(): String {
+        val runtime = Runtime.getRuntime()
+        val used = runtime.totalMemory() - runtime.freeMemory()
+        return buildString {
+            appendLine("  Used heap: ${used / 1024 / 1024} MB")
+            appendLine("  Free heap: ${runtime.freeMemory() / 1024 / 1024} MB")
+            appendLine("  Total heap: ${runtime.totalMemory() / 1024 / 1024} MB")
+            appendLine("  Max heap: ${runtime.maxMemory() / 1024 / 1024} MB")
+        }.trimEnd()
     }
 }

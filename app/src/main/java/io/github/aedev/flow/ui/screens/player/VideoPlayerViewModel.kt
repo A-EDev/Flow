@@ -365,7 +365,7 @@ class VideoPlayerViewModel @Inject constructor(
                             )
                             saveHistoryEntry(currentVideo)
                         }
-                         loadVideoInfo(videoId, isWifi = detectIsWifi())
+                         loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
                     }
                 }
 

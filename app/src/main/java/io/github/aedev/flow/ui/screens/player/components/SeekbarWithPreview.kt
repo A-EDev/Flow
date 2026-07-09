@@ -251,7 +251,12 @@ fun SeekbarWithPreview(
                 activeTrackColor = Color.Transparent,
                 inactiveTrackColor = Color.Transparent,
                 activeTickColor = Color.Transparent,
-                inactiveTickColor = Color.Transparent
+                inactiveTickColor = Color.Transparent,
+                disabledThumbColor = Color.Transparent,
+                disabledActiveTrackColor = Color.Transparent,
+                disabledInactiveTrackColor = Color.Transparent,
+                disabledActiveTickColor = Color.Transparent,
+                disabledInactiveTickColor = Color.Transparent
             ),
             thumb = {
                 if (edgeAligned) {

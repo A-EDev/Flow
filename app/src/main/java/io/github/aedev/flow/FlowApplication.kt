@@ -255,12 +255,14 @@ class FlowApplication : Application(), ImageLoaderFactory {
 
     override fun onLowMemory() {
         super.onLowMemory()
+        FlowCrashHandler.recordPhase("memory", "FlowApplication.onLowMemory")
         releaseVolatileMemory()
     }
 
     @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
+        FlowCrashHandler.recordPhase("memory", "FlowApplication.onTrimMemory level=$level")
         if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
             releaseVolatileMemory()
         }
