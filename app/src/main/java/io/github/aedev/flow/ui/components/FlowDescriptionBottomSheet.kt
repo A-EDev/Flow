@@ -133,6 +133,8 @@ fun FlowDescriptionBottomSheet(
     onTimestampClick: (String) -> Unit = {},
     tags: List<String> = emptyList(),
     expandedHeight: Dp? = null,
+    collapsedHeight: Dp = 0.dp,
+    onSheetProgressChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uriHandler = LocalUriHandler.current
@@ -143,9 +145,19 @@ fun FlowDescriptionBottomSheet(
     val latestOnDismiss by rememberUpdatedState(onDismiss)
     val sheetExpandedHeight = expandedHeight ?: (configuration.screenHeightDp.dp * 0.75f)
     val expandedHeightPx = with(density) { sheetExpandedHeight.toPx() }
-    val dismissThresholdPx = expandedHeightPx * 0.55f
+    val collapsedHeightPx = with(density) { collapsedHeight.toPx() }.coerceIn(0f, expandedHeightPx)
+    val sheetProgressRangePx = (expandedHeightPx - collapsedHeightPx).coerceAtLeast(1f)
+    val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
+    val sheetProgress = if (expandedHeightPx > 0f) {
+        ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    SideEffect {
+        onSheetProgressChange(sheetProgress)
+    }
     val descriptionScrollState = rememberScrollState()
     
     val descriptionText = remember(video.description) {
@@ -167,7 +179,7 @@ fun FlowDescriptionBottomSheet(
                 targetValue = expandedHeightPx,
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+                    stiffness = Spring.StiffnessLow
                 )
             )
         }
@@ -178,41 +190,41 @@ fun FlowDescriptionBottomSheet(
         isAnimatingOut = true
         coroutineScope.launch {
             sheetHeightPx.animateTo(
-                targetValue = 0f,
+                targetValue = collapsedHeightPx,
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+                    stiffness = Spring.StiffnessLow
                 )
             )
             latestOnDismiss()
         }
     }
 
-    LaunchedEffect(expandedHeightPx) {
+    LaunchedEffect(expandedHeightPx, collapsedHeightPx) {
         isAnimatingOut = false
-        sheetHeightPx.updateBounds(lowerBound = 0f, upperBound = expandedHeightPx)
-        if (sheetHeightPx.value == 0f) {
-            sheetHeightPx.snapTo(0f)
+        sheetHeightPx.updateBounds(lowerBound = collapsedHeightPx, upperBound = expandedHeightPx)
+        if (sheetHeightPx.value == 0f || sheetHeightPx.value < collapsedHeightPx) {
+            sheetHeightPx.snapTo(collapsedHeightPx)
         }
         sheetHeightPx.animateTo(
             targetValue = expandedHeightPx,
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
+                stiffness = Spring.StiffnessLow
             )
         )
     }
 
     BackHandler(onBack = ::animateToDismiss)
 
-    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, dismissThresholdPx, isAnimatingOut) {
+    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
         val velocityTracker = VelocityTracker()
         detectVerticalDragGestures(
             onVerticalDrag = { change, dragAmount ->
                 if (isAnimatingOut) return@detectVerticalDragGestures
                 velocityTracker.addPointerInputChange(change)
                 coroutineScope.launch {
-                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(0f, expandedHeightPx)
+                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
                     sheetHeightPx.snapTo(nextValue)
                 }
             },

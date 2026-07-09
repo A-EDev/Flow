@@ -38,6 +38,10 @@ object SleepTimerManager {
     var closeAppOnExpiry by mutableStateOf(false)
         private set
 
+    /** Remembered default for future sleep timers. */
+    var preferredCloseAppOnExpiry by mutableStateOf(false)
+        private set
+
     /**
      * Epoch-millisecond timestamp at which the player will be paused.
      * -1 when no countdown is running.
@@ -120,6 +124,10 @@ object SleepTimerManager {
         closeAppOnExpiry = closeApp
         pauseAtEndOfMedia = true
         isActive = true
+    }
+
+    fun updatePreferredCloseAppOnExpiry(enabled: Boolean) {
+        preferredCloseAppOnExpiry = enabled
     }
 
     /** Cancel the timer and reset all state. */

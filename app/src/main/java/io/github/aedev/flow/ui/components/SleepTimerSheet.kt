@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -51,6 +52,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +60,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +68,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.SleepTimerManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -74,13 +78,22 @@ import kotlin.math.roundToInt
 fun SleepTimerSheet(
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
+    collapsedHeight: Dp = 0.dp,
     enableVerticalDismiss: Boolean = true,
     asBottomSheet: Boolean = true,
+    onSheetProgressChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isActive = SleepTimerManager.isActive
     val pauseAtEndOfMedia = SleepTimerManager.pauseAtEndOfMedia
+    val activeCloseAppOnExpiry = SleepTimerManager.closeAppOnExpiry
     val triggerTimeMs = SleepTimerManager.triggerTimeMs
+    val context = LocalContext.current
+    val playerPreferences = remember(context) { PlayerPreferences(context) }
+    val preferredCloseAppOnExpiry by playerPreferences.sleepTimerCloseAppOnExpiry.collectAsState(
+        initial = SleepTimerManager.preferredCloseAppOnExpiry
+    )
+    val coroutineScope = rememberCoroutineScope()
 
     var remainingMs by remember { mutableLongStateOf(0L) }
     LaunchedEffect(isActive, triggerTimeMs) {
@@ -98,7 +111,24 @@ fun SleepTimerSheet(
     var sliderValue by remember { mutableFloatStateOf(30f) }
     var customInput by remember { mutableStateOf("") }
     var inputError by remember { mutableStateOf(false) }
-    var closeApp by remember { mutableStateOf(SleepTimerManager.closeAppOnExpiry) }
+    var closeApp by remember {
+        mutableStateOf(
+            if (isActive) activeCloseAppOnExpiry else SleepTimerManager.preferredCloseAppOnExpiry
+        )
+    }
+
+    LaunchedEffect(preferredCloseAppOnExpiry, isActive) {
+        SleepTimerManager.updatePreferredCloseAppOnExpiry(preferredCloseAppOnExpiry)
+        if (!isActive) {
+            closeApp = preferredCloseAppOnExpiry
+        }
+    }
+
+    LaunchedEffect(isActive, activeCloseAppOnExpiry) {
+        if (isActive) {
+            closeApp = activeCloseAppOnExpiry
+        }
+    }
 
     val content: @Composable (Modifier) -> Unit = { contentModifier ->
         SleepTimerSheetContent(
@@ -145,7 +175,13 @@ fun SleepTimerSheet(
                 }
             },
             closeAppOnExpiry = closeApp,
-            onCloseAppToggle = { closeApp = it },
+            onCloseAppToggle = { enabled ->
+                closeApp = enabled
+                SleepTimerManager.updatePreferredCloseAppOnExpiry(enabled)
+                coroutineScope.launch {
+                    playerPreferences.setSleepTimerCloseAppOnExpiry(enabled)
+                }
+            },
             onReset = {
                 SleepTimerManager.start(sliderValue.roundToInt(), closeApp)
             },
@@ -161,7 +197,9 @@ fun SleepTimerSheet(
         FlowSleepTimerBottomSheet(
             onDismiss = onDismiss,
             expandedHeight = expandedHeight,
+            collapsedHeight = collapsedHeight,
             enableVerticalDismiss = enableVerticalDismiss,
+            onSheetProgressChange = onSheetProgressChange,
             modifier = modifier,
             content = content
         )
@@ -193,7 +231,9 @@ fun SleepTimerSheet(
 private fun FlowSleepTimerBottomSheet(
     onDismiss: () -> Unit,
     expandedHeight: Dp?,
+    collapsedHeight: Dp,
     enableVerticalDismiss: Boolean,
+    onSheetProgressChange: (Float) -> Unit,
     modifier: Modifier,
     content: @Composable (Modifier) -> Unit
 ) {
@@ -203,9 +243,19 @@ private fun FlowSleepTimerBottomSheet(
     val latestOnDismiss by rememberUpdatedState(onDismiss)
     val sheetExpandedHeight = expandedHeight ?: (configuration.screenHeightDp.dp * 0.75f)
     val expandedHeightPx = with(density) { sheetExpandedHeight.toPx() }
-    val dismissThresholdPx = expandedHeightPx * 0.55f
+    val collapsedHeightPx = with(density) { collapsedHeight.toPx() }.coerceIn(0f, expandedHeightPx)
+    val sheetProgressRangePx = (expandedHeightPx - collapsedHeightPx).coerceAtLeast(1f)
+    val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
+    val sheetProgress = if (expandedHeightPx > 0f) {
+        ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    SideEffect {
+        onSheetProgressChange(sheetProgress)
+    }
 
     fun animateToExpanded() {
         if (!enableVerticalDismiss) {
@@ -217,7 +267,7 @@ private fun FlowSleepTimerBottomSheet(
                 targetValue = expandedHeightPx,
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+                    stiffness = Spring.StiffnessLow
                 )
             )
         }
@@ -232,45 +282,45 @@ private fun FlowSleepTimerBottomSheet(
         isAnimatingOut = true
         coroutineScope.launch {
             sheetHeightPx.animateTo(
-                targetValue = 0f,
+                targetValue = collapsedHeightPx,
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+                    stiffness = Spring.StiffnessLow
                 )
             )
             latestOnDismiss()
         }
     }
 
-    LaunchedEffect(expandedHeightPx) {
+    LaunchedEffect(expandedHeightPx, collapsedHeightPx) {
         isAnimatingOut = false
-        sheetHeightPx.updateBounds(lowerBound = 0f, upperBound = expandedHeightPx)
+        sheetHeightPx.updateBounds(lowerBound = collapsedHeightPx, upperBound = expandedHeightPx)
         if (!enableVerticalDismiss) {
             sheetHeightPx.snapTo(expandedHeightPx)
             return@LaunchedEffect
         }
-        if (sheetHeightPx.value == 0f) {
-            sheetHeightPx.snapTo(0f)
+        if (sheetHeightPx.value == 0f || sheetHeightPx.value < collapsedHeightPx) {
+            sheetHeightPx.snapTo(collapsedHeightPx)
         }
         sheetHeightPx.animateTo(
             targetValue = expandedHeightPx,
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
+                stiffness = Spring.StiffnessLow
             )
         )
     }
 
     BackHandler(onBack = ::animateToDismiss)
 
-    val headerDragModifier = if (enableVerticalDismiss) Modifier.pointerInput(expandedHeightPx, dismissThresholdPx, isAnimatingOut) {
+    val headerDragModifier = if (enableVerticalDismiss) Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
         val velocityTracker = VelocityTracker()
         detectVerticalDragGestures(
             onVerticalDrag = { change, dragAmount ->
                 if (isAnimatingOut) return@detectVerticalDragGestures
                 velocityTracker.addPointerInputChange(change)
                 coroutineScope.launch {
-                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(0f, expandedHeightPx)
+                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
                     sheetHeightPx.snapTo(nextValue)
                 }
             },

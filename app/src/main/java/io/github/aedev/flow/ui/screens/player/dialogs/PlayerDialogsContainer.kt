@@ -17,6 +17,7 @@ import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 @Composable
@@ -27,7 +28,9 @@ fun PlayerDialogsContainer(
     video: Video,
     viewModel: VideoPlayerViewModel,
     renderSettingsMenu: Boolean = true,
-    mediaSheetExpandedHeight: Dp? = null
+    mediaSheetExpandedHeight: Dp? = null,
+    mediaSheetCollapsedHeight: Dp = 0.dp,
+    onMediaSheetProgressChange: (Float) -> Unit = {}
 ) {
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context) }
@@ -151,7 +154,9 @@ fun PlayerDialogsContainer(
                 screenState.showSleepTimerSheet = true
             },
             expandedHeight = mediaSheetExpandedHeight,
-            useGroupedQualitySelector = groupedQualitySelectorEnabled
+            collapsedHeight = mediaSheetCollapsedHeight,
+            useGroupedQualitySelector = groupedQualitySelectorEnabled,
+            onSheetProgressChange = onMediaSheetProgressChange
         )
     }
 

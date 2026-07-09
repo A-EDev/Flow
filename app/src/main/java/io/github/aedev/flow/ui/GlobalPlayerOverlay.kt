@@ -218,10 +218,47 @@ fun GlobalPlayerOverlay(
     }
 
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
-    val effectiveVideoAspectRatio = if (adaptivePlayerSizeEnabled || screenState.isFullscreen) {
-        videoAspectRatio
+    var mediaSheetProgress by remember { mutableFloatStateOf(0f) }
+    var lockedMediaSheetCollapsedHeight by remember { mutableStateOf<androidx.compose.ui.unit.Dp?>(null) }
+    val progressDrivenMediaSheetVisible =
+        screenState.showCommentsSheet ||
+        screenState.showDescriptionSheet ||
+        screenState.showChaptersSheet ||
+        screenState.showPlaylistQueueSheet ||
+        screenState.showLiveChatSheet ||
+        screenState.showSleepTimerSheet ||
+        screenState.showSettingsMenu ||
+        screenState.showQualitySelector ||
+        screenState.showAudioTrackSelector ||
+        screenState.showPlaybackSpeedSelector ||
+        screenState.showSubtitleSelector
+    val progressDrivenMediaSheetResize =
+        adaptivePlayerSizeEnabled &&
+            !screenState.isFullscreen &&
+            progressDrivenMediaSheetVisible &&
+            videoAspectRatio < 1f
+    LaunchedEffect(progressDrivenMediaSheetVisible) {
+        if (!progressDrivenMediaSheetVisible) {
+            if (mediaSheetProgress != 0f) {
+                mediaSheetProgress = 0f
+            }
+            lockedMediaSheetCollapsedHeight = null
+        }
+    }
+    val updateMediaSheetProgress: (Float) -> Unit = { progress ->
+        val nextProgress = progress.coerceIn(0f, 1f)
+        if (kotlin.math.abs(mediaSheetProgress - nextProgress) > 0.001f) {
+            mediaSheetProgress = nextProgress
+        }
+    }
+    val sheetPlayerHeightFractionOverride = if (progressDrivenMediaSheetResize) {
+        1f - mediaSheetProgress.coerceIn(0f, 1f)
     } else {
-        16f / 9f
+        null
+    }
+    val effectiveVideoAspectRatio = when {
+        adaptivePlayerSizeEnabled || screenState.isFullscreen -> videoAspectRatio
+        else -> 16f / 9f
     }
     var expandedPlayerBottom by remember { mutableStateOf(0.dp) }
     var pipForcedFullscreen by remember { mutableStateOf(false) }
@@ -594,13 +631,47 @@ fun GlobalPlayerOverlay(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val fullScreenHeight = constraints.maxHeight.toFloat()
-        val mediaSheetExpandedHeight = with(density) {
+        val rawMediaSheetCollapsedHeight = with(density) {
+            val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
+            if (expandedPlayerBottom > 0.dp && availablePx > 0f) {
+                availablePx.toDp()
+            } else {
+                0.dp
+            }
+        }
+        val defaultMediaSheetExpandedHeight = with(density) {
             val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
             if (expandedPlayerBottom > 0.dp && availablePx > 0f) {
                 availablePx.toDp()
             } else {
                 config.screenHeightDp.dp * 0.75f
             }
+        }
+        val sixteenNineMediaSheetExpandedHeight = with(density) {
+            val statusBarHeightPx = WindowInsets.statusBars.getTop(this).toFloat()
+            val sixteenNinePlayerBottomPx = statusBarHeightPx + constraints.maxWidth.toFloat() * 9f / 16f
+            (fullScreenHeight - sixteenNinePlayerBottomPx).coerceAtLeast(0f).toDp()
+        }
+        LaunchedEffect(progressDrivenMediaSheetResize, rawMediaSheetCollapsedHeight, maxWidth, maxHeight) {
+            if (
+                progressDrivenMediaSheetResize &&
+                lockedMediaSheetCollapsedHeight == null &&
+                expandedPlayerBottom > 0.dp
+            ) {
+                lockedMediaSheetCollapsedHeight = rawMediaSheetCollapsedHeight
+            } else if (!progressDrivenMediaSheetResize) {
+                lockedMediaSheetCollapsedHeight = null
+            }
+        }
+        val mediaSheetCollapsedHeight = if (progressDrivenMediaSheetResize) {
+            lockedMediaSheetCollapsedHeight ?: rawMediaSheetCollapsedHeight
+        } else {
+            0.dp
+        }
+        val mediaSheetExpandedHeight = if (progressDrivenMediaSheetResize) {
+            maxOf(mediaSheetCollapsedHeight, sixteenNineMediaSheetExpandedHeight)
+        } else {
+            defaultMediaSheetExpandedHeight
         }
         val canUseFullscreenSidePanel = screenState.isFullscreen && maxWidth > maxHeight
         val settingsInitialPage = when {
@@ -711,6 +782,7 @@ fun GlobalPlayerOverlay(
                 thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
                     ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
                 videoAspectRatio = effectiveVideoAspectRatio,
+                expandedPlayerHeightFractionOverride = sheetPlayerHeightFractionOverride,
                 bottomPadding = bottomPadding,
                 miniPlayerScale = miniPlayerScale,
                 tapToExpand = true,
@@ -1460,7 +1532,9 @@ fun GlobalPlayerOverlay(
             video = completeVideo,
             viewModel = playerViewModel,
             renderSettingsMenu = !canUseFullscreenSidePanel,
-            mediaSheetExpandedHeight = mediaSheetExpandedHeight
+            mediaSheetExpandedHeight = mediaSheetExpandedHeight,
+            mediaSheetCollapsedHeight = mediaSheetCollapsedHeight,
+            onMediaSheetProgressChange = updateMediaSheetProgress
         )
 
         // SB Submit dialog
@@ -1517,6 +1591,7 @@ fun GlobalPlayerOverlay(
             hasMoreComments = hasMoreComments,
             onLoadMoreComments = { videoId -> playerViewModel.loadMoreComments(videoId) },
             mediaSheetExpandedHeight = mediaSheetExpandedHeight,
+            mediaSheetCollapsedHeight = mediaSheetCollapsedHeight,
             context = context,
             onPlayAsShort = { videoId ->
                 onClose()
@@ -1535,7 +1610,8 @@ fun GlobalPlayerOverlay(
                 onNavigateToChannel(channelId)
             },
             renderChaptersSheet = !canUseFullscreenSidePanel,
-            renderSleepTimerSheet = !canUseFullscreenSidePanel
+            renderSleepTimerSheet = !canUseFullscreenSidePanel,
+            onMediaSheetProgressChange = updateMediaSheetProgress
         )
     }
 }

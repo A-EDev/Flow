@@ -42,6 +42,7 @@ import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.DonationPromptHost
 import io.github.aedev.flow.ui.components.FloatingBottomNavBar
 import io.github.aedev.flow.ui.components.MusicPlayerBottomSheet
@@ -98,6 +99,9 @@ fun FlowApp(
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
     val subscriptionRefreshOnStartup by preferences.subscriptionRefreshOnStartup.collectAsState(initial = false)
     val bottomNavHideOnScroll by preferences.bottomNavHideOnScroll.collectAsState(initial = true)
+    val sleepTimerCloseAppOnExpiry by preferences.sleepTimerCloseAppOnExpiry.collectAsState(
+        initial = SleepTimerManager.preferredCloseAppOnExpiry
+    )
     val defaultStartRoute = navRouteForIndex(defaultNavTabIndex)
     
     // Mini Player Customizations
@@ -115,6 +119,10 @@ fun FlowApp(
         FlowNeuroEngine.initialize(context)
         DeepFlowManager.initialize(context)
         needsOnboarding = FlowNeuroEngine.needsOnboarding()
+    }
+
+    LaunchedEffect(sleepTimerCloseAppOnExpiry) {
+        SleepTimerManager.updatePreferredCloseAppOnExpiry(sleepTimerCloseAppOnExpiry)
     }
 
     LaunchedEffect(subscriptionRefreshOnStartup) {

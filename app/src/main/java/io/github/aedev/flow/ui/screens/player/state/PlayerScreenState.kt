@@ -145,6 +145,7 @@ class PlayerScreenState {
     }
     
     fun toggleFullscreen() {
+        isFullscreenPortrait = false
         isFullscreen = !isFullscreen
     }
     

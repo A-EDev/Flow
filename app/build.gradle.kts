@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.kapt")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
@@ -192,7 +193,7 @@ dependencies {
 
     // --- Dependency Injection ---
     implementation(libs.hilt.android)
-    ksp(libs.hilt.android.compiler)
+    kapt(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
 
     // --- Data & Network ---
@@ -271,7 +272,7 @@ dependencies {
     testImplementation("com.google.truth:truth:1.1.5")
     testImplementation("app.cash.turbine:turbine:1.1.0")
     testImplementation("com.google.dagger:hilt-android-testing:2.51.1")
-    kspTest("com.google.dagger:hilt-android-compiler:2.51.1")
+    kaptTest(libs.hilt.android.compiler)
 
     // Room migration tests (device-sync schema 20→23)
     androidTestImplementation(libs.androidx.room.testing)
@@ -280,7 +281,7 @@ dependencies {
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
-    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
+    kaptAndroidTest(libs.hilt.android.compiler)
     
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
@@ -291,6 +292,11 @@ ksp {
     arg("dagger.fastInit", "enabled")
 }
 
+kapt {
+    correctErrorTypes = true
+}
+
 hilt {
+    enableAggregatingTask = true
     enableTransformForLocalTests = false
 }

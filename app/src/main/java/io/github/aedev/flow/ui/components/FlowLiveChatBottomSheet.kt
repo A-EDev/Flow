@@ -34,6 +34,8 @@ fun FlowLiveChatBottomSheet(
     isLoading: Boolean,
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
+    collapsedHeight: Dp = 0.dp,
+    onSheetProgressChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -42,15 +44,25 @@ fun FlowLiveChatBottomSheet(
     val latestOnDismiss by rememberUpdatedState(onDismiss)
     val sheetExpandedHeight = expandedHeight ?: (configuration.screenHeightDp.dp * 0.75f)
     val expandedHeightPx = with(density) { sheetExpandedHeight.toPx() }
-    val dismissThresholdPx = expandedHeightPx * 0.55f
+    val collapsedHeightPx = with(density) { collapsedHeight.toPx() }.coerceIn(0f, expandedHeightPx)
+    val sheetProgressRangePx = (expandedHeightPx - collapsedHeightPx).coerceAtLeast(1f)
+    val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
+    val sheetProgress = if (expandedHeightPx > 0f) {
+        ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    SideEffect {
+        onSheetProgressChange(sheetProgress)
+    }
 
     fun animateToExpanded() {
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 expandedHeightPx,
-                spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMediumLow)
+                spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow)
             )
         }
     }
@@ -59,31 +71,31 @@ fun FlowLiveChatBottomSheet(
         if (isAnimatingOut) return
         isAnimatingOut = true
         coroutineScope.launch {
-            sheetHeightPx.animateTo(0f, spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMediumLow))
+            sheetHeightPx.animateTo(collapsedHeightPx, spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow))
             latestOnDismiss()
         }
     }
 
-    LaunchedEffect(expandedHeightPx) {
+    LaunchedEffect(expandedHeightPx, collapsedHeightPx) {
         isAnimatingOut = false
-        sheetHeightPx.updateBounds(lowerBound = 0f, upperBound = expandedHeightPx)
-        if (sheetHeightPx.value == 0f) sheetHeightPx.snapTo(0f)
+        sheetHeightPx.updateBounds(lowerBound = collapsedHeightPx, upperBound = expandedHeightPx)
+        if (sheetHeightPx.value == 0f || sheetHeightPx.value < collapsedHeightPx) sheetHeightPx.snapTo(collapsedHeightPx)
         sheetHeightPx.animateTo(
             expandedHeightPx,
-            spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMediumLow)
+            spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow)
         )
     }
 
     BackHandler(onBack = ::animateToDismiss)
 
-    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, dismissThresholdPx, isAnimatingOut) {
+    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
         val velocityTracker = VelocityTracker()
         detectVerticalDragGestures(
             onVerticalDrag = { change, dragAmount ->
                 if (isAnimatingOut) return@detectVerticalDragGestures
                 velocityTracker.addPointerInputChange(change)
                 coroutineScope.launch {
-                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(0f, expandedHeightPx)
+                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
                     sheetHeightPx.snapTo(nextValue)
                 }
             },

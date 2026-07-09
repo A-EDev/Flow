@@ -292,6 +292,7 @@ fun DraggablePlayerLayout(
     onEnterPortraitFullscreen: (() -> Unit)? = null,
     onExpandedPlayerBottomChanged: (Dp) -> Unit = {},
     videoAspectRatio: Float = 16f / 9f,
+    expandedPlayerHeightFractionOverride: Float? = null,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -368,9 +369,12 @@ fun DraggablePlayerLayout(
             val expandedVideoWidth  = if (isSplitLayout) screenWidth * 0.65f else screenWidth
             val baseVideoHeight     = expandedVideoWidth * (9f / 16f)
             val expandedVideoHeight = expandedVideoWidth / clampedAspect
+            val activePlayerHeightFraction = expandedPlayerHeightFractionOverride
+                ?.coerceIn(0f, 1f)
+                ?: playerHeightFraction
             val currentExpandedVideoHeight =
                 if (expandedVideoHeight > baseVideoHeight) {
-                    lerpFloat(baseVideoHeight, expandedVideoHeight, playerHeightFraction)
+                    lerpFloat(baseVideoHeight, expandedVideoHeight, activePlayerHeightFraction)
                 } else {
                     expandedVideoHeight
                 }

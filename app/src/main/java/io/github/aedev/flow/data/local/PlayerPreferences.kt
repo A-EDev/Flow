@@ -44,6 +44,7 @@ class PlayerPreferences(context: Context) {
         val SUBTITLE_BOLD = booleanPreferencesKey("subtitle_bold")
         val SUBTITLE_BOTTOM_PADDING = floatPreferencesKey("subtitle_bottom_padding")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
+        val SLEEP_TIMER_CLOSE_APP_ON_EXPIRY = booleanPreferencesKey("sleep_timer_close_app_on_expiry")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")        
@@ -1274,6 +1275,17 @@ class PlayerPreferences(context: Context) {
             context.playerPreferencesDataStore.edit { preferences ->
                 preferences[Keys.PLAYBACK_SPEED] = speed
             }
+        }
+    }
+
+    val sleepTimerCloseAppOnExpiry: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SLEEP_TIMER_CLOSE_APP_ON_EXPIRY] ?: false
+        }
+
+    suspend fun setSleepTimerCloseAppOnExpiry(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SLEEP_TIMER_CLOSE_APP_ON_EXPIRY] = enabled
         }
     }
 

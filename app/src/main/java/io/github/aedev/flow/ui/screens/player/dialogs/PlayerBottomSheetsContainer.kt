@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -44,6 +45,7 @@ fun PlayerBottomSheetsContainer(
     hasMoreComments: Boolean = false,
     onLoadMoreComments: (videoId: String) -> Unit = {},
     mediaSheetExpandedHeight: Dp? = null,
+    mediaSheetCollapsedHeight: Dp = 0.dp,
     context: Context,
     onPlayAsShort: (String) -> Unit,
     onPlayAsMusic: (String) -> Unit,
@@ -51,7 +53,8 @@ fun PlayerBottomSheetsContainer(
     onLoadMoreReplies: (Comment) -> Unit = {},
     onNavigateToChannel: ((String) -> Unit)? = null,
     renderChaptersSheet: Boolean = true,
-    renderSleepTimerSheet: Boolean = true
+    renderSleepTimerSheet: Boolean = true,
+    onMediaSheetProgressChange: (Float) -> Unit = {}
 ) {
     val shareWithoutText by remember { io.github.aedev.flow.data.local.PlayerPreferences(context).shareWithoutText }
         .collectAsStateWithLifecycle(initialValue = false)
@@ -136,6 +139,8 @@ fun PlayerBottomSheetsContainer(
                 onNavigateToChannel?.invoke("@$authorHandle")
             },
             expandedHeight = mediaSheetExpandedHeight,
+            collapsedHeight = mediaSheetCollapsedHeight,
+            onSheetProgressChange = onMediaSheetProgressChange,
             onDismiss = { screenState.showCommentsSheet = false }
         )
     }
@@ -145,6 +150,8 @@ fun PlayerBottomSheetsContainer(
             messages = uiState.liveChatMessages,
             isLoading = uiState.isLiveChatLoading,
             expandedHeight = mediaSheetExpandedHeight,
+            collapsedHeight = mediaSheetCollapsedHeight,
+            onSheetProgressChange = onMediaSheetProgressChange,
             onDismiss = { screenState.showLiveChatSheet = false }
         )
     }
@@ -185,6 +192,8 @@ fun PlayerBottomSheetsContainer(
             tags = uiState.streamInfo?.tags ?: emptyList(),
             onTimestampClick = handleTimestampClick,
             expandedHeight = mediaSheetExpandedHeight,
+            collapsedHeight = mediaSheetCollapsedHeight,
+            onSheetProgressChange = onMediaSheetProgressChange,
             onDismiss = { screenState.showDescriptionSheet = false }
         )
     }
@@ -203,6 +212,8 @@ fun PlayerBottomSheetsContainer(
             },
             thumbnailUrl = video.thumbnailUrl,
             expandedHeight = mediaSheetExpandedHeight,
+            collapsedHeight = mediaSheetCollapsedHeight,
+            onSheetProgressChange = onMediaSheetProgressChange,
             onDismiss = { screenState.showChaptersSheet = false }
         )
     }
@@ -221,6 +232,8 @@ fun PlayerBottomSheetsContainer(
                 EnhancedPlayerManager.getInstance().playVideoAtIndex(index)
             },
             expandedHeight = mediaSheetExpandedHeight,
+            collapsedHeight = mediaSheetCollapsedHeight,
+            onSheetProgressChange = onMediaSheetProgressChange,
             onDismiss = { screenState.showPlaylistQueueSheet = false }
         )
     }
@@ -228,6 +241,8 @@ fun PlayerBottomSheetsContainer(
     if (screenState.showSleepTimerSheet && renderSleepTimerSheet) {
         SleepTimerSheet(
             expandedHeight = mediaSheetExpandedHeight,
+            collapsedHeight = mediaSheetCollapsedHeight,
+            onSheetProgressChange = onMediaSheetProgressChange,
             onDismiss = { screenState.showSleepTimerSheet = false }
         )
     }

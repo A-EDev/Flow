@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +55,8 @@ fun FlowPlaylistQueueBottomSheet(
     onPlayVideoAtIndex: (Int) -> Unit,
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
+    collapsedHeight: Dp = 0.dp,
+    onSheetProgressChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -62,9 +65,19 @@ fun FlowPlaylistQueueBottomSheet(
     val latestOnDismiss by rememberUpdatedState(onDismiss)
     val sheetExpandedHeight = expandedHeight ?: (configuration.screenHeightDp.dp * 0.75f)
     val expandedHeightPx = with(density) { sheetExpandedHeight.toPx() }
-    val dismissThresholdPx = expandedHeightPx * 0.55f
+    val collapsedHeightPx = with(density) { collapsedHeight.toPx() }.coerceIn(0f, expandedHeightPx)
+    val sheetProgressRangePx = (expandedHeightPx - collapsedHeightPx).coerceAtLeast(1f)
+    val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
+    val sheetProgress = if (expandedHeightPx > 0f) {
+        ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    SideEffect {
+        onSheetProgressChange(sheetProgress)
+    }
     val listState = rememberLazyListState()
 
     fun animateToExpanded() {
@@ -73,7 +86,7 @@ fun FlowPlaylistQueueBottomSheet(
                 targetValue = expandedHeightPx,
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+                    stiffness = Spring.StiffnessLow
                 )
             )
         }
@@ -84,27 +97,27 @@ fun FlowPlaylistQueueBottomSheet(
         isAnimatingOut = true
         coroutineScope.launch {
             sheetHeightPx.animateTo(
-                targetValue = 0f,
+                targetValue = collapsedHeightPx,
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+                    stiffness = Spring.StiffnessLow
                 )
             )
             latestOnDismiss()
         }
     }
     
-    LaunchedEffect(expandedHeightPx) {
+    LaunchedEffect(expandedHeightPx, collapsedHeightPx) {
         isAnimatingOut = false
-        sheetHeightPx.updateBounds(lowerBound = 0f, upperBound = expandedHeightPx)
-        if (sheetHeightPx.value == 0f) {
-            sheetHeightPx.snapTo(0f)
+        sheetHeightPx.updateBounds(lowerBound = collapsedHeightPx, upperBound = expandedHeightPx)
+        if (sheetHeightPx.value == 0f || sheetHeightPx.value < collapsedHeightPx) {
+            sheetHeightPx.snapTo(collapsedHeightPx)
         }
         sheetHeightPx.animateTo(
             targetValue = expandedHeightPx,
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
+                stiffness = Spring.StiffnessLow
             )
         )
     }
@@ -117,14 +130,14 @@ fun FlowPlaylistQueueBottomSheet(
 
     BackHandler(onBack = ::animateToDismiss)
 
-    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, dismissThresholdPx, isAnimatingOut) {
+    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
         val velocityTracker = VelocityTracker()
         detectVerticalDragGestures(
             onVerticalDrag = { change, dragAmount ->
                 if (isAnimatingOut) return@detectVerticalDragGestures
                 velocityTracker.addPointerInputChange(change)
                 coroutineScope.launch {
-                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(0f, expandedHeightPx)
+                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
                     sheetHeightPx.snapTo(nextValue)
                 }
             },
