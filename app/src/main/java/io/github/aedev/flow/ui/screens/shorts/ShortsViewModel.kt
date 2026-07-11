@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortWatchClassifier
 import io.github.aedev.flow.data.shorts.ShortsRepository
+import io.github.aedev.flow.data.shorts.mergeDiscoveryCandidates
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
@@ -102,10 +103,14 @@ class ShortsViewModel @Inject constructor(
             shortsRepository.discoveryFeedUpdate.collect { newShorts ->
                 val current = _uiState.value.shorts
                 if (newShorts.isEmpty() || current.isEmpty()) return@collect
-                val existingIds = current.map { it.id }.toHashSet()
-                val toAppend = newShorts.filter { it.id !in existingIds }
-                if (toAppend.isNotEmpty()) {
-                    _uiState.value = _uiState.value.copy(shorts = current + toAppend)
+                val merged = mergeDiscoveryCandidates(
+                    current = current,
+                    discovery = newShorts,
+                    currentIndex = _uiState.value.currentIndex,
+                    id = { it.id },
+                )
+                if (merged !== current) {
+                    _uiState.value = _uiState.value.copy(shorts = merged)
                 }
             }
         }
@@ -302,6 +307,11 @@ class ShortsViewModel @Inject constructor(
     // PAGE TRACKING & PRE-LOADING 
     fun updateCurrentIndex(index: Int) {
         _uiState.value = _uiState.value.copy(currentIndex = index)
+        _uiState.value.shorts.getOrNull(index)?.id?.let { videoId ->
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                shortsRepository.recordShown(videoId)
+            }
+        }
         
         if (index >= _uiState.value.shorts.size - 5) {
             loadMoreShorts()

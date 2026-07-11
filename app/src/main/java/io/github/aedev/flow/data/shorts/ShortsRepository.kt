@@ -170,7 +170,10 @@ class ShortsRepository private constructor(private val context: Context) {
         }
 
         if (innerTubeResult != null && innerTubeResult.shorts.isNotEmpty()) {
-            val itShorts = filterWatchedShorts(innerTubeResult.shorts)
+            val itShorts = diversifySubscriptions(
+                items = filterWatchedShorts(innerTubeResult.shorts),
+                isSubscribed = { it.channelId in userSubs },
+            )
             if (itShorts.isEmpty()) {
                 Log.i(TAG, "InnerTube fast-path contained only watched Shorts")
             } else {
@@ -953,8 +956,20 @@ class ShortsRepository private constructor(private val context: Context) {
         val watchedIds = runCatching {
             viewHistory.getWatchedShortIdsAboveThreshold(threshold.minPercent, threshold.maxRemainingMs)
         }.getOrDefault(emptySet())
-        if (watchedIds.isEmpty()) return shorts
-        return shorts.filter { it.id !in watchedIds }
+        val recentlySeenIds = runCatching {
+            FlowNeuroEngine.initialize(context)
+            FlowNeuroEngine.getRecentlySeenShorts()
+        }.getOrDefault(emptySet())
+        if (watchedIds.isEmpty() && recentlySeenIds.isEmpty()) return shorts
+        return shorts.filter { it.id !in watchedIds && it.id !in recentlySeenIds }
+    }
+
+    suspend fun recordShown(videoId: String) {
+        if (videoId.isBlank()) return
+        runCatching {
+            FlowNeuroEngine.initialize(context)
+            FlowNeuroEngine.recordSeenShorts(listOf(videoId))
+        }.onFailure { Log.w(TAG, "Failed to record shown Short $videoId", it) }
     }
     
     // INTERNAL — Recently Shown Tracking

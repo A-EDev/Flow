@@ -1985,4 +1985,5 @@
     <string name="recognition_history_empty">Recognized songs will appear here</string>
     <string name="recognition_clear_history">Clear history?</string>
     <string name="recognition_clear_history_body">This removes all recognized songs. This cannot be undone.</string>
+    <string name="close_popup_player">Close popup player</string>
 </resources>

@@ -1103,7 +1103,7 @@ fun GlobalPlayerOverlay(
                                 onFullscreenClick = { screenState.toggleFullscreen() },
                                 isFullscreen = screenState.isFullscreen,
                                 isPipSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 
-                                    io.github.aedev.flow.player.PictureInPictureHelper.isPipSupported(context) &&
+                                    io.github.aedev.flow.player.PictureInPictureHelper.isPlayerPopupSupported(context) &&
                                     pipPreferences.manualPipButtonEnabled,
                                 onPipClick = {
                                     PictureInPictureHelper.requestPlayerPipMode(
@@ -1396,7 +1396,7 @@ fun GlobalPlayerOverlay(
                         },
                         onPipClick = {
                             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
-                                PictureInPictureHelper.isPipSupported(context)
+                                PictureInPictureHelper.isPlayerPopupSupported(context)
                             ) {
                                 PictureInPictureHelper.requestPlayerPipMode(
                                     activity = activity,

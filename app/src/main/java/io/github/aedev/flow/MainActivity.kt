@@ -536,6 +536,7 @@ class MainActivity : ComponentActivity() {
         videoLifecycleLog("onResume")
         pendingAutoPip = false
         pipDismissCheckJob?.cancel()
+        PictureInPictureHelper.dismissPopup(this)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
@@ -585,7 +586,7 @@ class MainActivity : ComponentActivity() {
             "onStop pip=$isInPictureInPictureMode backgroundPlay=$cachedBackgroundPlayEnabled shortsBackground=$cachedShortsBackgroundPlay"
         )
         videoLifecycleLog("onStop")
-        if (!isInPictureInPictureMode) {
+        if (!isInPictureInPictureMode && !PictureInPictureHelper.isPopupActive) {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             if (!cachedShortsBackgroundPlay) {
                 io.github.aedev.flow.player.shorts.ShortsPlayerPool.getInstance().pauseAll()

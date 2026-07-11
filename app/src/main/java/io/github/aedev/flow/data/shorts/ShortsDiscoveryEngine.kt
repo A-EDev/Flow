@@ -148,14 +148,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
         // ── Phase 1: Subscription Shorts ──
         try {
             val subShorts = fetchSubscriptionShorts(userSubs)
-            val subSeenIds = mutableSetOf<String>()
-            subShorts.forEach { v ->
-                if (v.id.isNotBlank() && v.id !in subSeenIds) {
-                    subSeenIds += v.id
-                    allCandidates += v
-                    seenIds += v.id
-                }
-            }
+            addUnique(subShorts)
             Log.i(TAG, "Phase 1: ${subShorts.size} Shorts from subscribed channels")
         } catch (e: Exception) {
             Log.e(TAG, "Phase 1 (subscription Shorts) failed", e)
@@ -185,13 +178,10 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
         }
 
         // Rank everything through the engine
-        val ranked = FlowNeuroEngine.rank(allCandidates, userSubs)
-
-        try {
-            FlowNeuroEngine.recordSeenShorts(ranked.map { it.id })
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to record seen Shorts", e)
-        }
+        val ranked = diversifySubscriptions(
+            items = FlowNeuroEngine.rank(allCandidates, userSubs),
+            isSubscribed = { it.channelId in userSubs },
+        )
 
         Log.i(TAG, "Discovery complete: ${ranked.size} ranked from ${allCandidates.size} candidates "
             + "(${recentlySeen.size} excluded as seen)")

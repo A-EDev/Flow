@@ -19,6 +19,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import io.github.aedev.flow.R
 import io.github.aedev.flow.MainActivity
+import io.github.aedev.flow.service.VideoPlayerService
 
 /**
  * Helper class for Picture-in-Picture mode support
@@ -40,6 +41,14 @@ object PictureInPictureHelper {
 
     @Volatile
     var sourceRectHint: android.graphics.Rect? = null
+
+    @Volatile
+    var isPopupActive: Boolean = false
+        private set
+
+    internal fun setPopupActive(active: Boolean) {
+        isPopupActive = active
+    }
     
     /**
      * Check if the device supports PiP
@@ -48,6 +57,9 @@ object PictureInPictureHelper {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
     }
+
+    fun isPlayerPopupSupported(context: Context): Boolean =
+        isPipSupported(context) || Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
 
     fun isPipAllowed(context: Context): Boolean {
         if (!isPipSupported(context)) return false
@@ -110,7 +122,6 @@ object PictureInPictureHelper {
                 autoEnterEnabled
             )
             activity.enterPictureInPictureMode(params)
-            true
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -124,26 +135,64 @@ object PictureInPictureHelper {
         isPlaying: Boolean = true,
         autoEnterEnabled: Boolean = false
     ): Boolean {
-        if (!isPipAllowed(activity)) {
-            openPipSettings(activity)
+        if (isPipSupported(activity)) {
+            if (!isPipAllowed(activity)) {
+                openPipSettings(activity)
+                return false
+            }
+            val entered = if (activity is MainActivity) {
+                activity.enterPlayerPictureInPictureMode(
+                    aspectRatioWidth = aspectRatioWidth,
+                    aspectRatioHeight = aspectRatioHeight,
+                    isPlaying = isPlaying,
+                    openSettingsOnDenied = true
+                )
+            } else {
+                enterPipMode(
+                    activity = activity,
+                    aspectRatioWidth = aspectRatioWidth,
+                    aspectRatioHeight = aspectRatioHeight,
+                    isPlaying = isPlaying,
+                    autoEnterEnabled = autoEnterEnabled
+                )
+            }
+            if (entered) return true
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+        if (!Settings.canDrawOverlays(activity)) {
+            openOverlaySettings(activity)
             return false
         }
-        return if (activity is MainActivity) {
-            activity.enterPlayerPictureInPictureMode(
-                aspectRatioWidth = aspectRatioWidth,
-                aspectRatioHeight = aspectRatioHeight,
-                isPlaying = isPlaying,
-                openSettingsOnDenied = true
-            )
+        ContextCompat.startForegroundService(
+            activity,
+            Intent(activity, VideoPlayerService::class.java).setAction(VideoPlayerService.ACTION_SHOW_POPUP),
+        )
+        return true
+    }
+
+    fun dismissPopup(context: Context) {
+        if (!isPopupActive) return
+        context.startService(
+            Intent(context, VideoPlayerService::class.java).setAction(VideoPlayerService.ACTION_HIDE_POPUP),
+        )
+    }
+
+    private fun openOverlaySettings(activity: Activity) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
         } else {
-            enterPipMode(
-                activity = activity,
-                aspectRatioWidth = aspectRatioWidth,
-                aspectRatioHeight = aspectRatioHeight,
-                isPlaying = isPlaying,
-                autoEnterEnabled = autoEnterEnabled
+            Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:${activity.packageName}"),
             )
         }
+        runCatching { activity.startActivity(intent) }
+            .onFailure {
+                activity.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${activity.packageName}"))
+                )
+            }
     }
     
     /**

@@ -19,6 +19,7 @@ import androidx.media3.session.MediaSessionService
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.PopupPlayerWindow
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.utils.FlowCrashHandler
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +41,9 @@ class VideoPlayerService : MediaSessionService() {
         private const val MEDIA_CHANNEL_ID = "video_playback_media"
         private const val FALLBACK_NOTIFICATION_ID = 7892
 
+        const val ACTION_SHOW_POPUP = "io.github.aedev.flow.action.SHOW_POPUP_PLAYER"
+        const val ACTION_HIDE_POPUP = "io.github.aedev.flow.action.HIDE_POPUP_PLAYER"
+
         const val EXTRA_VIDEO_ID = "video_id"
         const val EXTRA_VIDEO_TITLE = "video_title"
         const val EXTRA_VIDEO_CHANNEL = "video_channel"
@@ -52,6 +56,7 @@ class VideoPlayerService : MediaSessionService() {
     private var wifiLock: WifiManager.WifiLock? = null
 
     private var lockReleaseJob: Job? = null
+    private var popupPlayerWindow: PopupPlayerWindow? = null
 
     private fun serviceSnapshot(): String {
         val player = EnhancedPlayerManager.getInstance().getPlayer()
@@ -125,6 +130,11 @@ class VideoPlayerService : MediaSessionService() {
         )
         serviceLog("onStartCommand action=${intent?.action}")
 
+        when (intent?.action) {
+            ACTION_SHOW_POPUP -> showPopupPlayer()
+            ACTION_HIDE_POPUP -> popupPlayerWindow?.dismiss()
+        }
+
         if (EnhancedPlayerManager.getInstance().getVideoMediaSession() == null) {
             serviceLog("No media session available — placeholder then stop")
             promoteToForeground()
@@ -186,11 +196,26 @@ class VideoPlayerService : MediaSessionService() {
     }
     override fun onDestroy() {
         serviceLog("onDestroy")
+        popupPlayerWindow?.dismiss()
+        popupPlayerWindow = null
         lockReleaseJob?.cancel()
         lockReleaseJob = null
         releaseLocks()
         serviceScope.cancel()
         super.onDestroy()
+    }
+
+    private fun showPopupPlayer() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !android.provider.Settings.canDrawOverlays(this)) return
+        val player = EnhancedPlayerManager.getInstance().getPlayer() ?: return
+        if (popupPlayerWindow == null) {
+            popupPlayerWindow = PopupPlayerWindow(this) {
+                popupPlayerWindow?.dismiss()
+                EnhancedPlayerManager.getInstance().stop()
+                stopSelf()
+            }
+        }
+        popupPlayerWindow?.show(player)
     }
     private fun acquireLocks() {
         serviceLog("acquireLocks")
