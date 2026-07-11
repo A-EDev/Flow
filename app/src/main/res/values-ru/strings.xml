@@ -110,7 +110,7 @@
     <string name="tab_videos">Видео</string>
     <string name="tab_music">Музыка</string>
     <string name="empty_offline_title">Офлайн %1$s</string>
-    <string name="empty_offline_body">%1$s — ваши загрузки появятся здесь.\nНаслаждайтесь контентом даже без интернета.</string>
+    <string name="empty_offline_body">%1$s – ваши загрузки появятся здесь.\nНаслаждайтесь контентом даже без интернета.</string>
     <string name="action_go_to_home">На главную</string>
     <string name="action_delete">Удалить</string>
     <string name="downloads_title">Скачанные</string>
@@ -132,7 +132,7 @@
     <string name="not_interested">Не интересует</string>
     <string name="details_metadata">Детали и метаданные</string>
     <string name="mark_as_watched">Пометить как просмотренное</string>
-    <string name="mark_as_watched_toast">Помечено как просмотренное — ваши рекомендации станут лучше!</string>
+    <string name="mark_as_watched_toast">Помечено как просмотренное – ваши рекомендации станут лучше!</string>
     <string name="i_like_this">Я хочу больше такого контента</string>
     <string name="i_like_this_toast">Принято! Вы будете видеть больше подобного контента.</string>
     <string name="go_to_channel">Перейти на канал</string>
@@ -649,7 +649,7 @@
     <string name="cd_pause">Пауза</string>
     <string name="cd_play">Играть</string>
     <string name="cd_more_options">Больше параметров</string>
-    <string name="shorts_original_sound">Оригинальный звук — %1$s</string>
+    <string name="shorts_original_sound">Оригинальный звук – %1$s</string>
     <string name="view_count_billion_suffix">млрд.</string>
     <string name="view_count_million_suffix">млн.</string>
     <string name="view_count_thousand_suffix">тысч.</string>
@@ -712,7 +712,7 @@
     <string name="channel_search_open">Поиск по каналу</string>
     <string name="channel_search_close">Закрыть поиск</string>
     <string name="channel_search_no_results">Результаты поиска для %1$s не найдена</string>
-    <string name="deep_flow_mode_subtitle">Приостановить обучение - просматривать контент, не влияя на свой профиль</string>
+    <string name="deep_flow_mode_subtitle">Приостановить обучение – просматривать контент, не влияя на свой профиль</string>
     <string name="deep_flow_learning_paused">ОБУЧЕНИЕ ПРИОСТАНОВЛЕНО</string>
     <string name="deep_flow_expires_in">Истекает через %s</string>
     <string name="deep_flow_expire_duration_title">Автоматическое отключение</string>
@@ -743,8 +743,8 @@
     <string name="appearance_category_custom">Пользовательский</string>
     <string name="appearance_customize_theme">Настроить тему</string>
     <string name="appearance_customizer_title">Редактор пользовательских тем</string>
-    <string name="appearance_customizer_subtitle">Укажите значения для каждой роли в шестнадцатеричном(hex) формате и сразу же просмотрите результат</string>
-    <string name="appearance_customizer_format_hint">Шестнадцатеричный (hex) формат: #RRGGBB или #AARRGGBB</string>
+    <string name="appearance_customizer_subtitle">Задайте цвета для каждого элемента интерфейса и сразу просмотрите результат</string>
+    <string name="appearance_customizer_format_hint">Формат HEX: #RRGGBB or #AARRGGBB</string>
     <string name="appearance_customizer_reset">Сбросить</string>
     <string name="appearance_customizer_save">Сохранить тему</string>
     <string name="appearance_role_primary">Основной</string>
@@ -1023,7 +1023,7 @@
     <string name="recognition_history_empty">Здесь будут появляться распознанные треки</string>
     <string name="local_media_rescan">Пересканировать</string>
     <string name="local_media_scanning">Сканирование устройства…</string>
-    <string name="local_media_empty_title">%1$s — не обнаружено</string>
+    <string name="local_media_empty_title">%1$s – не обнаружено</string>
     <string name="local_media_permission_body">Разрешите доступ к медиа, чтобы Flow мог находить и воспроизводить локальные видео и музыку.</string>
     <string name="history_tab_local_videos">Видео с устройства</string>
     <string name="history_tab_local_music">Музыка с устройства</string>
@@ -1047,7 +1047,7 @@
     <string name="autoplay_countdown_play_now">Воспроизвести сейчас</string>
     <string name="sb_settings_general_header">Основные</string>
     <string name="player_settings_header_video">Видео</string>
-    <string name="player_settings_video_codec_dialog_body">Выберите кодек по умолчанию для выбранного разрешения. Это не повлияет на список доступных вариантов — вы по-прежнему сможете выбрать любой кодек в меню качества. H.264 обеспечивает максимальную совместимость и плавность на большинстве устройств. AV1/VP9 экономят трафик при высоком разрешении, но требуют больше вычислительной мощности.</string>
+    <string name="player_settings_video_codec_dialog_body">Выберите кодек по умолчанию для выбранного разрешения. Это не повлияет на список доступных вариантов – вы по-прежнему сможете выбрать любой кодек в меню качества. H.264 обеспечивает максимальную совместимость и плавность на большинстве устройств. AV1/VP9 экономят трафик при высоком разрешении, но требуют больше вычислительной мощности.</string>
     <string name="cancel_selection">Отменить выделение</string>
     <string name="select_all">Выбрать все</string>
     <string name="deselect_all">Снять выделение</string>
@@ -1285,7 +1285,7 @@
     <string name="error_timeout_hint">Сервер слишком долго не отвечал. Проверьте подключение и повторите попытку.</string>
     <string name="error_network">Ошибка сети</string>
     <string name="error_network_hint">Не удалось загрузить видео из-за сбоя в сети. Проверьте подключение и повторите попытку.</string>
-    <string name="error_http_forbidden_hint">YouTube отклонил запрос на трансляцию. Ссылка на видео могла устареть — попробуйте обновить контент.</string>
+    <string name="error_http_forbidden_hint">YouTube отклонил запрос на трансляцию. Ссылка на видео могла устареть – попробуйте обновить контент.</string>
     <string name="error_http_general_hint">YouTube вернул непредусмотренный ответ (%1$s). Попробуйте снова через некоторое время.</string>
     <string name="error_stream_failed">Сбой воспроизведения медиапотока</string>
     <string name="error_stream_failed_hint">Не удалось прочитать видеопоток. Возможно, это временный сбой на стороне YouTube.</string>
@@ -1310,11 +1310,11 @@
     <string name="tap_to_recognize">Нажмите, чтобы распознать</string>
     <string name="no_match_found">Совпадений не найдено</string>
     <string name="try_again">Попробуйте снова</string>
-    <string name="donation_prompt_message">Flow — бесплатный проект с открытым исходным кодом, без рекламы и трекеров. Если вы пользуетесь им, пожалуйста, поддержите его разработку — это действительно помогает проекту существовать.</string>
+    <string name="donation_prompt_message">Flow – бесплатный проект с открытым исходным кодом, без рекламы и трекеров. Если вы пользуетесь им, пожалуйста, поддержите его разработку – это действительно помогает проекту существовать.</string>
     <string name="sync_consent_note">Перед объединением будет создана резервная копия. Слияние пройдет без конфликтов: данные не будут перезаписаны или дублированы.</string>
     <string name="import_yt_history_empty_error">В этом файле не найдено истории просмотров. Убедитесь, что это файл watch-history.html из YouTube Архиватора.</string>
     <string name="import_yt_playlist_empty_error">Файл CSV не содержит данных о видео. Убедитесь, что это CSV-файл плейлиста из YouTube Архиватора.</string>
-    <string name="error_extraction_failed_hint">Возможно, формат YouTube изменился. Мы скоро обновим Flow — пожалуйста, попробуйте позже.</string>
+    <string name="error_extraction_failed_hint">Возможно, формат YouTube изменился. Мы скоро обновим Flow – пожалуйста, попробуйте позже.</string>
     <string name="music_playback_warning_forbidden">Доступ к музыкальному потоку запрещен. Возможно, YouTube ограничил вашу IP-адрес. Попробуйте обновить страницу или сменить сеть/VPN.</string>
     <string name="import_from_metrolist_desc">Импорт музыкальных плейлистов из резервной копии Metrolist (.zip). Плейлисты появятся в вашей музыкальной библиотеке.</string>
     <string name="music_playback_warning_network">Не удалось получить музыкальный поток: проблема с сетью. Проверьте соединение или смените точку доступа.</string>
@@ -1439,14 +1439,14 @@
     <string name="download_settings_title">Настройки загрузки</string>
     <string name="permissions_header">Разрешения</string>
     <string name="files_access_title">Доступ к файлам</string>
-    <string name="files_access_granted_subtitle">Предоставлено — загрузки отображаются сразу</string>
-    <string name="files_access_denied_subtitle">Не предоставлено — нажмите, чтобы включить полный список загрузок</string>
+    <string name="files_access_granted_subtitle">Предоставлено – загрузки отображаются сразу</string>
+    <string name="files_access_denied_subtitle">Не предоставлено – нажмите, чтобы включить полный список загрузок</string>
     <string name="media_access_title">Доступ к фото и видео</string>
     <string name="media_access_granted_subtitle">Предоставлено</string>
-    <string name="media_access_denied_subtitle">Не предоставлено — нажмите, чтобы включить</string>
+    <string name="media_access_denied_subtitle">Не предоставлено – нажмите, чтобы включить</string>
     <string name="audio_access_title">Доступ к музыке и аудио</string>
     <string name="audio_access_granted_subtitle">Предоставлено</string>
-    <string name="audio_access_denied_subtitle">Не предоставлено — нажмите, чтобы включить</string>
+    <string name="audio_access_denied_subtitle">Не предоставлено – нажмите, чтобы включить</string>
     <string name="storage_header">Хранилище</string>
     <string name="internal_storage_label">Внутреннее хранилище</string>
     <string name="location_label">Расположение</string>
@@ -1460,7 +1460,7 @@
     <string name="location_movies_label">Фильмы / Flow</string>
     <string name="location_internal_app_label">Внутреннее хранилище приложения</string>
     <string name="location_custom_saf_label">Просмотр…</string>
-    <string name="location_internal_app_desc">Доступно только в приложении — файлы могут быть удалены при удалении приложения</string>
+    <string name="location_internal_app_desc">Доступно только в приложении – файлы могут быть удалены при удалении приложения</string>
     <string name="location_custom_saf_desc">Выберите любую папку с помощью системного средства выбора файлов</string>
     <string name="location_custom_manual_label">Введите путь вручную</string>
     <string name="location_custom_manual_desc">Введите полный путь, например, /storage/emulated/0/MyFolder</string>
@@ -1589,7 +1589,7 @@
     <string name="diagnostics_clear_crashes">Очистить отчеты о сбоях</string>
     <string name="diagnostics_clear_confirm_title">Очистить отчеты о сбоях?</string>
     <string name="diagnostics_clear_confirm_body">Все сохраненные отчеты о сбоях будут безвозвратно удалены. Это невозможно отменить.</string>
-    <string name="diagnostics_no_crashes">Нет отчетов о сбоях — отлично!</string>
+    <string name="diagnostics_no_crashes">Нет отчетов о сбоях – отлично!</string>
     <string name="diagnostics_no_session_logs">Никаких предупреждений или ошибок в этом сеансе.</string>
     <string name="diagnostics_copied">Отчет скопирован в буфер обмена</string>
     <string name="diagnostics_loading">Чтение журналов…</string>
@@ -1612,4 +1612,5 @@
     <string name="playlist_metadata_private_template">Плейлист • Ограниченный доступ • %1$d видео</string>
     <string name="error_private_video">Видео с ограниченным доступом</string>
     <string name="playlist_metadata_public_template">Плейлист • Публичный • %1$d видео</string>
+    <string name="download_no_compatible_audio">Нет совместимого аудиопотока – загрузка невозможна</string>
 </resources>
