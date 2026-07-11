@@ -52,7 +52,7 @@
     <string name="related">ПОХОЖИЕ</string>
     <string name="close">Закрыть</string>
     <string name="more_options">Дополнительные параметры</string>
-    <string name="like">Нравится</string>
+    <string name="like">Лайк</string>
     <string name="shuffle">Перемешать</string>
     <string name="previous">Предыдущий</string>
     <string name="pause">Пауза</string>
@@ -98,7 +98,7 @@
     <string name="quality_auto_template">Авто (%1$dp)</string>
     <string name="video_marked_not_interested">Видео помечено как «Не интересует»</string>
     <string name="play_mode_suggestion_title">Предложение режима воспроизведения</string>
-    <string name="play_mode_suggestion_body">Это видео длится меньше 2 минут. Хотите переключиться на специализированный плеер?</string>
+    <string name="play_mode_suggestion_body">Это видео длится менее 2 минут. Хотите переключиться на специализированный плеер?</string>
     <string name="shorts_player">Shorts-плеер</string>
     <string name="music_player">Музыкальный плеер</string>
     <plurals name="channels_count">
@@ -164,7 +164,7 @@
     <string name="reply">Ответить</string>
     <string name="hide_replies">Скрыть ответы</string>
     <string name="view_replies_template">Посмотреть ответы (%1$d)</string>
-    <string name="new_update_available">Доступно новое обновление</string>
+    <string name="new_update_available">Доступно обновление</string>
     <string name="update_available_template">Версия %1$s уже доступна</string>
     <string name="release_notes">ПРИМЕЧАНИЯ К ВЫПУСКУ</string>
     <string name="update_flow">Обновить Flow</string>
@@ -253,7 +253,7 @@
     <string name="channel_banner">Баннер канала</string>
     <string name="channel_avatar">Аватар канала</string>
     <string name="subscribe">Подписаться</string>
-    <string name="unlike">Удалить лайк</string>
+    <string name="unlike">Убрать лайк</string>
     <string name="tab_shorts">Shorts</string>
     <string name="tab_live">Трансляции</string>
     <string name="tab_playlists">Плейлисты</string>
@@ -323,8 +323,8 @@
     <string name="settings_item_content_prefs_subtitle">Блокируйте темы, которые не хотите видеть</string>
     <string name="settings_item_player">Настройки плеера</string>
     <string name="settings_item_player_subtitle">Автовоспроизведение, фон, SponsorBlock</string>
-    <string name="settings_item_quality">Качество видео</string>
-    <string name="settings_item_quality_subtitle">Разрешение для Wi-Fi и мобильной сети</string>
+    <string name="settings_item_quality">Качество видео и аудио</string>
+    <string name="settings_item_quality_subtitle">Разрешение видео и качество аудио</string>
     <string name="settings_item_content_display">Отображение контента</string>
     <string name="settings_item_content_display_subtitle">Размер сетки, миниатюры, макет</string>
     <string name="settings_item_buffer">Настройки буфера</string>
@@ -507,9 +507,9 @@
     <string name="player_mini_player_continue_watching_label">Продолжить просмотр</string>
     <string name="player_settings_title">Настройки плеера</string>
     <string name="player_settings_background_play">Фоновое воспроизведение</string>
-    <string name="player_settings_background_play_subtitle">Продолжать играть, когда приложение свернуто</string>
-    <string name="player_settings_autoplay">Автовоспроизведение</string>
-    <string name="player_settings_autoplay_subtitle">Автоматически играть следующее видео</string>
+    <string name="player_settings_background_play_subtitle">Продолжать воспроизведение, когда приложение свернуто</string>
+    <string name="player_settings_autoplay">Автоматически воспроизводить похожие видео</string>
+    <string name="player_settings_autoplay_subtitle">Если очередь пуста, автоматически воспроизводить рекомендуемое видео следующим</string>
     <string name="player_settings_skip_silence">Пропускать тишину</string>
     <string name="player_settings_skip_silence_subtitle">Пропускать части без звука</string>
     <string name="player_settings_stable_voice">Стабильный голос</string>
@@ -578,7 +578,7 @@
     <string name="player_settings_double_tap_seek_dialog_title">Время перемотки</string>
     <string name="player_settings_double_tap_seek_dialog_body">Выберите количество секунд для перемотки при двойном нажатии по левой или правой стороне плеера.</string>
     <string name="video_quality_title">Качество видео</string>
-    <string name="video_quality_warning">Высокое разрешение потребляет больше трафика</string>
+    <string name="video_quality_warning">Высокое качество потребляет больше трафика</string>
     <string name="video_quality_wifi_header">Качество через Wi-Fi</string>
     <string name="video_quality_cellular_header">Качество через мобильную сеть</string>
     <string name="quality_144p">144p</string>
@@ -653,8 +653,8 @@
     <string name="view_count_billion_suffix">млрд.</string>
     <string name="view_count_million_suffix">млн.</string>
     <string name="view_count_thousand_suffix">тысч.</string>
-    <string name="action_like">Нравится</string>
-    <string name="action_dislike">Не нравится</string>
+    <string name="action_like">Лайк</string>
+    <string name="action_dislike">Дизлайк</string>
     <string name="action_comments">Комментарии</string>
     <string name="action_save">Сохранить</string>
     <string name="action_share">Поделиться</string>
@@ -668,7 +668,7 @@
     <string name="topics_count_template">%1$d тем</string>
     <string name="hidden_count_template">%1$d скрыто</string>
     <string name="your_interests_title">Ваши интересы</string>
-    <string name="your_interests_desc">Выбранные вами темы помогают Флоу рекомендовать лучший контент. Коснитесь тем ниже, чтобы добавить их или удалить.</string>
+    <string name="your_interests_desc">Выбранные темы помогают Flow лучше рекомендовать контент. Нажмите на темы ниже, чтобы добавить или удалить их.</string>
     <string name="tap_to_remove">Нажмите для удаления</string>
     <string name="add_topics">Добавить темы</string>
     <string name="browse_by_category">Просмотр по категориям</string>
@@ -683,12 +683,12 @@
     <string name="content_settings_title_lines_2">2 строки</string>
     <string name="content_settings_title_lines_3">3 строки</string>
     <string name="content_settings_title_lines_unlimited">Полностью</string>
-    <string name="content_settings_video_card_actions_title">Кнопки «Нравится» и «Не нравится» на карточке видео</string>
+    <string name="content_settings_video_card_actions_title">Кнопки «Лайк» и «Дизлайк» на карточке видео</string>
     <string name="content_settings_video_card_actions_subtitle">Отображать кнопки «Нравится» и «Не нравится» на карточках видео, чтобы быстро настроить рекомендации</string>
     <string name="content_settings_show_app_logo_title">Отображать логотип приложения</string>
-    <string name="content_settings_show_app_logo_subtitle">Отображать значок логотипа Flow рядом с названием приложения в верхней панели главного экрана</string>
-    <string name="player_settings_shorts_background_play">Воспроизведение Shorts в фоновом режиме</string>
-    <string name="player_settings_shorts_background_play_subtitle">Продолжать воспроизведение Shorts, когда приложение работает в фоновом режиме</string>
+    <string name="content_settings_show_app_logo_subtitle">Отображать логотип Flow рядом с названием приложения в верхней панели главного экрана</string>
+    <string name="player_settings_shorts_background_play">Фоновое воспроизведение Shorts</string>
+    <string name="player_settings_shorts_background_play_subtitle">Продолжать воспроизведение Shorts, когда приложение свернуто</string>
     <string name="currently_following">Текущие подписки</string>
     <string name="tap_to_close">Коснитесь, чтобы закрыть</string>
     <string name="load_more_replies">Показать еще ответы</string>
@@ -770,7 +770,7 @@
     <string name="import_engine_data_desc">Восстановите свой профиль личности ИИ из файла резервной копии</string>
     <string name="error_age_restricted">Контент с возрастными ограничениями</string>
     <string name="subscriptions_refresh_progress_template">Обновление %1$d из %2$d каналов</string>
-    <string name="subscriptions_last_refreshed_template">Последнее обновление: %1$s - %2$d проверено видео</string>
+    <string name="subscriptions_last_refreshed_template">Последнее обновление: %1$s - %2$d видео проверено</string>
     <string name="appearance_role_error">Ошибка</string>
     <string name="appearance_role_on_error">В случае ошибки</string>
     <string name="appearance_role_outline">Контур</string>
@@ -804,7 +804,7 @@
     <string name="history_tab_shorts">Shorts</string>
     <string name="empty_liked_videos">Нет понравившихся видео</string>
     <string name="empty_liked_music">Нет понравившейся музыки</string>
-    <string name="empty_liked_music_body">Здесь появятся песни, которые вам нравятся</string>
+    <string name="empty_liked_music_body">Здесь будут песни, которые вам понравились</string>
     <string name="hide_channel_shorts">Скрывать Shorts с этого канала</string>
     <string name="show_channel_shorts">Показывать Shorts с этого канала</string>
     <string name="likes_count_template">%1$d лайков</string>
@@ -933,7 +933,7 @@
     <string name="pip_mode">Картинка в картинке</string>
     <string name="sleep_timer">Таймер сна</string>
     <string name="subtitle_style">Параметры субтитров</string>
-    <string name="autoplay_next">Автовоспроизведение</string>
+    <string name="autoplay_next">Автоматически воспроизводить следующее видео</string>
     <string name="content_settings_navbar_hide_on_scroll_title">Скрывать панель навигации при прокрутке</string>
     <string name="shorts_auto_scroll_active_template">Авто %1$ds</string>
     <string name="shorts_quality">Качество</string>
@@ -954,7 +954,7 @@
     <string name="player_settings_display">Отображение</string>
     <string name="category_gaming">Видеоигры</string>
     <string name="screen_title_music">Музыка</string>
-    <string name="speed_normal">Обычная</string>
+    <string name="speed_normal">1×</string>
     <string name="player_background_style_blur_gradient">Размытие + Градиент</string>
     <string name="player_settings_video_codec_auto_desc">Авто (предпочтительно H.264)</string>
     <string name="music_quality_auto">Авто</string>
@@ -1422,8 +1422,8 @@
     <string name="link_with_timestamp_copied">Ссылка с тайм-кодом скопирована</string>
     <string name="player_live_label">Трансляция</string>
     <string name="player_action_dislike">Не нравится</string>
-    <string name="player_settings_queue_autoplay">Автовоспроизведение видео в очереди</string>
-    <string name="player_settings_queue_autoplay_subtitle">Автоматическое воспроизведение следующего видео из плейлиста или очереди «Смотреть позже»</string>
+    <string name="player_settings_queue_autoplay">Автоматически воспроизводить видео в очереди</string>
+    <string name="player_settings_queue_autoplay_subtitle">Автоматически воспроизводить следующее видео из плейлиста или очереди «Смотреть позже»</string>
     <string name="player_settings_autoplay_countdown_title">Задержка автовоспроизведения</string>
     <string name="player_settings_autoplay_countdown_none">Нет (сразу переключать)</string>
     <string name="player_settings_autoplay_countdown_seconds_template">%1$d сек.</string>
