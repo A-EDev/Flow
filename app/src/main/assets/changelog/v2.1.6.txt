@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-07-04
+DATE: 2026-07-11
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -46,7 +46,7 @@ IMPROVEMENTS
 - Video Quality selection menu redesign #660
 - Improve upcoming videos reminder #470
 - Improve volume gesture and rotation handling
-- Improve Theme color schemes
+- Improve Theme color schemes and add Theme Variants (Light, Dark, AMOLED)
 - Refine the subscriptions feed cards to match the home layout #678
 - Onboarding screen redesign
 

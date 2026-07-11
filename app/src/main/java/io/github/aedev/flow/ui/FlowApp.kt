@@ -55,8 +55,9 @@ import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.EnhancedMusicPlayerScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
-import io.github.aedev.flow.ui.theme.CustomThemeColors
+import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
+import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.theme.isEffectivelyDark
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -67,13 +68,17 @@ import kotlinx.coroutines.withContext
 @Composable
 fun FlowApp(
     currentTheme: ThemeMode,
-    customThemeColors: CustomThemeColors,
+    themeVariant: ThemeVariant,
+    customThemePalettes: CustomThemePalettes,
     systemLightThemeMode: ThemeMode,
     systemDarkThemeMode: ThemeMode,
+    systemDarkThemeVariant: ThemeVariant,
     onThemeChange: (ThemeMode) -> Unit,
-    onCustomThemeColorsChange: (CustomThemeColors) -> Unit,
+    onThemeVariantChange: (ThemeVariant) -> Unit,
+    onCustomThemePalettesChange: (CustomThemePalettes) -> Unit,
     onSystemLightThemeChange: (ThemeMode) -> Unit,
     onSystemDarkThemeChange: (ThemeMode) -> Unit,
+    onSystemDarkThemeVariantChange: (ThemeVariant) -> Unit,
     deeplinkVideoId: String? = null,
     isShort: Boolean = false,
     openMusicPlayerRequest: Int = 0,
@@ -335,6 +340,7 @@ fun FlowApp(
 
     ApplyStatusBarStyle(
         themeMode = currentTheme,
+        themeVariant = themeVariant,
         systemLightThemeMode = systemLightThemeMode,
         systemDarkThemeMode = systemDarkThemeMode,
         isFullscreen = playerUiState.isFullscreen,
@@ -460,13 +466,17 @@ fun FlowApp(
                             playerUiStateResult = playerUiStateResult,
                             playerVisibleState = playerVisibleState,
                             currentTheme = currentTheme,
-                            customThemeColors = customThemeColors,
+                            themeVariant = themeVariant,
+                            customThemePalettes = customThemePalettes,
                             systemLightThemeMode = systemLightThemeMode,
                             systemDarkThemeMode = systemDarkThemeMode,
+                            systemDarkThemeVariant = systemDarkThemeVariant,
                             onThemeChange = onThemeChange,
-                            onCustomThemeColorsChange = onCustomThemeColorsChange,
+                            onThemeVariantChange = onThemeVariantChange,
+                            onCustomThemePalettesChange = onCustomThemePalettesChange,
                             onSystemLightThemeChange = onSystemLightThemeChange,
                             onSystemDarkThemeChange = onSystemDarkThemeChange,
+                            onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
                             disableShortsPlayer = disableShortsPlayer,
                             defaultStartRoute = defaultStartRoute,
                             bottomNavOverlayPadding = if (showBottomNav.value && isNavScrolledVisible) {
@@ -728,6 +738,7 @@ private suspend fun refreshSubscriptionsAtStartup(
 @Composable
 private fun ApplyStatusBarStyle(
     themeMode: ThemeMode,
+    themeVariant: ThemeVariant,
     systemLightThemeMode: ThemeMode,
     systemDarkThemeMode: ThemeMode,
     isFullscreen: Boolean,
@@ -740,7 +751,8 @@ private fun ApplyStatusBarStyle(
     val isDarkTheme = themeMode.isEffectivelyDark(
         isSystemDark = isSystemDark,
         systemLightThemeMode = systemLightThemeMode,
-        systemDarkThemeMode = systemDarkThemeMode
+        systemDarkThemeMode = systemDarkThemeMode,
+        themeVariant = themeVariant
     )
 
     SideEffect {

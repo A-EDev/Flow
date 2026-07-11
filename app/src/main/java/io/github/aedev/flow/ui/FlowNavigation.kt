@@ -49,8 +49,9 @@ import io.github.aedev.flow.ui.screens.shorts.ShortsScreen
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsScreen
 import io.github.aedev.flow.ui.screens.channel.ChannelScreen
 import io.github.aedev.flow.ui.screens.onboarding.OnboardingScreen
-import io.github.aedev.flow.ui.theme.CustomThemeColors
+import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
+import io.github.aedev.flow.ui.theme.ThemeVariant
 import androidx.media3.common.util.UnstableApi
 import java.net.URLEncoder
 
@@ -67,13 +68,17 @@ fun NavGraphBuilder.flowAppGraph(
     playerUiStateResult: State<VideoPlayerUiState>, 
     playerVisibleState: MutableState<Boolean>, 
     currentTheme: ThemeMode,
-    customThemeColors: CustomThemeColors,
+    themeVariant: ThemeVariant,
+    customThemePalettes: CustomThemePalettes,
     systemLightThemeMode: ThemeMode,
     systemDarkThemeMode: ThemeMode,
+    systemDarkThemeVariant: ThemeVariant,
     onThemeChange: (ThemeMode) -> Unit,
-    onCustomThemeColorsChange: (CustomThemeColors) -> Unit,
+    onThemeVariantChange: (ThemeVariant) -> Unit,
+    onCustomThemePalettesChange: (CustomThemePalettes) -> Unit,
     onSystemLightThemeChange: (ThemeMode) -> Unit,
     onSystemDarkThemeChange: (ThemeMode) -> Unit,
+    onSystemDarkThemeVariantChange: (ThemeVariant) -> Unit,
     disableShortsPlayer: Boolean = false,
     defaultStartRoute: String = "home",
     bottomNavOverlayPadding: Dp = 0.dp
@@ -469,13 +474,17 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = false
         io.github.aedev.flow.ui.screens.settings.AppearanceScreen(
             currentTheme = currentTheme,
-            customThemeColors = customThemeColors,
+            themeVariant = themeVariant,
+            customThemePalettes = customThemePalettes,
             systemLightThemeMode = systemLightThemeMode,
             systemDarkThemeMode = systemDarkThemeMode,
+            systemDarkThemeVariant = systemDarkThemeVariant,
             onThemeChange = onThemeChange,
-            onCustomThemeColorsChange = onCustomThemeColorsChange,
+            onThemeVariantChange = onThemeVariantChange,
+            onCustomThemePalettesChange = onCustomThemePalettesChange,
             onSystemLightThemeChange = onSystemLightThemeChange,
             onSystemDarkThemeChange = onSystemDarkThemeChange,
+            onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
             onNavigateBack = { navController.popBackStack() }
         )
     }

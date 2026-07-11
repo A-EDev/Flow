@@ -23,17 +23,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -43,12 +41,14 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -67,6 +67,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -78,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.*
+import androidx.core.graphics.ColorUtils
 import kotlin.math.roundToInt
 
 private data class ThemeInfo(
@@ -114,46 +116,132 @@ private data class CustomRoleField(
 private val CUSTOM_ROLE_FIELDS = listOf(
     CustomRoleField(CustomColorRole.PRIMARY, R.string.appearance_role_primary),
     CustomRoleField(CustomColorRole.ON_PRIMARY, R.string.appearance_role_on_primary),
+    CustomRoleField(CustomColorRole.PRIMARY_CONTAINER, R.string.appearance_role_primary_container),
+    CustomRoleField(CustomColorRole.ON_PRIMARY_CONTAINER, R.string.appearance_role_on_primary_container),
+    CustomRoleField(CustomColorRole.INVERSE_PRIMARY, R.string.appearance_role_inverse_primary),
     CustomRoleField(CustomColorRole.SECONDARY, R.string.appearance_role_secondary),
     CustomRoleField(CustomColorRole.ON_SECONDARY, R.string.appearance_role_on_secondary),
+    CustomRoleField(CustomColorRole.SECONDARY_CONTAINER, R.string.appearance_role_secondary_container),
+    CustomRoleField(CustomColorRole.ON_SECONDARY_CONTAINER, R.string.appearance_role_on_secondary_container),
     CustomRoleField(CustomColorRole.TERTIARY, R.string.appearance_role_tertiary),
     CustomRoleField(CustomColorRole.ON_TERTIARY, R.string.appearance_role_on_tertiary),
+    CustomRoleField(CustomColorRole.TERTIARY_CONTAINER, R.string.appearance_role_tertiary_container),
+    CustomRoleField(CustomColorRole.ON_TERTIARY_CONTAINER, R.string.appearance_role_on_tertiary_container),
     CustomRoleField(CustomColorRole.BACKGROUND, R.string.appearance_role_background),
     CustomRoleField(CustomColorRole.ON_BACKGROUND, R.string.appearance_role_on_background),
     CustomRoleField(CustomColorRole.SURFACE, R.string.appearance_role_surface),
     CustomRoleField(CustomColorRole.ON_SURFACE, R.string.appearance_role_on_surface),
     CustomRoleField(CustomColorRole.SURFACE_VARIANT, R.string.appearance_role_surface_variant),
     CustomRoleField(CustomColorRole.ON_SURFACE_VARIANT, R.string.appearance_role_on_surface_variant),
+    CustomRoleField(CustomColorRole.SURFACE_TINT, R.string.appearance_role_surface_tint),
+    CustomRoleField(CustomColorRole.INVERSE_SURFACE, R.string.appearance_role_inverse_surface),
+    CustomRoleField(CustomColorRole.INVERSE_ON_SURFACE, R.string.appearance_role_inverse_on_surface),
     CustomRoleField(CustomColorRole.ERROR, R.string.appearance_role_error),
     CustomRoleField(CustomColorRole.ON_ERROR, R.string.appearance_role_on_error),
+    CustomRoleField(CustomColorRole.ERROR_CONTAINER, R.string.appearance_role_error_container),
+    CustomRoleField(CustomColorRole.ON_ERROR_CONTAINER, R.string.appearance_role_on_error_container),
     CustomRoleField(CustomColorRole.OUTLINE, R.string.appearance_role_outline),
-    CustomRoleField(CustomColorRole.SCRIM, R.string.appearance_role_scrim)
+    CustomRoleField(CustomColorRole.OUTLINE_VARIANT, R.string.appearance_role_outline_variant),
+    CustomRoleField(CustomColorRole.SCRIM, R.string.appearance_role_scrim),
+    CustomRoleField(CustomColorRole.SURFACE_BRIGHT, R.string.appearance_role_surface_bright),
+    CustomRoleField(CustomColorRole.SURFACE_DIM, R.string.appearance_role_surface_dim),
+    CustomRoleField(CustomColorRole.SURFACE_CONTAINER_LOWEST, R.string.appearance_role_surface_container_lowest),
+    CustomRoleField(CustomColorRole.SURFACE_CONTAINER_LOW, R.string.appearance_role_surface_container_low),
+    CustomRoleField(CustomColorRole.SURFACE_CONTAINER, R.string.appearance_role_surface_container),
+    CustomRoleField(CustomColorRole.SURFACE_CONTAINER_HIGH, R.string.appearance_role_surface_container_high),
+    CustomRoleField(CustomColorRole.SURFACE_CONTAINER_HIGHEST, R.string.appearance_role_surface_container_highest)
 )
+
+private fun ThemeInfo.forVariant(variant: ThemeVariant): ThemeInfo {
+    if (mode == ThemeMode.CUSTOM) return this
+    if (mode == ThemeMode.DARK) {
+        return when (variant) {
+            ThemeVariant.LIGHT -> copy(
+                backgroundColor = LightThemeColors.Background,
+                surfaceColor = LightThemeColors.Surface,
+                onSurfaceColor = LightThemeColors.Text,
+                accentColor = LightThemeColors.Secondary,
+                surfaceVariantColor = LightThemeColors.Border
+            )
+            ThemeVariant.DARK -> this
+            ThemeVariant.AMOLED -> copy(
+                backgroundColor = OLEDThemeColors.Background,
+                surfaceColor = OLEDThemeColors.Surface,
+                onSurfaceColor = OLEDThemeColors.Text,
+                accentColor = OLEDThemeColors.Secondary,
+                surfaceVariantColor = OLEDThemeColors.Border
+            )
+        }
+    }
+    fun blend(first: Color, second: Color, ratio: Float): Color =
+        Color(ColorUtils.blendARGB(first.toArgb(), second.toArgb(), ratio))
+
+    return when (variant) {
+        ThemeVariant.LIGHT -> if (category == ThemeCategory.LIGHT) {
+            this
+        } else {
+            copy(
+                backgroundColor = blend(primaryColor, Color.White, 0.88f),
+                surfaceColor = blend(primaryColor, Color.White, 0.80f),
+                onSurfaceColor = blend(primaryColor, Color.Black, 0.82f),
+                surfaceVariantColor = blend(primaryColor, Color.White, 0.70f)
+            )
+        }
+        ThemeVariant.DARK -> copy(
+            backgroundColor = blend(primaryColor, Color.Black, 0.92f),
+            surfaceColor = blend(primaryColor, Color.Black, 0.86f),
+            onSurfaceColor = blend(primaryColor, Color.White, 0.88f),
+            surfaceVariantColor = blend(primaryColor, Color.Black, 0.76f)
+        )
+        ThemeVariant.AMOLED -> copy(
+            backgroundColor = Color.Black,
+            surfaceColor = Color.Black,
+            onSurfaceColor = Color.White,
+            surfaceVariantColor = blend(primaryColor, Color.Black, 0.88f)
+        )
+    }
+}
 
 @Composable
 fun AppearanceScreen(
     currentTheme: ThemeMode,
-    customThemeColors: CustomThemeColors,
+    themeVariant: ThemeVariant,
+    customThemePalettes: CustomThemePalettes,
     systemLightThemeMode: ThemeMode,
     systemDarkThemeMode: ThemeMode,
+    systemDarkThemeVariant: ThemeVariant,
     onThemeChange: (ThemeMode) -> Unit,
-    onCustomThemeColorsChange: (CustomThemeColors) -> Unit,
+    onThemeVariantChange: (ThemeVariant) -> Unit,
+    onCustomThemePalettesChange: (CustomThemePalettes) -> Unit,
     onSystemLightThemeChange: (ThemeMode) -> Unit,
     onSystemDarkThemeChange: (ThemeMode) -> Unit,
+    onSystemDarkThemeVariantChange: (ThemeVariant) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
 
-    var selectedCategory by remember { mutableStateOf<ThemeCategory?>(null) }
     var showCustomizer by remember { mutableStateOf(false) }
+    var customizerVariant by remember { mutableStateOf(themeVariant) }
+    var applyCustomAsCurrent by remember { mutableStateOf(true) }
     var systemThemeSlot by remember { mutableStateOf<SystemThemeSlot?>(null) }
     var showAppliedSnackbar by remember { mutableStateOf(false) }
     var lastAppliedTheme by remember { mutableStateOf("") }
 
-    val allThemes = remember(customThemeColors) { buildThemeCatalog(customThemeColors) }
-    val systemLightThemes = remember(allThemes) { allThemes.filter { it.category == ThemeCategory.LIGHT } }
-    val systemDarkThemes = remember(allThemes) { allThemes.filter { it.category == ThemeCategory.DARK } }
+    val activeCustomColors = customThemePalettes.forVariant(themeVariant)
+    val allThemes = remember(activeCustomColors, themeVariant) {
+        buildThemeCatalog(activeCustomColors).map { it.forVariant(themeVariant) }
+    }
+    val systemLightThemes = remember(customThemePalettes.light) {
+        buildThemeCatalog(customThemePalettes.light)
+            .filterNot { it.mode == ThemeMode.SYSTEM }
+            .map { it.forVariant(ThemeVariant.LIGHT) }
+    }
+    val systemDarkThemes = remember(customThemePalettes, systemDarkThemeVariant) {
+        buildThemeCatalog(customThemePalettes.forVariant(systemDarkThemeVariant))
+            .filterNot { it.mode == ThemeMode.SYSTEM }
+            .map { it.forVariant(systemDarkThemeVariant) }
+    }
     val currentThemeInfo = remember(currentTheme, allThemes) {
         allThemes.firstOrNull { it.mode == currentTheme } ?: allThemes.first()
     }
@@ -162,9 +250,6 @@ fun AppearanceScreen(
     }
     val systemDarkThemeInfo = remember(systemDarkThemeMode, systemDarkThemes) {
         systemDarkThemes.firstOrNull { it.mode == systemDarkThemeMode } ?: systemDarkThemes.first()
-    }
-    val filteredThemes = remember(selectedCategory, allThemes) {
-        if (selectedCategory == null) allThemes else allThemes.filter { it.category == selectedCategory }
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -181,11 +266,15 @@ fun AppearanceScreen(
 
     if (showCustomizer) {
         CustomThemeEditorDialog(
-            initialColors = customThemeColors,
+            initialColors = customThemePalettes.forVariant(customizerVariant),
+            variant = customizerVariant,
             onDismiss = { showCustomizer = false },
             onSave = { colors ->
-                onCustomThemeColorsChange(colors)
-                onThemeChange(ThemeMode.CUSTOM)
+                onCustomThemePalettesChange(customThemePalettes.withPalette(customizerVariant, colors))
+                if (applyCustomAsCurrent) {
+                    onThemeChange(ThemeMode.CUSTOM)
+                    onThemeVariantChange(customizerVariant)
+                }
                 lastAppliedTheme = context.getString(R.string.theme_name_custom)
                 showAppliedSnackbar = true
                 showCustomizer = false
@@ -233,7 +322,10 @@ fun AppearanceScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Navigate back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = androidx.compose.ui.res.stringResource(R.string.appearance_navigate_back)
+                        )
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -250,8 +342,15 @@ fun AppearanceScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    IconButton(onClick = { showCustomizer = true }) {
-                        Icon(Icons.Outlined.Palette, contentDescription = "Customize theme")
+                    IconButton(onClick = {
+                        customizerVariant = themeVariant
+                        applyCustomAsCurrent = true
+                        showCustomizer = true
+                    }) {
+                        Icon(
+                            Icons.Outlined.Palette,
+                            contentDescription = androidx.compose.ui.res.stringResource(R.string.appearance_customize_theme)
+                        )
                     }
                 }
             }
@@ -269,9 +368,20 @@ fun AppearanceScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
+                ThemeVariantSelector(
+                    selected = themeVariant,
+                    onSelect = onThemeVariantChange
+                )
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 CurrentThemeHero(
                     themeInfo = currentThemeInfo,
-                    onCustomize = if (currentThemeInfo.mode == ThemeMode.CUSTOM) ({ showCustomizer = true }) else null
+                    onCustomize = if (currentThemeInfo.mode == ThemeMode.CUSTOM) ({
+                        customizerVariant = themeVariant
+                        applyCustomAsCurrent = true
+                        showCustomizer = true
+                    }) else null
                 )
             }
 
@@ -279,28 +389,25 @@ fun AppearanceScreen(
                 SystemDefaultThemesCard(
                     lightThemeInfo = systemLightThemeInfo,
                     darkThemeInfo = systemDarkThemeInfo,
+                    darkVariant = systemDarkThemeVariant,
                     onLightClick = { systemThemeSlot = SystemThemeSlot.LIGHT },
-                    onDarkClick = { systemThemeSlot = SystemThemeSlot.DARK }
+                    onDarkClick = { systemThemeSlot = SystemThemeSlot.DARK },
+                    onDarkVariantChange = onSystemDarkThemeVariantChange,
+                    onCustomizeLight = {
+                        customizerVariant = ThemeVariant.LIGHT
+                        applyCustomAsCurrent = false
+                        showCustomizer = true
+                    },
+                    onCustomizeDark = {
+                        customizerVariant = systemDarkThemeVariant
+                        applyCustomAsCurrent = false
+                        showCustomizer = true
+                    }
                 )
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
-                CategoryFilterRow(
-                    selectedCategory = selectedCategory,
-                    onCategorySelected = { selectedCategory = it }
-                )
-            }
-
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                val countText = if (selectedCategory == null) {
-                    context.getString(R.string.appearance_themes_count_all, allThemes.size)
-                } else {
-                    context.getString(
-                        R.string.appearance_themes_count_filtered,
-                        filteredThemes.size,
-                        context.getString(selectedCategory!!.labelRes).lowercase()
-                    )
-                }
+                val countText = context.getString(R.string.appearance_themes_count_all, allThemes.size)
                 Text(
                     text = countText,
                     style = MaterialTheme.typography.labelLarge,
@@ -311,7 +418,7 @@ fun AppearanceScreen(
             }
 
             items(
-                items = filteredThemes,
+                items = allThemes,
                 key = { it.mode.name }
             ) { themeInfo ->
                 ThemeCard(
@@ -323,12 +430,50 @@ fun AppearanceScreen(
                         lastAppliedTheme = context.getString(themeInfo.displayNameRes)
                         showAppliedSnackbar = true
                     },
-                    onCustomize = if (themeInfo.mode == ThemeMode.CUSTOM) ({ showCustomizer = true }) else null
+                    onCustomize = if (themeInfo.mode == ThemeMode.CUSTOM) ({
+                        customizerVariant = themeVariant
+                        applyCustomAsCurrent = true
+                        showCustomizer = true
+                    }) else null
                 )
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Spacer(modifier = Modifier.height(56.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeVariantSelector(
+    selected: ThemeVariant,
+    onSelect: (ThemeVariant) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = androidx.compose.ui.res.stringResource(R.string.appearance_variant_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            ThemeVariant.entries.forEachIndexed { index, variant ->
+                SegmentedButton(
+                    selected = selected == variant,
+                    onClick = { onSelect(variant) },
+                    shape = SegmentedButtonDefaults.itemShape(index, ThemeVariant.entries.size),
+                    label = {
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(
+                                when (variant) {
+                                    ThemeVariant.LIGHT -> R.string.appearance_variant_light
+                                    ThemeVariant.DARK -> R.string.appearance_variant_dark
+                                    ThemeVariant.AMOLED -> R.string.appearance_variant_amoled
+                                }
+                            )
+                        )
+                    }
+                )
             }
         }
     }
@@ -341,7 +486,7 @@ private fun CurrentThemeHero(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
@@ -357,7 +502,7 @@ private fun CurrentThemeHero(
             ) {
                 Surface(
                     color = themeInfo.primaryColor.copy(alpha = 0.16f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = MaterialTheme.shapes.small
                 ) {
                     Text(
                         text = androidx.compose.ui.res.stringResource(R.string.appearance_current_theme),
@@ -413,12 +558,16 @@ private fun CurrentThemeHero(
 private fun SystemDefaultThemesCard(
     lightThemeInfo: ThemeInfo,
     darkThemeInfo: ThemeInfo,
+    darkVariant: ThemeVariant,
     onLightClick: () -> Unit,
-    onDarkClick: () -> Unit
+    onDarkClick: () -> Unit,
+    onDarkVariantChange: (ThemeVariant) -> Unit,
+    onCustomizeLight: () -> Unit,
+    onCustomizeDark: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
@@ -445,15 +594,47 @@ private fun SystemDefaultThemesCard(
                 icon = Icons.Outlined.LightMode,
                 labelRes = R.string.appearance_system_light_theme,
                 themeInfo = lightThemeInfo,
-                onClick = onLightClick
+                onClick = onLightClick,
+                onCustomize = onCustomizeLight
             )
             Spacer(modifier = Modifier.height(8.dp))
             SystemThemeChoiceRow(
                 icon = Icons.Outlined.DarkMode,
                 labelRes = R.string.appearance_system_dark_theme,
                 themeInfo = darkThemeInfo,
-                onClick = onDarkClick
+                onClick = onDarkClick,
+                onCustomize = onCustomizeDark
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = androidx.compose.ui.res.stringResource(R.string.appearance_system_dark_surface),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                SingleChoiceSegmentedButtonRow {
+                    listOf(ThemeVariant.DARK, ThemeVariant.AMOLED).forEachIndexed { index, variant ->
+                        SegmentedButton(
+                            selected = darkVariant == variant,
+                            onClick = { onDarkVariantChange(variant) },
+                            shape = SegmentedButtonDefaults.itemShape(index, 2),
+                            label = {
+                                Text(
+                                    androidx.compose.ui.res.stringResource(
+                                        if (variant == ThemeVariant.DARK) R.string.appearance_variant_dark
+                                        else R.string.appearance_variant_amoled
+                                    )
+                                )
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -463,12 +644,13 @@ private fun SystemThemeChoiceRow(
     icon: ImageVector,
     @StringRes labelRes: Int,
     themeInfo: ThemeInfo,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onCustomize: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(MaterialTheme.shapes.large)
             .clickable(onClick = onClick)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f))
             .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -499,6 +681,12 @@ private fun SystemThemeChoiceRow(
         ColorDot(themeInfo.primaryColor)
         Spacer(modifier = Modifier.width(6.dp))
         ColorDot(themeInfo.backgroundColor)
+        IconButton(onClick = onCustomize) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = androidx.compose.ui.res.stringResource(R.string.appearance_customize_theme)
+            )
+        }
     }
 }
 
@@ -512,7 +700,7 @@ private fun SystemThemePickerDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
+            shape = MaterialTheme.shapes.extraLarge,
             tonalElevation = 6.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -569,7 +757,7 @@ private fun ThemePickerRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(MaterialTheme.shapes.large)
             .clickable(onClick = onClick)
             .background(
                 if (isSelected) themeInfo.primaryColor.copy(alpha = 0.22f)
@@ -577,8 +765,8 @@ private fun ThemePickerRow(
             )
             .border(
                 width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) themeInfo.primaryColor else MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(14.dp)
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = MaterialTheme.shapes.large
             )
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -607,7 +795,7 @@ private fun ThemePickerRow(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
+                contentDescription = androidx.compose.ui.res.stringResource(R.string.appearance_selected),
                 tint = themeInfo.primaryColor,
                 modifier = Modifier.size(20.dp)
             )
@@ -627,9 +815,9 @@ private fun MiniThemePreview(themeInfo: ThemeInfo) {
         modifier = Modifier
             .fillMaxWidth()
             .height(84.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(MaterialTheme.shapes.large)
             .background(themeInfo.backgroundColor)
-            .border(1.dp, themeInfo.onSurfaceColor.copy(alpha = 0.16f), RoundedCornerShape(14.dp))
+            .border(1.dp, themeInfo.onSurfaceColor.copy(alpha = 0.16f), MaterialTheme.shapes.large)
             .padding(10.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -637,7 +825,7 @@ private fun MiniThemePreview(themeInfo: ThemeInfo) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(11.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(MaterialTheme.shapes.small)
                     .background(themeInfo.surfaceColor)
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -645,7 +833,7 @@ private fun MiniThemePreview(themeInfo: ThemeInfo) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(22.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(MaterialTheme.shapes.small)
                     .background(surfaceVariant)
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -653,7 +841,7 @@ private fun MiniThemePreview(themeInfo: ThemeInfo) {
                 modifier = Modifier
                     .fillMaxWidth(0.65f)
                     .height(7.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(MaterialTheme.shapes.extraSmall)
                     .background(themeInfo.onSurfaceColor.copy(alpha = 0.24f))
             )
         }
@@ -680,67 +868,23 @@ private fun ColorDot(color: Color) {
 }
 
 @Composable
-private fun CategoryFilterRow(
-    selectedCategory: ThemeCategory?,
-    onCategorySelected: (ThemeCategory?) -> Unit
-) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        item {
-            FilterChip(
-                selected = selectedCategory == null,
-                onClick = { onCategorySelected(null) },
-                label = { Text(text = androidx.compose.ui.res.stringResource(R.string.appearance_category_all)) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (selectedCategory == null) Icons.Default.Check else Icons.Outlined.Palette,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                },
-                shape = RoundedCornerShape(12.dp)
-            )
-        }
-
-        items(items = ThemeCategory.entries.toList()) { category ->
-            FilterChip(
-                selected = selectedCategory == category,
-                onClick = {
-                    onCategorySelected(if (selectedCategory == category) null else category)
-                },
-                label = { Text(text = androidx.compose.ui.res.stringResource(category.labelRes)) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (selectedCategory == category) Icons.Default.Check else category.icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                },
-                shape = RoundedCornerShape(12.dp)
-            )
-        }
-    }
-}
-
-@Composable
 private fun ThemeCard(
     themeInfo: ThemeInfo,
     isSelected: Boolean,
     onClick: () -> Unit,
     onCustomize: (() -> Unit)?
 ) {
-    val selectedBackground = themeInfo.primaryColor.copy(alpha = 0.30f)
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) selectedBackground else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.26f)
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
         ),
         border = BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) themeInfo.primaryColor.copy(alpha = 0.9f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         Column(
@@ -760,8 +904,8 @@ private fun ThemeCard(
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
-                        tint = themeInfo.primaryColor,
+                        contentDescription = androidx.compose.ui.res.stringResource(R.string.appearance_selected),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -805,6 +949,7 @@ private fun ThemeCard(
 @Composable
 private fun CustomThemeEditorDialog(
     initialColors: CustomThemeColors,
+    variant: ThemeVariant,
     onDismiss: () -> Unit,
     onSave: (CustomThemeColors) -> Unit
 ) {
@@ -841,7 +986,7 @@ private fun CustomThemeEditorDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
+            shape = MaterialTheme.shapes.extraLarge,
             tonalElevation = 6.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -851,7 +996,16 @@ private fun CustomThemeEditorDialog(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = androidx.compose.ui.res.stringResource(R.string.appearance_customizer_title),
+                    text = androidx.compose.ui.res.stringResource(
+                        R.string.appearance_customizer_variant_title,
+                        androidx.compose.ui.res.stringResource(
+                            when (variant) {
+                                ThemeVariant.LIGHT -> R.string.appearance_variant_light
+                                ThemeVariant.DARK -> R.string.appearance_variant_dark
+                                ThemeVariant.AMOLED -> R.string.appearance_variant_amoled
+                            }
+                        )
+                    ),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -923,7 +1077,7 @@ private fun CustomThemeEditorDialog(
                 ) {
                     TextButton(
                         onClick = {
-                            val reset = CustomThemeColors.default()
+                            val reset = CustomThemeColors.default(variant)
                             draft = reset
                             CUSTOM_ROLE_FIELDS.forEach { field ->
                                 hexInputs[field.role] = reset.colorOf(field.role).toHexArgbString()
@@ -980,7 +1134,7 @@ private fun ColorPickerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = MaterialTheme.shapes.extraLarge,
             tonalElevation = 8.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1000,9 +1154,9 @@ private fun ColorPickerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(Color(previewArgb))
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -1015,16 +1169,16 @@ private fun ColorPickerDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(text = "Hue", style = MaterialTheme.typography.labelMedium)
+                Text(text = androidx.compose.ui.res.stringResource(R.string.appearance_color_hue), style = MaterialTheme.typography.labelMedium)
                 Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f)
 
-                Text(text = "Saturation", style = MaterialTheme.typography.labelMedium)
+                Text(text = androidx.compose.ui.res.stringResource(R.string.appearance_color_saturation), style = MaterialTheme.typography.labelMedium)
                 Slider(value = saturation, onValueChange = { saturation = it }, valueRange = 0f..1f)
 
-                Text(text = "Brightness", style = MaterialTheme.typography.labelMedium)
+                Text(text = androidx.compose.ui.res.stringResource(R.string.appearance_color_brightness), style = MaterialTheme.typography.labelMedium)
                 Slider(value = value, onValueChange = { value = it }, valueRange = 0f..1f)
 
-                Text(text = "Alpha", style = MaterialTheme.typography.labelMedium)
+                Text(text = androidx.compose.ui.res.stringResource(R.string.appearance_color_alpha), style = MaterialTheme.typography.labelMedium)
                 Slider(value = alpha, onValueChange = { alpha = it }, valueRange = 0f..1f)
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1062,7 +1216,7 @@ private fun CustomThemePreviewCard(colors: CustomThemeColors) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
@@ -1116,17 +1270,6 @@ private fun buildThemeCatalog(customThemeColors: CustomThemeColors): List<ThemeI
             surfaceVariantColor = Color(customThemeColors.surfaceVariant)
         ),
 
-        ThemeInfo(
-            mode = ThemeMode.LIGHT,
-            displayNameRes = R.string.theme_name_pure_light,
-            subtitleRes = R.string.theme_desc_pure_light,
-            category = ThemeCategory.LIGHT,
-            primaryColor = YouTubeRed,
-            backgroundColor = White,
-            surfaceColor = LightSurface,
-            onSurfaceColor = Color(0xFF0F0F0F),
-            surfaceVariantColor = LightSurfaceVariant
-        ),
         ThemeInfo(
             mode = ThemeMode.MINT_LIGHT,
             displayNameRes = R.string.theme_name_mint_fresh,
@@ -1186,17 +1329,6 @@ private fun buildThemeCatalog(customThemeColors: CustomThemeColors): List<ThemeI
             surfaceColor = DarkSurface,
             onSurfaceColor = TextPrimary,
             surfaceVariantColor = DarkSurfaceVariant
-        ),
-        ThemeInfo(
-            mode = ThemeMode.OLED,
-            displayNameRes = R.string.theme_name_true_black,
-            subtitleRes = R.string.theme_desc_true_black,
-            category = ThemeCategory.DARK,
-            primaryColor = YouTubeRed,
-            backgroundColor = Black,
-            surfaceColor = OLEDThemeColors.Surface,
-            onSurfaceColor = TextPrimary,
-            surfaceVariantColor = OLEDThemeColors.Border
         ),
         ThemeInfo(
             mode = ThemeMode.MONOCHROME,

@@ -7,7 +7,11 @@ import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.theme.CustomThemeColors
+import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
+import io.github.aedev.flow.ui.theme.ThemeVariant
+import io.github.aedev.flow.ui.theme.canonicalFamily
+import io.github.aedev.flow.ui.theme.defaultVariant
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
@@ -44,8 +48,11 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
         private val BREAK_FREQUENCY = androidx.datastore.preferences.core.intPreferencesKey("break_frequency") // Minutes
 
         private val CUSTOM_THEME_COLORS = stringPreferencesKey("custom_theme_colors")
+        private val CUSTOM_THEME_PALETTES = stringPreferencesKey("custom_theme_palettes_v2")
+        private val THEME_VARIANT = stringPreferencesKey("theme_variant")
         private val SYSTEM_LIGHT_THEME_MODE = stringPreferencesKey("system_light_theme_mode")
         private val SYSTEM_DARK_THEME_MODE = stringPreferencesKey("system_dark_theme_mode")
+        private val SYSTEM_DARK_THEME_VARIANT = stringPreferencesKey("system_dark_theme_variant")
 
         val AUTO_BACKUP_LAST_RUN = androidx.datastore.preferences.core.longPreferencesKey("auto_backup_last_run")
     }
@@ -66,26 +73,33 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
 
     // Theme Settings
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
-        try {
-            prefs[THEME_MODE]?.let { ThemeMode.valueOf(it) } ?: ThemeMode.SYSTEM
-        } catch (e: Exception) {
-            ThemeMode.SYSTEM
-        }
+        parseThemeMode(prefs[THEME_MODE], ThemeMode.SYSTEM)
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { prefs ->
-            prefs[THEME_MODE] = mode.name
+            prefs[THEME_MODE] = mode.canonicalFamily().name
         }
     }
 
+    val themeVariant: Flow<ThemeVariant> = context.dataStore.data.map { prefs ->
+        parseThemeVariant(
+            raw = prefs[THEME_VARIANT],
+            fallback = parseLegacyThemeMode(prefs[THEME_MODE], ThemeMode.SYSTEM).defaultVariant()
+        )
+    }
+
+    suspend fun setThemeVariant(variant: ThemeVariant) {
+        context.dataStore.edit { prefs -> prefs[THEME_VARIANT] = variant.name }
+    }
+
     val systemLightThemeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
-        parseThemeMode(prefs[SYSTEM_LIGHT_THEME_MODE], ThemeMode.LIGHT)
+        parseThemeMode(prefs[SYSTEM_LIGHT_THEME_MODE], ThemeMode.DARK)
     }
 
     suspend fun setSystemLightThemeMode(mode: ThemeMode) {
         context.dataStore.edit { prefs ->
-            prefs[SYSTEM_LIGHT_THEME_MODE] = mode.name
+            prefs[SYSTEM_LIGHT_THEME_MODE] = mode.canonicalFamily().name
         }
     }
 
@@ -95,83 +109,63 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
 
     suspend fun setSystemDarkThemeMode(mode: ThemeMode) {
         context.dataStore.edit { prefs ->
-            prefs[SYSTEM_DARK_THEME_MODE] = mode.name
+            prefs[SYSTEM_DARK_THEME_MODE] = mode.canonicalFamily().name
         }
+    }
+
+    val systemDarkThemeVariant: Flow<ThemeVariant> = context.dataStore.data.map { prefs ->
+        parseThemeVariant(
+            prefs[SYSTEM_DARK_THEME_VARIANT],
+            parseLegacyThemeMode(prefs[SYSTEM_DARK_THEME_MODE], ThemeMode.DARK)
+                .defaultVariant()
+                .let { if (it == ThemeVariant.LIGHT) ThemeVariant.DARK else it }
+        )
+    }
+
+    suspend fun setSystemDarkThemeVariant(variant: ThemeVariant) {
+        context.dataStore.edit { prefs -> prefs[SYSTEM_DARK_THEME_VARIANT] = variant.name }
     }
 
     private fun parseThemeMode(raw: String?, fallback: ThemeMode): ThemeMode {
-        return try {
-            raw?.let { ThemeMode.valueOf(it) } ?: fallback
-        } catch (e: Exception) {
-            fallback
-        }
+        return parseLegacyThemeMode(raw, fallback).canonicalFamily()
     }
 
-    val customThemeColors: Flow<CustomThemeColors> = context.dataStore.data.map { prefs ->
-        val raw = prefs[CUSTOM_THEME_COLORS]
-        deserializeCustomThemeColors(raw)
+    private fun parseLegacyThemeMode(raw: String?, fallback: ThemeMode): ThemeMode {
+        return runCatching { raw?.let(ThemeMode::valueOf) ?: fallback }.getOrDefault(fallback)
     }
 
-    suspend fun setCustomThemeColors(colors: CustomThemeColors) {
-        context.dataStore.edit { prefs ->
-            prefs[CUSTOM_THEME_COLORS] = serializeCustomThemeColors(colors)
-        }
+    private fun parseThemeVariant(raw: String?, fallback: ThemeVariant): ThemeVariant {
+        return runCatching { raw?.let(ThemeVariant::valueOf) ?: fallback }.getOrDefault(fallback)
     }
 
-    private fun serializeCustomThemeColors(colors: CustomThemeColors): String {
-        return listOf(
-            colors.primary,
-            colors.onPrimary,
-            colors.secondary,
-            colors.onSecondary,
-            colors.tertiary,
-            colors.onTertiary,
-            colors.background,
-            colors.onBackground,
-            colors.surface,
-            colors.onSurface,
-            colors.surfaceVariant,
-            colors.onSurfaceVariant,
-            colors.error,
-            colors.onError,
-            colors.outline,
-            colors.scrim
-        ).joinToString(separator = ",") { it.toString() }
-    }
-
-    private fun deserializeCustomThemeColors(raw: String?): CustomThemeColors {
-        if (raw.isNullOrBlank()) {
-            return CustomThemeColors.default()
-        }
-
-        val parts = raw.split(',')
-        if (parts.size != 16) {
-            return CustomThemeColors.default()
-        }
-
-        val values = parts.map { it.toLongOrNull() }
-        if (values.any { it == null }) {
-            return CustomThemeColors.default()
-        }
-
-        return CustomThemeColors(
-            primary = values[0]!!,
-            onPrimary = values[1]!!,
-            secondary = values[2]!!,
-            onSecondary = values[3]!!,
-            tertiary = values[4]!!,
-            onTertiary = values[5]!!,
-            background = values[6]!!,
-            onBackground = values[7]!!,
-            surface = values[8]!!,
-            onSurface = values[9]!!,
-            surfaceVariant = values[10]!!,
-            onSurfaceVariant = values[11]!!,
-            error = values[12]!!,
-            onError = values[13]!!,
-            outline = values[14]!!,
-            scrim = values[15]!!
+    val customThemePalettes: Flow<CustomThemePalettes> = context.dataStore.data.map { prefs ->
+        deserializeCustomThemePalettes(
+            raw = prefs[CUSTOM_THEME_PALETTES],
+            legacyRaw = prefs[CUSTOM_THEME_COLORS]
         )
+    }
+
+    suspend fun setCustomThemePalettes(palettes: CustomThemePalettes) {
+        context.dataStore.edit { prefs ->
+            prefs[CUSTOM_THEME_PALETTES] = gson.toJson(palettes)
+        }
+    }
+
+    private fun deserializeCustomThemePalettes(raw: String?, legacyRaw: String?): CustomThemePalettes {
+        if (!raw.isNullOrBlank()) {
+            runCatching { gson.fromJson(raw, CustomThemePalettes::class.java) }
+                .getOrNull()
+                ?.let { return it }
+        }
+        val legacyValues = legacyRaw
+            ?.split(',')
+            ?.mapNotNull(String::toLongOrNull)
+            ?.takeIf { it.size == 16 }
+        return if (legacyValues != null) {
+            CustomThemePalettes(dark = CustomThemeColors.fromLegacy(legacyValues))
+        } else {
+            CustomThemePalettes()
+        }
     }
 
     // Subscriptions
@@ -393,8 +387,10 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
 
         prefs.asMap().entries.forEach { (key, value) ->
             val name = key.name
-            if (name == "theme_mode" || name == "accent_color" || name == "custom_theme_colors" ||
+            if (name == "theme_mode" || name == "theme_variant" || name == "accent_color" ||
+                name == "custom_theme_colors" || name == "custom_theme_palettes_v2" ||
                 name == "system_light_theme_mode" || name == "system_dark_theme_mode" ||
+                name == "system_dark_theme_variant" ||
                 name == "bedtime_reminder" || name == "break_reminder" ||
                 name.startsWith("bedtime_") || name == "break_frequency") {
                 
@@ -407,16 +403,72 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
                 }
             }
         }
+
+        val storedThemeMode = parseLegacyThemeMode(prefs[THEME_MODE], ThemeMode.SYSTEM)
+        strings[THEME_MODE.name] = storedThemeMode.canonicalFamily().name
+        strings[THEME_VARIANT.name] = parseThemeVariant(
+            prefs[THEME_VARIANT],
+            storedThemeMode.defaultVariant()
+        ).name
+
+        val storedSystemLightMode = parseLegacyThemeMode(prefs[SYSTEM_LIGHT_THEME_MODE], ThemeMode.DARK)
+        strings[SYSTEM_LIGHT_THEME_MODE.name] = storedSystemLightMode.canonicalFamily().name
+
+        val storedSystemDarkMode = parseLegacyThemeMode(prefs[SYSTEM_DARK_THEME_MODE], ThemeMode.DARK)
+        strings[SYSTEM_DARK_THEME_MODE.name] = storedSystemDarkMode.canonicalFamily().name
+        strings[SYSTEM_DARK_THEME_VARIANT.name] = parseThemeVariant(
+            prefs[SYSTEM_DARK_THEME_VARIANT],
+            storedSystemDarkMode.defaultVariant().let {
+                if (it == ThemeVariant.LIGHT) ThemeVariant.DARK else it
+            }
+        ).name
         return SettingsBackup(strings, booleans, ints, floats, longs)
     }
 
     suspend fun restoreData(backup: SettingsBackup) {
         context.dataStore.edit { prefs ->
-            backup.strings.forEach { (k, v) -> 
-                if (k == "theme_mode" || k == "accent_color" || k == "custom_theme_colors" ||
-                    k == "system_light_theme_mode" || k == "system_dark_theme_mode") {
-                    prefs[stringPreferencesKey(k)] = v 
+            val restoredThemeMode = backup.strings["theme_mode"]
+                ?.let { raw -> runCatching { ThemeMode.valueOf(raw) }.getOrNull() }
+            restoredThemeMode?.let { mode ->
+                prefs[THEME_MODE] = mode.canonicalFamily().name
+                prefs[THEME_VARIANT] = backup.strings["theme_variant"]
+                    ?.let { raw -> runCatching { ThemeVariant.valueOf(raw) }.getOrNull() }
+                    ?.name
+                    ?: mode.defaultVariant().name
+            }
+
+            val restoredSystemLightMode = backup.strings["system_light_theme_mode"]
+                ?.let { raw -> runCatching { ThemeMode.valueOf(raw) }.getOrNull() }
+            restoredSystemLightMode?.let { mode ->
+                prefs[SYSTEM_LIGHT_THEME_MODE] = mode.canonicalFamily().name
+            }
+
+            val restoredSystemDarkMode = backup.strings["system_dark_theme_mode"]
+                ?.let { raw -> runCatching { ThemeMode.valueOf(raw) }.getOrNull() }
+            restoredSystemDarkMode?.let { mode ->
+                prefs[SYSTEM_DARK_THEME_MODE] = mode.canonicalFamily().name
+                val fallbackVariant = mode.defaultVariant().let {
+                    if (it == ThemeVariant.LIGHT) ThemeVariant.DARK else it
                 }
+                prefs[SYSTEM_DARK_THEME_VARIANT] = backup.strings["system_dark_theme_variant"]
+                    ?.let { raw -> runCatching { ThemeVariant.valueOf(raw) }.getOrNull() }
+                    ?.name
+                    ?: fallbackVariant.name
+            }
+
+            if (restoredThemeMode == null) {
+                backup.strings["theme_variant"]
+                    ?.let { raw -> runCatching { ThemeVariant.valueOf(raw) }.getOrNull() }
+                    ?.let { prefs[THEME_VARIANT] = it.name }
+            }
+            if (restoredSystemDarkMode == null) {
+                backup.strings["system_dark_theme_variant"]
+                    ?.let { raw -> runCatching { ThemeVariant.valueOf(raw) }.getOrNull() }
+                    ?.let { prefs[SYSTEM_DARK_THEME_VARIANT] = it.name }
+            }
+
+            listOf("accent_color", "custom_theme_colors", "custom_theme_palettes_v2").forEach { key ->
+                backup.strings[key]?.let { prefs[stringPreferencesKey(key)] = it }
             }
             backup.booleans.forEach { (k, v) -> 
                 if (k == "bedtime_reminder" || k == "break_reminder") {

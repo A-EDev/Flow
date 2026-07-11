@@ -24,26 +24,50 @@ enum class ThemeMode {
     MONOCHROME, CUSTOM, MATERIAL_YOU
 }
 
+fun ThemeMode.defaultVariant(): ThemeVariant = when (this) {
+    ThemeMode.LIGHT,
+    ThemeMode.MINT_LIGHT,
+    ThemeMode.ROSE_LIGHT,
+    ThemeMode.SKY_LIGHT,
+    ThemeMode.CREAM_LIGHT -> ThemeVariant.LIGHT
+
+    ThemeMode.OLED,
+    ThemeMode.MIDNIGHT_BLACK,
+    ThemeMode.MONOCHROME -> ThemeVariant.AMOLED
+
+    else -> ThemeVariant.DARK
+}
+
+fun ThemeMode.canonicalFamily(): ThemeMode = when (this) {
+    ThemeMode.LIGHT,
+    ThemeMode.OLED -> ThemeMode.DARK
+
+    else -> this
+}
+
 fun ThemeMode.resolveSystemDefault(
     isSystemDark: Boolean,
-    systemLightThemeMode: ThemeMode = ThemeMode.LIGHT,
+    systemLightThemeMode: ThemeMode = ThemeMode.DARK,
     systemDarkThemeMode: ThemeMode = ThemeMode.DARK
 ): ThemeMode {
-    if (this != ThemeMode.SYSTEM) return this
+    if (this != ThemeMode.SYSTEM) return canonicalFamily()
 
     val selectedMode = if (isSystemDark) systemDarkThemeMode else systemLightThemeMode
     return if (selectedMode == ThemeMode.SYSTEM) {
         if (isSystemDark) ThemeMode.DARK else ThemeMode.LIGHT
     } else {
-        selectedMode
+        selectedMode.canonicalFamily()
     }
 }
 
 fun ThemeMode.isEffectivelyDark(
     isSystemDark: Boolean,
-    systemLightThemeMode: ThemeMode = ThemeMode.LIGHT,
-    systemDarkThemeMode: ThemeMode = ThemeMode.DARK
+    systemLightThemeMode: ThemeMode = ThemeMode.DARK,
+    systemDarkThemeMode: ThemeMode = ThemeMode.DARK,
+    themeVariant: ThemeVariant? = null
 ): Boolean {
+    if (this == ThemeMode.SYSTEM) return isSystemDark
+    themeVariant?.let { return it != ThemeVariant.LIGHT }
     return when (resolveSystemDefault(isSystemDark, systemLightThemeMode, systemDarkThemeMode)) {
         ThemeMode.LIGHT,
         ThemeMode.MINT_LIGHT,
@@ -568,15 +592,87 @@ private fun customThemeColorScheme(colors: CustomThemeColors): ColorScheme {
         onError = Color(colors.onError),
         outline = Color(colors.outline),
         scrim = Color(colors.scrim)
+    ).copy(
+        primaryContainer = Color(colors.colorOf(CustomColorRole.PRIMARY_CONTAINER)),
+        onPrimaryContainer = Color(colors.colorOf(CustomColorRole.ON_PRIMARY_CONTAINER)),
+        inversePrimary = Color(colors.colorOf(CustomColorRole.INVERSE_PRIMARY)),
+        secondaryContainer = Color(colors.colorOf(CustomColorRole.SECONDARY_CONTAINER)),
+        onSecondaryContainer = Color(colors.colorOf(CustomColorRole.ON_SECONDARY_CONTAINER)),
+        tertiaryContainer = Color(colors.colorOf(CustomColorRole.TERTIARY_CONTAINER)),
+        onTertiaryContainer = Color(colors.colorOf(CustomColorRole.ON_TERTIARY_CONTAINER)),
+        surfaceTint = Color(colors.colorOf(CustomColorRole.SURFACE_TINT)),
+        inverseSurface = Color(colors.colorOf(CustomColorRole.INVERSE_SURFACE)),
+        inverseOnSurface = Color(colors.colorOf(CustomColorRole.INVERSE_ON_SURFACE)),
+        errorContainer = Color(colors.colorOf(CustomColorRole.ERROR_CONTAINER)),
+        onErrorContainer = Color(colors.colorOf(CustomColorRole.ON_ERROR_CONTAINER)),
+        outlineVariant = Color(colors.colorOf(CustomColorRole.OUTLINE_VARIANT)),
+        surfaceBright = Color(colors.colorOf(CustomColorRole.SURFACE_BRIGHT)),
+        surfaceDim = Color(colors.colorOf(CustomColorRole.SURFACE_DIM)),
+        surfaceContainerLowest = Color(colors.colorOf(CustomColorRole.SURFACE_CONTAINER_LOWEST)),
+        surfaceContainerLow = Color(colors.colorOf(CustomColorRole.SURFACE_CONTAINER_LOW)),
+        surfaceContainer = Color(colors.colorOf(CustomColorRole.SURFACE_CONTAINER)),
+        surfaceContainerHigh = Color(colors.colorOf(CustomColorRole.SURFACE_CONTAINER_HIGH)),
+        surfaceContainerHighest = Color(colors.colorOf(CustomColorRole.SURFACE_CONTAINER_HIGHEST))
     )
+}
+
+private fun ColorScheme.withVariant(
+    variant: ThemeVariant,
+    preserveLightSurfaces: Boolean = false,
+    preserveDarkSurfaces: Boolean = false
+): ColorScheme {
+    val isDark = variant != ThemeVariant.LIGHT
+    val isAmoled = variant == ThemeVariant.AMOLED
+    if (variant == ThemeVariant.LIGHT && preserveLightSurfaces) return complete(isDark = false)
+    if (variant == ThemeVariant.DARK && preserveDarkSurfaces) return complete(isDark = true)
+    val base = if (isDark) {
+        darkColorScheme(
+            primary = primary,
+            onPrimary = if (ColorUtils.calculateLuminance(primary.toArgb()) > 0.45) Color.Black else Color.White,
+            secondary = secondary,
+            onSecondary = if (ColorUtils.calculateLuminance(secondary.toArgb()) > 0.45) Color.Black else Color.White,
+            tertiary = tertiary,
+            onTertiary = if (ColorUtils.calculateLuminance(tertiary.toArgb()) > 0.45) Color.Black else Color.White,
+            background = if (isAmoled) Color.Black else primary.adjust(saturationFactor = 0.12f, lightnessOverride = 0.055f),
+            onBackground = Color(0xFFE6E1E5),
+            surface = if (isAmoled) Color.Black else primary.adjust(saturationFactor = 0.10f, lightnessOverride = 0.08f),
+            onSurface = Color(0xFFE6E1E5),
+            error = error,
+            onError = onError
+        )
+    } else {
+        lightColorScheme(
+            primary = primary.adjust(lightnessOverride = 0.40f),
+            onPrimary = Color.White,
+            secondary = secondary.adjust(lightnessOverride = 0.40f),
+            onSecondary = Color.White,
+            tertiary = tertiary.adjust(lightnessOverride = 0.40f),
+            onTertiary = Color.White,
+            background = if (preserveLightSurfaces) background else primary.adjust(
+                saturationFactor = 0.30f,
+                lightnessOverride = 0.96f
+            ),
+            onBackground = Color(0xFF1D1B20),
+            surface = if (preserveLightSurfaces) surface else primary.adjust(
+                saturationFactor = 0.24f,
+                lightnessOverride = 0.92f
+            ),
+            onSurface = Color(0xFF1D1B20),
+            error = error.adjust(lightnessOverride = 0.40f),
+            onError = Color.White
+        )
+    }
+    return base.complete(isDark = isDark, isOled = isAmoled)
 }
 
 @Composable
 fun FlowTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    customThemeColors: CustomThemeColors = CustomThemeColors.default(),
-    systemLightThemeMode: ThemeMode = ThemeMode.LIGHT,
+    themeVariant: ThemeVariant = ThemeVariant.DARK,
+    customThemePalettes: CustomThemePalettes = CustomThemePalettes(),
+    systemLightThemeMode: ThemeMode = ThemeMode.DARK,
     systemDarkThemeMode: ThemeMode = ThemeMode.DARK,
+    systemDarkThemeVariant: ThemeVariant = ThemeVariant.DARK,
     content: @Composable () -> Unit
 ) {
     val darkTheme = isSystemInDarkTheme()
@@ -587,168 +683,78 @@ fun FlowTheme(
         systemLightThemeMode = systemLightThemeMode,
         systemDarkThemeMode = systemDarkThemeMode
     )
-    val colorScheme = when (effectiveThemeMode) {
-        ThemeMode.LIGHT -> LightColorScheme.complete(isDark = false)
-        ThemeMode.DARK -> DarkColorScheme.complete(isDark = true)
-        ThemeMode.OLED -> OLEDColorScheme.complete(isDark = true, isOled = true)
-        ThemeMode.SYSTEM -> (if (darkTheme) DarkColorScheme else LightColorScheme).complete(isDark = darkTheme)
-        ThemeMode.LAVENDER_MIST -> LavenderMistColorScheme.complete(isDark = true)
-        ThemeMode.OCEAN_BLUE -> OceanBlueColorScheme.complete(isDark = true)
-        ThemeMode.FOREST_GREEN -> ForestGreenColorScheme.complete(isDark = true)
-        ThemeMode.SUNSET_ORANGE -> SunsetOrangeColorScheme.complete(isDark = true)
-        ThemeMode.PURPLE_NEBULA -> PurpleNebulaColorScheme.complete(isDark = true)
-        ThemeMode.MIDNIGHT_BLACK -> MidnightBlackColorScheme.complete(isDark = true, isOled = true)
-        ThemeMode.ROSE_GOLD -> RoseGoldColorScheme.complete(isDark = true)
-        ThemeMode.ARCTIC_ICE -> ArcticIceColorScheme.complete(isDark = true)
-        ThemeMode.CRIMSON_RED -> CrimsonRedColorScheme.complete(isDark = true)
-        ThemeMode.MINTY_FRESH -> MintyFreshColorScheme.complete(isDark = true)
-        ThemeMode.COSMIC_VOID -> CosmicVoidColorScheme.complete(isDark = true)
-        ThemeMode.SOLAR_FLARE -> SolarFlareColorScheme.complete(isDark = true)
-        ThemeMode.CYBERPUNK -> CyberpunkColorScheme.complete(isDark = true)
-        ThemeMode.ROYAL_GOLD -> RoyalGoldColorScheme.complete(isDark = true)
-        ThemeMode.NORDIC_HORIZON -> NordicHorizonColorScheme.complete(isDark = true)
-        ThemeMode.ESPRESSO -> EspressoColorScheme.complete(isDark = true)
-        ThemeMode.GUNMETAL -> GunmetalColorScheme.complete(isDark = true)
-        ThemeMode.MINT_LIGHT -> MintLightColorScheme.complete(isDark = false)
-        ThemeMode.ROSE_LIGHT -> RoseLightColorScheme.complete(isDark = false)
-        ThemeMode.SKY_LIGHT -> SkyLightColorScheme.complete(isDark = false)
-        ThemeMode.CREAM_LIGHT -> CreamLightColorScheme.complete(isDark = false)
-        ThemeMode.MONOCHROME -> MonochromeColorScheme.complete(isDark = true)
-        ThemeMode.CUSTOM -> customThemeColorScheme(customThemeColors).complete(isDark = true)
+    val effectiveVariant = if (themeMode == ThemeMode.SYSTEM) {
+        if (darkTheme) systemDarkThemeVariant else ThemeVariant.LIGHT
+    } else {
+        themeVariant
+    }
+    val baseColorScheme = when (effectiveThemeMode) {
+        ThemeMode.LIGHT -> LightColorScheme
+        ThemeMode.DARK -> when (effectiveVariant) {
+            ThemeVariant.LIGHT -> LightColorScheme
+            ThemeVariant.DARK -> DarkColorScheme
+            ThemeVariant.AMOLED -> OLEDColorScheme
+        }
+        ThemeMode.OLED -> OLEDColorScheme
+        ThemeMode.SYSTEM -> if (darkTheme) DarkColorScheme else LightColorScheme
+        ThemeMode.LAVENDER_MIST -> LavenderMistColorScheme
+        ThemeMode.OCEAN_BLUE -> OceanBlueColorScheme
+        ThemeMode.FOREST_GREEN -> ForestGreenColorScheme
+        ThemeMode.SUNSET_ORANGE -> SunsetOrangeColorScheme
+        ThemeMode.PURPLE_NEBULA -> PurpleNebulaColorScheme
+        ThemeMode.MIDNIGHT_BLACK -> MidnightBlackColorScheme
+        ThemeMode.ROSE_GOLD -> RoseGoldColorScheme
+        ThemeMode.ARCTIC_ICE -> ArcticIceColorScheme
+        ThemeMode.CRIMSON_RED -> CrimsonRedColorScheme
+        ThemeMode.MINTY_FRESH -> MintyFreshColorScheme
+        ThemeMode.COSMIC_VOID -> CosmicVoidColorScheme
+        ThemeMode.SOLAR_FLARE -> SolarFlareColorScheme
+        ThemeMode.CYBERPUNK -> CyberpunkColorScheme
+        ThemeMode.ROYAL_GOLD -> RoyalGoldColorScheme
+        ThemeMode.NORDIC_HORIZON -> NordicHorizonColorScheme
+        ThemeMode.ESPRESSO -> EspressoColorScheme
+        ThemeMode.GUNMETAL -> GunmetalColorScheme
+        ThemeMode.MINT_LIGHT -> MintLightColorScheme
+        ThemeMode.ROSE_LIGHT -> RoseLightColorScheme
+        ThemeMode.SKY_LIGHT -> SkyLightColorScheme
+        ThemeMode.CREAM_LIGHT -> CreamLightColorScheme
+        ThemeMode.MONOCHROME -> MonochromeColorScheme
+        ThemeMode.CUSTOM -> customThemeColorScheme(customThemePalettes.forVariant(effectiveVariant))
         ThemeMode.MATERIAL_YOU -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+                if (effectiveVariant == ThemeVariant.LIGHT) dynamicLightColorScheme(context) else dynamicDarkColorScheme(context)
             } else {
-                (if (darkTheme) DarkColorScheme else LightColorScheme).complete(isDark = darkTheme)
+                if (effectiveVariant == ThemeVariant.LIGHT) LightColorScheme else DarkColorScheme
             }
         }
     }
-
-    val extendedColors = when (effectiveThemeMode) {
-        ThemeMode.LIGHT, ThemeMode.SYSTEM -> if (effectiveThemeMode == ThemeMode.SYSTEM && darkTheme) {
-            ExtendedColors(
-                textSecondary = DarkThemeColors.TextSecondary,
-                border = DarkThemeColors.Border,
-                success = DarkThemeColors.Success
+    val colorScheme = if (effectiveThemeMode == ThemeMode.CUSTOM) {
+        baseColorScheme
+    } else {
+        baseColorScheme.withVariant(
+            variant = effectiveVariant,
+            preserveLightSurfaces = effectiveThemeMode in setOf(
+                ThemeMode.DARK,
+                ThemeMode.MINT_LIGHT,
+                ThemeMode.ROSE_LIGHT,
+                ThemeMode.SKY_LIGHT,
+                ThemeMode.CREAM_LIGHT
+            ),
+            preserveDarkSurfaces = effectiveThemeMode !in setOf(
+                ThemeMode.LIGHT,
+                ThemeMode.MINT_LIGHT,
+                ThemeMode.ROSE_LIGHT,
+                ThemeMode.SKY_LIGHT,
+                ThemeMode.CREAM_LIGHT
             )
-        } else {
-            ExtendedColors(
-                textSecondary = LightThemeColors.TextSecondary,
-                border = LightThemeColors.Border,
-                success = LightThemeColors.Success
-            )
-        }
-        ThemeMode.DARK -> ExtendedColors(
-            textSecondary = DarkThemeColors.TextSecondary,
-            border = DarkThemeColors.Border,
-            success = DarkThemeColors.Success
-        )
-        ThemeMode.OLED -> ExtendedColors(
-            textSecondary = OLEDThemeColors.TextSecondary,
-            border = OLEDThemeColors.Border,
-            success = OLEDThemeColors.Success
-        )
-        ThemeMode.OCEAN_BLUE -> ExtendedColors(
-            textSecondary = OceanBlueThemeColors.TextSecondary,
-            border = OceanBlueThemeColors.Border,
-            success = OceanBlueThemeColors.Success
-        )
-        ThemeMode.FOREST_GREEN -> ExtendedColors(
-            textSecondary = ForestGreenThemeColors.TextSecondary,
-            border = ForestGreenThemeColors.Border,
-            success = ForestGreenThemeColors.Success
-        )
-        ThemeMode.SUNSET_ORANGE -> ExtendedColors(
-            textSecondary = SunsetOrangeThemeColors.TextSecondary,
-            border = SunsetOrangeThemeColors.Border,
-            success = SunsetOrangeThemeColors.Success
-        )
-        ThemeMode.PURPLE_NEBULA -> ExtendedColors(
-            textSecondary = PurpleNebulaThemeColors.TextSecondary,
-            border = PurpleNebulaThemeColors.Border,
-            success = PurpleNebulaThemeColors.Success
-        )
-        ThemeMode.MIDNIGHT_BLACK -> ExtendedColors(
-            textSecondary = MidnightBlackThemeColors.TextSecondary,
-            border = MidnightBlackThemeColors.Border,
-            success = MidnightBlackThemeColors.Success
-        )
-        ThemeMode.ROSE_GOLD -> ExtendedColors(
-            textSecondary = RoseGoldThemeColors.TextSecondary,
-            border = RoseGoldThemeColors.Border,
-            success = RoseGoldThemeColors.Success
-        )
-        ThemeMode.ARCTIC_ICE -> ExtendedColors(
-            textSecondary = ArcticIceThemeColors.TextSecondary,
-            border = ArcticIceThemeColors.Border,
-            success = ArcticIceThemeColors.Success
-        )
-        ThemeMode.CRIMSON_RED -> ExtendedColors(
-            textSecondary = CrimsonRedThemeColors.TextSecondary,
-            border = CrimsonRedThemeColors.Border,
-            success = CrimsonRedThemeColors.Success
-        )
-        ThemeMode.ROYAL_GOLD -> ExtendedColors(
-            textSecondary = RoyalGoldThemeColors.TextSecondary,
-            border = RoyalGoldThemeColors.Border,
-            success = RoyalGoldThemeColors.Success
-        )
-        ThemeMode.NORDIC_HORIZON -> ExtendedColors(
-            textSecondary = NordicHorizonThemeColors.TextSecondary,
-            border = NordicHorizonThemeColors.Border,
-            success = NordicHorizonThemeColors.Success
-        )
-        ThemeMode.ESPRESSO -> ExtendedColors(
-            textSecondary = EspressoThemeColors.TextSecondary,
-            border = EspressoThemeColors.Border,
-            success = EspressoThemeColors.Success
-        )
-        ThemeMode.GUNMETAL -> ExtendedColors(
-            textSecondary = GunmetalThemeColors.TextSecondary,
-            border = GunmetalThemeColors.Border,
-            success = GunmetalThemeColors.Success
-        )
-        ThemeMode.MINT_LIGHT -> ExtendedColors(
-            textSecondary = MintLightThemeColors.TextSecondary,
-            border = MintLightThemeColors.Border,
-            success = MintLightThemeColors.Success
-        )
-        ThemeMode.ROSE_LIGHT -> ExtendedColors(
-            textSecondary = RoseLightThemeColors.TextSecondary,
-            border = RoseLightThemeColors.Border,
-            success = RoseLightThemeColors.Success
-        )
-        ThemeMode.SKY_LIGHT -> ExtendedColors(
-            textSecondary = SkyLightThemeColors.TextSecondary,
-            border = SkyLightThemeColors.Border,
-            success = SkyLightThemeColors.Success
-        )
-        ThemeMode.CREAM_LIGHT -> ExtendedColors(
-            textSecondary = CreamLightThemeColors.TextSecondary,
-            border = CreamLightThemeColors.Border,
-            success = CreamLightThemeColors.Success
-        )
-        ThemeMode.MONOCHROME -> ExtendedColors(
-            textSecondary = Color(0xFFE0E0E0),
-            border = Color(0xFF777777),
-            success = Color(0xFFFFFFFF)
-        )
-        ThemeMode.CUSTOM -> ExtendedColors(
-            textSecondary = Color(customThemeColors.onSurfaceVariant),
-            border = Color(customThemeColors.outline),
-            success = Color(customThemeColors.tertiary)
-        )
-        ThemeMode.MATERIAL_YOU -> ExtendedColors(
-            textSecondary = colorScheme.onSurfaceVariant,
-            border = colorScheme.outlineVariant,
-            success = colorScheme.tertiary
-        )
-        else -> ExtendedColors(
-            textSecondary = DarkThemeColors.TextSecondary,
-            border = DarkThemeColors.Border,
-            success = DarkThemeColors.Success
         )
     }
+
+    val extendedColors = ExtendedColors(
+        textSecondary = colorScheme.onSurfaceVariant,
+        border = colorScheme.outlineVariant,
+        success = colorScheme.tertiary
+    )
 
     CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
         MaterialTheme(

@@ -23,7 +23,8 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.theme.FlowTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
-import io.github.aedev.flow.ui.theme.CustomThemeColors
+import io.github.aedev.flow.ui.theme.CustomThemePalettes
+import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.updater.ApkUpdateHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -173,9 +174,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             val scope = rememberCoroutineScope()
             var themeMode by remember { mutableStateOf(ThemeMode.SYSTEM) }
-            var customThemeColors by remember { mutableStateOf(CustomThemeColors.default()) }
-            var systemLightThemeMode by remember { mutableStateOf(ThemeMode.LIGHT) }
+            var themeVariant by remember { mutableStateOf(ThemeVariant.DARK) }
+            var customThemePalettes by remember { mutableStateOf(CustomThemePalettes()) }
+            var systemLightThemeMode by remember { mutableStateOf(ThemeMode.DARK) }
             var systemDarkThemeMode by remember { mutableStateOf(ThemeMode.DARK) }
+            var systemDarkThemeVariant by remember { mutableStateOf(ThemeVariant.DARK) }
             // State to control splash visibility
             var showSplash by remember { mutableStateOf(true) }
 
@@ -190,9 +193,11 @@ class MainActivity : ComponentActivity() {
             if (pendingCrashLog != null) {
                 FlowTheme(
                     themeMode = themeMode,
-                    customThemeColors = customThemeColors,
+                    themeVariant = themeVariant,
+                    customThemePalettes = customThemePalettes,
                     systemLightThemeMode = systemLightThemeMode,
-                    systemDarkThemeMode = systemDarkThemeMode
+                    systemDarkThemeMode = systemDarkThemeMode,
+                    systemDarkThemeVariant = systemDarkThemeVariant
                 ) {
                     CrashReporterScreen(
                         crashLog = pendingCrashLog!!,
@@ -229,8 +234,14 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(Unit) {
-                dataManager.customThemeColors.collect { colors ->
-                    customThemeColors = colors
+                dataManager.themeVariant.collect { variant ->
+                    themeVariant = variant
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                dataManager.customThemePalettes.collect { palettes ->
+                    customThemePalettes = palettes
                 }
             }
 
@@ -245,6 +256,12 @@ class MainActivity : ComponentActivity() {
                     systemDarkThemeMode = mode
                 }
             }
+
+            LaunchedEffect(Unit) {
+                dataManager.systemDarkThemeVariant.collect { variant ->
+                    systemDarkThemeVariant = variant
+                }
+            }
             
             // Initialize Flow Neuro Engine
             LaunchedEffect(Unit) {
@@ -253,9 +270,11 @@ class MainActivity : ComponentActivity() {
 
             FlowTheme(
                 themeMode = themeMode,
-                customThemeColors = customThemeColors,
+                themeVariant = themeVariant,
+                customThemePalettes = customThemePalettes,
                 systemLightThemeMode = systemLightThemeMode,
-                systemDarkThemeMode = systemDarkThemeMode
+                systemDarkThemeMode = systemDarkThemeMode,
+                systemDarkThemeVariant = systemDarkThemeVariant
             ) {
                 // Show Dialog Overlay if update exists (github flavor only)
                 if (BuildConfig.UPDATER_ENABLED && updateInfo != null) {
@@ -312,19 +331,27 @@ class MainActivity : ComponentActivity() {
 
                     FlowApp(
                         currentTheme = themeMode,
-                        customThemeColors = customThemeColors,
+                        themeVariant = themeVariant,
+                        customThemePalettes = customThemePalettes,
                         systemLightThemeMode = systemLightThemeMode,
                         systemDarkThemeMode = systemDarkThemeMode,
+                        systemDarkThemeVariant = systemDarkThemeVariant,
                         onThemeChange = { newTheme ->
                             themeMode = newTheme
                             scope.launch {
                                 dataManager.setThemeMode(newTheme)
                             }
                         },
-                        onCustomThemeColorsChange = { colors ->
-                            customThemeColors = colors
+                        onThemeVariantChange = { variant ->
+                            themeVariant = variant
                             scope.launch {
-                                dataManager.setCustomThemeColors(colors)
+                                dataManager.setThemeVariant(variant)
+                            }
+                        },
+                        onCustomThemePalettesChange = { palettes ->
+                            customThemePalettes = palettes
+                            scope.launch {
+                                dataManager.setCustomThemePalettes(palettes)
                             }
                         },
                         onSystemLightThemeChange = { newTheme ->
@@ -337,6 +364,12 @@ class MainActivity : ComponentActivity() {
                             systemDarkThemeMode = newTheme
                             scope.launch {
                                 dataManager.setSystemDarkThemeMode(newTheme)
+                            }
+                        },
+                        onSystemDarkThemeVariantChange = { variant ->
+                            systemDarkThemeVariant = variant
+                            scope.launch {
+                                dataManager.setSystemDarkThemeVariant(variant)
                             }
                         },
                         deeplinkVideoId = deeplinkVideoId,
