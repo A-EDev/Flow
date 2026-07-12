@@ -325,8 +325,8 @@
     <string name="content_settings_related_card_compact_desc">الصورة المصغرة و المعلومات جنبًا إلى جنب</string>
     <string name="content_settings_related_card_full_width">عرض كامل</string>
     <string name="content_settings_related_card_full_width_desc">صورة مصغرة كبيرة مع العنوان أسفله</string>
-    <string name="subscriptions_search_placeholder">إبحث في الاشتراكات...</string>
-    <string name="empty_subscriptions_body">اشترك بالقنوات لترى، أحدث مقاطعهم هنا</string>
+    <string name="subscriptions_search_placeholder">ابحث عن الاشتراكات...</string>
+    <string name="empty_subscriptions_body">اشترك بالقنوات لترى هنا\nأحدث مقاطعهم هنا</string>
     <string name="shorts">شورتز</string>
     <string name="subscribers">المشتركون</string>
     <string name="library_section_header">محتواك</string>
@@ -1889,4 +1889,5 @@
     <string name="appearance_color_alpha">الشفافية</string>
     <string name="appearance_navigate_back">الرجوع للخلف</string>
     <string name="appearance_selected">محدد</string>
+    <string name="close_popup_player">إغلاق النافذة المنبثقة</string>
 </resources>
