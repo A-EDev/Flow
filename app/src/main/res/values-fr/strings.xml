@@ -1926,4 +1926,5 @@
     <string name="appearance_system_dark_surface">Style « mode sombre »</string>
     <string name="appearance_color_hue">Hue</string>
     <string name="appearance_color_saturation">Saturation</string>
+    <string name="close_popup_player">Fermer le lecteur contextuel</string>
 </resources>
