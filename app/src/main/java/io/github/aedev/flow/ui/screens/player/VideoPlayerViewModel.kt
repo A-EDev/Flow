@@ -39,6 +39,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.screens.player.util.VideoErrorMapper
+import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
@@ -289,6 +290,30 @@ class VideoPlayerViewModel @Inject constructor(
 
                 Log.w("VideoPlayerViewModel", "Stream expired — re-fetching streams for $videoId (attempt $streamExpiryCount/$MAX_STREAM_EXPIRY_RETRIES)")
 
+                var recoveryPositionMs = 0L
+                EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
+                    val positionMs = player.currentPosition
+                    recoveryPositionMs = positionMs.coerceAtLeast(0L)
+                    val durationMs = player.duration.takeIf { it > 0L }
+                        ?: ((_uiState.value.cachedVideo?.duration ?: 0) * 1000L)
+                    if (positionMs > 0L && durationMs > 0L) {
+                        val video = _uiState.value.cachedVideo
+                        viewHistory.savePlaybackPosition(
+                            videoId = videoId,
+                            position = positionMs,
+                            duration = durationMs,
+                            title = video?.title.orEmpty(),
+                            thumbnailUrl = video?.thumbnailUrl.orEmpty(),
+                            channelName = video?.channelName.orEmpty(),
+                            channelId = video?.channelId.orEmpty(),
+                            isShort = video?.isShort == true
+                        )
+                    }
+                    player.pause()
+                    player.stop()
+                    player.clearMediaItems()
+                }
+
                 if (streamExpiryCount >= 2) {
                     try {
                         EnhancedPlayerManager.getInstance().clearCacheForCurrentVideo()
@@ -298,7 +323,13 @@ class VideoPlayerViewModel @Inject constructor(
                 }
 
                 _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
-                loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true, escalateToSabr = true)
+                loadVideoInfo(
+                    videoId = videoId,
+                    isWifi = detectIsWifi(),
+                    forceRefresh = true,
+                    escalateToSabr = true,
+                    resumePositionOverrideMs = recoveryPositionMs,
+                )
             }
         }
 
@@ -984,7 +1015,13 @@ class VideoPlayerViewModel @Inject constructor(
      *   extract straight through the durable WEB+PoToken+SABR path — fast clients return the same
      *   session-gated URLs that just 403'd, so re-trying them loops.
      */
-    fun loadVideoInfo(videoId: String, isWifi: Boolean = true, forceRefresh: Boolean = false, escalateToSabr: Boolean = false) {
+    fun loadVideoInfo(
+        videoId: String,
+        isWifi: Boolean = true,
+        forceRefresh: Boolean = false,
+        escalateToSabr: Boolean = false,
+        resumePositionOverrideMs: Long? = null,
+    ) {
         if (isLocalMediaId(videoId)) {
             Log.d("VideoPlayerViewModel", "loadVideoInfo: $videoId is a local file — skipping all network loading")
             return
@@ -1118,8 +1155,12 @@ class VideoPlayerViewModel @Inject constructor(
 
                 val innerTubeDeferred = async(PerformanceDispatcher.networkIO) {
                     try {
-                        withTimeoutOrNull(25000L) {
+                        if (escalateToSabr) {
                             InnerTubeVideoStreamExtractor.extract(videoId, forceSabr = escalateToSabr)
+                        } else {
+                            withTimeoutOrNull(25_000L) {
+                                InnerTubeVideoStreamExtractor.extract(videoId, forceSabr = false)
+                            }
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
@@ -1201,7 +1242,8 @@ class VideoPlayerViewModel @Inject constructor(
                     }
                 }
 
-                kotlinx.coroutines.withTimeout(30_000) {
+                val playbackLoadTimeoutMs = if (escalateToSabr) 120_000L else 30_000L
+                kotlinx.coroutines.withTimeout(playbackLoadTimeoutMs) {
                     Log.d("VideoPlayerViewModel", "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)")
 
                     val (streamInfo, streamError) = streamInfoDeferred.await()
@@ -1209,6 +1251,22 @@ class VideoPlayerViewModel @Inject constructor(
                     if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
 
                     val innerTubeResult = innerTubeDeferred.await()
+
+                    if (escalateToSabr && innerTubeResult == null) {
+                        Log.e("VideoPlayerViewModel", "Forced-SABR reload for $videoId produced no SABR session — refusing direct-URL fallback")
+                        if (isPlaybackLoadCurrent(loadToken)) {
+                            val videoError = VideoErrorMapper.from(context, null, videoId)
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = videoError.message,
+                                    errorHint = videoError.hint
+                                )
+                            }
+                        }
+                        return@withTimeout
+                    }
+
                     val liveFromInnerTube = innerTubeResult?.isLive == true &&
                         (!innerTubeResult.liveHlsUrl.isNullOrEmpty() || !innerTubeResult.liveDashUrl.isNullOrEmpty())
 
@@ -1354,7 +1412,10 @@ class VideoPlayerViewModel @Inject constructor(
                         }
 
                         // Load saved playback position
-                        val savedPosition = viewHistory.getPlaybackPosition(videoId)
+                        val savedPosition = resumePositionOverrideMs
+                            ?.takeIf { it > 0L }
+                            ?.let(::flowOf)
+                            ?: viewHistory.getPlaybackPosition(videoId)
                         
                         // Load autoplay preference
                         val autoplay = playerPreferences.autoplayEnabled.first()
@@ -1365,8 +1426,16 @@ class VideoPlayerViewModel @Inject constructor(
                         )
                         
                         val resolvedSabrInfo = innerTubeResult?.sabrInfo
+                        // Prefer SABR for playback only when it actually beats the best direct/
+                        // NewPipe stream we already have (or a 403-expiry escalation forces it),
+                        // so a working direct ladder is never swapped for a SABR session needlessly.
+                        val directMaxHeightForSabr = effectiveVideoStreams
+                            .maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
+                        val preferSabrForPlayback = resolvedSabrInfo != null &&
+                            SabrRoutingPolicy.shouldPreferSabr(escalateToSabr, resolvedSabrInfo.videoHeight, directMaxHeightForSabr)
                         if (resolvedSabrInfo != null) {
-                            Log.d("VideoPlayerViewModel", "SABR available: audioItag=${resolvedSabrInfo.audioItag}, videoItag=${resolvedSabrInfo.videoItag}")
+                            Log.d("VideoPlayerViewModel", "SABR available: audioItag=${resolvedSabrInfo.audioItag}, videoItag=${resolvedSabrInfo.videoItag}, " +
+                                "sabrHeight=${resolvedSabrInfo.videoHeight}, directMax=$directMaxHeightForSabr, prefer=$preferSabrForPlayback")
                         }
 
                         _uiState.value = _uiState.value.copy(
@@ -1417,7 +1486,7 @@ class VideoPlayerViewModel @Inject constructor(
                                 itVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
                                 itAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),
                                 preferredVideoCodec = preferredCodecKey,
-                                preferSabr = escalateToSabr,
+                                preferSabr = preferSabrForPlayback,
                                 preferredLiveQualityHeight = preferredQuality.height
                             )
                         }
@@ -1579,6 +1648,7 @@ class VideoPlayerViewModel @Inject constructor(
                                     preferredQuality = preferredQuality,
                                     preferredAudioLanguage = preferredAudioLanguage,
                                     preferredCodecKey = preferredCodecKey,
+                                    resumePositionOverrideMs = resumePositionOverrideMs,
                                     loadToken = loadToken
                                 )
                             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -1899,6 +1969,7 @@ class VideoPlayerViewModel @Inject constructor(
         preferredQuality: VideoQuality,
         preferredAudioLanguage: String,
         preferredCodecKey: String,
+        resumePositionOverrideMs: Long? = null,
         loadToken: Long
     ) = withContext(Dispatchers.Main) {
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
@@ -1944,8 +2015,9 @@ class VideoPlayerViewModel @Inject constructor(
         val autoplay = playerPreferences.autoplayEnabled.first()
         manager.setAutoplayCandidates(sourceVideoId = videoId, videos = relatedVideos, enabled = autoplay)
 
-        val savedPositionFlow = viewHistory.getPlaybackPosition(videoId)
-        val savedPositionMs = savedPositionFlow.first()
+        val savedPositionMs = resumePositionOverrideMs
+            ?.takeIf { it > 0L }
+            ?: viewHistory.getPlaybackPosition(videoId).first()
         val durationMs = durationSeconds * 1000L
         val resumePosition = savedPositionMs
             .takeIf { it > 500L }
@@ -1971,7 +2043,7 @@ class VideoPlayerViewModel @Inject constructor(
                 isLoading = false,
                 error = null,
                 errorHint = null,
-                savedPosition = savedPositionFlow,
+                savedPosition = flowOf(savedPositionMs),
                 isAdaptiveMode = isAdaptiveMode,
                 autoplayEnabled = autoplay,
                 isLive = false,
@@ -1985,7 +2057,9 @@ class VideoPlayerViewModel @Inject constructor(
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         if (manager.isPreparedForPlayback(videoId)) return@withContext
 
-        val preferSabr = result.sabrInfo != null && videoStreams.isEmpty()
+        val directMaxHeight = videoStreams.maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
+        val preferSabr = result.sabrInfo != null &&
+            SabrRoutingPolicy.shouldPreferSabr(false, result.sabrInfo.videoHeight, directMaxHeight)
         manager.setStreams(
             videoId = videoId,
             videoStream = if (isAdaptiveMode) null else selected.first,

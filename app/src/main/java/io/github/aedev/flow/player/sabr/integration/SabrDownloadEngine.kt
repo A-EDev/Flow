@@ -73,7 +73,7 @@ class SabrDownloadEngine {
             if (audioOnly) this.enabledTrackTypes = 1
         }
 
-        val dataSource = SabrDataSource(USER_AGENT, visitorId.ifEmpty { null })
+        val dataSource = SabrDataSource(USER_AGENT)
         val controller = SabrStreamController(dataSource, sessionState)
 
         var videoStream: FileOutputStream? = null

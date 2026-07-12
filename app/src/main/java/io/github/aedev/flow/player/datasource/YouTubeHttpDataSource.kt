@@ -8,6 +8,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.network.AppProxyManager
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -127,11 +128,17 @@ class YouTubeHttpDataSource private constructor(
                host.contains("ytimg.com")
     }
 
+    // The fetching UA must match the client that minted the URL (`c=` param) — a mismatch is a
+    // known cause of mid-stream 403s on googlevideo CDNs.
     private fun resolveYouTubeUserAgent(uri: Uri): String {
         return when (uri.getQueryParameter("c")?.uppercase()) {
             "IOS" -> "com.google.ios.youtube/21.03.3 (iPad7,6; U; CPU iPadOS 17_7_10 like Mac OS X; en-US)"
             "ANDROID", "ANDROID_CREATOR" -> "com.google.android.youtube/21.03.38 (Linux; U; Android 14) gzip"
             "ANDROID_VR" -> "com.google.android.apps.youtube.vr.oculus/1.61.48 (Linux; U; Android 12; en_US; Quest 3; Build/SQ3A.220605.009.A1; Cronet/132.0.6808.3)"
+            "VISIONOS" -> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+            "TVHTML5", "TVHTML5_SIMPLY_EMBEDDED_PLAYER" ->
+                "Mozilla/5.0 (PlayStation; PlayStation 4/12.02) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15"
+            "WEB", "MWEB", "WEB_REMIX" -> YouTubeClient.USER_AGENT_WEB
             else -> userAgent
         }
     }

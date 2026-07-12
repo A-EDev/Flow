@@ -3,6 +3,7 @@ package io.github.aedev.flow.player.sabr.integration
 import android.net.Uri
 import android.util.Log
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.sabr.core.SabrBase64
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 
 data class SabrStreamInfo(
@@ -18,7 +19,9 @@ data class SabrStreamInfo(
     val audioMimeType: String = "",
     val videoMimeType: String = "",
     val audioTrackId: String = "",
-    val targetHeight: Int = 0
+    val targetHeight: Int = 0,
+    val videoHeight: Int = 0,
+    val cpn: String = "",
 )
 
 object SabrUrlResolver {
@@ -85,9 +88,10 @@ object SabrUrlResolver {
             ?: selectedAudio.approxDurationMs?.toLongOrNull()
             ?: (playerResponse.videoDetails?.lengthSeconds?.toLongOrNull()?.let { it * 1000L })
             ?: 0L
+        val ustreamerConfig = extractUstreamerConfig(playerResponse) ?: return null
 
         Log.d(TAG, "Resolved SABR: audioItag=${selectedAudio.itag}, videoItag=${selectedVideo.itag}, " +
-            "video=${selectedVideo.width}x${selectedVideo.height}, duration=${durationMs}ms, ustreamer=${extractUstreamerConfig(playerResponse).size}B")
+            "video=${selectedVideo.width}x${selectedVideo.height}, duration=${durationMs}ms, ustreamer=${ustreamerConfig.size}B")
 
         return SabrStreamInfo(
             streamingUrl = sabrUrl,
@@ -98,10 +102,11 @@ object SabrUrlResolver {
             durationMs = durationMs,
             poToken = poToken,
             visitorId = visitorId,
-            ustreamerConfig = extractUstreamerConfig(playerResponse),
+            ustreamerConfig = ustreamerConfig,
             audioMimeType = selectedAudio.mimeType,
             videoMimeType = selectedVideo.mimeType,
-            audioTrackId = selectedAudio.audioTrack?.id.orEmpty()
+            audioTrackId = selectedAudio.audioTrack?.id.orEmpty(),
+            videoHeight = selectedVideo.height ?: 0
         )
     }
 
@@ -134,6 +139,7 @@ object SabrUrlResolver {
             ?: selectedAudio.approxDurationMs?.toLongOrNull()
             ?: (playerResponse.videoDetails?.lengthSeconds?.toLongOrNull()?.let { it * 1000L })
             ?: 0L
+        val ustreamerConfig = extractUstreamerConfig(playerResponse) ?: return null
 
         return SabrStreamInfo(
             streamingUrl = sabrUrl,
@@ -144,28 +150,34 @@ object SabrUrlResolver {
             durationMs = durationMs,
             poToken = poToken,
             visitorId = visitorId,
-            ustreamerConfig = extractUstreamerConfig(playerResponse),
+            ustreamerConfig = ustreamerConfig,
             audioMimeType = selectedAudio.mimeType,
             videoMimeType = selectedVideo.mimeType,
             audioTrackId = selectedAudio.audioTrack?.id.orEmpty(),
-            targetHeight = targetHeight
+            targetHeight = targetHeight,
+            videoHeight = selectedVideo.height ?: targetHeight
         )
     }
 
     // Decode the base64 `videoPlaybackUstreamerConfig` required by the SABR POST body.
-    private fun extractUstreamerConfig(playerResponse: PlayerResponse): ByteArray {
+    // A SABR session without it gets a degraded/short-lived response from GVS, so a missing
+    // or undecodable config makes SABR unavailable (null) rather than silently degraded.
+    private fun extractUstreamerConfig(playerResponse: PlayerResponse): ByteArray? {
         val b64 = playerResponse.playerConfig
             ?.mediaCommonConfig
             ?.mediaUstreamerRequestConfig
             ?.videoPlaybackUstreamerConfig
             ?.takeIf { it.isNotEmpty() }
-            ?: return ByteArray(0)
-        return try {
-            android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to decode videoPlaybackUstreamerConfig: ${e.message}")
-            ByteArray(0)
+        if (b64 == null) {
+            Log.w(TAG, "Skipping SABR: player response has no videoPlaybackUstreamerConfig")
+            return null
         }
+        val decoded = SabrBase64.decode(b64)
+        if (decoded == null || decoded.isEmpty()) {
+            Log.w(TAG, "Skipping SABR: failed to decode videoPlaybackUstreamerConfig")
+            return null
+        }
+        return decoded
     }
 
     private fun queryParameter(url: String, name: String): String? {

@@ -45,6 +45,13 @@ class PoTokenWebView private constructor(
     }
     private lateinit var expirationInstant: Instant
 
+    // The init continuation must be resumed exactly once; console errors can arrive after
+    // onMinterCreated() and must then only fail pending mints, not re-resume initialization.
+    private val initResumed = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    @Volatile
+    private var broken = false
+
     //region Initialization
     init {
         val webViewSettings = webView.settings
@@ -67,10 +74,16 @@ class PoTokenWebView private constructor(
                 if (msg.contains("Uncaught")) {
                     val fmt = "\"$msg\", source: ${m.sourceId()} (${m.lineNumber()})"
                     val exception = BadWebViewException(fmt)
-                    Log.e(TAG, "This WebView implementation is broken: $fmt")
+                    Log.e(TAG, "Uncaught JS error in BotGuard WebView: $fmt")
 
-                    onInitializationErrorCloseAndCancel(exception)
-                    popAllPoTokenContinuations().forEach { (_, cont) -> cont.resumeWithException(exception) }
+                    broken = true
+                    if (initResumed.get()) {
+                        // Post-init: fail in-flight mints and let isExpired trigger recreation.
+                        popAllPoTokenContinuations().forEach { (_, cont) -> cont.resumeWithException(exception) }
+                    } else {
+                        onInitializationErrorCloseAndCancel(exception)
+                        popAllPoTokenContinuations().forEach { (_, cont) -> cont.resumeWithException(exception) }
+                    }
                 }
                 return super.onConsoleMessage(m)
             }
@@ -190,7 +203,9 @@ class PoTokenWebView private constructor(
     @JavascriptInterface
     fun onMinterCreated() {
         Log.d(TAG, "poToken minter created successfully, initialization complete")
-        continuation.resume(this)
+        if (initResumed.compareAndSet(false, true)) {
+            continuation.resume(this)
+        }
     }
 
     //region Obtaining poTokens
@@ -199,6 +214,7 @@ class PoTokenWebView private constructor(
             suspendCancellableCoroutine { cont ->
                 Log.d(TAG, "generatePoToken() called with identifier $identifier")
                 addPoTokenEmitter(identifier, cont)
+                cont.invokeOnCancellation { popPoTokenContinuation(identifier) }
                 webView.evaluateJavascript(
                     """try {
                         identifier = "$identifier"
@@ -249,7 +265,9 @@ class PoTokenWebView private constructor(
     }
 
     val isExpired: Boolean
-        get() = Instant.now().isAfter(expirationInstant)
+        get() = broken ||
+            !::expirationInstant.isInitialized ||
+            Instant.now().isAfter(expirationInstant)
 
     //region Handling multiple emitters
     private fun addPoTokenEmitter(identifier: String, continuation: Continuation<String>) {
@@ -299,8 +317,11 @@ class PoTokenWebView private constructor(
     }
 
     private fun onInitializationErrorCloseAndCancel(error: Throwable) {
+        broken = true
         close()
-        continuation.resumeWithException(error)
+        if (initResumed.compareAndSet(false, true)) {
+            continuation.resumeWithException(error)
+        }
     }
 
     @MainThread
@@ -332,6 +353,9 @@ class PoTokenWebView private constructor(
             return withContext(Dispatchers.Main) {
                 suspendCancellableCoroutine { cont ->
                     val potWv = PoTokenWebView(context, cont)
+                    cont.invokeOnCancellation {
+                        potWv.scope.launch { potWv.close() }
+                    }
                     potWv.loadHtmlAndObtainBotguard()
                 }
             }

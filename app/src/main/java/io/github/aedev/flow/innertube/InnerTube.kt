@@ -219,21 +219,24 @@ class InnerTube {
         }
     }
 
-    private fun HttpRequestBuilder.ytClient(client: YouTubeClient, setLogin: Boolean = false) {
+    private fun HttpRequestBuilder.ytClient(client: YouTubeClient, setLogin: Boolean = false, apiUrl: String? = null) {
+        val useMainSite = apiUrl != null && apiUrl != YouTubeClient.API_URL_YOUTUBE_MUSIC
+        val origin = if (useMainSite) YouTubeClient.ORIGIN_YOUTUBE else YouTubeClient.ORIGIN_YOUTUBE_MUSIC
+        val referer = if (useMainSite) YouTubeClient.REFERER_YOUTUBE else YouTubeClient.REFERER_YOUTUBE_MUSIC
         contentType(ContentType.Application.Json)
         headers {
             append("X-Goog-Api-Format-Version", "1")
             append("X-YouTube-Client-Name", client.clientId /* Not a typo. The Client-Name header does contain the client id. */)
             append("X-YouTube-Client-Version", client.clientVersion)
-            append("X-Origin", YouTubeClient.ORIGIN_YOUTUBE_MUSIC)
-            append("Referer", YouTubeClient.REFERER_YOUTUBE_MUSIC)
+            append("X-Origin", origin)
+            append("Referer", referer)
             visitorData?.let { append("X-Goog-Visitor-Id", it) }
             if (setLogin && client.loginSupported) {
                 cookie?.let { cookie ->
                     append("cookie", cookie)
                     if ("SAPISID" !in cookieMap) return@let
                     val currentTime = System.currentTimeMillis() / 1000
-                    val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} ${YouTubeClient.ORIGIN_YOUTUBE_MUSIC}")
+                    val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} $origin")
                     append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
                 }
             }
@@ -375,9 +378,10 @@ class InnerTube {
         signatureTimestamp: Int?,
         poToken: String? = null,
         localeOverride: YouTubeLocale? = null,
+        apiUrl: String? = null,
     ) = withRetry {
-        httpClient.post("player") {
-            ytClient(client, setLogin = true)
+        httpClient.post(apiUrl?.let { "${it}player" } ?: "player") {
+            ytClient(client, setLogin = true, apiUrl = apiUrl)
             setBody(
                 PlayerBody(
                     context = client.toContext(localeOverride ?: locale, visitorData, dataSyncId).let {
@@ -410,6 +414,8 @@ class InnerTube {
         poToken: String?,
         visitorData: String?,
         locale: YouTubeLocale,
+        cpn: String?,
+        reloadToken: String? = null,
     ) = withRetry {
         val client = YouTubeClient.WEB
         httpClient.post("https://www.youtube.com/youtubei/v1/player") {
@@ -429,14 +435,29 @@ class InnerTube {
                     context = client.toContext(locale, visitorData, null),
                     videoId = videoId,
                     playlistId = null,
-                    playbackContext = if (signatureTimestamp != null) {
+                    playbackContext = if (signatureTimestamp != null || reloadToken != null) {
                         PlayerBody.PlaybackContext(
-                            PlayerBody.PlaybackContext.ContentPlaybackContext(signatureTimestamp)
+                            contentPlaybackContext = signatureTimestamp?.let {
+                                PlayerBody.PlaybackContext.ContentPlaybackContext(
+                                    signatureTimestamp = it,
+                                    referer = "https://www.youtube.com/watch?v=$videoId",
+                                    vis = 0,
+                                    splay = false,
+                                    lactMilliseconds = "-1",
+                                    html5Preference = "HTML5_PREF_WANTS",
+                                )
+                            },
+                            reloadPlaybackContext = reloadToken?.let {
+                                PlayerBody.PlaybackContext.ReloadPlaybackContext(
+                                    PlayerBody.PlaybackContext.ReloadPlaybackContext.ReloadPlaybackParams(it)
+                                )
+                            },
                         )
                     } else null,
                     serviceIntegrityDimensions = poToken?.let { PlayerBody.ServiceIntegrityDimensions(it) },
                     contentCheckOk = true,
                     racyCheckOk = true,
+                    cpn = cpn,
                 )
             )
         }

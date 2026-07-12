@@ -2,7 +2,6 @@ package io.github.aedev.flow.player.sabr.network
 
 import android.util.Log
 import io.github.aedev.flow.network.AppProxyManager
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -18,12 +17,10 @@ import java.util.concurrent.TimeUnit
  * this is a raw transport layer used by SabrStreamController.
  */
 class SabrDataSource(
-    private val userAgent: String,
-    private val visitorId: String?
+    private val userAgent: String
 ) {
     companion object {
         private const val TAG = "SabrDataSource"
-        private val PROTO_MEDIA_TYPE = "application/x-protobuf".toMediaType()
     }
 
     private var client: OkHttpClient? = null
@@ -50,12 +47,13 @@ class SabrDataSource(
      * @return InputStream for reading the UMP response, or null on failure
      */
     @Throws(IOException::class)
-    fun open(url: String, body: ByteArray): InputStream {
+    fun open(url: String, body: ByteArray, visitorId: String? = null): InputStream {
         close()
 
-        val requestBuilder = Request.Builder()
+        val request = Request.Builder()
             .url(url)
-            .post(body.toRequestBody(PROTO_MEDIA_TYPE))
+            // WEB SABR sends a binary body without a Content-Type header.
+            .post(body.toRequestBody(null))
             .header("User-Agent", userAgent)
             .header("Origin", "https://www.youtube.com")
             .header("Referer", "https://www.youtube.com/")
@@ -63,13 +61,13 @@ class SabrDataSource(
             .header("Sec-Fetch-Mode", "cors")
             .header("Sec-Fetch-Site", "cross-site")
             .header("Accept", "*/*")
-            .header("Accept-Encoding", "identity")
+            .apply {
+                // Sent on every SABR POST so GVS can link the request to the attested visitor
+                // session — the working desktop implementation does the same.
+                if (!visitorId.isNullOrEmpty()) header("X-Goog-Visitor-Id", visitorId)
+            }
+            .build()
 
-        if (!visitorId.isNullOrEmpty()) {
-            requestBuilder.header("X-Goog-Visitor-Id", visitorId)
-        }
-
-        val request = requestBuilder.build()
         Log.d(TAG, "SABR POST: ${url.take(100)}... bodySize=${body.size}")
 
         val response = getClient().newCall(request).execute()

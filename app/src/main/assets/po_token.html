@@ -206,9 +206,8 @@
         throw new Error('ODM:Invalid - result is not Uint8Array, got: ' + Object.prototype.toString.call(result));
       }
 
-      // Validate token size (expected 110-128 bytes per BgUtils documentation)
-      if (result.length < 100 || result.length > 140) {
-        console.warn('[obtainPoToken] Token size ' + result.length + ' bytes may be outside expected range (110-128)');
+      if (result.length === 0) {
+        throw new Error('ODM:Invalid - mint result is empty');
       }
 
       return result;

@@ -9,6 +9,7 @@ import io.github.aedev.flow.player.sabr.proto.MediaHeader
 import io.github.aedev.flow.player.sabr.proto.NextRequestPolicy
 import io.github.aedev.flow.player.sabr.proto.PlaybackStartPolicy
 import io.github.aedev.flow.player.sabr.proto.SabrContextUpdate
+import io.github.aedev.flow.player.sabr.proto.SabrContextSendingPolicy
 import io.github.aedev.flow.player.sabr.proto.SabrError
 import io.github.aedev.flow.player.sabr.proto.SabrRedirect
 import io.github.aedev.flow.player.sabr.proto.SabrSeek
@@ -16,7 +17,7 @@ import io.github.aedev.flow.player.sabr.proto.StreamProtectionStatus
 import io.github.aedev.flow.player.sabr.ump.UmpFrame
 import io.github.aedev.flow.player.sabr.ump.UmpFrameDecoder
 import io.github.aedev.flow.player.sabr.ump.UmpPartType
-import io.github.aedev.flow.player.sabr.ump.UmpVarInt
+import io.github.aedev.flow.player.sabr.ump.SabrMediaPayload
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -63,6 +64,34 @@ class SabrStreamController(
         private const val MAX_MEDIALESS_RESPONSES = 3
         private const val NEAR_END_TOLERANCE_MS = 2_000L
 
+        /**
+         * Appends the GVS session query params the SABR server expects: `alr=yes` and `cpn` (content-playback nonce) are added
+         * only when not already present so an existing value from the player response is never
+         * overridden, while `rn` (request number) is refreshed on every request.
+         */
+        internal fun buildRequestUrl(baseUrl: String, cpn: String, requestSequence: Int): String {
+            val fragmentIndex = baseUrl.indexOf('#')
+            val fragment = if (fragmentIndex >= 0) baseUrl.substring(fragmentIndex) else ""
+            val withoutFragment = if (fragmentIndex >= 0) baseUrl.substring(0, fragmentIndex) else baseUrl
+            val queryIndex = withoutFragment.indexOf('?')
+            val path = if (queryIndex >= 0) withoutFragment.substring(0, queryIndex) else withoutFragment
+            val params = if (queryIndex >= 0) {
+                withoutFragment.substring(queryIndex + 1)
+                    .split('&')
+                    .filter(String::isNotEmpty)
+                    .filterNot { it.substringBefore('=') == "rn" }
+                    .toMutableList()
+            } else {
+                mutableListOf()
+            }
+            if (params.none { it.substringBefore('=') == "alr" }) params += "alr=yes"
+            if (cpn.isNotEmpty() && params.none { it.substringBefore('=') == "cpn" }) {
+                params += "cpn=$cpn"
+            }
+            params += "rn=$requestSequence"
+            return "$path?${params.joinToString("&")}$fragment"
+        }
+
         private val KNOWN_AUDIO_ITAGS = setOf(
             139, 140, 141, // AAC
             171, 172,      // Vorbis
@@ -89,6 +118,14 @@ class SabrStreamController(
     private var sawMediaInResponse = false
     private var consecutiveMedialessResponses = 0
     private var attestationRetried = false
+    private var malformedPartsInResponse = 0
+
+    // A RELOAD_PLAYER_RESPONSE is a control signal: the server stops serving media until we
+    // re-fetch /player and resume on the fresh session. Those medialess responses must NOT count
+    // toward the wedge, or the 3-strike non-recoverable escalation kills the session before the
+    // async reload can install the new URL/config (the RELOAD_PLAYER_RESPONSE loop root cause).
+    @Volatile
+    private var reloadPending = false
 
     suspend fun startSession() {
         aborted = false
@@ -120,6 +157,19 @@ class SabrStreamController(
         fetchAndProcessResponse(body)
     }
 
+    /**
+     * Called by the orchestrator once a RELOAD_PLAYER_RESPONSE has been serviced and the fresh
+     * player response (URL/config/token) is installed in [sessionState]. Clears the wedge counter
+     * and reload latch so the resumed session starts with a clean slate — otherwise medialess
+     * strikes accumulated during the reload window would immediately trip the non-recoverable wedge.
+     */
+    fun onPlayerResponseReloaded() {
+        consecutiveMedialessResponses = 0
+        reloadPending = false
+        sawMediaInResponse = false
+        attestationRetried = false
+    }
+
     fun updatePlayheadPosition(positionMs: Long) {
         sessionState.playheadPositionMs = positionMs
     }
@@ -146,16 +196,21 @@ class SabrStreamController(
 
     private suspend fun fetchAndProcessResponse(requestBody: ByteArray) {
         withContext(Dispatchers.IO) {
-            var stream: InputStream? = null
             try {
-                // rn = monotonically increasing request number, expected by GVS endpoints
-                val url = sessionState.effectiveUrl.let {
-                    val sep = if (it.contains('?')) '&' else '?'
-                    "$it${sep}rn=${sessionState.requestSequence}"
-                }
+                discardIncompleteMedia("new response")
+                frameDecoder.reset()
+                malformedPartsInResponse = 0
+                val url = buildRequestUrl(
+                    sessionState.effectiveUrl,
+                    sessionState.cpn,
+                    sessionState.requestSequence
+                )
                 sawMediaInResponse = false
-                stream = dataSource.open(url, requestBody)
+                // The WEB GVS endpoint identifies the session from the URL params + cpn + the
+                // StreamerContext PoToken, not an X-Goog-Visitor-Id header.
+                val stream = dataSource.open(url, requestBody)
                 readAndProcessStream(stream)
+                discardIncompleteMedia("response ended")
                 trackMedialessResponses()
             } catch (e: CancellationException) {
                 throw e
@@ -176,15 +231,19 @@ class SabrStreamController(
 
     // Empty responses are legal (policy-only), but repeated ones while we still need
     // media mean the session is wedged (e.g. stale buffered ranges) — escalate.
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private suspend fun trackMedialessResponses() {
         if (sawMediaInResponse) {
             consecutiveMedialessResponses = 0
             return
         }
+        if (reloadPending) return
         if (isBufferedToEnd()) return
         consecutiveMedialessResponses++
         if (consecutiveMedialessResponses >= MAX_MEDIALESS_RESPONSES) {
             Log.w(TAG, "No media in $consecutiveMedialessResponses consecutive responses — session wedged")
+            io.github.aedev.flow.player.error.PlayerDiagnostics.logError(
+                TAG, "SABR wedged: no media in $consecutiveMedialessResponses responses (reload loop)")
             _events.emit(SabrEvent.Error(
                 code = -3,
                 message = "No media in $consecutiveMedialessResponses consecutive responses",
@@ -212,9 +271,25 @@ class SabrStreamController(
 
             while (frameDecoder.hasNext()) {
                 val frame = frameDecoder.next()
-                dispatchFrame(frame)
+                try {
+                    dispatchFrame(frame)
+                } catch (error: Exception) {
+                    malformedPartsInResponse++
+                    Log.w(
+                        TAG,
+                        "Ignoring malformed ${UmpPartType.nameOf(frame.type)} part " +
+                            "(${frame.payload.size}B): ${error.message}"
+                    )
+                }
             }
         }
+    }
+
+    private fun discardIncompleteMedia(reason: String) {
+        if (activeHeaders.isEmpty() && segmentAccumulators.isEmpty()) return
+        Log.w(TAG, "Discarding ${activeHeaders.size} incomplete media segment(s): $reason")
+        activeHeaders.clear()
+        segmentAccumulators.clear()
     }
 
     private suspend fun dispatchFrame(frame: UmpFrame) {
@@ -228,6 +303,7 @@ class SabrStreamController(
             UmpPartType.SABR_ERROR -> handleError(frame)
             UmpPartType.SABR_SEEK -> handleSeek(frame)
             UmpPartType.SABR_CONTEXT_UPDATE -> handleContextUpdate(frame)
+            UmpPartType.SABR_CONTEXT_SENDING_POLICY -> handleContextSendingPolicy(frame)
             UmpPartType.STREAM_PROTECTION_STATUS -> handleProtectionStatus(frame)
             UmpPartType.RELOAD_PLAYER_RESPONSE -> handleReloadRequired(frame)
             UmpPartType.END_OF_TRACK -> handleEndOfTrack()
@@ -240,10 +316,9 @@ class SabrStreamController(
 
     private fun handleMediaHeader(frame: UmpFrame) {
         val header = MediaHeader.decode(frame.payload)
-        if (header.compressionType > 1) {
-            Log.w(TAG, "MediaHeader id=${header.headerId} declares compression=${header.compressionType} (unsupported)")
+        if (activeHeaders.put(header.headerId, header) != null) {
+            Log.w(TAG, "Replacing incomplete media header id=${header.headerId}")
         }
-        activeHeaders[header.headerId] = header
         segmentAccumulators[header.headerId] = ByteArrayOutputStream(
             if (header.contentLength > 0) header.contentLength.coerceAtMost(2_000_000).toInt()
             else 65536
@@ -255,34 +330,44 @@ class SabrStreamController(
     private fun handleMedia(frame: UmpFrame) {
         if (frame.payload.isEmpty()) return
 
-        var pos = 0
-        val firstByte = frame.payload[0].toInt() and 0xFF
-        val headerIdSize = UmpVarInt.sizeOf(firstByte)
-        val headerId = UmpVarInt.decode(frame.payload, 0).toInt()
-        pos = headerIdSize
-
-        val mediaData = frame.payload.copyOfRange(pos, frame.payload.size)
+        val headerId = SabrMediaPayload.headerId(frame.payload) ?: return
+        val mediaData = frame.payload.copyOfRange(
+            SabrMediaPayload.dataOffset(frame.payload),
+            frame.payload.size
+        )
         segmentAccumulators[headerId]?.write(mediaData)
     }
 
     private suspend fun handleMediaEnd(frame: UmpFrame) {
-        val headerId = if (frame.payload.isNotEmpty()) {
-            UmpVarInt.decode(frame.payload, 0).toInt()
-        } else {
-            return
-        }
+        val headerId = SabrMediaPayload.headerId(frame.payload) ?: return
 
         val header = activeHeaders.remove(headerId) ?: return
         val accumulator = segmentAccumulators.remove(headerId) ?: return
-        val data = accumulator.toByteArray()
+        val encodedData = accumulator.toByteArray()
 
-        if (header.contentLength > 0 && data.size.toLong() != header.contentLength) {
+        if (header.contentLength > 0 && encodedData.size.toLong() != header.contentLength) {
             Log.w(TAG, "Segment length mismatch: itag=${header.itag}, seq=${header.sequenceNumber}, " +
-                "expected=${header.contentLength}, got=${data.size} — dropping")
+                "expected=${header.contentLength}, got=${encodedData.size} — dropping")
+            return
+        }
+
+        val data = try {
+            SabrMediaDecoder.decode(header.compressionType, encodedData)
+        } catch (error: Exception) {
+            Log.w(TAG, "Could not decode SABR segment: itag=${header.itag}, " +
+                "seq=${header.sequenceNumber}, compression=${header.compressionType}", error)
+            return
+        }
+
+        if (header.itag != sessionState.selectedAudioItag &&
+            header.itag != sessionState.selectedVideoItag
+        ) {
+            Log.v(TAG, "Ignoring unselected SABR itag=${header.itag}, seq=${header.sequenceNumber}")
             return
         }
 
         sawMediaInResponse = true
+        attestationRetried = false
         // Re-sent segments would corrupt the append-only byte pipe — drop duplicates
         if (!sessionState.markSegmentConsumed(header.itag, header.sequenceNumber, header.isInitSegment)) {
             Log.v(TAG, "Duplicate segment dropped: itag=${header.itag}, seq=${header.sequenceNumber}, init=${header.isInitSegment}")
@@ -368,6 +453,16 @@ class SabrStreamController(
         Log.v(TAG, "ContextUpdate: type=${update.type}, ${update.value.size}B, sendByDefault=${update.sendByDefault}")
     }
 
+    private fun handleContextSendingPolicy(frame: UmpFrame) {
+        val policy = SabrContextSendingPolicy.decode(frame.payload)
+        sessionState.updateFromContextSendingPolicy(policy)
+        Log.v(
+            TAG,
+            "ContextSendingPolicy: start=${policy.startTypes}, " +
+                "stop=${policy.stopTypes}, discard=${policy.discardTypes}"
+        )
+    }
+
     private suspend fun handleProtectionStatus(frame: UmpFrame) {
         val status = StreamProtectionStatus.decode(frame.payload)
         Log.d(TAG, "ProtectionStatus: status=${status.status}, maxRetries=${status.maxRetries}")
@@ -389,6 +484,7 @@ class SabrStreamController(
         }
     }
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private suspend fun handleReloadRequired(frame: UmpFrame) {
         // ReloadPlayerResponse { reload_playback_params = 1 { token = 1 } }
         val token = try {
@@ -405,7 +501,10 @@ class SabrStreamController(
             null
         }
         sessionState.reloadToken = token
+        reloadPending = true
         Log.w(TAG, "Server demands player reload (token=${token != null})")
+        io.github.aedev.flow.player.error.PlayerDiagnostics.logWarning(
+            TAG, "SABR: server demands player reload (token=${token != null})")
         _events.emit(SabrEvent.ReloadRequired("Server requested player response reload", token))
     }
 

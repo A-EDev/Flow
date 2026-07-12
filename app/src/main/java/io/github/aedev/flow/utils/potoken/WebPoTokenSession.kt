@@ -2,10 +2,12 @@ package io.github.aedev.flow.utils.potoken
 
 import android.util.Log
 import io.github.aedev.flow.innertube.YouTube
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Single source of truth for the WEB BotGuard PoToken session used by the **native video
@@ -39,10 +41,45 @@ object WebPoTokenSession {
      */
     suspend fun mint(videoId: String): PoTokenResult? {
         val vd = sessionVisitorData() ?: return null
-        return withContext(Dispatchers.IO) {
+        return mintForVisitorData(videoId, vd)
+    }
+
+    // Mint with a bounded wait for the fast extraction path.
+    suspend fun mintBounded(videoId: String, maxWaitMs: Long = 10_000L): PoTokenResult? {
+        return withTimeoutOrNull(maxWaitMs) {
+            val vd = sessionVisitorData() ?: return@withTimeoutOrNull null
             try {
-                // getWebClientPoToken internally runBlocking-bridges to the WebView main thread.
-                generator.getWebClientPoToken(videoId, vd)
+                generator.getWebClientPoTokenSuspend(videoId, vd)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Bounded PoToken mint failed for $videoId: ${e.message}")
+                null
+            }
+        }
+    }
+
+    /** Mint against the exact visitor identity carried by the corresponding player response. */
+    suspend fun mintForVisitorData(videoId: String, visitorData: String): PoTokenResult? {
+        return mintForVisitorData(videoId, visitorData, forceRefresh = false)
+    }
+
+    /** Re-run attestation and replace the cached streaming token after a protection boundary. */
+    suspend fun refreshForVisitorData(videoId: String, visitorData: String): PoTokenResult? {
+        return mintForVisitorData(videoId, visitorData, forceRefresh = true)
+    }
+
+    private suspend fun mintForVisitorData(
+        videoId: String,
+        visitorData: String,
+        forceRefresh: Boolean
+    ): PoTokenResult? {
+        if (visitorData.isBlank()) return null
+        return withTimeoutOrNull(90_000L) {
+            try {
+                generator.getWebClientPoTokenSuspend(videoId, visitorData, forceRefresh)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w(TAG, "PoToken mint failed for $videoId: ${e.message}")
                 null
@@ -53,7 +90,10 @@ object WebPoTokenSession {
     // Pre-warm the BotGuard session at app start so the first real extraction is fast.
     suspend fun prewarm() {
         try {
-            sessionVisitorData()
+            val visitorData = sessionVisitorData() ?: return
+            withContext(Dispatchers.IO) {
+                generator.prewarmWebClient(visitorData)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "prewarm failed: ${e.message}")
         }

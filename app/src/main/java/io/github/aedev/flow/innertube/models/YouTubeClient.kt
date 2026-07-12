@@ -48,6 +48,15 @@ data class YouTubeClient(
         const val REFERER_YOUTUBE_MUSIC = "$ORIGIN_YOUTUBE_MUSIC/"
         const val API_URL_YOUTUBE_MUSIC = "$ORIGIN_YOUTUBE_MUSIC/youtubei/v1/"
 
+        // Main-site host for VIDEO stream extraction. Music playback keeps hitting
+        // music.youtube.com (unchanged); only the video path opts into this host by passing
+        // API_URL_YOUTUBE to player(). YouTube serves usable ANDROID_VR direct adaptive formats
+        // from the main site, whereas the music endpoint returns SABR-only for those clients —
+        // which was forcing the video path onto IOS direct URLs that GVS cuts off ~70s in.
+        const val ORIGIN_YOUTUBE = "https://www.youtube.com"
+        const val REFERER_YOUTUBE = "$ORIGIN_YOUTUBE/"
+        const val API_URL_YOUTUBE = "$ORIGIN_YOUTUBE/youtubei/v1/"
+
         val WEB = YouTubeClient(
             clientName = "WEB",
             clientVersion = "2.20260213.00.00",

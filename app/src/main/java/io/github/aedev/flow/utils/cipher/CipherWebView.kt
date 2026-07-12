@@ -204,7 +204,7 @@ function discoverAndInit() {
         try {
             var testInput = "KdrqFlzJXl9EcCwlmEy";
             var testResult = window._nTransformFunc(testInput);
-            if (typeof testResult === 'string' && testResult !== testInput && testResult.length >= 5 && /^[a-zA-Z0-9_-]+${"$"}.test(testResult)) {
+            if (typeof testResult === 'string' && testResult !== testInput && testResult.length >= 5 && /^[a-zA-Z0-9_-]+${"$"}/.test(testResult)) {
                 nFuncName = "exported_n_func";
                 info = "export_valid";
             } else {
@@ -220,7 +220,7 @@ function discoverAndInit() {
         try {
             var testInputUrl = "T2Xw3pWQ_Wk0xbOg";
             var testResultUrl = runNUrlTransform(testInputUrl);
-            if (typeof testResultUrl === 'string' && testResultUrl !== testInputUrl && testResultUrl.length >= 5 && /^[a-zA-Z0-9_-]+${"$"}.test(testResultUrl)) {
+            if (typeof testResultUrl === 'string' && testResultUrl !== testInputUrl && testResultUrl.length >= 5 && /^[a-zA-Z0-9_-]+${"$"}/.test(testResultUrl)) {
                 nFuncName = "exported_n_url_func";
                 info = "export_url_valid";
             } else {
@@ -245,7 +245,7 @@ function discoverAndInit() {
                     if (typeof fn !== 'function' || fn.length !== 1) continue;
                     tested++;
                     var result = fn(testInput);
-                    if (typeof result === 'string' && result !== testInput && result.length >= 5 && /^[a-zA-Z0-9_-]+${"$"}.test(result)) {
+                    if (typeof result === 'string' && result !== testInput && result.length >= 5 && /^[a-zA-Z0-9_-]+${"$"}/.test(result)) {
                         window._nTransformFunc = fn;
                         nFuncName = key;
                         break;

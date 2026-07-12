@@ -274,6 +274,53 @@ data class SabrContextUpdate(
     }
 }
 
+/** Controls which previously supplied SABR contexts must be echoed on later requests. */
+data class SabrContextSendingPolicy(
+    val startTypes: List<Int> = emptyList(),
+    val stopTypes: List<Int> = emptyList(),
+    val discardTypes: List<Int> = emptyList()
+) {
+    companion object {
+        fun decode(data: ByteArray): SabrContextSendingPolicy {
+            val start = mutableListOf<Int>()
+            val stop = mutableListOf<Int>()
+            val discard = mutableListOf<Int>()
+            ProtobufReader(data).forEachField { field ->
+                val destination = when (field.fieldNumber) {
+                    1 -> start
+                    2 -> stop
+                    3 -> discard
+                    else -> null
+                } ?: return@forEachField
+
+                when (field.wireType) {
+                    ProtobufReader.WIRE_VARINT -> destination += field.asInt()
+                    ProtobufReader.WIRE_LENGTH_DELIMITED ->
+                        destination += decodePackedVarints(field.asBytes())
+                }
+            }
+            return SabrContextSendingPolicy(start, stop, discard)
+        }
+
+        private fun decodePackedVarints(data: ByteArray): List<Int> {
+            val values = mutableListOf<Int>()
+            var position = 0
+            while (position < data.size) {
+                var value = 0L
+                var shift = 0
+                while (position < data.size && shift < 64) {
+                    val byte = data[position++].toInt() and 0xFF
+                    value = value or ((byte and 0x7F).toLong() shl shift)
+                    if (byte and 0x80 == 0) break
+                    shift += 7
+                }
+                values += value.toInt()
+            }
+            return values
+        }
+    }
+}
+
 /**
  * StreamProtectionStatus — per LuanRT/googlevideo `stream_protection_status.proto`:
  * status=1, max_retries=2. Status semantics: 1=OK, 2=ATTESTATION_PENDING (server still
@@ -318,7 +365,15 @@ data class PlaybackStartPolicy(val minBufferBeforePlaybackMs: Long = 0) {
     }
 }
 
-//  ClientAbrState — field numbers per LuanRT/googlevideo `client_abr_state.proto`
+/**
+ * ClientAbrState — field numbers per LuanRT/googlevideo `client_abr_state.proto`.
+ *
+ * Two fields are what actually hold the quality on the server side and MUST be present on
+ * every request: [stickyResolution] and
+ * [playbackRate]. Omitting sticky_resolution makes the server fall back to its
+ * lowest rung (~360p) regardless of the format we prefer — so the builder always supplies a
+ * value of `max(selectedVideoHeight, 360)`.
+ */
 data class ClientAbrState(
     val playerTimeMs: Long = 0,            // field 28 (playhead)
     val bandwidthEstimateBps: Long = 0,    // field 23
@@ -327,6 +382,8 @@ data class ClientAbrState(
     val lastManualSelectedResolution: Int = 0, // field 16 — user-picked quality height
     val stickyResolution: Int = 0,         // field 21 — pins server-side ABR to a resolution
     val timeSinceLastSeekMs: Long = 0,     // field 29
+    val visibility: Int = 1,               // field 34 — 1 = foreground/visible
+    val playbackRate: Float = 1.0f,        // field 35 — playback speed (fixed32/float)
     val enabledTrackTypesBitfield: Int = -1, // field 40 (-1 = unset → server defaults to audio+video)
     val drcEnabled: Boolean = false,       // field 46
     val audioTrackId: String = ""          // field 69 — selects the dub/original audio track
@@ -339,9 +396,27 @@ data class ClientAbrState(
         if (bandwidthEstimateBps != 0L) writeInt64(23, bandwidthEstimateBps)
         if (playerTimeMs != 0L) writeInt64(28, playerTimeMs)
         if (timeSinceLastSeekMs != 0L) writeInt64(29, timeSinceLastSeekMs)
+        if (visibility != 0) writeInt32(34, visibility)
+        writeFloat(35, playbackRate)
         if (enabledTrackTypesBitfield >= 0) writeInt32(40, enabledTrackTypesBitfield)
         if (drcEnabled) writeBool(46, true)
         if (audioTrackId.isNotEmpty()) writeString(69, audioTrackId)
+    }
+}
+
+/**
+ * TimeRange — nested message ({start_ticks=1, duration_ticks=2, timescale=3}) used by
+ * [FormatBufferedRange] (field 6).
+ */
+data class TimeRange(
+    val startTicks: Long = 0,
+    val durationTicks: Long = 0,
+    val timescale: Int = 1000
+) {
+    fun encode(): ByteArray = ProtobufWriter.encode {
+        if (startTicks != 0L) writeInt64(1, startTicks)
+        if (durationTicks != 0L) writeInt64(2, durationTicks)
+        if (timescale != 0) writeInt32(3, timescale)
     }
 }
 
@@ -358,6 +433,9 @@ data class FormatBufferedRange(
         if (durationMs != 0L) writeInt64(3, durationMs)
         if (startSequence != 0) writeInt32(4, startSequence)
         if (endSequence != 0) writeInt32(5, endSequence)
+        if (durationMs > 0L) {
+            writeBytes(6, TimeRange(startTicks = startTimeMs, durationTicks = durationMs, timescale = 1000).encode())
+        }
     }
 }
 
@@ -383,7 +461,9 @@ data class ClientInfo(
     val osName: String = "",          // field 18
     val osVersion: String = "",       // field 19
     val deviceMake: String = "",      // field 12
-    val deviceModel: String = ""      // field 13
+    val deviceModel: String = "",     // field 13
+    val hl: String = "en-US",         // field 21 — locale
+    val gl: String = "US"             // field 22 — region
 ) {
     fun encode(): ByteArray = ProtobufWriter.encode {
         if (deviceMake.isNotEmpty()) writeString(12, deviceMake)
@@ -392,6 +472,8 @@ data class ClientInfo(
         if (clientVersion.isNotEmpty()) writeString(17, clientVersion)
         if (osName.isNotEmpty()) writeString(18, osName)
         if (osVersion.isNotEmpty()) writeString(19, osVersion)
+        if (hl.isNotEmpty()) writeString(21, hl)
+        if (gl.isNotEmpty()) writeString(22, gl)
     }
 }
 
@@ -415,13 +497,15 @@ data class StreamerContext(
     val clientInfo: ClientInfo? = null,            // field 1
     val poToken: ByteArray = ByteArray(0),         // field 2 (bytes)
     val playbackCookie: ByteArray = ByteArray(0),  // field 3
-    val sabrContexts: List<SabrContext> = emptyList() // field 5 (repeated)
+    val sabrContexts: List<SabrContext> = emptyList(), // field 5 (repeated)
+    val unsentSabrContextTypes: List<Int> = emptyList() // field 6 (repeated int32)
 ) {
     fun encode(): ByteArray = ProtobufWriter.encode {
         clientInfo?.let { writeBytes(1, it.encode()) }
         if (poToken.isNotEmpty()) writeBytes(2, poToken)
         if (playbackCookie.isNotEmpty()) writeBytes(3, playbackCookie)
         sabrContexts.forEach { writeBytes(5, it.encode()) }
+        unsentSabrContextTypes.forEach { writeInt32(6, it) }
     }
 }
 

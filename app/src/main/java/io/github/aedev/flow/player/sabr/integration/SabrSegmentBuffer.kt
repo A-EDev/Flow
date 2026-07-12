@@ -26,6 +26,7 @@ class SabrSegmentBuffer {
 
     fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         if (closed.get()) return -1
+        if (length == 0) return 0
 
         var totalRead = 0
         while (totalRead < length) {
@@ -33,11 +34,15 @@ class SabrSegmentBuffer {
                 val next = if (totalRead > 0) {
                     queue.poll()
                 } else {
-                    // Block in slices: returning 0 makes ExoPlayer's loader spin-poll
                     var polled: ByteArray? = null
                     while (polled == null && !closed.get()) {
                         if (endOfStream.get() && queue.isEmpty()) break
-                        polled = queue.poll(250, TimeUnit.MILLISECONDS)
+                        polled = try {
+                            queue.poll(250, TimeUnit.MILLISECONDS)
+                        } catch (error: InterruptedException) {
+                            Thread.currentThread().interrupt()
+                            throw IOException("Interrupted while waiting for SABR media", error)
+                        }
                     }
                     polled
                 }
@@ -46,7 +51,7 @@ class SabrSegmentBuffer {
                     if (closed.get() || (endOfStream.get() && queue.isEmpty())) {
                         return if (totalRead > 0) totalRead else -1
                     }
-                    return if (totalRead > 0) totalRead else 0
+                    continue
                 }
 
                 if (next.isEmpty()) {

@@ -70,7 +70,15 @@ fun parseChallengeData(rawChallengeData: String): String {
  */
 fun parseIntegrityTokenData(rawIntegrityTokenData: String): Pair<String, Long> {
     val integrityTokenData = Json.parseToJsonElement(rawIntegrityTokenData).jsonArray
-    return base64ToU8(integrityTokenData[0].jsonPrimitive.content) to integrityTokenData[1].jsonPrimitive.long
+    if (integrityTokenData.size < 2) {
+        throw PoTokenException("GenerateIT returned no integrity token")
+    }
+    val token = integrityTokenData[0].jsonPrimitive.content
+    val lifetimeSeconds = integrityTokenData[1].jsonPrimitive.long
+    if (token.isBlank() || lifetimeSeconds <= 0L) {
+        throw PoTokenException("GenerateIT returned a degraded integrity response")
+    }
+    return base64ToU8(token) to lifetimeSeconds
 }
 
 /**

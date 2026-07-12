@@ -6,6 +6,7 @@ import io.github.aedev.flow.player.sabr.proto.FormatInitializationMetadata
 import io.github.aedev.flow.player.sabr.proto.NextRequestPolicy
 import io.github.aedev.flow.player.sabr.proto.SabrContext
 import io.github.aedev.flow.player.sabr.proto.SabrContextUpdate
+import io.github.aedev.flow.player.sabr.proto.SabrContextSendingPolicy
 import io.github.aedev.flow.player.sabr.proto.SabrRedirect
 
 class SabrSessionState {
@@ -26,8 +27,16 @@ class SabrSessionState {
     var selectedVideoLmt: Long = 0
     var audioTrackId: String = ""
 
+    // Actual pixel height of the selected video format; drives sticky_resolution in auto mode
+    // so the server serves that quality class instead of ABR-defaulting to its lowest rung.
+    var selectedVideoHeight: Int = 0
+
     // User-pinned quality (0 = auto / server ABR)
     var stickyResolution: Int = 0
+
+    // ClientAbrState telemetry echoed on every request (defaults match a foreground 1x player)
+    var visibility: Int = 1
+    var playbackRate: Float = 1.0f
 
     // -1 = unset (server default audio+video); 1 = audio-only
     var enabledTrackTypes: Int = -1
@@ -51,6 +60,9 @@ class SabrSessionState {
     var poToken: String = ""
     var visitorId: String = ""
 
+    // Content-playback nonce sent as the GVS `cpn` query param (constant for the session)
+    var cpn: String = ""
+
     var clientNameId: Int = 1
     var clientVersion: String = ""
     var osName: String = ""
@@ -63,12 +75,7 @@ class SabrSessionState {
 
     fun poTokenBytes(): ByteArray {
         if (poToken.isEmpty()) return ByteArray(0)
-        return try {
-            val normalized = poToken.replace('-', '+').replace('_', '/')
-            android.util.Base64.decode(normalized, android.util.Base64.DEFAULT)
-        } catch (e: Exception) {
-            ByteArray(0)
-        }
+        return SabrBase64.decode(poToken) ?: ByteArray(0)
     }
 
     val initSegments = mutableMapOf<Int, ByteArray>()
@@ -122,7 +129,7 @@ class SabrSessionState {
     }
 
     fun updateFromContextUpdate(update: SabrContextUpdate) {
-        if (update.type == 0 && update.value.isEmpty()) return
+        if (update.type < 0 || update.value.isEmpty()) return
         val existing = sabrContexts[update.type]
         if (existing != null && update.writePolicy == SabrContextUpdate.WRITE_POLICY_KEEP_EXISTING) {
             return
@@ -136,10 +143,50 @@ class SabrSessionState {
     fun activeSabrContexts(): List<SabrContext> =
         sabrContextsToSend.mapNotNull { sabrContexts[it] }
 
+    fun unsentSabrContextTypes(): List<Int> =
+        sabrContexts.keys.filterNot(sabrContextsToSend::contains)
+
+    fun updateFromContextSendingPolicy(policy: SabrContextSendingPolicy) {
+        sabrContextsToSend.addAll(policy.startTypes)
+        sabrContextsToSend.removeAll(policy.stopTypes.toSet())
+        policy.discardTypes.forEach { type ->
+            sabrContexts.remove(type)
+            sabrContextsToSend.remove(type)
+        }
+    }
+
     fun updateFromRedirect(redirect: SabrRedirect) {
         if (redirect.url.isNotEmpty()) {
             redirectUrl = redirect.url
         }
+    }
+
+    fun applyPlayerResponseReload(
+        streamingUrl: String,
+        ustreamerConfig: ByteArray,
+        poToken: String,
+        visitorId: String,
+        cpn: String,
+    ) {
+        this.streamingUrl = streamingUrl
+        this.ustreamerConfig = ustreamerConfig
+        this.poToken = poToken
+        this.visitorId = visitorId
+        this.cpn = cpn
+        redirectUrl = null
+        reloadToken = null
+        // The SABR enforcement context, playback cookie, and buffered ranges are scoped
+        // to the player response that issued them; echoing them into the reloaded session draws
+        // sabr.media_serving_enforcement_id_error. Reset to a clean session at the current
+        // playhead — the server re-issues its context/cookie on the first request. playheadPositionMs
+        // is intentionally preserved so playback resumes where it stalled.
+        sabrContexts.clear()
+        sabrContextsToSend.clear()
+        playbackCookie = ByteArray(0)
+        backoffDeadlineMs = 0
+        requestSequence = 0
+        clearBufferedRanges()
+        initializedFormats.clear()
     }
 
     fun addBufferedRange(isAudio: Boolean, range: FormatBufferedRange) {

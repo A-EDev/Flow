@@ -26,15 +26,23 @@ object SabrRequestBuilder {
             (System.currentTimeMillis() - state.lastSeekAtMs).coerceAtLeast(0)
         } else 0L
 
+        val includeFollowUpState = playheadMs > 0 || buffered.isNotEmpty()
+
+        val effectiveResolution =
+            (if (state.stickyResolution > 0) state.stickyResolution else state.selectedVideoHeight)
+                .coerceAtLeast(360)
+
         val request = VideoPlaybackAbrRequest(
             clientAbrState = ClientAbrState(
                 playerTimeMs = playheadMs,
-                bandwidthEstimateBps = state.estimatedBandwidthBps,
-                viewportWidthPx = state.screenWidthPixels,
-                viewportHeightPx = state.screenHeightPixels,
-                lastManualSelectedResolution = state.stickyResolution,
-                stickyResolution = state.stickyResolution,
+                bandwidthEstimateBps = if (includeFollowUpState) state.estimatedBandwidthBps else 0L,
+                viewportWidthPx = if (includeFollowUpState) state.screenWidthPixels else 0,
+                viewportHeightPx = if (includeFollowUpState) state.screenHeightPixels else 0,
+                lastManualSelectedResolution = if (state.stickyResolution > 0) state.stickyResolution else 0,
+                stickyResolution = effectiveResolution,
                 timeSinceLastSeekMs = timeSinceSeekMs,
+                visibility = state.visibility,
+                playbackRate = state.playbackRate,
                 enabledTrackTypesBitfield = state.enabledTrackTypes,
                 audioTrackId = state.audioTrackId
             ),
@@ -53,7 +61,8 @@ object SabrRequestBuilder {
                 ),
                 poToken = state.poTokenBytes(),
                 playbackCookie = state.playbackCookie,
-                sabrContexts = state.activeSabrContexts()
+                sabrContexts = state.activeSabrContexts(),
+                unsentSabrContextTypes = state.unsentSabrContextTypes()
             )
         )
         return request.encode()

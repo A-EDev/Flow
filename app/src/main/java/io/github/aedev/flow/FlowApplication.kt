@@ -154,9 +154,6 @@ class FlowApplication : Application(), ImageLoaderFactory {
             } catch (e: Exception) {
                 Log.w(TAG, "visitorData init error: ${e.message}")
             }
-        }
-
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 io.github.aedev.flow.utils.potoken.WebPoTokenSession.prewarm()
             } catch (e: Exception) {
