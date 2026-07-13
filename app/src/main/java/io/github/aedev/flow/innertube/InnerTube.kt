@@ -275,8 +275,9 @@ class InnerTube {
      */
     suspend fun webSearch(
         client: YouTubeClient,
-        query: String,
+        query: String? = null,
         params: String? = null,
+        continuation: String? = null,
     ) = withRetry {
         httpClient.post("https://www.youtube.com/youtubei/v1/search") {
             headers {
@@ -294,6 +295,7 @@ class InnerTube {
                     context = client.toContext(locale, visitorData, null),
                     query = query,
                     params = params,
+                    continuation = continuation,
                 )
             )
         }

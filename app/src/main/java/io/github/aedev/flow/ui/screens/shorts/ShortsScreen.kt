@@ -382,6 +382,7 @@ private fun ShortsTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -396,7 +397,7 @@ private fun ShortsTopBar(
             }
         } else {
             Text(
-                text = "Shorts",
+                text = stringResource(R.string.shorts),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color.White

@@ -28,8 +28,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
+import io.github.aedev.flow.ui.screens.player.components.PlayerTimePill
 import io.github.aedev.flow.ui.screens.player.components.PortraitFullscreenEdgeScrims
 import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
@@ -302,19 +302,34 @@ fun PremiumControlsOverlay(
                     exit = fadeOut(animationSpec = tween(300)),
                     modifier = Modifier.align(Alignment.BottomCenter)
                 ) {
-                    LockedSeekbar(
-                        currentPosition = displayedPosition,
-                        duration = duration,
-                        isLive = isLive,
-                        isFullscreen = isFullscreen,
-                        bufferedPercentage = bufferedPercentage,
-                        chapters = chapters,
-                        sponsorSegments = sponsorSegments,
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = seekbarHorizontalPadding)
-                            .padding(bottom = fullscreenSeekbarBottomPadding)
-                    )
+                            .padding(bottom = fullscreenSeekbarBottomPadding),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        PlayerTimePill(
+                            currentPosition = displayedPosition,
+                            duration = duration,
+                            isLive = isLive,
+                            showRemainingTime = showRemainingTime,
+                            onClick = null,
+                            modifier = Modifier
+                                .height(OverlayPillHeight)
+                                .align(Alignment.Start)
+                        )
+                        LockedSeekbar(
+                            currentPosition = displayedPosition,
+                            duration = duration,
+                            isLive = isLive,
+                            isFullscreen = isFullscreen,
+                            bufferedPercentage = bufferedPercentage,
+                            chapters = chapters,
+                            sponsorSegments = sponsorSegments,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             } else {
                 // Top Bar
@@ -698,81 +713,14 @@ fun PremiumControlsOverlay(
                             }
                         }
 
-                        // Time Pill
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.4f),
-                            shape = CircleShape,
-                            modifier = Modifier
-                                .height(OverlayPillHeight)
-                                .clip(CircleShape)
-                                .clickable { if (isLive) onLiveClick() else onToggleRemainingTime() }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .wrapContentWidth()
-                                    .padding(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (isLive) {
-                                    Text(
-                                        text = VideoPlayerUtils.formatTime(displayedPosition, padMinutes = true),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = " / ",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.White.copy(alpha = 0.5f),
-                                        modifier = Modifier.padding(horizontal = 2.dp)
-                                    )
-                                    val dotAlpha by rememberInfiniteTransition(label = "liveDot").animateFloat(
-                                        initialValue = 1f,
-                                        targetValue = 0.2f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween(800, easing = LinearEasing),
-                                            repeatMode = RepeatMode.Reverse
-                                        ),
-                                        label = "dotAlpha"
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.Red.copy(alpha = dotAlpha))
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = stringResource(R.string.player_live_label),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.Red,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        letterSpacing = 1.sp
-                                    )
-                                } else {
-                                Text(
-                                    text = if (showRemainingTime) "-${VideoPlayerUtils.formatTime((duration - displayedPosition).coerceAtLeast(0), padMinutes = true)}" else VideoPlayerUtils.formatTime(displayedPosition, padMinutes = true),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = " / ",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White.copy(alpha = 0.5f),
-                                    modifier = Modifier.padding(horizontal = 2.dp)
-                                )
-                                
-                                // Total Duration
-                                Text(
-                                    text = VideoPlayerUtils.formatTime(duration, padMinutes = true),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White.copy(alpha = 0.7f)
-                                )
-                                }
-                            }
-                        }
+                        PlayerTimePill(
+                            currentPosition = displayedPosition,
+                            duration = duration,
+                            isLive = isLive,
+                            showRemainingTime = showRemainingTime,
+                            onClick = { if (isLive) onLiveClick() else onToggleRemainingTime() },
+                            modifier = Modifier.height(OverlayPillHeight)
+                        )
 
                         // Chapter Display Pill
                         if (currentChapter != null) {

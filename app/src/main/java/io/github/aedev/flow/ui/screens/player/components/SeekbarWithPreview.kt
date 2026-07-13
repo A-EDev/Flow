@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -290,20 +291,21 @@ fun SeekbarWithPreview(
                 } else {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .scale(thumbScale),
+                            .size(16.dp)
+                            .scale(thumbScale)
+                            .drawBehind {
+                                if (isInteracting) {
+                                    drawCircle(
+                                        color = thumbStateLayerColor,
+                                        radius = 20.dp.toPx()
+                                    )
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isInteracting) {
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .background(thumbStateLayerColor, CircleShape)
-                            )
-                        }
                         Box(
                             modifier = Modifier
-                                .size(if (isInteracting) 16.dp else 14.dp)
+                                .matchParentSize()
                                 .background(thumbFillColor, CircleShape)
                                 .border(3.dp, primaryColor, CircleShape)
                         )

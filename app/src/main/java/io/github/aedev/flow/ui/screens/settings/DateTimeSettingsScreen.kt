@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -224,7 +225,14 @@ private fun OverrideRow(
                     selected = value == mode,
                     onClick = { onSelect(mode) },
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                    label = { Text(stringResource(labelRes), maxLines = 1, style = MaterialTheme.typography.labelMedium) }
+                    label = {
+                        Text(
+                            text = stringResource(labelRes),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 )
             }
         }

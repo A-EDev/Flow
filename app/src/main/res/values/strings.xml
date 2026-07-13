@@ -335,6 +335,8 @@
     <string name="end_of_results">End of results</string>
     <string name="clear_search_history">Clear search history</string>
     <!-- Search Filters -->
+    <string name="search_filter_all">All</string>
+    <string name="search_toggle_view_mode">Toggle search result view</string>
     <string name="filter_upload_date">Upload date</string>
     <string name="filter_duration">Duration</string>
     <string name="filter_sort_by">Sort by</string>
@@ -356,6 +358,7 @@
     <string name="sort_view_count">View count</string>
     <string name="sort_rating">Rating</string>
     <!-- Channel Screen -->
+    <string name="channel_sort_latest">Latest</string>
     <string name="channel_default_title">Channel</string>
     <string name="channel_banner">Channel banner</string>
     <string name="channel_avatar">Channel avatar</string>

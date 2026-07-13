@@ -62,9 +62,11 @@ import io.github.aedev.flow.innertube.pages.SearchResult
 import io.github.aedev.flow.innertube.pages.SearchSuggestionPage
 import io.github.aedev.flow.innertube.pages.SearchSummary
 import io.github.aedev.flow.innertube.pages.SearchShortItem
+import io.github.aedev.flow.innertube.pages.SearchVideosPage
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
+import io.github.aedev.flow.innertube.pages.toSearchVideosPage
 import io.github.aedev.flow.innertube.pages.toShortsPage
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -198,6 +200,18 @@ object YouTube {
         innerTube.webSearch(WEB, query).body<JsonObject>().toSearchShorts()
     }.onSuccess { Log.d("SearchShorts", "query='$query' shorts=${it.size}") }
         .onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
+
+    suspend fun searchVideosByViews(
+        query: String,
+        continuation: String? = null,
+    ): Result<SearchVideosPage> = runCatching {
+        innerTube.webSearch(
+            client = WEB,
+            query = query.takeIf { continuation == null },
+            params = YouTubeSearchParams.videosSortedByViewCount().takeIf { continuation == null },
+            continuation = continuation,
+        ).body<JsonObject>().toSearchVideosPage()
+    }
 
     suspend fun searchContinuation(continuation: String): Result<SearchResult> = runCatching {
         val response = innerTube.search(WEB_REMIX, continuation = continuation).body<SearchResponse>()

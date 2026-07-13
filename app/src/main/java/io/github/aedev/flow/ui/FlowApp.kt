@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.toArgb
@@ -369,7 +370,8 @@ fun FlowApp(
         systemLightThemeMode = systemLightThemeMode,
         systemDarkThemeMode = systemDarkThemeMode,
         isFullscreen = playerUiState.isFullscreen,
-        isMusicPlayerImmersive = currentMusicTrack != null && musicPlayerSheetState.progress > 0.5f
+        isMusicPlayerImmersive = currentMusicTrack != null && musicPlayerSheetState.progress > 0.5f,
+        isShortsPlayer = currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer"
     )
 
     LaunchedEffect(isInPipMode) {
@@ -436,9 +438,22 @@ fun FlowApp(
             contentWindowInsets = WindowInsets.systemBars,
             bottomBar = {} 
         ) { paddingValues ->
+            val layoutDirection = LocalLayoutDirection.current
+            val contentPadding = if (
+                currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer"
+            ) {
+                PaddingValues(
+                    start = paddingValues.calculateStartPadding(layoutDirection),
+                    top = 0.dp,
+                    end = paddingValues.calculateEndPadding(layoutDirection),
+                    bottom = paddingValues.calculateBottomPadding()
+                )
+            } else {
+                paddingValues
+            }
             Box(
                 modifier = Modifier
-                    .padding(if (isInPipMode) PaddingValues(0.dp) else paddingValues)
+                    .padding(if (isInPipMode) PaddingValues(0.dp) else contentPadding)
                     .padding(bottom = bottomNavContentPadding)
                     .padding(bottom = musicMiniPlayerContentPadding.coerceAtLeast(0.dp))
                     .nestedScroll(nestedScrollConnection)
@@ -757,7 +772,8 @@ private fun ApplyStatusBarStyle(
     systemLightThemeMode: ThemeMode,
     systemDarkThemeMode: ThemeMode,
     isFullscreen: Boolean,
-    isMusicPlayerImmersive: Boolean = false
+    isMusicPlayerImmersive: Boolean = false,
+    isShortsPlayer: Boolean = false
 ) {
     val activity = LocalContext.current as? Activity ?: return
     val view = LocalView.current
@@ -773,7 +789,7 @@ private fun ApplyStatusBarStyle(
     SideEffect {
         val window = activity.window
         val insetsController = WindowCompat.getInsetsController(window, view)
-        val shouldDrawBehindStatusBar = isFullscreen || isMusicPlayerImmersive
+        val shouldDrawBehindStatusBar = isFullscreen || isMusicPlayerImmersive || isShortsPlayer
 
         window.statusBarColor = if (shouldDrawBehindStatusBar) {
             android.graphics.Color.TRANSPARENT

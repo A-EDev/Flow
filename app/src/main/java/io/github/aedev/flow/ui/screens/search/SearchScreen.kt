@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.text.*
@@ -40,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.*
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SearchHistoryItem
@@ -632,30 +634,30 @@ private fun SearchFiltersBar(
         ContentType.ALL, ContentType.VIDEOS, ContentType.LIVE
     )
     val typeLabels = listOf(
-        ContentType.ALL to "All",
-        ContentType.VIDEOS to "Videos",
-        ContentType.SHORTS to "Shorts",
-        ContentType.CHANNELS to "Channels",
-        ContentType.PLAYLISTS to "Playlists",
-        ContentType.LIVE to "Live"
+        ContentType.ALL to R.string.search_filter_all,
+        ContentType.VIDEOS to R.string.videos_header,
+        ContentType.SHORTS to R.string.tab_shorts,
+        ContentType.CHANNELS to R.string.channels_header,
+        ContentType.PLAYLISTS to R.string.tab_playlists,
+        ContentType.LIVE to R.string.tab_live
     )
     val durationLabels = listOf(
-        Duration.ANY to "Any Length",
-        Duration.UNDER_4_MINUTES to "< 4 min",
-        Duration.FROM_4_TO_20_MINUTES to "4–20 min",
-        Duration.OVER_20_MINUTES to "> 20 min"
+        Duration.ANY to R.string.duration_any,
+        Duration.UNDER_4_MINUTES to R.string.duration_under_4,
+        Duration.FROM_4_TO_20_MINUTES to R.string.duration_4_20,
+        Duration.OVER_20_MINUTES to R.string.duration_over_20
     )
     val uploadDateLabels = listOf(
-        UploadDate.ANY to "Any Time",
-        UploadDate.TODAY to "Today",
-        UploadDate.THIS_WEEK to "This Week",
-        UploadDate.THIS_MONTH to "This Month",
-        UploadDate.THIS_YEAR to "This Year"
+        UploadDate.ANY to R.string.date_any,
+        UploadDate.TODAY to R.string.date_today,
+        UploadDate.THIS_WEEK to R.string.date_this_week,
+        UploadDate.THIS_MONTH to R.string.date_this_month,
+        UploadDate.THIS_YEAR to R.string.date_this_year
     )
     val sortTypeLabels = listOf(
-        SortType.RELEVANCE to "Relevance",
-        SortType.RATING to "Rating",
-        SortType.VIEWS to "Views"
+        SortType.RELEVANCE to R.string.sort_relevance,
+        SortType.RATING to R.string.sort_rating,
+        SortType.VIEWS to R.string.views
     )
 
     Row(
@@ -676,7 +678,9 @@ private fun SearchFiltersBar(
                     FilterChip(
                         selected = selectedContentType != ContentType.ALL,
                         onClick = { typeExpanded = true },
-                        label = { Text(typeLabels.first { it.first == selectedContentType }.second) },
+                        label = {
+                            Text(stringResource(typeLabels.first { it.first == selectedContentType }.second))
+                        },
                         leadingIcon = {
                             Icon(Icons.Default.FilterList, null, Modifier.size(16.dp))
                         },
@@ -688,9 +692,9 @@ private fun SearchFiltersBar(
                         expanded = typeExpanded,
                         onDismissRequest = { typeExpanded = false }
                     ) {
-                        typeLabels.forEach { (type, label) ->
+                        typeLabels.forEach { (type, labelRes) ->
                             DropdownMenuItem(
-                                text = { Text(label) },
+                                text = { Text(stringResource(labelRes)) },
                                 leadingIcon = if (type == selectedContentType) {
                                     { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
                                 } else null,
@@ -711,7 +715,9 @@ private fun SearchFiltersBar(
                         FilterChip(
                             selected = selectedDuration != Duration.ANY,
                             onClick = { durationExpanded = true },
-                            label = { Text(durationLabels.first { it.first == selectedDuration }.second) },
+                            label = {
+                                Text(stringResource(durationLabels.first { it.first == selectedDuration }.second))
+                            },
                             trailingIcon = {
                                 Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
                             }
@@ -720,9 +726,9 @@ private fun SearchFiltersBar(
                             expanded = durationExpanded,
                             onDismissRequest = { durationExpanded = false }
                         ) {
-                            durationLabels.forEach { (dur, label) ->
+                            durationLabels.forEach { (dur, labelRes) ->
                                 DropdownMenuItem(
-                                    text = { Text(label) },
+                                    text = { Text(stringResource(labelRes)) },
                                     leadingIcon = if (dur == selectedDuration) {
                                         { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
                                     } else null,
@@ -742,7 +748,9 @@ private fun SearchFiltersBar(
                         FilterChip(
                             selected = selectedUploadDate != UploadDate.ANY,
                             onClick = { dateExpanded = true },
-                            label = { Text(uploadDateLabels.first { it.first == selectedUploadDate }.second) },
+                            label = {
+                                Text(stringResource(uploadDateLabels.first { it.first == selectedUploadDate }.second))
+                            },
                             trailingIcon = {
                                 Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
                             }
@@ -751,9 +759,9 @@ private fun SearchFiltersBar(
                             expanded = dateExpanded,
                             onDismissRequest = { dateExpanded = false }
                         ) {
-                            uploadDateLabels.forEach { (date, label) ->
+                            uploadDateLabels.forEach { (date, labelRes) ->
                                 DropdownMenuItem(
-                                    text = { Text(label) },
+                                    text = { Text(stringResource(labelRes)) },
                                     leadingIcon = if (date == selectedUploadDate) {
                                         { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
                                     } else null,
@@ -772,7 +780,9 @@ private fun SearchFiltersBar(
                         FilterChip(
                             selected = selectedSortType != SortType.RELEVANCE,
                             onClick = { sortExpanded = true },
-                            label = { Text(sortTypeLabels.first { it.first == selectedSortType }.second) },
+                            label = {
+                                Text(stringResource(sortTypeLabels.first { it.first == selectedSortType }.second))
+                            },
                             trailingIcon = {
                                 Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
                             }
@@ -781,9 +791,9 @@ private fun SearchFiltersBar(
                             expanded = sortExpanded,
                             onDismissRequest = { sortExpanded = false }
                         ) {
-                            sortTypeLabels.forEach { (sort, label) ->
+                            sortTypeLabels.forEach { (sort, labelRes) ->
                                 DropdownMenuItem(
-                                    text = { Text(label) },
+                                    text = { Text(stringResource(labelRes)) },
                                     leadingIcon = if (sort == selectedSortType) {
                                         { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
                                     } else null,
@@ -813,7 +823,7 @@ private fun SearchFiltersBar(
         ) {
             Icon(
                 if (isGridMode) Icons.Outlined.ViewList else Icons.Outlined.GridView,
-                contentDescription = "Toggle view mode",
+                contentDescription = stringResource(R.string.search_toggle_view_mode),
                 tint = if (isGridMode) MaterialTheme.colorScheme.onPrimary
                        else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)

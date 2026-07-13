@@ -69,6 +69,10 @@ class SearchPagingSource(
                     return@withContext LoadResult.Page(shorts, prevKey = null, nextKey = null)
                 }
 
+                if (searchFilter?.sortType == SortType.VIEWS) {
+                    return@withContext loadViewSortedPage(page)
+                }
+
                 val extractor = service.getSearchExtractor(query, contentFilters, "")
                 extractor.fetchPage()
 
@@ -91,39 +95,6 @@ class SearchPagingSource(
                         is StreamInfoItem -> {
                             val isLiveStream = item.streamType == StreamType.LIVE_STREAM ||
                                 item.streamType == StreamType.AUDIO_LIVE_STREAM
-                            if (searchFilter?.contentType == io.github.aedev.flow.data.local.ContentType.LIVE &&
-                                !isLiveStream
-                            ) {
-                                return@mapNotNull null
-                            }
-
-                            val duration = item.duration.toInt()
-                            val uploadDate = item.textualUploadDate ?: ""
-
-                            if (searchFilter != null) {
-                                if (searchFilter.duration == Duration.UNDER_4_MINUTES && duration >= 240) return@mapNotNull null
-                                if (searchFilter.duration == Duration.FROM_4_TO_20_MINUTES && (duration < 240 || duration > 1200)) return@mapNotNull null
-                                if (searchFilter.duration == Duration.OVER_20_MINUTES && duration <= 1200) return@mapNotNull null
-
-                                if (searchFilter.uploadDate != UploadDate.ANY && uploadDate.isNotEmpty()) {
-                                    val loweredDate = uploadDate.lowercase()
-                                    val isHoursOrLess = loweredDate.contains("second") || loweredDate.contains("minute") || loweredDate.contains("hour")
-                                    val isDays = loweredDate.contains("day")
-                                    val isWeeks = loweredDate.contains("week")
-                                    val isMonths = loweredDate.contains("month")
-                                    val isYears = loweredDate.contains("year")
-
-                                    val isOne = loweredDate.contains("1 day") || loweredDate.contains("1 week") || loweredDate.contains("1 month") || loweredDate.contains("1 year")
-
-                                    when (searchFilter.uploadDate) {
-                                        UploadDate.TODAY -> if (!isHoursOrLess && !(isDays && loweredDate.contains("1 day"))) return@mapNotNull null
-                                        UploadDate.THIS_WEEK -> if (isYears || isMonths || (isWeeks && !loweredDate.contains("1 week"))) return@mapNotNull null
-                                        UploadDate.THIS_MONTH -> if (isYears || (isMonths && !loweredDate.contains("1 month"))) return@mapNotNull null
-                                        UploadDate.THIS_YEAR -> if (isYears && !loweredDate.contains("1 year")) return@mapNotNull null
-                                        else -> {}
-                                    }
-                                }
-                            }
 
                             val videoId = extractVideoId(item.url)
                             val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(
@@ -142,8 +113,7 @@ class SearchPagingSource(
                                 .take(2)
                             val channelThumb = mergedChannelThumbs.firstOrNull().orEmpty()
 
-                            SearchResultItem.VideoResult(
-                                Video(
+                            Video(
                                     id = videoId,
                                     title = item.name ?: "",
                                     channelName = item.uploaderName ?: "",
@@ -158,7 +128,8 @@ class SearchPagingSource(
                                     isShort = item.duration in 1..60,
                                     isLive = isLiveStream
                                 )
-                            )
+                                .takeIf { it.matchesSearchFilters() }
+                                ?.let { SearchResultItem.VideoResult(it) }
                         }
 
                         is ChannelInfoItem -> {
@@ -200,7 +171,8 @@ class SearchPagingSource(
                 // All tab (unfiltered): shorts sit in a shelf NewPipe skips; surface them
                 // as a horizontal shelf after the top result (first page only).
                 val unfilteredAll = searchFilter == null || (searchFilter.contentType == ContentType.ALL &&
-                    searchFilter.duration == Duration.ANY && searchFilter.uploadDate == UploadDate.ANY)
+                    searchFilter.duration == Duration.ANY && searchFilter.uploadDate == UploadDate.ANY &&
+                    searchFilter.sortType == SortType.RELEVANCE)
                 val combined = if (page == null && unfilteredAll) {
                     val shorts = fetchShortVideos().take(15)
                     when {
@@ -214,7 +186,7 @@ class SearchPagingSource(
                 Log.d(TAG, "Loaded ${items.size} items | query='$query' | nextPage=${infoPage.nextPage != null}")
 
                 LoadResult.Page(
-                    data = sortVideoItems(searchFilter = searchFilter, enrichedCombined),
+                    data = sortVideoItemsLocally(searchFilter = searchFilter, enrichedCombined),
                     prevKey = null,
                     nextKey = infoPage.nextPage
                 )
@@ -226,6 +198,65 @@ class SearchPagingSource(
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    private suspend fun loadViewSortedPage(page: Page?): LoadResult.Page<Page, SearchResultItem> {
+        val result = YouTube.searchVideosByViews(
+            query = query,
+            continuation = page?.id,
+        ).getOrThrow()
+
+        val items = result.videos.mapNotNull { item ->
+            val channelThumbnailUrls = item.channelThumbnailUrls
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .distinctBy { it.avatarImageIdentityKey() }
+                .take(2)
+            Video(
+                id = item.id,
+                title = item.title,
+                channelName = item.channelName,
+                channelId = item.channelId,
+                thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(item.id, item.thumbnailUrl),
+                duration = item.duration,
+                viewCount = item.viewCount,
+                uploadDate = item.uploadDate,
+                channelThumbnailUrl = channelThumbnailUrls.firstOrNull().orEmpty(),
+                channelThumbnailUrls = channelThumbnailUrls,
+                isShort = item.duration in 1..60,
+                isLive = item.isLive,
+            ).takeIf { it.matchesSearchFilters() }
+                ?.let { SearchResultItem.VideoResult(it) }
+        }
+        val enrichedItems = enrichCollabVideoResults(items)
+        val nextPage = result.continuation?.let { token ->
+            Page("https://www.youtube.com/youtubei/v1/search", token)
+        }
+
+        Log.d(TAG, "Loaded ${items.size} server-sorted items | query='$query' | nextPage=${nextPage != null}")
+        return LoadResult.Page(data = enrichedItems, prevKey = null, nextKey = nextPage)
+    }
+
+    private fun Video.matchesSearchFilters(): Boolean {
+        val filter = searchFilter ?: return true
+        if (filter.contentType == ContentType.LIVE && !isLive) return false
+        if (filter.duration == Duration.UNDER_4_MINUTES && duration >= 240) return false
+        if (filter.duration == Duration.FROM_4_TO_20_MINUTES && duration !in 240..1_200) return false
+        if (filter.duration == Duration.OVER_20_MINUTES && duration <= 1_200) return false
+        if (filter.uploadDate == UploadDate.ANY || uploadDate.isEmpty()) return true
+
+        val loweredDate = uploadDate.lowercase()
+        val isHoursOrLess = listOf("second", "minute", "hour").any(loweredDate::contains)
+        val isWeeks = loweredDate.contains("week")
+        val isMonths = loweredDate.contains("month")
+        val isYears = loweredDate.contains("year")
+        return when (filter.uploadDate) {
+            UploadDate.TODAY -> isHoursOrLess || loweredDate.contains("1 day")
+            UploadDate.THIS_WEEK -> !isYears && !isMonths && (!isWeeks || loweredDate.contains("1 week"))
+            UploadDate.THIS_MONTH -> !isYears && (!isMonths || loweredDate.contains("1 month"))
+            UploadDate.THIS_YEAR -> !isYears || loweredDate.contains("1 year")
+            UploadDate.ANY -> true
+        }
+    }
 
     private suspend fun enrichCollabVideoResults(items: List<SearchResultItem>): List<SearchResultItem> {
         val stacks = mutableMapOf<String, List<String>>()
@@ -327,16 +358,14 @@ class SearchPagingSource(
         url.substringAfter("list=").substringBefore("&")
             .ifEmpty { url.substringAfterLast("/").substringBefore("?") }
 
-    private fun sortVideoItems(searchFilter: SearchFilter?, items: List<SearchResultItem>): List<SearchResultItem> =
+    private fun sortVideoItemsLocally(searchFilter: SearchFilter?, items: List<SearchResultItem>): List<SearchResultItem> =
         when (searchFilter?.sortType) {
             SortType.RELEVANCE -> items
             SortType.RATING -> items.sortedByDescending { item ->
                 if (item is SearchResultItem.VideoResult) item.video.likeCount else 0L
             }
 
-            SortType.VIEWS -> items.sortedByDescending { item ->
-                if (item is SearchResultItem.VideoResult) item.video.viewCount else 0L
-            }
+            SortType.VIEWS -> items
 
             else -> items
         }

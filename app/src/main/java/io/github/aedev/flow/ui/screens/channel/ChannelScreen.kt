@@ -617,9 +617,9 @@ private fun FilterAndToggleBar(
     onSearchQueryChange: (String) -> Unit = {},
 ) {
     val filters = listOf(
-        VideoFilter.Latest to "Latest",
-        VideoFilter.Popular to "Popular",
-        VideoFilter.Oldest to "Oldest"
+        VideoFilter.Latest to R.string.channel_sort_latest,
+        VideoFilter.Popular to R.string.filter_popular,
+        VideoFilter.Oldest to R.string.filter_oldest
     )
 
     Row(
@@ -665,11 +665,16 @@ private fun FilterAndToggleBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(filters.size) { idx ->
-                    val (filter, label) = filters[idx]
+                    val (filter, labelRes) = filters[idx]
                     FilterChip(
                         selected = selectedFilter == filter,
                         onClick = { onFilterSelected(filter) },
-                        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                        label = {
+                            Text(
+                                text = stringResource(labelRes),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        },
                         shape = RoundedCornerShape(20.dp),
                         leadingIcon = if (selectedFilter == filter) {
                             {
