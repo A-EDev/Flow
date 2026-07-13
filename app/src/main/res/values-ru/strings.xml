@@ -143,7 +143,7 @@
     <string name="dislikes">Не нравится</string>
     <string name="channel_id">ID канала</string>
     <string name="uploaded">Загружено</string>
-    <string name="itag">Умные метки (iTag)</string>
+    <string name="itag">iTag</string>
     <string name="mime_type">Mime-тип</string>
     <string name="status_upcoming">ПРЕДСТОЯЩЕЕ</string>
     <string name="status_live">ТРАНСЛЯЦИЯ</string>
