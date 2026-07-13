@@ -954,7 +954,7 @@
     <string name="player_settings_display">Отображение</string>
     <string name="category_gaming">Видеоигры</string>
     <string name="screen_title_music">Музыка</string>
-    <string name="speed_normal">1×</string>
+    <string name="speed_normal">Обычная</string>
     <string name="player_background_style_blur_gradient">Размытие + Градиент</string>
     <string name="player_settings_video_codec_auto_desc">Авто (предпочтительно H.264)</string>
     <string name="music_quality_auto">Авто</string>
@@ -1886,4 +1886,12 @@
     <string name="search_in_flow">Поиск в Flow</string>
     <string name="close_popup_player">Закрыть всплывающий плеер</string>
     <string name="topic_score_prefix">Обоснование темы</string>
+    <string name="channel_sort_latest">Новые</string>
+    <string name="search_filter_all">Все</string>
+    <string name="search_toggle_view_mode">Вид результатов поиска</string>
+    <string name="content_settings_home_reselect_refresh_title">Обновлять вкладку «Главная» при повторном нажатии</string>
+    <string name="content_settings_home_reselect_refresh_subtitle">Обновлять рекомендации после прокрутки вверх при повторном нажатии на вкладку «Главная»</string>
+    <string name="settings_home_nav_tab_subtitle">Показывать вкладку «Главная» в нижней панели навигации</string>
+    <string name="settings_home_nav_tab_title">Вкладка «Главная»</string>
+    <string name="channel_metadata_unavailable">Информация о канале недоступна</string>
 </resources>
