@@ -13,6 +13,9 @@ data class YouTubeClient(
     val deviceMake: String? = null,
     val deviceModel: String? = null,
     val androidSdkVersion: String? = null,
+    val originalUrl: String? = null,
+    val platform: String? = null,
+    val utcOffsetMinutes: Int? = null,
     val buildId: String? = null,
     val cronetVersion: String? = null,
     val packageName: String? = null,
@@ -32,6 +35,9 @@ data class YouTubeClient(
             deviceMake = deviceMake,
             deviceModel = deviceModel,
             androidSdkVersion = androidSdkVersion,
+            originalUrl = originalUrl,
+            platform = platform,
+            utcOffsetMinutes = utcOffsetMinutes,
             gl = locale.gl,
             hl = locale.hl,
             visitorData = visitorData
@@ -62,6 +68,9 @@ data class YouTubeClient(
             clientVersion = "2.20260213.00.00",
             clientId = "1",
             userAgent = USER_AGENT_WEB,
+            originalUrl = ORIGIN_YOUTUBE,
+            platform = "DESKTOP",
+            utcOffsetMinutes = 0,
         )
 
         val ANDROID = YouTubeClient(

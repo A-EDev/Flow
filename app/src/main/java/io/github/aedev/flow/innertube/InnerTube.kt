@@ -278,21 +278,30 @@ class InnerTube {
         query: String? = null,
         params: String? = null,
         continuation: String? = null,
+        anonymous: Boolean = false,
     ) = withRetry {
+        val requestVisitorData = visitorData.takeUnless { anonymous }
         httpClient.post("https://www.youtube.com/youtubei/v1/search") {
             headers {
                 append("X-YouTube-Client-Name", client.clientId)
                 append("X-YouTube-Client-Version", client.clientVersion)
-                append("X-Origin", "https://www.youtube.com")
-                append("Referer", "https://www.youtube.com/")
-                visitorData?.let { append("X-Goog-Visitor-Id", it) }
+                if (anonymous) {
+                    append(HttpHeaders.Origin, YouTubeClient.ORIGIN_YOUTUBE)
+                    append("Referer", YouTubeClient.ORIGIN_YOUTUBE)
+                    append(HttpHeaders.Cookie, "SOCS=CAE=")
+                    append(HttpHeaders.AcceptLanguage, "${locale.hl}, en;q=0.9")
+                } else {
+                    append("X-Origin", YouTubeClient.ORIGIN_YOUTUBE)
+                    append("Referer", YouTubeClient.REFERER_YOUTUBE)
+                }
+                requestVisitorData?.let { append("X-Goog-Visitor-Id", it) }
             }
             contentType(io.ktor.http.ContentType.Application.Json)
             userAgent(client.userAgent)
             parameter("prettyPrint", false)
             setBody(
                 SearchBody(
-                    context = client.toContext(locale, visitorData, null),
+                    context = client.toContext(locale, requestVisitorData, null),
                     query = query,
                     params = params,
                     continuation = continuation,

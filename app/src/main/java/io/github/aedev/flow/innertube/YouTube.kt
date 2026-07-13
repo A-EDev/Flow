@@ -73,7 +73,9 @@ import io.github.aedev.flow.utils.avatarImageIdentityKey
 import android.util.Log
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -86,6 +88,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.net.Proxy
 import java.util.Locale
 import kotlin.random.Random
+import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 
 /**
  * Parse useful data with [InnerTube] sending requests.
@@ -95,6 +98,8 @@ object YouTube {
     private val innerTube = InnerTube()
     private const val CHANNEL_VIDEOS_PARAMS = "EgZ2aWRlb3PyBgQKAjoA"
     private const val CHANNEL_LIVE_PARAMS = "EgdzdHJlYW1z8gYECgJ6AA%3D%3D"
+    private const val ANONYMOUS_WEB_SEARCH_USER_AGENT =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
 
     var locale: YouTubeLocale
         get() = innerTube.locale
@@ -205,12 +210,22 @@ object YouTube {
         query: String,
         continuation: String? = null,
     ): Result<SearchVideosPage> = runCatching {
+        val searchClient = currentWebSearchClient()
         innerTube.webSearch(
-            client = WEB,
+            client = searchClient,
             query = query.takeIf { continuation == null },
             params = YouTubeSearchParams.videosSortedByViewCount().takeIf { continuation == null },
             continuation = continuation,
+            anonymous = true,
         ).body<JsonObject>().toSearchVideosPage()
+    }
+
+    private suspend fun currentWebSearchClient(): YouTubeClient = withContext(Dispatchers.IO) {
+        WEB.copy(
+            clientVersion = runCatching { YoutubeParsingHelper.getClientVersion() }
+                .getOrDefault(WEB.clientVersion),
+            userAgent = ANONYMOUS_WEB_SEARCH_USER_AGENT,
+        )
     }
 
     suspend fun searchContinuation(continuation: String): Result<SearchResult> = runCatching {
