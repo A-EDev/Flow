@@ -1049,20 +1049,15 @@ fun GlobalPlayerOverlay(
                         var showRemainingTime by rememberSaveable { mutableStateOf(false) }
                         if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode) {
                             val controlsShown = screenState.showControls || screenState.isTouchLocked
-                            val frozenPosition = remember { longArrayOf(0L) }
-                            val frozenBuffered = remember { floatArrayOf(0f) }
-                            if (controlsShown) {
-                                frozenPosition[0] = screenState.currentPosition
-                                frozenBuffered[0] = (if (screenState.duration > 0) {
-                                    screenState.bufferedPosition.toFloat() / screenState.duration.toFloat()
-                                } else 0f).coerceIn(0f, 1f)
-                            }
+                            val bufferedFraction = (if (screenState.duration > 0) {
+                                screenState.bufferedPosition.toFloat() / screenState.duration.toFloat()
+                            } else 0f).coerceIn(0f, 1f)
                             PremiumControlsOverlay(
                                 isVisible = controlsShown,
                                 isPlaying = playerState.playWhenReady,
                                 hasEnded = playerState.hasEnded,
                                 isBuffering = playerState.isBuffering,
-                                currentPosition = frozenPosition[0],
+                                currentPosition = screenState.currentPosition,
                                 duration = screenState.duration,
                                 qualityLabel = if (playerState.currentQuality == 0) 
                                     context.getString(R.string.quality_auto_template, playerState.effectiveQuality) 
@@ -1151,7 +1146,7 @@ fun GlobalPlayerOverlay(
                                 },
                                 hasPrevious = playerState.hasPrevious || canGoPrevious,
                                 hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
-                                bufferedPercentage = frozenBuffered[0],
+                                bufferedPercentage = bufferedFraction,
                                 windowInsets = WindowInsets(0, 0, 0, 0),
                                 sbSubmitEnabled = sbSubmitEnabled,
                                 onSbSubmitClick = {
@@ -1177,13 +1172,18 @@ fun GlobalPlayerOverlay(
                                     }
                                 },
                                 isCommentsAvailable = isCommentsAvailable,
-                                isCommentsPanelOpen = screenState.showCommentsFullscreen,
+                                isCommentsPanelOpen = screenState.showCommentsFullscreen || screenState.showCommentsSheet,
                                 onCommentsClick = {
-                                    if (screenState.showCommentsFullscreen) {
-                                        screenState.showCommentsFullscreen = false
+                                    if (canUseFullscreenSidePanel) {
+                                        if (screenState.showCommentsFullscreen) {
+                                            screenState.showCommentsFullscreen = false
+                                        } else {
+                                            screenState.dismissMediaSheets()
+                                            screenState.showCommentsFullscreen = true
+                                        }
                                     } else {
                                         screenState.dismissMediaSheets()
-                                        screenState.showCommentsFullscreen = true
+                                        screenState.showCommentsSheet = true
                                     }
                                 },
                                 onSleepTimerClick = { screenState.showSleepTimerSheet = true },

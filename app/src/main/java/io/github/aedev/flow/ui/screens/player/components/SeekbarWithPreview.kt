@@ -201,6 +201,32 @@ fun SeekbarWithPreview(
                             )
                         }
                     }
+
+                    val currentTimeSeconds = internalValue.coerceIn(0f, 1f) * duration / 1000f
+                    val isInsideSponsorSegment = sponsorSegments.any { segment ->
+                        currentTimeSeconds >= segment.startTime && currentTimeSeconds < segment.endTime
+                    }
+                    if (isInsideSponsorSegment) {
+                        val playheadX = width * internalValue.coerceIn(0f, 1f)
+                        val outerWidth = minOf(4.dp.toPx(), width)
+                        val innerWidth = minOf(2.dp.toPx(), width)
+                        drawRect(
+                            color = thumbFillColor,
+                            topLeft = Offset(
+                                x = (playheadX - outerWidth / 2f).coerceIn(0f, width - outerWidth),
+                                y = trackTop
+                            ),
+                            size = Size(outerWidth, trackHeightPx)
+                        )
+                        drawRect(
+                            color = primaryColor,
+                            topLeft = Offset(
+                                x = (playheadX - innerWidth / 2f).coerceIn(0f, width - innerWidth),
+                                y = trackTop
+                            ),
+                            size = Size(innerWidth, trackHeightPx)
+                        )
+                    }
                 }
             }
 

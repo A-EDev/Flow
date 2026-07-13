@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
+import io.github.aedev.flow.ui.screens.player.components.PortraitFullscreenEdgeScrims
 import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -236,6 +237,10 @@ fun PremiumControlsOverlay(
             .fillMaxSize()
             .windowInsetsPadding(windowInsets)
     ) {
+        if (isFullscreen && isPortraitFullscreen) {
+            PortraitFullscreenEdgeScrims(modifier = Modifier.matchParentSize())
+        }
+
         AnimatedVisibility(
             visible = isVisible,
             enter = fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)),
@@ -318,12 +323,12 @@ fun PremiumControlsOverlay(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopStart)
-                        .padding(top = portraitFullscreenTopPadding)
                         .background(
                             brush = Brush.verticalGradient(
                                 colors = listOf(Color.Black.copy(alpha = 0.38f), Color.Transparent)
                             )
                         )
+                        .padding(top = portraitFullscreenTopPadding)
                 ) {
                 Row(
                 modifier = Modifier
