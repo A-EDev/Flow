@@ -1895,4 +1895,6 @@
     <string name="settings_home_nav_tab_title">علامة تبويب المنزل</string>
     <string name="settings_home_nav_tab_subtitle">اعرض الصفحة الرئيسية في شريط التنقل</string>
     <string name="channel_metadata_unavailable">معلومات القناة غير متاحة</string>
+    <string name="search_filter_all">الكل</string>
+    <string name="channel_sort_latest">الأحدث</string>
 </resources>
