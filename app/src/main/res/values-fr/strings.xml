@@ -1927,4 +1927,9 @@
     <string name="appearance_color_hue">Hue</string>
     <string name="appearance_color_saturation">Saturation</string>
     <string name="close_popup_player">Fermer le lecteur contextuel</string>
+    <string name="content_settings_home_reselect_refresh_title">Actualiser la page d\'accueil lors de la resélection</string>
+    <string name="content_settings_home_reselect_refresh_subtitle">Recharger les suggestions après avoir fait défiler jusqu\'en haut de la page lorsque l\'on appuie à nouveau sur « Accueil »</string>
+    <string name="settings_home_nav_tab_title">Onglet « Accueil »</string>
+    <string name="settings_home_nav_tab_subtitle">Afficher « Accueil » dans la barre de navigation</string>
+    <string name="channel_metadata_unavailable">Les informations sur la chaîne ne sont pas disponibles</string>
 </resources>
