@@ -103,6 +103,7 @@ class PlayerPreferences(context: Context) {
         val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
+        val HOME_NAVIGATION_ENABLED = booleanPreferencesKey("home_navigation_enabled")
         val SHORTS_NAVIGATION_ENABLED = booleanPreferencesKey("shorts_navigation_enabled")
         val BOTTOM_NAV_HIDE_ON_SCROLL = booleanPreferencesKey("bottom_nav_hide_on_scroll")
         val MUSIC_NAVIGATION_ENABLED = booleanPreferencesKey("music_navigation_enabled")
@@ -128,6 +129,7 @@ class PlayerPreferences(context: Context) {
         val DOUBLE_TAP_SEEK_SECONDS = intPreferencesKey("double_tap_seek_seconds")
         val HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
         val HOME_FEED_ENABLED = booleanPreferencesKey("home_feed_enabled")
+        val REFRESH_HOME_ON_RESELECT = booleanPreferencesKey("refresh_home_on_reselect")
         val RELATED_CARD_STYLE = stringPreferencesKey("related_card_style")
 
         // SponsorBlock per-category action keys
@@ -636,6 +638,15 @@ class PlayerPreferences(context: Context) {
         }
     }
 
+    val homeNavigationEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.HOME_NAVIGATION_ENABLED] ?: true }
+
+    suspend fun setHomeNavigationEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HOME_NAVIGATION_ENABLED] = enabled
+        }
+    }
+
     // Shorts navigation enabled preference
     val shortsNavigationEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
         .map { preferences ->
@@ -753,6 +764,15 @@ class PlayerPreferences(context: Context) {
     suspend fun setHomeFeedEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.HOME_FEED_ENABLED] = enabled
+        }
+    }
+
+    val refreshHomeOnReselect: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.REFRESH_HOME_ON_RESELECT] ?: true }
+
+    suspend fun setRefreshHomeOnReselect(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.REFRESH_HOME_ON_RESELECT] = enabled
         }
     }
 

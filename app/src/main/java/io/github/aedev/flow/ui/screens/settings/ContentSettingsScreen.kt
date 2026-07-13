@@ -8,18 +8,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Comment
+import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.outlined.Comment
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.DragIndicator
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
@@ -41,7 +42,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +51,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.local.WatchedThreshold
+import io.github.aedev.flow.ui.NavigationVisibility
+import io.github.aedev.flow.ui.resolveDefaultNavTabIndex
+import io.github.aedev.flow.ui.visibleNavTabIndices
 import io.github.aedev.flow.ui.theme.GridItemSize
 import kotlinx.coroutines.launch
 
@@ -72,6 +75,7 @@ fun ContentSettingsScreen(
     
     val isShortsShelfEnabled by preferences.shortsShelfEnabled.collectAsState(initial = true)
     val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
+    val isHomeNavigationEnabled by preferences.homeNavigationEnabled.collectAsState(initial = true)
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
     val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
@@ -80,9 +84,10 @@ fun ContentSettingsScreen(
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
     
     val homeViewModeString by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
-    val currentHomeViewMode = homeViewModeString ?: io.github.aedev.flow.data.local.HomeViewMode.GRID
+    val currentHomeViewMode = homeViewModeString
 
     val homeFeedEnabled by preferences.homeFeedEnabled.collectAsState(initial = true)
+    val refreshHomeOnReselect by preferences.refreshHomeOnReselect.collectAsState(initial = true)
     val showAppLogoIcon by preferences.showAppLogoIcon.collectAsState(initial = true)
     val currentRelatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.COMPACT)
     val hideWatchedVideos by preferences.hideWatchedVideos.collectAsState(initial = false)
@@ -105,6 +110,19 @@ fun ContentSettingsScreen(
     val subscriptionShowLive by preferences.subscriptionShowLive.collectAsState(initial = true)
     val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
+    val navigationVisibility = NavigationVisibility(
+        home = isHomeNavigationEnabled,
+        shorts = isShortsNavigationEnabled,
+        music = isMusicNavigationEnabled,
+        search = isSearchNavigationEnabled,
+        categories = isCategoriesNavigationEnabled
+    )
+    val visibleNavIndices = visibleNavTabIndices(navTabOrder, navigationVisibility)
+    val resolvedDefaultNavTabIndex = resolveDefaultNavTabIndex(
+        preferredIndex = defaultNavTabIndex,
+        order = navTabOrder,
+        visibility = navigationVisibility
+    )
     val downloadDialogStyle by preferences.downloadDialogStyle.collectAsState(initial = io.github.aedev.flow.data.local.DownloadDialogStyle.FULL)
     
     Scaffold(
@@ -121,7 +139,7 @@ fun ContentSettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back))
                     }
                     Text(
                         text = stringResource(R.string.content_settings_title),
@@ -258,7 +276,7 @@ fun ContentSettingsScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                if (currentHomeViewMode == io.github.aedev.flow.data.local.HomeViewMode.GRID) Icons.Outlined.GridView else Icons.Outlined.List,
+                                if (currentHomeViewMode == io.github.aedev.flow.data.local.HomeViewMode.GRID) Icons.Outlined.GridView else Icons.AutoMirrored.Outlined.List,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
@@ -296,7 +314,7 @@ fun ContentSettingsScreen(
                             )
                             LayoutOption(
                                 title = stringResource(R.string.content_settings_layout_list),
-                                icon = Icons.Outlined.List,
+                                icon = Icons.AutoMirrored.Outlined.List,
                                 isSelected = currentHomeViewMode == io.github.aedev.flow.data.local.HomeViewMode.LIST,
                                 onClick = {
                                     coroutineScope.launch {
@@ -322,6 +340,21 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setHomeFeedEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Refresh,
+                        title = stringResource(R.string.content_settings_home_reselect_refresh_title),
+                        subtitle = stringResource(R.string.content_settings_home_reselect_refresh_subtitle),
+                        checked = refreshHomeOnReselect,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setRefreshHomeOnReselect(enabled)
                             }
                         }
                     )
@@ -382,7 +415,7 @@ fun ContentSettingsScreen(
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = Icons.Outlined.List,
+                        icon = Icons.AutoMirrored.Outlined.List,
                         title = stringResource(R.string.settings_show_related_videos_title),
                         subtitle = stringResource(R.string.settings_show_related_videos_subtitle),
                         checked = showRelatedVideos,
@@ -394,7 +427,7 @@ fun ContentSettingsScreen(
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = Icons.Outlined.Comment,
+                        icon = Icons.AutoMirrored.Outlined.Comment,
                         title = stringResource(R.string.content_settings_comments_enabled_title),
                         subtitle = stringResource(R.string.content_settings_comments_enabled_subtitle),
                         checked = commentsEnabled,
@@ -406,7 +439,7 @@ fun ContentSettingsScreen(
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = Icons.Outlined.Comment,
+                        icon = Icons.AutoMirrored.Outlined.Comment,
                         title = stringResource(R.string.content_settings_comments_preview_title),
                         subtitle = stringResource(R.string.content_settings_comments_preview_subtitle),
                         checked = commentsPreviewEnabled,
@@ -518,6 +551,18 @@ fun ContentSettingsScreen(
             item {
                 SectionHeader(text = stringResource(R.string.content_settings_header_nav_tabs))
                 SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Home,
+                        title = stringResource(R.string.settings_home_nav_tab_title),
+                        subtitle = stringResource(R.string.settings_home_nav_tab_subtitle),
+                        checked = isHomeNavigationEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setHomeNavigationEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
                         title = stringResource(R.string.settings_shorts_nav_tab_title),
@@ -640,7 +685,8 @@ fun ContentSettingsScreen(
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     NavTabOrderSettings(
                         order = navTabOrder,
-                        defaultTabIndex = defaultNavTabIndex,
+                        enabledIndices = visibleNavIndices.toSet(),
+                        defaultTabIndex = resolvedDefaultNavTabIndex,
                         onMove = { index, direction ->
                             val currentIndex = navTabOrder.indexOf(index)
                             val targetIndex = (currentIndex + direction).coerceIn(0, navTabOrder.lastIndex)
@@ -856,6 +902,7 @@ fun ContentSettingsScreen(
 @Composable
 private fun NavTabOrderSettings(
     order: List<Int>,
+    enabledIndices: Set<Int>,
     defaultTabIndex: Int,
     onMove: (index: Int, direction: Int) -> Unit,
     onDefaultSelected: (Int) -> Unit
@@ -885,6 +932,7 @@ private fun NavTabOrderSettings(
         Spacer(modifier = Modifier.height(12.dp))
 
         order.forEachIndexed { position, index ->
+            val enabled = index in enabledIndices
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -893,6 +941,7 @@ private fun NavTabOrderSettings(
             ) {
                 RadioButton(
                     selected = defaultTabIndex == index,
+                    enabled = enabled,
                     onClick = { onDefaultSelected(index) }
                 )
                 Icon(

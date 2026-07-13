@@ -51,6 +51,7 @@ fun FloatingBottomNavBar(
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    isHomeEnabled: Boolean = true,
     isShortsEnabled: Boolean = true,
     isMusicEnabled: Boolean = true,
     isSearchEnabled: Boolean = false,
@@ -59,9 +60,9 @@ fun FloatingBottomNavBar(
 ) {
     val shortsIcon = ImageVector.vectorResource(id = R.drawable.ic_shorts)
 
-    val enabledItems = remember(isShortsEnabled, isMusicEnabled, isSearchEnabled, isCategoriesEnabled, navOrder) {
+    val enabledItems = remember(isHomeEnabled, isShortsEnabled, isMusicEnabled, isSearchEnabled, isCategoriesEnabled, navOrder) {
         val items = buildList {
-            add(NavItemSpec(0, Icons.Filled.Home,          Icons.Outlined.Home,          R.string.nav_home))
+            if (isHomeEnabled)      add(NavItemSpec(0, Icons.Filled.Home,          Icons.Outlined.Home,          R.string.nav_home))
             if (isShortsEnabled)    add(NavItemSpec(1, shortsIcon,                shortsIcon,                   R.string.nav_shorts))
             if (isMusicEnabled)     add(NavItemSpec(2, Icons.Filled.MusicNote,   Icons.Outlined.MusicNote,     R.string.nav_music))
             add(NavItemSpec(3, Icons.Filled.Subscriptions, Icons.Outlined.Subscriptions, R.string.nav_subs))

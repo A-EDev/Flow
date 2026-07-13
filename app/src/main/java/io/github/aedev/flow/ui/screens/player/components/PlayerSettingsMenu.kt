@@ -9,12 +9,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.material.icons.rounded.Repeat
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,7 +35,11 @@ import io.github.aedev.flow.player.*
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private const val SPEED_SELECTION_DISMISS_DELAY_MS = 1_500L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +84,7 @@ fun SettingsMenuDialog(
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
     var currentPage by remember { mutableStateOf(initialPage) }
+    var speedDismissJob by remember { mutableStateOf<Job?>(null) }
     val sheetProgress = if (expandedHeightPx > 0f) {
         ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
     } else {
@@ -113,6 +119,8 @@ fun SettingsMenuDialog(
 
     fun animateToDismiss(afterDismiss: () -> Unit = {}) {
         if (isAnimatingOut) return
+        speedDismissJob?.cancel()
+        speedDismissJob = null
         if (!enableVerticalDismiss) {
             latestOnDismiss()
             afterDismiss()
@@ -129,6 +137,15 @@ fun SettingsMenuDialog(
             )
             latestOnDismiss()
             afterDismiss()
+        }
+    }
+
+    fun scheduleSpeedDismiss() {
+        speedDismissJob?.cancel()
+        speedDismissJob = coroutineScope.launch {
+            delay(SPEED_SELECTION_DISMISS_DELAY_MS)
+            speedDismissJob = null
+            animateToDismiss()
         }
     }
 
@@ -229,7 +246,7 @@ fun SettingsMenuDialog(
                         modifier = Modifier.padding(end = 4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back)
                         )
                     }
@@ -367,7 +384,7 @@ fun SettingsMenuDialog(
 
             // ── Stable Voice ──
             PlayerSettingsToggleRow(
-                icon = Icons.Rounded.VolumeUp,
+                icon = Icons.AutoMirrored.Rounded.VolumeUp,
                 label = stringResource(R.string.player_settings_stable_voice),
                 checked = playerState.isStableVolumeEnabled,
                 onToggle = onStableVolumeToggle
@@ -394,10 +411,8 @@ fun SettingsMenuDialog(
                 )
                 PlayerSettingsPage.Speed -> PlayerSettingsSpeedPage(
                     currentSpeed = playerState.playbackSpeed,
-                    onSpeedSelected = {
-                        onSpeedSelected(it)
-                        animateToDismiss()
-                    }
+                    onSpeedSelected = onSpeedSelected,
+                    onSpeedSelectionFinished = ::scheduleSpeedDismiss
                 )
                 PlayerSettingsPage.Audio -> PlayerSettingsAudioPage(
                     availableAudioTracks = playerState.availableAudioTracks,
@@ -604,7 +619,8 @@ private fun QualityOption.isSelected(currentQuality: Int, currentQualityKey: Str
 @Composable
 private fun PlayerSettingsSpeedPage(
     currentSpeed: Float,
-    onSpeedSelected: (Float) -> Unit
+    onSpeedSelected: (Float) -> Unit,
+    onSpeedSelectionFinished: () -> Unit
 ) {
     val context = LocalContext.current
     val playerPrefs = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
@@ -624,16 +640,26 @@ private fun PlayerSettingsSpeedPage(
     }
 
     if (speedSliderEnabled) {
+        val sliderPresets = if (customSpeedsEnabled) {
+            speeds.filter { it in 0.1f..4.0f }
+        } else {
+            listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+        }
         SpeedSliderContent(
             currentSpeed = currentSpeed,
-            onSpeedSelected = onSpeedSelected
+            quickPresets = sliderPresets,
+            onSpeedSelected = onSpeedSelected,
+            onSpeedSelectionFinished = onSpeedSelectionFinished
         )
     } else {
         speeds.forEach { speed ->
             PlayerSettingsSelectionRow(
                 label = if (speed == 1.0f) stringResource(R.string.normal) else "${speed}x",
                 selected = speed == currentSpeed,
-                onClick = { onSpeedSelected(speed) }
+                onClick = {
+                    onSpeedSelected(speed)
+                    onSpeedSelectionFinished()
+                }
             )
         }
     }
@@ -868,14 +894,32 @@ private fun speedToSlider(speed: Float): Float {
 @Composable
 private fun SpeedSliderContent(
     currentSpeed: Float,
-    onSpeedSelected: (Float) -> Unit
+    quickPresets: List<Float>,
+    onSpeedSelected: (Float) -> Unit,
+    onSpeedSelectionFinished: () -> Unit
 ) {
-    val quickPresets = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
     val step = 0.05f
     var sliderProgress by remember { mutableStateOf(speedToSlider(currentSpeed)) }
+    var lastAppliedSpeed by remember { mutableFloatStateOf(currentSpeed) }
     val displaySpeed = sliderToSpeed(sliderProgress)
     val roundedSpeed = (kotlin.math.round(displaySpeed.toDouble() / step) * step)
         .toFloat().coerceIn(0.1f, 4.0f)
+
+    LaunchedEffect(currentSpeed) {
+        if (kotlin.math.abs(lastAppliedSpeed - currentSpeed) >= 0.001f) {
+            lastAppliedSpeed = currentSpeed
+            sliderProgress = speedToSlider(currentSpeed)
+        }
+    }
+
+    fun selectSpeed(speed: Float) {
+        val selectedSpeed = speed.coerceIn(0.1f, 4.0f)
+        sliderProgress = speedToSlider(selectedSpeed)
+        if (kotlin.math.abs(lastAppliedSpeed - selectedSpeed) >= 0.001f) {
+            lastAppliedSpeed = selectedSpeed
+            onSpeedSelected(selectedSpeed)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -902,7 +946,8 @@ private fun SpeedSliderContent(
             IconButton(
                 onClick = {
                     val newSpeed = (roundedSpeed - step).coerceIn(0.1f, 4.0f)
-                    sliderProgress = speedToSlider(newSpeed)
+                    selectSpeed(newSpeed)
+                    onSpeedSelectionFinished()
                 }
             ) {
                 Icon(
@@ -912,13 +957,23 @@ private fun SpeedSliderContent(
             }
             Slider(
                 value = sliderProgress,
-                onValueChange = { sliderProgress = it },
+                onValueChange = { progress ->
+                    sliderProgress = progress
+                    val speed = (kotlin.math.round(sliderToSpeed(progress).toDouble() / step) * step)
+                        .toFloat().coerceIn(0.1f, 4.0f)
+                    if (kotlin.math.abs(lastAppliedSpeed - speed) >= 0.001f) {
+                        lastAppliedSpeed = speed
+                        onSpeedSelected(speed)
+                    }
+                },
+                onValueChangeFinished = onSpeedSelectionFinished,
                 modifier = Modifier.weight(1f)
             )
             IconButton(
                 onClick = {
                     val newSpeed = (roundedSpeed + step).coerceIn(0.1f, 4.0f)
-                    sliderProgress = speedToSlider(newSpeed)
+                    selectSpeed(newSpeed)
+                    onSpeedSelectionFinished()
                 }
             ) {
                 Icon(
@@ -956,7 +1011,10 @@ private fun SpeedSliderContent(
                 val isActive = kotlin.math.abs(roundedSpeed - preset) < 0.01f
                 FilterChip(
                     selected = isActive,
-                    onClick = { sliderProgress = speedToSlider(preset) },
+                    onClick = {
+                        selectSpeed(preset)
+                        onSpeedSelectionFinished()
+                    },
                     label = {
                         Text(
                             text = if (preset == 1.0f) stringResource(R.string.normal)
@@ -967,25 +1025,5 @@ private fun SpeedSliderContent(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-
-        // Confirm + Reset row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(
-                onClick = { sliderProgress = speedToSlider(1.0f) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(stringResource(R.string.speed_slider_reset))
-            }
-            Button(
-                onClick = { onSpeedSelected(roundedSpeed) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(stringResource(R.string.speed_slider_apply))
-            }
-        }
     }
 }

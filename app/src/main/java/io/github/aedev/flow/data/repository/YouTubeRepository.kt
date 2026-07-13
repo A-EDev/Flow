@@ -32,6 +32,7 @@ import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.withPermit
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,6 +51,13 @@ class YouTubeRepository @Inject constructor(
     private val channelAvatarCache = LruCache<String, String>(300)
     private val videoAvatarStackCache = LruCache<String, List<String>>(300)
     private val videoCollaboratorCache = LruCache<String, List<VideoCollaborator>>(300)
+    private val videoChannelMetadataCache = LruCache<String, VideoChannelMetadata>(300)
+
+    private data class VideoChannelMetadata(
+        val channelId: String,
+        val channelName: String,
+        val avatarUrl: String
+    )
 
     /**
      * Fetch channel avatar by channelId, with in-memory caching.
@@ -96,6 +104,61 @@ class YouTubeRepository @Inject constructor(
                     )
                 } ?: video
             else video
+        }
+    }
+
+    suspend fun enrichMissingChannelMetadata(
+        videos: List<Video>,
+        limit: Int = 10
+    ): List<Video> = supervisorScope {
+        val candidates = videos
+            .filter { video ->
+                video.id.isNotBlank() &&
+                    (video.channelId.isBlank() ||
+                        !video.channelId.startsWith("UC") ||
+                        video.channelThumbnailUrl.isBlank())
+            }
+            .take(limit)
+        if (candidates.isEmpty()) return@supervisorScope videos
+
+        val semaphore = kotlinx.coroutines.sync.Semaphore(4)
+        val metadataByVideoId = candidates.map { video ->
+            async(Dispatchers.IO) {
+                semaphore.withPermit {
+                    val cached = videoChannelMetadataCache[video.id]
+                    val metadata = cached ?: withTimeoutOrNull(5_000L) {
+                        getLiveWatchMetadata(video.id)?.let { result ->
+                            VideoChannelMetadata(
+                                channelId = result.channelId.orEmpty(),
+                                channelName = result.channelName.orEmpty(),
+                                avatarUrl = result.channelAvatarUrl.orEmpty()
+                            )
+                        }
+                    }
+                    if (metadata != null && metadata.channelId.isNotBlank()) {
+                        videoChannelMetadataCache.put(video.id, metadata)
+                    }
+                    video.id to metadata
+                }
+            }
+        }.awaitAll().mapNotNull { (videoId, metadata) ->
+            metadata?.let { videoId to it }
+        }.toMap()
+
+        if (metadataByVideoId.isEmpty()) return@supervisorScope videos
+        videos.map { video ->
+            val metadata = metadataByVideoId[video.id] ?: return@map video
+            val avatarUrl = metadata.avatarUrl.ifBlank { video.channelThumbnailUrl }
+            video.copy(
+                channelId = metadata.channelId.ifBlank { video.channelId },
+                channelName = metadata.channelName.ifBlank { video.channelName },
+                channelThumbnailUrl = avatarUrl,
+                channelThumbnailUrls = if (avatarUrl.isNotBlank()) {
+                    (listOf(avatarUrl) + video.channelThumbnailUrls).distinct()
+                } else {
+                    video.channelThumbnailUrls
+                }
+            )
         }
     }
 
@@ -540,7 +603,13 @@ class YouTubeRepository @Inject constructor(
      */
     suspend fun getChannelInfo(channelIdOrUrl: String): org.schabi.newpipe.extractor.channel.ChannelInfo? = withContext(Dispatchers.IO) {
         try {
-            val channelUrl = if (channelIdOrUrl.startsWith("http")) channelIdOrUrl else "https://www.youtube.com/channel/$channelIdOrUrl"
+            val value = channelIdOrUrl.trim()
+            val channelUrl = when {
+                value.startsWith("http") -> value
+                value.startsWith("UC") -> "https://www.youtube.com/channel/$value"
+                value.startsWith("@") -> "https://www.youtube.com/$value"
+                else -> "https://www.youtube.com/@$value"
+            }
             org.schabi.newpipe.extractor.channel.ChannelInfo.getInfo(service, channelUrl)
         } catch (e: Exception) {
             Log.w(TAG, "${e::class.simpleName}: ${e.message}")
@@ -1181,7 +1250,7 @@ class YouTubeRepository @Inject constructor(
             url.contains("/channel/") -> url.substringAfter("/channel/")
                 .substringBefore("/")
                 .substringBefore("?")
-            url.contains("/@") -> url.substringAfter("/@")
+            url.contains("/@") -> "@" + url.substringAfter("/@")
                 .substringBefore("/")
                 .substringBefore("?")
             url.contains("/user/") -> url.substringAfter("/user/")

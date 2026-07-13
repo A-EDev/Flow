@@ -565,8 +565,10 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onChannelClick = { channelId ->
-                val encodedUrl = java.net.URLEncoder.encode("https://www.youtube.com/channel/$channelId", "UTF-8")
-                navController.navigate("channel?url=$encodedUrl")
+                youtubeChannelUrl(channelId)?.let { channelUrl ->
+                    val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
+                    navController.navigate("channel?url=$encodedUrl")
+                }
             },
             onShortClick = { videoId ->
                 if (disableShortsPlayer) {

@@ -728,6 +728,8 @@
     <string name="content_settings_header_home_feed">Home Feed</string>
     <string name="content_settings_home_feed_title">Enable Home Feed</string>
     <string name="content_settings_home_feed_subtitle">Show personalized video recommendations on the home screen</string>
+    <string name="content_settings_home_reselect_refresh_title">Refresh Home when reselected</string>
+    <string name="content_settings_home_reselect_refresh_subtitle">Reload suggestions after scrolling to the top when Home is tapped again</string>
     <string name="content_settings_home_feed_disabled_title">Home Feed Disabled</string>
     <string name="content_settings_home_feed_disabled_body">Personalized recommendations are turned off. You can re-enable this in Content Settings.</string>
     <!-- Video Player Related Card Style -->
@@ -769,6 +771,8 @@
     <string name="content_settings_explore_region_picker_subtitle">Show a globe icon in the Explore screen top bar to instantly change the trending region.</string>
     <string name="categories_region_picker_desc">Change trending region (current: %1$s)</string>
     <string name="content_settings_header_nav_tabs">Navigation Tabs</string>
+    <string name="settings_home_nav_tab_title">Home tab</string>
+    <string name="settings_home_nav_tab_subtitle">Show Home in the navigation bar</string>
     <string name="content_settings_comments_enabled_title">Comments</string>
     <string name="content_settings_comments_enabled_subtitle">Load and show the comments section on the video player screen</string>
     <string name="content_settings_comments_preview_title">Comments preview</string>
@@ -935,6 +939,7 @@
     <!-- Channel blocking -->
     <string name="dont_show_channel">Don’t show this channel</string>
     <string name="dont_show_channel_desc">Remove from your recommendations</string>
+    <string name="channel_metadata_unavailable">Channel information is unavailable</string>
     <string name="channel_blocked_toast">%1$s won’t appear in your feed</string>
     <!-- Misc -->
     <string name="btn_save">Save</string>

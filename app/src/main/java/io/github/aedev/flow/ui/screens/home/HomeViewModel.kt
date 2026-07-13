@@ -583,13 +583,19 @@ class HomeViewModel @Inject constructor(
                 when (event) {
                     is FeedInvalidationBus.Event.ChannelBlocked -> {
                         HomeFeedCache.filterOut(channelId = event.channelId)
+                        HomeFeedCache.filterOut(videoId = event.videoId)
                         viewModelScope.launch(PerformanceDispatcher.networkIO) {
                             persistentHomeFeedCache.deleteChannel(event.channelId)
+                            persistentHomeFeedCache.deleteVideo(event.videoId)
                         }
                         _uiState.update { state ->
                             state.copy(
-                                videos = state.videos.filter { it.channelId != event.channelId },
-                                shorts = state.shorts.filter { it.channelId != event.channelId }
+                                videos = state.videos.filter {
+                                    it.id != event.videoId && it.channelId != event.channelId
+                                },
+                                shorts = state.shorts.filter {
+                                    it.id != event.videoId && it.channelId != event.channelId
+                                }
                             )
                         }
                         // Targeted eviction — preserves other channel caches in discovery engine
@@ -704,6 +710,9 @@ class HomeViewModel @Inject constructor(
                     error = null,
                     lastRefreshTime = System.currentTimeMillis()
                 )
+            }
+            enrichVisibleChannelMetadata(hydratedCached)?.let {
+                persistentHomeFeedCache.saveLastFeed(it)
             }
         }
     }
@@ -965,6 +974,9 @@ class HomeViewModel @Inject constructor(
                 HomeFeedCache.update(spacedMix, _uiState.value.shorts)
                 persistentHomeFeedCache.saveLastFeed(spacedMix)
                 persistentHomeFeedCache.saveReserve(reserveCandidates)
+                enrichVisibleChannelMetadata(spacedMix)?.let {
+                    persistentHomeFeedCache.saveLastFeed(it)
+                }
 
                 // Enrich (post-paint) with related neighbours of saved/watched videos.
                 enrichFeedWithSavedInterest(userSubs, taste)
@@ -1179,7 +1191,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun appendLoadMorePage(page: List<Video>): List<Video>? {
+    private suspend fun appendLoadMorePage(page: List<Video>): List<Video>? {
         if (page.isEmpty()) return null
         var updatedSnapshot: List<Video>? = null
         _uiState.update { state ->
@@ -1192,6 +1204,22 @@ class HomeViewModel @Inject constructor(
                 isLoadingMore = false,
                 hasMorePages = true
             )
+        }
+        return enrichVisibleChannelMetadata(page) ?: updatedSnapshot
+    }
+
+    private suspend fun enrichVisibleChannelMetadata(videos: List<Video>): List<Video>? {
+        val enriched = repository.enrichMissingChannelMetadata(videos)
+        if (enriched == videos) return null
+
+        val updates = enriched.associateBy { it.id }
+        var updatedSnapshot: List<Video>? = null
+        _uiState.update { state ->
+            val updated = state.videos.map { updates[it.id] ?: it }
+            if (updated == state.videos) return@update state
+            updatedSnapshot = updated
+            HomeFeedCache.update(updated, state.shorts)
+            state.copy(videos = updated)
         }
         return updatedSnapshot
     }

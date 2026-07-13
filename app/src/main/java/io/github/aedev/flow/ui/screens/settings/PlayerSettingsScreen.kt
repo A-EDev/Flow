@@ -419,7 +419,7 @@ fun PlayerSettingsScreen(
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setSpeedSliderEnabled(it) } }
                     )
                 }
-                AnimatedVisibility(visible = customSpeedsEnabled && !speedSliderEnabled) {
+                AnimatedVisibility(visible = customSpeedsEnabled) {
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)

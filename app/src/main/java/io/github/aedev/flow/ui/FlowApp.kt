@@ -95,6 +95,7 @@ fun FlowApp(
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
 
     val preferences = remember { PlayerPreferences(context) }
+    val isHomeNavigationEnabled by preferences.homeNavigationEnabled.collectAsState(initial = true)
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
     val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
@@ -107,7 +108,19 @@ fun FlowApp(
     val sleepTimerCloseAppOnExpiry by preferences.sleepTimerCloseAppOnExpiry.collectAsState(
         initial = SleepTimerManager.preferredCloseAppOnExpiry
     )
-    val defaultStartRoute = navRouteForIndex(defaultNavTabIndex)
+    val navigationVisibility = NavigationVisibility(
+        home = isHomeNavigationEnabled,
+        shorts = isShortsNavigationEnabled,
+        music = isMusicNavigationEnabled,
+        search = isSearchNavigationEnabled,
+        categories = isCategoriesNavigationEnabled
+    )
+    val resolvedDefaultNavTabIndex = resolveDefaultNavTabIndex(
+        preferredIndex = defaultNavTabIndex,
+        order = navTabOrder,
+        visibility = navigationVisibility
+    )
+    val defaultStartRoute = navRouteForIndex(resolvedDefaultNavTabIndex)
     
     // Mini Player Customizations
     val miniPlayerScale by preferences.miniPlayerScale.collectAsState(initial = 0.45f)
@@ -115,7 +128,7 @@ fun FlowApp(
     val miniPlayerShowNextPrevControls by preferences.miniPlayerShowNextPrevControls.collectAsState(initial = false)
     
     // Offline Monitoring
-    val currentRoute = remember { mutableStateOf("home") }
+    val currentRoute = remember { mutableStateOf(defaultStartRoute) }
     
     // Onboarding check
     var needsOnboarding by remember { mutableStateOf<Boolean?>(null) }
@@ -159,13 +172,25 @@ fun FlowApp(
     HandleDeepLinks(deeplinkVideoId, isShort, navController, onDeeplinkConsumed)
     OfflineMonitor(context, navController, snackbarHostState, currentRoute)
     
-    val selectedBottomNavIndex = remember { mutableIntStateOf(0) }
+    val selectedBottomNavIndex = remember { mutableIntStateOf(resolvedDefaultNavTabIndex) }
     val showBottomNav = remember { mutableStateOf(true) }
     val navScrollThresholdPx = with(LocalDensity.current) { 32.dp.toPx() }
 
-    LaunchedEffect(defaultNavTabIndex) {
-        selectedBottomNavIndex.intValue = defaultNavTabIndex
-        currentRoute.value = navRouteForIndex(defaultNavTabIndex)
+    LaunchedEffect(resolvedDefaultNavTabIndex) {
+        selectedBottomNavIndex.intValue = resolvedDefaultNavTabIndex
+        currentRoute.value = navRouteForIndex(resolvedDefaultNavTabIndex)
+    }
+
+    LaunchedEffect(isHomeNavigationEnabled, currentRoute.value, defaultStartRoute, needsOnboarding) {
+        if (needsOnboarding == false && !isHomeNavigationEnabled && currentRoute.value == "home") {
+            selectedBottomNavIndex.intValue = resolvedDefaultNavTabIndex
+            currentRoute.value = defaultStartRoute
+            navController.navigate(defaultStartRoute) {
+                popUpTo("home") { inclusive = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
     }
 
     var isNavScrolledVisible by remember { mutableStateOf(true) }
@@ -505,6 +530,7 @@ fun FlowApp(
         ) {
             FloatingBottomNavBar(
                 selectedIndex = selectedBottomNavIndex.intValue,
+                isHomeEnabled = isHomeNavigationEnabled,
                 isShortsEnabled = isShortsNavigationEnabled,
                 isMusicEnabled = isMusicNavigationEnabled,
                 isSearchEnabled = isSearchNavigationEnabled,
@@ -648,17 +674,6 @@ fun FlowApp(
         onNavigateToDonations = { navController.navigate("donations") }
     )
   }
-}
-
-private fun navRouteForIndex(index: Int): String = when (index) {
-    0 -> "home"
-    1 -> "shorts"
-    2 -> "music"
-    3 -> "subscriptions"
-    4 -> "library"
-    5 -> "search"
-    6 -> "categories"
-    else -> "home"
 }
 
 private fun String.isLibraryOrSettingsRouteForMusicMiniPlayer(): Boolean {

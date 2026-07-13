@@ -432,7 +432,9 @@ class VideoPlayerViewModel @Inject constructor(
                     is FeedInvalidationBus.Event.ChannelBlocked -> {
                         _uiState.update { state ->
                             state.copy(
-                                relatedVideos = state.relatedVideos.filter { it.channelId != event.channelId }
+                                relatedVideos = state.relatedVideos.filter {
+                                    it.id != event.videoId && it.channelId != event.channelId
+                                }
                             )
                         }
                     }

@@ -105,6 +105,7 @@ fun HomeScreen(
     val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
     val homeViewMode by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
     val homeFeedEnabled by preferences.homeFeedEnabled.collectAsState(initial = true)
+    val refreshHomeOnReselect by preferences.refreshHomeOnReselect.collectAsState(initial = true)
     val showAppLogoIcon by preferences.showAppLogoIcon.collectAsState(initial = true)
     val deepFlowActive by preferences.deepFlowActive.collectAsState(initial = false)
     
@@ -143,13 +144,14 @@ fun HomeScreen(
             .collect { viewModel.recordImpressions(it) }
     }
 
-    // Scroll to top (and refresh) when the home nav-bar tab is re-tapped while already on this screen
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refreshHomeOnReselect) {
         TabScrollEventBus.scrollToTopEvents
             .filter { it == "home" }
             .collectLatest {
                 gridState.animateScrollToItem(0)
-                viewModel.refreshFeed()
+                if (refreshHomeOnReselect) {
+                    viewModel.refreshFeed()
+                }
             }
     }
 

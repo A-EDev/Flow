@@ -45,7 +45,7 @@ import javax.inject.Inject
  */
 object FeedInvalidationBus {
     sealed class Event {
-        data class ChannelBlocked(val channelId: String) : Event()
+        data class ChannelBlocked(val channelId: String, val videoId: String) : Event()
         data class NotInterested(val videoId: String, val channelId: String) : Event()
         data class MarkedWatched(val videoId: String) : Event()
     }
@@ -167,14 +167,27 @@ class QuickActionsViewModel @Inject constructor(
      * channel score, mirroring the "Blocked Channels" UI in User Preferences.
      */
     fun blockChannel(video: Video) {
-        if (video.channelId.isBlank()) return
         viewModelScope.launch {
             try {
-                FlowNeuroEngine.blockChannel(context, video.channelId)
-                FeedInvalidationBus.emit(FeedInvalidationBus.Event.ChannelBlocked(video.channelId))
+                val metadata = if (video.channelId.startsWith("UC")) {
+                    null
+                } else {
+                    withContext(Dispatchers.IO) { repository.getLiveWatchMetadata(video.id) }
+                }
+                val channelId = metadata?.channelId.orEmpty().ifBlank { video.channelId }
+                check(channelId.isNotBlank()) {
+                    context.getString(io.github.aedev.flow.R.string.channel_metadata_unavailable)
+                }
+                FlowNeuroEngine.blockChannel(context, channelId)
+                FeedInvalidationBus.emit(
+                    FeedInvalidationBus.Event.ChannelBlocked(channelId, video.id)
+                )
                 Toast.makeText(
                     context,
-                    context.getString(io.github.aedev.flow.R.string.channel_blocked_toast, video.channelName),
+                    context.getString(
+                        io.github.aedev.flow.R.string.channel_blocked_toast,
+                        metadata?.channelName.orEmpty().ifBlank { video.channelName }
+                    ),
                     Toast.LENGTH_SHORT
                 ).show()
             } catch (e: Exception) {
