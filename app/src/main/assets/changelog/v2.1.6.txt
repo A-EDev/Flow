@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-07-11
+DATE: 2026-07-13
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -18,6 +18,7 @@ NEW FEATURES
 - Add hide music artwork option #639
 - Add channel sorting options in subscriptions (default, name A–Z, recently updated) #498
 - Add new vetrical video fullscreen drag gesture
+- Add comunity posts support
 
 IMPROVEMENTS
 - Improve media notification handling #577

@@ -382,6 +382,39 @@ class InnerTube {
         }
     }
 
+    suspend fun postCommentsBrowse(
+        client: YouTubeClient,
+        postId: String? = null,
+        params: String? = null,
+        continuation: String? = null,
+    ) = withRetry {
+        httpClient.post("https://www.youtube.com/youtubei/v1/browse") {
+            headers {
+                append("X-YouTube-Client-Name", client.clientId)
+                append("X-YouTube-Client-Version", client.clientVersion)
+                append("X-Origin", "https://www.youtube.com")
+                append("Referer", "https://www.youtube.com/")
+                visitorData?.let { append("X-Goog-Visitor-Id", it) }
+            }
+            contentType(io.ktor.http.ContentType.Application.Json)
+            userAgent(client.userAgent)
+            parameter("prettyPrint", false)
+            setBody(
+                BrowseBody(
+                    context = client.toContext(locale, visitorData, null),
+                    browseId = if (continuation == null) "FEpost_detail" else null,
+                    params = if (continuation == null) params else null,
+                    continuation = continuation,
+                    canonicalBaseUrl = if (continuation == null && params == null) {
+                        postId?.let { "/post/$it" }
+                    } else {
+                        null
+                    },
+                )
+            )
+        }
+    }
+
     suspend fun player(
         client: YouTubeClient,
         videoId: String,

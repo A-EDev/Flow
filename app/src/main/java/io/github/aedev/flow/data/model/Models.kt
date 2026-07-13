@@ -65,7 +65,9 @@ data class Comment(
     val replies: List<Comment> = emptyList(),
     val replyCount: Int = 0,
     val repliesPage: Page? = null,
-    val isPinned: Boolean = false
+    val isPinned: Boolean = false,
+    val continuationToken: String? = null,
+    val authorChannelId: String = ""
 )
 
 data class SearchResult(

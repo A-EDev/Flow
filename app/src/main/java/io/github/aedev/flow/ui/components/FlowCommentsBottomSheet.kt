@@ -514,7 +514,11 @@ fun FlowCommentItem(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(),
-                            onClick = { onAuthorClick(getAuthorHandle(comment.author)) }
+                            onClick = {
+                                onAuthorClick(
+                                    comment.authorChannelId.ifBlank { getAuthorHandle(comment.author) }
+                                )
+                            }
                         )
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -676,7 +680,7 @@ fun FlowCommentItem(
                         )
                     }
 
-                    if (comment.repliesPage != null) {
+                    if (comment.repliesPage != null || comment.continuationToken != null) {
                         Text(
                             text = stringResource(R.string.load_more_replies),
                             color = MaterialTheme.colorScheme.primary,
@@ -764,7 +768,11 @@ fun FlowReplyItem(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(),
-                            onClick = { onAuthorClick(getAuthorHandle(reply.author)) }
+                            onClick = {
+                                onAuthorClick(
+                                    reply.authorChannelId.ifBlank { getAuthorHandle(reply.author) }
+                                )
+                            }
                         )
                 )
                 Spacer(modifier = Modifier.width(6.dp))

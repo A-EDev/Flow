@@ -10,8 +10,10 @@ import androidx.paging.cachedIn
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
 import io.github.aedev.flow.data.paging.ChannelPlaylistsPagingSource
+import io.github.aedev.flow.innertube.pages.CommunityPost
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +33,8 @@ import java.util.Locale
 class ChannelViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ChannelUiState())
     val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
+    private val communityController = ChannelCommunityController(viewModelScope)
+    internal val communityUiState: StateFlow<ChannelCommunityUiState> = communityController.state
     // Paging flow for channel videos with infinite scroll
     private val _videosPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
     val videosPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _videosPagingFlow.asStateFlow()
@@ -73,6 +77,7 @@ class ChannelViewModel : ViewModel() {
         private const val PAGE_DELAY_MS = 800L
         /** Safety cap: stops loading beyond this many pages (~1500 videos) */
         private const val MAX_PAGES = 50
+        private const val POSTS_TAB_INDEX = 4
     }
     
     fun initialize(context: android.content.Context) {
@@ -125,8 +130,15 @@ class ChannelViewModel : ViewModel() {
                     it.copy(
                         channelId = channelId,
                         channelInfo = channelInfo,
-                        isLoading = false
+                        isLoading = false,
                     )
+                }
+                val channelAvatar = channelInfo.avatars.maxByOrNull { it.height }?.url
+                    ?: channelInfo.avatars.firstOrNull()?.url
+                    ?: ""
+                communityController.reset(channelId, channelInfo.name, channelAvatar)
+                if (_uiState.value.selectedTab == POSTS_TAB_INDEX) {
+                    communityController.ensurePostsLoaded()
                 }
                 
                 // Load subscription state
@@ -355,7 +367,22 @@ class ChannelViewModel : ViewModel() {
     
     fun selectTab(tabIndex: Int) {
         _uiState.update { it.copy(selectedTab = tabIndex) }
+        if (tabIndex == POSTS_TAB_INDEX) communityController.ensurePostsLoaded()
     }
+
+    fun openCommunityPostComments(post: CommunityPost) = communityController.openComments(post)
+
+    fun closeCommunityPostComments() = communityController.closeComments()
+
+    fun retryCommunityPosts() = communityController.retryPosts()
+
+    fun loadMoreCommunityPosts() = communityController.loadMorePosts()
+
+    fun loadMoreCommunityPostComments() = communityController.loadMoreComments()
+
+    fun loadCommunityCommentReplies(comment: Comment) = communityController.loadReplies(comment, append = false)
+
+    fun loadMoreCommunityCommentReplies(comment: Comment) = communityController.loadReplies(comment, append = true)
 
     // ── Channel search ────────────────────────────────────────────────────────
 
@@ -592,7 +619,7 @@ data class ChannelUiState(
     val videosError: String? = null,
     val isSubscribed: Boolean = false,
     val isNotificationsEnabled: Boolean = false,
-    val selectedTab: Int = 0, // 0: Videos, 1: Shorts, 2: Live, 3: Playlists, 4: About
+    val selectedTab: Int = 0, // 0: Videos, 1: Shorts, 2: Live, 3: Playlists, 4: Posts, 5: About
     // ── Channel search ──────────────────────────────────────────────────────
     val searchActive: Boolean = false,
     val searchQuery: String = "",

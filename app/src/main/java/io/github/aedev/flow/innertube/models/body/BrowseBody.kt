@@ -11,4 +11,5 @@ data class BrowseBody(
     val params: String?,
     val continuation: String?,
     val query: String? = null,
+    val canonicalBaseUrl: String? = null,
 )

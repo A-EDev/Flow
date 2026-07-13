@@ -69,8 +69,12 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.CompactVideoCard
+import io.github.aedev.flow.ui.components.CommentSortFilter
+import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.sortCommentsByFilter
+import io.github.aedev.flow.innertube.pages.CommunityPost
 import io.github.aedev.flow.ui.theme.extendedColors
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -93,6 +97,7 @@ fun ChannelScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    val communityUiState by viewModel.communityUiState.collectAsState()
     val shortsPagingFlow by viewModel.shortsPagingFlow.collectAsState()
     val playlistsPagingFlow by viewModel.playlistsPagingFlow.collectAsState()
     val allVideos by viewModel.videosAll.collectAsState()
@@ -107,12 +112,21 @@ fun ChannelScreen(
 
     var showCollapsedChannelTitle by remember(channelUrl) { mutableStateOf(false) }
     val collapsedChannelTitle = uiState.channelInfo?.name.orEmpty()
+    var communityCommentSort by rememberSaveable { mutableStateOf(CommentSortFilter.TOP) }
+    val sortedCommunityComments = remember(communityUiState.comments, communityCommentSort) {
+        sortCommentsByFilter(communityUiState.comments, communityCommentSort)
+    }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    LaunchedEffect(communityUiState.activePost?.id) {
+        communityCommentSort = CommentSortFilter.TOP
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -176,6 +190,7 @@ fun ChannelScreen(
                 uiState.channelInfo != null -> {
                     ChannelContent(
                         uiState = uiState,
+                        communityUiState = communityUiState,
                         allVideos = allVideos,
                         isLoadingAllVideos = isLoadingAllVideos,
                         shortsLazyPagingItems = shortsLazyPagingItems,
@@ -191,6 +206,21 @@ fun ChannelScreen(
                         onTabSelected = { viewModel.selectTab(it) },
                         onSearchToggle = { viewModel.setSearchActive(!uiState.searchActive) },
                         onSearchQueryChange = { viewModel.searchInChannel(it) },
+                        onCommunityPostComments = viewModel::openCommunityPostComments,
+                        onCommunityPostShare = { post ->
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/post/${post.id}")
+                            }
+                            context.startActivity(
+                                Intent.createChooser(
+                                    shareIntent,
+                                    context.getString(R.string.share_community_post),
+                                )
+                            )
+                        },
+                        onLoadMoreCommunityPosts = viewModel::loadMoreCommunityPosts,
+                        onRetryCommunityPosts = viewModel::retryCommunityPosts,
                         initialScrollIndex = viewModel.listScrollIndex,
                         initialScrollOffset = viewModel.listScrollOffset,
                         onScrollChanged = { idx, off -> viewModel.saveScrollPosition(idx, off) },
@@ -199,6 +229,25 @@ fun ChannelScreen(
                 }
             }
         }
+        }
+
+        if (communityUiState.activePost != null) {
+            FlowCommentsBottomSheet(
+                comments = sortedCommunityComments,
+                isLoading = communityUiState.isLoadingComments,
+                onDismiss = viewModel::closeCommunityPostComments,
+                selectedFilter = communityCommentSort,
+                onFilterChanged = { communityCommentSort = it },
+                isLoadingMore = communityUiState.isLoadingMoreComments,
+                onLoadMore = viewModel::loadMoreCommunityPostComments,
+                hasMore = communityUiState.commentsContinuation != null,
+                onLoadReplies = viewModel::loadCommunityCommentReplies,
+                onLoadMoreReplies = viewModel::loadMoreCommunityCommentReplies,
+                onAuthorClick = { authorChannelId ->
+                    if (authorChannelId.isNotBlank()) onChannelClick(authorChannelId)
+                },
+            )
+        }
     }
 }
 
@@ -206,6 +255,7 @@ fun ChannelScreen(
 @Composable
 private fun ChannelContent(
     uiState: ChannelUiState,
+    communityUiState: ChannelCommunityUiState,
     allVideos: List<Video>,
     isLoadingAllVideos: Boolean,
     shortsLazyPagingItems: LazyPagingItems<Video>?,
@@ -221,6 +271,10 @@ private fun ChannelContent(
     onTabSelected: (Int) -> Unit,
     onSearchToggle: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
+    onCommunityPostComments: (CommunityPost) -> Unit,
+    onCommunityPostShare: (CommunityPost) -> Unit,
+    onLoadMoreCommunityPosts: () -> Unit,
+    onRetryCommunityPosts: () -> Unit,
     initialScrollIndex: Int = 0,
     initialScrollOffset: Int = 0,
     onScrollChanged: (index: Int, offset: Int) -> Unit = { _, _ -> },
@@ -250,6 +304,7 @@ private fun ChannelContent(
         stringResource(R.string.tab_shorts),
         stringResource(R.string.tab_live),
         stringResource(R.string.tab_playlists),
+        stringResource(R.string.tab_posts),
         stringResource(R.string.tab_about)
     )
 
@@ -258,19 +313,12 @@ private fun ChannelContent(
         pageCount = { tabTitles.size }
     )
 
-    // Sync pager swipe → ViewModel tab selection
-    LaunchedEffect(pagerState.currentPage) {
-        onTabSelected(pagerState.currentPage)
+    // Persist only fully settled pages so an in-progress swipe cannot trigger a competing animation.
+    LaunchedEffect(channelInfo.id, pagerState.settledPage) {
+        onTabSelected(pagerState.settledPage)
     }
 
-    // Sync ViewModel tab selection (e.g. deep-link) → pager
-    LaunchedEffect(uiState.selectedTab) {
-        if (pagerState.currentPage != uiState.selectedTab) {
-            pagerState.animateScrollToPage(uiState.selectedTab)
-        }
-    }
-
-    val showFilterBar = pagerState.currentPage == 0 || pagerState.currentPage == 2
+    val showFilterBar = pagerState.settledPage == 0 || pagerState.settledPage == 2
 
     var collapsingHeaderHeightPx by remember { mutableFloatStateOf(0f) }
     var stickySectionHeightPx by remember { mutableFloatStateOf(0f) }
@@ -335,6 +383,7 @@ private fun ChannelContent(
     val shortsListState = rememberLazyListState()
     val liveListState = rememberLazyListState()
     val playlistsListState = rememberLazyListState()
+    val postsListState = rememberLazyListState()
     val aboutListState = rememberLazyListState()
     var lastAppliedFilter by rememberSaveable { mutableStateOf(selectedFilter) }
 
@@ -347,14 +396,14 @@ private fun ChannelContent(
         if (lastAppliedFilter == selectedFilter) return@LaunchedEffect
         lastAppliedFilter = selectedFilter
 
-        when (pagerState.currentPage) {
+        when (pagerState.settledPage) {
             0 -> videosListState.scrollToItem(0)
             2 -> liveListState.scrollToItem(0)
         }
     }
 
-    LaunchedEffect(sortedVideos.size, selectedFilter, pagerState.currentPage, uiState.searchActive) {
-        if (selectedFilter == VideoFilter.Latest || pagerState.currentPage != 0 || uiState.searchActive) return@LaunchedEffect
+    LaunchedEffect(sortedVideos.size, selectedFilter, pagerState.settledPage, uiState.searchActive) {
+        if (selectedFilter == VideoFilter.Latest || pagerState.settledPage != 0 || uiState.searchActive) return@LaunchedEffect
 
         when (selectedFilter) {
             VideoFilter.Oldest -> videosListState.scrollToItem(0)
@@ -370,8 +419,8 @@ private fun ChannelContent(
         }
     }
 
-    LaunchedEffect(sortedLive.size, selectedFilter, pagerState.currentPage) {
-        if (selectedFilter == VideoFilter.Latest || pagerState.currentPage != 2) return@LaunchedEffect
+    LaunchedEffect(sortedLive.size, selectedFilter, pagerState.settledPage) {
+        if (selectedFilter == VideoFilter.Latest || pagerState.settledPage != 2) return@LaunchedEffect
 
         when (selectedFilter) {
             VideoFilter.Oldest -> liveListState.scrollToItem(0)
@@ -541,7 +590,22 @@ private fun ChannelContent(
                     item { Spacer(Modifier.height(16.dp)) }
                 }
 
-                4 -> LazyColumn(
+                4 -> ChannelCommunityPosts(
+                    posts = communityUiState.posts,
+                    isLoading = communityUiState.isLoadingPosts,
+                    isLoadingMore = communityUiState.isLoadingMorePosts,
+                    hasMore = communityUiState.postsContinuation != null,
+                    hasError = communityUiState.postsError,
+                    listState = postsListState,
+                    contentPadding = listPadding,
+                    onAuthorClick = { onChannelClick(channelInfo.id) },
+                    onCommentsClick = onCommunityPostComments,
+                    onShareClick = onCommunityPostShare,
+                    onLoadMore = onLoadMoreCommunityPosts,
+                    onRetry = onRetryCommunityPosts,
+                )
+
+                5 -> LazyColumn(
                     state = aboutListState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = listPadding

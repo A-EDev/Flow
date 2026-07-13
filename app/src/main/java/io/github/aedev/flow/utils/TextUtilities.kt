@@ -3,6 +3,7 @@ package io.github.aedev.flow.utils
 import android.text.style.URLSpan
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +38,9 @@ fun formatRichText(
 
     return buildAnnotatedString {
         append(plainText)
+        if (plainText.isNotEmpty()) {
+            addStyle(SpanStyle(color = textColor), 0, plainText.length)
+        }
 
         // ── 1. Timestamps (highest priority) ──────────────────────────────────
         val timestampPattern = Regex("""(\d{1,2}:)?\d{1,2}:\d{2}""")
@@ -62,19 +66,28 @@ fun formatRichText(
                 s, e
             )
             addStringAnnotation("URL", absoluteUrl, s, e)
+            addLink(LinkAnnotation.Url(absoluteUrl), s, e)
         }
 
         // ── 3. Plain-text URLs (not inside an HTML anchor) ────────────────────
-        val urlRegex = Regex("""https?://\S+""")
+        val urlRegex = Regex("""(?i)\b(?:https?://|www\.)[^\s<]+""")
         for (match in urlRegex.findAll(plainText)) {
             val s = match.range.first
-            val e = match.range.last + 1
+            val displayUrl = match.value.trimEnd('.', ',', ';', ':', '!', ')', ']', '}')
+            val e = s + displayUrl.length
+            if (displayUrl.isBlank()) continue
             if (htmlLinkRanges.any { s in it } || annotatedTimestampRanges.any { s in it }) continue
+            val absoluteUrl = if (displayUrl.startsWith("www.", ignoreCase = true)) {
+                "https://$displayUrl"
+            } else {
+                displayUrl
+            }
             addStyle(
                 SpanStyle(color = primaryColor, textDecoration = TextDecoration.Underline, fontWeight = FontWeight.Medium),
                 s, e
             )
-            addStringAnnotation("URL", match.value, s, e)
+            addStringAnnotation("URL", absoluteUrl, s, e)
+            addLink(LinkAnnotation.Url(absoluteUrl), s, e)
         }
 
         // ── 4. Hashtags (not inside a link or timestamp) ──────────────────────

@@ -368,6 +368,11 @@
     <string name="tab_live">Live</string>
     <string name="tab_playlists">Playlists</string>
     <string name="tab_about">About</string>
+    <string name="tab_posts">Posts</string>
+    <string name="community_posts_empty">No community posts found</string>
+    <string name="community_posts_load_failed">Couldn\'t load community posts</string>
+    <string name="community_post_image_content_description">Community post image</string>
+    <string name="share_community_post">Share community post</string>
     <string name="end_of_queue">End of queue</string>
     <string name="no_videos_found">No videos found</string>
     <string name="no_shorts_found">No shorts found</string>

@@ -45,6 +45,8 @@ import io.github.aedev.flow.innertube.pages.ArtistItemsPage
 import io.github.aedev.flow.innertube.pages.ArtistPage
 import io.github.aedev.flow.innertube.pages.ChartsPage
 import io.github.aedev.flow.innertube.pages.BrowseResult
+import io.github.aedev.flow.innertube.pages.CommunityCommentsPage
+import io.github.aedev.flow.innertube.pages.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.ExplorePage
 import io.github.aedev.flow.innertube.pages.HistoryPage
 import io.github.aedev.flow.innertube.pages.HomePage
@@ -67,6 +69,8 @@ import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.toSearchVideosPage
+import io.github.aedev.flow.innertube.pages.toCommunityCommentsPage
+import io.github.aedev.flow.innertube.pages.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.toShortsPage
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -98,6 +102,7 @@ object YouTube {
     private val innerTube = InnerTube()
     private const val CHANNEL_VIDEOS_PARAMS = "EgZ2aWRlb3PyBgQKAjoA"
     private const val CHANNEL_LIVE_PARAMS = "EgdzdHJlYW1z8gYECgJ6AA%3D%3D"
+    private const val CHANNEL_POSTS_PARAMS = "EgVwb3N0c_IGBAoCSgA="
     private const val ANONYMOUS_WEB_SEARCH_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
 
@@ -599,6 +604,78 @@ object YouTube {
         channelThumbnailUrl: String,
     ): Result<ChannelVideoSearchResult> =
         channelVideosPage(channelId, channelName, channelThumbnailUrl, null, true, continuation)
+
+    suspend fun communityPosts(
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+    ): Result<CommunityPostsPage> =
+        communityPostsPage(channelId, channelName, channelThumbnailUrl)
+
+    suspend fun communityPostsContinuation(
+        continuation: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+    ): Result<CommunityPostsPage> =
+        communityPostsPage(
+            channelId = "",
+            channelName = channelName,
+            channelThumbnailUrl = channelThumbnailUrl,
+            continuation = continuation,
+        )
+
+    suspend fun communityPostComments(
+        postId: String,
+        params: String?,
+    ): Result<CommunityCommentsPage> = runCatching {
+        val initial = communityPostCommentsPage(postId = postId, params = params)
+        if (initial.comments.isNotEmpty() || initial.continuation == null) {
+            initial
+        } else {
+            val commentsPage = communityPostCommentsPage(continuation = initial.continuation)
+            commentsPage.copy(
+                commentCountText = commentsPage.commentCountText ?: initial.commentCountText,
+            )
+        }
+    }
+
+    suspend fun communityPostCommentsContinuation(
+        continuation: String,
+    ): Result<CommunityCommentsPage> = runCatching {
+        communityPostCommentsPage(continuation = continuation)
+    }
+
+    private suspend fun communityPostsPage(
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+        continuation: String? = null,
+    ): Result<CommunityPostsPage> = runCatching {
+        val response = innerTube.channelBrowse(
+            client = WEB,
+            channelId = channelId.takeIf { continuation == null },
+            params = CHANNEL_POSTS_PARAMS.takeIf { continuation == null },
+            continuation = continuation,
+        )
+        Json.parseToJsonElement(response.bodyAsText()).toCommunityPostsPage(
+            fallbackAuthorName = channelName,
+            fallbackAuthorAvatarUrl = channelThumbnailUrl,
+        )
+    }
+
+    private suspend fun communityPostCommentsPage(
+        postId: String? = null,
+        params: String? = null,
+        continuation: String? = null,
+    ): CommunityCommentsPage {
+        val response = innerTube.postCommentsBrowse(
+            client = WEB,
+            postId = postId,
+            params = params,
+            continuation = continuation,
+        )
+        return Json.parseToJsonElement(response.bodyAsText()).toCommunityCommentsPage()
+    }
 
     private suspend fun channelVideosPage(
         channelId: String,

@@ -14,12 +14,18 @@ internal fun JsonElement?.arrayOrNull(): JsonArray? = this as? JsonArray
 internal fun JsonElement?.stringOrNull(): String? =
     (this as? JsonPrimitive)?.contentOrNull
 
-/** Reads a YouTube text node in either `simpleText` or `runs[].text` form. */
+/** Reads the primitive and structured text shapes used by YouTube renderers and entity payloads. */
 internal fun JsonElement?.youtubeText(): String? {
+    stringOrNull()?.let { return it }
     val value = objectOrNull() ?: return null
     value["simpleText"].stringOrNull()?.let { return it }
+    value["content"].stringOrNull()?.let { return it }
     return value["runs"].arrayOrNull()
-        ?.joinToString("") { it.objectOrNull()?.get("text").stringOrNull().orEmpty() }
+        ?.joinToString("") { run ->
+            val runValue = run.objectOrNull()
+            runValue?.get("text").stringOrNull()
+                ?: runValue?.get("content").stringOrNull().orEmpty()
+        }
         ?.takeIf { it.isNotBlank() }
 }
 
