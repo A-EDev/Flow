@@ -1897,4 +1897,9 @@
     <string name="channel_metadata_unavailable">معلومات القناة غير متاحة</string>
     <string name="search_filter_all">الكل</string>
     <string name="channel_sort_latest">الأحدث</string>
+    <string name="tab_posts">المنشورات</string>
+    <string name="community_posts_empty">لم يتم العثور على مشاركات للمجتمع</string>
+    <string name="community_posts_load_failed">تعذر تحميل مشاركات المجتمع</string>
+    <string name="community_post_image_content_description">صورة مشاركة المجتمع</string>
+    <string name="share_community_post">مشاركة منشور المجتمع</string>
 </resources>
