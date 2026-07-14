@@ -35,6 +35,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import io.github.aedev.flow.innertube.models.YouTubeLocale
+import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
 import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -176,7 +177,7 @@ class FlowApplication : Application(), ImageLoaderFactory {
                 playerPreferences.trendingRegion
             ) { lang, region ->
                 val glCode = normalizeYouTubeCountry(region)
-                val hlCode = normalizeYouTubeLanguage(lang)
+                val hlCode = normalizeYouTubeHostLanguage(lang)
                 YouTubeLocale(gl = glCode, hl = hlCode)
             }.collectLatest { newLocale ->
                 YouTube.locale = newLocale
@@ -251,14 +252,6 @@ class FlowApplication : Application(), ImageLoaderFactory {
         }
     }
 
-    private fun normalizeYouTubeLanguage(languageTag: String): String {
-        val candidate = languageTag.trim()
-            .takeUnless { it.isBlank() || it.equals(AppLanguageManager.SYSTEM_DEFAULT, ignoreCase = true) }
-            ?: Locale.getDefault().toLanguageTag()
-        val tag = Locale.forLanguageTag(candidate.replace('_', '-')).toLanguageTag()
-        return tag.takeUnless { it.isBlank() || it.equals("und", ignoreCase = true) } ?: "en"
-    }
-    
     override fun onTerminate() {
         super.onTerminate()
         // Clean up performance dispatcher resources
