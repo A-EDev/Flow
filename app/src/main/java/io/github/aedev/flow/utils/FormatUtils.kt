@@ -1,5 +1,7 @@
 package io.github.aedev.flow.utils
 
+import android.icu.text.RelativeDateTimeFormatter
+import java.util.Locale
 import kotlin.math.roundToInt
 
 fun formatDuration(seconds: Int): String {
@@ -33,7 +35,11 @@ fun formatSubscriberCount(count: Long): String {
     }
 }
 
-fun formatYouTubeRelativeTime(timestampMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {
+fun formatYouTubeRelativeTime(
+    timestampMillis: Long,
+    nowMillis: Long = System.currentTimeMillis(),
+    locale: Locale = Locale.getDefault(),
+): String {
     val diff = (nowMillis - timestampMillis).coerceAtLeast(0L)
     val seconds = diff / 1000L
     val minutes = seconds / 60L
@@ -43,24 +49,24 @@ fun formatYouTubeRelativeTime(timestampMillis: Long, nowMillis: Long = System.cu
     val months = days / 30L
     val years = days / 365L
 
-    fun unit(value: Long, name: String): String =
-        "$value $name${if (value == 1L) "" else "s"} ago"
-
     return when {
-        years > 0L -> unit(years, "year")
-        months > 0L -> unit(months, "month")
-        weeks > 0L -> unit(weeks, "week")
-        days > 0L -> unit(days, "day")
-        hours > 0L -> unit(hours, "hour")
-        minutes > 0L -> unit(minutes, "minute")
-        else -> "Just now"
+        years > 0L -> formatRelativeTime(years, RelativeDateTimeFormatter.RelativeUnit.YEARS, locale)
+        months > 0L -> formatRelativeTime(months, RelativeDateTimeFormatter.RelativeUnit.MONTHS, locale)
+        weeks > 0L -> formatRelativeTime(weeks, RelativeDateTimeFormatter.RelativeUnit.WEEKS, locale)
+        days > 0L -> formatRelativeTime(days, RelativeDateTimeFormatter.RelativeUnit.DAYS, locale)
+        hours > 0L -> formatRelativeTime(hours, RelativeDateTimeFormatter.RelativeUnit.HOURS, locale)
+        minutes > 0L -> formatRelativeTime(minutes, RelativeDateTimeFormatter.RelativeUnit.MINUTES, locale)
+        else -> RelativeDateTimeFormatter.getInstance(locale).format(
+            RelativeDateTimeFormatter.Direction.PLAIN,
+            RelativeDateTimeFormatter.AbsoluteUnit.NOW
+        )
     }
 }
 
-fun formatTimeAgo(dateString: String?): String {
+fun formatTimeAgo(dateString: String?, locale: Locale = Locale.getDefault()): String {
     if (dateString.isNullOrBlank()) return ""
     
-    normalizeRelativeTimeText(dateString)?.let { return it }
+    normalizeRelativeTimeText(dateString, locale)?.let { return it }
     if (dateString.contains("前")) return dateString
 
     val formats = listOf(
@@ -86,13 +92,13 @@ fun formatTimeAgo(dateString: String?): String {
     if (date == null) return dateString
 
     return try {
-        formatYouTubeRelativeTime(date.time)
+        formatYouTubeRelativeTime(date.time, locale = locale)
     } catch (e: Exception) {
         dateString
     }
 }
 
-private fun normalizeRelativeTimeText(value: String): String? {
+private fun normalizeRelativeTimeText(value: String, locale: Locale): String? {
     val text = value.trim()
     val lower = text.lowercase(java.util.Locale.US)
     if (!lower.contains("ago") && !lower.contains("just now")) return null
@@ -101,24 +107,40 @@ private fun normalizeRelativeTimeText(value: String): String? {
         lower.startsWith("premiered ") -> "Premiered"
         else -> null
     }
-    if (lower.contains("just now")) return if (prefix != null) "$prefix just now" else "Just now"
+    if (lower.contains("just now")) {
+        val relative = RelativeDateTimeFormatter.getInstance(locale).format(
+            RelativeDateTimeFormatter.Direction.PLAIN,
+            RelativeDateTimeFormatter.AbsoluteUnit.NOW
+        )
+        return if (prefix != null) "$prefix $relative" else relative
+    }
 
     val match = Regex("""(\d+)\s*(mo|sec|secs|second|seconds|min|mins|minute|minutes|hr|hrs|hour|hours|day|days|week|weeks|month|months|year|years|[smhdwy])\b""")
         .find(lower) ?: return text
     val count = match.groupValues[1].toLongOrNull() ?: return text
     val unit = when (match.groupValues[2]) {
-        "s", "sec", "secs", "second", "seconds" -> "second"
-        "m", "min", "mins", "minute", "minutes" -> "minute"
-        "h", "hr", "hrs", "hour", "hours" -> "hour"
-        "d", "day", "days" -> "day"
-        "w", "week", "weeks" -> "week"
-        "mo", "month", "months" -> "month"
-        "y", "year", "years" -> "year"
+        "s", "sec", "secs", "second", "seconds" -> RelativeDateTimeFormatter.RelativeUnit.SECONDS
+        "m", "min", "mins", "minute", "minutes" -> RelativeDateTimeFormatter.RelativeUnit.MINUTES
+        "h", "hr", "hrs", "hour", "hours" -> RelativeDateTimeFormatter.RelativeUnit.HOURS
+        "d", "day", "days" -> RelativeDateTimeFormatter.RelativeUnit.DAYS
+        "w", "week", "weeks" -> RelativeDateTimeFormatter.RelativeUnit.WEEKS
+        "mo", "month", "months" -> RelativeDateTimeFormatter.RelativeUnit.MONTHS
+        "y", "year", "years" -> RelativeDateTimeFormatter.RelativeUnit.YEARS
         else -> return text
     }
-    val relative = "$count $unit${if (count == 1L) "" else "s"} ago"
+    val relative = formatRelativeTime(count, unit, locale)
     return if (prefix != null) "$prefix $relative" else relative
 }
+
+private fun formatRelativeTime(
+    value: Long,
+    unit: RelativeDateTimeFormatter.RelativeUnit,
+    locale: Locale,
+): String = RelativeDateTimeFormatter.getInstance(locale).format(
+    value.toDouble(),
+    RelativeDateTimeFormatter.Direction.LAST,
+    unit
+)
 
 fun formatLikeCount(count: Int): String {
     return when {

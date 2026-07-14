@@ -35,8 +35,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.filled.Add
 
-private val audioLanguageOptions = listOf(
-    "original" to "Original (Native)",
+private val audioLanguageOptions: List<Pair<String, String?>> = listOf(
+    "original" to null,
     "af" to "Afrikaans",
     "sq" to "Albanian",
     "am" to "Amharic",
@@ -116,6 +116,14 @@ private val audioLanguageOptions = listOf(
     "yo" to "Yoruba",
     "zu" to "Zulu"
 )
+
+@Composable
+private fun audioLanguageDisplayName(code: String, fallbackName: String?): String =
+    if (code == "original") {
+        stringResource(R.string.player_settings_audio_original)
+    } else {
+        fallbackName.orEmpty()
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -559,7 +567,11 @@ fun PlayerSettingsScreen(
                     SettingsClickItem(
                         icon = Icons.Outlined.VolumeUp,
                         title = stringResource(R.string.player_settings_audio_language),
-                        subtitle = audioLanguageOptions.find { it.first == preferredAudioLanguage }?.second
+                        subtitle = audioLanguageOptions
+                            .find { it.first == preferredAudioLanguage }
+                            ?.let { (code, fallbackName) ->
+                                audioLanguageDisplayName(code, fallbackName)
+                            }
                             ?: stringResource(R.string.player_settings_audio_original),
                         onClick = { showAudioLanguageDialog = true }
                     )
@@ -643,6 +655,7 @@ fun PlayerSettingsScreen(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     audioLanguageOptions.forEach { (code, displayName) ->
+                        val localizedDisplayName = audioLanguageDisplayName(code, displayName)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -662,7 +675,7 @@ fun PlayerSettingsScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = displayName,
+                                    text = localizedDisplayName,
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                                 if (code == "original") {

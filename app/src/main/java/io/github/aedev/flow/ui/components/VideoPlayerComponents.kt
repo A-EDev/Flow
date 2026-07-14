@@ -178,7 +178,7 @@ fun VideoInfoSection(
             Spacer(modifier = Modifier.width(4.dp))
             
             Text(
-                text = "...more",
+                text = stringResource(R.string.read_more),
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.clickable(onClick = onDescriptionClick)
@@ -330,7 +330,7 @@ fun CommentsPreview(
             } else if (showPreviewText) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Add a comment...",
+                    text = stringResource(R.string.add_comment_placeholder),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

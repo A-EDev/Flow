@@ -22,7 +22,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
 import io.github.aedev.flow.player.dlna.DlnaDevice
 
 /** DLNA / UPnP device-picker dialog shown when the cast button is pressed. */
@@ -40,7 +42,11 @@ internal fun DlnaDevicePickerDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = if (isCasting) "Casting to TV" else "Cast to Device")
+                Text(
+                    text = stringResource(
+                        if (isCasting) R.string.cast_connected else R.string.dlna_cast_to_device
+                    )
+                )
                 if (isDiscovering) {
                     Spacer(Modifier.width(8.dp))
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -51,19 +57,17 @@ internal fun DlnaDevicePickerDialog(
             Column {
                 if (!isCasting && devices.isEmpty() && !isDiscovering) {
                     Text(
-                        text = "No DLNA/UPnP renderers found on this network.\n\n" +
-                            "Make sure your TV or media player (VLC, Kodi, etc.) is on the " +
-                            "same Wi-Fi network and has media renderer mode enabled.",
+                        text = stringResource(R.string.dlna_no_devices),
                         style = MaterialTheme.typography.bodySmall
                     )
                 } else if (!isCasting && devices.isEmpty()) {
                     Text(
-                        text = "Searching for DLNA devices…",
+                        text = stringResource(R.string.dlna_searching),
                         style = MaterialTheme.typography.bodySmall
                     )
                 } else if (isCasting) {
                     Text(
-                        text = "Now casting: $videoTitle",
+                        text = stringResource(R.string.dlna_now_casting, videoTitle),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 } else {
@@ -96,11 +100,13 @@ internal fun DlnaDevicePickerDialog(
         },
         confirmButton = {
             if (isCasting) {
-                TextButton(onClick = onStopCasting) { Text("Stop Casting") }
+                TextButton(onClick = onStopCasting) {
+                    Text(stringResource(R.string.dlna_stop_casting))
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
