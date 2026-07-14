@@ -1,5 +1,6 @@
 package io.github.aedev.flow.discord
 
+import android.app.Activity
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
@@ -15,13 +16,14 @@ class DiscordPresenceCoordinatorTest {
     @Test
     fun `disabled setting clears presence`() = runTest {
         val enabled = MutableStateFlow(false)
-        val playback = MutableStateFlow<FlowPlaybackSnapshot?>(null)
+        val playback = MutableStateFlow<PlaybackSnapshot?>(null)
         val transport = RecordingTransport()
         val coordinator = DiscordPresenceCoordinator(
             enabled = enabled,
             playback = playback,
             transport = transport,
-            nowMs = { 1_000L },
+            nowEpochSeconds = { 1_000L },
+            nowElapsedMs = { 1_000L },
         )
 
         val job = launch { coordinator.run() }
@@ -35,16 +37,17 @@ class DiscordPresenceCoordinatorTest {
     @Test
     fun `enabled playback publishes mapped presence`() = runTest {
         val enabled = MutableStateFlow(true)
-        val playback = MutableStateFlow<FlowPlaybackSnapshot?>(
-            FlowPlaybackSnapshot(
+        val playback = MutableStateFlow<PlaybackSnapshot?>(
+            PlaybackSnapshot(
+                kind = PlaybackKind.VIDEO,
                 mediaId = "video-1",
-                mediaKind = FlowMediaKind.VIDEO,
                 title = "A useful video",
-                creator = "Flow Creator",
+                subtitle = "Flow Creator",
                 artworkUrl = "https://example.com/art.jpg",
                 durationMs = 120_000L,
                 positionMs = 30_000L,
                 isPlaying = true,
+                isLive = false,
             ),
         )
         val transport = RecordingTransport()
@@ -52,7 +55,8 @@ class DiscordPresenceCoordinatorTest {
             enabled = enabled,
             playback = playback,
             transport = transport,
-            nowMs = { 100_000L },
+            nowEpochSeconds = { 100_000L },
+            nowElapsedMs = { 1_000L },
         )
 
         val job = launch { coordinator.run() }
@@ -60,35 +64,38 @@ class DiscordPresenceCoordinatorTest {
 
         assertThat(transport.updates).hasSize(1)
         assertThat(transport.updates.single().details).isEqualTo("A useful video")
-        assertThat(transport.updates.single().state).isEqualTo("Flow Creator")
+        assertThat(transport.updates.single().state).isEqualTo("by Flow Creator")
         job.cancelAndJoin()
     }
 
     @Test
     fun `repeated snapshots are deduplicated`() = runTest {
-        var now = 100_000L
-        val snapshot = FlowPlaybackSnapshot(
+        var elapsed = 1_000L
+        val snapshot = PlaybackSnapshot(
+            kind = PlaybackKind.MUSIC,
             mediaId = "song-1",
-            mediaKind = FlowMediaKind.MUSIC,
             title = "A useful song",
-            creator = "Flow Artist",
+            subtitle = "Flow Artist",
+            artworkUrl = "",
             durationMs = 180_000L,
             positionMs = 20_000L,
             isPlaying = true,
+            isLive = false,
         )
         val enabled = MutableStateFlow(true)
-        val playback = MutableStateFlow<FlowPlaybackSnapshot?>(snapshot)
+        val playback = MutableStateFlow<PlaybackSnapshot?>(snapshot)
         val transport = RecordingTransport()
         val coordinator = DiscordPresenceCoordinator(
             enabled = enabled,
             playback = playback,
             transport = transport,
-            nowMs = { now },
+            nowEpochSeconds = { 100_000L },
+            nowElapsedMs = { elapsed },
         )
 
         val job = launch { coordinator.run() }
         runCurrent()
-        now += 1_000L
+        elapsed += 1_000L
         playback.value = snapshot.copy(positionMs = 21_000L)
         runCurrent()
 
@@ -97,20 +104,30 @@ class DiscordPresenceCoordinatorTest {
     }
 
     private class RecordingTransport : DiscordPresenceTransport {
-        override val isAvailable: Boolean = true
-        val updates = mutableListOf<DiscordActivity>()
+        override val connectionState = MutableStateFlow(DiscordConnectionState.CONNECTED)
+        override val linkedAccountName = MutableStateFlow<String?>(null)
+        override val lastError = MutableStateFlow<String?>(null)
+        val updates = mutableListOf<DiscordPresencePayload>()
         var clears: Int = 0
 
-        override suspend fun connect(): DiscordConnectionState = DiscordConnectionState.CONNECTED
+        override fun attachActivity(activity: Activity?) = Unit
 
-        override suspend fun update(activity: DiscordActivity) {
-            updates += activity
+        override suspend fun link(): DiscordLinkResult = DiscordLinkResult.Success
+
+        override suspend fun connect(tokens: DiscordAuthTokens): DiscordLinkResult = DiscordLinkResult.Success
+
+        override suspend fun update(payload: DiscordPresencePayload): Boolean {
+            updates += payload
+            return true
         }
 
-        override suspend fun clear() {
+        override suspend fun clear(): Boolean {
             clears += 1
+            return true
         }
 
-        override suspend fun disconnect() = Unit
+        override suspend fun unlink(): Boolean = true
+
+        override fun close() = Unit
     }
 }
