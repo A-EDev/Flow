@@ -1283,11 +1283,8 @@ fun NavGraphBuilder.flowAppGraph(
 
         // Use passed state
         val playerUiState = playerUiStateResult.value
-        val playerVisible = playerVisibleState.value
-
         LaunchedEffect(effectiveVideoId) {
             val isAlreadyPlayingThis = playerUiState.cachedVideo?.id == effectiveVideoId &&
-                playerVisible &&
                 !playerUiState.isRestoredSession
             if (!isAlreadyPlayingThis) {
                 val placeholder = Video(
@@ -1305,6 +1302,8 @@ fun NavGraphBuilder.flowAppGraph(
                 playerViewModel.playVideo(placeholder)
                 GlobalPlayerState.setCurrentVideo(placeholder)
             } else {
+                playerViewModel.showVideoPlayer()
+                playerVisibleState.value = true
                 playerSheetState.expand()
             }
             withFrameNanos { }

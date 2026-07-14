@@ -347,7 +347,7 @@ fun VideoInfoContent(
         onDownloadClick = { screenState.showDownloadDialog = true },
         isSaved = isVideoSaved,
         isDownloaded = isVideoDownloaded,
-        onBackgroundPlayClick = { viewModel.startBackgroundService() },
+        onBackgroundPlayClick = { viewModel.startBackgroundPlayback() },
         onCopyLinkClick = {
             val url = "https://www.youtube.com/watch?v=${video.id}"
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

@@ -279,8 +279,9 @@ class InnerTube {
         params: String? = null,
         continuation: String? = null,
         anonymous: Boolean = false,
+        includeVisitorData: Boolean = !anonymous,
     ) = withRetry {
-        val requestVisitorData = visitorData.takeUnless { anonymous }
+        val requestVisitorData = visitorData.takeIf { includeVisitorData }
         httpClient.post("https://www.youtube.com/youtubei/v1/search") {
             headers {
                 append("X-YouTube-Client-Name", client.clientId)

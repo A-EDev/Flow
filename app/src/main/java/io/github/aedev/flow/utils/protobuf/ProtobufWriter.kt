@@ -1,4 +1,4 @@
-package io.github.aedev.flow.player.sabr.proto
+package io.github.aedev.flow.utils.protobuf
 
 import java.io.ByteArrayOutputStream
 

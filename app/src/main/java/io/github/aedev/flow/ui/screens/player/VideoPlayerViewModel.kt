@@ -482,7 +482,13 @@ class VideoPlayerViewModel @Inject constructor(
     fun resumeRestoredSession(stayMini: Boolean = false) {
         val video = _uiState.value.cachedVideo ?: return
         if (!_uiState.value.isRestoredSession) return
-        _uiState.update { it.copy(isRestoredSession = false, resumedInMiniPlayer = stayMini) }
+        _uiState.update {
+            it.copy(
+                isRestoredSession = false,
+                resumedInMiniPlayer = stayMini,
+                isBackgroundPlaybackMode = false
+            )
+        }
         playVideo(video)
     }
 
@@ -717,6 +723,8 @@ class VideoPlayerViewModel @Inject constructor(
             cachedVideo = video,
             isRestoredSession = false,
             resumedInMiniPlayer = _uiState.value.resumedInMiniPlayer,
+            isBackgroundPlaybackMode = false,
+            shouldDismissPlayer = false,
             isLoading = true,
             error = null,
             errorHint = null,
@@ -762,6 +770,8 @@ class VideoPlayerViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             cachedVideo = video,
             isRestoredSession = false,
+            isBackgroundPlaybackMode = false,
+            shouldDismissPlayer = false,
             isLoading = false,
             error = null,
             errorHint = null,
@@ -827,31 +837,37 @@ class VideoPlayerViewModel @Inject constructor(
         _isLoadingMoreComments.value = false
     }
 
-    fun startBackgroundService() {
+    fun startBackgroundPlayback() {
         val state = _uiState.value
-        val audioUrl = state.audioStream?.content
-        val videoId = state.cachedVideo?.id ?: state.streamInfo?.id
-        if (videoId != null && audioUrl != null) {
-            val musicTrack = io.github.aedev.flow.ui.screens.music.MusicTrack(
-                videoId = videoId,
-                title = state.streamInfo?.name ?: state.cachedVideo?.title ?: "",
-                artist = state.streamInfo?.uploaderName ?: state.cachedVideo?.channelName ?: "",
-                thumbnailUrl = state.streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
-                    ?: state.cachedVideo?.thumbnailUrl ?: "",
-                duration = state.streamInfo?.duration?.toInt() ?: state.cachedVideo?.duration ?: 0,
-                channelId = state.cachedVideo?.channelId ?: ""
+        val video = state.cachedVideo ?: GlobalPlayerState.currentVideo.value
+        if (video != null) {
+            EnhancedPlayerManager.getInstance().startBackgroundService(
+                videoId = video.id,
+                title = video.title,
+                channel = video.channelName,
+                thumbnail = video.thumbnailUrl
             )
-            val positionMs = EnhancedPlayerManager.getInstance().getCurrentPosition()
-            EnhancedPlayerManager.getInstance().pause()
-            EnhancedMusicPlayerManager.playTrack(musicTrack, audioUrl, startPositionMs = positionMs)
-        } else {
-            EnhancedPlayerManager.getInstance().switchToAudioOnly()
         }
-        _uiState.update { it.copy(shouldDismissPlayer = true) }
+        EnhancedPlayerManager.getInstance().continueVideoPlaybackInBackground()
+        _uiState.update {
+            it.copy(
+                shouldDismissPlayer = true,
+                isBackgroundPlaybackMode = true
+            )
+        }
     }
 
     fun resetDismissState() {
         _uiState.update { it.copy(shouldDismissPlayer = false) }
+    }
+
+    fun showVideoPlayer() {
+        _uiState.update {
+            it.copy(
+                shouldDismissPlayer = false,
+                isBackgroundPlaybackMode = false
+            )
+        }
     }
 
     fun retryLoadVideo() {
@@ -2848,6 +2864,7 @@ data class VideoPlayerUiState(
     val queueTitle: String? = null,
     val hlsUrl: String? = null,
     val shouldDismissPlayer: Boolean = false,
+    val isBackgroundPlaybackMode: Boolean = false,
     val isRestoredSession: Boolean = false,
     val resumedInMiniPlayer: Boolean = false,
     val isUpcoming: Boolean = false,

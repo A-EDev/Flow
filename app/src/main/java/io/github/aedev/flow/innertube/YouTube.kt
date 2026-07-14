@@ -103,8 +103,6 @@ object YouTube {
     private const val CHANNEL_VIDEOS_PARAMS = "EgZ2aWRlb3PyBgQKAjoA"
     private const val CHANNEL_LIVE_PARAMS = "EgdzdHJlYW1z8gYECgJ6AA%3D%3D"
     private const val CHANNEL_POSTS_PARAMS = "EgVwb3N0c_IGBAoCSgA="
-    private const val ANONYMOUS_WEB_SEARCH_USER_AGENT =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
 
     var locale: YouTubeLocale
         get() = innerTube.locale
@@ -211,25 +209,34 @@ object YouTube {
     }.onSuccess { Log.d("SearchShorts", "query='$query' shorts=${it.size}") }
         .onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
 
-    suspend fun searchVideosByViews(
+    suspend fun searchByViews(
         query: String,
+        searchParams: String,
         continuation: String? = null,
     ): Result<SearchVideosPage> = runCatching {
+        ensureVisitorData()
         val searchClient = currentWebSearchClient()
         innerTube.webSearch(
             client = searchClient,
             query = query.takeIf { continuation == null },
-            params = YouTubeSearchParams.videosSortedByViewCount().takeIf { continuation == null },
+            params = searchParams.takeIf { continuation == null },
             continuation = continuation,
             anonymous = true,
+            includeVisitorData = true,
         ).body<JsonObject>().toSearchVideosPage()
+    }
+
+    private suspend fun ensureVisitorData() {
+        if (!visitorData.isNullOrBlank()) return
+        visitorData().getOrNull()
+            ?.takeIf(String::isNotBlank)
+            ?.let { visitorData = it }
     }
 
     private suspend fun currentWebSearchClient(): YouTubeClient = withContext(Dispatchers.IO) {
         WEB.copy(
             clientVersion = runCatching { YoutubeParsingHelper.getClientVersion() }
                 .getOrDefault(WEB.clientVersion),
-            userAgent = ANONYMOUS_WEB_SEARCH_USER_AGENT,
         )
     }
 

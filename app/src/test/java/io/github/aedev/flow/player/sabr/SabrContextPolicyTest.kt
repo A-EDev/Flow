@@ -2,9 +2,9 @@ package io.github.aedev.flow.player.sabr
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.player.sabr.core.SabrSessionState
-import io.github.aedev.flow.player.sabr.proto.ProtobufWriter
 import io.github.aedev.flow.player.sabr.proto.SabrContextSendingPolicy
 import io.github.aedev.flow.player.sabr.proto.SabrContextUpdate
+import io.github.aedev.flow.utils.protobuf.ProtobufWriter
 import org.junit.Test
 
 class SabrContextPolicyTest {

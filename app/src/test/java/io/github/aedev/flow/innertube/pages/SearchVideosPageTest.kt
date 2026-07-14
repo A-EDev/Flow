@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SearchVideosPageTest {
@@ -99,5 +100,104 @@ class SearchVideosPageTest {
         ).jsonObject
 
         assertEquals(true, response.toSearchVideosPage().videos.single().isLive)
+    }
+
+    @Test
+    fun preservesVideosChannelsAndPlaylistsInServerOrder() {
+        val response = Json.parseToJsonElement(
+            """
+            {
+              "contents": [
+                {
+                  "channelRenderer": {
+                    "channelId": "UC123",
+                    "title": { "simpleText": "Nature Channel" },
+                    "thumbnail": {
+                      "thumbnails": [{ "url": "channel.jpg", "width": 512 }]
+                    },
+                    "subscriberCountText": { "simpleText": "1.2M subscribers" },
+                    "descriptionSnippet": { "runs": [{ "text": "Nature films" }] },
+                    "navigationEndpoint": {
+                      "browseEndpoint": { "canonicalBaseUrl": "/@nature" }
+                    }
+                  }
+                },
+                {
+                  "videoRenderer": {
+                    "videoId": "LXb3EKWsInQ",
+                    "title": { "simpleText": "Costa Rica in 4K" }
+                  }
+                },
+                {
+                  "playlistRenderer": {
+                    "playlistId": "PL123",
+                    "title": { "simpleText": "Nature playlist" },
+                    "thumbnails": [{
+                      "thumbnails": [{ "url": "playlist.jpg", "width": 640 }]
+                    }],
+                    "videoCount": "42"
+                  }
+                }
+              ]
+            }
+            """.trimIndent()
+        ).jsonObject
+
+        val page = response.toSearchVideosPage()
+
+        assertTrue(page.items[0] is SearchChannelItem)
+        assertTrue(page.items[1] is SearchVideoItem)
+        assertTrue(page.items[2] is SearchPlaylistItem)
+        assertEquals(1_200_000L, (page.items[0] as SearchChannelItem).subscriberCount)
+        assertEquals("https://www.youtube.com/@nature", (page.items[0] as SearchChannelItem).url)
+        assertEquals("playlist.jpg", (page.items[2] as SearchPlaylistItem).thumbnailUrl)
+        assertEquals(42, (page.items[2] as SearchPlaylistItem).videoCount)
+    }
+
+    @Test
+    fun parsesCurrentPlaylistLockupRenderer() {
+        val response = Json.parseToJsonElement(
+            """
+            {
+              "lockupViewModel": {
+                "contentImage": {
+                  "collectionThumbnailViewModel": {
+                    "primaryThumbnail": {
+                      "thumbnailViewModel": {
+                        "image": {
+                          "sources": [
+                            { "url": "small.jpg", "width": 360 },
+                            { "url": "large.jpg", "width": 720 }
+                          ]
+                        },
+                        "overlays": [{
+                          "thumbnailOverlayBadgeViewModel": {
+                            "thumbnailBadges": [{
+                              "thumbnailBadgeViewModel": { "text": "39 videos" }
+                            }]
+                          }
+                        }]
+                      }
+                    }
+                  }
+                },
+                "metadata": {
+                  "lockupMetadataViewModel": {
+                    "title": { "content": "Nature playlist" }
+                  }
+                },
+                "contentId": "PL123",
+                "contentType": "LOCKUP_CONTENT_TYPE_PLAYLIST"
+              }
+            }
+            """.trimIndent()
+        ).jsonObject
+
+        val playlist = response.toSearchVideosPage().items.single() as SearchPlaylistItem
+
+        assertEquals("PL123", playlist.id)
+        assertEquals("Nature playlist", playlist.name)
+        assertEquals("large.jpg", playlist.thumbnailUrl)
+        assertEquals(39, playlist.videoCount)
     }
 }
