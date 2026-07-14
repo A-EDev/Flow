@@ -18,7 +18,7 @@ internal data class ChannelCommunityUiState(
     val postsLoaded: Boolean = false,
     val isLoadingPosts: Boolean = false,
     val isLoadingMorePosts: Boolean = false,
-    val postsError: Boolean = false,
+    val postsErrorLog: String? = null,
     val activePost: CommunityPost? = null,
     val comments: List<Comment> = emptyList(),
     val commentsContinuation: String? = null,
@@ -51,7 +51,7 @@ internal class ChannelCommunityController(
         if (stateSnapshot.postsLoaded || stateSnapshot.isLoadingPosts) return
 
         scope.launch(PerformanceDispatcher.networkIO) {
-            _state.update { it.copy(isLoadingPosts = true, postsError = false) }
+            _state.update { it.copy(isLoadingPosts = true, postsErrorLog = null) }
             YouTube.communityPosts(
                 channelSnapshot.id,
                 channelSnapshot.name,
@@ -75,7 +75,11 @@ internal class ChannelCommunityController(
                             it.copy(
                                 postsLoaded = true,
                                 isLoadingPosts = false,
-                                postsError = true,
+                                postsErrorLog = buildChannelRequestErrorLog(
+                                    operation = "community_posts",
+                                    channelId = channelSnapshot.id,
+                                    error = error,
+                                ),
                             )
                         }
                     }
@@ -85,7 +89,7 @@ internal class ChannelCommunityController(
     }
 
     fun retryPosts() {
-        _state.update { it.copy(postsLoaded = false, postsError = false) }
+        _state.update { it.copy(postsLoaded = false, postsErrorLog = null) }
         ensurePostsLoaded()
     }
 

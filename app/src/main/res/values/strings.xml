@@ -16,6 +16,10 @@
     <string name="subscriptions_last_refreshed_template">Last refreshed %1$s - %2$d videos checked</string>
     <string name="subscriptions_last_refreshed_time_only_template">Last refreshed %1$s</string>
     <string name="retry">Retry</string>
+    <string name="copy_logs">Copy logs</string>
+    <string name="logs_copied">Logs copied</string>
+    <string name="logs_copy_failed">Couldn\'t copy logs</string>
+    <string name="channel_error_log_clip_label">Flow channel error log</string>
     <string name="shorts">Shorts</string>
     <string name="failed_to_load_channel">Failed to load channel</string>
     <string name="subscribers">Subscribers</string>
@@ -371,6 +375,7 @@
     <string name="tab_posts">Posts</string>
     <string name="community_posts_empty">No community posts found</string>
     <string name="community_posts_load_failed">Couldn\'t load community posts</string>
+    <string name="channel_search_failed">Couldn\'t search this channel</string>
     <string name="community_post_image_content_description">Community post image</string>
     <string name="share_community_post">Share community post</string>
     <string name="end_of_queue">End of queue</string>
