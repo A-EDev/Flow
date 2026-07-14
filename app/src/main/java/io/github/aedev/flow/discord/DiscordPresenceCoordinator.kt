@@ -1,6 +1,7 @@
 package io.github.aedev.flow.discord
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 
 class DiscordPresenceCoordinator(
