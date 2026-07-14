@@ -9,7 +9,6 @@ import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
-import org.json.JSONArray
 
 class DiscordLoginActivity : ComponentActivity() {
     private var completed = false
@@ -25,11 +24,15 @@ class DiscordLoginActivity : ComponentActivity() {
             settings.domStorageEnabled = true
             settings.userAgentString = settings.userAgentString.replace("; wv", "")
             webViewClient = object : WebViewClient() {
+                @Deprecated("Deprecated in Java")
+                override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                    requestTokenWhenAuthenticated(view, url)
+                    return false
+                }
+
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
-                    if (url.startsWith("https://discord.com/")) {
-                        readToken(view)
-                    }
+                    requestTokenWhenAuthenticated(view, url)
                 }
             }
             loadUrl(DISCORD_LOGIN_URL)
@@ -44,16 +47,17 @@ class DiscordLoginActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    private fun requestTokenWhenAuthenticated(webView: WebView, url: String) {
+        if (!completed && DiscordLoginTokenExtractor.isAuthenticatedAppUrl(url)) {
+            readToken(webView)
+        }
+    }
+
     private fun readToken(webView: WebView) {
         webView.evaluateJavascript(TOKEN_SCRIPT) { encodedResult ->
-            val token = runCatching {
-                JSONArray("[$encodedResult]").getString(0)
-            }.getOrNull()
-                ?.trim()
-                ?.removeSurrounding("\"")
-                ?.takeIf { it.isNotEmpty() && it != "null" }
+            val token = DiscordLoginTokenExtractor.decodeJavascriptValue(encodedResult)
 
-            if (token != null) {
+            if (token != null && !completed) {
                 completed = true
                 DiscordLoginBroker.complete(token)
                 webView.clearHistory()
@@ -67,6 +71,13 @@ class DiscordLoginActivity : ComponentActivity() {
 
     private companion object {
         const val DISCORD_LOGIN_URL = "https://discord.com/login"
-        const val TOKEN_SCRIPT = "(function(){return window.localStorage.getItem('token');})()"
+        const val TOKEN_SCRIPT = "(function(){" +
+            "var frame=document.createElement('iframe');" +
+            "frame.style.display='none';" +
+            "document.body.appendChild(frame);" +
+            "var token=frame.contentWindow.localStorage.getItem('token');" +
+            "frame.remove();" +
+            "return token;" +
+            "})()"
     }
 }
