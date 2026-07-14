@@ -194,6 +194,7 @@ fun ShortsScreen(
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()
                     playerPool.initialize(context)
+                    playerPool.setCurrentVideo(uiState.shorts.getOrNull(settled))
 
                     suspend fun prepareShort(index: Int, short: ShortVideo, shouldPlay: Boolean) {
                         try {

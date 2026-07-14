@@ -104,6 +104,28 @@ class DiscordPresenceMapperTest {
     }
 
     @Test
+    fun shortMapsToWatchingWithCreatorAndFiniteTiming() {
+        val result = mapper.map(
+            snapshot = PlaybackSnapshot(
+                kind = PlaybackKind.SHORT,
+                mediaId = "short-1",
+                title = "A Short",
+                subtitle = "Creator",
+                artworkUrl = "https://i.ytimg.com/vi/short-1/oar2.jpg",
+                positionMs = 5_000L,
+                durationMs = 20_000L,
+                isPlaying = true,
+                isLive = false,
+            ),
+            nowEpochSeconds = 100L,
+        )
+
+        assertThat(result?.type).isEqualTo(DiscordActivityType.WATCHING)
+        assertThat(result?.state).isEqualTo("by Creator")
+        assertThat(result?.endTimestampSeconds).isEqualTo(115L)
+    }
+
+    @Test
     fun fieldsAreTrimmedAndLimitedToDiscordMaximum() {
         val result = mapper.map(
             snapshot = PlaybackSnapshot(

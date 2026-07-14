@@ -20,6 +20,7 @@ import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultAllocator
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
@@ -94,6 +95,19 @@ class ShortsPlayerPool private constructor() {
 
     private val _currentVideoId = MutableStateFlow<String?>(null)
     val currentVideoId: StateFlow<String?> = _currentVideoId.asStateFlow()
+
+    private val _currentVideo = MutableStateFlow<ShortVideo?>(null)
+    val currentVideo: StateFlow<ShortVideo?> = _currentVideo.asStateFlow()
+
+    fun setCurrentVideo(video: ShortVideo?) {
+        _currentVideo.value = video
+    }
+
+    fun playbackPosition(): Long = findActivePlayer()?.currentPosition ?: 0L
+
+    fun playbackDuration(): Long = findActivePlayer()?.duration?.coerceAtLeast(0L) ?: 0L
+
+    fun isPlaying(): Boolean = findActivePlayer()?.isPlaying == true
 
     // INITIALIZATION
     fun initialize(context: Context) {
@@ -492,6 +506,7 @@ class ShortsPlayerPool private constructor() {
         }
         isInitialized = false
         _currentVideoId.value = null
+        _currentVideo.value = null
     }
 
     fun isReady(): Boolean = isInitialized && players[0] != null
