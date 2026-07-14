@@ -30,6 +30,11 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
       # Explicit Gradle cache on top of setup-java's built-in cache.
       # Caches the build-cache directory so incremental tasks are skipped.
       - name: Cache Gradle build cache
@@ -183,3 +188,8 @@ jobs:
             - Add new lyrics engine (Based on Metrolist's ExperimentalLyrics.kt, LyricsLine.kt, LyricsCommon.kt, and FadingEdge.kt.)
             - Add new Music Audio Quality selector #521
             - Add external music downloads #256
+            - Add shorts history delete option #514
+            - Add LireTube history export option #507
+            - Add shorts playback speed selection #496
+            - Add option to disable or change long-press playback speed #475
+            - Add option to disable volume boost #491
