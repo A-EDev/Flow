@@ -1999,4 +1999,23 @@
     <string name="recognition_clear_history">Clear history?</string>
     <string name="recognition_clear_history_body">This removes all recognized songs. This cannot be undone.</string>
     <string name="close_popup_player">Close popup player</string>
+
+    <!-- Discord Rich Presence -->
+    <string name="discord_presence_title">Discord Rich Presence</string>
+    <string name="discord_presence_enable">Share playback activity</string>
+    <string name="discord_presence_off">Off</string>
+    <string name="discord_presence_not_connected">Not connected</string>
+    <string name="discord_presence_connected">Connected</string>
+    <string name="discord_presence_connected_as">Connected as %1$s</string>
+    <string name="discord_presence_connected_account">Discord account: %1$s</string>
+    <string name="discord_presence_unavailable">Unavailable in this build</string>
+    <string name="discord_presence_connection_error">Connection error</string>
+    <string name="discord_presence_linking">Waiting for Discord sign-in…</string>
+    <string name="discord_presence_connecting">Connecting to Discord…</string>
+    <string name="discord_presence_connect">Connect Discord account</string>
+    <string name="discord_presence_disconnect">Disconnect and unlink</string>
+    <string name="discord_presence_retry">Retry connection</string>
+    <string name="discord_presence_privacy_title">Privacy</string>
+    <string name="discord_presence_privacy_body">When enabled, Flow shares the playing video, Short, live stream, or song title, creator or artist, artwork, and playback timing with Discord. The setting is off by default. Your Discord session token is encrypted with Android Keystore and never added to app logs.</string>
+    <string name="discord_presence_gateway_warning">This build uses the unofficial Kizzy-style Discord Gateway method and your Discord user session, not OAuth. Discord prohibits automated user accounts and may restrict or terminate accounts that use unsupported clients. Continue only if you accept that risk.</string>
 </resources>

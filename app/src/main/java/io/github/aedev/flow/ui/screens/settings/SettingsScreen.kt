@@ -60,6 +60,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.ImeAction
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.aedev.flow.discord.DiscordPresenceRuntime
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +92,7 @@ fun SettingsScreen(
     onNavigateToSyncDevices: () -> Unit,
     onNavigateToExport: () -> Unit,
     onNavigateToSponsorBlockSettings: () -> Unit,
+    onNavigateToDiscordSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -116,6 +119,8 @@ fun SettingsScreen(
     // Player preferences states
     val currentRegion by playerPreferences.trendingRegion.collectAsState(initial = "US")
     val currentAppLanguage by playerPreferences.appLanguage.collectAsState(initial = AppLanguageManager.SYSTEM_DEFAULT)
+    val discordSettingsState by DiscordPresenceRuntime.settingsState.collectAsStateWithLifecycle()
+    val discordSettingsSummary = discordSettingsSummaryText(discordSettingsState)
 
     // Deep Flow state
     val deepFlowActive by playerPreferences.deepFlowActive.collectAsState(initial = false)
@@ -235,6 +240,7 @@ fun SettingsScreen(
         SettingSearchEntry(Icons.Outlined.Schedule, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime_subtitle), secAppearance, onNavigateToDateTimeSettings),
         SettingSearchEntry(Icons.Outlined.FilterAlt, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs_subtitle), secContentPlayback, onNavigateToUserPreferences),
         SettingSearchEntry(Icons.Outlined.PlayCircle, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_subtitle), secContentPlayback, onNavigateToPlayerSettings),
+        SettingSearchEntry(Icons.Outlined.Share, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.discord_presence_title), discordSettingsSummary, secContentPlayback, onNavigateToDiscordSettings),
         SettingSearchEntry(Icons.Outlined.Public, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy_subtitle), secContentPlayback, onNavigateToProxySettings),
         SettingSearchEntry(io.github.aedev.flow.R.drawable.ic_block, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sb_settings_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sb_settings_subtitle), secContentPlayback, onNavigateToSponsorBlockSettings),
         SettingSearchEntry(Icons.Outlined.HighQuality, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_quality), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_quality_subtitle), secContentPlayback, onNavigateToVideoQuality),
@@ -768,6 +774,13 @@ item {
                          title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player),
                          subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_subtitle),
                          onClick = onNavigateToPlayerSettings
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Share,
+                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.discord_presence_title),
+                        subtitle = discordSettingsSummary,
+                        onClick = onNavigateToDiscordSettings
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
