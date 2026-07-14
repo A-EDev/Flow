@@ -1932,4 +1932,17 @@
     <string name="settings_home_nav_tab_title">Onglet « Accueil »</string>
     <string name="settings_home_nav_tab_subtitle">Afficher « Accueil » dans la barre de navigation</string>
     <string name="channel_metadata_unavailable">Les informations sur la chaîne ne sont pas disponibles</string>
+    <string name="copy_logs">Copier les journaux</string>
+    <string name="logs_copied">Journaux copiés</string>
+    <string name="logs_copy_failed">Impossible de copier les journaux</string>
+    <string name="channel_error_log_clip_label">Journal des erreurs du canal de Flow</string>
+    <string name="search_filter_all">Tout</string>
+    <string name="search_toggle_view_mode">Basculer l\'affichage des résultats de recherche</string>
+    <string name="channel_sort_latest">Les plus récentes</string>
+    <string name="tab_posts">Publications</string>
+    <string name="community_posts_empty">Aucune publication de la communauté n\'a été trouvée</string>
+    <string name="community_posts_load_failed">Impossible de charger les publications de la communauté</string>
+    <string name="channel_search_failed">Impossible d\'effectuer une recherche sur cette chaîne</string>
+    <string name="community_post_image_content_description">Image d\'une publication de la communauté</string>
+    <string name="share_community_post">Partager une publication de la communauté</string>
 </resources>
