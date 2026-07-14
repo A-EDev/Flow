@@ -1,22 +1,16 @@
 package io.github.aedev.flow.discord
 
 import com.google.common.truth.Truth.assertThat
-import io.mockk.every
-import io.mockk.mockk
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.Test
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class DiscordPlaybackSourceThreadingTest {
 
     @Test
@@ -30,7 +24,6 @@ class DiscordPlaybackSourceThreadingTest {
         val playerDispatcher = playerExecutor.asCoroutineDispatcher()
         val presenceDispatcher = presenceExecutor.asCoroutineDispatcher()
         val snapshotThread = AtomicReference<String>()
-        val selector = mockk<DiscordPlaybackSelector>()
         val expectedSnapshot = PlaybackSnapshot(
             kind = PlaybackKind.VIDEO,
             mediaId = "video-id",
@@ -42,25 +35,26 @@ class DiscordPlaybackSourceThreadingTest {
             isPlaying = true,
             isLive = false,
         )
-        every { selector.select(any(), any(), any()) } answers {
-            snapshotThread.set(Thread.currentThread().name)
-            expectedSnapshot
-        }
 
-        Dispatchers.setMain(playerDispatcher)
         try {
-            // DiscordPresenceRuntime collects this flow on IO, while Media3 owns the main thread.
-            val source = DiscordPlaybackSource(selector = selector)
+            val snapshots = discordPlaybackSnapshotFlow(
+                signals = flowOf(Unit),
+                snapshotDispatcher = playerDispatcher,
+                readSnapshot = {
+                    snapshotThread.set(Thread.currentThread().name)
+                    expectedSnapshot
+                },
+            )
 
-            withContext(presenceDispatcher) {
+            val actualSnapshot = withContext(presenceDispatcher) {
                 withTimeout(5_000L) {
-                    source.playback.first()
+                    snapshots.first()
                 }
             }
 
+            assertThat(actualSnapshot).isEqualTo(expectedSnapshot)
             assertThat(snapshotThread.get()).isEqualTo("player-main")
         } finally {
-            Dispatchers.resetMain()
             playerDispatcher.close()
             presenceDispatcher.close()
             playerExecutor.shutdownNow()

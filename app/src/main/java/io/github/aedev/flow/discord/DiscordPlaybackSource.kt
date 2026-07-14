@@ -6,6 +6,7 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -23,24 +24,24 @@ class DiscordPlaybackSource(
     private val shortsPool: ShortsPlayerPool = ShortsPlayerPool.getInstance(),
     private val selector: DiscordPlaybackSelector = DiscordPlaybackSelector(),
 ) {
-    val playback: Flow<PlaybackSnapshot?> = merge(
-        GlobalPlayerState.currentVideo.map { Unit },
-        videoManager.playerState.map { Unit },
-        EnhancedMusicPlayerManager.currentTrack.map { Unit },
-        EnhancedMusicPlayerManager.playerState.map { Unit },
-        shortsPool.currentVideo.map { Unit },
-        ticker(),
-    ).map {
-        selector.select(
-            short = shortSnapshot(),
-            video = videoSnapshot(),
-            music = musicSnapshot(),
-        )
-    }
-        // Media3 players are owned by the main application thread. The presence runtime
-        // collects on IO for its gateway calls, so keep every snapshot read upstream on main.
-        .flowOn(Dispatchers.Main.immediate)
-        .distinctUntilChanged()
+    val playback: Flow<PlaybackSnapshot?> = discordPlaybackSnapshotFlow(
+        signals = merge(
+            GlobalPlayerState.currentVideo.map { Unit },
+            videoManager.playerState.map { Unit },
+            EnhancedMusicPlayerManager.currentTrack.map { Unit },
+            EnhancedMusicPlayerManager.playerState.map { Unit },
+            shortsPool.currentVideo.map { Unit },
+            ticker(),
+        ),
+        snapshotDispatcher = Dispatchers.Main.immediate,
+        readSnapshot = {
+            selector.select(
+                short = shortSnapshot(),
+                video = videoSnapshot(),
+                music = musicSnapshot(),
+            )
+        },
+    )
 
     private fun shortSnapshot(): PlaybackSnapshot? {
         val short = shortsPool.currentVideo.value ?: return null
@@ -107,3 +108,14 @@ class DiscordPlaybackSource(
         const val POSITION_SAMPLE_INTERVAL_MS = 5_000L
     }
 }
+
+internal fun discordPlaybackSnapshotFlow(
+    signals: Flow<Unit>,
+    snapshotDispatcher: CoroutineDispatcher,
+    readSnapshot: () -> PlaybackSnapshot?,
+): Flow<PlaybackSnapshot?> = signals
+    .map { readSnapshot() }
+    // Media3 players are owned by the main application thread. The presence runtime
+    // collects on IO for its gateway calls, so keep every snapshot read upstream on main.
+    .flowOn(snapshotDispatcher)
+    .distinctUntilChanged()
