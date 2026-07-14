@@ -102,7 +102,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flow-foss-release-apk
-          path: app/build/outputs/apk/foss/release/app-foss-release.apk
+          path: app/build/outputs/apk/foss/release/*.apk
           if-no-files-found: error
           retention-days: 14
 
