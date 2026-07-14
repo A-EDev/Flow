@@ -16,5 +16,8 @@ internal object DiscordLoginTokenExtractor {
     fun decodeJavascriptValue(value: String): String? = runCatching {
         val element = Json.parseToJsonElement(value)
         if (element is JsonNull) null else element.jsonPrimitive.content
-    }.getOrNull()?.trim()?.takeIf { it.isNotEmpty() && it != "null" }
+    }.getOrNull()
+        ?.trim()
+        ?.removeSurrounding("\"")
+        ?.takeIf { it.isNotEmpty() && it != "null" }
 }

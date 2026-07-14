@@ -24,6 +24,8 @@ class DiscordLoginTokenExtractorTest {
     fun `JavaScript result decodes a token and rejects null`() {
         assertThat(DiscordLoginTokenExtractor.decodeJavascriptValue("\"discord-token\""))
             .isEqualTo("discord-token")
+        assertThat(DiscordLoginTokenExtractor.decodeJavascriptValue("\"\\\"quoted-token\\\"\""))
+            .isEqualTo("quoted-token")
         assertThat(DiscordLoginTokenExtractor.decodeJavascriptValue("null")).isNull()
     }
 }
