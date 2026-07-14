@@ -1,21 +1,25 @@
 package io.github.aedev.flow.discord
 
 import com.google.common.truth.Truth.assertThat
-import org.json.JSONObject
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Test
 
 class KizzyGatewayProtocolTest {
     @Test
     fun `identify contains user token without logging or transforming it`() {
-        val payload = JSONObject(KizzyGatewayProtocol.identify("user-token"))
+        val payload = Json.parseToJsonElement(KizzyGatewayProtocol.identify("user-token")).jsonObject
 
-        assertThat(payload.getInt("op")).isEqualTo(2)
-        assertThat(payload.getJSONObject("d").getString("token")).isEqualTo("user-token")
+        assertThat(payload.getValue("op").jsonPrimitive.content.toInt()).isEqualTo(2)
+        assertThat(payload.getValue("d").jsonObject.getValue("token").jsonPrimitive.content)
+            .isEqualTo("user-token")
     }
 
     @Test
     fun `watching activity uses supplied application and millisecond timestamps`() {
-        val payload = JSONObject(
+        val payload = Json.parseToJsonElement(
             KizzyGatewayProtocol.presence(
                 payload = DiscordPresencePayload(
                     type = DiscordActivityType.WATCHING,
@@ -30,20 +34,24 @@ class KizzyGatewayProtocolTest {
                 applicationId = "123",
                 resolvedImage = "mp:external/asset",
             ),
-        )
-        val activity = payload.getJSONObject("d").getJSONArray("activities").getJSONObject(0)
+        ).jsonObject
+        val activity = payload.getValue("d").jsonObject
+            .getValue("activities").jsonArray[0].jsonObject
 
-        assertThat(activity.getInt("type")).isEqualTo(3)
-        assertThat(activity.getString("application_id")).isEqualTo("123")
-        assertThat(activity.getJSONObject("timestamps").getLong("start")).isEqualTo(10_000L)
-        assertThat(activity.getJSONObject("assets").getString("large_image"))
+        assertThat(activity.getValue("type").jsonPrimitive.content.toInt()).isEqualTo(3)
+        assertThat(activity.getValue("application_id").jsonPrimitive.content).isEqualTo("123")
+        assertThat(activity.getValue("timestamps").jsonObject.getValue("start").jsonPrimitive.content.toLong())
+            .isEqualTo(10_000L)
+        assertThat(activity.getValue("assets").jsonObject.getValue("large_image").jsonPrimitive.content)
             .isEqualTo("mp:external/asset")
     }
 
     @Test
     fun `clear presence sends an empty activity list`() {
-        val payload = JSONObject(KizzyGatewayProtocol.presence(null, "123", null))
+        val payload = Json.parseToJsonElement(
+            KizzyGatewayProtocol.presence(null, "123", null),
+        ).jsonObject
 
-        assertThat(payload.getJSONObject("d").getJSONArray("activities").length()).isEqualTo(0)
+        assertThat(payload.getValue("d").jsonObject.getValue("activities").jsonArray).isEmpty()
     }
 }
