@@ -49,6 +49,7 @@ class DiscordPlaybackSourceThreadingTest {
 
         Dispatchers.setMain(playerDispatcher)
         try {
+            // DiscordPresenceRuntime collects this flow on IO, while Media3 owns the main thread.
             val source = DiscordPlaybackSource(selector = selector)
 
             withContext(presenceDispatcher) {
