@@ -10,6 +10,7 @@ class NoOpDiscordPresenceTransportTest {
     fun `no-op transport reports unavailable and rejects updates`() = runTest {
         val transport = NoOpDiscordPresenceTransport("Not included")
 
+        assertThat(transport.isAvailable).isFalse()
         assertThat(transport.connectionState.value).isEqualTo(DiscordConnectionState.UNAVAILABLE)
         assertThat(transport.lastError.value).isEqualTo("Not included")
         assertThat(transport.update(samplePayload())).isFalse()

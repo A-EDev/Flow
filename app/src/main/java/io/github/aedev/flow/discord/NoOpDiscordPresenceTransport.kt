@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class NoOpDiscordPresenceTransport(
     private val unavailableMessage: String = "Discord Rich Presence is unavailable in this build.",
 ) : DiscordPresenceTransport {
+    override val isAvailable: Boolean = false
+
     private val _connectionState = MutableStateFlow(DiscordConnectionState.UNAVAILABLE)
     override val connectionState: StateFlow<DiscordConnectionState> = _connectionState.asStateFlow()
 

@@ -45,8 +45,7 @@ class DiscordPresenceCoordinator(
     }
 
     private suspend fun clearPresence() {
-        if (transport.clear()) {
-            lastSent = null
-        }
+        transport.clear()
+        lastSent = null
     }
 }

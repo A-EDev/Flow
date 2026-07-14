@@ -4,6 +4,7 @@ import android.app.Activity
 import kotlinx.coroutines.flow.StateFlow
 
 interface DiscordPresenceTransport {
+    val isAvailable: Boolean
     val connectionState: StateFlow<DiscordConnectionState>
     val linkedAccountName: StateFlow<String?>
     val lastError: StateFlow<String?>

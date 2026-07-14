@@ -103,11 +103,48 @@ class DiscordPresenceCoordinatorTest {
         job.cancelAndJoin()
     }
 
+    @Test
+    fun `failed transport update is retried`() = runTest {
+        val snapshot = PlaybackSnapshot(
+            kind = PlaybackKind.VIDEO,
+            mediaId = "video-1",
+            title = "Video",
+            subtitle = "Creator",
+            artworkUrl = "",
+            durationMs = 60_000L,
+            positionMs = 1_000L,
+            isPlaying = true,
+            isLive = false,
+        )
+        val enabled = MutableStateFlow(true)
+        val playback = MutableStateFlow<PlaybackSnapshot?>(snapshot)
+        val transport = RecordingTransport().apply { failNextUpdate = true }
+        val coordinator = DiscordPresenceCoordinator(
+            enabled = enabled,
+            playback = playback,
+            transport = transport,
+            nowEpochSeconds = { 100L },
+            nowElapsedMs = { 10_000L },
+        )
+
+        val job = launch { coordinator.run() }
+        runCurrent()
+        playback.value = snapshot.copy(positionMs = 2_000L)
+        runCurrent()
+
+        assertThat(transport.updateAttempts).isEqualTo(2)
+        assertThat(transport.updates).hasSize(1)
+        job.cancelAndJoin()
+    }
+
     private class RecordingTransport : DiscordPresenceTransport {
+        override val isAvailable: Boolean = true
         override val connectionState = MutableStateFlow(DiscordConnectionState.CONNECTED)
         override val linkedAccountName = MutableStateFlow<String?>(null)
         override val lastError = MutableStateFlow<String?>(null)
         val updates = mutableListOf<DiscordPresencePayload>()
+        var updateAttempts = 0
+        var failNextUpdate = false
         var clears: Int = 0
 
         override fun attachActivity(activity: Activity?) = Unit
@@ -117,6 +154,11 @@ class DiscordPresenceCoordinatorTest {
         override suspend fun connect(tokens: DiscordAuthTokens): DiscordLinkResult = DiscordLinkResult.Success
 
         override suspend fun update(payload: DiscordPresencePayload): Boolean {
+            updateAttempts += 1
+            if (failNextUpdate) {
+                failNextUpdate = false
+                return false
+            }
             updates += payload
             return true
         }
