@@ -129,7 +129,7 @@
     <string name="filter_upload_date">تاريخ الرفع</string>
     <string name="filter_duration">طول المدة</string>
     <string name="filter_sort_by">رشح</string>
-    <string name="filter_subtitles">النصوص</string>
+    <string name="filter_subtitles">الترجمات</string>
     <string name="date_any">أي وقت</string>
     <string name="date_last_hour">أخر ساعة</string>
     <string name="date_today">اليوم</string>
@@ -1091,11 +1091,11 @@
     <string name="videos_curated_template">%1$d فيديوهات مختارة خصيصاً لك</string>
     <string name="playlist_metadata_template">قوائم التشغيل• خاص • %1$d فيديوهات</string>
     <string name="explicit">صريحة</string>
-    <string name="filter_hd">عالي الوضوح (HD)</string>
-    <string name="filter_4k">4K (دقة ٤ آلاف عنصورة)</string>
+    <string name="filter_hd">HD</string>
+    <string name="filter_4k">4K</string>
     <string name="tab_shorts">المقاطع</string>
-    <string name="dismiss">إنسى</string>
-    <string name="peace_and_quiet">هدوء</string>
+    <string name="dismiss">تجاهل</string>
+    <string name="peace_and_quiet">سلام و هدوء</string>
     <string name="notifications_empty_body">لقد وصلت للنهاية! ستظهر التحديثات الجديدة من اشتراكاتك هنا.</string>
     <string name="notif_system_settings_subtitle">افتح إعدادات أندرويد لإدارة أذونات كل قناة على حدة</string>
     <string name="settings_item_search_history_subtitle">مسح السجل، إدارة الاقتراحات</string>
@@ -1299,10 +1299,10 @@
     <string name="search_channels_hint">بحث في القنوات…</string>
     <string name="dearrow_badge_toggle">أظهر شارة DeArrow</string>
     <string name="dearrow_badge_toggle_subtitle">إعرض شارة على الصور المصغرة تعرض (تم التصحيح بواسطة DeArrow)</string>
-    <string name="channel_search_hint">فتّش القناة</string>
-    <string name="channel_search_open">فتّش القناة</string>
-    <string name="channel_search_no_results">لم نعثر على نتائج لـ %1$s</string>
-    <string name="channel_search_close">أوقف البحث</string>
+    <string name="channel_search_hint">البحث في القناة</string>
+    <string name="channel_search_open">البحث في القناة</string>
+    <string name="channel_search_no_results">لم يتم العثور على نتائج لـ %1$s</string>
+    <string name="channel_search_close">إلغاء البحث</string>
     <string name="tap_to_close">أنقر للإغلاق</string>
     <string name="player_appearance_fullscreen_header">ملء الشاشة</string>
     <string name="player_show_title_title">أظهر عنوان الفيديو</string>
@@ -1898,9 +1898,14 @@
     <string name="search_filter_all">الكل</string>
     <string name="channel_sort_latest">الأحدث</string>
     <string name="tab_posts">المنشورات</string>
-    <string name="community_posts_empty">لم نجد منشورات</string>
-    <string name="community_posts_load_failed">تعذر جلب المنشورات</string>
+    <string name="community_posts_empty">لا يوجد منشورات</string>
+    <string name="community_posts_load_failed">تعذر تحميل المنشورات</string>
     <string name="community_post_image_content_description">صورة المنشور</string>
-    <string name="share_community_post">شارك المنشور</string>
+    <string name="share_community_post">مشاركة المنشور</string>
     <string name="search_toggle_view_mode">إعرض نتائج البحث</string>
+    <string name="copy_logs">نسخ السجلات</string>
+    <string name="logs_copied">تم نسخ السجلات</string>
+    <string name="logs_copy_failed">تعذر نسخ السجلات</string>
+    <string name="channel_error_log_clip_label">سجل أخطاء قناة Flow</string>
+    <string name="channel_search_failed">تعذر البحث في هذه القناة</string>
 </resources>
