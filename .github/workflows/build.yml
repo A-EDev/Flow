@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     name: Build APK
-    runs-on: [self-hosted, pasta_vps]
+    runs-on: [self-hosted]
 
     steps:
       - name: Checkout code
