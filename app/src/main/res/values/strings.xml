@@ -69,7 +69,7 @@
     <string name="history_tab_shorts">Shorts</string>
     <string name="history_tab_local_videos">Local videos</string>
     <string name="history_tab_local_music">Local music</string>
-    <string name="liked">"Liked "</string>
+    <string name="liked">Liked</string>
     <string name="liked_music">Liked Music</string>
     <string name="liked_videos">Likes</string>
     <string name="share_song">Share song</string>
@@ -1730,7 +1730,6 @@
     <string name="sync_error_qr_wrong_version">Incompatible app version on the other device.</string>
     <string name="sync_error_qr_not_flow">That doesn\'t look like a Flow sync code.</string>
     <string name="sync_error_qr_bad_address">The sync code is missing a valid network address.</string>
-
     <!-- Automated Backups -->
     <string name="auto_backup_title">Automated Backups</string>
     <string name="auto_backup_subtitle">Schedule automatic backups to a folder</string>
@@ -1967,8 +1966,7 @@
     <string name="taste_chart_profile">Profile</string>
     <string name="taste_chart_now">Now</string>
     <!-- Topic Evidence -->
-    <string name="topic_score_prefix"></string>
-
+    <string name="topic_score_prefix"/>
     <!-- Date & Time Display (#481) -->
     <string name="settings_item_datetime">Date &amp; Time</string>
     <string name="settings_item_datetime_subtitle">Customize how upload dates are shown</string>
@@ -1991,15 +1989,12 @@
     <string name="datetime_override_relative">Relative</string>
     <string name="datetime_override_exact">Exact</string>
     <string name="datetime_override_both">Both</string>
-
     <!-- Volume boost (#491) -->
     <string name="player_appearance_volume_boost_title">Allow extra volume boost</string>
     <string name="player_appearance_volume_boost_subtitle">When off, the volume swipe gesture stops at the maximum system volume. Turn on to make audio even louder.</string>
-
     <!-- Shorts playback speed (#496) -->
     <string name="shorts_playback_speed">Playback speed</string>
     <string name="speed_normal">Normal</string>
-
     <!-- Export / delete watch history (#507) -->
     <string name="export_watch_history_title">Watch history</string>
     <string name="export_watch_history_desc">Export as YouTube-history JSON (imports into LibreTube and Flow)</string>
@@ -2007,7 +2002,6 @@
     <string name="history_delete_shorts">Delete Shorts from history</string>
     <string name="history_delete_shorts_title">Delete Shorts?</string>
     <string name="history_delete_shorts_body">This removes all Shorts from your watch history. Other videos are kept.</string>
-
     <!-- Music recognition (Shazam) -->
     <string name="recognize_music">Recognize music</string>
     <string name="recognition_history">Recognition history</string>
