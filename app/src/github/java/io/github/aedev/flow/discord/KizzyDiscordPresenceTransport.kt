@@ -1,7 +1,6 @@
 package io.github.aedev.flow.discord
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
@@ -18,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.MediaType.Companion.toMediaType
@@ -35,7 +35,6 @@ import org.json.JSONObject
  * This uses a Discord user session and is not an official Discord integration.
  */
 class KizzyDiscordPresenceTransport(
-    private val context: Context,
     private val client: OkHttpClient,
     private val tokenStore: DiscordTokenStore,
     private val applicationId: String,
@@ -43,14 +42,15 @@ class KizzyDiscordPresenceTransport(
     override val isAvailable: Boolean = applicationId.isNotBlank()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val connectionMutex = Mutex()
     private val imageCache = ConcurrentHashMap<String, String>()
     private var activityReference = WeakReference<Activity>(null)
     private var socket: WebSocket? = null
     private var heartbeatJob: Job? = null
     private var readySignal: CompletableDeferred<DiscordLinkResult>? = null
     private var currentToken: String? = null
-    private var sequence: Int? = null
-    private var generation = 0
+    @Volatile private var sequence: Int? = null
+    @Volatile private var generation = 0
 
     private val _connectionState = MutableStateFlow(DiscordConnectionState.DISCONNECTED)
     override val connectionState: StateFlow<DiscordConnectionState> = _connectionState.asStateFlow()
@@ -91,6 +91,15 @@ class KizzyDiscordPresenceTransport(
     }
 
     override suspend fun connect(tokens: DiscordAuthTokens): DiscordLinkResult {
+        connectionMutex.lock()
+        return try {
+            connectLocked(tokens)
+        } finally {
+            connectionMutex.unlock()
+        }
+    }
+
+    private suspend fun connectLocked(tokens: DiscordAuthTokens): DiscordLinkResult {
         if (tokens.accessToken.isBlank()) return fail("Discord returned an empty session token.")
         if (applicationId.isBlank()) return fail("Discord application ID is missing from this build.")
         if (
@@ -115,6 +124,7 @@ class KizzyDiscordPresenceTransport(
         return runCatching {
             withTimeout(CONNECTION_TIMEOUT_MS) { signal.await() }
         }.getOrElse {
+            closeSocket()
             fail("Discord Gateway connection timed out.")
         }
     }
@@ -264,6 +274,7 @@ class KizzyDiscordPresenceTransport(
     private fun failFromCallback(message: String) {
         val failure = fail(message)
         readySignal?.complete(failure)
+        closeSocket()
     }
 
     private companion object {

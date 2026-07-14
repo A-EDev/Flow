@@ -10,7 +10,6 @@ class DiscordPlatformTransportFactory : DiscordPresenceTransportFactory {
         okHttpClient: OkHttpClient,
         tokenStore: DiscordTokenStore,
     ): DiscordPresenceTransport = KizzyDiscordPresenceTransport(
-        context = context.applicationContext,
         client = okHttpClient,
         tokenStore = tokenStore,
         applicationId = BuildConfig.DISCORD_APPLICATION_ID,

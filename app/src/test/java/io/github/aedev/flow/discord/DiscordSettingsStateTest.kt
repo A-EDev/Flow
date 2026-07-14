@@ -72,4 +72,19 @@ class DiscordSettingsStateTest {
         assertThat(state.summary).isEqualTo(DiscordSettingsSummary.ERROR)
         assertThat(state.errorMessage).isEqualTo("Connection timed out")
     }
+
+    @Test
+    fun `connection error remains visible while preference is disabled`() {
+        val state = deriveDiscordSettingsState(
+            preferenceEnabled = false,
+            transportAvailable = true,
+            connectionState = DiscordConnectionState.ERROR,
+            accountName = null,
+            errorMessage = "Sign-in failed",
+        )
+
+        assertThat(state.isEnabled).isFalse()
+        assertThat(state.summary).isEqualTo(DiscordSettingsSummary.ERROR)
+        assertThat(state.errorMessage).isEqualTo("Sign-in failed")
+    }
 }

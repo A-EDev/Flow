@@ -151,7 +151,6 @@ object DiscordPresenceRuntime {
 
     fun shutdown() {
         val currentTransport = transport
-        scope?.launch { currentTransport?.clear() }
         currentTransport?.close()
         scope?.cancel()
         scope = null

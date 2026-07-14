@@ -29,7 +29,7 @@ fun deriveDiscordSettingsState(
     val enabled = preferenceEnabled && available
     val summary = when {
         !available -> DiscordSettingsSummary.UNAVAILABLE
-        enabled && connectionState == DiscordConnectionState.ERROR -> DiscordSettingsSummary.ERROR
+        connectionState == DiscordConnectionState.ERROR -> DiscordSettingsSummary.ERROR
         !enabled -> DiscordSettingsSummary.OFF
         connectionState == DiscordConnectionState.CONNECTED -> DiscordSettingsSummary.CONNECTED
         else -> DiscordSettingsSummary.NOT_CONNECTED

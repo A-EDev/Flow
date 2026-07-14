@@ -41,7 +41,8 @@ class DiscordTokenStore(context: Context) {
 
         val output = storageFile.startWrite()
         try {
-            output.use { it.write(payload) }
+            output.write(payload)
+            output.flush()
             storageFile.finishWrite(output)
         } catch (error: Throwable) {
             storageFile.failWrite(output)
