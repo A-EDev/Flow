@@ -1042,4 +1042,13 @@
     <string name="import_data_title">Daten importieren</string>
     <string name="import_from_newpipe_desc">NewPipe-Exportdatei (JSON).</string>
     <string name="import_from_libretube">Aus LibreTube importieren</string>
+    <string name="subscriptions_sort_label">Kanäle sortieren</string>
+    <string name="subscriptions_sort_default">Standard</string>
+    <string name="subscriptions_sort_name">Name (A–Z)</string>
+    <string name="subscriptions_sort_recent">Kürzlich aktualisiert</string>
+    <string name="copy_logs">Protokolle kopieren</string>
+    <string name="logs_copied">Protokolle kopiert</string>
+    <string name="logs_copy_failed">Die Protokolle konnten nicht kopiert werden</string>
+    <string name="collaborators">Mitwirkende</string>
+    <string name="collaborator">Mitwirkender</string>
 </resources>
