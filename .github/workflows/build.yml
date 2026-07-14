@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     name: Build APK
-    runs-on: self-hosted, Linux, X64
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
