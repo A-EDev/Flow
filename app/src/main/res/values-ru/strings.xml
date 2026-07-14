@@ -953,7 +953,7 @@
     <string name="copy_video_link">Скопировать ссылку на видео</string>
     <string name="player_settings_display">Отображение</string>
     <string name="category_gaming">Видеоигры</string>
-    <string name="screen_title_music">Музыка</string>
+    <string name="screen_title_music">МУЗЫКА</string>
     <string name="speed_normal">Обычная</string>
     <string name="player_background_style_blur_gradient">Размытие + Градиент</string>
     <string name="player_settings_video_codec_auto_desc">Авто (предпочтительно H.264)</string>
@@ -1439,14 +1439,14 @@
     <string name="download_settings_title">Настройки загрузки</string>
     <string name="permissions_header">Разрешения</string>
     <string name="files_access_title">Доступ к файлам</string>
-    <string name="files_access_granted_subtitle">Предоставлено – загрузки отображаются сразу</string>
-    <string name="files_access_denied_subtitle">Не предоставлено – нажмите, чтобы включить полный список загрузок</string>
+    <string name="files_access_granted_subtitle">Доступ предоставлен – загрузки отображаются сразу</string>
+    <string name="files_access_denied_subtitle">Доступ не предоставлен – нажмите, чтобы увидеть все загрузки</string>
     <string name="media_access_title">Доступ к фото и видео</string>
-    <string name="media_access_granted_subtitle">Предоставлено</string>
-    <string name="media_access_denied_subtitle">Не предоставлено – нажмите, чтобы включить</string>
+    <string name="media_access_granted_subtitle">Доступ предоставлен</string>
+    <string name="media_access_denied_subtitle">Доступ не предоставлен – нажмите, чтобы включить</string>
     <string name="audio_access_title">Доступ к музыке и аудио</string>
-    <string name="audio_access_granted_subtitle">Предоставлено</string>
-    <string name="audio_access_denied_subtitle">Не предоставлено – нажмите, чтобы включить</string>
+    <string name="audio_access_granted_subtitle">Доступ предоставлен</string>
+    <string name="audio_access_denied_subtitle">Доступ не предоставлен – нажмите, чтобы включить</string>
     <string name="storage_header">Хранилище</string>
     <string name="internal_storage_label">Внутреннее хранилище</string>
     <string name="location_label">Расположение</string>
@@ -1682,7 +1682,7 @@
     <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
     <string name="about_creator">Автор</string>
     <string name="newpipe_extractor_title">NewPipe Extractor</string>
-    <string name="newpipe_extractor_subtitle">Библиотека извлечения</string>
+    <string name="newpipe_extractor_subtitle">Основная библиотека парсинга</string>
     <string name="about_license">Лицензия</string>
     <string name="about_changelog">Список изменений</string>
     <string name="whats_new_in_flow">Что нового в Flow</string>
@@ -1721,8 +1721,8 @@
     <string name="title_add_to_playlist">Добавить в плейлист</string>
     <string name="loading_music">Загрузка музыки...</string>
     <string name="section_listen_again">Послушать еще раз</string>
-    <string name="section_daily_discover">Ваши ежедневные открытия</string>
-    <string name="section_quick_picks">Быстрый выбор</string>
+    <string name="section_daily_discover">Ежедневные открытия</string>
+    <string name="section_quick_picks">Рекомендации</string>
     <string name="section_speed_dial">Быстрый набор</string>
     <string name="shuffle_play">Перемешать</string>
     <string name="feeling_lucky">Испытать удачу?</string>
@@ -1733,8 +1733,8 @@
     <string name="section_recommended">Рекомендации</string>
     <string name="section_recently_played">Недавно прослушанные</string>
     <string name="section_new_releases">Новинки</string>
-    <string name="genre_mix_template">%1$s микс</string>
-    <string name="section_vibe_vibes">%1$s настроения</string>
+    <string name="genre_mix_template">Микс: %1$s</string>
+    <string name="section_vibe_vibes">Настроение: %1$s</string>
     <string name="playlist_description_community">Подборка %1$s музыки от нашего сообщества</string>
     <string name="template_freq">%1$dHz</string>
     <string name="template_gain">%1$.1fdB</string>
@@ -1894,4 +1894,9 @@
     <string name="settings_home_nav_tab_subtitle">Показывать вкладку «Главная» в нижней панели навигации</string>
     <string name="settings_home_nav_tab_title">Вкладка «Главная»</string>
     <string name="channel_metadata_unavailable">Информация о канале недоступна</string>
+    <string name="tab_posts">Записи</string>
+    <string name="community_posts_empty">Нет записей сообщества</string>
+    <string name="community_posts_load_failed">Не удалось загрузить записи сообщества</string>
+    <string name="share_community_post">Поделиться записью сообщества</string>
+    <string name="community_post_image_content_description">Изображение записи сообщества</string>
 </resources>

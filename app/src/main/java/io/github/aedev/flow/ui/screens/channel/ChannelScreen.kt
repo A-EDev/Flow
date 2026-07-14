@@ -466,17 +466,19 @@ private fun ChannelContent(
                                     ) { CircularProgressIndicator() }
                                 }
 
-                                uiState.searchError != null -> {
+                                uiState.searchErrorLog != null -> {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .padding(top = visibleHeaderHeightDp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = uiState.searchError,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.error,
+                                        ChannelRequestErrorState(
+                                            message = stringResource(R.string.channel_search_failed),
+                                            errorLog = uiState.searchErrorLog,
+                                            onRetry = {
+                                                onSearchQueryChange(uiState.searchQuery)
+                                            },
                                         )
                                     }
                                 }
@@ -595,7 +597,7 @@ private fun ChannelContent(
                     isLoading = communityUiState.isLoadingPosts,
                     isLoadingMore = communityUiState.isLoadingMorePosts,
                     hasMore = communityUiState.postsContinuation != null,
-                    hasError = communityUiState.postsError,
+                    errorLog = communityUiState.postsErrorLog,
                     listState = postsListState,
                     contentPadding = listPadding,
                     onAuthorClick = { onChannelClick(channelInfo.id) },

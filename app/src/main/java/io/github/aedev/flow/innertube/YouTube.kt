@@ -205,7 +205,7 @@ object YouTube {
 
     // Long-form search ignores the Shorts shelf; fetch it from the main site (not music).
     suspend fun searchShorts(query: String): Result<List<SearchShortItem>> = runCatching {
-        innerTube.webSearch(WEB, query).body<JsonObject>().toSearchShorts()
+        innerTube.webSearch(currentWebClient(), query).body<JsonObject>().toSearchShorts()
     }.onSuccess { Log.d("SearchShorts", "query='$query' shorts=${it.size}") }
         .onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
 
@@ -215,7 +215,7 @@ object YouTube {
         continuation: String? = null,
     ): Result<SearchVideosPage> = runCatching {
         ensureVisitorData()
-        val searchClient = currentWebSearchClient()
+        val searchClient = currentWebClient()
         innerTube.webSearch(
             client = searchClient,
             query = query.takeIf { continuation == null },
@@ -233,7 +233,7 @@ object YouTube {
             ?.let { visitorData = it }
     }
 
-    private suspend fun currentWebSearchClient(): YouTubeClient = withContext(Dispatchers.IO) {
+    private suspend fun currentWebClient(): YouTubeClient = withContext(Dispatchers.IO) {
         WEB.copy(
             clientVersion = runCatching { YoutubeParsingHelper.getClientVersion() }
                 .getOrDefault(WEB.clientVersion),
@@ -511,11 +511,8 @@ object YouTube {
         channelThumbnailUrl: String,
         query: String,
     ): Result<ChannelVideoSearchResult> = runCatching {
-        val httpResponse = innerTube.channelSearch(WEB, channelId, query)
+        val httpResponse = innerTube.channelSearch(currentWebClient(), channelId, query)
         val rawBody = httpResponse.bodyAsText()
-        rawBody.chunked(3000).forEachIndexed { i, chunk ->
-            Log.d("ChannelSearchRaw", "[$i] $chunk")
-        }
         val lenientJson = Json { ignoreUnknownKeys = true; explicitNulls = false }
         val response = lenientJson.decodeFromString<io.github.aedev.flow.innertube.models.response.ChannelSearchResponse>(rawBody)
         parseChannelSearchResponse(response, channelId, channelName, channelThumbnailUrl)
@@ -527,7 +524,12 @@ object YouTube {
         channelThumbnailUrl: String,
         continuation: String,
     ): Result<ChannelVideoSearchResult> = runCatching {
-        val httpResponse = innerTube.channelSearch(WEB, channelId, query = "", continuation = continuation)
+        val httpResponse = innerTube.channelSearch(
+            currentWebClient(),
+            channelId,
+            query = "",
+            continuation = continuation,
+        )
         val rawBody = httpResponse.bodyAsText()
         val lenientJson = Json { ignoreUnknownKeys = true; explicitNulls = false }
         val response = lenientJson.decodeFromString<io.github.aedev.flow.innertube.models.response.ChannelSearchResponse>(rawBody)
@@ -658,8 +660,9 @@ object YouTube {
         channelThumbnailUrl: String,
         continuation: String? = null,
     ): Result<CommunityPostsPage> = runCatching {
+        val client = currentWebClient()
         val response = innerTube.channelBrowse(
-            client = WEB,
+            client = client,
             channelId = channelId.takeIf { continuation == null },
             params = CHANNEL_POSTS_PARAMS.takeIf { continuation == null },
             continuation = continuation,
@@ -675,8 +678,9 @@ object YouTube {
         params: String? = null,
         continuation: String? = null,
     ): CommunityCommentsPage {
+        val client = currentWebClient()
         val response = innerTube.postCommentsBrowse(
-            client = WEB,
+            client = client,
             postId = postId,
             params = params,
             continuation = continuation,
@@ -692,8 +696,9 @@ object YouTube {
         isLive: Boolean,
         continuation: String? = null,
     ): Result<ChannelVideoSearchResult> = runCatching {
+        val client = currentWebClient()
         val httpResponse = innerTube.channelBrowse(
-            client = WEB,
+            client = client,
             channelId = if (continuation == null) channelId else null,
             params = params,
             continuation = continuation,

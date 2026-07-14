@@ -392,7 +392,7 @@ class ChannelViewModel : ViewModel() {
                 searchActive = active,
                 searchQuery = if (!active) "" else it.searchQuery,
                 searchResults = if (!active) emptyList() else it.searchResults,
-                searchError = null,
+                searchErrorLog = null,
             )
         }
     }
@@ -405,7 +405,7 @@ class ChannelViewModel : ViewModel() {
         _uiState.update {
             it.copy(
                 searchQuery = query,
-                searchError = null,
+                searchErrorLog = null,
             )
         }
 
@@ -436,7 +436,7 @@ class ChannelViewModel : ViewModel() {
                                 searchResults = page.videos,
                                 searchContinuation = page.continuation,
                                 isSearching = false,
-                                searchError = null,
+                                searchErrorLog = null,
                             )
                         }
                     },
@@ -445,7 +445,12 @@ class ChannelViewModel : ViewModel() {
                         _uiState.update {
                             it.copy(
                                 isSearching = false,
-                                searchError = e.message ?: "Search failed",
+                                searchErrorLog = buildChannelRequestErrorLog(
+                                    operation = "channel_search",
+                                    channelId = channelId,
+                                    query = trimmed,
+                                    error = e,
+                                ),
                             )
                         }
                     }
@@ -453,7 +458,15 @@ class ChannelViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e(TAG, "Channel search error", e)
                 _uiState.update {
-                    it.copy(isSearching = false, searchError = e.message ?: "Search failed")
+                    it.copy(
+                        isSearching = false,
+                        searchErrorLog = buildChannelRequestErrorLog(
+                            operation = "channel_search",
+                            channelId = channelId,
+                            query = trimmed,
+                            error = e,
+                        ),
+                    )
                 }
             }
         }
@@ -625,7 +638,7 @@ data class ChannelUiState(
     val searchQuery: String = "",
     val searchResults: List<Video> = emptyList(),
     val isSearching: Boolean = false,
-    val searchError: String? = null,
+    val searchErrorLog: String? = null,
     val searchContinuation: String? = null,
     val isLoadingMoreSearch: Boolean = false,
 )

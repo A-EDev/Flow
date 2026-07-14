@@ -1,5 +1,7 @@
 package io.github.aedev.flow.innertube
 
+import android.util.Log
+
 import io.github.aedev.flow.FlowApplication
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.models.Context
@@ -35,6 +37,8 @@ import java.io.IOException
 import okhttp3.ConnectionPool
 import okhttp3.Protocol
 import okhttp3.OkHttpClient
+
+private const val TAG = "InnerTube"
 
 /**
  * Provide access to InnerTube endpoints.
@@ -281,33 +285,55 @@ class InnerTube {
         anonymous: Boolean = false,
         includeVisitorData: Boolean = !anonymous,
     ) = withRetry {
-        val requestVisitorData = visitorData.takeIf { includeVisitorData }
-        httpClient.post("https://www.youtube.com/youtubei/v1/search") {
-            headers {
-                append("X-YouTube-Client-Name", client.clientId)
-                append("X-YouTube-Client-Version", client.clientVersion)
-                if (anonymous) {
-                    append(HttpHeaders.Origin, YouTubeClient.ORIGIN_YOUTUBE)
-                    append("Referer", YouTubeClient.ORIGIN_YOUTUBE)
-                    append(HttpHeaders.Cookie, "SOCS=CAE=")
-                    append(HttpHeaders.AcceptLanguage, "${locale.hl}, en;q=0.9")
-                } else {
+        withVisitorDataFallback(includeVisitorData) { requestVisitorData ->
+            httpClient.post("https://www.youtube.com/youtubei/v1/search") {
+                headers {
+                    append("X-YouTube-Client-Name", client.clientId)
+                    append("X-YouTube-Client-Version", client.clientVersion)
+                    if (anonymous) {
+                        append(HttpHeaders.Origin, YouTubeClient.ORIGIN_YOUTUBE)
+                        append("Referer", YouTubeClient.ORIGIN_YOUTUBE)
+                        append(HttpHeaders.Cookie, "SOCS=CAE=")
+                        append(HttpHeaders.AcceptLanguage, "${locale.hl}, en;q=0.9")
+                    } else {
+                        append("X-Origin", YouTubeClient.ORIGIN_YOUTUBE)
+                        append("Referer", YouTubeClient.REFERER_YOUTUBE)
+                    }
+                    requestVisitorData?.let { append("X-Goog-Visitor-Id", it) }
+                }
+                contentType(io.ktor.http.ContentType.Application.Json)
+                userAgent(client.userAgent)
+                parameter("prettyPrint", false)
+                setBody(
+                    SearchBody(
+                        context = client.toContext(locale, requestVisitorData, null),
+                        query = query,
+                        params = params,
+                        continuation = continuation,
+                    )
+                )
+            }
+        }
+    }
+
+    private suspend fun webBrowse(
+        client: YouTubeClient,
+        body: (String?) -> BrowseBody,
+    ) = withRetry {
+        withVisitorDataFallback { requestVisitorData ->
+            httpClient.post("https://www.youtube.com/youtubei/v1/browse") {
+                headers {
+                    append("X-YouTube-Client-Name", client.clientId)
+                    append("X-YouTube-Client-Version", client.clientVersion)
                     append("X-Origin", YouTubeClient.ORIGIN_YOUTUBE)
                     append("Referer", YouTubeClient.REFERER_YOUTUBE)
+                    requestVisitorData?.let { append("X-Goog-Visitor-Id", it) }
                 }
-                requestVisitorData?.let { append("X-Goog-Visitor-Id", it) }
+                contentType(ContentType.Application.Json)
+                userAgent(client.userAgent)
+                parameter("prettyPrint", false)
+                setBody(body(requestVisitorData))
             }
-            contentType(io.ktor.http.ContentType.Application.Json)
-            userAgent(client.userAgent)
-            parameter("prettyPrint", false)
-            setBody(
-                SearchBody(
-                    context = client.toContext(locale, requestVisitorData, null),
-                    query = query,
-                    params = params,
-                    continuation = continuation,
-                )
-            )
         }
     }
 
@@ -325,28 +351,14 @@ class InnerTube {
         channelId: String,
         query: String,
         continuation: String? = null,
-    ) = withRetry {
-        httpClient.post("https://www.youtube.com/youtubei/v1/browse") {
-            headers {
-                append("X-YouTube-Client-Name", client.clientId)
-                append("X-YouTube-Client-Version", client.clientVersion)
-                append("X-Origin", "https://www.youtube.com")
-                append("Referer", "https://www.youtube.com/")
-                visitorData?.let { append("X-Goog-Visitor-Id", it) }
-            }
-            contentType(io.ktor.http.ContentType.Application.Json)
-            userAgent(client.userAgent)
-            parameter("prettyPrint", false)
-            setBody(
-                BrowseBody(
-                    context = client.toContext(locale, visitorData, null),
-                    browseId = if (continuation == null) channelId else null,
-                    params = if (continuation == null) "EgZzZWFyY2jyBgQKAloA" else null,
-                    query = if (continuation == null) query else null,
-                    continuation = continuation,
-                )
-            )
-        }
+    ) = webBrowse(client) { requestVisitorData ->
+        BrowseBody(
+            context = client.toContext(locale, requestVisitorData, null),
+            browseId = if (continuation == null) channelId else null,
+            params = if (continuation == null) "EgZzZWFyY2jyBgQKAloA" else null,
+            query = if (continuation == null) query else null,
+            continuation = continuation,
+        )
     }
 
     /**
@@ -360,26 +372,31 @@ class InnerTube {
         channelId: String? = null,
         params: String? = null,
         continuation: String? = null,
-    ) = withRetry {
-        httpClient.post("https://www.youtube.com/youtubei/v1/browse") {
-            headers {
-                append("X-YouTube-Client-Name", client.clientId)
-                append("X-YouTube-Client-Version", client.clientVersion)
-                append("X-Origin", "https://www.youtube.com")
-                append("Referer", "https://www.youtube.com/")
-                visitorData?.let { append("X-Goog-Visitor-Id", it) }
+    ) = webBrowse(client) { requestVisitorData ->
+        BrowseBody(
+            context = client.toContext(locale, requestVisitorData, null),
+            browseId = if (continuation == null) channelId else null,
+            params = if (continuation == null) params else null,
+            continuation = continuation,
+        )
+    }
+
+    private suspend fun <T> withVisitorDataFallback(
+        includeVisitorData: Boolean = true,
+        block: suspend (String?) -> T,
+    ): T {
+        val requestVisitorData = visitorData?.takeIf { includeVisitorData && it.isNotBlank() }
+            ?: return block(null)
+        return try {
+            block(requestVisitorData)
+        } catch (error: ClientRequestException) {
+            if (error.response.status != HttpStatusCode.BadRequest) throw error
+            val response = block(null)
+            if (visitorData == requestVisitorData) {
+                visitorData = null
             }
-            contentType(io.ktor.http.ContentType.Application.Json)
-            userAgent(client.userAgent)
-            parameter("prettyPrint", false)
-            setBody(
-                BrowseBody(
-                    context = client.toContext(locale, visitorData, null),
-                    browseId = if (continuation == null) channelId else null,
-                    params = if (continuation == null) params else null,
-                    continuation = continuation,
-                )
-            )
+            Log.w(TAG, "InnerTube rejected visitor data; request succeeded without it")
+            response
         }
     }
 
@@ -388,32 +405,18 @@ class InnerTube {
         postId: String? = null,
         params: String? = null,
         continuation: String? = null,
-    ) = withRetry {
-        httpClient.post("https://www.youtube.com/youtubei/v1/browse") {
-            headers {
-                append("X-YouTube-Client-Name", client.clientId)
-                append("X-YouTube-Client-Version", client.clientVersion)
-                append("X-Origin", "https://www.youtube.com")
-                append("Referer", "https://www.youtube.com/")
-                visitorData?.let { append("X-Goog-Visitor-Id", it) }
-            }
-            contentType(io.ktor.http.ContentType.Application.Json)
-            userAgent(client.userAgent)
-            parameter("prettyPrint", false)
-            setBody(
-                BrowseBody(
-                    context = client.toContext(locale, visitorData, null),
-                    browseId = if (continuation == null) "FEpost_detail" else null,
-                    params = if (continuation == null) params else null,
-                    continuation = continuation,
-                    canonicalBaseUrl = if (continuation == null && params == null) {
-                        postId?.let { "/post/$it" }
-                    } else {
-                        null
-                    },
-                )
-            )
-        }
+    ) = webBrowse(client) { requestVisitorData ->
+        BrowseBody(
+            context = client.toContext(locale, requestVisitorData, null),
+            browseId = if (continuation == null) "FEpost_detail" else null,
+            params = if (continuation == null) params else null,
+            continuation = continuation,
+            canonicalBaseUrl = if (continuation == null && params == null) {
+                postId?.let { "/post/$it" }
+            } else {
+                null
+            },
+        )
     }
 
     suspend fun player(

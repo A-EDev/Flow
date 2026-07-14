@@ -1,8 +1,6 @@
 package io.github.aedev.flow.ui.screens.channel
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,7 +27,7 @@ internal fun ChannelCommunityPosts(
     isLoading: Boolean,
     isLoadingMore: Boolean,
     hasMore: Boolean,
-    hasError: Boolean,
+    errorLog: String?,
     listState: LazyListState,
     contentPadding: PaddingValues,
     onAuthorClick: () -> Unit,
@@ -57,22 +54,17 @@ internal fun ChannelCommunityPosts(
                 }
             }
 
-            hasError && posts.isEmpty() -> item(key = "posts_error") {
-                Column(
+            errorLog != null && posts.isEmpty() -> item(key = "posts_error") {
+                Box(
                     modifier = Modifier
-                        .fillParentMaxSize()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                        .fillParentMaxSize(),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = stringResource(R.string.community_posts_load_failed),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error,
+                    ChannelRequestErrorState(
+                        message = stringResource(R.string.community_posts_load_failed),
+                        errorLog = errorLog,
+                        onRetry = onRetry,
                     )
-                    Button(onClick = onRetry) {
-                        Text(stringResource(R.string.retry))
-                    }
                 }
             }
 
