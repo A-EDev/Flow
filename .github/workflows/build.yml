@@ -84,7 +84,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flow-release-apk
-          path: app/build/outputs/apk/github/release/app-github-release.apk
+          path: app/build/outputs/apk/github/release/*.apk
           if-no-files-found: error
           retention-days: 14
 
