@@ -360,7 +360,7 @@
     <string name="appearance_applied_toast">Applicato: %1$s</string>
     <string name="appearance_customize_theme">Personalizza tema</string>
     <string name="appearance_customizer_title">Editor tema personalizzato</string>
-    <string name="appearance_customizer_subtitle">Imposta ogni elemento con valori esadecimali e visualizza l\'anteprima istantaneamente</string>
+    <string name="appearance_customizer_subtitle">Regola ogni ruolo colore di Material 3 e visualizza l\'anteprima delle modifiche istantaneamente</string>
     <string name="appearance_customizer_format_hint">Formato esadecimale: #RRGGBB o #AARRGGBB</string>
     <string name="appearance_customizer_reset">Reimposta</string>
     <string name="appearance_customizer_save">Salva tema</string>
@@ -1894,4 +1894,10 @@
     <string name="settings_home_nav_tab_subtitle">Mostra la Home nella barra di navigazione</string>
     <string name="channel_metadata_unavailable">Le informazioni del canale non sono disponibili</string>
     <string name="close_popup_player">Chiudi player popup</string>
+    <string name="search_toggle_view_mode">Attiva/disattiva visualizzazione risultati di ricerca</string>
+    <string name="tab_posts">Post</string>
+    <string name="community_posts_empty">Nessun post della community trovato</string>
+    <string name="community_posts_load_failed">Impossibile caricare i post della community</string>
+    <string name="community_post_image_content_description">Immagine post della community</string>
+    <string name="share_community_post">Condividi post della community</string>
 </resources>
