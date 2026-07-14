@@ -25,9 +25,9 @@
     <string name="empty_description">कोई विवरण उपलब्ध नहीं है</string>
     <string name="clear_all">सभी को साफ़ करें</string>
     <string name="cancel">रद्द करें</string>
-    <string name="liked">"पसंद किये "</string>
-    <string name="liked_videos">लाइक्स</string>
-    <string name="empty_liked_body">आपके पसंद के वीडियो यहां दिखाई देंगे</string>
+    <string name="liked">पसंद किए</string>
+    <string name="liked_videos">पसंदीदा</string>
+    <string name="empty_liked_body">आपकी पसंद के वीडियो यहां दिखाई देंगे</string>
     <string name="song">गीत</string>
     <string name="video">वीडियो</string>
     <string name="share">सांझा करें</string>
@@ -47,7 +47,7 @@
     <string name="empty_watch_history_body">आपके द्वारा देखे गए वीडियो यहाँ दिखेंगे</string>
     <string name="liked_music">पसंदीदा संगीत</string>
     <string name="share_song">गीत साझा करें</string>
-    <string name="empty_liked">कोई पसंदीदा वीडियो नहीं</string>
+    <string name="empty_liked">कोई पसंद किया नहीं</string>
     <string name="downloaded">डाउनलोड किया गया</string>
     <string name="download">डाउनलोड</string>
     <string name="save">सेव करें</string>
@@ -75,7 +75,7 @@
     <string name="related_content">संबंधित सामग्री</string>
     <string name="no_related_content">कोई संबंधित सामग्री नहीं मिली</string>
     <string name="share_message_template">इस गीत को देखें: %1$s by %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
-    <string name="hz">हर्ट्ज</string>
+    <string name="hz">Hz</string>
     <string name="kbps">kbps</string>
     <string name="filter_discover">खोजें</string>
     <string name="filter_popular">लोकप्रिय</string>
@@ -91,7 +91,7 @@
     <string name="bitrate_label">बिटरेट</string>
     <string name="channels_label">चैनल</string>
     <string name="audio_info_not_available">ऑडियो स्ट्रीम जानकारी अभी उपलब्ध नहीं है।</string>
-    <string name="undo">अनडू करें</string>
+    <string name="undo">अन-डू करें</string>
     <string name="subscribed_to">%s की सदस्यता ली गई</string>
     <string name="unsubscribed_from">%s से सदस्यता समाप्त की गई</string>
     <string name="unsubscribe">सदस्यता समाप्त करें</string>
@@ -113,7 +113,7 @@
     <string name="action_delete">हटाएँ</string>
     <string name="downloads_title">डाउनलोडस</string>
     <string name="download_deleted">डाउनलोड डिलीट किया गया</string>
-    <string name="action_undo">अनडू करें</string>
+    <string name="action_undo">अन-डू करें</string>
     <string name="cd_delete_download">%1$s डिलीट करें</string>
     <string name="cd_video_thumbnail">%1$s के लिए वीडियो थंमनेल</string>
     <string name="cd_track_artwork">%1$s के लिए ट्रैक आर्टवर्क</string>
@@ -121,7 +121,7 @@
     <string name="watch_later">बाद में देखें</string>
     <string name="watch_later_unsave">बाद में देखें से हटाएँ</string>
     <string name="playlist_private">निजी</string>
-    <string name="playlist_public">सार्वजनिक</string>
+    <string name="playlist_public">पब्लिक</string>
     <string name="create_new_playlist">नई प्लेलिस्ट बनाएँ</string>
     <string name="playlist_name">नाम</string>
     <string name="playlist_description_optional">विवरण (वैकल्पिक)</string>
@@ -136,7 +136,7 @@
     <string name="go_to_channel">चैनल पर जाएँ</string>
     <string name="track_info">ट्रैक जानकारी</string>
     <string name="track_info_subtitle">विस्तृत तकनीकी और सामाजिक मेट्रिक्स</string>
-    <string name="views">दृश्य</string>
+    <string name="views">विऊज़</string>
     <string name="likes">पसंद</string>
     <string name="dislikes">नापसंद</string>
     <string name="channel_id">चैनल आईडी</string>
@@ -159,8 +159,8 @@
     <string name="filter_newest">नवीनतम</string>
     <string name="no_comments_yet">अभी तक कोई टिप्पणी नहीं</string>
     <string name="read_more">और पढ़ें</string>
-    <string name="reply">जवाब दें</string>
-    <string name="hide_replies">उत्तर छुपाएँ</string>
+    <string name="reply">जवाब</string>
+    <string name="hide_replies">जवाब छुपाएँ</string>
     <string name="view_replies_template">%1$d उत्तर देखें</string>
     <string name="new_update_available">नया अपडेट उपलब्ध</string>
     <string name="update_available_template">%1$s अब उपलब्ध है</string>
@@ -195,7 +195,7 @@
     <string name="view_album">एल्बम देखें</string>
     <string name="album_art">एल्बम कला</string>
     <string name="close_player">प्लेयर बंद करें</string>
-    <string name="views_template">%1$s दृश्य</string>
+    <string name="views_template">%1$s विऊज़</string>
     <string name="chapters">अध्याय</string>
     <string name="artist">कलाकार</string>
     <string name="playlist">प्लेलिस्ट</string>
@@ -261,7 +261,7 @@
     <string name="no_shorts_found">कोई शॉर्ट्स नहीं मिला</string>
     <string name="no_playlists_found">कोई प्लेलिस्ट नहीं मिली</string>
     <string name="subscribers_count_template">%1$s सदस्य</string>
-    <string name="views_count_short_template">%1$s दृश्य</string>
+    <string name="views_count_short_template">%1$s विऊज़</string>
     <string name="music_history">संगीत इतिहास</string>
     <string name="remove_from_history">इतिहास से हटाएँ</string>
     <string name="share_song_chooser">गीत सांझा करें</string>
@@ -622,7 +622,7 @@
     <string name="error_short_load">एक त्रुटि हुई</string>
     <string name="share_short_template">यह शॉर्ट देखें: https://youtu.be/%1$s</string>
     <string name="speed_2x">2x गति</string>
-    <string name="cd_liked">पसंद किया</string>
+    <string name="cd_liked">पसंद किए</string>
     <string name="cd_pause">रोकें</string>
     <string name="cd_play">चलाएँ</string>
     <string name="cd_more_options">अधिक विकल्प</string>
@@ -850,7 +850,7 @@
     <string name="add_description_placeholder">कोई विवरण जोड़ें..।</string>
     <string name="edit_playlist_action">प्लेलिस्ट संपादित करें</string>
     <string name="delete_playlist_action">प्लेलिस्ट हटाएँ</string>
-    <string name="make_public_action">सार्वजनिक करें</string>
+    <string name="make_public_action">पब्लिक करें</string>
     <string name="make_private_action">निजी करें</string>
     <string name="remove_from_playlist_action">प्लेलिस्ट से हटाएँ</string>
     <string name="playlist_empty_title">यह प्लेलिस्ट खाली है</string>
@@ -858,7 +858,7 @@
     <string name="delete_playlist_dialog_title">प्लेलिस्ट हटाएँ?</string>
     <string name="delete_playlist_dialog_text">यह \'%1$s\' और उसके सभी वीडियो को स्थायी रूप से हटा देगा।</string>
     <string name="playlist_metadata_private_template">प्लेलिस्ट • निजी • %1$d वीडियो</string>
-    <string name="playlist_metadata_public_template">प्लेलिस्ट • सार्वजनिक • %1$d वीडियो</string>
+    <string name="playlist_metadata_public_template">प्लेलिस्ट • पब्लिक • %1$d वीडियोज</string>
     <string name="welcome_to_flow">फ्लो में आपका स्वागत है</string>
     <string name="onboarding_subtitle">हमें बताएँ कि आप किस चीज़ में रुचि रखते हैं</string>
     <string name="onboarding_instructions">अपने अनुभव को निजीकृत करने के लिए कम से कम 3 विषय चुनें</string>
@@ -914,10 +914,10 @@
     <string name="section_singles">एकल</string>
     <string name="section_featured_on">इसमें फीचर किया गया</string>
     <string name="section_fans_also_like">प्रशंसकों को यह भी पसंद है</string>
-    <string name="artist_views_template">%1$s • %2$s दृश्य</string>
+    <string name="artist_views_template">%1$s • %2$s विऊज़</string>
     <string name="action_view_all">सभी देखें</string>
     <string name="search_content_description">खोजें</string>
-    <string name="views_count_format">%1$s दृश्य</string>
+    <string name="views_count_format">%1$s विऊज़</string>
     <string name="playlist_footer_template">%1$d ट्रैक • %2$s</string>
     <string name="unknown_error">अज्ञात त्रुटि</string>
     <string name="action_retry">पुनः प्रयास करें</string>
@@ -1128,4 +1128,7 @@
     <string name="player_action_dislike">नापसंद करें</string>
     <string name="action_want_more">इस तरह की और चाहिए</string>
     <string name="action_not_interested">अरुचिकर</string>
+    <string name="empty_liked_videos">कोई पसंदीदा वीडियो नहीं</string>
+    <string name="empty_liked_music">कोई पसंदीदा संगीत नहीं</string>
+    <string name="empty_liked_music_body">आपके पसंदीदा गीत यहां दिखाई देंगे</string>
 </resources>
