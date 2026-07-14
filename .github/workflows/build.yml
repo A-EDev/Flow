@@ -1,6 +1,7 @@
 name: Android CI/CD
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main, master, develop, agent/discord-rich-presence ]
     tags:
@@ -178,3 +179,7 @@ jobs:
             - Add new sorting options in playlists
             - Add new player seekbar width customization
             - Add remeber brightness toggle #474
+            - Add new more lyrics providers (Based on Metrolist's provider implementation https://github.com/MetrolistGroup/Metrolist )
+            - Add new lyrics engine (Based on Metrolist's ExperimentalLyrics.kt, LyricsLine.kt, LyricsCommon.kt, and FadingEdge.kt.)
+            - Add new Music Audio Quality selector #521
+            - Add external music downloads #256
