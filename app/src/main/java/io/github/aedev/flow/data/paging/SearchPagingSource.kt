@@ -200,33 +200,14 @@ class SearchPagingSource(
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private suspend fun loadViewSortedPage(page: Page?): LoadResult.Page<Page, SearchResultItem> {
-        val result = YouTube.searchVideosByViews(
+        val filter = requireNotNull(searchFilter)
+        val result = YouTube.searchByViews(
             query = query,
+            searchParams = filter.toViewSortedSearchParams(),
             continuation = page?.id,
         ).getOrThrow()
 
-        val items = result.videos.mapNotNull { item ->
-            val channelThumbnailUrls = item.channelThumbnailUrls
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .distinctBy { it.avatarImageIdentityKey() }
-                .take(2)
-            Video(
-                id = item.id,
-                title = item.title,
-                channelName = item.channelName,
-                channelId = item.channelId,
-                thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(item.id, item.thumbnailUrl),
-                duration = item.duration,
-                viewCount = item.viewCount,
-                uploadDate = item.uploadDate,
-                channelThumbnailUrl = channelThumbnailUrls.firstOrNull().orEmpty(),
-                channelThumbnailUrls = channelThumbnailUrls,
-                isShort = item.duration in 1..60,
-                isLive = item.isLive,
-            ).takeIf { it.matchesSearchFilters() }
-                ?.let { SearchResultItem.VideoResult(it) }
-        }
+        val items = result.items.map { it.toSearchResultItem() }
         val enrichedItems = enrichCollabVideoResults(items)
         val nextPage = result.continuation?.let { token ->
             Page("https://www.youtube.com/youtubei/v1/search", token)

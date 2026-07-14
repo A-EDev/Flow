@@ -1,5 +1,7 @@
 package io.github.aedev.flow.player.sabr.proto
 
+import io.github.aedev.flow.utils.protobuf.ProtobufWriter
+
 data class FormatId(
     val itag: Int = 0,
     val lmt: Long = 0,

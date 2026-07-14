@@ -281,7 +281,13 @@ fun FlowApp(
             showBottomNav.value = playerSheetState.currentValue != PlayerSheetValue.Expanded
             when (playerSheetState.currentValue) {
                 PlayerSheetValue.Expanded -> GlobalPlayerState.expandMiniPlayer()
-                PlayerSheetValue.Collapsed -> GlobalPlayerState.collapseMiniPlayer()
+                PlayerSheetValue.Collapsed -> {
+                    if (playerUiState.isBackgroundPlaybackMode) {
+                        GlobalPlayerState.hideMiniPlayer()
+                    } else {
+                        GlobalPlayerState.collapseMiniPlayer()
+                    }
+                }
             }
         }
     }
@@ -294,6 +300,13 @@ fun FlowApp(
     
     LaunchedEffect(playerUiState.cachedVideo) {
         if (playerUiState.cachedVideo != null) {
+            if (playerUiState.isBackgroundPlaybackMode) {
+                playerSheetState.snapTo(PlayerSheetValue.Collapsed)
+                GlobalPlayerState.hideMiniPlayer()
+                playerVisible = false
+                showBottomNav.value = true
+                return@LaunchedEffect
+            }
             playerVisible = true
             val isQueueAutoAdvanceInMiniPlayer =
                 keepMiniOnQueueAutoAdvance &&
@@ -606,7 +619,10 @@ fun FlowApp(
             playerViewModel.clearVideo()
         },
         onMinimize = {
+            playerSheetState.snapTo(PlayerSheetValue.Collapsed)
+            GlobalPlayerState.hideMiniPlayer()
             playerVisible = false
+            showBottomNav.value = true
         },
         onNavigateToChannel = { channelArg ->
             val channelUrl = when {

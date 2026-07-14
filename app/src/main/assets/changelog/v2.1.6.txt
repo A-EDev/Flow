@@ -18,7 +18,7 @@ NEW FEATURES
 - Add hide music artwork option #639
 - Add channel sorting options in subscriptions (default, name A–Z, recently updated) #498
 - Add new vetrical video fullscreen drag gesture
-- Add comunity posts support
+- Add community posts support
 
 IMPROVEMENTS
 - Improve media notification handling #577
