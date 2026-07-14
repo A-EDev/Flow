@@ -137,16 +137,16 @@ object DiscordPresenceRuntime {
     suspend fun retry(): DiscordLinkResult {
         val currentTransport = transport
             ?: return DiscordLinkResult.Failure("Discord Rich Presence has not initialized.")
-        val tokens = tokenStore?.load()
-            ?: return DiscordLinkResult.Failure("Connect your Discord account first.")
-        return currentTransport.connect(tokens)
+        return retryDiscordConnection(currentTransport) { tokenStore?.load() }
     }
 
     suspend fun unlink(): Boolean {
-        preferences?.setEnabled(false)
-        val result = transport?.unlink() ?: false
-        preferences?.setLinkedAccountLabel(null)
-        return result
+        val currentTransport = transport ?: return false
+        return unlinkDiscordConnection(
+            transport = currentTransport,
+            disablePreference = { preferences?.setEnabled(false) },
+            clearAccountLabel = { preferences?.setLinkedAccountLabel(null) },
+        )
     }
 
     fun shutdown() {

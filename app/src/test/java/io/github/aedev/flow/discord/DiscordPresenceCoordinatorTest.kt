@@ -137,6 +137,41 @@ class DiscordPresenceCoordinatorTest {
         job.cancelAndJoin()
     }
 
+    @Test
+    fun `playback lifecycle stop clears previously published presence`() = runTest {
+        val enabled = MutableStateFlow(true)
+        val playback = MutableStateFlow<PlaybackSnapshot?>(
+            PlaybackSnapshot(
+                kind = PlaybackKind.VIDEO,
+                mediaId = "video-1",
+                title = "Video",
+                subtitle = "Creator",
+                artworkUrl = "",
+                durationMs = 60_000L,
+                positionMs = 1_000L,
+                isPlaying = true,
+                isLive = false,
+            ),
+        )
+        val transport = RecordingTransport()
+        val coordinator = DiscordPresenceCoordinator(
+            enabled = enabled,
+            playback = playback,
+            transport = transport,
+            nowEpochSeconds = { 100L },
+            nowElapsedMs = { 10_000L },
+        )
+
+        val job = launch { coordinator.run() }
+        runCurrent()
+        playback.value = null
+        runCurrent()
+
+        assertThat(transport.updates).hasSize(1)
+        assertThat(transport.clears).isEqualTo(1)
+        job.cancelAndJoin()
+    }
+
     private class RecordingTransport : DiscordPresenceTransport {
         override val isAvailable: Boolean = true
         override val connectionState = MutableStateFlow(DiscordConnectionState.CONNECTED)
