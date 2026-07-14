@@ -84,6 +84,9 @@ class VideoPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        // Android starts this service with startForegroundService when a Media3 controller connects.
+        // Promote before any player/session initialization so Android 16 cannot hit its FGS deadline.
+        promoteToForeground()
         FlowCrashHandler.recordPhase("video-service", "onCreate")
         val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(MEDIA_CHANNEL_ID)
@@ -135,9 +138,17 @@ class VideoPlayerService : MediaSessionService() {
             ACTION_HIDE_POPUP -> popupPlayerWindow?.dismiss()
         }
 
-        if (EnhancedPlayerManager.getInstance().getVideoMediaSession() == null) {
+        val startPlan = videoServiceForegroundStartupPlan(
+            hasMediaSession = EnhancedPlayerManager.getInstance().getVideoMediaSession() != null,
+        )
+        if (startPlan.promoteImmediately && !promoteToForeground()) {
+            serviceLog("Foreground promotion failed — stopping before system deadline")
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+
+        if (startPlan.stopAfterPromotion) {
             serviceLog("No media session available — placeholder then stop")
-            promoteToForeground()
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf(startId)
             return START_NOT_STICKY
@@ -147,7 +158,7 @@ class VideoPlayerService : MediaSessionService() {
         return START_STICKY
     }
 
-    private fun promoteToForeground() {
+    private fun promoteToForeground(): Boolean {
         try {
             ensureFallbackNotificationChannel()
             val notification = NotificationCompat.Builder(this, FALLBACK_CHANNEL_ID)
@@ -159,8 +170,15 @@ class VideoPlayerService : MediaSessionService() {
                 this, FALLBACK_NOTIFICATION_ID, notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
             )
+            FlowCrashHandler.recordPhase("video-service", "foreground-started")
+            return true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to promote service to foreground", e)
+            FlowCrashHandler.recordPhase(
+                "video-service",
+                "foreground-start-failed ${e.javaClass.simpleName}",
+            )
+            return false
         }
     }
 

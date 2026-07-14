@@ -51,6 +51,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.github.aedev.flow.utils.AppLanguageManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import io.github.aedev.flow.discord.DiscordPresenceRuntime
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -114,6 +115,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
 
         super.onCreate(savedInstanceState)
+        DiscordPresenceRuntime.attachActivity(this)
         
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         
@@ -395,6 +397,7 @@ class MainActivity : ComponentActivity() {
     
     override fun onDestroy() {
         videoLifecycleLog("onDestroy")
+        DiscordPresenceRuntime.detachActivity(this)
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
         val playerState = playerManager.playerState.value
         val shouldKeepBackgroundPlayback =
