@@ -6,11 +6,13 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.isActive
@@ -34,7 +36,11 @@ class DiscordPlaybackSource(
             video = videoSnapshot(),
             music = musicSnapshot(),
         )
-    }.distinctUntilChanged()
+    }
+        // Media3 players are owned by the main application thread. The presence runtime
+        // collects on IO for its gateway calls, so keep every snapshot read upstream on main.
+        .flowOn(Dispatchers.Main.immediate)
+        .distinctUntilChanged()
 
     private fun shortSnapshot(): PlaybackSnapshot? {
         val short = shortsPool.currentVideo.value ?: return null
