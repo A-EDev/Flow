@@ -2,7 +2,7 @@ name: Android CI/CD
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main, master, develop, agent/discord-rich-presence ]
     tags:
       - 'v*'
   pull_request:
@@ -49,6 +49,16 @@ jobs:
             echo "Release keystore secret is not available. Skipping decoding."
           fi
 
+      - name: Run unit tests
+        run: >
+          ./gradlew :app:testGithubNightlyUnitTest :app:testFossReleaseUnitTest
+          --parallel --build-cache --no-daemon --stacktrace
+
+      - name: Lint GitHub nightly
+        run: >
+          ./gradlew :app:lintGithubNightly
+          --build-cache --no-daemon --stacktrace
+
       # Build all variants in a single Gradle invocation so tasks share the
       # configuration phase, classpath resolution and incremental build cache.
       # --parallel  — lets Gradle run independent subproject tasks concurrently.
@@ -63,18 +73,27 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Verify Discord nightly APK
+        run: |
+          test -f app/build/outputs/apk/github/nightly/app-github-nightly.apk
+          sha256sum app/build/outputs/apk/github/nightly/app-github-nightly.apk | tee app/build/outputs/apk/github/nightly/app-github-nightly.apk.sha256
+
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-release-apk
           path: app/build/outputs/apk/github/release/app-github-release.apk
+          if-no-files-found: error
           retention-days: 14
 
       - name: Upload Nightly APK
         uses: actions/upload-artifact@v4
         with:
-          name: flow-nightly-apk
-          path: app/build/outputs/apk/github/nightly/app-github-nightly.apk
+          name: flow-discord-rpc-nightly-apk
+          path: |
+            app/build/outputs/apk/github/nightly/app-github-nightly.apk
+            app/build/outputs/apk/github/nightly/app-github-nightly.apk.sha256
+          if-no-files-found: error
           retention-days: 14
 
       - name: Upload FOSS Release APK
@@ -82,6 +101,7 @@ jobs:
         with:
           name: flow-foss-release-apk
           path: app/build/outputs/apk/foss/release/app-foss-release.apk
+          if-no-files-found: error
           retention-days: 14
 
   release:
@@ -104,7 +124,7 @@ jobs:
       - name: Download Nightly APK
         uses: actions/download-artifact@v4
         with:
-          name: flow-nightly-apk
+          name: flow-discord-rpc-nightly-apk
           path: dist/
 
       - name: Download FOSS Release APK
@@ -124,7 +144,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           name: Flow ${{ steps.get_version.outputs.VERSION }}

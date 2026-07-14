@@ -2,18 +2,18 @@
 
 > **For agentic workers:** Execute inline in red-green-refactor order; do not dispatch subagents.
 
-**Goal:** Build the complete settings, lifecycle, playback, flavor, and official Discord Social SDK integration path.
+**Goal:** Build the complete settings, lifecycle, playback, flavor, and Kizzy-style Discord Gateway integration path.
 
-**Architecture:** Common Kotlin code owns preferences, state, playback selection, and orchestration behind a transport seam. Flavor source sets provide either a fail-closed adapter or a GitHub C++/JNI adapter linked to the owner-supplied official AAR.
+**Architecture:** Common Kotlin code owns preferences, state, playback selection, and orchestration behind a transport seam. Flavor source sets provide either a fail-closed adapter or a GitHub Gateway adapter using the existing OkHttp dependency.
 
-**Tech Stack:** Kotlin, Compose Material 3, DataStore Preferences, coroutines/Flow, Media3, C++20/JNI, Gradle product flavors, GitHub Actions.
+**Tech Stack:** Kotlin, Compose Material 3, DataStore Preferences, coroutines/Flow, Media3, OkHttp WebSocket, Gradle product flavors, GitHub Actions.
 
 ## Global Constraints
 
 - Default disabled and never misleading when unavailable.
-- Never commit the Discord SDK AAR, tokens, secrets, keystores, or signing credentials.
+- Never commit Discord session tokens, secrets, keystores, or signing credentials.
 - FOSS compiles without proprietary artifacts or Discord operations.
-- Use only official Discord Social SDK API names verified from Discord's current documentation.
+- Disclose that the selected Gateway user-session method is unofficial and carries account risk.
 - Preserve existing player architecture and throttle position sampling to five seconds.
 
 ---
@@ -57,16 +57,16 @@
 - [ ] Compile the GitHub and FOSS Kotlin variants.
 - [ ] Commit `feat(settings): expose Discord Rich Presence`.
 
-### Task 5: Flavor factories and official adapter
+### Task 5: Flavor factories and Gateway adapter
 
-**Files:** flavor factories, GitHub adapter/bridge, CMake, Gradle, manifests, adapter tests.
+**Files:** flavor factories, GitHub Gateway adapter, Gradle, manifests, adapter tests.
 
 - [ ] Add failing fake-bridge adapter tests for link/connect/update/clear/unlink/error paths.
 - [ ] Run and observe red.
-- [ ] Implement the FOSS factory and GitHub native adapter using documented SDK APIs.
-- [ ] Configure optional private AAR/Prefab and deep linking without leaking it into FOSS.
+- [ ] Implement the FOSS factory and GitHub Kizzy-style Gateway adapter.
+- [ ] Keep WebView linking and Gateway operations out of the FOSS source set.
 - [ ] Run adapter tests and flavor builds.
-- [ ] Commit `feat(discord): add official Social SDK transport`.
+- [ ] Commit `feat(discord): add Kizzy-style Gateway transport`.
 
 ### Task 6: Application and Activity wiring
 
@@ -82,8 +82,8 @@
 
 **Files:** `.github/workflows/build.yml`, `docs/discord-rich-presence.md`, `.gitignore`.
 
-- [ ] Make CI decode optional owner-supplied SDK material, test before packaging, verify APK existence, calculate SHA-256, and upload `flow-discord-rpc-nightly-apk`.
-- [ ] Document setup, privacy, build, test, limitations, and troubleshooting with official links.
+- [ ] Make CI test before packaging, verify APK existence, calculate SHA-256, and upload `flow-discord-rpc-nightly-apk`.
+- [ ] Document privacy, account risk, build, test, limitations, and troubleshooting.
 - [ ] Run all requested unit, lint, and assemble task equivalents.
 - [ ] Inspect APK contents, manifest, commit, artifact, and digest.
 - [ ] Review the full `main...HEAD` diff for leaks, races, stale state, flavor leakage, and misleading UI.
