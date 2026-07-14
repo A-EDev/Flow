@@ -10,7 +10,7 @@
     <string name="cancel">إلغاء</string>
     <string name="empty_watch_history">لا يوجد سجل مشاهدة</string>
     <string name="empty_watch_history_body">الفيديوهات التي شاهدتها ستظهر هنا</string>
-    <string name="liked">"إعجاب "</string>
+    <string name="liked">إعجاب</string>
     <string name="library_downloads_label">التحميلات</string>
     <string name="home_refresh_feed">تحديث الصفحة</string>
     <string name="view_all_button_label">الكل</string>
@@ -1908,4 +1908,22 @@
     <string name="logs_copy_failed">تعذر نسخ السجلات</string>
     <string name="channel_error_log_clip_label">سجل أخطاء قناة Flow</string>
     <string name="channel_search_failed">تعذر البحث في هذه القناة</string>
+    <string name="add_comment_placeholder">كتابة تعليق...</string>
+    <string name="search_empty_prompt">إبحث عن مقاطع الفيديو، الموسيقى والمزيد</string>
+    <string name="audio_track_number_template">%1$s %2$d</string>
+    <string name="subtitle_auto_generated_template">%1$s (%2$s)</string>
+    <string name="dlna_cast_to_device">البث إلى جهاز</string>
+    <string name="dlna_no_devices">لم يتم العثور على أي مُشغّلات DLNA/UPnP على هذه الشبكة.\n\nتأكد من أن جهاز التلفاز أو مشغل الوسائط (VLC، Kodi، إلخ) متصل بنفس شبكة Wi-Fi وأن وضع مُشغّل الوسائط مُفعّل.</string>
+    <string name="dlna_searching">البحث عن أجهزة DLNA...</string>
+    <string name="dlna_now_casting">يتم الأن بث: %1$s</string>
+    <string name="dlna_stop_casting">إيقاف البث</string>
+    <string name="subtitle_customization_title">تخصيص الترجمة</string>
+    <string name="subtitle_preview_text">معاينة نص الترجمة</string>
+    <string name="subtitle_font_size_template">حجم الخط: %1$d</string>
+    <string name="subtitle_position_template">الموقع: %1$d</string>
+    <string name="subtitle_text_color">لون النص</string>
+    <string name="subtitle_background_color">لون الخلفية</string>
+    <string name="subtitle_background_opacity_template">شفافية الخلفية: %1$d%%</string>
+    <string name="subtitle_bold_text">نص غامق</string>
+    <string name="subtitle_reset_default">إعادة الضبط للوضع الافتراضي</string>
 </resources>
