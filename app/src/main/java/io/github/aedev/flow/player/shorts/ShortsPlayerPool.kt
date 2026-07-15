@@ -235,6 +235,12 @@ class ShortsPlayerPool private constructor() {
         return players[slot]
     }
 
+    fun getVideoUrlForIndex(index: Int): String? {
+        if (!isInitialized || index < 0) return null
+        val slot = index % POOL_SIZE
+        return playerVideoUrls[slot].takeIf { playerOwnerIndices[slot] == index }
+    }
+
     fun getCurrentVideoId(): String? {
         return _currentVideoId.value
     }
