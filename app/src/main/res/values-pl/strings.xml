@@ -1059,4 +1059,17 @@
     <string name="master_backup_subtitle">Eksportuj dane osobowości AI i aplikacji do jednego pliku</string>
     <string name="master_backup_export_success">Główna kopia zapasowa została pomyślnie zapisana</string>
     <string name="master_backup_export_failed">Nie udało się wyeksportować głównej kopii zapasowej</string>
+    <string name="onboarding_backup_restore_section">Kopia zapasowa i Przywracanie Danych</string>
+    <string name="import_master_backup_title">Importuj Główną Kopie Zapasową</string>
+    <string name="import_master_backup_desc">Przywróć zarówno dane aplikacji, jak i profil silnika AI z jednego głównego pliku kopii zapasowej</string>
+    <string name="import_master_backup_success">Główna kopia zapasowa została pomyślnie przywrócona</string>
+    <string name="import_master_backup_failed">Nie udało się zaimportować głównej kopii zapasowej</string>
+    <string name="import_engine_data">Importuj Dane Silnika Flow</string>
+    <string name="error_codec_issue_hint">Twoje urządzenie nie mogło odtworzyć tego strumienia. Spróbuj wybrać niższą jakość.</string>
+    <string name="import_yt_watch_history_desc">Zaimportuj historię oglądania z serwisu YouTube Takeout (watch-history.html).</string>
+    <string name="import_yt_history_success_template">Zaimportowano %1$d pozycji z historii oglądania serwisu YouTube</string>
+    <string name="import_newpipe_history_desc">Zaimportuj historię oglądania z pliku ZIP zawierającego kopię zapasową NewPipe lub z pliku newpipe.db.</string>
+    <string name="import_yt_watch_history">Zaimportuj Historie Oglądania</string>
+    <string name="import_yt_history_empty_error">W tym pliku nie znaleziono żadnych wpisów dotyczących historii oglądania. Upewnij się, że jest to plik „watch-history.html” z serwisu YouTube Takeout.</string>
+    <string name="import_yt_history_failed_template">Nie udało się zaimportować historii oglądania: %1$s</string>
 </resources>
