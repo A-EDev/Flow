@@ -1402,4 +1402,12 @@
     <string name="try_again">Erneut versuchen</string>
     <string name="search_in_flow">In Flow suchen</string>
     <string name="recognition_clear_history">Verlauf leeren?</string>
+    <string name="appearance_variant_title">Designstil</string>
+    <string name="appearance_variant_amoled">AMOLED</string>
+    <string name="appearance_system_dark_surface">Dunkelmodus-Stil</string>
+    <string name="appearance_color_hue">Farbton</string>
+    <string name="appearance_color_alpha">Alpha</string>
+    <string name="appearance_navigate_back">Zurück</string>
+    <string name="player_appearance_hide_music_artwork_title">Cover des Musik-Players ausblenden</string>
+    <string name="player_appearance_hide_music_artwork_subtitle">Zeige stattdessen das App-Symbol in der Farbe des extrahierten Bildmaterials an</string>
 </resources>
