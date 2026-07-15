@@ -35,6 +35,9 @@ import io.github.aedev.flow.player.*
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
+import io.github.aedev.flow.ui.components.playbackSpeedOptions
+import io.github.aedev.flow.ui.components.playbackSpeedSliderPresets
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -630,29 +633,18 @@ private fun PlayerSettingsSpeedPage(
     val customSpeedsEnabled by playerPrefs.customSpeedsEnabled.collectAsState(initial = false)
     val customSpeedPresetsRaw by playerPrefs.customSpeedPresets.collectAsState(initial = "")
     val speedSliderEnabled by playerPrefs.speedSliderEnabled.collectAsState(initial = false)
-    val defaultSpeeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f)
-    val speeds = if (customSpeedsEnabled && customSpeedPresetsRaw.isNotBlank()) {
-        customSpeedPresetsRaw
-            .split(",")
-            .mapNotNull { it.trim().toFloatOrNull() }
-            .filter { it in 0.1f..10.0f }
-            .sortedBy { it }
-            .ifEmpty { defaultSpeeds }
-    } else {
-        defaultSpeeds
+    val speeds = remember(customSpeedsEnabled, customSpeedPresetsRaw) {
+        playbackSpeedOptions(customSpeedsEnabled, customSpeedPresetsRaw)
     }
 
     if (speedSliderEnabled) {
-        val sliderPresets = if (customSpeedsEnabled) {
-            speeds.filter { it in 0.1f..4.0f }
-        } else {
-            listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+        val sliderPresets = remember(customSpeedsEnabled, customSpeedPresetsRaw) {
+            playbackSpeedSliderPresets(customSpeedsEnabled, customSpeedPresetsRaw)
         }
-        SpeedSliderContent(
+        PlaybackSpeedSlider(
             currentSpeed = currentSpeed,
             quickPresets = sliderPresets,
-            onSpeedSelected = onSpeedSelected,
-            onSpeedSelectionFinished = onSpeedSelectionFinished
+            onSpeedSelected = onSpeedSelected
         )
     } else {
         speeds.forEach { speed ->
@@ -883,168 +875,5 @@ private fun PlayerSettingsToggleRow(
                 onCheckedChange = null
             )
         }
-    }
-}
-
-/**
- * Quadratic slider mapping: provides finer control near 1.0x and coarser at extremes.
- */
-private fun sliderToSpeed(progress: Float): Float {
-    val center = 0.5f
-    return if (progress <= center) {
-        val t = progress / center          
-        0.1f + t * t * (1.0f - 0.1f)
-    } else {
-        val t = (progress - center) / center
-        1.0f + t * t * (4.0f - 1.0f)
-    }
-}
-
-private fun speedToSlider(speed: Float): Float {
-    val clamped = speed.coerceIn(0.1f, 4.0f)
-    return if (clamped <= 1.0f) {
-        val t = kotlin.math.sqrt((clamped - 0.1f) / (1.0f - 0.1f))
-        t * 0.5f
-    } else {
-        val t = kotlin.math.sqrt((clamped - 1.0f) / (4.0f - 1.0f))
-        0.5f + t * 0.5f
-    }
-}
-
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-@Composable
-private fun SpeedSliderContent(
-    currentSpeed: Float,
-    quickPresets: List<Float>,
-    onSpeedSelected: (Float) -> Unit,
-    onSpeedSelectionFinished: () -> Unit
-) {
-    val step = 0.05f
-    var sliderProgress by remember { mutableStateOf(speedToSlider(currentSpeed)) }
-    var lastAppliedSpeed by remember { mutableFloatStateOf(currentSpeed) }
-    val displaySpeed = sliderToSpeed(sliderProgress)
-    val roundedSpeed = (kotlin.math.round(displaySpeed.toDouble() / step) * step)
-        .toFloat().coerceIn(0.1f, 4.0f)
-
-    LaunchedEffect(currentSpeed) {
-        if (kotlin.math.abs(lastAppliedSpeed - currentSpeed) >= 0.001f) {
-            lastAppliedSpeed = currentSpeed
-            sliderProgress = speedToSlider(currentSpeed)
-        }
-    }
-
-    fun selectSpeed(speed: Float) {
-        val selectedSpeed = speed.coerceIn(0.1f, 4.0f)
-        sliderProgress = speedToSlider(selectedSpeed)
-        if (kotlin.math.abs(lastAppliedSpeed - selectedSpeed) >= 0.001f) {
-            lastAppliedSpeed = selectedSpeed
-            onSpeedSelected(selectedSpeed)
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Current speed display
-        Text(
-            text = if (roundedSpeed == 1.0f) stringResource(R.string.normal)
-                   else "${"%.2f".format(roundedSpeed)}×",
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // Slider with − / + buttons
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            IconButton(
-                onClick = {
-                    val newSpeed = (roundedSpeed - step).coerceIn(0.1f, 4.0f)
-                    selectSpeed(newSpeed)
-                    onSpeedSelectionFinished()
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Remove,
-                    contentDescription = stringResource(R.string.speed_slider_decrease)
-                )
-            }
-            Slider(
-                value = sliderProgress,
-                onValueChange = { progress ->
-                    sliderProgress = progress
-                    val speed = (kotlin.math.round(sliderToSpeed(progress).toDouble() / step) * step)
-                        .toFloat().coerceIn(0.1f, 4.0f)
-                    if (kotlin.math.abs(lastAppliedSpeed - speed) >= 0.001f) {
-                        lastAppliedSpeed = speed
-                        onSpeedSelected(speed)
-                    }
-                },
-                onValueChangeFinished = onSpeedSelectionFinished,
-                modifier = Modifier.weight(1f)
-            )
-            IconButton(
-                onClick = {
-                    val newSpeed = (roundedSpeed + step).coerceIn(0.1f, 4.0f)
-                    selectSpeed(newSpeed)
-                    onSpeedSelectionFinished()
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.speed_slider_increase)
-                )
-            }
-        }
-
-        // Range labels
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "0.1×",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "4.0×",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Quick-tap preset chips
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
-        ) {
-            quickPresets.forEach { preset ->
-                val isActive = kotlin.math.abs(roundedSpeed - preset) < 0.01f
-                FilterChip(
-                    selected = isActive,
-                    onClick = {
-                        selectSpeed(preset)
-                        onSpeedSelectionFinished()
-                    },
-                    label = {
-                        Text(
-                            text = if (preset == 1.0f) stringResource(R.string.normal)
-                                   else "${preset}×"
-                        )
-                    }
-                )
-            }
-        }
-
     }
 }

@@ -55,6 +55,9 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
+import io.github.aedev.flow.ui.components.playbackSpeedOptions
+import io.github.aedev.flow.ui.components.playbackSpeedSliderPresets
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorContent
@@ -138,6 +141,9 @@ fun ShortVideoPage(
     var showSpeedSheet by remember { mutableStateOf(false) }
     val shortsSpeed by playerPreferences.shortsPlaybackSpeed.collectAsState(initial = 1f)
     val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
+    val customSpeedsEnabled by playerPreferences.customSpeedsEnabled.collectAsState(initial = false)
+    val customSpeedPresetsRaw by playerPreferences.customSpeedPresets.collectAsState(initial = "")
+    val speedSliderEnabled by playerPreferences.speedSliderEnabled.collectAsState(initial = false)
 
     LaunchedEffect(isActive, shortsSpeed) {
         if (isActive) playerPool.setBasePlaybackSpeed(shortsSpeed)
@@ -958,10 +964,14 @@ fun ShortVideoPage(
     if (showSpeedSheet) {
         ShortsSpeedSheet(
             currentSpeed = shortsSpeed,
+            speedSliderEnabled = speedSliderEnabled,
+            customSpeedsEnabled = customSpeedsEnabled,
+            customSpeedPresetsRaw = customSpeedPresetsRaw,
             onSpeedSelected = { speed ->
-                scope.launch { playerPreferences.setShortsPlaybackSpeed(speed) }
                 playerPool.setBasePlaybackSpeed(speed)
-                showSpeedSheet = false
+            },
+            onSpeedSelectionFinished = { speed ->
+                scope.launch { playerPreferences.setShortsPlaybackSpeed(speed) }
             },
             onDismiss = { showSpeedSheet = false }
         )
@@ -1251,7 +1261,14 @@ private fun ShortsOptionsSheet(
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
-                        text = if (currentSpeed == 1f) stringResource(R.string.speed_normal) else "${currentSpeed}x",
+                        text = if (currentSpeed == 1f) {
+                            stringResource(R.string.normal)
+                        } else {
+                            stringResource(
+                                R.string.playback_speed_multiplier,
+                                currentSpeed.toString()
+                            )
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1265,50 +1282,95 @@ private fun ShortsOptionsSheet(
 @Composable
 private fun ShortsSpeedSheet(
     currentSpeed: Float,
+    speedSliderEnabled: Boolean,
+    customSpeedsEnabled: Boolean,
+    customSpeedPresetsRaw: String,
     onSpeedSelected: (Float) -> Unit,
+    onSpeedSelectionFinished: (Float) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+    val speeds = remember(customSpeedsEnabled, customSpeedPresetsRaw) {
+        playbackSpeedOptions(customSpeedsEnabled, customSpeedPresetsRaw)
+    }
+    val sliderPresets = remember(customSpeedsEnabled, customSpeedPresetsRaw) {
+        playbackSpeedSliderPresets(customSpeedsEnabled, customSpeedPresetsRaw)
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 32.dp)
         ) {
-            Text(
-                text = stringResource(R.string.shorts_playback_speed),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.shorts_playback_speed),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.close)
+                    )
+                }
+            }
             HorizontalDivider()
-            LazyColumn {
-                items(speeds) { speed ->
-                    val isSelected = speed == currentSpeed
-                    Surface(
-                        onClick = { onSpeedSelected(speed) },
-                        color = Color.Transparent,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+            if (speedSliderEnabled) {
+                PlaybackSpeedSlider(
+                    currentSpeed = currentSpeed,
+                    quickPresets = sliderPresets,
+                    onSpeedSelected = onSpeedSelected,
+                    onSpeedSelectionFinished = onSpeedSelectionFinished
+                )
+            } else {
+                LazyColumn {
+                    items(speeds, key = { it }) { speed ->
+                        val isSelected = speed == currentSpeed
+                        Surface(
+                            onClick = {
+                                onSpeedSelected(speed)
+                                onSpeedSelectionFinished(speed)
+                                onDismiss()
+                            },
+                            color = Color.Transparent,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = if (speed == 1.0f) stringResource(R.string.speed_normal) else "${speed}x",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (speed == 1.0f) {
+                                        stringResource(R.string.normal)
+                                    } else {
+                                        stringResource(
+                                            R.string.playback_speed_multiplier,
+                                            speed.toString()
+                                        )
+                                    },
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
                                 )
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
                     }

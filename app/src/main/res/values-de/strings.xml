@@ -1079,4 +1079,10 @@
     <string name="appearance_role_surface_tint">Oberflächenfärbung</string>
     <string name="appearance_role_inverse_surface">Inverse Oberfläche</string>
     <string name="appearance_role_inverse_on_surface">Inverse auf der Oberfläche</string>
+    <string name="add_comment_placeholder">Kommentar hinzufügen...</string>
+    <string name="search_empty_prompt">Videos, Musik und mehr suchen</string>
+    <string name="appearance_role_error_container">Fehler-Container</string>
+    <string name="appearance_role_outline_variant">Variante der Gliederung</string>
+    <string name="appearance_role_surface_bright">Oberfläche hell</string>
+    <string name="appearance_role_surface_dim">Gedämpfte Oberfläche</string>
 </resources>
