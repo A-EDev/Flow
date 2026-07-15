@@ -1,6 +1,8 @@
 package io.github.aedev.flow.ui
 
 import io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER
+import java.net.URI
+import java.net.URLEncoder
 
 internal data class NavigationVisibility(
     val home: Boolean = true,
@@ -50,9 +52,35 @@ internal fun youtubeChannelUrl(channelIdOrHandle: String): String? {
     val value = channelIdOrHandle.trim()
     if (value.isEmpty()) return null
     return when {
-        value.startsWith("http://") || value.startsWith("https://") -> value
+        value.startsWith("http://") || value.startsWith("https://") -> normalizeYoutubeChannelUrl(value)
         value.startsWith("UC") -> "https://www.youtube.com/channel/$value"
         value.startsWith("@") -> "https://www.youtube.com/$value"
         else -> "https://www.youtube.com/@$value"
+    }
+}
+
+internal fun youtubeChannelRoute(channelIdOrHandle: String): String? =
+    youtubeChannelUrl(channelIdOrHandle)?.let { channelUrl ->
+        "channel?url=${URLEncoder.encode(channelUrl, Charsets.UTF_8.name())}"
+    }
+
+private fun normalizeYoutubeChannelUrl(url: String): String {
+    val uri = runCatching { URI(url) }.getOrNull() ?: return url
+    val host = uri.host?.lowercase().orEmpty()
+    if (host != "youtube.com" && !host.endsWith(".youtube.com")) return url
+
+    val segments = uri.path.orEmpty().split('/').filter(String::isNotBlank)
+    if (segments.isEmpty()) return url
+
+    val channelValue = when {
+        segments.first() == "channel" -> segments.getOrNull(1)
+        segments.first().startsWith("@") -> segments.first()
+        else -> null
+    } ?: return url
+
+    return when {
+        channelValue.startsWith("UC") -> "https://www.youtube.com/channel/$channelValue"
+        channelValue.startsWith("@") -> "https://www.youtube.com/$channelValue"
+        else -> "https://www.youtube.com/@$channelValue"
     }
 }

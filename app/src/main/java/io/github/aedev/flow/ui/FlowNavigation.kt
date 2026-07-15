@@ -53,7 +53,6 @@ import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import androidx.media3.common.util.UnstableApi
-import java.net.URLEncoder
 
 @UnstableApi
 fun NavGraphBuilder.flowAppGraph(
@@ -142,8 +141,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("settings")
             },
             onChannelClick = { channelId ->
-                val encodedUrl = java.net.URLEncoder.encode("https://www.youtube.com/channel/$channelId", "UTF-8")
-                navController.navigate("channel?url=$encodedUrl")
+                youtubeChannelRoute(channelId)?.let(navController::navigate)
             },
             onNavigateToHistory = {
                 navController.navigate("history")
@@ -188,7 +186,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.popBackStack()
             },
             onChannelClick = { channelId ->
-                navController.navigate("channel?url=$channelId")
+                youtubeChannelRoute(channelId)?.let(navController::navigate)
             }
         )
     }
@@ -217,9 +215,8 @@ fun NavGraphBuilder.flowAppGraph(
                 if (channel.isMusic && channel.id.isNotBlank()) {
                     navController.navigate("artist/${channel.id}")
                 } else {
-                    val channelUrl = channel.url.ifBlank { "https://youtube.com/channel/${channel.id}" }
-                    val encodedUrl = channelUrl.replace("/", "%2F").replace(":", "%3A")
-                    navController.navigate("channel?url=$encodedUrl")
+                    youtubeChannelRoute(channel.url.ifBlank { channel.id })
+                        ?.let(navController::navigate)
                 }
             }
         )
@@ -273,13 +270,8 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onChannelClick = { channel ->
-                val channelUrl = if (channel.url.isNotBlank()) {
-                    channel.url
-                } else {
-                    "https://www.youtube.com/channel/${channel.id}"
-                }
-                val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
-                navController.navigate("channel?url=$encodedUrl")
+                youtubeChannelRoute(channel.url.ifBlank { channel.id })
+                    ?.let(navController::navigate)
             },
             onPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
@@ -301,8 +293,7 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onChannelClick = { channelId ->
-                val encodedUrl = java.net.URLEncoder.encode("https://www.youtube.com/channel/$channelId", "UTF-8")
-                navController.navigate("channel?url=$encodedUrl")
+                youtubeChannelRoute(channelId)?.let(navController::navigate)
             }
         )
     }
@@ -565,10 +556,7 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onChannelClick = { channelId ->
-                youtubeChannelUrl(channelId)?.let { channelUrl ->
-                    val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
-                    navController.navigate("channel?url=$encodedUrl")
-                }
+                youtubeChannelRoute(channelId)?.let(navController::navigate)
             },
             onShortClick = { videoId ->
                 if (disableShortsPlayer) {
@@ -709,7 +697,7 @@ fun NavGraphBuilder.flowAppGraph(
                 playerViewModel.playPlaylist(videos, index, "Playlist")
             },
             onChannelClick = { channelId ->
-                navController.navigate("channel?url=$channelId")
+                youtubeChannelRoute(channelId)?.let(navController::navigate)
             }
         )
     }
@@ -742,7 +730,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.popBackStack()
             },
             onChannelClick = { channelId ->
-                navController.navigate("channel?url=$channelId")
+                youtubeChannelRoute(channelId)?.let(navController::navigate)
             }
         )
     }

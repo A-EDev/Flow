@@ -483,6 +483,22 @@ internal fun spaceByChannel(
     return out
 }
 
+private fun Video.withChannelMetadataFrom(enriched: Video): Video {
+    val avatarUrl = enriched.channelThumbnailUrl.ifBlank { channelThumbnailUrl }
+    return copy(
+        channelId = enriched.channelId.ifBlank { channelId },
+        channelName = enriched.channelName.ifBlank { channelName },
+        channelThumbnailUrl = avatarUrl,
+        channelThumbnailUrls = if (avatarUrl.isNotBlank()) {
+            (listOf(avatarUrl) +
+                enriched.channelThumbnailUrls +
+                channelThumbnailUrls).distinct()
+        } else {
+            channelThumbnailUrls
+        }
+    )
+}
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: YouTubeRepository,
@@ -511,6 +527,8 @@ class HomeViewModel @Inject constructor(
     private val historyRepository by lazy { ViewHistory.getInstance(appContext) }
     private val persistentHomeFeedCache by lazy { HomeFeedCacheRepository(appContext) }
     private val savedSeedCooldown = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val channelMetadataEnrichmentInFlight =
+        java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -1212,16 +1230,54 @@ class HomeViewModel @Inject constructor(
         val enriched = repository.enrichMissingChannelMetadata(videos)
         if (enriched == videos) return null
 
-        val updates = enriched.associateBy { it.id }
+        val originalById = videos.associateBy { it.id }
+        val updates = enriched
+            .filter { enrichedVideo -> originalById[enrichedVideo.id] != enrichedVideo }
+            .associateBy { it.id }
         var updatedSnapshot: List<Video>? = null
         _uiState.update { state ->
-            val updated = state.videos.map { updates[it.id] ?: it }
+            val updated = state.videos.map { current ->
+                updates[current.id]?.let(current::withChannelMetadataFrom) ?: current
+            }
             if (updated == state.videos) return@update state
             updatedSnapshot = updated
             HomeFeedCache.update(updated, state.shorts)
             state.copy(videos = updated)
         }
         return updatedSnapshot
+    }
+
+    fun enrichChannelMetadataIfMissing(videoId: String) {
+        val video = _uiState.value.videos.firstOrNull { it.id == videoId } ?: return
+        val needsMetadata = video.channelId.isBlank() ||
+            !video.channelId.startsWith("UC") ||
+            video.channelThumbnailUrl.isBlank()
+        if (!needsMetadata || !channelMetadataEnrichmentInFlight.add(videoId)) return
+
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            try {
+                val enriched = repository.enrichMissingChannelMetadata(listOf(video), limit = 1)
+                    .firstOrNull()
+                    ?: return@launch
+                if (enriched == video) return@launch
+
+                _uiState.update { state ->
+                    val updated = state.videos.map { current ->
+                        if (current.id != videoId) {
+                            current
+                        } else {
+                            current.withChannelMetadataFrom(enriched)
+                        }
+                    }
+                    if (updated == state.videos) state else {
+                        HomeFeedCache.update(updated, state.shorts)
+                        state.copy(videos = updated)
+                    }
+                }
+            } finally {
+                channelMetadataEnrichmentInFlight.remove(videoId)
+            }
+        }
     }
     
 

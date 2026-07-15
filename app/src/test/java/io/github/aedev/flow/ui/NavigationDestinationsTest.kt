@@ -39,4 +39,24 @@ class NavigationDestinationsTest {
             youtubeChannelUrl("UC123")
         )
     }
+
+    @Test
+    fun malformedHandleChannelUrlsAreRepaired() {
+        assertEquals(
+            "https://www.youtube.com/@flow",
+            youtubeChannelUrl("https://youtube.com/channel/@flow")
+        )
+        assertEquals(
+            "https://www.youtube.com/@flow",
+            youtubeChannelUrl("https://m.youtube.com/@flow/videos")
+        )
+    }
+
+    @Test
+    fun channelRoutesEncodeCanonicalUrls() {
+        assertEquals(
+            "channel?url=https%3A%2F%2Fwww.youtube.com%2F%40flow",
+            youtubeChannelRoute("@flow")
+        )
+    }
 }
