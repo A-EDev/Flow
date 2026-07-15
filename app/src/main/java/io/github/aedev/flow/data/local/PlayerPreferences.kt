@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.map
 private val Context.playerPreferencesDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "player_preferences")
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
+const val DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP = 16
+const val MAX_PORTRAIT_SEEKBAR_PADDING_DP = 64
 const val DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP = 48
 const val MAX_FULLSCREEN_SEEKBAR_PADDING_DP = 120
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
@@ -183,6 +185,8 @@ class PlayerPreferences(context: Context) {
         // Fullscreen Player
         val SHOW_FULLSCREEN_TITLE = booleanPreferencesKey("show_fullscreen_title")
         val ADAPTIVE_PLAYER_SIZE_ENABLED = booleanPreferencesKey("adaptive_player_size_enabled")
+        val PORTRAIT_SEEKBAR_PADDING_MODE = stringPreferencesKey("portrait_seekbar_padding_mode")
+        val PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP = intPreferencesKey("portrait_seekbar_custom_padding_dp")
         val FULLSCREEN_SEEKBAR_PADDING_MODE = stringPreferencesKey("fullscreen_seekbar_padding_mode")
         val FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP = intPreferencesKey("fullscreen_seekbar_custom_padding_dp")
         
@@ -1184,14 +1188,53 @@ class PlayerPreferences(context: Context) {
         }
     }
 
-    val fullscreenSeekbarPaddingMode: Flow<FullscreenSeekbarPaddingMode> = context.playerPreferencesDataStore.data
+    val portraitSeekbarPaddingMode: Flow<SeekbarPaddingMode> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.FULLSCREEN_SEEKBAR_PADDING_MODE]
-                ?.let { storedMode -> runCatching { FullscreenSeekbarPaddingMode.valueOf(storedMode) }.getOrNull() }
-                ?: FullscreenSeekbarPaddingMode.DEFAULT
+            resolvePortraitSeekbarPaddingMode(preferences[Keys.PORTRAIT_SEEKBAR_PADDING_MODE])
         }
 
-    suspend fun setFullscreenSeekbarPaddingMode(mode: FullscreenSeekbarPaddingMode) {
+    suspend fun setPortraitSeekbarPaddingMode(mode: SeekbarPaddingMode) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PORTRAIT_SEEKBAR_PADDING_MODE] = mode.name
+        }
+    }
+
+    val portraitSeekbarCustomPaddingDp: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            (preferences[Keys.PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP] ?: DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP)
+                .coerceIn(0, MAX_PORTRAIT_SEEKBAR_PADDING_DP)
+        }
+
+    suspend fun setPortraitSeekbarCustomPaddingDp(paddingDp: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP] =
+                paddingDp.coerceIn(0, MAX_PORTRAIT_SEEKBAR_PADDING_DP)
+        }
+    }
+
+    val portraitSeekbarHorizontalPaddingDp: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            val mode = resolvePortraitSeekbarPaddingMode(preferences[Keys.PORTRAIT_SEEKBAR_PADDING_MODE])
+            val customPadding =
+                (preferences[Keys.PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP] ?: DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP)
+                    .coerceIn(0, MAX_PORTRAIT_SEEKBAR_PADDING_DP)
+
+            resolveSeekbarHorizontalPaddingDp(
+                mode = mode,
+                customPaddingDp = customPadding,
+                defaultPaddingDp = DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP,
+                maxPaddingDp = MAX_PORTRAIT_SEEKBAR_PADDING_DP
+            )
+        }
+
+    val fullscreenSeekbarPaddingMode: Flow<SeekbarPaddingMode> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.FULLSCREEN_SEEKBAR_PADDING_MODE]
+                ?.let { storedMode -> runCatching { SeekbarPaddingMode.valueOf(storedMode) }.getOrNull() }
+                ?: SeekbarPaddingMode.DEFAULT
+        }
+
+    suspend fun setFullscreenSeekbarPaddingMode(mode: SeekbarPaddingMode) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.FULLSCREEN_SEEKBAR_PADDING_MODE] = mode.name
         }
@@ -1213,16 +1256,17 @@ class PlayerPreferences(context: Context) {
     val fullscreenSeekbarHorizontalPaddingDp: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
             val mode = preferences[Keys.FULLSCREEN_SEEKBAR_PADDING_MODE]
-                ?.let { storedMode -> runCatching { FullscreenSeekbarPaddingMode.valueOf(storedMode) }.getOrNull() }
-                ?: FullscreenSeekbarPaddingMode.DEFAULT
+                ?.let { storedMode -> runCatching { SeekbarPaddingMode.valueOf(storedMode) }.getOrNull() }
+                ?: SeekbarPaddingMode.DEFAULT
             val customPadding = (preferences[Keys.FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP] ?: DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP)
                 .coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP)
 
-            when (mode) {
-                FullscreenSeekbarPaddingMode.FULL_WIDTH -> 0
-                FullscreenSeekbarPaddingMode.DEFAULT -> DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
-                FullscreenSeekbarPaddingMode.CUSTOM -> customPadding
-            }
+            resolveSeekbarHorizontalPaddingDp(
+                mode = mode,
+                customPaddingDp = customPadding,
+                defaultPaddingDp = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP,
+                maxPaddingDp = MAX_FULLSCREEN_SEEKBAR_PADDING_DP
+            )
         }
     
     // Subtitles
@@ -2456,10 +2500,34 @@ enum class ShortsPlayerUiMode {
     IMPRESSIVE
 }
 
-enum class FullscreenSeekbarPaddingMode {
+enum class SeekbarPaddingMode {
     FULL_WIDTH,
+    SPACED,
     DEFAULT,
     CUSTOM
+}
+
+internal fun resolvePortraitSeekbarPaddingMode(storedMode: String?): SeekbarPaddingMode {
+    val mode = storedMode?.let { value ->
+        runCatching { SeekbarPaddingMode.valueOf(value) }.getOrNull()
+    }
+    return when (mode) {
+        null -> SeekbarPaddingMode.FULL_WIDTH
+        SeekbarPaddingMode.DEFAULT -> SeekbarPaddingMode.SPACED
+        else -> mode
+    }
+}
+
+internal fun resolveSeekbarHorizontalPaddingDp(
+    mode: SeekbarPaddingMode,
+    customPaddingDp: Int,
+    defaultPaddingDp: Int,
+    maxPaddingDp: Int
+): Int = when (mode) {
+    SeekbarPaddingMode.FULL_WIDTH -> 0
+    SeekbarPaddingMode.SPACED,
+    SeekbarPaddingMode.DEFAULT -> defaultPaddingDp
+    SeekbarPaddingMode.CUSTOM -> customPaddingDp.coerceIn(0, maxPaddingDp)
 }
 
 enum class HomeViewMode {

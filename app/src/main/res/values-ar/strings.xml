@@ -1926,4 +1926,6 @@
     <string name="subtitle_background_opacity_template">شفافية الخلفية: %1$d%%</string>
     <string name="subtitle_bold_text">نص غامق</string>
     <string name="subtitle_reset_default">إعادة الضبط للوضع الافتراضي</string>
+    <string name="playback_speed_multiplier">%1$s×</string>
+    <string name="playback_speed_multiplier_precise">%1$.2f×</string>
 </resources>

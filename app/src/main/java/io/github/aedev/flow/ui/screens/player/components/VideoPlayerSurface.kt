@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
@@ -59,6 +60,8 @@ fun VideoPlayerSurface(
     var surfaceRestoreTrigger by remember { mutableIntStateOf(0) }
     var attachedVideoId by remember { mutableStateOf<String?>(null) }
     var lastAudioOnlySkipLogKey by remember { mutableStateOf<Pair<Boolean, Boolean>?>(null) }
+    val currentVideoId by rememberUpdatedState(video.id)
+    val currentAspectRatioCallback by rememberUpdatedState(onVideoAspectRatioChanged)
     val cornerRadiusPx = with(density) { cornerRadiusDp.dp.toPx() }
 
     val playerView = remember(video.id) {
@@ -76,7 +79,14 @@ fun VideoPlayerSurface(
     val videoSizeListener = remember {
         object : Player.Listener {
             override fun onVideoSizeChanged(videoSize: VideoSize) {
-                videoSize.toDisplayAspectRatioOrNull()?.let { onVideoAspectRatioChanged?.invoke(it) }
+                val playerMediaId = EnhancedPlayerManager.getInstance().getPlayer()
+                    ?.currentMediaItem
+                    ?.mediaId
+                if (playerMediaId == null || playerMediaId == currentVideoId) {
+                    videoSize.toDisplayAspectRatioOrNull()?.let { ratio ->
+                        currentAspectRatioCallback?.invoke(ratio)
+                    }
+                }
             }
         }
     }
@@ -147,9 +157,13 @@ fun VideoPlayerSurface(
                     newPlayer?.addListener(videoSizeListener)
                     view.player = newPlayer
                     attachedVideoId = video.id
-                    onVideoAspectRatioChanged?.invoke(
-                        if (isVideoSwitch) 16f / 9f
-                        else newPlayer?.videoSize?.toDisplayAspectRatioOrNull() ?: (16f / 9f)
+                    val playerMediaId = newPlayer?.currentMediaItem?.mediaId
+                    currentAspectRatioCallback?.invoke(
+                        if (isVideoSwitch && playerMediaId != video.id) {
+                            16f / 9f
+                        } else {
+                            newPlayer?.videoSize?.toDisplayAspectRatioOrNull() ?: (16f / 9f)
+                        }
                     )
                 }
 

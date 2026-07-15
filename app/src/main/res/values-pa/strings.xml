@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Flow</string>
+    <string name="error_extraction_failed">ਵੀਡੀਓ ਡੇਟਾ ਨੂੰ ਪਾਰਸ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ</string>
+    <string name="error_extraction_failed_hint">ਹੋ ਸਕਦਾ ਹੈ ਕਿ YouTube ਨੇ ਆਪਣਾ ਫਾਰਮੈਟ ਅੱਪਡੇਟ ਕਰ ਦਿੱਤਾ ਹੋਵੇ। Flow ਜਲਦੀ ਹੀ ਅੱਪਡੇਟ ਕੀਤਾ ਜਾਵੇਗਾ — ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।</string>
+    <string name="error_generic">ਵੀਡੀਓ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ</string>
 </resources>

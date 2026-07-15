@@ -363,18 +363,26 @@ fun SponsorBlockSkipButton(
     currentPositionMs: Long,
     categoryActions: Map<String, SponsorBlockAction>,
     controlsVisible: Boolean,
+    playbackEnded: Boolean,
     onSkipClick: (endPositionMs: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var skippedUuids by remember(sponsorSegments) { mutableStateOf(emptySet<String>()) }
 
-    val activeSegment = remember(sponsorSegments, currentPositionMs, skippedUuids) {
-        val posSec = currentPositionMs / 1000f
-        sponsorSegments.find { seg ->
-            posSec >= seg.startTime && posSec < seg.endTime &&
-                seg.uuid !in skippedUuids &&
-                (categoryActions[seg.category] ?: SponsorBlockAction.SKIP) != SponsorBlockAction.SKIP
-        }
+    val activeSegment = remember(
+        sponsorSegments,
+        currentPositionMs,
+        skippedUuids,
+        categoryActions,
+        playbackEnded
+    ) {
+        findActiveManualSponsorSegment(
+            sponsorSegments = sponsorSegments,
+            currentPositionMs = currentPositionMs,
+            skippedUuids = skippedUuids,
+            categoryActions = categoryActions,
+            playbackEnded = playbackEnded
+        )
     }
 
     var displaySegment by remember { mutableStateOf<SponsorBlockSegment?>(null) }
@@ -443,5 +451,23 @@ fun SponsorBlockSkipButton(
                 )
             }
         }
+    }
+}
+
+internal fun findActiveManualSponsorSegment(
+    sponsorSegments: List<SponsorBlockSegment>,
+    currentPositionMs: Long,
+    skippedUuids: Set<String>,
+    categoryActions: Map<String, SponsorBlockAction>,
+    playbackEnded: Boolean
+): SponsorBlockSegment? {
+    if (playbackEnded) return null
+
+    val positionSeconds = currentPositionMs / 1000f
+    return sponsorSegments.find { segment ->
+        positionSeconds >= segment.startTime &&
+            positionSeconds < segment.endTime &&
+            segment.uuid !in skippedUuids &&
+            (categoryActions[segment.category] ?: SponsorBlockAction.SKIP) != SponsorBlockAction.SKIP
     }
 }

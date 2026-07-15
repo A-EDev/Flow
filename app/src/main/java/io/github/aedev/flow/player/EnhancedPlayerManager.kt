@@ -1878,21 +1878,6 @@ class EnhancedPlayerManager private constructor() {
             }
         }
 
-        appContext?.let { ctx ->
-            scope.launch {
-                val resumePosition = savedResumePosition(
-                    context = ctx,
-                    videoId = data.enrichedVideo.id,
-                    durationMs = data.durationSeconds * 1000L,
-                    isLive = false,
-                    hlsUrl = null
-                )
-                if (resumePosition > 0L && currentVideoId == data.enrichedVideo.id) {
-                    player?.seekTo(resumePosition)
-                }
-            }
-        }
-
         preloadAttemptVideoId = null
         preloadAttemptNextVideoId = null
         preloadRetryCount = 0
@@ -2082,18 +2067,23 @@ class EnhancedPlayerManager private constructor() {
     fun seekTo(position: Long) {
         val p = player ?: return
         val isLive = currentIsLiveStream || p.isCurrentMediaItemLive
-        if (!isLive && mediaLoader?.getActiveSabrOrchestrator() != null) {
-            sabrSeekTo(resolveSeekTarget(p, position))
+        val target = resolveSeekTarget(p, position)
+        val isEndBoundary = !isLive && isEndBoundarySeek(position, p.duration)
+        if (!isLive && !isEndBoundary && mediaLoader?.getActiveSabrOrchestrator() != null) {
+            sabrSeekTo(target)
             return
         }
-        val target = resolveSeekTarget(p, position)
-        if (isLive) {
+        if (isLive || isEndBoundary) {
             p.setSeekParameters(SeekParameters.EXACT)
+        }
+        if (isLive) {
             markLiveDisplaySeek(target)
         }
         p.seekTo(target)
         if (isLive) {
             updateLiveEdgeState(p)
+        } else if (isEndBoundary) {
+            p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
         }
     }
 
