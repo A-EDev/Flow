@@ -574,7 +574,7 @@ private fun SearchBarRow(
                     ) {
                         if (query.text.isEmpty()) {
                             Text(
-                                "Search videos, channels\u2026",
+                                stringResource(R.string.search_videos_channels_placeholder),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
                                     alpha = 0.55f
@@ -598,7 +598,7 @@ private fun SearchBarRow(
                 ) {
                     Icon(
                         Icons.Outlined.Mic,
-                        contentDescription = "Voice search",
+                        contentDescription = stringResource(R.string.voice_search_cd),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
@@ -607,7 +607,7 @@ private fun SearchBarRow(
                 IconButton(onClick = onClear, modifier = Modifier.size(36.dp)) {
                     Icon(
                         Icons.Filled.Close,
-                        contentDescription = "Clear",
+                        contentDescription = stringResource(R.string.clear),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
@@ -1219,13 +1219,16 @@ private fun DiscoverScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Recent Searches",
+                        stringResource(R.string.recent_searches),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     TextButton(onClick = onClearHistory) {
-                        Text("Clear all", style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            stringResource(R.string.clear_search_history),
+                            style = MaterialTheme.typography.labelMedium
+                        )
                     }
                 }
             }
@@ -1262,7 +1265,7 @@ private fun DiscoverScreen(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            "Search for videos, music and more",
+                            stringResource(R.string.search_empty_prompt),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
                                 alpha = 0.6f

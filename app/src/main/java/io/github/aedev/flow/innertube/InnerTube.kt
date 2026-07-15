@@ -9,6 +9,7 @@ import io.github.aedev.flow.innertube.models.MediaInfo
 import io.github.aedev.flow.innertube.models.ReturnYouTubeDislikeResponse
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.YouTubeLocale
+import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
 import io.github.aedev.flow.innertube.models.body.*
 import io.github.aedev.flow.innertube.models.response.NextResponse
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
@@ -103,14 +104,7 @@ class InnerTube {
     }
 
     private fun sanitizeLanguageCode(value: String): String {
-        val trimmed = value.trim()
-        val candidate = if (trimmed.isBlank() || trimmed.equals("system", ignoreCase = true)) {
-            Locale.getDefault().toLanguageTag()
-        } else {
-            trimmed.replace('_', '-')
-        }
-        val tag = Locale.forLanguageTag(candidate).toLanguageTag()
-        return tag.takeUnless { it.isBlank() || it.equals("und", ignoreCase = true) } ?: "en"
+        return normalizeYouTubeHostLanguage(value)
     }
 
     @OptIn(ExperimentalSerializationApi::class)

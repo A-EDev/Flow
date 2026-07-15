@@ -53,6 +53,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
+import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
@@ -1341,35 +1342,12 @@ private fun ShortsAudioTrackSheet(
             LazyColumn {
                 items(audioStreams.size) { index ->
                     val stream = audioStreams[index]
-                    val displayName = buildString {
-                        val locale = stream.audioLocale
-                        val trackName = stream.audioTrackName
-                        val trackId = stream.audioTrackId
-                        when {
-                            trackName != null && trackName.isNotBlank() -> append(trackName)
-                            locale != null && locale.language.isNotBlank() -> {
-                                val javaLocale = java.util.Locale(locale.language)
-                                val name = javaLocale.getDisplayLanguage(java.util.Locale.getDefault())
-                                append(name.replaceFirstChar { it.uppercase() }.ifBlank { locale.toString() })
-                            }
-                            trackId != null -> {
-                                val langCode = trackId.substringAfterLast(".")
-                                    .takeIf { it.isNotBlank() && it != trackId }
-                                if (langCode != null) {
-                                    val javaLocale = java.util.Locale(langCode)
-                                    val name = javaLocale.getDisplayLanguage(java.util.Locale.getDefault())
-                                    if (name.isNotBlank() && !name.equals(langCode, ignoreCase = true)) {
-                                        append(name.replaceFirstChar { it.uppercase() })
-                                    } else {
-                                        append(trackId.replaceFirstChar { it.uppercase() })
-                                    }
-                                } else {
-                                    append(trackId.replaceFirstChar { it.uppercase() })
-                                }
-                            }
-                            else -> append("Track ${index + 1}")
-                        }
-                    }
+                    val displayName = StreamProcessor.audioTrackDisplayName(stream)
+                        ?: stringResource(
+                            R.string.audio_track_number_template,
+                            stringResource(R.string.audio_track),
+                            index + 1
+                        )
                     val bitrateLabel = if (stream.averageBitrate >= 1000) "${stream.averageBitrate / 1000} kbps" else ""
                     val isSelected = index == selectedIndex
                     Surface(

@@ -69,7 +69,7 @@
     <string name="history_tab_shorts">Shorts</string>
     <string name="history_tab_local_videos">Local videos</string>
     <string name="history_tab_local_music">Local music</string>
-    <string name="liked">"Liked "</string>
+    <string name="liked">Liked</string>
     <string name="liked_music">Liked Music</string>
     <string name="liked_videos">Likes</string>
     <string name="share_song">Share song</string>
@@ -238,6 +238,7 @@
     <string name="filter_newest">Newest</string>
     <string name="filter_oldest">Oldest</string>
     <string name="no_comments_yet">No comments yet</string>
+    <string name="add_comment_placeholder">Add a comment...</string>
     <string name="read_more">Read more</string>
     <string name="reply">Reply</string>
     <string name="hide_replies">Hide replies</string>
@@ -333,6 +334,7 @@
     <string name="search_hint">Search</string>
     <string name="search_videos_channels_placeholder">Search videos, channels...</string>
     <string name="recent_searches">Recent Searches</string>
+    <string name="search_empty_prompt">Search for videos, music and more</string>
     <string name="trending">Trending</string>
     <string name="channels_header">Channels</string>
     <string name="videos_header">Videos</string>
@@ -1611,6 +1613,8 @@
     <string name="remove_incomplete_downloads">Remove incomplete downloads</string>
     <string name="remove_incomplete_downloads_message">Remove %1$d paused, failed, or partial download(s)? Completed downloads will not be touched.</string>
     <string name="audio_track">Audio Track</string>
+    <string name="audio_track_number_template">%1$s %2$d</string>
+    <string name="subtitle_auto_generated_template">%1$s (%2$s)</string>
     <string name="off">Off</string>
     <string name="on">On</string>
     <string name="player_settings">Player Settings</string>
@@ -1626,6 +1630,21 @@
     <string name="cast_connecting">Connecting to cast device…</string>
     <string name="cast_connected">Casting</string>
     <string name="cast_disconnected">Cast disconnected</string>
+    <string name="dlna_cast_to_device">Cast to Device</string>
+    <string name="dlna_no_devices">No DLNA/UPnP renderers found on this network.\n\nMake sure your TV or media player (VLC, Kodi, etc.) is on the same Wi-Fi network and has media renderer mode enabled.</string>
+    <string name="dlna_searching">Searching for DLNA devices...</string>
+    <string name="dlna_now_casting">Now casting: %1$s</string>
+    <string name="dlna_stop_casting">Stop Casting</string>
+    <!-- Subtitle customization -->
+    <string name="subtitle_customization_title">Subtitle Customization</string>
+    <string name="subtitle_preview_text">Preview Subtitle Text</string>
+    <string name="subtitle_font_size_template">Font Size: %1$d</string>
+    <string name="subtitle_position_template">Position: %1$d</string>
+    <string name="subtitle_text_color">Text Color</string>
+    <string name="subtitle_background_color">Background Color</string>
+    <string name="subtitle_background_opacity_template">Background Opacity: %1$d%%</string>
+    <string name="subtitle_bold_text">Bold Text</string>
+    <string name="subtitle_reset_default">Reset to Default</string>
     <!-- Check for Updates -->
     <string name="check_for_updates">Check for Updates</string>
     <string name="check_for_updates_subtitle">Tap to check for the latest version</string>
@@ -1711,7 +1730,6 @@
     <string name="sync_error_qr_wrong_version">Incompatible app version on the other device.</string>
     <string name="sync_error_qr_not_flow">That doesn\'t look like a Flow sync code.</string>
     <string name="sync_error_qr_bad_address">The sync code is missing a valid network address.</string>
-
     <!-- Automated Backups -->
     <string name="auto_backup_title">Automated Backups</string>
     <string name="auto_backup_subtitle">Schedule automatic backups to a folder</string>
@@ -1948,8 +1966,7 @@
     <string name="taste_chart_profile">Profile</string>
     <string name="taste_chart_now">Now</string>
     <!-- Topic Evidence -->
-    <string name="topic_score_prefix"></string>
-
+    <string name="topic_score_prefix"/>
     <!-- Date & Time Display (#481) -->
     <string name="settings_item_datetime">Date &amp; Time</string>
     <string name="settings_item_datetime_subtitle">Customize how upload dates are shown</string>
@@ -1972,15 +1989,12 @@
     <string name="datetime_override_relative">Relative</string>
     <string name="datetime_override_exact">Exact</string>
     <string name="datetime_override_both">Both</string>
-
     <!-- Volume boost (#491) -->
     <string name="player_appearance_volume_boost_title">Allow extra volume boost</string>
     <string name="player_appearance_volume_boost_subtitle">When off, the volume swipe gesture stops at the maximum system volume. Turn on to make audio even louder.</string>
-
     <!-- Shorts playback speed (#496) -->
     <string name="shorts_playback_speed">Playback speed</string>
     <string name="speed_normal">Normal</string>
-
     <!-- Export / delete watch history (#507) -->
     <string name="export_watch_history_title">Watch history</string>
     <string name="export_watch_history_desc">Export as YouTube-history JSON (imports into LibreTube and Flow)</string>
@@ -1988,7 +2002,6 @@
     <string name="history_delete_shorts">Delete Shorts from history</string>
     <string name="history_delete_shorts_title">Delete Shorts?</string>
     <string name="history_delete_shorts_body">This removes all Shorts from your watch history. Other videos are kept.</string>
-
     <!-- Music recognition (Shazam) -->
     <string name="recognize_music">Recognize music</string>
     <string name="recognition_history">Recognition history</string>

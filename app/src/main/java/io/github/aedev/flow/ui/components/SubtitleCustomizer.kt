@@ -15,9 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.aedev.flow.R
 
 @Composable
 fun SubtitleCustomizer(
@@ -53,7 +55,7 @@ fun SubtitleCustomizer(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Text(
-            text = "Subtitle Customization",
+            text = stringResource(R.string.subtitle_customization_title),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.primary
         )
@@ -72,7 +74,7 @@ fun SubtitleCustomizer(
                 modifier = Modifier.offset(y = -(currentStyle.bottomPadding * 0.35f).dp)
             ) {
                 Text(
-                    text = "Preview Subtitle Text",
+                    text = stringResource(R.string.subtitle_preview_text),
                     color = currentStyle.textColor,
                     fontSize = currentStyle.fontSize.sp,
                     fontWeight = if (currentStyle.isBold) FontWeight.Bold else FontWeight.Normal,
@@ -84,7 +86,10 @@ fun SubtitleCustomizer(
 
         // Font Size
         Column {
-            Text("Font Size: ${currentStyle.fontSize.toInt()}", style = MaterialTheme.typography.labelLarge)
+            Text(
+                stringResource(R.string.subtitle_font_size_template, currentStyle.fontSize.toInt()),
+                style = MaterialTheme.typography.labelLarge
+            )
             Slider(
                 value = currentStyle.fontSize,
                 onValueChange = { onStyleChange(currentStyle.copy(fontSize = it)) },
@@ -95,7 +100,10 @@ fun SubtitleCustomizer(
 
         // Position
         Column {
-            Text("Position: ${currentStyle.bottomPadding.toInt()}", style = MaterialTheme.typography.labelLarge)
+            Text(
+                stringResource(R.string.subtitle_position_template, currentStyle.bottomPadding.toInt()),
+                style = MaterialTheme.typography.labelLarge
+            )
             Slider(
                 value = currentStyle.bottomPadding,
                 onValueChange = { onStyleChange(currentStyle.copy(bottomPadding = it)) },
@@ -105,7 +113,7 @@ fun SubtitleCustomizer(
         }
 
         // Text Color
-        Text("Text Color", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.subtitle_text_color), style = MaterialTheme.typography.labelLarge)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(textColors) { color ->
                 ColorSwatch(
@@ -117,7 +125,10 @@ fun SubtitleCustomizer(
         }
 
         // Background Color
-        Text("Background Color", style = MaterialTheme.typography.labelLarge)
+        Text(
+            stringResource(R.string.subtitle_background_color),
+            style = MaterialTheme.typography.labelLarge
+        )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(backgroundColors) { color ->
                 ColorSwatch(
@@ -137,7 +148,10 @@ fun SubtitleCustomizer(
         // Background Opacity
         Column {
             Text(
-                "Background Opacity: ${(currentStyle.backgroundColor.alpha * 100).toInt()}%",
+                stringResource(
+                    R.string.subtitle_background_opacity_template,
+                    (currentStyle.backgroundColor.alpha * 100).toInt()
+                ),
                 style = MaterialTheme.typography.labelLarge
             )
             Slider(
@@ -153,7 +167,7 @@ fun SubtitleCustomizer(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Bold Text", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.subtitle_bold_text), style = MaterialTheme.typography.labelLarge)
             Switch(
                 checked = currentStyle.isBold,
                 onCheckedChange = { onStyleChange(currentStyle.copy(isBold = it)) }
@@ -164,7 +178,7 @@ fun SubtitleCustomizer(
             onClick = { onStyleChange(SubtitleStyle()) },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Reset to Default")
+            Text(stringResource(R.string.subtitle_reset_default))
         }
     }
 }

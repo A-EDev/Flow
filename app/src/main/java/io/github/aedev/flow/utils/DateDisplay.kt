@@ -100,7 +100,7 @@ fun formatUploadDateConfigured(
 
     val timestamp = parseToTimestamp(date) ?: timestampFallbackMs.takeIf { it > 0L }
     val prefix = relativePrefix(date)
-    val relative = applyRelativePrefix(relativeString(date, timestamp), prefix)
+    val relative = applyRelativePrefix(relativeString(date, timestamp, locale), prefix)
     val exact = if (timestamp != null && timestamp > 0L) formatExactDate(timestamp, style, locale) else ""
     val exactWithPrefix = applyExactPrefix(exact, prefix)
     return when (mode) {
@@ -114,11 +114,13 @@ fun formatUploadDateConfigured(
     }
 }
 
-private fun relativeString(date: String?, timestamp: Long?): String {
+private fun relativeString(date: String?, timestamp: Long?, locale: Locale): String {
     val s = date?.trim().orEmpty()
     if (s.equals("live", ignoreCase = true)) return "LIVE"
-    if (timestamp != null && timestamp > 0L) return formatYouTubeRelativeTime(timestamp)
-    return formatTimeAgo(date)
+    if (timestamp != null && timestamp > 0L) {
+        return formatYouTubeRelativeTime(timestamp, locale = locale)
+    }
+    return formatTimeAgo(date, locale)
 }
 
 private fun relativePrefix(date: String?): String? {
