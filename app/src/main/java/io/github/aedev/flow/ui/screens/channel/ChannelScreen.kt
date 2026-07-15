@@ -69,6 +69,7 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.CompactVideoCard
+import io.github.aedev.flow.ui.components.ChannelBanner
 import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FullSizeImageDialog
@@ -809,31 +810,7 @@ private fun ChannelHeader(
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // ── Banner ───────────────────────────────────────────────────────────
-        if (!bannerUrl.isNullOrEmpty()) {
-            AsyncImage(
-                model = bannerUrl,
-                contentDescription = stringResource(R.string.channel_banner),
-                modifier = Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .aspectRatio(4.5f),
-                contentScale = ContentScale.Crop,
-                onError = {
-                    Log.e("ChannelHeader", "Banner load failed for $bannerUrl: ${it.result.throwable?.message}")
-                }
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .aspectRatio(4.5f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            )
-        }
+        ChannelBanner(imageUrl = bannerUrl)
 
         // ── Avatar row + subscribe button ────────────────────────────────────
         Row(

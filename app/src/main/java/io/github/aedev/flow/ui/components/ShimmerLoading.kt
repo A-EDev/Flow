@@ -630,8 +630,8 @@ fun ShimmerChannelHeader(
             modifier = Modifier
                 .padding(start = 16.dp, end = 16.dp, top = 12.dp)
                 .fillMaxWidth()
-                .aspectRatio(4.5f),
-            shape = RoundedCornerShape(12.dp)
+                .aspectRatio(CHANNEL_BANNER_ASPECT_RATIO),
+            shape = MaterialTheme.shapes.medium
         )
 
         Spacer(Modifier.height(12.dp))

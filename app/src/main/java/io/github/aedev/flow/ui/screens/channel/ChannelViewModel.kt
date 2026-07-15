@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
 import io.github.aedev.flow.data.paging.ChannelPlaylistsPagingSource
 import io.github.aedev.flow.innertube.pages.CommunityPost
+import io.github.aedev.flow.ui.youtubeChannelUrl
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
@@ -160,23 +161,7 @@ class ChannelViewModel : ViewModel() {
     }
     
     private fun normalizeChannelUrl(url: String): String {
-        // If already a full URL, return as is
-        if (url.startsWith("http://") || url.startsWith("https://")) {
-            return url
-        }
-        
-        // If it looks like a channel ID (starts with UC), construct URL
-        if (url.startsWith("UC") && url.length >= 24) {
-            return "https://www.youtube.com/channel/$url"
-        }
-        
-        // If it's a handle (starts with @), construct URL
-        if (url.startsWith("@")) {
-            return "https://www.youtube.com/$url"
-        }
-        
-        // Default: assume it's a channel ID
-        return "https://www.youtube.com/channel/$url"
+        return youtubeChannelUrl(url).orEmpty()
     }
     
     /**

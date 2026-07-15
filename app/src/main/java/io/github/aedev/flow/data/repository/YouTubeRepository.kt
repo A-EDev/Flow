@@ -125,17 +125,11 @@ class YouTubeRepository @Inject constructor(
         val metadataByVideoId = candidates.map { video ->
             async(Dispatchers.IO) {
                 semaphore.withPermit {
-                    val cached = videoChannelMetadataCache[video.id]
-                    val metadata = cached ?: withTimeoutOrNull(5_000L) {
-                        getLiveWatchMetadata(video.id)?.let { result ->
-                            VideoChannelMetadata(
-                                channelId = result.channelId.orEmpty(),
-                                channelName = result.channelName.orEmpty(),
-                                avatarUrl = result.channelAvatarUrl.orEmpty()
-                            )
-                        }
-                    }
-                    if (metadata != null && metadata.channelId.isNotBlank()) {
+                    val metadata = resolveVideoChannelMetadata(video)
+                    if (metadata != null &&
+                        metadata.channelId.isNotBlank() &&
+                        metadata.avatarUrl.isNotBlank()
+                    ) {
                         videoChannelMetadataCache.put(video.id, metadata)
                     }
                     video.id to metadata
@@ -160,6 +154,53 @@ class YouTubeRepository @Inject constructor(
                 }
             )
         }
+    }
+
+    private suspend fun resolveVideoChannelMetadata(video: Video): VideoChannelMetadata? {
+        videoChannelMetadataCache[video.id]?.let { return it }
+
+        val channelMetadata = video.channelId.takeIf { it.isNotBlank() }?.let { channelId ->
+            withTimeoutOrNull(6_000L) {
+                getChannelInfo(channelId)?.let { info ->
+                    VideoChannelMetadata(
+                        channelId = info.id.orEmpty(),
+                        channelName = info.name.orEmpty(),
+                        avatarUrl = info.avatars.maxByOrNull { it.height }?.url.orEmpty()
+                    )
+                }
+            }
+        }
+
+        if (channelMetadata?.avatarUrl?.isNotBlank() == true) return channelMetadata
+
+        val watchMetadata = withTimeoutOrNull(5_000L) {
+            getLiveWatchMetadata(video.id)?.let { result ->
+                VideoChannelMetadata(
+                    channelId = result.channelId.orEmpty(),
+                    channelName = result.channelName.orEmpty(),
+                    avatarUrl = result.channelAvatarUrl.orEmpty()
+                )
+            }
+        }
+
+        val merged = VideoChannelMetadata(
+            channelId = watchMetadata?.channelId.orEmpty().ifBlank {
+                channelMetadata?.channelId.orEmpty().ifBlank { video.channelId }
+            },
+            channelName = watchMetadata?.channelName.orEmpty().ifBlank {
+                channelMetadata?.channelName.orEmpty().ifBlank { video.channelName }
+            },
+            avatarUrl = watchMetadata?.avatarUrl.orEmpty().ifBlank {
+                channelMetadata?.avatarUrl.orEmpty()
+            }
+        )
+
+        if (merged.avatarUrl.isNotBlank()) return merged
+
+        val fallbackAvatar = merged.channelId.takeIf { it.isNotBlank() }?.let { channelId ->
+            withTimeoutOrNull(6_000L) { fetchChannelAvatarById(channelId) }
+        }.orEmpty()
+        return merged.copy(avatarUrl = fallbackAvatar)
     }
 
     /**
