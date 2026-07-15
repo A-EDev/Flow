@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleStartEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
@@ -44,8 +46,8 @@ import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.DeepFlowManager
 
-// Add this import for snapshotFlow
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -83,7 +85,7 @@ private fun rememberHomeLayoutConfig(maxWidth: Dp): HomeLayoutConfig {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun HomeScreen(
     onVideoClick: (Video) -> Unit,
@@ -99,15 +101,17 @@ fun HomeScreen(
     notificationViewModel: NotificationViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val uiState by viewModel.uiState.collectAsState()
-    val unreadNotifications by notificationViewModel.unreadCount.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val unreadNotifications by notificationViewModel.unreadCount.collectAsStateWithLifecycle()
     
     val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
-    val homeViewMode by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
-    val homeFeedEnabled by preferences.homeFeedEnabled.collectAsState(initial = true)
-    val refreshHomeOnReselect by preferences.refreshHomeOnReselect.collectAsState(initial = true)
-    val showAppLogoIcon by preferences.showAppLogoIcon.collectAsState(initial = true)
-    val deepFlowActive by preferences.deepFlowActive.collectAsState(initial = false)
+    val homeViewMode by preferences.homeViewMode.collectAsStateWithLifecycle(
+        initialValue = io.github.aedev.flow.data.local.HomeViewMode.GRID
+    )
+    val homeFeedEnabled by preferences.homeFeedEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val refreshHomeOnReselect by preferences.refreshHomeOnReselect.collectAsStateWithLifecycle(initialValue = true)
+    val showAppLogoIcon by preferences.showAppLogoIcon.collectAsStateWithLifecycle(initialValue = true)
+    val deepFlowActive by preferences.deepFlowActive.collectAsStateWithLifecycle(initialValue = false)
     
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
@@ -115,26 +119,32 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
     }
-    
-    // --- FIXED INFINITE SCROLL LOGIC ---
-    // We use snapshotFlow to monitor the last visible item index.
-    LaunchedEffect(gridState) {
+
+    LifecycleStartEffect(viewModel, homeFeedEnabled) {
+        if (homeFeedEnabled) {
+            viewModel.onHomeVisible()
+        } else {
+            viewModel.onHomeHidden()
+        }
+        onStopOrDispose { viewModel.onHomeHidden() }
+    }
+
+    val videoIndexById = remember(uiState.videos) {
+        buildMap(uiState.videos.size) {
+            uiState.videos.forEachIndexed { index, video -> put(video.id, index) }
+        }
+    }
+    LaunchedEffect(gridState, videoIndexById) {
         snapshotFlow {
-            val layoutInfo = gridState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            
-            // Return true if we are near the bottom (threshold: 5 items)
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 5)
-        }
-        .distinctUntilChanged() // Only emit when the boolean changes (False -> True)
-        .filter { it } // Only proceed if True (we reached bottom)
-        .collect {
-            // Trigger load more if not already loading and pages exist
-            if (!uiState.isLoadingMore && uiState.hasMorePages) {
-                viewModel.loadMoreVideos()
+            var lastVisibleVideoIndex = -1
+            gridState.layoutInfo.visibleItemsInfo.forEach { item ->
+                val index = videoIndexById[item.key as? String] ?: return@forEach
+                if (index > lastVisibleVideoIndex) lastVisibleVideoIndex = index
             }
+            lastVisibleVideoIndex
         }
+            .distinctUntilChanged()
+            .collect(viewModel::onHomeViewportChanged)
     }
 
     // Viewport impressions: only items dwelt in view are recorded as "shown".

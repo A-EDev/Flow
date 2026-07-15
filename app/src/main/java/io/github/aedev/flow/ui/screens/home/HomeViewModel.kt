@@ -24,6 +24,10 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsRepository
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -535,20 +539,21 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     
     private var currentPage: Page? = null
-    private var isLoadingMore = false
     private var isInitialized = false
+    private val homePrefetchQueue = HomePrefetchQueue()
+    private val homePrefetchWorkerLock = Any()
+    private var homePrefetchJob: Job? = null
 
     private var subsBacklog: List<Video> = emptyList()
     
     private var currentQueryIndex = 0
     private val discoveryQueries = mutableListOf<String>()
-    private var wave2Job: kotlinx.coroutines.Job? = null
+    private var wave2Job: Job? = null
     
     private var viewHistory: ViewHistory? = null
     
     private val sessionWatchedTopics = mutableListOf<String>()
 
-    // Video IDs the user has watched >=90 % — excluded from recommendations.
     private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
 
     // Related-graph (/next) per-seed cache, keyed by seed video id.
@@ -581,15 +586,34 @@ class HomeViewModel @Inject constructor(
         
         viewHistory = ViewHistory.getInstance(context)
         
-        // Keep the watched-IDs set up to date so the feed can filter them out.
-        viewModelScope.launch {
-            viewHistory!!.getVideoHistoryFlow()
-                .combine(playerPreferences.watchedThreshold) { history, threshold ->
-                    history.filter { threshold.isWatched(it.position, it.duration) }
-                        .map { it.videoId }
-                        .toHashSet()
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            combine(
+                viewHistory!!.getVideoHistoryFlow(),
+                playerPreferences.hideWatchedVideos,
+                playerPreferences.watchedThreshold,
+                playerPreferences.continueWatchingEnabled
+            ) { history, hideWatched, threshold, continueWatchingEnabled ->
+                filterHomeHistory(
+                    history = history,
+                    hideWatchedVideos = hideWatched,
+                    watchedThreshold = threshold,
+                    continueWatchingEnabled = continueWatchingEnabled
+                )
+            }.collect { result ->
+                watchedVideoIds.value = result.watchedVideoIds
+                _uiState.update { state ->
+                    val videos = state.videos.filterWatched(result.watchedVideoIds)
+                    val shorts = state.shorts.filterWatched(result.watchedVideoIds)
+                    if (videos != state.videos || shorts != state.shorts) {
+                        HomeFeedCache.update(videos, shorts)
+                    }
+                    state.copy(
+                        videos = videos,
+                        shorts = shorts,
+                        continueWatchingVideos = result.continueWatchingVideos
+                    )
                 }
-                .collect { ids -> watchedVideoIds.value = ids }
+            }
         }
         
         viewModelScope.launch {
@@ -659,27 +683,108 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        viewModelScope.launch {
-            playerPreferences.continueWatchingEnabled.collect { enabled ->
-                if (!enabled) {
-                    _uiState.update { it.copy(continueWatchingVideos = emptyList()) }
+    }
+
+    fun onHomeVisible() {
+        val state = _uiState.value
+        startHomePrefetch(
+            homePrefetchQueue.onVisible(
+                currentVideoCount = state.videos.size,
+                feedReady = state.isReadyForPrefetch()
+            )
+        )
+    }
+
+    fun onHomeHidden() {
+        homePrefetchQueue.onHidden()
+        synchronized(homePrefetchWorkerLock) {
+            homePrefetchJob?.cancel()
+        }
+        _uiState.update { it.copy(isLoadingMore = false) }
+    }
+
+    fun onHomeViewportChanged(lastVisibleVideoIndex: Int) {
+        val state = _uiState.value
+        if (!state.isReadyForPrefetch()) return
+        startHomePrefetch(
+            homePrefetchQueue.onViewportChanged(
+                currentVideoCount = state.videos.size,
+                lastVisibleVideoIndex = lastVisibleVideoIndex
+            )
+        )
+    }
+
+    private fun HomeUiState.isReadyForPrefetch(): Boolean =
+        videos.isNotEmpty() && !isLoading && isFlowFeed && hasMorePages
+
+    private fun requestOptimisticHomePrefetch() {
+        val state = _uiState.value
+        if (!state.isReadyForPrefetch()) return
+        startHomePrefetch(homePrefetchQueue.onFeedReady(state.videos.size))
+    }
+
+    private fun startHomePrefetch(request: HomePrefetchRequest?) {
+        request ?: return
+        val worker = synchronized(homePrefetchWorkerLock) {
+            if (homePrefetchJob?.isCompleted == false) return
+            viewModelScope.launch(
+                context = PerformanceDispatcher.networkIO,
+                start = CoroutineStart.LAZY
+            ) {
+                drainHomePrefetchQueue(request.generation)
+            }.also { homePrefetchJob = it }
+        }
+        worker.start()
+    }
+
+    private suspend fun drainHomePrefetchQueue(generation: Int) {
+        var pagesLoaded = 0
+        var allowRestart = true
+        try {
+            wave2Job?.takeIf { it.isActive }?.join()
+            while (pagesLoaded < HOME_PREFETCH_MAX_PAGES_PER_RUN) {
+                val state = _uiState.value
+                val request = homePrefetchQueue.currentRequest(state.videos.size) ?: break
+                if (request.generation != generation || !state.hasMorePages) break
+
+                _uiState.update { it.copy(isLoadingMore = true) }
+                if (!loadNextPrefetchPage(generation)) {
+                    allowRestart = false
+                    break
+                }
+                pagesLoaded++
+            }
+            if (pagesLoaded >= HOME_PREFETCH_MAX_PAGES_PER_RUN) {
+                allowRestart = false
+            }
+        } catch (cancellation: CancellationException) {
+            allowRestart = false
+            throw cancellation
+        } finally {
+            val workerJob = currentCoroutineContext()[Job]
+            val ownsLoadingState = synchronized(homePrefetchWorkerLock) {
+                if (homePrefetchJob === workerJob) {
+                    homePrefetchJob = null
+                    true
                 } else {
-                    loadContinueWatching()
+                    false
+                }
+            }
+            if (ownsLoadingState) {
+                _uiState.update { it.copy(isLoadingMore = false) }
+                if (allowRestart) {
+                    startHomePrefetch(homePrefetchQueue.currentRequest(_uiState.value.videos.size))
                 }
             }
         }
     }
 
-    private fun loadContinueWatching() {
-        viewModelScope.launch {
-            viewHistory?.getVideoHistoryFlow()?.collect { history ->
-                val inProgress = history
-                    .filter { !it.isShort && it.progressPercentage in 3f..90f }
-                    .sortedByDescending { it.timestamp }
-                    .take(20)
-                _uiState.update { it.copy(continueWatchingVideos = inProgress) }
-            }
+    private fun resetHomePrefetch() {
+        homePrefetchQueue.reset()
+        synchronized(homePrefetchWorkerLock) {
+            homePrefetchJob?.cancel()
         }
+        _uiState.update { it.copy(isLoadingMore = false) }
     }
 
     fun removeContinueWatchingEntry(videoId: String) {
@@ -694,7 +799,9 @@ class HomeViewModel @Inject constructor(
             try {
                 val shorts = shortsRepository.getHomeFeedShorts().map { it.toVideo() }
                 if (shorts.isNotEmpty()) {
-                    _uiState.update { it.copy(shorts = shorts) }
+                    _uiState.update {
+                        it.copy(shorts = shorts.filterWatched(watchedVideoIds.value))
+                    }
                 }
             } catch (e: Exception) {
             }
@@ -721,9 +828,10 @@ class HomeViewModel @Inject constructor(
 
             _uiState.update { state ->
                 if (state.videos.isNotEmpty()) return@update state
-                HomeFeedCache.update(hydratedCached, state.shorts)
+                val videos = hydratedCached.filterWatched(watchedVideoIds.value)
+                HomeFeedCache.update(videos, state.shorts)
                 state.copy(
-                    videos = hydratedCached,
+                    videos = videos,
                     isFlowFeed = true,
                     error = null,
                     lastRefreshTime = System.currentTimeMillis()
@@ -742,10 +850,11 @@ class HomeViewModel @Inject constructor(
         }
         
         _uiState.update { state ->
+            val watched = watchedVideoIds.value
             val updatedVideos = if (append) (state.videos + regularVideos) else regularVideos
             state.copy(
-                videos = updatedVideos.distinctBy { it.id },
-                shorts = (state.shorts + newShorts).distinctBy { it.id }
+                videos = updatedVideos.distinctBy { it.id }.filterWatched(watched),
+                shorts = (state.shorts + newShorts).distinctBy { it.id }.filterWatched(watched)
                     .sortedByDescending { it.timestamp }
             )
         }
@@ -820,7 +929,7 @@ class HomeViewModel @Inject constructor(
                         if (quickFeed.isNotEmpty()) {
                             _uiState.update { state ->
                                 state.copy(
-                                    videos = quickFeed,
+                                    videos = quickFeed.filterWatched(watchedVideoIds.value),
                                     isLoading = true,
                                     isFlowFeed = true
                                 )
@@ -981,15 +1090,19 @@ class HomeViewModel @Inject constructor(
                     cacheCandidates(FeedSource.DISCOVERY, bestDiscovery, renderedIds) +
                     cacheCandidates(FeedSource.SUBS, bestSubs, renderedIds) +
                     cacheCandidates(FeedSource.VIRAL, bestViral, renderedIds)
-                _uiState.update { it.copy(
-                    videos = spacedMix,
-                    isLoading = false,
-                    isRefreshing = false,
-                    hasMorePages = true,
-                    isFlowFeed = true,
-                    lastRefreshTime = now
-                )}
-                HomeFeedCache.update(spacedMix, _uiState.value.shorts)
+                var visibleFeed = emptyList<Video>()
+                _uiState.update { state ->
+                    visibleFeed = spacedMix.filterWatched(watchedVideoIds.value)
+                    state.copy(
+                        videos = visibleFeed,
+                        isLoading = false,
+                        isRefreshing = false,
+                        hasMorePages = true,
+                        isFlowFeed = true,
+                        lastRefreshTime = now
+                    )
+                }
+                HomeFeedCache.update(visibleFeed, _uiState.value.shorts)
                 persistentHomeFeedCache.saveLastFeed(spacedMix)
                 persistentHomeFeedCache.saveReserve(reserveCandidates)
                 enrichVisibleChannelMetadata(spacedMix)?.let {
@@ -1008,7 +1121,14 @@ class HomeViewModel @Inject constructor(
                             val wave2Raw = wave2Queries.map { q ->
                                 async {
                                     withTimeoutOrNull(6_000L) {
-                                        runCatching { repository.searchVideos(q).first }.getOrElse { emptyList() }
+                                        try {
+                                            repository.searchVideos(q).first
+                                        } catch (cancellation: CancellationException) {
+                                            throw cancellation
+                                        } catch (error: Exception) {
+                                            Log.d(TAG, "Wave 2 query failed for $q: ${error.message}")
+                                            emptyList()
+                                        }
                                     } ?: emptyList()
                                 }
                             }.awaitAll().flatten()
@@ -1025,7 +1145,9 @@ class HomeViewModel @Inject constructor(
                                 var updatedSnapshot: List<Video>? = null
                                 _uiState.update { state ->
                                     val currentIds = state.videos.map { it.id }.toHashSet()
-                                    val uniqueNew = wave2Ranked.filter { !currentIds.contains(it.id) }
+                                    val uniqueNew = wave2Ranked
+                                        .filterWatched(watchedVideoIds.value)
+                                        .filter { !currentIds.contains(it.id) }
                                         .distinctBy { it.channelId }
                                     if (uniqueNew.isEmpty()) return@update state
                                     val updated = state.videos + uniqueNew
@@ -1037,11 +1159,14 @@ class HomeViewModel @Inject constructor(
                                 currentQueryIndex = discoveryQueries.size
                                 Log.d(TAG, "Wave 2 merged ${wave2Ranked.size} extra candidates")
                             }
-                        } catch (e: Exception) {
-                            Log.d(TAG, "Wave 2 failed: ${e.message}")
+                        } catch (cancellation: CancellationException) {
+                            throw cancellation
+                        } catch (error: Exception) {
+                            Log.d(TAG, "Wave 2 failed: ${error.message}")
                         }
                     }
                 }
+                requestOptimisticHomePrefetch()
                 
             } catch (e: Exception) {
                  _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = "Failed to load feed") }
@@ -1051,14 +1176,8 @@ class HomeViewModel @Inject constructor(
     }
     
 
-    fun loadMoreVideos() {
-        if (isLoadingMore) return
-        
-        isLoadingMore = true
-        _uiState.update { it.copy(isLoadingMore = true) }
-        
-        viewModelScope.launch(PerformanceDispatcher.networkIO) {
-            try {
+    private suspend fun loadNextPrefetchPage(generation: Int): Boolean {
+        try {
                 val now = System.currentTimeMillis()
                 val userSubs = subscriptionRepository.getAllSubscriptionIds()
                 val brain = FlowNeuroEngine.getBrainSnapshot()
@@ -1068,9 +1187,14 @@ class HomeViewModel @Inject constructor(
                 val channelCounts = HashMap<String, Int>()
                 val pageIds = HashSet<String>(currentIds)
 
-                val reserveVideos = runCatching {
+                val reserveVideos = try {
                     persistentHomeFeedCache.loadReservePage(cacheFilters()).map { it.video }
-                }.getOrElse { emptyList() }
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Log.d(TAG, "Reserve prefetch unavailable: ${error.message}")
+                    emptyList()
+                }
                     .filterValid()
                     .filterRecentHomeSuggestion(now)
                 val reserveAdded = addUniquePageVideos(
@@ -1081,9 +1205,10 @@ class HomeViewModel @Inject constructor(
                     targetSize = MIN_PAGE_SIZE
                 )
                 if (page.size >= MIN_PAGE_SIZE) {
-                    appendLoadMorePage(page)?.let { persistentHomeFeedCache.saveLastFeed(it) }
+                    val appended = appendLoadMorePage(page, generation)
+                    appended?.let { persistentHomeFeedCache.saveLastFeed(it) }
                     Log.d(TAG, "Load-more filled from reserve: +$reserveAdded")
-                    return@launch
+                    return appended != null
                 }
 
                 val seedInputs = buildSeedInputs()
@@ -1129,9 +1254,10 @@ class HomeViewModel @Inject constructor(
                                 brain = brain
                             ).toLogString()
                         )
-                        appendLoadMorePage(page)?.let { persistentHomeFeedCache.saveLastFeed(it) }
+                        val appended = appendLoadMorePage(page, generation)
+                        appended?.let { persistentHomeFeedCache.saveLastFeed(it) }
                         Log.d(TAG, "Load-more filled from reserve/graph: reserve=$reserveAdded graphSeeds=${seedIds.size}")
-                        return@launch
+                        return appended != null
                     }
                 }
 
@@ -1146,16 +1272,24 @@ class HomeViewModel @Inject constructor(
                 
                 val finalQueries = if (searchQueries.isEmpty()) listOf("Viral") else searchQueries
 
-                val rawVideos = finalQueries.map { q ->
-                   async { 
-                       withTimeoutOrNull(6_000L) {
-                           runCatching {
-                               repository.searchVideos(q).first
-                           }.getOrElse { emptyList() }
-                       } ?: emptyList()
-                   }
-                }.awaitAll().flatten()
-                
+                val rawVideos = coroutineScope {
+                    finalQueries.map { query ->
+                        async {
+                            withTimeoutOrNull(6_000L) {
+                                try {
+                                    repository.searchVideos(query).first
+                                } catch (cancellation: CancellationException) {
+                                    throw cancellation
+                                } catch (error: Exception) {
+                                    Log.d(TAG, "Prefetch query failed for $query: ${error.message}")
+                                    emptyList()
+                                }
+                            } ?: emptyList()
+                        }
+                    }.awaitAll().flatten()
+                }
+                if (!homePrefetchQueue.isCurrent(generation)) return false
+
                 // Extract shorts for shelf — rank through FlowNeuro
                 val moreShorts = rawVideos.extractShorts()
                     .filterWatched(watchedVideoIds.value)
@@ -1197,33 +1331,44 @@ class HomeViewModel @Inject constructor(
                 }
 
                 if (page.isNotEmpty()) {
-                    appendLoadMorePage(page)?.let { persistentHomeFeedCache.saveLastFeed(it) }
-                } else {
-                    _uiState.update { it.copy(isLoadingMore = false) }
+                    val appended = appendLoadMorePage(page, generation)
+                    appended?.let { persistentHomeFeedCache.saveLastFeed(it) }
+                    return appended != null
                 }
-            } catch (e: Exception) {
-                 _uiState.update { it.copy(isLoadingMore = false) }
-            } finally {
-                isLoadingMore = false
-            }
+                return false
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            Log.d(TAG, "Home prefetch page failed: ${error.message}")
+            return false
         }
     }
 
-    private suspend fun appendLoadMorePage(page: List<Video>): List<Video>? {
-        if (page.isEmpty()) return null
+    private suspend fun appendLoadMorePage(
+        page: List<Video>,
+        generation: Int
+    ): List<Video>? {
+        if (page.isEmpty() || !homePrefetchQueue.isCurrent(generation)) return null
         var updatedSnapshot: List<Video>? = null
+        var appendedPage = emptyList<Video>()
         _uiState.update { state ->
+            if (!homePrefetchQueue.isCurrent(generation)) return@update state
+            val existingVideoIds = state.videos.mapTo(HashSet()) { it.id }
+            appendedPage = page
+                .filterWatched(watchedVideoIds.value)
+                .filterNot { it.id in existingVideoIds }
+            if (appendedPage.isEmpty()) return@update state
             val tailChannels = state.videos.takeLast(2).map { it.channelId }
-            val updated = state.videos + spaceByChannel(page, seedRecent = tailChannels)
+            val updated = state.videos + spaceByChannel(appendedPage, seedRecent = tailChannels)
             updatedSnapshot = updated
             HomeFeedCache.update(updated, state.shorts)
             state.copy(
                 videos = updated,
-                isLoadingMore = false,
                 hasMorePages = true
             )
         }
-        return enrichVisibleChannelMetadata(page) ?: updatedSnapshot
+        if (appendedPage.isEmpty()) return null
+        return enrichVisibleChannelMetadata(appendedPage) ?: updatedSnapshot
     }
 
     private suspend fun enrichVisibleChannelMetadata(videos: List<Video>): List<Video>? {
@@ -1332,6 +1477,7 @@ class HomeViewModel @Inject constructor(
     }
     
     fun refreshFeed() {
+        resetHomePrefetch()
         wave2Job?.cancel()
         HomeFeedCache.clear()
         _uiState.update { it.copy(isRefreshing = true) }
@@ -1339,6 +1485,8 @@ class HomeViewModel @Inject constructor(
     }
     
     fun retry() {
+        resetHomePrefetch()
+        wave2Job?.cancel()
         loadFlowFeed(forceRefresh = true)
     }
 
@@ -1529,8 +1677,9 @@ class HomeViewModel @Inject constructor(
                 if (enriched.isEmpty()) return@launch
 
                 _uiState.update { state ->
+                    val visibleEnriched = enriched.filterWatched(watchedVideoIds.value)
                     val tail = state.videos.takeLast(2).map { it.channelId }
-                    val merged = state.videos + spaceByChannel(enriched, seedRecent = tail)
+                    val merged = state.videos + spaceByChannel(visibleEnriched, seedRecent = tail)
                     HomeFeedCache.update(merged, state.shorts)
                     state.copy(videos = merged)
                 }
