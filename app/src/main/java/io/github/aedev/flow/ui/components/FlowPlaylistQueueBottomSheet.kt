@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +54,10 @@ fun FlowPlaylistQueueBottomSheet(
     queueVideos: List<Video>,
     currentQueueIndex: Int,
     playlistTitle: String?,
+    isLooping: Boolean,
+    isShuffled: Boolean,
+    onLoopToggle: (Boolean) -> Unit,
+    onShuffleToggle: (Boolean) -> Unit,
     onPlayVideoAtIndex: (Int) -> Unit,
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
@@ -206,6 +212,18 @@ fun FlowPlaylistQueueBottomSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    QueueModeIconButton(
+                        selected = isShuffled,
+                        onClick = { onShuffleToggle(!isShuffled) },
+                        imageVector = Icons.Default.Shuffle,
+                        contentDescription = stringResource(R.string.shuffle),
+                    )
+                    QueueModeIconButton(
+                        selected = isLooping,
+                        onClick = { onLoopToggle(!isLooping) },
+                        imageVector = Icons.Default.Repeat,
+                        contentDescription = stringResource(R.string.repeat),
+                    )
                     IconButton(
                         onClick = ::animateToDismiss,
                         modifier = Modifier.size(40.dp)

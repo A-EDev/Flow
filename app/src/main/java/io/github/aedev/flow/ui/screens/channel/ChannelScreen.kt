@@ -632,6 +632,7 @@ private fun ChannelContent(
             ) {
                 ChannelHeader(
                     channelInfo = channelInfo,
+                    channelVideoCountText = uiState.channelVideoCountText,
                     isSubscribed = uiState.isSubscribed,
                     isNotificationsEnabled = uiState.isNotificationsEnabled,
                     onSubscribeClick = onSubscribeClick,
@@ -777,6 +778,7 @@ private fun FilterAndToggleBar(
 @Composable
 private fun ChannelHeader(
     channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo,
+    channelVideoCountText: String?,
     isSubscribed: Boolean,
     isNotificationsEnabled: Boolean,
     onSubscribeClick: () -> Unit,
@@ -911,11 +913,23 @@ private fun ChannelHeader(
             )
 
             val subText = formatSubscriberCount(channelInfo.subscriberCount, context)
-            Text(
-                text = subText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.extendedColors.textSecondary
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = subText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.extendedColors.textSecondary,
+                )
+                channelVideoCountText?.let { videoCountText ->
+                    Text(
+                        text = videoCountText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.extendedColors.textSecondary,
+                    )
+                }
+            }
         }
     }
 }
