@@ -35,7 +35,7 @@
     <string name="cancel">Annuler</string>
     <string name="empty_watch_history">Aucun historique</string>
     <string name="empty_watch_history_body">Les vidéos que vous regardez apparaîtront ici</string>
-    <string name="liked">"Aimé "</string>
+    <string name="liked">Aimé</string>
     <string name="liked_music">Musique « J\'aime »</string>
     <string name="liked_videos">J\'aime</string>
     <string name="share_song">Partager la chanson</string>
@@ -1945,4 +1945,26 @@
     <string name="channel_search_failed">Impossible d\'effectuer une recherche sur cette chaîne</string>
     <string name="community_post_image_content_description">Image d\'une publication de la communauté</string>
     <string name="share_community_post">Partager une publication de la communauté</string>
+    <string name="add_comment_placeholder">Ajouter un commentaire...</string>
+    <string name="search_empty_prompt">Rechercher des vidéos, de la musique et bien plus encore</string>
+    <string name="player_portrait_seekbar_width_title">Largeur de la barre de recherche en mode portrait</string>
+    <string name="player_portrait_seekbar_width_spaced">Espacé</string>
+    <string name="playback_speed_multiplier">%1$s×</string>
+    <string name="playback_speed_multiplier_precise">%1$.2f×</string>
+    <string name="audio_track_number_template">%1$s %2$d</string>
+    <string name="subtitle_auto_generated_template">%1$s (%2$s)</string>
+    <string name="dlna_cast_to_device">Diffusion vers un appareil</string>
+    <string name="dlna_no_devices">Aucun périphérique de lecture DLNA/UPnP n\'a été détecté sur ce réseau.\n\nAssurez-vous que votre téléviseur ou votre lecteur multimédia (VLC, Kodi, etc.) est connecté au même réseau Wi-Fi et que le mode « périphérique de lecture » est activé.</string>
+    <string name="dlna_searching">Recherche d\'appareils DLNA...</string>
+    <string name="dlna_now_casting">Diffusion en cours : %1$s</string>
+    <string name="dlna_stop_casting">Arrêter la diffusion</string>
+    <string name="subtitle_customization_title">Personnalisation des sous-titres</string>
+    <string name="subtitle_preview_text">Aperçu du texte des sous-titres</string>
+    <string name="subtitle_font_size_template">Taille de la police : %1$d</string>
+    <string name="subtitle_position_template">Position : %1$d</string>
+    <string name="subtitle_text_color">Couleur du texte</string>
+    <string name="subtitle_background_color">Couleur d\'arrière-plan</string>
+    <string name="subtitle_background_opacity_template">Opacité de l\'arrière-plan : %1$d%%</string>
+    <string name="subtitle_bold_text">Texte en gras</string>
+    <string name="subtitle_reset_default">Rétablir les paramètres par défaut</string>
 </resources>
