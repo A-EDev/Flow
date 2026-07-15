@@ -895,6 +895,8 @@
     <string name="speed_slider_increase">Increase speed</string>
     <string name="speed_slider_reset">Reset to 1×</string>
     <string name="speed_slider_apply">Apply</string>
+    <string name="playback_speed_multiplier">%1$s×</string>
+    <string name="playback_speed_multiplier_precise">%1$.2f×</string>
     <string name="player_settings_stable_voice">Stable Voice</string>
     <string name="player_settings_stable_voice_subtitle">Normalize audio volume for consistent playback</string>
     <string name="player_settings_display">Display</string>
