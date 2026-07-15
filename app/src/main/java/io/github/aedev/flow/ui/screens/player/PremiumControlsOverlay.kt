@@ -206,6 +206,9 @@ fun PremiumControlsOverlay(
     val fullscreenSeekbarHorizontalPaddingDp by playerPreferences.fullscreenSeekbarHorizontalPaddingDp.collectAsState(
         initial = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
     )
+    val portraitSeekbarHorizontalPaddingDp by playerPreferences.portraitSeekbarHorizontalPaddingDp.collectAsState(
+        initial = 0
+    )
     val fullscreenSeekbarBottomPadding = if (isFullscreen) 30.dp else 0.dp
     val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 12.dp
     val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
@@ -219,7 +222,11 @@ fun PremiumControlsOverlay(
         0.dp
     }
     val bottomControlsSeekbarOverlap = 0.dp
-    val seekbarHorizontalPadding = if (isFullscreen) fullscreenSeekbarHorizontalPaddingDp.dp else 0.dp
+    val seekbarHorizontalPadding = if (isFullscreen) {
+        fullscreenSeekbarHorizontalPaddingDp.dp
+    } else {
+        portraitSeekbarHorizontalPaddingDp.dp
+    }
     val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
     val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
     val compactQualityLabel = remember(qualityLabel) { qualityLabel?.toCompactQualityLabel() }
@@ -962,7 +969,9 @@ fun PremiumControlsOverlay(
                         duration = seekDuration,
                         bufferedValue = bufferedPercentage,
                         edgeAligned = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = seekbarHorizontalPadding)
                     )
                 }
             }

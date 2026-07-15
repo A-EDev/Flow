@@ -81,6 +81,7 @@ import io.github.aedev.flow.ui.screens.player.PremiumControlsOverlay
 import io.github.aedev.flow.ui.screens.player.components.videoPlayerControls
 import io.github.aedev.flow.ui.screens.player.components.PlayerGestureOverlays
 import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
+import io.github.aedev.flow.ui.screens.player.components.AutoplayCountdownOverlay
 import io.github.aedev.flow.ui.screens.player.components.SettingsMenuDialog
 import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
@@ -264,6 +265,7 @@ fun GlobalPlayerOverlay(
     var pipForcedFullscreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(video.id) {
+        videoAspectRatio = 16f / 9f
         screenState.zoomScale = 1f
         screenState.zoomOffsetX = 0f
         screenState.zoomOffsetY = 0f
@@ -1205,6 +1207,8 @@ fun GlobalPlayerOverlay(
                                     }
                                 }
                             )
+
+                            AutoplayCountdownOverlay()
                         }
                     }
                 },
@@ -1324,6 +1328,7 @@ fun GlobalPlayerOverlay(
                     currentPositionMs = sponsorButtonPositionMs,
                     categoryActions = EnhancedPlayerManager.getInstance().sbCategoryActions,
                     controlsVisible = screenState.showControls,
+                    playbackEnded = playerState.hasEnded,
                     onSkipClick = { endPositionMs ->
                         EnhancedPlayerManager.getInstance().skipToSegmentEnd(endPositionMs)
                     },

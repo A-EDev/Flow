@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,17 +20,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,15 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import io.github.aedev.flow.R
@@ -76,16 +75,20 @@ fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.55f))
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
                     .pointerInput(Unit) { detectTapGestures { } },
                 contentAlignment = Alignment.Center
             ) {
-                CountdownCard(
-                    state = shown,
-                    onCancel = { manager.cancelAutoplayCountdown() },
-                    onRestart = { manager.restartFromAutoplayCountdown() },
-                    onPlayNow = { manager.skipAutoplayCountdown() }
-                )
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    CountdownCard(
+                        state = shown,
+                        compactActions = maxWidth < 480.dp,
+                        onCancel = { manager.cancelAutoplayCountdown() },
+                        onRestart = { manager.restartFromAutoplayCountdown() },
+                        onPlayNow = { manager.skipAutoplayCountdown() },
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
         }
     }
@@ -94,9 +97,11 @@ fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
 @Composable
 private fun CountdownCard(
     state: AutoplayCountdownState,
+    compactActions: Boolean,
     onCancel: () -> Unit,
     onRestart: () -> Unit,
-    onPlayNow: () -> Unit
+    onPlayNow: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val progress by animateFloatAsState(
         targetValue = if (state.totalSeconds > 0) {
@@ -107,11 +112,12 @@ private fun CountdownCard(
     )
 
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = Color(0xF21B1B1B),
-        modifier = Modifier
-            .widthIn(max = 420.dp)
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = modifier
             .padding(horizontal = 20.dp)
+            .widthIn(max = if (compactActions) 420.dp else 560.dp)
+            .fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -121,13 +127,12 @@ private fun CountdownCard(
                         modifier = Modifier.fillMaxSize(),
                         strokeWidth = 3.dp,
                         color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color.White.copy(alpha = 0.18f)
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                     Text(
                         text = state.secondsRemaining.coerceAtLeast(0).toString(),
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
 
@@ -137,24 +142,22 @@ private fun CountdownCard(
                     Text(
                         text = stringResource(R.string.autoplay_countdown_up_next),
                         color = MaterialTheme.colorScheme.primary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.labelMedium
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = state.nextVideoTitle?.takeIf { it.isNotBlank() }
                             ?: stringResource(R.string.autoplay_countdown_next_video),
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleSmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                     state.nextVideoChannel?.takeIf { it.isNotBlank() }?.let { channel ->
                         Text(
                             text = channel,
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -173,43 +176,72 @@ private fun CountdownCard(
                         modifier = Modifier
                             .width(72.dp)
                             .height(40.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(MaterialTheme.shapes.small)
                     )
                 }
             }
 
             Spacer(Modifier.height(14.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = onCancel,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
-                ) {
-                    Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.autoplay_countdown_cancel))
-                }
+            CountdownActions(
+                compact = compactActions,
+                onCancel = onCancel,
+                onRestart = onRestart,
+                onPlayNow = onPlayNow
+            )
+        }
+    }
+}
 
-                Spacer(Modifier.weight(1f))
+@Composable
+private fun CountdownActions(
+    compact: Boolean,
+    onCancel: () -> Unit,
+    onRestart: () -> Unit,
+    onPlayNow: () -> Unit
+) {
+    val cancelLabel = stringResource(R.string.autoplay_countdown_cancel)
+    val restartLabel = stringResource(R.string.autoplay_countdown_restart)
+    val playNowLabel = stringResource(R.string.autoplay_countdown_play_now)
 
-                OutlinedButton(
-                    onClick = onRestart,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                ) {
-                    Icon(Icons.Rounded.Replay, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.autoplay_countdown_restart))
-                }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (compact) {
+            Arrangement.SpaceEvenly
+        } else {
+            Arrangement.spacedBy(8.dp)
+        },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (compact) {
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Rounded.Close, contentDescription = cancelLabel)
+            }
+            OutlinedIconButton(onClick = onRestart) {
+                Icon(Icons.Rounded.Replay, contentDescription = restartLabel)
+            }
+            FilledIconButton(onClick = onPlayNow) {
+                Icon(Icons.Rounded.SkipNext, contentDescription = playNowLabel)
+            }
+        } else {
+            TextButton(onClick = onCancel) {
+                Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(cancelLabel, maxLines = 1)
+            }
 
-                Button(onClick = onPlayNow) {
-                    Icon(Icons.Rounded.SkipNext, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.autoplay_countdown_play_now))
-                }
+            Spacer(Modifier.weight(1f))
+
+            OutlinedButton(onClick = onRestart) {
+                Icon(Icons.Rounded.Replay, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(restartLabel, maxLines = 1)
+            }
+
+            Button(onClick = onPlayNow) {
+                Icon(Icons.Rounded.SkipNext, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(playNowLabel, maxLines = 1)
             }
         }
     }

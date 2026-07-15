@@ -35,12 +35,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
-import io.github.aedev.flow.data.local.FullscreenSeekbarPaddingMode
+import io.github.aedev.flow.data.local.DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MAX_FULLSCREEN_SEEKBAR_PADDING_DP
+import io.github.aedev.flow.data.local.MAX_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.SeekbarPaddingMode
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.local.SliderStyle
+import io.github.aedev.flow.data.local.resolveSeekbarHorizontalPaddingDp
 import io.github.aedev.flow.ui.screens.music.player.components.PlayerSliderTrack
 import io.github.aedev.flow.ui.screens.music.player.components.SquigglySlider
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
@@ -49,6 +52,18 @@ import kotlin.math.roundToInt
 
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.res.painterResource
+
+private val PortraitSeekbarPaddingModes = listOf(
+    SeekbarPaddingMode.SPACED,
+    SeekbarPaddingMode.FULL_WIDTH,
+    SeekbarPaddingMode.CUSTOM
+)
+
+private val FullscreenSeekbarPaddingModes = listOf(
+    SeekbarPaddingMode.FULL_WIDTH,
+    SeekbarPaddingMode.DEFAULT,
+    SeekbarPaddingMode.CUSTOM
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,17 +92,30 @@ fun PlayerAppearanceScreen(
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
     val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
+    val portraitSeekbarPaddingMode by playerPreferences.portraitSeekbarPaddingMode.collectAsState(
+        initial = SeekbarPaddingMode.FULL_WIDTH
+    )
+    val portraitSeekbarCustomPaddingDp by playerPreferences.portraitSeekbarCustomPaddingDp.collectAsState(
+        initial = DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP
+    )
+    val portraitSeekbarPaddingDp = resolveSeekbarHorizontalPaddingDp(
+        mode = portraitSeekbarPaddingMode,
+        customPaddingDp = portraitSeekbarCustomPaddingDp,
+        defaultPaddingDp = DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP,
+        maxPaddingDp = MAX_PORTRAIT_SEEKBAR_PADDING_DP
+    )
     val fullscreenSeekbarPaddingMode by playerPreferences.fullscreenSeekbarPaddingMode.collectAsState(
-        initial = FullscreenSeekbarPaddingMode.DEFAULT
+        initial = SeekbarPaddingMode.DEFAULT
     )
     val fullscreenSeekbarCustomPaddingDp by playerPreferences.fullscreenSeekbarCustomPaddingDp.collectAsState(
         initial = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
     )
-    val fullscreenSeekbarPaddingDp = when (fullscreenSeekbarPaddingMode) {
-        FullscreenSeekbarPaddingMode.FULL_WIDTH -> 0
-        FullscreenSeekbarPaddingMode.DEFAULT -> DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
-        FullscreenSeekbarPaddingMode.CUSTOM -> fullscreenSeekbarCustomPaddingDp
-    }
+    val fullscreenSeekbarPaddingDp = resolveSeekbarHorizontalPaddingDp(
+        mode = fullscreenSeekbarPaddingMode,
+        customPaddingDp = fullscreenSeekbarCustomPaddingDp,
+        defaultPaddingDp = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP,
+        maxPaddingDp = MAX_FULLSCREEN_SEEKBAR_PADDING_DP
+    )
 
     var showStyleSheet by remember { mutableStateOf(false) }
     var showBackgroundStyleSheet by remember { mutableStateOf(false) }
@@ -296,6 +324,30 @@ fun PlayerAppearanceScreen(
                         title = stringResource(R.string.player_appearance_style_title),
                         subtitle = stringResource(getStyleLabelResInScreen(currentSliderStyle)),
                         onClick = { showStyleSheet = true }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                    SeekbarPaddingItem(
+                        titleRes = R.string.player_portrait_seekbar_width_title,
+                        animationLabel = "portraitSeekbarPreviewPadding",
+                        modes = PortraitSeekbarPaddingModes,
+                        spacedModeLabelRes = R.string.player_portrait_seekbar_width_spaced,
+                        mode = portraitSeekbarPaddingMode,
+                        customPaddingDp = portraitSeekbarCustomPaddingDp,
+                        effectivePaddingDp = portraitSeekbarPaddingDp,
+                        maxPaddingDp = MAX_PORTRAIT_SEEKBAR_PADDING_DP,
+                        onModeChange = { mode ->
+                            coroutineScope.launch {
+                                playerPreferences.setPortraitSeekbarPaddingMode(mode)
+                            }
+                        },
+                        onCustomPaddingChange = { paddingDp ->
+                            coroutineScope.launch {
+                                playerPreferences.setPortraitSeekbarCustomPaddingDp(paddingDp)
+                            }
+                        }
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -524,10 +576,15 @@ fun PlayerAppearanceScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
 
-                    FullscreenSeekbarPaddingItem(
+                    SeekbarPaddingItem(
+                        titleRes = R.string.player_fullscreen_seekbar_width_title,
+                        animationLabel = "fullscreenSeekbarPreviewPadding",
+                        modes = FullscreenSeekbarPaddingModes,
+                        spacedModeLabelRes = R.string.player_fullscreen_seekbar_width_default,
                         mode = fullscreenSeekbarPaddingMode,
                         customPaddingDp = fullscreenSeekbarCustomPaddingDp,
                         effectivePaddingDp = fullscreenSeekbarPaddingDp,
+                        maxPaddingDp = MAX_FULLSCREEN_SEEKBAR_PADDING_DP,
                         onModeChange = { mode ->
                             coroutineScope.launch {
                                 playerPreferences.setFullscreenSeekbarPaddingMode(mode)
@@ -894,24 +951,23 @@ fun SettingsToggleItem(
 }
 
 @Composable
-private fun FullscreenSeekbarPaddingItem(
-    mode: FullscreenSeekbarPaddingMode,
+private fun SeekbarPaddingItem(
+    titleRes: Int,
+    animationLabel: String,
+    modes: List<SeekbarPaddingMode>,
+    spacedModeLabelRes: Int,
+    mode: SeekbarPaddingMode,
     customPaddingDp: Int,
     effectivePaddingDp: Int,
-    onModeChange: (FullscreenSeekbarPaddingMode) -> Unit,
+    maxPaddingDp: Int,
+    onModeChange: (SeekbarPaddingMode) -> Unit,
     onCustomPaddingChange: (Int) -> Unit
 ) {
     val animatedPreviewPadding by animateDpAsState(
         targetValue = effectivePaddingDp.dp,
         animationSpec = spring(),
-        label = "fullscreenSeekbarPreviewPadding"
+        label = animationLabel
     )
-    val options = listOf(
-        FullscreenSeekbarPaddingMode.FULL_WIDTH,
-        FullscreenSeekbarPaddingMode.DEFAULT,
-        FullscreenSeekbarPaddingMode.CUSTOM
-    )
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -929,7 +985,7 @@ private fun FullscreenSeekbarPaddingItem(
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(R.string.player_fullscreen_seekbar_width_title),
+                text = stringResource(titleRes),
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
@@ -942,14 +998,14 @@ private fun FullscreenSeekbarPaddingItem(
             )
 
             Spacer(modifier = Modifier.height(14.dp))
-            FullscreenSeekbarPaddingPreview(horizontalPadding = animatedPreviewPadding)
+            SeekbarPaddingPreview(horizontalPadding = animatedPreviewPadding)
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                options.forEach { option ->
+                modes.forEach { option ->
                     val selected = mode == option
                     Surface(
                         color = if (selected) {
@@ -979,7 +1035,9 @@ private fun FullscreenSeekbarPaddingItem(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = stringResource(getFullscreenSeekbarPaddingModeLabelRes(option)),
+                                text = stringResource(
+                                    getSeekbarPaddingModeLabelRes(option, spacedModeLabelRes)
+                                ),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                 maxLines = 1,
@@ -991,7 +1049,7 @@ private fun FullscreenSeekbarPaddingItem(
                 }
             }
 
-            if (mode == FullscreenSeekbarPaddingMode.CUSTOM) {
+            if (mode == SeekbarPaddingMode.CUSTOM) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1001,11 +1059,11 @@ private fun FullscreenSeekbarPaddingItem(
                         value = customPaddingDp.toFloat(),
                         onValueChange = { value ->
                             val snapped = ((value / 4f).roundToInt() * 4)
-                                .coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP)
+                                .coerceIn(0, maxPaddingDp)
                             onCustomPaddingChange(snapped)
                         },
-                        valueRange = 0f..MAX_FULLSCREEN_SEEKBAR_PADDING_DP.toFloat(),
-                        steps = (MAX_FULLSCREEN_SEEKBAR_PADDING_DP / 4) - 1,
+                        valueRange = 0f..maxPaddingDp.toFloat(),
+                        steps = (maxPaddingDp / 4) - 1,
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
                             activeTrackColor = MaterialTheme.colorScheme.primary,
@@ -1027,7 +1085,7 @@ private fun FullscreenSeekbarPaddingItem(
 }
 
 @Composable
-private fun FullscreenSeekbarPaddingPreview(horizontalPadding: androidx.compose.ui.unit.Dp) {
+private fun SeekbarPaddingPreview(horizontalPadding: androidx.compose.ui.unit.Dp) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
     val videoSurfaceColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
@@ -1258,10 +1316,14 @@ private fun getShortsPlayerUiModeLabelRes(mode: ShortsPlayerUiMode): Int {
     }
 }
 
-private fun getFullscreenSeekbarPaddingModeLabelRes(mode: FullscreenSeekbarPaddingMode): Int {
+private fun getSeekbarPaddingModeLabelRes(
+    mode: SeekbarPaddingMode,
+    spacedModeLabelRes: Int
+): Int {
     return when (mode) {
-        FullscreenSeekbarPaddingMode.FULL_WIDTH -> R.string.player_fullscreen_seekbar_width_full
-        FullscreenSeekbarPaddingMode.DEFAULT -> R.string.player_fullscreen_seekbar_width_default
-        FullscreenSeekbarPaddingMode.CUSTOM -> R.string.player_fullscreen_seekbar_width_custom
+        SeekbarPaddingMode.FULL_WIDTH -> R.string.player_fullscreen_seekbar_width_full
+        SeekbarPaddingMode.SPACED -> spacedModeLabelRes
+        SeekbarPaddingMode.DEFAULT -> R.string.player_fullscreen_seekbar_width_default
+        SeekbarPaddingMode.CUSTOM -> R.string.player_fullscreen_seekbar_width_custom
     }
 }
