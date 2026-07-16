@@ -51,7 +51,7 @@ fun TvVideoCard(
                     Text(
                         text = formatTvDuration(video.duration),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onInverseSurface,
+                        color = MaterialTheme.colorScheme.inverseOnSurface,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(8.dp)
