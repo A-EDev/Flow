@@ -1,22 +1,16 @@
-e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/components/TvFocusableCard.kt:17:34 Unresolved reference: focus
-e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/components/TvFocusableCard.kt:40:14 Unresolved reference: onFocusChanged
-e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/components/TvFocusableCard.kt:40:41 Unresolved reference: it
 e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/components/TvVideoCard.kt:54:59 Unresolved reference: onInverseSurface
 e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/screens/TvPlayerScreen.kt:33:38 Unresolved reference: nativeKeyEvent
-e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/components/TvFocusableCard.kt:17:34 Unresolved reference: focus
-e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/components/TvFocusableCard.kt:40:14 Unresolved reference: onFocusChanged
-e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/components/TvFocusableCard.kt:40:41 Unresolved reference: it
 e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/components/TvVideoCard.kt:54:59 Unresolved reference: onInverseSurface
 e: file:///home/runner/work/Flow/Flow/app/src/main/java/io/github/aedev/flow/ui/tv/screens/TvPlayerScreen.kt:33:38 Unresolved reference: nativeKeyEvent
 FAILURE: Build completed with 2 failures.
 * What went wrong:
-Execution failed for task ':app:compileFossDebugKotlin'.
-org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileFossDebugKotlin'.
+Execution failed for task ':app:compileGithubDebugKotlin'.
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileGithubDebugKotlin'.
 Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionException: A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
 Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details
 * What went wrong:
-Execution failed for task ':app:compileGithubDebugKotlin'.
-org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileGithubDebugKotlin'.
+Execution failed for task ':app:compileFossDebugKotlin'.
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileFossDebugKotlin'.
 Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionException: A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
 Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details
 
@@ -180,4 +174,4 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 
 ==============================================================================
 
-BUILD FAILED in 6m
+BUILD FAILED in 5m 52s
