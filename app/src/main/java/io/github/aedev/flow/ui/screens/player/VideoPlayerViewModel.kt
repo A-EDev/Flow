@@ -21,6 +21,7 @@ import io.github.aedev.flow.player.PlaybackResolverReadiness
 import io.github.aedev.flow.player.PlaybackResolverWinner
 import io.github.aedev.flow.player.PlaybackStartupPolicy
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
+import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.player.awaitFirstPlaybackResolver
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
@@ -115,6 +116,8 @@ class VideoPlayerViewModel @Inject constructor(
     private var playbackAbandonedVideoId: String? = null
     private var channelMetadataJob: Job? = null
     private var channelMetadataVideoId: String? = null
+    private var relatedVideosJob: Job? = null
+    private var relatedVideosVideoId: String? = null
     private var liveChatJob: Job? = null
     private var liveChatVideoId: String? = null
     private val homeFeedCacheRepository by lazy { HomeFeedCacheRepository(context) }
@@ -158,6 +161,9 @@ class VideoPlayerViewModel @Inject constructor(
         channelMetadataJob?.cancel()
         channelMetadataJob = null
         channelMetadataVideoId = null
+        relatedVideosJob?.cancel()
+        relatedVideosJob = null
+        relatedVideosVideoId = null
     }
 
     fun maybeStartLiveChat(videoId: String) {
@@ -1600,6 +1606,9 @@ class VideoPlayerViewModel @Inject constructor(
                                 embeddedAvatarUrls = streamInfo.uploaderAvatars.distinctBestImageUrls(),
                                 loadToken = loadToken
                             )
+                            if (!liveType) {
+                                loadRelatedVideosAfterPlayback(videoId, relatedVideos, loadToken)
+                            }
                         }
 
                         if (!isUpcomingContent && (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true)) {
@@ -2177,6 +2186,87 @@ class VideoPlayerViewModel @Inject constructor(
             ?.let(GlobalPlayerState::setCurrentVideo)
     }
 
+    private fun loadRelatedVideosAfterPlayback(
+        videoId: String,
+        primaryCandidates: List<Video>,
+        loadToken: Long
+    ) {
+        val currentCandidates = _uiState.value
+            .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
+            ?.relatedVideos
+            .orEmpty()
+        val selected = PlayerRelatedVideosPolicy.select(
+            videoId = videoId,
+            primary = primaryCandidates,
+            fallback = emptyList(),
+            current = currentCandidates
+        )
+        if (selected.isNotEmpty()) {
+            if (relatedVideosVideoId == videoId) {
+                relatedVideosJob?.cancel()
+                relatedVideosJob = null
+            }
+            relatedVideosVideoId = videoId
+            applyRelatedVideos(videoId, selected, loadToken)
+            return
+        }
+
+        if (relatedVideosVideoId == videoId && relatedVideosJob?.isActive == true) return
+        relatedVideosJob?.cancel()
+        relatedVideosVideoId = videoId
+        relatedVideosJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            // Keep this request off the critical startup path. It is only needed when the
+            // playback resolver did not provide related items with its initial metadata.
+            withTimeoutOrNull(15_000L) {
+                EnhancedPlayerManager.getInstance().playerState.first { state ->
+                    state.currentVideoId == videoId && (state.isPlaying || state.hasEnded || state.error != null)
+                }
+            }
+            if (!isPlaybackLoadCurrent(loadToken) || relatedVideosVideoId != videoId) return@launch
+
+            val fallbackCandidates = withTimeoutOrNull(10_000L) {
+                repository.getRelatedCandidates(videoId)
+            }.orEmpty()
+            if (!isPlaybackLoadCurrent(loadToken) || relatedVideosVideoId != videoId) return@launch
+
+            val resolved = PlayerRelatedVideosPolicy.select(
+                videoId = videoId,
+                primary = primaryCandidates,
+                fallback = fallbackCandidates,
+                current = _uiState.value.relatedVideos
+            )
+            if (resolved.isNotEmpty()) {
+                applyRelatedVideos(videoId, resolved, loadToken)
+            } else {
+                Log.d("VideoPlayerViewModel", "No related videos resolved for $videoId")
+            }
+        }
+    }
+
+    private fun applyRelatedVideos(videoId: String, videos: List<Video>, loadToken: Long) {
+        if (!isPlaybackLoadCurrent(loadToken) || videos.isEmpty()) return
+        val state = _uiState.value
+        if (state.cachedVideo?.id != videoId && state.streamInfo?.id != videoId) return
+
+        viewModelScope.launch {
+            if (!isPlaybackLoadCurrent(loadToken)) return@launch
+            val autoplay = playerPreferences.autoplayEnabled.first()
+            if (!isPlaybackLoadCurrent(loadToken)) return@launch
+            EnhancedPlayerManager.getInstance().setAutoplayCandidates(
+                sourceVideoId = videoId,
+                videos = videos,
+                enabled = autoplay
+            )
+            _uiState.update { current ->
+                if (current.cachedVideo?.id != videoId && current.streamInfo?.id != videoId) {
+                    current
+                } else {
+                    current.copy(relatedVideos = videos)
+                }
+            }
+        }
+    }
+
     private fun enrichPlaybackMetadataWhenReady(
         videoId: String,
         streamInfoDeferred: Deferred<Pair<StreamInfo?, Throwable?>>,
@@ -2194,10 +2284,12 @@ class VideoPlayerViewModel @Inject constructor(
 
             if (!isPlaybackLoadCurrent(loadToken)) return@launch
 
-            val relatedVideos = repository.getRelatedVideosFromStreamInfo(streamInfo)
-                .filter { it.id != videoId }
-                .distinctBy { it.id }
-            val autoplay = playerPreferences.autoplayEnabled.first()
+            val relatedVideos = PlayerRelatedVideosPolicy.select(
+                videoId = videoId,
+                primary = repository.getRelatedVideosFromStreamInfo(streamInfo),
+                fallback = emptyList(),
+                current = emptyList()
+            )
             val cached = _uiState.value.cachedVideo ?: return@launch
             if (cached.id != videoId) return@launch
 
@@ -2218,13 +2310,6 @@ class VideoPlayerViewModel @Inject constructor(
                     return@withContext
                 }
                 GlobalPlayerState.setCurrentVideo(enriched)
-                if (relatedVideos.isNotEmpty()) {
-                    EnhancedPlayerManager.getInstance().setAutoplayCandidates(
-                        sourceVideoId = videoId,
-                        videos = relatedVideos,
-                        enabled = autoplay
-                    )
-                }
                 _uiState.update {
                     it.copy(
                         cachedVideo = enriched,
@@ -2234,6 +2319,8 @@ class VideoPlayerViewModel @Inject constructor(
                     )
                 }
             }
+
+            loadRelatedVideosAfterPlayback(videoId, relatedVideos, loadToken)
 
             loadChannelMetadataAfterPlayback(
                 videoId = videoId,
@@ -2367,6 +2454,8 @@ class VideoPlayerViewModel @Inject constructor(
 
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         manager.play()
+
+        loadRelatedVideosAfterPlayback(videoId, relatedVideos, loadToken)
 
         loadChannelMetadataAfterPlayback(
             videoId = videoId,
