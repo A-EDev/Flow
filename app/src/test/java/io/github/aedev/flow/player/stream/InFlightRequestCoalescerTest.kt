@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -69,6 +70,35 @@ class InFlightRequestCoalescerTest {
             release.complete(Unit)
 
             assertEquals("streams", survivingWaiter.await())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `cancelling the last waiter cancels unobserved work`() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val coalescer = InFlightRequestCoalescer<String, String>(scope)
+            val started = CompletableDeferred<Unit>()
+            val cancelled = CompletableDeferred<Unit>()
+
+            val onlyWaiter = async(start = CoroutineStart.UNDISPATCHED) {
+                coalescer.run("video") {
+                    try {
+                        started.complete(Unit)
+                        CompletableDeferred<Unit>().await()
+                        "streams"
+                    } finally {
+                        cancelled.complete(Unit)
+                    }
+                }
+            }
+
+            started.await()
+            onlyWaiter.cancelAndJoin()
+
+            cancelled.await()
         } finally {
             scope.cancel()
         }

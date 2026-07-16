@@ -1,0 +1,104 @@
+package io.github.aedev.flow.player
+
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
+
+class BackgroundPlaybackPolicyTest {
+    @Test
+    fun `manual background playback survives activity destruction`() {
+        val shouldKeepPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
+            backgroundPlaybackPreferenceEnabled = false,
+            explicitBackgroundPlaybackActive = true,
+            hasActiveVideo = true
+        )
+
+        assertThat(shouldKeepPlayback).isTrue()
+    }
+
+    @Test
+    fun `ordinary foreground playback stops when activity is destroyed`() {
+        val shouldKeepPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
+            backgroundPlaybackPreferenceEnabled = false,
+            explicitBackgroundPlaybackActive = false,
+            hasActiveVideo = true
+        )
+
+        assertThat(shouldKeepPlayback).isFalse()
+    }
+
+    @Test
+    fun `background preference does not retain inactive playback`() {
+        val shouldKeepPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
+            backgroundPlaybackPreferenceEnabled = true,
+            explicitBackgroundPlaybackActive = false,
+            hasActiveVideo = false
+        )
+
+        assertThat(shouldKeepPlayback).isFalse()
+    }
+
+    @Test
+    fun `selecting current background video reopens it`() {
+        val shouldReopen = BackgroundPlaybackPolicy.shouldReopenCurrentVideo(
+            requestedVideoId = "video-id",
+            currentVideoId = "video-id",
+            isBackgroundPlaybackMode = true,
+            isMiniPlayerCollapsed = false,
+            hasReusablePlayback = true
+        )
+
+        assertThat(shouldReopen).isTrue()
+    }
+
+    @Test
+    fun `selecting current video in mini player expands existing playback`() {
+        val shouldReopen = BackgroundPlaybackPolicy.shouldReopenCurrentVideo(
+            requestedVideoId = "video-id",
+            currentVideoId = "video-id",
+            isBackgroundPlaybackMode = false,
+            isMiniPlayerCollapsed = true,
+            hasReusablePlayback = true
+        )
+
+        assertThat(shouldReopen).isTrue()
+    }
+
+    @Test
+    fun `selecting a different background video starts a new playback`() {
+        val shouldReopen = BackgroundPlaybackPolicy.shouldReopenCurrentVideo(
+            requestedVideoId = "new-video-id",
+            currentVideoId = "current-video-id",
+            isBackgroundPlaybackMode = true,
+            isMiniPlayerCollapsed = false,
+            hasReusablePlayback = true
+        )
+
+        assertThat(shouldReopen).isFalse()
+    }
+
+    @Test
+    fun `selecting same video while full player is open keeps normal selection behavior`() {
+        val shouldReopen = BackgroundPlaybackPolicy.shouldReopenCurrentVideo(
+            requestedVideoId = "video-id",
+            currentVideoId = "video-id",
+            isBackgroundPlaybackMode = false,
+            isMiniPlayerCollapsed = false,
+            hasReusablePlayback = true
+        )
+
+        assertThat(shouldReopen).isFalse()
+    }
+
+    @Test
+    fun `minimized placeholder without loaded playback still loads video`() {
+        val shouldReopen = BackgroundPlaybackPolicy.shouldReopenCurrentVideo(
+            requestedVideoId = "video-id",
+            currentVideoId = "video-id",
+            isBackgroundPlaybackMode = false,
+            isMiniPlayerCollapsed = true,
+            hasReusablePlayback = false
+        )
+
+        assertThat(shouldReopen).isFalse()
+    }
+}

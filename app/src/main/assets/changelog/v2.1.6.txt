@@ -51,6 +51,7 @@ IMPROVEMENTS
 - Improve Theme color schemes and add Theme Variants (Light, Dark, AMOLED)
 - Refine the subscriptions feed cards to match the home layout #678
 - Onboarding screen redesign
+- Faster playback startup
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578
