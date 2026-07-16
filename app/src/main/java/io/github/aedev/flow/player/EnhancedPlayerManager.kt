@@ -1470,6 +1470,7 @@ class EnhancedPlayerManager private constructor() {
                     isBuffering = true,
                     isPlaying = false,
                     playWhenReady = true,
+                    isPrepared = false,
                     hasEnded = false,
                     error = null
                 )
@@ -1495,6 +1496,9 @@ class EnhancedPlayerManager private constructor() {
                 }
 
                 val extraction = extractionDeferred.await()
+                if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "streams-resolved")) {
+                    return@launch
+                }
                 val sabrInfo = extraction?.sabrInfo
                 val enrichedVideo = videoFromStreamInfo(video.id, streamInfo, fallback = video)
                 GlobalPlayerState.setCurrentVideo(enrichedVideo)
@@ -1535,6 +1539,9 @@ class EnhancedPlayerManager private constructor() {
                 }
 
                 val selected = selectStreamsForServicePlayback(mergedVideoStreams, mergedAudioStreams, preferredQuality, preferredAudioLanguage, preferredCodecKey)
+                if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "before-commit")) {
+                    return@launch
+                }
                 setStreams(
                     videoId = enrichedVideo.id,
                     videoStream = selected.first,
@@ -1572,6 +1579,27 @@ class EnhancedPlayerManager private constructor() {
                 autoplayJob = null
             }
         }
+    }
+
+    private fun shouldAbortServicePlaybackLoad(
+        videoId: String,
+        reason: String,
+        checkpoint: String,
+    ): Boolean {
+        val decision = ServicePlaybackLoadPolicy.decide(
+            requestedVideoId = videoId,
+            playerVideoId = _playerState.value.currentVideoId,
+            globalVideoId = GlobalPlayerState.currentVideo.value?.id,
+            isPreparedForRequestedVideo = isPreparedForPlayback(videoId),
+        )
+        if (decision == ServicePlaybackCommitDecision.COMMIT) return false
+
+        autoNextLog(
+            "playVideoFromServiceLayer skipped video=$videoId reason=$reason " +
+                "checkpoint=$checkpoint decision=$decision"
+        )
+        releaseAdvanceWakeLock()
+        return true
     }
 
     private data class ResolvedStreamData(
