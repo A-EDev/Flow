@@ -1410,4 +1410,20 @@
     <string name="appearance_navigate_back">Zurück</string>
     <string name="player_appearance_hide_music_artwork_title">Cover des Musik-Players ausblenden</string>
     <string name="player_appearance_hide_music_artwork_subtitle">Zeige stattdessen das App-Symbol in der Farbe des extrahierten Bildmaterials an</string>
+    <string name="content_settings_shorts_player_prompt_subtitle">Vor dem Wechsel zu Videos unter 2 Minuten zum Shorts-Player nachfragen</string>
+    <string name="settings_home_nav_tab_title">Registerkarte „Startseite“</string>
+    <string name="playback_speed_multiplier">%1$s×</string>
+    <string name="playback_speed_multiplier_precise">%1$.2f×</string>
+    <string name="import_yt_playlist_empty_error">In dieser CSV-Datei wurden keine Videos gefunden. Bitte stellen Sie sicher, dass es sich um eine CSV-Datei einer YouTube-Takeout-Playlist handelt.</string>
+    <string name="files_access_granted_subtitle">Zugegeben – die Downloads erscheinen sofort</string>
+    <string name="files_access_denied_subtitle">Nicht gewährt – zum Anzeigen der vollständigen Download-Liste hier antippen</string>
+    <string name="media_access_granted_subtitle">Zugegeben</string>
+    <string name="media_access_denied_subtitle">Nicht gewährt – zum Aktivieren antippen</string>
+    <string name="audio_access_title">Zugang zu Musik und Audioinhalten</string>
+    <string name="audio_access_granted_subtitle">Zugegeben</string>
+    <string name="audio_access_denied_subtitle">Nicht gewährt – zum Aktivieren antippen</string>
+    <string name="free_space_template">%1$s kostenlos</string>
+    <string name="total_space_template">Gesamt: %1$s</string>
+    <string name="video_download_location_label">Speicherort für Videodownloads</string>
+    <string name="music_download_location_label">Speicherort für Musikdownloads</string>
 </resources>
