@@ -187,7 +187,7 @@ class SubscriptionsViewModel : ViewModel() {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             combine(
                 viewHistory.getVideoHistoryFlow(),
-                playerPreferences.hideWatchedVideos,
+                playerPreferences.hideWatchedVideosFromSubscriptions,
                 playerPreferences.watchedThreshold,
                 database.downloadDao().getVideoDownloads()
             ) { history, hideWatched, threshold, downloads ->

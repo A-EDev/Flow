@@ -589,7 +589,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             combine(
                 viewHistory!!.getVideoHistoryFlow(),
-                playerPreferences.hideWatchedVideos,
+                playerPreferences.hideWatchedVideosFromHome,
                 playerPreferences.watchedThreshold,
                 playerPreferences.continueWatchingEnabled
             ) { history, hideWatched, threshold, continueWatchingEnabled ->

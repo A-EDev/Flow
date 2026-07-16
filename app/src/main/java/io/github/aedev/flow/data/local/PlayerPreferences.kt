@@ -15,6 +15,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
+internal fun resolveMigratedHideWatchedPreference(
+    splitValue: Boolean?,
+    legacyValue: Boolean?
+): Boolean = splitValue ?: legacyValue ?: false
+
 private val Context.playerPreferencesDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "player_preferences")
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
@@ -231,6 +236,8 @@ class PlayerPreferences(context: Context) {
 
         // Content filtering
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
+        val HIDE_WATCHED_HOME_FEED = booleanPreferencesKey("hide_watched_home_feed")
+        val HIDE_WATCHED_SUBSCRIPTIONS = booleanPreferencesKey("hide_watched_subscriptions")
         val WATCHED_THRESHOLD = stringPreferencesKey("watched_threshold")
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
         val SHOW_SHORTS_PLAYER_PROMPT = booleanPreferencesKey("show_shorts_player_prompt")
@@ -1611,14 +1618,31 @@ class PlayerPreferences(context: Context) {
     }
 
     // Content filtering
-    val hideWatchedVideos: Flow<Boolean> = context.playerPreferencesDataStore.data
+    val hideWatchedVideosFromHome: Flow<Boolean> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.HIDE_WATCHED_VIDEOS] ?: false
+            resolveMigratedHideWatchedPreference(
+                splitValue = preferences[Keys.HIDE_WATCHED_HOME_FEED],
+                legacyValue = preferences[Keys.HIDE_WATCHED_VIDEOS]
+            )
         }
 
-    suspend fun setHideWatchedVideos(enabled: Boolean) {
+    suspend fun setHideWatchedVideosFromHome(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.HIDE_WATCHED_VIDEOS] = enabled
+            preferences[Keys.HIDE_WATCHED_HOME_FEED] = enabled
+        }
+    }
+
+    val hideWatchedVideosFromSubscriptions: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            resolveMigratedHideWatchedPreference(
+                splitValue = preferences[Keys.HIDE_WATCHED_SUBSCRIPTIONS],
+                legacyValue = preferences[Keys.HIDE_WATCHED_VIDEOS]
+            )
+        }
+
+    suspend fun setHideWatchedVideosFromSubscriptions(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HIDE_WATCHED_SUBSCRIPTIONS] = enabled
         }
     }
 
