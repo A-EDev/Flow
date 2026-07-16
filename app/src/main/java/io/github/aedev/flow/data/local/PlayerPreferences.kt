@@ -2547,9 +2547,12 @@ enum class WatchedThreshold(val minPercent: Float, val maxRemainingMs: Long) {
     ALMOST_FINISHED(99f, 60_000L);
 
     fun isWatched(positionMs: Long, durationMs: Long): Boolean {
-        if (durationMs <= 0L) return false
+        if (positionMs <= 0L || durationMs <= 0L) return false
         val percent = positionMs.toFloat() / durationMs.toFloat() * 100f
-        return percent >= minPercent && durationMs - positionMs <= maxRemainingMs
+        return when (this) {
+            ALMOST_FINISHED -> durationMs - positionMs <= maxRemainingMs
+            else -> percent >= minPercent
+        }
     }
 }
 

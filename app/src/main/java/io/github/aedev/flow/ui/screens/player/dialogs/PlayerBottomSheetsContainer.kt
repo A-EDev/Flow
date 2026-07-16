@@ -228,6 +228,10 @@ fun PlayerBottomSheetsContainer(
             queueVideos = queueVideos,
             currentQueueIndex = currentQueueIndex,
             playlistTitle = playerState.queueTitle,
+            isLooping = playerState.isQueueLooping,
+            isShuffled = playerState.isQueueShuffled,
+            onLoopToggle = EnhancedPlayerManager.getInstance()::toggleQueueLoop,
+            onShuffleToggle = EnhancedPlayerManager.getInstance()::toggleQueueShuffle,
             onPlayVideoAtIndex = { index ->
                 EnhancedPlayerManager.getInstance().playVideoAtIndex(index)
             },

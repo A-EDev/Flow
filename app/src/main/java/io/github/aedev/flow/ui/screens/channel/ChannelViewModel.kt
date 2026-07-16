@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
 import io.github.aedev.flow.data.paging.ChannelPlaylistsPagingSource
 import io.github.aedev.flow.innertube.pages.CommunityPost
+import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.ui.youtubeChannelUrl
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -97,7 +98,13 @@ class ChannelViewModel : ViewModel() {
         }
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    error = null,
+                    channelVideoCountText = null,
+                )
+            }
             
             try {
                 Log.d(TAG, "Loading channel: $channelUrl")
@@ -138,6 +145,7 @@ class ChannelViewModel : ViewModel() {
                     ?: channelInfo.avatars.firstOrNull()?.url
                     ?: ""
                 communityController.reset(channelId, channelInfo.name, channelAvatar)
+                loadChannelVideoCount(channelId, channelInfo.name, channelAvatar)
                 if (_uiState.value.selectedTab == POSTS_TAB_INDEX) {
                     communityController.ensurePostsLoaded()
                 }
@@ -162,6 +170,27 @@ class ChannelViewModel : ViewModel() {
     
     private fun normalizeChannelUrl(url: String): String {
         return youtubeChannelUrl(url).orEmpty()
+    }
+
+    private fun loadChannelVideoCount(
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+    ) {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val videoCountText = YouTube.channelVideos(
+                channelId = channelId,
+                channelName = channelName,
+                channelThumbnailUrl = channelThumbnailUrl,
+            ).getOrNull()?.channelVideoCountText ?: return@launch
+            _uiState.update { state ->
+                if (state.channelId == channelId) {
+                    state.copy(channelVideoCountText = videoCountText)
+                } else {
+                    state
+                }
+            }
+        }
     }
     
     /**
@@ -611,6 +640,7 @@ data class ChannelUiState(
     val channelId: String? = null,
     val channelInfo: ChannelInfo? = null,
     val channelVideos: List<Video> = emptyList(),
+    val channelVideoCountText: String? = null,
     val isLoading: Boolean = false,
     val isLoadingVideos: Boolean = false,
     val error: String? = null,

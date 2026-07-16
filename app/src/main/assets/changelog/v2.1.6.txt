@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.6
-DATE: 2026-07-13
+DATE: 2026-07-16
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -19,6 +19,7 @@ NEW FEATURES
 - Add channel sorting options in subscriptions (default, name A–Z, recently updated) #498
 - Add new vetrical video fullscreen drag gesture
 - Add community posts support
+- Add playlist loop and shuffle actions
 
 IMPROVEMENTS
 - Improve media notification handling #577

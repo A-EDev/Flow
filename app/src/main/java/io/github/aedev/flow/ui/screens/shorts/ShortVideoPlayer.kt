@@ -39,9 +39,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
@@ -49,11 +51,13 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
+import io.github.aedev.flow.data.shorts.ShortVideoQuality
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.player.stream.StreamProcessor
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
 import io.github.aedev.flow.ui.components.playbackSpeedOptions
@@ -130,7 +134,7 @@ fun ShortVideoPage(
     var showImpressiveControls by remember(video.id, isActive) { mutableStateOf(false) }
     val controlsVisible = !isImpressiveShortsUi || showImpressiveControls
     val seekBarTouchHeight = 28.dp
-    val seekBarBottomPadding = (bottomNavOverlayPadding + 2.dp).coerceAtLeast(2.dp)
+    val seekBarBottomPadding = bottomNavOverlayPadding.coerceAtLeast(0.dp)
     val controlsBottomPadding = seekBarBottomPadding + 34.dp
     val seekBarInteractionSource = remember { MutableInteractionSource() }
 
@@ -878,11 +882,13 @@ fun ShortVideoPage(
                 interactionSource = seekBarInteractionSource,
                 duration = duration,
                 edgeAligned = true,
+                enabled = isActive,
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
                     .padding(bottom = seekBarBottomPadding)
                     .height(seekBarTouchHeight)
+                    .zIndex(1f)
             )
         }
     }
@@ -899,6 +905,10 @@ fun ShortVideoPage(
                 showShortsOptionsSheet = false
                 onNotInterested()
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            },
+            ambientModeEnabled = ambientModeEnabled,
+            onAmbientModeToggle = { enabled ->
+                scope.launch { playerPreferences.setVideoAmbientModeEnabled(enabled) }
             },
             onDownloadClick = {
                 showShortsOptionsSheet = false
@@ -947,6 +957,28 @@ fun ShortVideoPage(
                     isLoadingStreams = true
                     scope.launch {
                         availableQualities = viewModel.getAvailableQualities(video.id)
+                        val activeFormat = playerPool.getPlayerForIndex(pageIndex)?.videoFormat
+                        val activeCodecKey = activeFormat?.let { format ->
+                            VideoCodecUtils.codecKeyFromMimeType(
+                                buildString {
+                                    append(format.sampleMimeType.orEmpty())
+                                    format.codecs?.takeIf { it.isNotBlank() }?.let { codecs ->
+                                        append("; codecs=\"")
+                                        append(codecs)
+                                        append('"')
+                                    }
+                                }
+                            )
+                        }
+                        val activeQuality = findActiveShortQuality(
+                            qualities = availableQualities,
+                            currentVideoUrl = playerPool.getVideoUrlForIndex(pageIndex),
+                            activeVideoWidth = activeFormat?.width ?: 0,
+                            activeVideoHeight = activeFormat?.height ?: 0,
+                            activeCodecKey = activeCodecKey
+                        )
+                        selectedQualityHeight = activeQuality?.heightClass ?: -1
+                        selectedQualityUrl = activeQuality?.videoUrl
                         isLoadingStreams = false
                         if (availableQualities.isNotEmpty()) showQualitySheet = true
                     }
@@ -1041,6 +1073,8 @@ private fun ShortsOptionsSheet(
     onWantMore: () -> Unit,
     onNotInterested: () -> Unit,
     onDislikeClick: () -> Unit = {},
+    ambientModeEnabled: Boolean,
+    onAmbientModeToggle: (Boolean) -> Unit,
     onDownloadClick: () -> Unit,
     onAudioTrackClick: () -> Unit,
     onQualityClick: () -> Unit,
@@ -1061,6 +1095,36 @@ private fun ShortsOptionsSheet(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
             HorizontalDivider()
+            Surface(
+                onClick = { onAmbientModeToggle(!ambientModeEnabled) },
+                color = Color.Transparent,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = ImageVector.vectorResource(R.drawable.ic_ambient_mode),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.player_settings_ambient_mode),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = ambientModeEnabled,
+                        onCheckedChange = null
+                    )
+                }
+            }
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
             Surface(
                 onClick = onWantMore,
                 color = Color.Transparent,
@@ -1412,9 +1476,11 @@ private fun ShortsAudioTrackSheet(
                         )
                     val bitrateLabel = if (stream.averageBitrate >= 1000) "${stream.averageBitrate / 1000} kbps" else ""
                     val isSelected = index == selectedIndex
+                    val selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     Surface(
                         onClick = { onTrackSelected(index) },
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        contentColor = if (isSelected) selectedContentColor else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -1428,14 +1494,15 @@ private fun ShortsAudioTrackSheet(
                                 Text(
                                     text = displayName,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                    color = if (isSelected) selectedContentColor
                                             else MaterialTheme.colorScheme.onSurface
                                 )
                                 if (bitrateLabel.isNotEmpty()) {
                                     Text(
                                         text = bitrateLabel,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (isSelected) selectedContentColor.copy(alpha = 0.72f)
+                                            else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -1443,7 +1510,7 @@ private fun ShortsAudioTrackSheet(
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = selectedContentColor
                                 )
                             }
                         }
@@ -1457,10 +1524,10 @@ private fun ShortsAudioTrackSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ShortsQualitySheet(
-    qualities: List<io.github.aedev.flow.data.shorts.ShortVideoQuality>,
+    qualities: List<ShortVideoQuality>,
     selectedHeight: Int?,
     selectedVideoUrl: String?,
-    onQualitySelected: (io.github.aedev.flow.data.shorts.ShortVideoQuality) -> Unit,
+    onQualitySelected: (ShortVideoQuality) -> Unit,
     groupedByResolution: Boolean,
     onDismiss: () -> Unit
 ) {

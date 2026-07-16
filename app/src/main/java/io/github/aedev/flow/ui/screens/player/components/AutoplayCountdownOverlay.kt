@@ -113,7 +113,7 @@ private fun CountdownCard(
 
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.background,
         modifier = modifier
             .padding(horizontal = 20.dp)
             .widthIn(max = if (compactActions) 420.dp else 560.dp)

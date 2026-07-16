@@ -209,10 +209,10 @@ fun EnhancedVideoPlayerScreen(
             val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(initialValue = -1)
 
             if ((playerState.queueTitle != null && queueVideos.isNotEmpty()) || (playerState.queueTitle == null && queueVideos.size > 1)) {
-                val nextVideoTitle = if (currentQueueIndex < queueVideos.size - 1) {
-                    queueVideos[currentQueueIndex + 1].title
-                } else {
-                    null
+                val nextVideoTitle = when {
+                    currentQueueIndex < queueVideos.lastIndex -> queueVideos[currentQueueIndex + 1].title
+                    playerState.isQueueLooping -> queueVideos.firstOrNull()?.title
+                    else -> null
                 }
 
                 PlaylistQueueDock(

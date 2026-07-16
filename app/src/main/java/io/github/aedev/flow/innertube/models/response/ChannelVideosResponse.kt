@@ -11,6 +11,8 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class ChannelVideosResponse(
+    @SerialName("header")
+    val header: Header? = null,
     @SerialName("contents")
     val contents: Contents? = null,
     @SerialName("metadata")
@@ -20,6 +22,42 @@ data class ChannelVideosResponse(
     @SerialName("onResponseReceivedActions")
     val onResponseReceivedActions: List<OnResponseReceivedAction>? = null,
 ) {
+    @Serializable
+    data class Header(
+        @SerialName("pageHeaderRenderer")
+        val pageHeaderRenderer: PageHeaderRenderer? = null,
+    ) {
+        @Serializable
+        data class PageHeaderRenderer(
+            @SerialName("content")
+            val content: PageHeaderContent? = null,
+        )
+
+        @Serializable
+        data class PageHeaderContent(
+            @SerialName("pageHeaderViewModel")
+            val pageHeaderViewModel: PageHeaderViewModel? = null,
+        )
+
+        @Serializable
+        data class PageHeaderViewModel(
+            @SerialName("metadata")
+            val metadata: HeaderMetadata? = null,
+        )
+
+        @Serializable
+        data class HeaderMetadata(
+            @SerialName("contentMetadataViewModel")
+            val contentMetadataViewModel: HeaderContentMetadata? = null,
+        )
+
+        @Serializable
+        data class HeaderContentMetadata(
+            @SerialName("metadataRows")
+            val metadataRows: List<LockupViewModel.MetadataRow>? = null,
+        )
+    }
+
     @Serializable
     data class Metadata(
         @SerialName("channelMetadataRenderer")
@@ -195,6 +233,8 @@ data class ChannelVideosResponse(
         data class MetadataPart(
             @SerialName("text")
             val text: TextContent? = null,
+            @SerialName("accessibilityLabel")
+            val accessibilityLabel: String? = null,
         )
 
         @Serializable
@@ -357,4 +397,22 @@ data class ChannelVideosResponse(
             val continuationItems: List<RichItem>? = null,
         )
     }
+}
+
+internal fun ChannelVideosResponse.channelVideoCountText(): String? {
+    val metadataRows = header
+        ?.pageHeaderRenderer
+        ?.content
+        ?.pageHeaderViewModel
+        ?.metadata
+        ?.contentMetadataViewModel
+        ?.metadataRows
+        .orEmpty()
+    val statsRow = metadataRows.firstOrNull { it.metadataParts.orEmpty().size > 1 } ?: return null
+    return statsRow.metadataParts
+        ?.lastOrNull()
+        ?.text
+        ?.content
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
 }

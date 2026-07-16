@@ -243,6 +243,15 @@ fun FlowApp(
     
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     val currentVideo by GlobalPlayerState.currentVideo.collectAsState()
+    val isShortsPlayerRoute =
+        currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer"
+
+    LaunchedEffect(isShortsPlayerRoute) {
+        if (isShortsPlayerRoute) {
+            EnhancedPlayerManager.getInstance().pause()
+            GlobalPlayerState.hideMiniPlayer()
+        }
+    }
     
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
@@ -434,8 +443,7 @@ fun FlowApp(
                 !isInPipMode &&
                 showBottomNav.value &&
                 isNavScrolledVisible &&
-                currentRoute.value != "shorts" &&
-                currentRoute.value != "savedShortsPlayer"
+                !isShortsPlayerRoute
             ) {
                 bottomNavContentHeightDp
             } else {
@@ -453,7 +461,7 @@ fun FlowApp(
         ) { paddingValues ->
             val layoutDirection = LocalLayoutDirection.current
             val contentPadding = if (
-                currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer"
+                isShortsPlayerRoute
             ) {
                 PaddingValues(
                     start = paddingValues.calculateStartPadding(layoutDirection),
@@ -533,9 +541,9 @@ fun FlowApp(
                             disableShortsPlayer = disableShortsPlayer,
                             defaultStartRoute = defaultStartRoute,
                             bottomNavOverlayPadding = if (showBottomNav.value && isNavScrolledVisible) {
-                                bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
+                                bottomNavContentHeightDp
                             } else {
-                                with(density) { navBarBottomInset.toDp() }
+                                0.dp
                             }
                         )
                     }
@@ -605,7 +613,7 @@ fun FlowApp(
     // ===== GLOBAL PLAYER OVERLAY =====
     GlobalPlayerOverlay(
         video = activeVideo,
-        isVisible = playerVisible,
+        isVisible = playerVisible && !isShortsPlayerRoute,
         playerSheetState = playerSheetState,
         bottomPadding = animatedBottomPadding,
         miniPlayerScale = miniPlayerScale,

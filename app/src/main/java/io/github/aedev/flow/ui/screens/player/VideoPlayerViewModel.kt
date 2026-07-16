@@ -941,6 +941,7 @@ class VideoPlayerViewModel @Inject constructor(
                 offlineSegments = latest.offlineSponsorBlockSegments,
                 hlsUrl = latest.hlsUrl,
                 isAdaptiveMode = latest.isAdaptiveMode,
+                resumeOverrideRequested = false,
                 loadToken = loadToken,
                 preferredVideoCodec = playerPreferences.defaultVideoCodec.first().codecKey
             )
@@ -1499,6 +1500,7 @@ class VideoPlayerViewModel @Inject constructor(
                                 hlsUrl = liveHlsUrl,
                                 dashManifestUrl = effectiveDashUrl,
                                 isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
+                                resumeOverrideRequested = resumePositionOverrideMs != null,
                                 loadToken = loadToken,
                                 sabrInfo = resolvedSabrInfo,
                                 itVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
@@ -1805,6 +1807,7 @@ class VideoPlayerViewModel @Inject constructor(
         offlineSegments: List<SponsorBlockSegment>?,
         hlsUrl: String?,
         isAdaptiveMode: Boolean,
+        resumeOverrideRequested: Boolean,
         loadToken: Long,
         sabrInfo: SabrStreamInfo? = null,
         itVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
@@ -1825,11 +1828,13 @@ class VideoPlayerViewModel @Inject constructor(
             else -> (_uiState.value.cachedVideo?.duration?.toLong() ?: 0L) * 1000L
         }
         val isLiveStream = streamInfo.streamType == StreamType.LIVE_STREAM
-        val resumePosition = savedPosition
-            .takeIf { it > 500L }
-            ?.takeIf { !isLiveStream && hlsUrl.isNullOrEmpty() }
-            ?.takeUnless { PlaybackResumePolicy.shouldRestartCompletedPlayback(it, durationMs) }
-            ?: 0L
+        val resumePosition = PlaybackResumePolicy.resolveStartPosition(
+            savedPosition = savedPosition,
+            durationMs = durationMs,
+            resumeAllowed = !isLiveStream &&
+                hlsUrl.isNullOrEmpty() &&
+                (resumeOverrideRequested || !manager.isCurrentQueueVideo(videoId))
+        )
 
         if (localFilePath != null) {
             manager.playLocalFile(
@@ -2037,10 +2042,11 @@ class VideoPlayerViewModel @Inject constructor(
             ?.takeIf { it > 0L }
             ?: viewHistory.getPlaybackPosition(videoId).first()
         val durationMs = durationSeconds * 1000L
-        val resumePosition = savedPositionMs
-            .takeIf { it > 500L }
-            ?.takeUnless { PlaybackResumePolicy.shouldRestartCompletedPlayback(it, durationMs) }
-            ?: 0L
+        val resumePosition = PlaybackResumePolicy.resolveStartPosition(
+            savedPosition = savedPositionMs,
+            durationMs = durationMs,
+            resumeAllowed = resumePositionOverrideMs != null || !manager.isCurrentQueueVideo(videoId)
+        )
         val isAdaptiveMode = preferredQuality == VideoQuality.AUTO
 
         Log.w(
@@ -2186,11 +2192,16 @@ class VideoPlayerViewModel @Inject constructor(
         if (manager.isPreparedForPlayback(videoId)) return@withContext
 
         manager.initialize(context)
+        val startPosition = PlaybackResumePolicy.resolveStartPosition(
+            savedPosition = savedPosition,
+            durationMs = 0L,
+            resumeAllowed = !manager.isCurrentQueueVideo(videoId)
+        )
         manager.playLocalFile(
             videoId = videoId,
             filePath = localFilePath,
             savedSegments = offlineSegments,
-            preservePosition = savedPosition.takeIf { it > 500L }
+            preservePosition = startPosition.takeIf { it > 0L }
         )
         applyRememberedPlaybackSpeed(isLive = false, manager = manager)
 

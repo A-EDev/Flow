@@ -29,6 +29,7 @@ import io.github.aedev.flow.innertube.models.oddElements
 import io.github.aedev.flow.innertube.models.response.AccountMenuResponse
 import io.github.aedev.flow.innertube.models.response.BrowseResponse
 import io.github.aedev.flow.innertube.models.response.ChannelVideosResponse
+import io.github.aedev.flow.innertube.models.response.channelVideoCountText
 import io.github.aedev.flow.innertube.models.response.CreatePlaylistResponse
 import io.github.aedev.flow.innertube.models.response.EditPlaylistResponse
 import io.github.aedev.flow.innertube.models.response.FeedbackResponse
@@ -499,6 +500,7 @@ object YouTube {
     data class ChannelVideoSearchResult(
         val videos: List<io.github.aedev.flow.data.model.Video>,
         val continuation: String?,
+        val channelVideoCountText: String? = null,
     )
 
     /**
@@ -757,6 +759,7 @@ object YouTube {
         return ChannelVideoSearchResult(
             videos = videos.distinctBy { it.id },
             continuation = nextContinuation,
+            channelVideoCountText = response.channelVideoCountText(),
         )
     }
 
