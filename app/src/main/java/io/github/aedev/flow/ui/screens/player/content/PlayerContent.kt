@@ -206,10 +206,15 @@ fun PlayerContent(
             isBuffering = playerState.isBuffering,
             currentPosition = screenState.currentPosition,
             duration = screenState.duration,
-            qualityLabel = if (playerState.currentQuality == 0) 
-                stringResource(R.string.quality_auto_template, playerState.effectiveQuality) 
-            else 
-                playerState.currentQuality.toString(),
+            qualityLabel = resolvePlayerQualityLabel(
+                currentQuality = playerState.currentQuality,
+                effectiveQuality = playerState.effectiveQuality,
+                autoLabel = stringResource(R.string.quality_auto),
+                autoWithHeightLabel = stringResource(
+                    R.string.quality_auto_template,
+                    playerState.effectiveQuality,
+                ),
+            ),
             videoTitle = resolvedVideoTitle,
             playbackSpeed = playerState.playbackSpeed,
             resizeMode = screenState.resizeMode,

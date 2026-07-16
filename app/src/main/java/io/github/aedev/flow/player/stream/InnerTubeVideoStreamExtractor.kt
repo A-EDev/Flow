@@ -17,7 +17,9 @@ import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import io.github.aedev.flow.utils.cipher.PipePipeNsigDecoder
 import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -26,6 +28,14 @@ object InnerTubeVideoStreamExtractor {
     private const val PER_CLIENT_TIMEOUT_MS = 6000L
     private const val WEB_PLAYER_TIMEOUT_MS = 10000L
     private val N_PARAM_REGEX = Regex("""(?:^|[?&])n=([^&]+)""")
+    private val extractionCoalescer = InFlightRequestCoalescer<ExtractionKey, VideoExtractionResult?>(
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    )
+
+    private data class ExtractionKey(
+        val videoId: String,
+        val forceSabr: Boolean,
+    )
 
     //* Fast, token-free clients tried first. They return direct adaptive URLs (played via normal DASH/progressive) when not bot-walled
     private val FAST_CLIENTS: List<YouTubeClient> = listOf(
@@ -66,7 +76,17 @@ object InnerTubeVideoStreamExtractor {
 
 
     @OptIn(UnstableApi::class)
-    suspend fun extract(videoId: String, forceSabr: Boolean = false): VideoExtractionResult? = withContext(Dispatchers.IO) {
+    suspend fun extract(videoId: String, forceSabr: Boolean = false): VideoExtractionResult? {
+        val key = ExtractionKey(videoId, forceSabr)
+        return extractionCoalescer.run(key) {
+            extractUnshared(videoId, forceSabr)
+        }
+    }
+
+    private suspend fun extractUnshared(
+        videoId: String,
+        forceSabr: Boolean,
+    ): VideoExtractionResult? = withContext(Dispatchers.IO) {
         Log.w(TAG, "Extraction start for $videoId (forceSabr=$forceSabr)")
         PlayerDiagnostics.logWarning(TAG, "extract start $videoId forceSabr=$forceSabr")
         val failureReasons = mutableListOf<String>()
