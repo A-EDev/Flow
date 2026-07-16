@@ -36,6 +36,10 @@ object GlobalPlayerState {
     private val _isInPipMode = MutableStateFlow(false)
     val isInPipMode: StateFlow<Boolean> = _isInPipMode.asStateFlow()
 
+    private val _isExplicitBackgroundPlaybackActive = MutableStateFlow(false)
+    val isExplicitBackgroundPlaybackActive: StateFlow<Boolean> =
+        _isExplicitBackgroundPlaybackActive.asStateFlow()
+
     private val _dismissRequested = MutableStateFlow(false)
     val dismissRequested: StateFlow<Boolean> = _dismissRequested.asStateFlow()
     
@@ -55,6 +59,10 @@ object GlobalPlayerState {
      */
     fun setPipMode(inPipMode: Boolean) {
         _isInPipMode.value = inPipMode
+    }
+
+    fun setExplicitBackgroundPlaybackActive(active: Boolean) {
+        _isExplicitBackgroundPlaybackActive.value = active
     }
 
     fun requestDismiss() {
@@ -148,6 +156,7 @@ object GlobalPlayerState {
      */
     fun stop() {
         EnhancedPlayerManager.getInstance().stop()
+        _isExplicitBackgroundPlaybackActive.value = false
         _currentVideo.value = null
         _isMiniPlayerVisible.value = false
         _miniPlayerExpansionState.value = MiniPlayerExpansionState.HIDDEN
@@ -158,6 +167,7 @@ object GlobalPlayerState {
      */
     fun release() {
         EnhancedPlayerManager.getInstance().release()
+        _isExplicitBackgroundPlaybackActive.value = false
         _currentVideo.value = null
         _isMiniPlayerVisible.value = false
         _miniPlayerExpansionState.value = MiniPlayerExpansionState.HIDDEN

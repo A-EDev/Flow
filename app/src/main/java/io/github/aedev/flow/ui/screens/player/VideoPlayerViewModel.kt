@@ -11,11 +11,19 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.MiniPlayerExpansionState
 import io.github.aedev.flow.player.PlaybackResumePolicy
+import io.github.aedev.flow.player.PlaybackResolverReadiness
+import io.github.aedev.flow.player.PlaybackResolverWinner
+import io.github.aedev.flow.player.PlaybackStartupPolicy
+import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
+import io.github.aedev.flow.player.awaitFirstPlaybackResolver
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.VideoCodecUtils
@@ -50,6 +58,7 @@ import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
@@ -104,6 +113,8 @@ class VideoPlayerViewModel @Inject constructor(
     private var playbackLoadToken: Long = 0L
     private var loadingVideoId: String? = null
     private var playbackAbandonedVideoId: String? = null
+    private var channelMetadataJob: Job? = null
+    private var channelMetadataVideoId: String? = null
     private var liveChatJob: Job? = null
     private var liveChatVideoId: String? = null
     private val homeFeedCacheRepository by lazy { HomeFeedCacheRepository(context) }
@@ -120,10 +131,14 @@ class VideoPlayerViewModel @Inject constructor(
         const val LIVE_CHAT_INITIAL_BACKFILL_MESSAGES = 12
         const val LIVE_CHAT_MIN_DRIP_MS = 90L
         const val LIVE_CHAT_MAX_DRIP_MS = 250L
+        const val SECONDARY_CONTENT_STARTUP_TIMEOUT_MS = 20_000L
     }
 
     private val _canGoPrevious = MutableStateFlow(false)
     val canGoPrevious: StateFlow<Boolean> = _canGoPrevious.asStateFlow()
+
+    private val _expandPlayerRequest = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val expandPlayerRequest: SharedFlow<Unit> = _expandPlayerRequest.asSharedFlow()
 
     private fun nextPlaybackLoadToken(): Long {
         playbackLoadToken += 1L
@@ -140,6 +155,9 @@ class VideoPlayerViewModel @Inject constructor(
         activeLoadJob?.cancel()
         activeLoadJob = null
         loadingVideoId = null
+        channelMetadataJob?.cancel()
+        channelMetadataJob = null
+        channelMetadataVideoId = null
     }
 
     fun maybeStartLiveChat(videoId: String) {
@@ -703,6 +721,29 @@ class VideoPlayerViewModel @Inject constructor(
      * This ensures the UI shows video info immediately while streams are fetched.
      */
     fun playVideo(video: Video) {
+        val playerManager = EnhancedPlayerManager.getInstance()
+        val playbackState = playerManager.playerState.value
+        val isMiniPlayerCollapsed =
+            GlobalPlayerState.miniPlayerExpansionState.value == MiniPlayerExpansionState.COLLAPSED
+        val hasReusablePlayback =
+            playbackState.isPrepared ||
+                playbackState.isPlaying ||
+                playbackState.playWhenReady ||
+                playbackState.isBuffering
+        if (
+            BackgroundPlaybackPolicy.shouldReopenCurrentVideo(
+                requestedVideoId = video.id,
+                currentVideoId = playbackState.currentVideoId,
+                isBackgroundPlaybackMode = _uiState.value.isBackgroundPlaybackMode,
+                isMiniPlayerCollapsed = isMiniPlayerCollapsed,
+                hasReusablePlayback = hasReusablePlayback
+            )
+        ) {
+            showVideoPlayer()
+            _expandPlayerRequest.tryEmit(Unit)
+            return
+        }
+
         nextPlaybackLoadToken()
         cancelActivePlaybackLoad()
 
@@ -711,8 +752,8 @@ class VideoPlayerViewModel @Inject constructor(
         streamExpiryCount = 0
 
         // Stop current playback and clear everything (including any active queue)
-        EnhancedPlayerManager.getInstance().pause()
-        EnhancedPlayerManager.getInstance().clearAll()
+        playerManager.pause()
+        playerManager.clearAll()
 
         // Ensure music player is stopped and hidden
         EnhancedMusicPlayerManager.stop()
@@ -734,14 +775,17 @@ class VideoPlayerViewModel @Inject constructor(
             audioStream = null,
             savedPosition = null,
             relatedVideos = emptyList(),
+            channelAvatarUrl = video.channelThumbnailUrl.takeIf { it.isNotBlank() },
+            channelSubscriberCount = null,
             isSubscribed = false,
             likeState = null,
             isUpcoming = false,
             upcomingReleaseTimeMs = null
         )
         GlobalPlayerState.setCurrentVideo(video)
+        GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
         saveHistoryEntry(video)
-        EnhancedPlayerManager.getInstance().startBackgroundService(
+        playerManager.startBackgroundService(
             videoId   = video.id,
             title     = video.title.ifEmpty { "Flow Player" },
             channel   = video.channelName,
@@ -781,6 +825,8 @@ class VideoPlayerViewModel @Inject constructor(
             audioStream = null,
             savedPosition = null,
             relatedVideos = emptyList(),
+            channelAvatarUrl = video.channelThumbnailUrl.takeIf { it.isNotBlank() },
+            channelSubscriberCount = null,
             isSubscribed = false,
             likeState = null,
             isUpcoming = false,
@@ -790,6 +836,7 @@ class VideoPlayerViewModel @Inject constructor(
             offlineSponsorBlockSegments = null
         )
         GlobalPlayerState.setCurrentVideo(video)
+        GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
         EnhancedPlayerManager.getInstance().startBackgroundService(
             videoId   = video.id,
             title     = video.title.ifEmpty { "Flow Player" },
@@ -817,6 +864,7 @@ class VideoPlayerViewModel @Inject constructor(
         EnhancedPlayerManager.getInstance().stopBackgroundService()
         EnhancedPlayerManager.getInstance().clearAll()
         GlobalPlayerState.setCurrentVideo(null)
+        GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
         GlobalPlayerState.hideMiniPlayer()
         
         _uiState.update { 
@@ -839,15 +887,14 @@ class VideoPlayerViewModel @Inject constructor(
 
     fun startBackgroundPlayback() {
         val state = _uiState.value
-        val video = state.cachedVideo ?: GlobalPlayerState.currentVideo.value
-        if (video != null) {
-            EnhancedPlayerManager.getInstance().startBackgroundService(
-                videoId = video.id,
-                title = video.title,
-                channel = video.channelName,
-                thumbnail = video.thumbnailUrl
-            )
-        }
+        val video = state.cachedVideo ?: GlobalPlayerState.currentVideo.value ?: return
+        EnhancedPlayerManager.getInstance().startBackgroundService(
+            videoId = video.id,
+            title = video.title,
+            channel = video.channelName,
+            thumbnail = video.thumbnailUrl
+        )
+        GlobalPlayerState.setExplicitBackgroundPlaybackActive(true)
         EnhancedPlayerManager.getInstance().continueVideoPlaybackInBackground()
         _uiState.update {
             it.copy(
@@ -862,6 +909,8 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     fun showVideoPlayer() {
+        GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
+        EnhancedPlayerManager.getInstance().restoreVideoOutput()
         _uiState.update {
             it.copy(
                 shouldDismissPlayer = false,
@@ -1108,6 +1157,11 @@ class VideoPlayerViewModel @Inject constructor(
             audioStream = null,
             savedPosition = null,
             relatedVideos = emptyList(),
+            channelAvatarUrl = _uiState.value.cachedVideo
+                ?.takeIf { it.id == videoId }
+                ?.channelThumbnailUrl
+                ?.takeIf { it.isNotBlank() },
+            channelSubscriberCount = null,
             dislikeCount = null,
             // Also reset subscription and like state for new video
             isSubscribed = false,
@@ -1265,11 +1319,41 @@ class VideoPlayerViewModel @Inject constructor(
                 kotlinx.coroutines.withTimeout(playbackLoadTimeoutMs) {
                     Log.d("VideoPlayerViewModel", "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)")
 
-                    val (streamInfo, streamError) = streamInfoDeferred.await()
+                    var streamResolution: Pair<StreamInfo?, Throwable?> = null to null
+                    var innerTubeResult: InnerTubeVideoStreamExtractor.VideoExtractionResult? = null
+                    var lateStreamInfoDeferred: Deferred<Pair<StreamInfo?, Throwable?>>? = null
+
+                    if (escalateToSabr) {
+                        streamInfoDeferred.cancel()
+                        innerTubeResult = innerTubeDeferred.await()
+                    } else {
+                        when (val winner = awaitFirstPlaybackResolver(streamInfoDeferred, innerTubeDeferred)) {
+                            is PlaybackResolverWinner.Primary -> {
+                                streamResolution = winner.value
+                                val readiness = classifyNewPipePlaybackResult(winner.value.first)
+                                if (readiness == PlaybackResolverReadiness.NEEDS_FALLBACK) {
+                                    innerTubeResult = innerTubeDeferred.await()
+                                } else {
+                                    Log.d("VideoPlayerViewModel", "NewPipe resolved playback first for $videoId; skipping redundant InnerTube wait")
+                                    innerTubeDeferred.cancel()
+                                }
+                            }
+
+                            is PlaybackResolverWinner.Fallback -> {
+                                innerTubeResult = winner.value
+                                if (winner.value != null && innerTubeCanStartPlayback(winner.value)) {
+                                    Log.d("VideoPlayerViewModel", "InnerTube resolved playback first for $videoId; preparing before NewPipe metadata")
+                                    lateStreamInfoDeferred = streamInfoDeferred
+                                } else {
+                                    streamResolution = streamInfoDeferred.await()
+                                }
+                            }
+                        }
+                    }
+
+                    val (streamInfo, streamError) = streamResolution
                     ensureActive()
                     if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
-
-                    val innerTubeResult = innerTubeDeferred.await()
 
                     if (escalateToSabr && innerTubeResult == null) {
                         Log.e("VideoPlayerViewModel", "Forced-SABR reload for $videoId produced no SABR session — refusing direct-URL fallback")
@@ -1509,6 +1593,13 @@ class VideoPlayerViewModel @Inject constructor(
                                 preferSabr = preferSabrForPlayback,
                                 preferredLiveQualityHeight = preferredQuality.height
                             )
+                            loadChannelMetadataAfterPlayback(
+                                videoId = videoId,
+                                uploaderUrl = streamInfo.uploaderUrl,
+                                channelId = _uiState.value.cachedVideo?.channelId,
+                                embeddedAvatarUrls = streamInfo.uploaderAvatars.distinctBestImageUrls(),
+                                loadToken = loadToken
+                            )
                         }
 
                         if (!isUpcomingContent && (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true)) {
@@ -1534,39 +1625,9 @@ class VideoPlayerViewModel @Inject constructor(
                             )
                         }
 
-                        // PARALLEL FETCH: Channel info and stream sizes simultaneously
+                        // Stream sizes are optional enrichment and must remain off the startup path.
                         viewModelScope.launch(PerformanceDispatcher.networkIO) {
                             supervisorScope {
-                                // Fetch channel info
-                                val channelDeferred = async(PerformanceDispatcher.networkIO) {
-                                    withTimeoutOrNull(8000L) {
-                                        try {
-                                            val channelUrl = streamInfo.uploaderUrl ?: ""
-                                            if (channelUrl.isNotBlank()) {
-                                                val channelInfo = repository.getChannelInfo(channelUrl)
-                                                channelInfo?.let { ci ->
-                                    val subCount = ci.subscriberCount
-                                                    val avatarUrl = try {
-                                                        val thumbnailsMethod = ci::class.java.methods.firstOrNull { 
-                                                            it.name.equals("getThumbnails", true) || it.name.equals("getAvatars", true)
-                                                        }
-                                                        val thumbnails = thumbnailsMethod?.invoke(ci) as? List<*>
-                                                        thumbnails?.firstOrNull()?.let { img ->
-                                                            val urlMethod = img::class.java.methods.firstOrNull { it.name.equals("getUrl", true) }
-                                                            urlMethod?.invoke(img) as? String
-                                                        } ?: ""
-                                                    } catch (ex: Exception) { "" }
-
-                                                    Pair(subCount, avatarUrl)
-                                                }
-                                            } else null
-                                        } catch (e: Exception) { 
-                                            Log.e("VideoPlayerViewModel", "Failed to fetch channel info", e)
-                                            null
-                                        }
-                                    }
-                                }
-
                                 // Compute stream sizes — use already-fetched innertube data when available
                                 val sizesDeferred = async(PerformanceDispatcher.networkIO) {
                                     try {
@@ -1618,18 +1679,9 @@ class VideoPlayerViewModel @Inject constructor(
                                     }
                                 }
                                 
-                                // Await both and update UI
-                                val channelResult = channelDeferred.await()
                                 val sizesResult = sizesDeferred.await()
                                 
                                 if (isPlaybackLoadCurrent(loadToken)) {
-                                    channelResult?.let { (subCount, avatarUrl) ->
-                                        _uiState.value = _uiState.value.copy(
-                                            channelSubscriberCount = subCount.takeIf { it > 0L },
-                                            channelAvatarUrl = avatarUrl
-                                        )
-                                    }
-                                    
                                     sizesResult?.let { sizes ->
                                         _uiState.value = _uiState.value.copy(streamSizes = sizes)
                                     }
@@ -1639,6 +1691,9 @@ class VideoPlayerViewModel @Inject constructor(
                     } else if (liveFromInnerTube && innerTubeResult != null) {
                         Log.w("VideoPlayerViewModel", "Live fallback for $videoId via InnerTube manifest (NewPipe StreamInfo null)")
                         prepareLiveStreamFromInnerTube(videoId, innerTubeResult, relatedVideos, loadToken)
+                        lateStreamInfoDeferred?.let {
+                            enrichPlaybackMetadataWhenReady(videoId, it, loadToken)
+                        }
                     } else {
                         // Offline fallback
                         if (isOfflineAvailable) {
@@ -1671,6 +1726,9 @@ class VideoPlayerViewModel @Inject constructor(
                                     resumePositionOverrideMs = resumePositionOverrideMs,
                                     loadToken = loadToken
                                 )
+                                lateStreamInfoDeferred?.let {
+                                    enrichPlaybackMetadataWhenReady(videoId, it, loadToken)
+                                }
                             } catch (e: kotlinx.coroutines.CancellationException) {
                                 throw e
                             } catch (e: Exception) {
@@ -1970,6 +2028,15 @@ class VideoPlayerViewModel @Inject constructor(
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         manager.play()
 
+        loadChannelMetadataAfterPlayback(
+            videoId = videoId,
+            uploaderUrl = null,
+            channelId = channelId,
+            embeddedAvatarUrls = listOfNotNull(cached?.channelThumbnailUrl) +
+                cached?.channelThumbnailUrls.orEmpty(),
+            loadToken = loadToken
+        )
+
         maybeStartLiveChat(videoId)
 
         refreshLiveWatchMetadata(videoId, enrichedVideo, loadToken)
@@ -1983,6 +2050,199 @@ class VideoPlayerViewModel @Inject constructor(
         val hasVideo = result.videoFormats.any { !it.url.isNullOrEmpty() }
         val hasAudio = result.audioFormats.any { !it.url.isNullOrEmpty() }
         return hasVideo && hasAudio
+    }
+
+    private fun innerTubeCanStartPlayback(
+        result: InnerTubeVideoStreamExtractor.VideoExtractionResult
+    ): Boolean {
+        val hasLiveManifest = result.isLive &&
+            (!result.liveHlsUrl.isNullOrEmpty() || !result.liveDashUrl.isNullOrEmpty())
+        return hasLiveManifest || innerTubeHasPlayableVod(result)
+    }
+
+    private fun classifyNewPipePlaybackResult(streamInfo: StreamInfo?): PlaybackResolverReadiness {
+        if (streamInfo == null) return PlaybackResolverReadiness.NEEDS_FALLBACK
+        return PlaybackStartupPolicy.classifyNewPipeResult(
+            hasProgressiveVideo = streamInfo.videoStreams.isNotEmpty(),
+            hasVideoOnly = streamInfo.videoOnlyStreams.isNotEmpty(),
+            hasAudio = streamInfo.audioStreams.isNotEmpty(),
+            hasDashManifest = !streamInfo.dashMpdUrl.isNullOrEmpty(),
+            hasHlsManifest = !streamInfo.hlsUrl.isNullOrEmpty(),
+            isKnownUpcoming = streamInfo.streamType == StreamType.NONE
+        )
+    }
+
+    private fun loadChannelMetadataAfterPlayback(
+        videoId: String,
+        uploaderUrl: String?,
+        channelId: String?,
+        embeddedAvatarUrls: List<String>,
+        loadToken: Long
+    ) {
+        val embeddedAvatar = embeddedAvatarUrls.firstOrNull()
+            ?.let(ThumbnailUrlResolver::resolveChannelAvatar)
+            ?.takeIf { it.isNotBlank() }
+        if (embeddedAvatar != null) {
+            applyChannelMetadata(videoId, embeddedAvatar, subscriberCount = null, loadToken)
+        }
+
+        val references = PlayerChannelMetadataPolicy.channelReferences(uploaderUrl, channelId)
+        if (references.isEmpty()) return
+
+        if (channelMetadataVideoId != videoId) {
+            channelMetadataJob?.cancel()
+            channelMetadataJob = null
+            channelMetadataVideoId = videoId
+        } else if (channelMetadataJob?.isActive == true) {
+            return
+        }
+
+        channelMetadataJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            // Embedded avatars can update immediately, but the extra channel request waits until
+            // playback has actually started so it cannot compete with the first media buffer.
+            withTimeoutOrNull(15_000L) {
+                EnhancedPlayerManager.getInstance().playerState.first { state ->
+                    state.currentVideoId == videoId && (state.isPlaying || state.hasEnded || state.error != null)
+                }
+            }
+            if (!isPlaybackLoadCurrent(loadToken)) return@launch
+
+            var channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo? = null
+            for (reference in references) {
+                channelInfo = withTimeoutOrNull(8_000L) {
+                    repository.getChannelInfo(reference)
+                }
+                if (channelInfo != null) break
+            }
+
+            if (!isPlaybackLoadCurrent(loadToken) || channelInfo == null) return@launch
+
+            val fetchedAvatar = channelInfo.avatars
+                .distinctBestImageUrls(limit = 1)
+                .firstOrNull()
+                ?.let(ThumbnailUrlResolver::resolveChannelAvatar)
+                ?.takeIf { it.isNotBlank() }
+
+            applyChannelMetadata(
+                videoId = videoId,
+                avatarUrl = PlayerChannelMetadataPolicy.selectAvatarUrl(
+                    fetchedAvatarUrl = fetchedAvatar,
+                    embeddedAvatarUrl = embeddedAvatar,
+                    currentAvatarUrl = _uiState.value.channelAvatarUrl
+                ),
+                subscriberCount = channelInfo.subscriberCount.takeIf { it > 0L },
+                loadToken = loadToken
+            )
+        }
+    }
+
+    private fun applyChannelMetadata(
+        videoId: String,
+        avatarUrl: String?,
+        subscriberCount: Long?,
+        loadToken: Long
+    ) {
+        if (!isPlaybackLoadCurrent(loadToken)) return
+
+        _uiState.update { state ->
+            val cached = state.cachedVideo
+            if (cached?.id != videoId) return@update state
+
+            val selectedAvatar = PlayerChannelMetadataPolicy.selectAvatarUrl(
+                fetchedAvatarUrl = avatarUrl,
+                embeddedAvatarUrl = cached.channelThumbnailUrl,
+                currentAvatarUrl = state.channelAvatarUrl
+            )
+            val updatedCached = if (selectedAvatar != null) {
+                cached.copy(
+                    channelThumbnailUrl = selectedAvatar,
+                    channelThumbnailUrls = (listOf(selectedAvatar) + cached.channelThumbnailUrls)
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                        .take(2)
+                )
+            } else {
+                cached
+            }
+
+            state.copy(
+                cachedVideo = updatedCached,
+                channelAvatarUrl = selectedAvatar,
+                channelSubscriberCount = subscriberCount ?: state.channelSubscriberCount
+            )
+        }
+
+        _uiState.value.cachedVideo
+            ?.takeIf { it.id == videoId }
+            ?.let(GlobalPlayerState::setCurrentVideo)
+    }
+
+    private fun enrichPlaybackMetadataWhenReady(
+        videoId: String,
+        streamInfoDeferred: Deferred<Pair<StreamInfo?, Throwable?>>,
+        loadToken: Long
+    ) {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val streamInfo = try {
+                streamInfoDeferred.await().first
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.d("VideoPlayerViewModel", "Late NewPipe metadata failed for $videoId: ${e.message}")
+                null
+            } ?: return@launch
+
+            if (!isPlaybackLoadCurrent(loadToken)) return@launch
+
+            val relatedVideos = repository.getRelatedVideosFromStreamInfo(streamInfo)
+                .filter { it.id != videoId }
+                .distinctBy { it.id }
+            val autoplay = playerPreferences.autoplayEnabled.first()
+            val cached = _uiState.value.cachedVideo ?: return@launch
+            if (cached.id != videoId) return@launch
+
+            val enriched = cached.copy(
+                title = streamInfo.name?.takeIf { it.isNotBlank() } ?: cached.title,
+                channelName = streamInfo.uploaderName?.takeIf { it.isNotBlank() } ?: cached.channelName,
+                channelId = cached.channelId.takeIf { it.isNotBlank() }
+                    ?: streamInfo.uploaderUrl?.substringAfterLast("/").orEmpty(),
+                thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url
+                    ?: cached.thumbnailUrl,
+                duration = streamInfo.duration.toInt().takeIf { it > 0 } ?: cached.duration,
+                viewCount = streamInfo.viewCount.takeIf { it > 0L } ?: cached.viewCount,
+                description = streamInfo.description?.content ?: cached.description
+            )
+
+            withContext(Dispatchers.Main) {
+                if (!isPlaybackLoadCurrent(loadToken) || _uiState.value.cachedVideo?.id != videoId) {
+                    return@withContext
+                }
+                GlobalPlayerState.setCurrentVideo(enriched)
+                if (relatedVideos.isNotEmpty()) {
+                    EnhancedPlayerManager.getInstance().setAutoplayCandidates(
+                        sourceVideoId = videoId,
+                        videos = relatedVideos,
+                        enabled = autoplay
+                    )
+                }
+                _uiState.update {
+                    it.copy(
+                        cachedVideo = enriched,
+                        streamInfo = streamInfo,
+                        relatedVideos = relatedVideos.ifEmpty { it.relatedVideos },
+                        chapters = streamInfo.streamSegments ?: it.chapters
+                    )
+                }
+            }
+
+            loadChannelMetadataAfterPlayback(
+                videoId = videoId,
+                uploaderUrl = streamInfo.uploaderUrl,
+                channelId = enriched.channelId,
+                embeddedAvatarUrls = streamInfo.uploaderAvatars.distinctBestImageUrls(),
+                loadToken = loadToken
+            )
+        }
     }
 
     private suspend fun prepareVodStreamFromInnerTube(
@@ -2107,6 +2367,15 @@ class VideoPlayerViewModel @Inject constructor(
 
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         manager.play()
+
+        loadChannelMetadataAfterPlayback(
+            videoId = videoId,
+            uploaderUrl = null,
+            channelId = channelId,
+            embeddedAvatarUrls = listOfNotNull(cached?.channelThumbnailUrl) +
+                cached?.channelThumbnailUrls.orEmpty(),
+            loadToken = loadToken
+        )
     }
 
     private fun refreshLiveWatchMetadata(
@@ -2574,7 +2843,18 @@ class VideoPlayerViewModel @Inject constructor(
             commentsNextPage = null
             _hasMoreComments.value = false
             try {
+                withTimeoutOrNull(SECONDARY_CONTENT_STARTUP_TIMEOUT_MS) {
+                    uiState.first { state ->
+                        !PlaybackStartupPolicy.shouldDelaySecondaryContent(
+                            isPlaybackLoading = state.isLoading,
+                            currentVideoId = state.cachedVideo?.id ?: state.streamInfo?.id,
+                            requestedVideoId = videoId
+                        )
+                    }
+                }
+                if (_uiState.value.cachedVideo?.id != videoId) return@launch
                 val (comments, nextPage) = repository.getComments(videoId)
+                if (_uiState.value.cachedVideo?.id != videoId) return@launch
                 _commentsState.value = comments
                 commentsNextPage = nextPage
                 _hasMoreComments.value = nextPage != null

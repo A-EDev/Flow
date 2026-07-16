@@ -306,8 +306,15 @@ fun FlowApp(
             keepMiniOnQueueAutoAdvance = playerSheetState.currentValue == PlayerSheetValue.Collapsed
         }
     }
+
+    LaunchedEffect(playerViewModel) {
+        playerViewModel.expandPlayerRequest.collect {
+            playerVisible = true
+            playerSheetState.expand()
+        }
+    }
     
-    LaunchedEffect(playerUiState.cachedVideo) {
+    LaunchedEffect(playerUiState.cachedVideo, playerUiState.isBackgroundPlaybackMode) {
         if (playerUiState.cachedVideo != null) {
             if (playerUiState.isBackgroundPlaybackMode) {
                 playerSheetState.snapTo(PlayerSheetValue.Collapsed)
@@ -316,6 +323,7 @@ fun FlowApp(
                 showBottomNav.value = true
                 return@LaunchedEffect
             }
+            GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
             playerVisible = true
             val isQueueAutoAdvanceInMiniPlayer =
                 keepMiniOnQueueAutoAdvance &&

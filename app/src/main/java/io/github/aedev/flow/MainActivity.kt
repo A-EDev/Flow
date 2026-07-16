@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.data.local.LocalDataManager
+import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.theme.FlowTheme
@@ -95,6 +96,7 @@ class MainActivity : ComponentActivity() {
         return "interactive=${powerManager?.isInteractive} lifecycle=${lifecycle.currentState} " +
             "pip=$isInPictureInPictureMode pendingAutoPip=$pendingAutoPip " +
             "bgPref=$cachedBackgroundPlayEnabled shortsBgPref=$cachedShortsBackgroundPlay " +
+            "explicitBg=${GlobalPlayerState.isExplicitBackgroundPlaybackActive.value} " +
             "video=${playerState.currentVideoId} exo=${videoPlaybackStateName(player?.playbackState)} " +
             "pwr=${player?.playWhenReady} playing=${player?.isPlaying} buffering=${playerState.isBuffering} " +
             "pos=${player?.currentPosition}/${player?.duration} idx=${player?.currentMediaItemIndex} count=${player?.mediaItemCount}"
@@ -397,10 +399,14 @@ class MainActivity : ComponentActivity() {
         videoLifecycleLog("onDestroy")
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
         val playerState = playerManager.playerState.value
-        val shouldKeepBackgroundPlayback =
-            cachedBackgroundPlayEnabled &&
-                playerState.currentVideoId != null &&
+        val hasActiveVideo =
+            playerState.currentVideoId != null &&
                 (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
+        val shouldKeepBackgroundPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
+            backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
+            explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
+            hasActiveVideo = hasActiveVideo
+        )
 
         if (shouldKeepBackgroundPlayback) {
             handOffVideoPlaybackToBackground()
@@ -703,7 +709,13 @@ class MainActivity : ComponentActivity() {
 
         if (!hasActiveVideo) return
 
-        if (cachedBackgroundPlayEnabled) {
+        val shouldKeepBackgroundPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
+            backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
+            explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
+            hasActiveVideo = hasActiveVideo
+        )
+
+        if (shouldKeepBackgroundPlayback) {
             videoLifecycleLog("handleBackgroundPlaybackOnStop handoff")
             handOffVideoPlaybackToBackground()
         } else {
