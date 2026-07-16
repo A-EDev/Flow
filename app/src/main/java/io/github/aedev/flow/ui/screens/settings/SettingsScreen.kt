@@ -44,6 +44,8 @@ import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.AppUiModePreferences
+import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.utils.AppLanguageManager
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
@@ -98,6 +100,9 @@ fun SettingsScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val playerPreferences = remember { PlayerPreferences(context) }
+    val appUiModePreferences = remember { AppUiModePreferences(context) }
+    val appUiMode by appUiModePreferences.mode.collectAsStateWithLifecycle(initialValue = AppUiMode.AUTOMATIC)
+    var showInterfaceModeDialog by remember { mutableStateOf(false) }
     val backupRepo = remember { io.github.aedev.flow.data.local.BackupRepository(context) }
     
     // Brain State
@@ -121,6 +126,16 @@ fun SettingsScreen(
     val currentAppLanguage by playerPreferences.appLanguage.collectAsState(initial = AppLanguageManager.SYSTEM_DEFAULT)
     val discordSettingsState by DiscordPresenceRuntime.settingsState.collectAsStateWithLifecycle()
     val discordSettingsSummary = discordSettingsSummaryText(discordSettingsState)
+
+    if (showInterfaceModeDialog) {
+        InterfaceModeDialog(
+            selected = appUiMode,
+            onSelected = { mode ->
+                coroutineScope.launch { appUiModePreferences.setMode(mode) }
+            },
+            onDismiss = { showInterfaceModeDialog = false },
+        )
+    }
 
     // Deep Flow state
     val deepFlowActive by playerPreferences.deepFlowActive.collectAsState(initial = false)
@@ -233,6 +248,7 @@ fun SettingsScreen(
     val allSettingsEntries = listOf(
         SettingSearchEntry(Icons.Outlined.Psychology, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.flow_control_center), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.neural_interest_map_subtitle), secFlowEngine, onNavigateToPersonality),
         SettingSearchEntry(Icons.Outlined.Palette, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_theme), "", secAppearance, onNavigateToAppearance),
+        SettingSearchEntry(Icons.Outlined.Tv, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_interface_mode), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_interface_mode_subtitle), secAppearance) { showInterfaceModeDialog = true },
         SettingSearchEntry(Icons.Outlined.Language, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_language), currentAppLanguageLabel, secAppearance) { showAppLanguageDialog = true },
         SettingSearchEntry(Icons.Outlined.AppShortcut, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon_subtitle), secAppearance, onNavigateToAppIconPicker),
         SettingSearchEntry(Icons.Outlined.Tune, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance_subtitle), secAppearance, onNavigateToPlayerAppearance),
@@ -716,6 +732,13 @@ item {
                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_theme),
                         subtitle = androidx.compose.ui.res.stringResource(getThemeNameRes(currentTheme)),
                         onClick = onNavigateToAppearance
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Tv,
+                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_interface_mode),
+                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_interface_mode_subtitle),
+                        onClick = { showInterfaceModeDialog = true }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
