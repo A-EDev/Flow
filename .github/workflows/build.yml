@@ -91,7 +91,7 @@ jobs:
       - name: Upload Nightly APK
         uses: actions/upload-artifact@v4
         with:
-          name: flow-discord-rpc-nightly-apk
+          name: flow-nightly-apk
           path: |
             app/build/outputs/apk/github/nightly/app-github-nightly.apk
             app/build/outputs/apk/github/nightly/app-github-nightly.apk.sha256
