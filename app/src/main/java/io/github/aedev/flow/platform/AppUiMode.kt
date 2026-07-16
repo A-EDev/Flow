@@ -22,5 +22,4 @@ enum class AppUiMode {
 enum class AppUiRoot {
     MOBILE,
     TV,
-
 }
