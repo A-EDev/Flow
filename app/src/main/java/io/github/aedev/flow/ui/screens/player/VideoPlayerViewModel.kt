@@ -989,7 +989,7 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     fun playNext() {
-        val handledByPlayer = EnhancedPlayerManager.getInstance().playNext()
+        val handledByPlayer = EnhancedPlayerManager.getInstance().playNext(loadStreamsInPlayer = false)
         if (!handledByPlayer) {
             _uiState.value.relatedVideos.firstOrNull()?.let { nextVideo ->
                 playVideo(nextVideo)
@@ -999,7 +999,7 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     fun playPrevious() {
-        val handledByPlayer = EnhancedPlayerManager.getInstance().playPrevious()
+        val handledByPlayer = EnhancedPlayerManager.getInstance().playPrevious(loadStreamsInPlayer = false)
         if (!handledByPlayer) {
             getPreviousVideoId()?.let { prevId ->
                 val prevVideo = Video(

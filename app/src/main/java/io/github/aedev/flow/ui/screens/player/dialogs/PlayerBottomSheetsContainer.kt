@@ -233,7 +233,7 @@ fun PlayerBottomSheetsContainer(
             onLoopToggle = EnhancedPlayerManager.getInstance()::toggleQueueLoop,
             onShuffleToggle = EnhancedPlayerManager.getInstance()::toggleQueueShuffle,
             onPlayVideoAtIndex = { index ->
-                EnhancedPlayerManager.getInstance().playVideoAtIndex(index)
+                EnhancedPlayerManager.getInstance().playVideoAtIndex(index, loadStreamsInPlayer = false)
             },
             expandedHeight = mediaSheetExpandedHeight,
             collapsedHeight = mediaSheetCollapsedHeight,

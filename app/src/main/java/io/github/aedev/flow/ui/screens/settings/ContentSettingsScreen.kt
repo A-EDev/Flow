@@ -90,7 +90,8 @@ fun ContentSettingsScreen(
     val refreshHomeOnReselect by preferences.refreshHomeOnReselect.collectAsState(initial = true)
     val showAppLogoIcon by preferences.showAppLogoIcon.collectAsState(initial = true)
     val currentRelatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.COMPACT)
-    val hideWatchedVideos by preferences.hideWatchedVideos.collectAsState(initial = false)
+    val hideWatchedVideosFromHome by preferences.hideWatchedVideosFromHome.collectAsState(initial = false)
+    val hideWatchedVideosFromSubscriptions by preferences.hideWatchedVideosFromSubscriptions.collectAsState(initial = false)
     val watchedThreshold by preferences.watchedThreshold.collectAsState(initial = io.github.aedev.flow.data.local.WatchedThreshold.ALMOST_FINISHED)
     var showWatchedThresholdDialog by remember { mutableStateOf(false) }
     val bottomNavHideOnScroll by preferences.bottomNavHideOnScroll.collectAsState(initial = true)
@@ -453,16 +454,28 @@ fun ContentSettingsScreen(
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.VisibilityOff,
-                        title = stringResource(R.string.content_settings_hide_watched_title),
-                        subtitle = stringResource(R.string.content_settings_hide_watched_subtitle),
-                        checked = hideWatchedVideos,
+                        title = stringResource(R.string.content_settings_hide_watched_home_title),
+                        subtitle = stringResource(R.string.content_settings_hide_watched_home_subtitle),
+                        checked = hideWatchedVideosFromHome,
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
-                                preferences.setHideWatchedVideos(enabled)
+                                preferences.setHideWatchedVideosFromHome(enabled)
                             }
                         }
                     )
-                    if (hideWatchedVideos) {
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.VisibilityOff,
+                        title = stringResource(R.string.content_settings_hide_watched_subscriptions_title),
+                        subtitle = stringResource(R.string.content_settings_hide_watched_subscriptions_subtitle),
+                        checked = hideWatchedVideosFromSubscriptions,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setHideWatchedVideosFromSubscriptions(enabled)
+                            }
+                        }
+                    )
+                    if (hideWatchedVideosFromHome || hideWatchedVideosFromSubscriptions) {
                         HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Schedule,

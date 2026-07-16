@@ -85,6 +85,7 @@ import io.github.aedev.flow.ui.screens.player.components.AutoplayCountdownOverla
 import io.github.aedev.flow.ui.screens.player.components.SettingsMenuDialog
 import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
+import io.github.aedev.flow.ui.screens.player.components.resolvePlayerQualityLabel
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.player.PictureInPictureHelper
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -1061,10 +1062,15 @@ fun GlobalPlayerOverlay(
                                 isBuffering = playerState.isBuffering,
                                 currentPosition = screenState.currentPosition,
                                 duration = screenState.duration,
-                                qualityLabel = if (playerState.currentQuality == 0) 
-                                    context.getString(R.string.quality_auto_template, playerState.effectiveQuality) 
-                                else 
-                                    playerState.currentQuality.toString(),
+                                qualityLabel = resolvePlayerQualityLabel(
+                                    currentQuality = playerState.currentQuality,
+                                    effectiveQuality = playerState.effectiveQuality,
+                                    autoLabel = context.getString(R.string.quality_auto),
+                                    autoWithHeightLabel = context.getString(
+                                        R.string.quality_auto_template,
+                                        playerState.effectiveQuality,
+                                    ),
+                                ),
                                 videoTitle = playerUiState.streamInfo?.name ?: video.title,
                                 playbackSpeed = playerState.playbackSpeed,
                                 resizeMode = screenState.resizeMode,

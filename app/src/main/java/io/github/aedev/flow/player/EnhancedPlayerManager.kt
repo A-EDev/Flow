@@ -1096,10 +1096,15 @@ class EnhancedPlayerManager private constructor() {
             return true
         }
         if (nextIndex in playbackQueue.indices) {
+            val nextVideo = playbackQueue[nextIndex]
+            if (advanceToPreloadedItem(nextVideo.id)) {
+                autoNextLog("playNext using preloaded window next=${nextVideo.id}")
+                return true
+            }
             autoNextLog("playNext queue loadStreams=$loadStreamsInPlayer")
             currentQueueIndex = nextIndex
             _currentQueueIndex.value = currentQueueIndex
-            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer)
+            startPlaybackFromQueue(nextVideo, loadStreamsInPlayer)
             updateQueueState()
             return true
         }
@@ -1219,11 +1224,11 @@ class EnhancedPlayerManager private constructor() {
         requestPreloadNext("queue-add")
     }
     
-    fun playVideoAtIndex(index: Int) {
+    fun playVideoAtIndex(index: Int, loadStreamsInPlayer: Boolean = true) {
         if (index in playbackQueue.indices && index != currentQueueIndex) {
             currentQueueIndex = index
             _currentQueueIndex.value = currentQueueIndex
-            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer = true)
+            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer)
             updateQueueState()
         }
     }
@@ -1322,16 +1327,26 @@ class EnhancedPlayerManager private constructor() {
         hasNext() || (autoplayEnabled && autoplayCandidates.isNotEmpty())
 
     private fun skipToNextFromSession(): Boolean {
-        autoNextLog("skipToNextFromSession")
-        val p = player
-        if (p != null && preloadedNext != null && p.currentMediaItemIndex < p.mediaItemCount - 1) {
+        val expectedVideoId = nextSessionVideo()?.id
+        autoNextLog("skipToNextFromSession expected=$expectedVideoId")
+        if (expectedVideoId != null && advanceToPreloadedItem(expectedVideoId)) {
             autoNextLog("skipToNextFromSession using preloaded window")
-            p.seekToNextMediaItem()
-            p.playWhenReady = true
-            p.play()
             return true
         }
         return playNext(loadStreamsInPlayer = true) || playNextAutoplayCandidate()
+    }
+
+    private fun advanceToPreloadedItem(expectedVideoId: String): Boolean {
+        val preloaded = preloadedNext ?: return false
+        if (preloaded.data.enrichedVideo.id != expectedVideoId) return false
+        val p = player ?: return false
+        if (p.currentMediaItemIndex >= p.mediaItemCount - 1) return false
+
+        acquireAdvanceWakeLock()
+        p.seekToNextMediaItem()
+        p.playWhenReady = true
+        p.play()
+        return true
     }
 
     private fun playNextAutoplayCandidate(): Boolean {
