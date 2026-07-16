@@ -454,6 +454,7 @@ fun GlobalPlayerOverlay(
         activity = activity,
         lifecycleOwner = lifecycleOwner,
         isPlaying = playerState.playWhenReady,
+        isBackgroundPlaybackMode = playerUiState.isBackgroundPlaybackMode,
         pipPreferences = pipPreferences,
         onPipModeChanged = { inPipMode ->
             GlobalPlayerState.setPipMode(inPipMode)

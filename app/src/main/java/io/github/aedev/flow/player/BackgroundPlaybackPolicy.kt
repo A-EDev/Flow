@@ -1,6 +1,15 @@
 package io.github.aedev.flow.player
 
 object BackgroundPlaybackPolicy {
+    fun shouldEnterAutoPip(
+        autoPipEnabled: Boolean,
+        isVideoPlaying: Boolean,
+        explicitBackgroundPlaybackActive: Boolean
+    ): Boolean =
+        autoPipEnabled &&
+            isVideoPlaying &&
+            !explicitBackgroundPlaybackActive
+
     fun shouldKeepPlaybackInBackground(
         backgroundPlaybackPreferenceEnabled: Boolean,
         explicitBackgroundPlaybackActive: Boolean,

@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.PictureInPictureHelper
@@ -81,16 +82,22 @@ fun PipBroadcastReceiverEffect(context: Context) {
 fun PipParamsUpdateEffect(
     isPlaying: Boolean,
     autoPipEnabled: Boolean,
+    isBackgroundPlaybackMode: Boolean,
     activity: Activity?
 ) {
-    LaunchedEffect(isPlaying, autoPipEnabled) {
+    LaunchedEffect(isPlaying, autoPipEnabled, isBackgroundPlaybackMode) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+            val autoEnterEnabled = BackgroundPlaybackPolicy.shouldEnterAutoPip(
+                autoPipEnabled = autoPipEnabled,
+                isVideoPlaying = isPlaying,
+                explicitBackgroundPlaybackActive = isBackgroundPlaybackMode
+            )
             PictureInPictureHelper.updatePipParams(
                 activity = activity,
                 aspectRatioWidth = 16,
                 aspectRatioHeight = 9,
                 isPlaying = isPlaying,
-                autoEnterEnabled = autoPipEnabled && isPlaying
+                autoEnterEnabled = autoEnterEnabled
             )
         }
     }
@@ -146,6 +153,7 @@ fun SetupPipEffects(
     activity: Activity?,
     lifecycleOwner: LifecycleOwner,
     isPlaying: Boolean,
+    isBackgroundPlaybackMode: Boolean,
     pipPreferences: PipPreferences,
     onPipModeChanged: (Boolean) -> Unit
 ) {
@@ -163,6 +171,7 @@ fun SetupPipEffects(
     PipParamsUpdateEffect(
         isPlaying = isPlaying,
         autoPipEnabled = pipPreferences.autoPipEnabled,
+        isBackgroundPlaybackMode = isBackgroundPlaybackMode,
         activity = activity
     )
 }

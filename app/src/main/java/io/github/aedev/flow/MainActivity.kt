@@ -618,7 +618,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        FlowCrashHandler.recordPhase("activity", "onUserLeaveHint autoPip=$cachedAutoPipEnabled")
+        val explicitBackgroundPlaybackActive =
+            GlobalPlayerState.isExplicitBackgroundPlaybackActive.value
+        FlowCrashHandler.recordPhase(
+            "activity",
+            "onUserLeaveHint autoPip=$cachedAutoPipEnabled explicitBackground=$explicitBackgroundPlaybackActive"
+        )
         videoLifecycleLog("onUserLeaveHint")
         // Only enter PiP mode if video is playing and has progressed
         // We use the EnhancedPlayerManager directly to get the immediate state
@@ -632,7 +637,12 @@ class MainActivity : ComponentActivity() {
         val isMusicPlaying = musicManager.playerState.value.isPlaying
         
         // Only enter PiP for video, not for music (which uses background service)
-        if (isVideoPlaying && !isMusicPlaying && cachedAutoPipEnabled) {
+        val shouldEnterAutoPip = BackgroundPlaybackPolicy.shouldEnterAutoPip(
+            autoPipEnabled = cachedAutoPipEnabled,
+            isVideoPlaying = isVideoPlaying,
+            explicitBackgroundPlaybackActive = explicitBackgroundPlaybackActive
+        )
+        if (shouldEnterAutoPip && !isMusicPlaying) {
             enterPlayerPictureInPictureMode(
                 aspectRatioWidth = 16,
                 aspectRatioHeight = 9,

@@ -510,8 +510,7 @@ private fun ChannelContent(
                                             sortedItems = uiState.searchResults,
                                             isGridView = isGridView,
                                             listKeyPrefix = "Search_${uiState.searchQuery}",
-                                            onVideoClick = onVideoClick,
-                                            onChannelClick = onChannelClick
+                                            onVideoClick = onVideoClick
                                         )
                                         item { Spacer(Modifier.height(16.dp)) }
                                     }
@@ -539,8 +538,7 @@ private fun ChannelContent(
                                     sortedItems = sortedVideos,
                                     isGridView = isGridView,
                                     listKeyPrefix = selectedFilter.name,
-                                    onVideoClick = onVideoClick,
-                                    onChannelClick = onChannelClick
+                                    onVideoClick = onVideoClick
                                 )
                                 item { Spacer(Modifier.height(16.dp)) }
                             }
@@ -576,8 +574,7 @@ private fun ChannelContent(
                                 sortedItems = sortedLive,
                                 isGridView = isGridView,
                                 listKeyPrefix = selectedFilter.name,
-                                onVideoClick = onVideoClick,
-                                onChannelClick = onChannelClick
+                                onVideoClick = onVideoClick
                             )
                             item { Spacer(Modifier.height(16.dp)) }
                         }
@@ -1093,8 +1090,7 @@ private fun LazyListScope.videosContent(
     sortedItems: SortedVideos,
     isGridView: Boolean,
     listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit
+    onVideoClick: (Video) -> Unit
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
@@ -1104,9 +1100,9 @@ private fun LazyListScope.videosContent(
         items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
             val video = sortedItems[idx]
             if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
+                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
             } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
+                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
             }
         }
         return
@@ -1120,9 +1116,9 @@ private fun LazyListScope.videosContent(
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
         pagingItems[index]?.let { video ->
             if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
+                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
             } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
+                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
             }
         }
     }
@@ -1167,8 +1163,7 @@ private fun LazyListScope.liveContent(
     sortedItems: SortedVideos,
     isGridView: Boolean,
     listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit
+    onVideoClick: (Video) -> Unit
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
@@ -1178,9 +1173,9 @@ private fun LazyListScope.liveContent(
         items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
             val video = sortedItems[idx]
             if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
+                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
             } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
+                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
             }
         }
         return
@@ -1194,9 +1189,9 @@ private fun LazyListScope.liveContent(
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
         pagingItems[index]?.let { video ->
             if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
+                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
             } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) }, onChannelClick = onChannelClick)
+                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
             }
         }
     }

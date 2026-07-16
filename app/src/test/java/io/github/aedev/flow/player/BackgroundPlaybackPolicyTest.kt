@@ -5,6 +5,39 @@ import org.junit.Test
 
 class BackgroundPlaybackPolicyTest {
     @Test
+    fun `auto pip enters for regular video playback`() {
+        val shouldEnter = BackgroundPlaybackPolicy.shouldEnterAutoPip(
+            autoPipEnabled = true,
+            isVideoPlaying = true,
+            explicitBackgroundPlaybackActive = false
+        )
+
+        assertThat(shouldEnter).isTrue()
+    }
+
+    @Test
+    fun `auto pip does not enter during explicit background playback`() {
+        val shouldEnter = BackgroundPlaybackPolicy.shouldEnterAutoPip(
+            autoPipEnabled = true,
+            isVideoPlaying = true,
+            explicitBackgroundPlaybackActive = true
+        )
+
+        assertThat(shouldEnter).isFalse()
+    }
+
+    @Test
+    fun `disabled auto pip does not enter for regular playback`() {
+        val shouldEnter = BackgroundPlaybackPolicy.shouldEnterAutoPip(
+            autoPipEnabled = false,
+            isVideoPlaying = true,
+            explicitBackgroundPlaybackActive = false
+        )
+
+        assertThat(shouldEnter).isFalse()
+    }
+
+    @Test
     fun `manual background playback survives activity destruction`() {
         val shouldKeepPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
             backgroundPlaybackPreferenceEnabled = false,
