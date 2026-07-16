@@ -141,7 +141,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("settings")
             },
             onChannelClick = { channelId ->
-                youtubeChannelRoute(channelId)?.let(navController::navigate)
+                navController.navigateToYoutubeChannel(channelId)
             },
             onNavigateToHistory = {
                 navController.navigate("history")
@@ -186,7 +186,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.popBackStack()
             },
             onChannelClick = { channelId ->
-                youtubeChannelRoute(channelId)?.let(navController::navigate)
+                navController.navigateToYoutubeChannel(channelId)
             }
         )
     }
@@ -215,8 +215,7 @@ fun NavGraphBuilder.flowAppGraph(
                 if (channel.isMusic && channel.id.isNotBlank()) {
                     navController.navigate("artist/${channel.id}")
                 } else {
-                    youtubeChannelRoute(channel.url.ifBlank { channel.id })
-                        ?.let(navController::navigate)
+                    navController.navigateToYoutubeChannel(channel.url.ifBlank { channel.id })
                 }
             }
         )
@@ -270,8 +269,7 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onChannelClick = { channel ->
-                youtubeChannelRoute(channel.url.ifBlank { channel.id })
-                    ?.let(navController::navigate)
+                navController.navigateToYoutubeChannel(channel.url.ifBlank { channel.id })
             },
             onPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
@@ -293,7 +291,7 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onChannelClick = { channelId ->
-                youtubeChannelRoute(channelId)?.let(navController::navigate)
+                navController.navigateToYoutubeChannel(channelId)
             }
         )
     }
@@ -556,7 +554,7 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onChannelClick = { channelId ->
-                youtubeChannelRoute(channelId)?.let(navController::navigate)
+                navController.navigateToYoutubeChannel(channelId)
             },
             onShortClick = { videoId ->
                 if (disableShortsPlayer) {
@@ -697,7 +695,7 @@ fun NavGraphBuilder.flowAppGraph(
                 playerViewModel.playPlaylist(videos, index, "Playlist")
             },
             onChannelClick = { channelId ->
-                youtubeChannelRoute(channelId)?.let(navController::navigate)
+                navController.navigateToYoutubeChannel(channelId)
             }
         )
     }
@@ -730,7 +728,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.popBackStack()
             },
             onChannelClick = { channelId ->
-                youtubeChannelRoute(channelId)?.let(navController::navigate)
+                navController.navigateToYoutubeChannel(channelId)
             }
         )
     }

@@ -47,6 +47,16 @@ class PlayerRelatedVideosPolicyTest {
         assertThat(selected).containsExactly(duplicate)
     }
 
+    @Test
+    fun `sanitizing display candidates keeps live and upcoming videos`() {
+        val live = video("live").copy(isLive = true)
+        val upcoming = video("upcoming").copy(isUpcoming = true)
+
+        val selected = PlayerRelatedVideosPolicy.sanitize("playing", listOf(live, upcoming))
+
+        assertThat(selected).containsExactly(live, upcoming).inOrder()
+    }
+
     private fun video(id: String) = Video(
         id = id,
         title = id,

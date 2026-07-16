@@ -161,6 +161,7 @@ class EnhancedPlayerManager private constructor() {
     @Volatile private var queueAutoplayEnabled: Boolean = true
     private var autoplayCandidates: List<Video> = emptyList()
     private var autoplaySourceVideoId: String? = null
+    @Volatile private var relatedCandidatesSnapshot = RelatedCandidatesSnapshot()
     private var autoplayJob: Job? = null
 
     @Volatile private var autoplayCountdownSeconds: Int = 0
@@ -1313,9 +1314,18 @@ class EnhancedPlayerManager private constructor() {
         }
         autoplayEnabled = enabled
         autoplaySourceVideoId = sourceVideoId
-        autoplayCandidates = videos
-            .filter { it.id.isNotBlank() && it.id != sourceVideoId && !it.isLive && !it.isUpcoming }
-            .distinctBy { it.id }
+        val existingRelatedCandidates = relatedCandidatesSnapshot
+            .takeIf { it.sourceVideoId == sourceVideoId }
+            ?.videos
+            .orEmpty()
+        val relatedCandidates = PlayerRelatedVideosPolicy.select(
+            videoId = sourceVideoId,
+            primary = videos,
+            fallback = emptyList(),
+            current = existingRelatedCandidates
+        )
+        relatedCandidatesSnapshot = RelatedCandidatesSnapshot(sourceVideoId, relatedCandidates)
+        autoplayCandidates = relatedCandidates.filter { !it.isLive && !it.isUpcoming }
         Log.d(TAG, "Autoplay candidates for $sourceVideoId: ${autoplayCandidates.size}, enabled=$enabled")
         autoNextLog("setAutoplayCandidates source=$sourceVideoId input=${videos.size} filtered=${autoplayCandidates.size} enabled=$enabled")
         if (sourceVideoId == currentVideoId) {
@@ -1596,6 +1606,9 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    fun relatedCandidatesFor(videoId: String): List<Video> =
+        relatedCandidatesSnapshot.takeIf { it.sourceVideoId == videoId }?.videos.orEmpty()
+
     private fun shouldAbortServicePlaybackLoad(
         videoId: String,
         reason: String,
@@ -1636,6 +1649,11 @@ class EnhancedPlayerManager private constructor() {
     private data class PreloadedNext(
         val data: ResolvedStreamData,
         val fromQueue: Boolean
+    )
+
+    private data class RelatedCandidatesSnapshot(
+        val sourceVideoId: String? = null,
+        val videos: List<Video> = emptyList()
     )
 
     @Volatile private var preloadedNext: PreloadedNext? = null
