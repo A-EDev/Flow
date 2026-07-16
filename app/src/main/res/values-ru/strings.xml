@@ -634,7 +634,7 @@
     <string name="content_settings_hide_watched_title">Скрыть просмотренные видео</string>
     <string name="content_settings_hide_watched_subtitle">Отфильтровать видео, которые вы уже отсмотрели, из своей домашней ленты и страницы подписок</string>
     <string name="content_settings_disable_shorts_player_title">Отключить Shorts-плеер</string>
-    <string name="content_settings_disable_shorts_player_subtitle">Воспроизвести все видео (включая YouTube Shorts) в обычном видеоплеере</string>
+    <string name="content_settings_disable_shorts_player_subtitle">Воспроизводить все видео (включая YouTube Shorts) в обычном плеере</string>
     <string name="categories_region_picker_desc">Сменить регион (текущий: %1$s)</string>
     <string name="content_settings_explore_region_picker_subtitle">Показать значок глобуса на верхней панели экрана, чтобы мгновенно изменить регион.</string>
     <string name="content_settings_explore_region_picker_title">Быстрый выбор региона</string>
@@ -1371,7 +1371,7 @@
     <string name="player_appearance_controls_while_loading_subtitle">Показать элементы управления плеером до завершения загрузки видео, чтобы можно было сразу отрегулировать громкость</string>
     <string name="player_appearance_controls_while_loading_title">Управление во время загрузки</string>
     <string name="player_appearance_volume_boost_title">Дополнительное усиление громкости</string>
-    <string name="player_appearance_volume_boost_subtitle">Включите, чтобы усилить максимальный уровень громкости выше системной.</string>
+    <string name="player_appearance_volume_boost_subtitle">В выключенном состоянии жест громкости ограничен максимумом системы. Включите для дополнительного усиления звука.</string>
     <string name="player_appearance_long_press_speed_title">Скорость воспроизведения при длительном нажатии</string>
     <string name="player_appearance_long_press_speed_disabled">Отключено</string>
     <string name="player_settings_ambient_mode_subtitle">Заполнить черные области вокруг видео мягким свечением его цветов</string>
@@ -1723,7 +1723,7 @@
     <string name="section_listen_again">Послушать еще раз</string>
     <string name="section_daily_discover">Открытия дня</string>
     <string name="section_quick_picks">Рекомендации</string>
-    <string name="section_speed_dial">Быстрый набор</string>
+    <string name="section_speed_dial">Быстрый выбор</string>
     <string name="shuffle_play">Перемешать</string>
     <string name="feeling_lucky">Испытать удачу?</string>
     <string name="daily_discover_because_you_listen_to">Потому что вы слушаете %1$s</string>
@@ -1798,7 +1798,7 @@
     <string name="upcoming_video_starts_in">Начало через</string>
     <string name="subscriptions_compact_header">Перейти к каналам, на которые вы недавно подписались.</string>
     <string name="subscriptions_compact_header_with_music">Музыкальные каналы сгруппированы в строке, чтобы лента оставалась компактной.</string>
-    <string name="content_settings_shorts_player_prompt_title">Подсказки в Shorts-плеере</string>
+    <string name="content_settings_shorts_player_prompt_title">Предлагать Shorts-плеер</string>
     <string name="content_settings_shorts_player_prompt_subtitle">Запрашивать подтверждение на открытие видео короче 2 минут в Shorts-плеере</string>
     <string name="common_topics_to_block">Часто блокируемые темы</string>
     <string name="onboarding_interests_hint">Выберите не менее %1$d тем для настройки ленты. Осталось выбрать: %2$d.</string>
@@ -1926,4 +1926,8 @@
     <string name="subtitle_background_opacity_template">Прозрачность фона: %1$d%%</string>
     <string name="subtitle_bold_text">Жирный текст</string>
     <string name="subtitle_reset_default">Вернуть исходные настройки</string>
+    <string name="content_settings_hide_watched_home_title">Скрыть просмотренные видео на главной</string>
+    <string name="content_settings_hide_watched_home_subtitle">Скрывать просмотренные видео из ленты на главной</string>
+    <string name="content_settings_hide_watched_subscriptions_title">Скрыть просмотренные видео из подписок</string>
+    <string name="content_settings_hide_watched_subscriptions_subtitle">Скрывать просмотренные видео из ленты подписок</string>
 </resources>
