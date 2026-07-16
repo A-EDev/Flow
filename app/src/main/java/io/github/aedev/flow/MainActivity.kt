@@ -17,8 +17,10 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.data.local.LocalDataManager
+import io.github.aedev.flow.data.local.AppUiModePreferences
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.theme.FlowTheme
@@ -44,7 +46,11 @@ import io.github.aedev.flow.utils.UpdateManager
 import io.github.aedev.flow.utils.UpdateInfo
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.player.PictureInPictureHelper
+import io.github.aedev.flow.platform.AppUiMode
+import io.github.aedev.flow.platform.AppUiRoot
+import io.github.aedev.flow.platform.DeviceFormFactorDetector
 import io.github.aedev.flow.ui.components.UpdateDialog
+import io.github.aedev.flow.ui.tv.FlowTvApp
 import io.github.aedev.flow.BuildConfig
 import androidx.activity.SystemBarStyle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -78,6 +84,7 @@ class MainActivity : ComponentActivity() {
 
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
+    private var cachedAppUiRoot = AppUiRoot.MOBILE
 
     private fun videoPlaybackStateName(state: Int?): String = when (state) {
         androidx.media3.common.Player.STATE_IDLE -> "IDLE"
@@ -185,6 +192,14 @@ class MainActivity : ComponentActivity() {
             var showSplash by remember { mutableStateOf(true) }
 
             val context = LocalContext.current
+            val configuration = LocalConfiguration.current
+            val uiPreferences = remember { AppUiModePreferences(applicationContext) }
+            val appUiMode by uiPreferences.mode.collectAsState(initial = AppUiMode.AUTOMATIC)
+            val deviceFormFactor = remember(configuration.uiMode, context) {
+                DeviceFormFactorDetector.detect(context)
+            }
+            val appUiRoot = appUiMode.resolve(deviceFormFactor)
+            SideEffect { cachedAppUiRoot = appUiRoot }
 
             // Check for a crash that happened last session.
             // If found, show the CrashReporterScreen instead of the normal UI.
@@ -331,56 +346,64 @@ class MainActivity : ComponentActivity() {
                     val isDeeplinkShort by this@MainActivity.isDeeplinkShort
                     val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
 
-                    FlowApp(
-                        currentTheme = themeMode,
-                        themeVariant = themeVariant,
-                        customThemePalettes = customThemePalettes,
-                        systemLightThemeMode = systemLightThemeMode,
-                        systemDarkThemeMode = systemDarkThemeMode,
-                        systemDarkThemeVariant = systemDarkThemeVariant,
-                        onThemeChange = { newTheme ->
-                            themeMode = newTheme
-                            scope.launch {
-                                dataManager.setThemeMode(newTheme)
+                    if (appUiRoot == AppUiRoot.TV) {
+                        FlowTvApp(
+                            deeplinkVideoId = deeplinkVideoId,
+                            isShort = isDeeplinkShort,
+                            onDeeplinkConsumed = { consumeDeeplink() },
+                        )
+                    } else {
+                        FlowApp(
+                            currentTheme = themeMode,
+                            themeVariant = themeVariant,
+                            customThemePalettes = customThemePalettes,
+                            systemLightThemeMode = systemLightThemeMode,
+                            systemDarkThemeMode = systemDarkThemeMode,
+                            systemDarkThemeVariant = systemDarkThemeVariant,
+                            onThemeChange = { newTheme ->
+                                themeMode = newTheme
+                                scope.launch {
+                                    dataManager.setThemeMode(newTheme)
+                                }
+                            },
+                            onThemeVariantChange = { variant ->
+                                themeVariant = variant
+                                scope.launch {
+                                    dataManager.setThemeVariant(variant)
+                                }
+                            },
+                            onCustomThemePalettesChange = { palettes ->
+                                customThemePalettes = palettes
+                                scope.launch {
+                                    dataManager.setCustomThemePalettes(palettes)
+                                }
+                            },
+                            onSystemLightThemeChange = { newTheme ->
+                                systemLightThemeMode = newTheme
+                                scope.launch {
+                                    dataManager.setSystemLightThemeMode(newTheme)
+                                }
+                            },
+                            onSystemDarkThemeChange = { newTheme ->
+                                systemDarkThemeMode = newTheme
+                                scope.launch {
+                                    dataManager.setSystemDarkThemeMode(newTheme)
+                                }
+                            },
+                            onSystemDarkThemeVariantChange = { variant ->
+                                systemDarkThemeVariant = variant
+                                scope.launch {
+                                    dataManager.setSystemDarkThemeVariant(variant)
+                                }
+                            },
+                            deeplinkVideoId = deeplinkVideoId,
+                            isShort = isDeeplinkShort,
+                            openMusicPlayerRequest = openMusicPlayerRequest,
+                            onDeeplinkConsumed = {
+                                consumeDeeplink()
                             }
-                        },
-                        onThemeVariantChange = { variant ->
-                            themeVariant = variant
-                            scope.launch {
-                                dataManager.setThemeVariant(variant)
-                            }
-                        },
-                        onCustomThemePalettesChange = { palettes ->
-                            customThemePalettes = palettes
-                            scope.launch {
-                                dataManager.setCustomThemePalettes(palettes)
-                            }
-                        },
-                        onSystemLightThemeChange = { newTheme ->
-                            systemLightThemeMode = newTheme
-                            scope.launch {
-                                dataManager.setSystemLightThemeMode(newTheme)
-                            }
-                        },
-                        onSystemDarkThemeChange = { newTheme ->
-                            systemDarkThemeMode = newTheme
-                            scope.launch {
-                                dataManager.setSystemDarkThemeMode(newTheme)
-                            }
-                        },
-                        onSystemDarkThemeVariantChange = { variant ->
-                            systemDarkThemeVariant = variant
-                            scope.launch {
-                                dataManager.setSystemDarkThemeVariant(variant)
-                            }
-                        },
-                        deeplinkVideoId = deeplinkVideoId,
-                        isShort = isDeeplinkShort,
-                        openMusicPlayerRequest = openMusicPlayerRequest,
-                        onDeeplinkConsumed = {
-                            consumeDeeplink()
-                        }
-                    )
+                        )
+                    }
 
                     // 2. THE SPLASH SCREEN (Z-Index Top)
                     if (showSplash) {
@@ -590,7 +613,9 @@ class MainActivity : ComponentActivity() {
         )
         videoLifecycleLog("onStop")
         if (!isInPictureInPictureMode && !PictureInPictureHelper.isPopupActive) {
-            requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            if (cachedAppUiRoot == AppUiRoot.MOBILE) {
+                requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
             if (!cachedShortsBackgroundPlay) {
                 io.github.aedev.flow.player.shorts.ShortsPlayerPool.getInstance().pauseAll()
             }
@@ -615,6 +640,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        if (cachedAppUiRoot == AppUiRoot.TV) return
         FlowCrashHandler.recordPhase("activity", "onUserLeaveHint autoPip=$cachedAutoPipEnabled")
         videoLifecycleLog("onUserLeaveHint")
         // Only enter PiP mode if video is playing and has progressed
@@ -653,6 +679,7 @@ class MainActivity : ComponentActivity() {
         isPlaying: Boolean = true,
         openSettingsOnDenied: Boolean = false
     ): Boolean {
+        if (cachedAppUiRoot == AppUiRoot.TV) return false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
         if (!PictureInPictureHelper.isPipAllowed(this)) {
             if (openSettingsOnDenied) {
