@@ -68,7 +68,7 @@
     <string name="lyrics_not_available">Paroles non disponibles</string>
     <string name="playing">Lecture en cours</string>
     <string name="remove">Retirer</string>
-    <string name="related_content">Contenu similaire</string>
+    <string name="related_content">Contenu associé</string>
     <string name="no_related_content">Aucun contenu connexe trouvé</string>
     <string name="share_message_template">Découvrez cette chanson : %1$s par %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
     <string name="hz">Hz</string>
@@ -1967,4 +1967,8 @@
     <string name="subtitle_background_opacity_template">Opacité de l\'arrière-plan : %1$d%%</string>
     <string name="subtitle_bold_text">Texte en gras</string>
     <string name="subtitle_reset_default">Rétablir les paramètres par défaut</string>
+    <string name="content_settings_hide_watched_home_title">Masquer les vidéos visionnées de la page d\'accueil</string>
+    <string name="content_settings_hide_watched_home_subtitle">Filtrer les vidéos que vous avez déjà visionnées dans votre fil d\'actualité</string>
+    <string name="content_settings_hide_watched_subscriptions_title">Masquer les vidéos visionnées dans les abonnements</string>
+    <string name="content_settings_hide_watched_subscriptions_subtitle">Filtrer les vidéos que vous avez déjà visionnées parmi vos abonnements</string>
 </resources>
