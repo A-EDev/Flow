@@ -325,7 +325,7 @@
     <string name="content_settings_related_card_compact_desc">الصورة المصغرة و المعلومات جنبًا إلى جنب</string>
     <string name="content_settings_related_card_full_width">عرض كامل</string>
     <string name="content_settings_related_card_full_width_desc">صورة مصغرة كبيرة مع العنوان أسفله</string>
-    <string name="subscriptions_search_placeholder">ابحث في الإشتركات...</string>
+    <string name="subscriptions_search_placeholder">فتش اشتركاتك...</string>
     <string name="empty_subscriptions_body">اشترك بالقنوات لترى هنا\nأحدث مقاطعهم هنا</string>
     <string name="shorts">شورتز</string>
     <string name="subscribers">المشتركون</string>
