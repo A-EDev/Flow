@@ -143,7 +143,7 @@
     <string name="channel_id">ID de la Chaîne</string>
     <string name="uploaded">Téléchargé</string>
     <string name="itag">iTag</string>
-    <string name="mime_type">Type MIME</string>
+    <string name="mime_type">Type Mime</string>
     <string name="file_size">Taille du Fichier</string>
     <string name="quality">Qualité</string>
     <string name="duration">Durée</string>
@@ -498,7 +498,7 @@
     <string name="hidden_content_desc">Les vidéos traitant de ces sujets n\'apparaîtront pas dans vos suggestions. Vous pouvez également utiliser le bouton « Ça ne m\'intéresse pas » sur les vidéos.</string>
     <string name="block_topic_title">Bloquer un sujet</string>
     <string name="enter_keywords_to_hide">Entrez des mots-clés à masquer</string>
-    <string name="block_topic_placeholder">par exemple : maquillage, Fortnite, ASMR</string>
+    <string name="block_topic_placeholder">par exemple : maquillage, fortnite, asmr</string>
     <string name="desc_add_topic">Ajouter un sujet</string>
     <string name="quick_add">Ajout rapide</string>
     <string name="common_topics_to_block">Sujets courants à bloquer</string>
