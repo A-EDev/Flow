@@ -1587,7 +1587,8 @@ fun ShortsShelf(
 fun ShortsCard(
     video: Video,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier.width(160.dp)
+    modifier: Modifier = Modifier.width(160.dp),
+    trailingContent: (@Composable () -> Unit)? = null
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -1625,11 +1626,18 @@ fun ShortsCard(
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold
         )
-        Text(
-            text = stringResource(R.string.views_template, formatViewCount(video.viewCount)),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.extendedColors.textSecondary
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = stringResource(R.string.views_template, formatViewCount(video.viewCount)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.extendedColors.textSecondary,
+                modifier = Modifier.weight(1f)
+            )
+            trailingContent?.invoke()
+        }
     }
 
     if (showQuickActions) {

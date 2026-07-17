@@ -471,7 +471,8 @@ private fun HistoryList(
                         ShortsHistoryRow(
                             entries = sectionEntries,
                             shortVideos = shortVideos,
-                            onShortClick = onShortClick
+                            onShortClick = onShortClick,
+                            onRemove = onRemove
                         )
                     }
                 }
@@ -498,7 +499,8 @@ private fun HistoryList(
                             ShortsHistoryRow(
                                 entries = shorts,
                                 shortVideos = shortVideos,
-                                onShortClick = onShortClick
+                                onShortClick = onShortClick,
+                                onRemove = onRemove
                             )
                         }
                     }
@@ -559,7 +561,8 @@ private fun HistoryEntryRow(
 private fun ShortsHistoryRow(
     entries: List<VideoHistoryEntry>,
     shortVideos: Map<String, Video>,
-    onShortClick: (String) -> Unit
+    onShortClick: (String) -> Unit,
+    onRemove: (String) -> Unit
 ) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -571,7 +574,16 @@ private fun ShortsHistoryRow(
         ) { entry ->
             ShortsCard(
                 video = shortVideos[entry.videoId] ?: entry.toShortVideo(),
-                onClick = { onShortClick(entry.videoId) }
+                onClick = { onShortClick(entry.videoId) },
+                trailingContent = {
+                    IconButton(onClick = { onRemove(entry.videoId) }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.remove_from_history),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
         }
     }
