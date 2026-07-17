@@ -1844,6 +1844,7 @@
     <string name="player_action_dislike">Dislike</string>
     <string name="action_want_more">Want more like this</string>
     <string name="action_not_interested">Not interested</string>
+    <string name="desc_more">...more</string>
     <!-- Diagnostics screen -->
     <string name="settings_item_diagnostics">Diagnostics</string>
     <string name="settings_item_diagnostics_subtitle">View error logs and crash reports</string>

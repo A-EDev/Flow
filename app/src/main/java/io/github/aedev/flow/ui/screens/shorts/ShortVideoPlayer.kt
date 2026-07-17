@@ -394,7 +394,8 @@ fun ShortVideoPage(
     }
 
     // ── Main Layout ──
-    Box(
+    @Composable
+    fun VideoPageContent() = Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
@@ -924,6 +925,8 @@ fun ShortVideoPage(
             )
         }
     }
+
+    VideoPageContent()
 
     if (showShortsOptionsSheet) {
         ShortsOptionsSheet(

@@ -1,0 +1,4 @@
+- Recommendations engine improvements
+- Add new app widgets, community posts support, local media library and ambient player support
+- Improve playback speed, performamce and SABR handling
+- Bug fixes and many more

@@ -17,8 +17,8 @@ android {
         applicationId = "io.github.aedev.flow"
         minSdk = 26
         targetSdk = 34
-        versionCode = 16
-        versionName = "2.1.5"
+        versionCode = 17
+        versionName = "2.2.0"
 
         testInstrumentationRunner = "io.github.aedev.flow.HiltTestRunner"
         vectorDrawables {
