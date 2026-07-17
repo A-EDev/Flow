@@ -20,6 +20,7 @@ flow-website
 svglogo
 metro*
 release.ps1
+releasenote.ps1
 release.bat
 build_result.md
 LibreTube-master
