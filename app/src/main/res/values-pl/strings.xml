@@ -1218,7 +1218,7 @@
     <string name="stats_interactions">Interakcje</string>
     <string name="metric_interactions_detail">kliknięcia, obejrzenia, pominięcia</string>
     <string name="stats_topics">Tematy</string>
-    <string name="metric_topics_detail">ważność tematów</string>
+    <string name="metric_topics_detail">przypisane tematy</string>
     <string name="history_delete_shorts_title">Usunąć Shorts?</string>
     <string name="history_delete_shorts_body">Spowoduje to usunięcie wszystkich Shorts z historii oglądania. Pozostałe filmy zostaną zachowane.</string>
     <string name="recognize_music">Rozpoznaj muzykę</string>
@@ -1236,4 +1236,20 @@
     <string name="action_retry">Ponów</string>
     <string name="history_tab_local_videos">Filmy na urządzeniu</string>
     <string name="history_tab_local_music">Muzyka na urządzeniu</string>
+    <string name="local_media_grant">Przyznaj dostęp</string>
+    <string name="metric_evidence_detail">zweryfikowane tematy</string>
+    <string name="interest_weights_subtitle">Najwyżej oceniane tematy po okresie próbnym i weryfikacji danych</string>
+    <string name="metric_evidence">Sprawdzone</string>
+    <string name="metric_interactions">Interakcje</string>
+    <string name="metric_topics">Tematy</string>
+    <string name="metric_channels">Kanały</string>
+    <string name="metric_channels_detail">preferowane kanały</string>
+    <string name="metric_history">Historia</string>
+    <string name="metric_history_detail">wzorce oglądania</string>
+    <string name="metric_feed_memory_detail">ostatnio wyświetlone</string>
+    <string name="metric_feed_memory">Pamięć Rekomendacji</string>
+    <string name="metric_filters">Filtry</string>
+    <string name="metric_filters_detail">zablokowane pozycje</string>
+    <string name="metric_suppressed">Wyciszone</string>
+    <string name="metric_suppressed_detail">uśpione elementy</string>
 </resources>
