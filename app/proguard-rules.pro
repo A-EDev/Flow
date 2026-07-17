@@ -139,3 +139,5 @@
 -keep class com.google.re2j.** { *; }
 -dontwarn org.jsoup.helper.Re2jRegex
 -dontwarn org.jsoup.helper.Re2jRegex$Re2jMatcher
+## Jetpack Glance widgets: ActionCallback implementations are resolved by class name
+-keep class * implements androidx.glance.appwidget.action.ActionCallback { *; }

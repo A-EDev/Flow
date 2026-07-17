@@ -20,6 +20,7 @@ NEW FEATURES
 - Add new vetrical video fullscreen drag gesture
 - Add community posts support
 - Add playlist loop and shuffle actions
+- Add app widgets
 
 IMPROVEMENTS
 - Improve media notification handling #577

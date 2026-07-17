@@ -52,6 +52,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.github.aedev.flow.utils.AppLanguageManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -66,6 +67,9 @@ class MainActivity : ComponentActivity() {
 
     private val _openMusicPlayerRequest = mutableIntStateOf(0)
     val openMusicPlayerRequest: State<Int> = _openMusicPlayerRequest
+
+    private val _pendingWidgetRoute = mutableStateOf<String?>(null)
+    val pendingWidgetRoute: State<String?> = _pendingWidgetRoute
 
     // Cached auto-PiP preference
     private var cachedAutoPipEnabled = false
@@ -164,6 +168,16 @@ class MainActivity : ComponentActivity() {
         }
 
         val dataManager = LocalDataManager(applicationContext)
+
+        // Re-render home-screen widgets whenever the in-app theme changes so they
+        // always match the app's active palette.
+        lifecycleScope.launch {
+            io.github.aedev.flow.widget.core.widgetThemeSignatureFlow(applicationContext)
+                .drop(1)
+                .collect {
+                    io.github.aedev.flow.widget.core.FlowWidgets.updateAll(applicationContext)
+                }
+        }
 
         handleIntent(intent)
 
@@ -330,6 +344,7 @@ class MainActivity : ComponentActivity() {
                     val deeplinkVideoId by this@MainActivity.deeplinkVideoId
                     val isDeeplinkShort by this@MainActivity.isDeeplinkShort
                     val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
+                    val pendingWidgetRoute by this@MainActivity.pendingWidgetRoute
 
                     FlowApp(
                         currentTheme = themeMode,
@@ -379,6 +394,10 @@ class MainActivity : ComponentActivity() {
                         openMusicPlayerRequest = openMusicPlayerRequest,
                         onDeeplinkConsumed = {
                             consumeDeeplink()
+                        },
+                        pendingWidgetRoute = pendingWidgetRoute,
+                        onWidgetRouteConsumed = {
+                            _pendingWidgetRoute.value = null
                         }
                     )
 
@@ -425,6 +444,15 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent) {
         val data = intent.data
         val notificationVideoId = intent.getStringExtra("notification_video_id") ?: intent.getStringExtra("video_id")
+
+        val widgetRoute = intent.getStringExtra(
+            io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE
+        )
+        if (widgetRoute != null) {
+            intent.removeExtra(io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
+            _pendingWidgetRoute.value = widgetRoute
+            return
+        }
 
         if (intent.getBooleanExtra("open_music_player", false)) {
             _deeplinkVideoId.value = null

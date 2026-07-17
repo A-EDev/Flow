@@ -82,7 +82,8 @@ class Media3MusicService : MediaLibraryService() {
         private val CommandStop = SessionCommand(ACTION_STOP, Bundle.EMPTY)
         private val CommandSetEq = SessionCommand(ACTION_SET_EQ, Bundle.EMPTY)
         
-        private const val ACTION_TOGGLE_LIKE = "ACTION_TOGGLE_LIKE"
+        // Public: the Now Playing widget sends this as a custom session command
+        const val ACTION_TOGGLE_LIKE = "ACTION_TOGGLE_LIKE"
         private val CommandToggleLike = SessionCommand(ACTION_TOGGLE_LIKE, Bundle.EMPTY)
         
         /**
@@ -124,6 +125,9 @@ class Media3MusicService : MediaLibraryService() {
     @Inject
     lateinit var downloadUtil: DownloadUtil
 
+    @Inject
+    lateinit var widgetPublisher: io.github.aedev.flow.widget.nowplaying.NowPlayingWidgetPublisher
+
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
@@ -157,6 +161,7 @@ class Media3MusicService : MediaLibraryService() {
         serviceScope.launch {
             io.github.aedev.flow.player.EnhancedMusicPlayerManager.isLiked.collectLatest {
                 updateNotification()
+                if (::player.isInitialized) widgetPublisher.publish(player)
             }
         }
 
@@ -299,10 +304,14 @@ class Media3MusicService : MediaLibraryService() {
                         }
                     }
                 }
+
+                widgetPublisher.publish(player)
             }
             
             override fun onPlaybackStateChanged(playbackState: Int) {
                 updateLocks(isPlaybackActive())
+                // READY is when duration becomes known — refresh the widget snapshot
+                widgetPublisher.publish(player)
                 if (playbackState == Player.STATE_READY) {
                     player.currentMediaItem?.mediaId?.let { mediaId ->
                         val lastErrorAt = lastPlaybackErrorAtMap[mediaId] ?: 0L
@@ -321,6 +330,7 @@ class Media3MusicService : MediaLibraryService() {
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 updateLocks(isPlaybackActive())
+                widgetPublisher.publish(player)
             }
         })
     }
@@ -719,6 +729,8 @@ class Media3MusicService : MediaLibraryService() {
         // Clear audio session ID so external processors know we're gone
         currentAudioSessionId = 0
         Log.i(TAG, "Audio session destroyed")
+
+        widgetPublisher.publishStopped()
         
         lockReleaseJob?.cancel()
         lockReleaseJob = null

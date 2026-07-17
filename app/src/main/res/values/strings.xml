@@ -2023,4 +2023,31 @@
     <string name="recognition_clear_history">Clear history?</string>
     <string name="recognition_clear_history_body">This removes all recognized songs. This cannot be undone.</string>
     <string name="close_popup_player">Close popup player</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_now_playing_label">Now Playing</string>
+    <string name="widget_now_playing_description">Control the music that\'s playing in Flow</string>
+    <string name="widget_quick_actions_label">Quick actions</string>
+    <string name="widget_quick_actions_description">Search Flow and jump to downloads, history, or recognition</string>
+    <string name="widget_recognize_label">Recognize music</string>
+    <string name="widget_recognize_description">Identify the song playing around you with one tap</string>
+    <string name="widget_turntable_label">Turntable</string>
+    <string name="widget_turntable_description">Your music as a spinning record</string>
+    <string name="widget_recently_played_label">Recently played</string>
+    <string name="widget_recently_played_description">Pick up where you left off</string>
+    <string name="widget_downloads_label">Downloads</string>
+    <string name="widget_downloads_description">Play your offline downloads</string>
+    <string name="widget_recently_played">Recently played</string>
+    <string name="widget_downloads">Downloads</string>
+    <string name="widget_nothing_playing">Nothing playing</string>
+    <string name="widget_play">Play</string>
+    <string name="widget_pause">Pause</string>
+    <string name="widget_next">Next track</string>
+    <string name="widget_previous">Previous track</string>
+    <string name="widget_like">Like</string>
+    <string name="widget_artwork">Album artwork</string>
+    <string name="widget_open_downloads">Open downloads</string>
+    <string name="widget_open_history">Open history</string>
+    <string name="widget_no_recent">Videos you watch will appear here</string>
+    <string name="widget_no_downloads">Your downloads will appear here</string>
 </resources>

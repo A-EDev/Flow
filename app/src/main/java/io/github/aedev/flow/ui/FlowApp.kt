@@ -83,7 +83,9 @@ fun FlowApp(
     deeplinkVideoId: String? = null,
     isShort: Boolean = false,
     openMusicPlayerRequest: Int = 0,
-    onDeeplinkConsumed: () -> Unit = {}
+    onDeeplinkConsumed: () -> Unit = {},
+    pendingWidgetRoute: String? = null,
+    onWidgetRouteConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
@@ -372,6 +374,16 @@ fun FlowApp(
             musicPlayerSheetState.collapse()
         } else if (currentMusicTrack == null) {
             musicPlayerSheetState.dismiss()
+        }
+    }
+
+    LaunchedEffect(pendingWidgetRoute) {
+        pendingWidgetRoute?.let { route ->
+            // Cold start: suspend until the NavHost has set its graph (first back-stack
+            // entry emitted) — navigating earlier throws "graph has not been set".
+            navController.currentBackStackEntryFlow.first()
+            navController.navigate(route)
+            onWidgetRouteConsumed()
         }
     }
 
