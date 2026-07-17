@@ -738,6 +738,7 @@ class EnhancedPlayerManager private constructor() {
         Log.d(TAG, "playLocalFile: videoId=$videoId, path=$filePath, offlineSegments=${savedSegments?.size}, resumePos=$preservePosition")
         resetPlaybackStateForNewVideo(videoId)
         updateLivePlaybackMode(isLive = false)
+        configureTrackSelectorForLocalFile()
         currentVideoId = videoId
         startPlaybackTracker()
 
@@ -809,6 +810,7 @@ class EnhancedPlayerManager private constructor() {
         }
         Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)}, sabr=${sabrInfo != null}, preferSabr=$preferSabr, itVideo=${itVideoFormats.size}, itAudio=${itAudioFormats.size}, keepAudioOnly=$keepAudioOnly)")
         resetPlaybackStateForNewVideo(videoId)
+        if (localFilePath != null) configureTrackSelectorForLocalFile()
         currentSabrInfo = sabrInfo
         sabrPreferred = preferSabr
         innerTubeVideoFormats = itVideoFormats
@@ -1053,6 +1055,19 @@ class EnhancedPlayerManager private constructor() {
             )
         }
         mediaLoader?.getActiveSabrOrchestrator()?.setAudioOnly(disabled)
+    }
+
+    private fun configureTrackSelectorForLocalFile() {
+        trackSelector?.let { selector ->
+            selector.setParameters(
+                selector.buildUponParameters()
+                    .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+                    .setPreferredVideoMimeTypes(*emptyArray())
+                    .clearVideoSizeConstraints()
+                    .clearViewportSizeConstraints()
+                    .build()
+            )
+        }
     }
 
     // ===== Queue Management =====

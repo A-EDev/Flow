@@ -92,36 +92,13 @@ private fun Video.channelAvatarUrls(collaborators: List<VideoCollaborator> = emp
 }
 
 internal fun Video.collaboratorItems(resolvedCollaborators: List<VideoCollaborator> = emptyList()): List<VideoCollaborator> {
-    val modelItems = (collaborators + resolvedCollaborators)
+    return (collaborators + resolvedCollaborators)
         .filter { it.name.isNotBlank() }
         .filter { it.hasChannelCollaboratorSignal() }
         .distinctBy { it.channelId.ifBlank { it.name.lowercase() } }
-    if (modelItems.size > 1) return modelItems
-
-    val names = channelName.splitCollaboratorNames()
-    if (names.size <= 1) return emptyList()
-
-    val avatars = (channelThumbnailUrls + channelThumbnailUrl)
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
-        .distinctBy { it.avatarImageIdentityKey() }
-        .take(3)
-    val count = maxOf(names.size, avatars.size)
-
-    return List(count) { index ->
-        VideoCollaborator(
-            name = names.getOrNull(index).orEmpty(),
-            channelId = if (index == 0) channelId else "",
-            thumbnailUrl = avatars.getOrNull(index).orEmpty(),
-            subscriberCountText = "",
-        )
-    }
+        .takeIf { it.size > 1 }
+        .orEmpty()
 }
-
-private fun String.splitCollaboratorNames(): List<String> =
-    split(Regex("""\s+(?:and|&|x|with)\s+""", RegexOption.IGNORE_CASE))
-        .map { it.trim() }
-        .filter { it.isNotBlank() }
 
 private fun VideoCollaborator.hasChannelCollaboratorSignal(): Boolean =
     channelId.startsWith("UC") ||

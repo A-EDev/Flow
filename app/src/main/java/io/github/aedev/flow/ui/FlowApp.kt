@@ -586,10 +586,6 @@ fun FlowApp(
                     val activeRoute = navController.currentBackStackEntry?.destination?.route
                     if (activeRoute == route) {
                         TabScrollEventBus.emitScrollToTop(route)
-                    } else if (route == defaultStartRoute) {
-                        selectedBottomNavIndex.intValue = index
-                        currentRoute.value = route
-                        navController.popBackStack(defaultStartRoute, inclusive = false)
                     } else {
                         selectedBottomNavIndex.intValue = index
                         currentRoute.value = route

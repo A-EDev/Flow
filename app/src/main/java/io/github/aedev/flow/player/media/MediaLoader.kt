@@ -115,6 +115,7 @@ class MediaLoader(
 
                 lastSourceWasSabr = false
                 val mediaSource = createMediaSource(
+                    context = ctx,
                     dataSourceFactory = dataSourceFactory,
                     videoStream = videoStream,
                     audioStream = audioStream,
@@ -177,6 +178,7 @@ class MediaLoader(
         val dataSourceFactory = cacheManager?.getDataSourceFactory() ?: DefaultDataSource.Factory(ctx)
         return try {
             createMediaSource(
+                context = ctx,
                 dataSourceFactory = dataSourceFactory,
                 videoStream = videoStream,
                 audioStream = audioStream,
@@ -213,6 +215,7 @@ class MediaLoader(
     fun getActiveSabrOrchestrator(): SabrOrchestrator? = activeSabrOrchestrator
 
     private fun createMediaSource(
+        context: Context,
         dataSourceFactory: DataSource.Factory,
         videoStream: VideoStream?,
         audioStream: AudioStream?,
@@ -246,8 +249,12 @@ class MediaLoader(
             } else {
                 android.net.Uri.fromFile(File(localFilePath))
             }
-            ProgressiveMediaSource.Factory(cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory)
-                .createMediaSource(MediaItem.fromUri(localUri))
+            val localItem = MediaItem.Builder()
+                .setUri(localUri)
+                .apply { localFileMimeType(localUri)?.let(::setMimeType) }
+                .build()
+            ProgressiveMediaSource.Factory(DefaultDataSource.Factory(context))
+                .createMediaSource(localItem)
         } else {
             val resolver = VideoPlaybackResolver(
                 cacheManager?.getDashDataSourceFactory() ?: dataSourceFactory,
@@ -287,6 +294,15 @@ class MediaLoader(
         }
 
         return mergeSubtitleSourcesIfNeeded(mediaSource, subtitleStreams, dataSourceFactory)
+    }
+
+    private fun localFileMimeType(uri: Uri): String? = when (
+        uri.lastPathSegment?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase(Locale.US)
+    ) {
+        "mp4", "m4v", "mov" -> MimeTypes.VIDEO_MP4
+        "webm" -> MimeTypes.VIDEO_WEBM
+        "mkv" -> "video/x-matroska"
+        else -> null
     }
 
     private fun createSabrMediaSource(
