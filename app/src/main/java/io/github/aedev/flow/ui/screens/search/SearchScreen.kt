@@ -69,16 +69,22 @@ fun SearchScreen(
     val context = LocalContext.current
     val searchHistoryRepo = remember { SearchHistoryRepository(context) }
     val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
+    val uiState by viewModel.uiState.collectAsState()
 
-    var searchQuery by remember { mutableStateOf(TextFieldValue("")) }
+    var searchQuery by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(
+            TextFieldValue(
+                text = viewModel.uiState.value.query,
+                selection = TextRange(viewModel.uiState.value.query.length)
+            )
+        )
+    }
     var isSearchFocused by remember { mutableStateOf(false) }
     val isGridMode by preferences.searchIsGridMode.collectAsState(initial = false)
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     var hasPerformedSearch by rememberSaveable { mutableStateOf(false) }
     var isNavigatingAway by remember { mutableStateOf(false) }
 
-    val uiState by viewModel.uiState.collectAsState()
     val searchHistory by searchHistoryRepo.getSearchHistoryFlow()
         .collectAsState(initial = emptyList())
     val suggestionsEnabled by searchHistoryRepo.isSearchSuggestionsEnabledFlow()
@@ -141,7 +147,6 @@ fun SearchScreen(
             if (!spokenText.isNullOrBlank()) {
                 setSearchQueryToEnd(spokenText)
                 dismissKeyboard()
-                selectedTabIndex = 0
                 viewModel.search(spokenText)
             }
         }
@@ -229,6 +234,9 @@ fun SearchScreen(
             searchHistoryRepo.saveSearchQuery(uiState.query)
             gridState.scrollToItem(0)
         }
+        if (!isSearchFocused && searchQuery.text != uiState.query) {
+            setSearchQueryToEnd(uiState.query)
+        }
     }
 
     LaunchedEffect(isSearchFocused) {
@@ -237,19 +245,10 @@ fun SearchScreen(
         }
     }
 
-    val tabContentTypes = listOf(
-        ContentType.ALL, ContentType.VIDEOS, ContentType.SHORTS,
-        ContentType.CHANNELS, ContentType.PLAYLISTS, ContentType.LIVE
-    )
     val sortByTypes = listOf(
         SortType.RELEVANCE, SortType.RATING, SortType.VIEWS
     )
-    LaunchedEffect(selectedTabIndex) {
-        if (uiState.query.isNotBlank()) {
-            val base = uiState.filters ?: SearchFilter()
-            viewModel.updateFilters(base.copy(contentType = tabContentTypes[selectedTabIndex]))
-        }
-    }
+    val selectedContentType = uiState.filters?.contentType ?: ContentType.ALL
 
     Column(
         modifier = modifier
@@ -268,7 +267,6 @@ fun SearchScreen(
                 if (queryText.isNotBlank()) {
                     dismissKeyboard()
                     liveSuggestions = emptyList()
-                    selectedTabIndex = 0
 
                     val videoId = extractVideoId(queryText)
                     if (videoId != null) {
@@ -320,7 +318,6 @@ fun SearchScreen(
                     dismissKeyboard()
                     setSearchQueryToEnd(s)
                     liveSuggestions = emptyList()
-                    selectedTabIndex = 0
 
                     val videoId = extractVideoId(s)
                     if (videoId != null) {
@@ -354,7 +351,6 @@ fun SearchScreen(
                 onHistoryClick = { q ->
                     dismissKeyboard()
                     setSearchQueryToEnd(q)
-                    selectedTabIndex = 0
                     viewModel.search(q)
                 },
                 onHistoryDelete = { item ->
@@ -366,9 +362,10 @@ fun SearchScreen(
             )
         } else {
             SearchFiltersBar(
-                selectedContentType = tabContentTypes[selectedTabIndex],
+                selectedContentType = selectedContentType,
                 onContentTypeSelected = { type ->
-                    selectedTabIndex = tabContentTypes.indexOf(type)
+                    val base = uiState.filters ?: SearchFilter()
+                    viewModel.updateFilters(base.copy(contentType = type))
                 },
                 selectedDuration = uiState.filters?.duration ?: Duration.ANY,
                 onDurationSelected = { dur ->
@@ -421,7 +418,7 @@ fun SearchScreen(
                             onRetry = pagingItems::retry
                         )
                     }
-                    tabContentTypes[selectedTabIndex] == ContentType.SHORTS -> {
+                    selectedContentType == ContentType.SHORTS -> {
                         SearchShortsGrid(
                             pagingItems, gridState, maxOf(columns, 2),
                             navigateToVideo, dismissKeyboard

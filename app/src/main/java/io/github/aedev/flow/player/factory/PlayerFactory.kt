@@ -141,7 +141,7 @@ class PlayerFactory {
             .setAllocator(allocator)
             .setBufferDurationsMs(minBufferMs, maxBufferMs, bufferForPlaybackMs, bufferRebufferMs)
             .setBackBuffer(backBufferMs, true)
-            .setPrioritizeTimeOverSizeThresholds(false)
+            .setPrioritizeTimeOverSizeThresholds(true)
             .setTargetBufferBytes(targetBufferBytes)
             .build()
     }
