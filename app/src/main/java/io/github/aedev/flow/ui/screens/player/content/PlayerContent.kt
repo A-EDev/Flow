@@ -14,7 +14,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -31,14 +30,13 @@ import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.model.DeArrowResult
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.Media3SubtitleOverlay
+import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.screens.player.PremiumControlsOverlay
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
@@ -73,13 +71,7 @@ fun PlayerContent(
     val longPressPlaybackSpeed by playerPrefs.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val ambientModeEnabled by playerPrefs.videoAmbientModeEnabled.collectAsState(initial = false)
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
-    val deArrowResult by produceState<DeArrowResult?>(
-        initialValue = null,
-        key1 = video.id,
-        key2 = deArrowEnabled
-    ) {
-        value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
-    }
+    val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled)
     val resolvedVideoTitle = deArrowResult?.title ?: uiState.streamInfo?.name ?: video.title
 
     LaunchedEffect(lockModeEnabled) {

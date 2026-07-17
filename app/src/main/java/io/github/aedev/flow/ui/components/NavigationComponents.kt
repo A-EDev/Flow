@@ -30,6 +30,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,6 +105,7 @@ fun FloatingBottomNavBar(
         ) {
             visibleItems.forEach { spec ->
                 BottomNavItem(
+                    modifier = Modifier.weight(1f),
                     icon = if (selectedIndex == spec.index) spec.filledIcon else spec.outlinedIcon,
                     label = stringResource(spec.labelRes),
                     selected = selectedIndex == spec.index,
@@ -111,8 +114,9 @@ fun FloatingBottomNavBar(
             }
 
             if (overflowItems.isNotEmpty()) {
-                Box {
+                Box(modifier = Modifier.weight(1f)) {
                     BottomNavItem(
+                        modifier = Modifier.fillMaxWidth(),
                         icon = if (isOverflowSelected) Icons.Filled.MoreHoriz else Icons.Outlined.MoreHoriz,
                         label = stringResource(R.string.nav_more),
                         selected = isOverflowSelected,
@@ -160,7 +164,8 @@ private fun BottomNavItem(
     icon: ImageVector,
     label: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val scale by animateFloatAsState(
         targetValue = if (selected) 1.05f else 1f,
@@ -179,34 +184,42 @@ private fun BottomNavItem(
     
     val interactionSource = remember { MutableInteractionSource() }
     
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .scale(scale)
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(bounded = true, radius = 28.dp),
-                onClick = onClick
-            )
-            .padding(horizontal = 12.dp, vertical = 2.dp)
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = iconTint,
-            modifier = Modifier.size(22.dp)
-        )
-        
-        Spacer(modifier = Modifier.height(1.dp))
-        
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = iconTint,
-            fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .scale(scale)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(bounded = true, radius = 28.dp),
+                    onClick = onClick
+                )
+                .padding(horizontal = 12.dp, vertical = 2.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = iconTint,
+                modifier = Modifier.size(22.dp)
+            )
+
+            Spacer(modifier = Modifier.height(1.dp))
+
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = iconTint,
+                fontSize = 10.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

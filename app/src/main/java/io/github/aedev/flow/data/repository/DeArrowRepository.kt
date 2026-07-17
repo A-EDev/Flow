@@ -71,6 +71,8 @@ object DeArrowRepository {
         }
     }
 
+    fun getCachedDeArrowResult(videoId: String): DeArrowResult? = cache.get(videoId)?.value
+
     private fun parseResponse(json: String, videoId: String): DeArrowResult? {
         return try {
             val content = gson.fromJson(json, DeArrowContent::class.java)

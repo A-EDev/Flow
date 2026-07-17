@@ -61,10 +61,8 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.ViewHistory
-import io.github.aedev.flow.data.model.DeArrowResult
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
-import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -226,11 +224,7 @@ fun VideoCard(
     val playerPrefs = remember { PlayerPreferences(context) }
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
     val deArrowBadgeEnabled by playerPrefs.deArrowBadgeEnabled.collectAsState(initial = false)
-    val deArrowResult by produceState<DeArrowResult?>(
-        initialValue = null, key1 = video.id, key2 = deArrowEnabled
-    ) {
-        value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
-    }
+    val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled)
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
     val videoCardActionsEnabled by playerPrefs.videoCardActionsEnabled.collectAsState(initial = false)
@@ -509,11 +503,7 @@ fun VideoCardHorizontal(
     val dateSettings = rememberDateDisplaySettings()
     val playerPrefs = remember { PlayerPreferences(context) }
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
-    val deArrowResult by produceState<DeArrowResult?>(
-        initialValue = null, key1 = video.id, key2 = deArrowEnabled
-    ) {
-        value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
-    }
+    val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled)
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
     val upcomingReminderIds by playerPrefs.upcomingVideoReminderIds.collectAsState(initial = emptySet())
@@ -717,11 +707,7 @@ fun VideoCardFullWidth(
     val playerPrefsFullWidth = remember { PlayerPreferences(context) }
     val deArrowEnabledFullWidth by playerPrefsFullWidth.deArrowEnabled.collectAsState(initial = false)
     val deArrowBadgeEnabledFullWidth by playerPrefsFullWidth.deArrowBadgeEnabled.collectAsState(initial = false)
-    val deArrowResultFullWidth by produceState<DeArrowResult?>(
-        initialValue = null, key1 = video.id, key2 = deArrowEnabledFullWidth
-    ) {
-        value = if (deArrowEnabledFullWidth) DeArrowRepository.getDeArrowResult(video.id) else null
-    }
+    val deArrowResultFullWidth = rememberDeArrowResult(video.id, deArrowEnabledFullWidth)
     val displayTitle = deArrowResultFullWidth?.title ?: video.title
     val displayThumbnailUrl = deArrowResultFullWidth?.thumbnailUrl ?: video.thumbnailUrl
     val videoCardActionsEnabledFW by playerPrefsFullWidth.videoCardActionsEnabled.collectAsState(initial = false)
@@ -1060,11 +1046,7 @@ fun CompactVideoCard(
     val playerPrefsCompact = remember { PlayerPreferences(context) }
     val deArrowEnabledCompact by playerPrefsCompact.deArrowEnabled.collectAsState(initial = false)
     val deArrowBadgeEnabledCompact by playerPrefsCompact.deArrowBadgeEnabled.collectAsState(initial = false)
-    val deArrowResultCompact by produceState<DeArrowResult?>(
-        initialValue = null, key1 = video.id, key2 = deArrowEnabledCompact
-    ) {
-        value = if (deArrowEnabledCompact) DeArrowRepository.getDeArrowResult(video.id) else null
-    }
+    val deArrowResultCompact = rememberDeArrowResult(video.id, deArrowEnabledCompact)
     val videoCardMarkWatchedEnabledCompact by playerPrefsCompact.videoCardMarkWatchedEnabled.collectAsState(initial = false)
     val quickActionsVmCompact: QuickActionsViewModel = hiltViewModel()
     val watchedVideoIdsCompact by quickActionsVmCompact.watchedVideoIds.collectAsState()

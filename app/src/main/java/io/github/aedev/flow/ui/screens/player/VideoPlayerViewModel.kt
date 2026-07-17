@@ -2191,6 +2191,7 @@ class VideoPlayerViewModel @Inject constructor(
         primaryCandidates: List<Video>,
         loadToken: Long
     ) {
+        val manager = EnhancedPlayerManager.getInstance()
         val currentCandidates = _uiState.value
             .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
             ?.relatedVideos
@@ -2198,7 +2199,7 @@ class VideoPlayerViewModel @Inject constructor(
         val selected = PlayerRelatedVideosPolicy.select(
             videoId = videoId,
             primary = primaryCandidates,
-            fallback = emptyList(),
+            fallback = manager.relatedCandidatesFor(videoId),
             current = currentCandidates
         )
         if (selected.isNotEmpty()) {
@@ -2223,6 +2224,12 @@ class VideoPlayerViewModel @Inject constructor(
                 }
             }
             if (!isPlaybackLoadCurrent(loadToken) || relatedVideosVideoId != videoId) return@launch
+
+            val managerCandidates = manager.relatedCandidatesFor(videoId)
+            if (managerCandidates.isNotEmpty()) {
+                applyRelatedVideos(videoId, managerCandidates, loadToken)
+                return@launch
+            }
 
             val fallbackCandidates = withTimeoutOrNull(10_000L) {
                 repository.getRelatedCandidates(videoId)
@@ -2425,6 +2432,18 @@ class VideoPlayerViewModel @Inject constructor(
             )
         }
 
+        // Queue and preloaded playback may already own this media item. Arm secondary metadata
+        // before the prepared-player return so those transitions still populate the screen.
+        loadRelatedVideosAfterPlayback(videoId, relatedVideos, loadToken)
+        loadChannelMetadataAfterPlayback(
+            videoId = videoId,
+            uploaderUrl = null,
+            channelId = channelId,
+            embeddedAvatarUrls = listOfNotNull(cached?.channelThumbnailUrl) +
+                cached?.channelThumbnailUrls.orEmpty(),
+            loadToken = loadToken
+        )
+
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         if (manager.isPreparedForPlayback(videoId)) return@withContext
 
@@ -2454,17 +2473,6 @@ class VideoPlayerViewModel @Inject constructor(
 
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         manager.play()
-
-        loadRelatedVideosAfterPlayback(videoId, relatedVideos, loadToken)
-
-        loadChannelMetadataAfterPlayback(
-            videoId = videoId,
-            uploaderUrl = null,
-            channelId = channelId,
-            embeddedAvatarUrls = listOfNotNull(cached?.channelThumbnailUrl) +
-                cached?.channelThumbnailUrls.orEmpty(),
-            loadToken = loadToken
-        )
     }
 
     private fun refreshLiveWatchMetadata(

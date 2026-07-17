@@ -34,10 +34,9 @@ import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.model.DeArrowResult
-import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.components.CommentsPreview
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
@@ -69,13 +68,7 @@ fun VideoInfoContent(
     val playerPrefs = remember { PlayerPreferences(context) }
     val shareWithoutText by playerPrefs.shareWithoutText.collectAsState(initial = false)
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
-    val deArrowResult by produceState<DeArrowResult?>(
-        initialValue = null,
-        key1 = video.id,
-        key2 = deArrowEnabled
-    ) {
-        value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
-    }
+    val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled)
     val resolvedVideoTitle = deArrowResult?.title ?: uiState.streamInfo?.name ?: video.title
     val resolvedCollaborators by produceState(
         initialValue = video.collaborators,

@@ -13,7 +13,7 @@ object PlayerRelatedVideosPolicy {
         .firstOrNull { it.isNotEmpty() }
         .orEmpty()
 
-    private fun sanitize(videoId: String, candidates: List<Video>): List<Video> =
+    fun sanitize(videoId: String, candidates: List<Video>): List<Video> =
         candidates
             .filter { it.id.isNotBlank() && it.id != videoId }
             .distinctBy { it.id }

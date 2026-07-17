@@ -641,10 +641,8 @@ fun FlowApp(
             showBottomNav.value = true
         },
         onNavigateToChannel = { channelArg ->
-            youtubeChannelRoute(channelArg)?.let { route ->
-                playerSheetState.collapse()
-                navController.navigate(route)
-            }
+            playerSheetState.collapse()
+            navController.navigateToYoutubeChannel(channelArg)
         },
         onNavigateToShorts = { videoId ->
             playerSheetState.collapse()
