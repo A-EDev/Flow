@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve Flow. Include enough detail for someone else to reproduce the problem. Remove tokens, cookies, account data, and other private information from logs before submitting them.
+        Thanks for helping improve Flow. Include enough detail for someone else to reproduce the problem. Remove tokens, cookies, and other private information from logs before submitting them.
 
   - type: checkboxes
     id: checks
@@ -19,8 +19,7 @@ body:
           required: true
         - label: I can reproduce this on the latest available Flow release or a current development build.
           required: true
-        - label: I removed authentication data, private account information, and other secrets from this report.
-          required: true
+
 
   - type: input
     id: app-version

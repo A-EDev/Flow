@@ -67,7 +67,7 @@ body:
     id: impact
     attributes:
       label: Privacy, security, and resource impact
-      description: State whether this needs new permissions, network services, account data, local storage, background work, or additional battery use. Write "None" if it has no impact.
+      description: State whether this needs new permissions, network services, local storage, background work, or additional battery use. Write "None" if it has no impact.
     validations:
       required: true
 
