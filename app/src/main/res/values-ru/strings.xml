@@ -247,7 +247,7 @@
     <string name="duration_over_20">Более 20 мин</string>
     <string name="sort_relevance">По релевантности</string>
     <string name="sort_upload_date">По дате загрузки</string>
-    <string name="sort_view_count">По числу просмотров</string>
+    <string name="sort_view_count">По просмотрам</string>
     <string name="sort_rating">По рейтингу</string>
     <string name="channel_default_title">Канал</string>
     <string name="channel_banner">Баннер канала</string>
@@ -648,7 +648,7 @@
     <string name="cache_size_unlimited">Без ограничений</string>
     <string name="cd_pause">Пауза</string>
     <string name="cd_play">Играть</string>
-    <string name="cd_more_options">Больше параметров</string>
+    <string name="cd_more_options">Параметры</string>
     <string name="shorts_original_sound">Оригинальный звук – %1$s</string>
     <string name="view_count_billion_suffix">млрд.</string>
     <string name="view_count_million_suffix">млн.</string>
