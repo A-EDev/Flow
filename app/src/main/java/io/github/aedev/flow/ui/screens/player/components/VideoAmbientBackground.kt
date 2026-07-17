@@ -60,7 +60,9 @@ private const val MAX_PREFERRED_LUMA = 0.86f
 data class AmbientFrameState(
     val frame: ImageBitmap? = null,
     val base: Color? = null,
-    val accent: Color? = null
+    val accent: Color? = null,
+    val metadataForeground: Color? = null,
+    val actionsForeground: Color? = null
 )
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -68,6 +70,7 @@ data class AmbientFrameState(
 fun rememberAmbientFrame(
     playerView: PlayerView,
     active: Boolean,
+    includeAmbientVisuals: Boolean = true,
     isPlayingProvider: () -> Boolean = {
         EnhancedPlayerManager.getInstance().getPlayer()?.isPlaying == true
     }
@@ -75,7 +78,7 @@ fun rememberAmbientFrame(
     var state by remember { mutableStateOf(AmbientFrameState()) }
     val currentIsPlayingProvider by rememberUpdatedState(isPlayingProvider)
 
-    LaunchedEffect(active, playerView) {
+    LaunchedEffect(active, includeAmbientVisuals, playerView) {
         if (!active) {
             state = AmbientFrameState()
             return@LaunchedEffect
@@ -90,11 +93,21 @@ fun rememberAmbientFrame(
                     val captured = captureSurface(surface, sample, handler)
                     if (captured) {
                         val display = withContext(Dispatchers.Default) {
-                            val (base, accent) = extractColors(sample)
-                            val scaled = Bitmap.createScaledBitmap(sample, DISPLAY_W, DISPLAY_H, true)
-                            Triple(scaled.asImageBitmap(), base, accent)
+                            val colors = extractColors(sample, includeAmbientVisuals)
+                            val frame = if (includeAmbientVisuals) {
+                                Bitmap.createScaledBitmap(sample, DISPLAY_W, DISPLAY_H, true).asImageBitmap()
+                            } else {
+                                null
+                            }
+                            AmbientFrameState(
+                                frame = frame,
+                                base = colors.base,
+                                accent = colors.accent,
+                                metadataForeground = colors.metadataForeground,
+                                actionsForeground = colors.actionsForeground
+                            )
                         }
-                        state = AmbientFrameState(display.first, display.second, display.third)
+                        state = display
                     }
                 }
                 delay(if (playing) UPDATE_MS else IDLE_MS)
@@ -139,8 +152,41 @@ private suspend fun captureSurface(surface: View, dst: Bitmap, handler: Handler)
         }
     }
 
-private fun extractColors(bmp: Bitmap): Pair<Color?, Color?> {
-    val palette = Palette.from(bmp).clearFilters().generate()
+private data class ExtractedFrameColors(
+    val base: Color?,
+    val accent: Color?,
+    val metadataForeground: Color?,
+    val actionsForeground: Color?
+)
+
+private fun extractColors(bmp: Bitmap, includeAmbientVisuals: Boolean): ExtractedFrameColors {
+    val palette = if (includeAmbientVisuals) {
+        Palette.from(bmp).clearFilters().generate()
+    } else {
+        null
+    }
+    val metadataForeground = extractForegroundColor(
+        bitmap = bmp,
+        left = 0,
+        top = (bmp.height * 0.55f).toInt(),
+        right = (bmp.width * 0.78f).toInt(),
+        bottom = bmp.height
+    )
+    val actionsForeground = extractForegroundColor(
+        bitmap = bmp,
+        left = (bmp.width * 0.72f).toInt(),
+        top = (bmp.height * 0.20f).toInt(),
+        right = bmp.width,
+        bottom = bmp.height
+    )
+    if (palette == null) {
+        return ExtractedFrameColors(
+            base = null,
+            accent = null,
+            metadataForeground = metadataForeground,
+            actionsForeground = actionsForeground
+        )
+    }
     val usableSwatches = palette.swatches
         .filter { it.population >= MIN_COLOR_POPULATION }
         .sortedWith(
@@ -158,8 +204,28 @@ private fun extractColors(bmp: Bitmap): Pair<Color?, Color?> {
         ?: usableSwatches.firstOrNull()
         ?: palette.mutedSwatch
         ?: palette.dominantSwatch
-    return baseSwatch?.let { Color(it.rgb) } to accentSwatch?.let { Color(it.rgb) }
+    return ExtractedFrameColors(
+        base = baseSwatch?.let { Color(it.rgb) },
+        accent = accentSwatch?.let { Color(it.rgb) },
+        metadataForeground = metadataForeground,
+        actionsForeground = actionsForeground
+    )
 }
+
+private fun extractForegroundColor(
+    bitmap: Bitmap,
+    left: Int,
+    top: Int,
+    right: Int,
+    bottom: Int
+): Color? = Palette.from(bitmap)
+    .clearFilters()
+    .maximumColorCount(8)
+    .setRegion(left, top, right, bottom)
+    .generate()
+    .dominantSwatch
+    ?.bodyTextColor
+    ?.let { Color(it).copy(alpha = 1f) }
 
 @Composable
 fun VideoAmbientBackground(
