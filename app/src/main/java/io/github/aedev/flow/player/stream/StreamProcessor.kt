@@ -54,22 +54,14 @@ object StreamProcessor {
             .also { Log.d(TAG, "Processed ${streams.size} subtitle streams -> ${it.size} unique tracks") }
     }
 
-    /**
-     * Derive a unique grouping key for deduplication. Uses audioTrackName, audioLocale, or
-     * audioTrackId (trying both dot- and underscore-separated suffixes, then full ID) so that
-     * tracks with formats like "A_hi" are not all collapsed into a single "default" group.
-     */
+    /** Derive a stable logical-track key while collapsing only alternate formats of that track. */
     private fun extractTrackLanguageKey(stream: AudioStream): String {
-        stream.audioTrackName?.takeIf { it.isNotBlank() }?.let { return it }
-        stream.audioLocale?.language?.takeIf { it.isNotBlank() }?.let { return it }
-        stream.audioTrackId?.let { id ->
-            val dotPart = id.substringAfterLast(".").takeIf { it.isNotBlank() && it != id }
-            if (dotPart != null) return dotPart
-            val underPart = id.substringAfterLast("_").takeIf { it.isNotBlank() && it != id }
-            if (underPart != null) return underPart
-            return id
-        }
-        return "default"
+        return audioTrackGroupingKey(
+            trackId = stream.audioTrackId,
+            trackName = stream.audioTrackName,
+            languageTag = stream.audioLocale?.toLanguageTag(),
+            trackType = stream.audioTrackType?.name
+        )
     }
 
     /**
@@ -84,11 +76,8 @@ object StreamProcessor {
         }
 
         stream.audioTrackId?.let { trackId ->
-            val dotCode = trackId.substringAfterLast(".").takeIf { it.isNotBlank() && it != trackId }
-            val underCode = trackId.substringAfterLast("_").takeIf { it.isNotBlank() && it != trackId }
-            val langCode = dotCode ?: underCode
-            if (langCode != null) {
-                localizedLanguageName(langCode)?.let { return it }
+            audioTrackLanguageTag(trackId)?.let { languageTag ->
+                localizedLanguageName(languageTag)?.let { return it }
             }
             return trackId.replaceFirstChar { it.uppercase() }
         }
@@ -139,5 +128,37 @@ object StreamProcessor {
         return displayName.replaceFirstChar { character ->
             if (character.isLowerCase()) character.titlecase(displayLocale) else character.toString()
         }
+    }
+
+    internal fun audioTrackLanguageTag(trackId: String): String? {
+        val normalized = trackId.trim()
+        if (normalized.isEmpty()) return null
+
+        val withoutRoleSuffix = normalized.substringBeforeLast('.', missingDelimiterValue = "")
+        if (withoutRoleSuffix.isNotBlank()) return withoutRoleSuffix
+
+        if (normalized.startsWith("A_")) {
+            return normalized.substringAfterLast('_').takeIf { it.isNotBlank() }
+        }
+
+        return normalized.replace('_', '-').takeIf {
+            Locale.forLanguageTag(it.replace('_', '-')).language.isNotBlank()
+        }
+    }
+
+    internal fun audioTrackGroupingKey(
+        trackId: String?,
+        trackName: String?,
+        languageTag: String?,
+        trackType: String?
+    ): String {
+        val type = trackType.orEmpty().lowercase(Locale.ROOT)
+        trackId?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { return "id:${it.lowercase(Locale.ROOT)}" }
+        trackName?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { return "name:${it.lowercase(Locale.ROOT)}|$type" }
+        languageTag?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { return "language:${it.lowercase(Locale.ROOT)}|$type" }
+        return "default"
     }
 }

@@ -81,6 +81,7 @@ class MusicPlaylistsViewModel @Inject constructor(
                                     duration = e.duration,
                                     viewCount = e.viewCount,
                                     uploadDate = e.uploadDate,
+                                    timestamp = e.timestamp,
                                     description = e.description,
                                     channelThumbnailUrl = e.channelThumbnailUrl
                                 )

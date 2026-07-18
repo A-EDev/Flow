@@ -31,6 +31,7 @@ import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.parseToTimestamp
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.withPermit
 import java.util.Locale
@@ -557,7 +558,10 @@ class YouTubeRepository @Inject constructor(
                 duration = info.duration.toInt(),
                 viewCount = info.viewCount,
                 uploadDate = info.textualUploadDate ?: "Unknown",
-                timestamp = System.currentTimeMillis(), // Best effort for single video fetch
+                timestamp = resolveUploadTimestamp(
+                    info.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli(),
+                    info.textualUploadDate
+                ),
                 channelThumbnailUrl = bestAvatar,
                 channelThumbnailUrls = avatarUrls
             )
@@ -1050,6 +1054,11 @@ class YouTubeRepository @Inject constructor(
             .distinctBy { it.id }
     }
 
+    suspend fun refreshVideoMetadata(video: Video): Video? = withContext(Dispatchers.IO) {
+        val response = YouTube.watchMetadataLite(video.id).getOrNull() ?: return@withContext null
+        mergeWatchMetadata(video, response)
+    }
+
     suspend fun getLiveRelatedVideosBySearch(
         videoId: String,
         title: String?,
@@ -1371,6 +1380,30 @@ class YouTubeRepository @Inject constructor(
             return instance ?: error("YouTubeRepository not initialized. Call getInstance(playerPreferences) first.")
         }
     }
+}
+
+internal fun mergeWatchMetadata(
+    video: Video,
+    response: WatchMetadataResponse
+): Video? {
+    val uploadDate = response.uploadDate()?.takeIf { it.isNotBlank() } ?: return null
+    val timestamp = parseToTimestamp(uploadDate) ?: video.timestamp
+    val avatarUrl = response.channelAvatarUrl().orEmpty().ifBlank { video.channelThumbnailUrl }
+    return video.copy(
+        title = response.title().orEmpty().ifBlank { video.title },
+        channelName = response.channelName().orEmpty().ifBlank { video.channelName },
+        channelId = response.channelId().orEmpty().ifBlank { video.channelId },
+        viewCount = parseAbbreviatedCount(response.viewCountText()) ?: video.viewCount,
+        uploadDate = uploadDate,
+        timestamp = timestamp,
+        description = response.description().orEmpty().ifBlank { video.description },
+        channelThumbnailUrl = avatarUrl,
+        channelThumbnailUrls = if (avatarUrl.isNotBlank()) {
+            (listOf(avatarUrl) + video.channelThumbnailUrls).distinct()
+        } else {
+            video.channelThumbnailUrls
+        }
+    )
 }
 
 internal fun parseAbbreviatedCount(text: String?): Long? {

@@ -40,8 +40,7 @@ import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.dao.VideoDao
-import io.github.aedev.flow.data.local.entity.VideoEntity
+import io.github.aedev.flow.data.migration.WatchLaterMetadataMigrator
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.player.stream.AudioStreamSelector
@@ -1280,7 +1279,7 @@ class PlaylistDetailViewModel @Inject constructor(
     private val repository: PlaylistRepository,
     private val youTubeRepository: io.github.aedev.flow.data.repository.YouTubeRepository,
     private val playerPreferences: PlayerPreferences,
-    private val videoDao: VideoDao,
+    private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -1498,12 +1497,17 @@ class PlaylistDetailViewModel @Inject constructor(
                         isWatchLater = true
                     )
                 }
+                var migrationStarted = false
                 repository.getVideoOnlyWatchLaterFlow().collect { videos ->
                     _uiState.update {
                         it.copy(
                             videos = videos,
                             thumbnailUrl = videos.firstOrNull()?.thumbnailUrl.orEmpty()
                         )
+                    }
+                    if (!migrationStarted && videos.isNotEmpty()) {
+                        migrationStarted = true
+                        viewModelScope.launch { watchLaterMetadataMigrator.migrate(videos) }
                     }
                     val stubs = videos.filter { it.title.isEmpty() }.take(50)
                     if (stubs.isNotEmpty()) {
@@ -1696,28 +1700,15 @@ class PlaylistDetailViewModel @Inject constructor(
 
     private val enrichSemaphore = Semaphore(1)
 
-    private fun enrichMetadata(stubs: List<Video>) {
+    private fun enrichMetadata(videos: List<Video>) {
         if (!enrichSemaphore.tryAcquire()) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                stubs.chunked(5).forEach { chunk ->
-                    chunk.forEach { stub ->
+                videos.chunked(5).forEach { chunk ->
+                    chunk.forEach videoLoop@ { video ->
                         try {
-                            val enriched = youTubeRepository.getVideo(stub.id) ?: return@forEach
-                            val e = VideoEntity.fromDomain(enriched)
-                            videoDao.insertVideoOrIgnore(e)
-                            videoDao.updateVideoMetadata(
-                                id = e.id,
-                                title = e.title,
-                                channelName = e.channelName,
-                                channelId = e.channelId,
-                                thumbnailUrl = e.thumbnailUrl,
-                                duration = e.duration,
-                                viewCount = e.viewCount,
-                                uploadDate = e.uploadDate,
-                                description = e.description,
-                                channelThumbnailUrl = e.channelThumbnailUrl
-                            )
+                            val refreshed = youTubeRepository.getVideo(video.id) ?: return@videoLoop
+                            repository.updateVideoMetadata(refreshed)
                         } catch (_: Exception) {}
                     }
                     delay(300L)

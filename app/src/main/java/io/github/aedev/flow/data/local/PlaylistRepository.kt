@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
+import io.github.aedev.flow.utils.parseRelativeToTimestamp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.firstOrNull
@@ -29,8 +30,16 @@ class PlaylistRepository @Inject constructor(
         const val SAVED_SHORTS_ID = "saved_shorts"
     }
 
-    private suspend fun persistVideoWithoutDroppingPlaylistRefs(video: Video) {
-        val entity = VideoEntity.fromDomain(video)
+    suspend fun updateVideoMetadata(video: Video) {
+        val normalizedVideo = parseRelativeToTimestamp(video.uploadDate)
+            ?.let { parsedTimestamp ->
+                val stableTimestamp = video.timestamp.takeIf { it > 0L }
+                    ?.let { minOf(it, parsedTimestamp) }
+                    ?: parsedTimestamp
+                video.copy(timestamp = stableTimestamp)
+            }
+            ?: video
+        val entity = VideoEntity.fromDomain(normalizedVideo)
         videoDao.insertVideoOrIgnore(entity)
         videoDao.updateVideoMetadata(
             id = entity.id,
@@ -41,6 +50,7 @@ class PlaylistRepository @Inject constructor(
             duration = entity.duration,
             viewCount = entity.viewCount,
             uploadDate = entity.uploadDate,
+            timestamp = entity.timestamp,
             description = entity.description,
             channelThumbnailUrl = entity.channelThumbnailUrl
         )
@@ -64,7 +74,7 @@ class PlaylistRepository @Inject constructor(
         }
         
         // Save video
-        persistVideoWithoutDroppingPlaylistRefs(video)
+        updateVideoMetadata(video)
         
         // Add relationship
         val position = System.currentTimeMillis()
@@ -114,7 +124,7 @@ class PlaylistRepository @Inject constructor(
             
             // Save video
             android.util.Log.d("PlaylistRepository", "Inserting video metadata")
-            persistVideoWithoutDroppingPlaylistRefs(video)
+            updateVideoMetadata(video)
             
             // Add relationship
             val position = System.currentTimeMillis()
@@ -244,7 +254,7 @@ class PlaylistRepository @Inject constructor(
         try {
             android.util.Log.d("PlaylistRepository", "Adding video ${video.id} to playlist $playlistId")
             // Save video first
-            persistVideoWithoutDroppingPlaylistRefs(video)
+            updateVideoMetadata(video)
             
             // Add relation
             val position = -System.currentTimeMillis()
@@ -399,7 +409,7 @@ class PlaylistRepository @Inject constructor(
             ?.map { it.id }?.toSet() ?: emptySet()
 
         remoteVideos.forEachIndexed { index, video ->
-            persistVideoWithoutDroppingPlaylistRefs(video)
+            updateVideoMetadata(video)
             playlistDao.insertPlaylistVideoCrossRef(
                 PlaylistVideoCrossRef(
                     playlistId = playlistId,

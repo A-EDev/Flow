@@ -34,6 +34,7 @@ interface VideoDao {
             duration = :duration,
             viewCount = :viewCount,
             uploadDate = :uploadDate,
+            timestamp = :timestamp,
             description = :description,
             channelThumbnailUrl = :channelThumbnailUrl
         WHERE id = :id
@@ -47,6 +48,7 @@ interface VideoDao {
         duration: Int,
         viewCount: Long,
         uploadDate: String,
+        timestamp: Long,
         description: String,
         channelThumbnailUrl: String
     )
