@@ -1997,4 +1997,5 @@
     <string name="widget_no_downloads">Vos téléchargements s\'afficheront ici</string>
     <string name="widget_like">Favoris</string>
     <string name="desc_more">…et plus</string>
+    <string name="playlist_visibility_metadata">%1$s • %2$s</string>
 </resources>
