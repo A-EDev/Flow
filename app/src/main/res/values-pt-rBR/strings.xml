@@ -104,7 +104,7 @@
     <string name="tab_videos">Vídeos</string>
     <string name="tab_music">Música</string>
     <string name="empty_offline_body">Seu %1$s baixado aparecerá aqui. Aproveite seu conteúdo mesmo sem internet.</string>
-    <string name="action_go_to_home">Ir para casa</string>
+    <string name="action_go_to_home">Ir para Início</string>
     <string name="action_delete">Excluir</string>
     <string name="download_deleted">Download excluído</string>
     <string name="action_undo">Desfazer</string>
@@ -157,7 +157,7 @@
     <string name="release_notes">NOTAS DE LANÇAMENTO</string>
     <string name="update_flow">Fluxo de atualização</string>
     <string name="maybe_later">Talvez mais tarde</string>
-    <string name="nav_home">Casa</string>
+    <string name="nav_home">Início</string>
     <string name="nav_music">Música</string>
     <string name="nav_library">Biblioteca</string>
     <string name="notifications">Notificações</string>
@@ -628,4 +628,9 @@
     <string name="listening">Ouvindo…</string>
     <string name="tap_to_recognize">Toque para reconhecer</string>
     <string name="history_delete_shorts_title">Deletar Shorts?</string>
+    <string name="subscriptions_sort_label">Ordernar canais</string>
+    <string name="subscriptions_sort_recent">Atualizado recentemente</string>
+    <string name="continue_watching_title">Continue Assistindo</string>
+    <string name="datetime_sample_relative">7 meses atrás</string>
+    <string name="datetime_mode_relative">Tempo relativo (ex.: 7 meses atrás)</string>
 </resources>
