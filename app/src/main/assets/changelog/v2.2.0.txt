@@ -1,7 +1,7 @@
 FLOW CHANGE LOG
 VERSION: 2.2.0
 DATE: 2026-07-18
-STATUS: PRE-RELEASE
+STATUS: RELEASE
 
 NEW FEATURES
 - Add a local media library (play local on-device media)

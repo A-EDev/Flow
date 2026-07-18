@@ -1,7 +1,7 @@
 # Flow v2.2.0
 
 **Release date:** 2026-07-18
-**Status:** Pre-release
+**Status:** Release
 
 ## New features
 
