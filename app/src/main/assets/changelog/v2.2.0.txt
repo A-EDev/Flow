@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.2.0
-DATE: 2026-07-16
+DATE: 2026-07-18
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -53,6 +53,7 @@ IMPROVEMENTS
 - Refine the subscriptions feed cards to match the home layout #678
 - Onboarding screen redesign
 - Faster playback startup
+- Library screen redesign
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

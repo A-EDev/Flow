@@ -3,90 +3,88 @@ package io.github.aedev.flow.ui.screens.library
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.LikedVideosRepository
-import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.music.DownloadManager as MusicDownloadManager
 import io.github.aedev.flow.data.video.VideoDownloadManager
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
-    private val videoDownloadManager: VideoDownloadManager,
-    private val musicDownloadManager: MusicDownloadManager
+    @ApplicationContext context: Context,
+    playlistRepository: PlaylistRepository,
+    videoDownloadManager: VideoDownloadManager,
+    musicDownloadManager: MusicDownloadManager
 ) : ViewModel() {
-    
-    private lateinit var likedVideosRepository: LikedVideosRepository
-    private lateinit var viewHistory: ViewHistory
-    private var playlistRepository: PlaylistRepository? = null
-    
-    private val _uiState = MutableStateFlow(LibraryUiState())
-    val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
-    
-    fun initialize(context: Context) {
-        likedVideosRepository = LikedVideosRepository.getInstance(context)
-        viewHistory = ViewHistory.getInstance(context)
-        playlistRepository = PlaylistRepository(context)
-        
-        // Load all likes count (videos + music)
-        viewModelScope.launch {
-            likedVideosRepository.getAllLikedVideos().collect { likes ->
-                _uiState.update { it.copy(likedVideosCount = likes.size) }
-            }
-        }
-        
-        viewModelScope.launch {
-            viewHistory.getVideoCount().collect { count ->
-                _uiState.update { it.copy(watchHistoryCount = count) }
-            }
-        }
 
-        // Load playlists count and watch-later count
-        playlistRepository?.let { repo ->
-            viewModelScope.launch {
-                repo.getAllPlaylistsFlow().collect { playlists ->
-                    _uiState.update { it.copy(playlistsCount = playlists.size) }
-                }
-            }
+    private val likedVideosRepository = LikedVideosRepository.getInstance(context)
+    private val viewHistory = ViewHistory.getInstance(context)
+    private val sharing = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L)
 
-            viewModelScope.launch {
-                repo.getVideoOnlyWatchLaterFlow().collect { videos ->
-                    _uiState.update { it.copy(watchLaterCount = videos.size) }
-                }
-            }
-
-            viewModelScope.launch {
-                repo.getVideoOnlySavedShortsFlow().collect { videos ->
-                    _uiState.update { it.copy(savedShortsCount = videos.size) }
-                }
-            }
+    internal val history = viewHistory.getRecentLibraryHistory(LIBRARY_SHELF_ITEM_LIMIT)
+        .map { history ->
+            history.asSequence()
+                .map { it.toLibraryMediaItem() }
+                .toList()
         }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, sharing, emptyList())
 
-        // Observe downloaded video count (completed downloads only)
-        viewModelScope.launch {
-            videoDownloadManager.downloadedVideos.collect { videos ->
-                _uiState.update { it.copy(downloadedVideosCount = videos.size) }
-            }
+    internal val likes = likedVideosRepository.getAllLikedVideos()
+        .map { likes ->
+            likes.take(LIBRARY_SHELF_ITEM_LIMIT).map { it.toLibraryMediaItem() }
         }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, sharing, emptyList())
 
-        // Observe downloaded music count
-        viewModelScope.launch {
-            musicDownloadManager.downloadedTracks.collect { tracks ->
-                _uiState.update { it.copy(downloadedSongsCount = tracks.size) }
+    internal val playlists = playlistRepository.getAllPlaylistsFlow()
+        .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, sharing, emptyList())
+
+    internal val musicPlaylists = playlistRepository.getMusicPlaylistsFlow()
+        .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, sharing, emptyList())
+
+    internal val watchLater = playlistRepository.getVideoOnlyWatchLaterFlow()
+        .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, sharing, emptyList())
+
+    internal val savedShorts = playlistRepository.getVideoOnlySavedShortsFlow()
+        .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, sharing, emptyList())
+
+    internal val downloads = combine(
+        videoDownloadManager.downloadedVideos,
+        musicDownloadManager.downloadedTracks
+    ) { videos, tracks ->
+        buildList<LibraryMediaItem> {
+            videos.forEach { add(LibraryMediaItem.DownloadedVideoItem(it)) }
+            tracks.forEach { add(LibraryMediaItem.DownloadedMusicItem(it)) }
+        }.sortedByDescending { item ->
+            when (item) {
+                is LibraryMediaItem.DownloadedVideoItem -> item.download.downloadedAt
+                is LibraryMediaItem.DownloadedMusicItem -> item.download.downloadedAt
+                else -> 0L
             }
-        }
+        }.take(LIBRARY_SHELF_ITEM_LIMIT)
     }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, sharing, emptyList())
 }
-
-data class LibraryUiState(
-    val likedVideosCount: Int = 0,
-    val watchHistoryCount: Int = 0,
-    val playlistsCount: Int = 0,
-    val watchLaterCount: Int = 0,
-    val savedShortsCount: Int = 0,
-    val downloadedVideosCount: Int = 0,
-    val downloadedSongsCount: Int = 0
-)

@@ -655,6 +655,7 @@ fun VideoCardFullWidth(
     video: Video,
     modifier: Modifier = Modifier,
     useInternalPadding: Boolean = true,
+    showChannelAvatar: Boolean = true,
     onClick: () -> Unit,
     onChannelClick: ((String) -> Unit)? = null,
     onMoreClick: () -> Unit = {}
@@ -810,16 +811,18 @@ fun VideoCardFullWidth(
                 .padding(vertical = 12.dp, horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ChannelAvatarStack(
-                urls = video.channelAvatarUrls(collaboratorItems),
-                contentDescription = displayChannelName,
-                avatarSize = 40.dp,
-                modifier = if (onChannelClick != null) {
-                    Modifier.clickable { openChannelOrCollaborators() }
-                } else {
-                    Modifier
-                }
-            )
+            if (showChannelAvatar) {
+                ChannelAvatarStack(
+                    urls = video.channelAvatarUrls(collaboratorItems),
+                    contentDescription = displayChannelName,
+                    avatarSize = 40.dp,
+                    modifier = if (onChannelClick != null) {
+                        Modifier.clickable { openChannelOrCollaborators() }
+                    } else {
+                        Modifier
+                    }
+                )
+            }
 
             // Video details
             Column(
@@ -1395,7 +1398,6 @@ private fun ContinueWatchingCard(
     onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
     val resolvedCollaborators by produceState<List<VideoCollaborator>>(
         initialValue = emptyList(),
         key1 = entry.videoId
@@ -1403,8 +1405,48 @@ private fun ContinueWatchingCard(
         value = VideoCollaboratorResolver.resolve(entry.videoId)
     }
     val displayChannelName = rememberCollaboratorChannelDisplayName(entry.channelName, resolvedCollaborators)
+
+    ShelfVideoCardContent(
+        videoId = entry.videoId,
+        thumbnailUrl = entry.thumbnailUrl,
+        title = entry.title,
+        channelName = displayChannelName,
+        durationText = entry.duration.takeIf { it > 0 }?.let { duration ->
+            formatContinueWatchingTime((duration - entry.position).coerceAtLeast(0L))
+        },
+        progress = (entry.progressPercentage / 100f).coerceIn(0f, 1f),
+        onClick = onClick,
+        trailingContent = {
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun ShelfVideoCardContent(
+    videoId: String,
+    thumbnailUrl: String,
+    title: String,
+    channelName: String,
+    durationText: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    progress: Float? = null,
+    trailingContent: (@Composable () -> Unit)? = null
+) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
-        modifier = Modifier
+        modifier = modifier
             .width(350.dp)
             .pressScale(interactionSource)
             .clickable(
@@ -1422,15 +1464,13 @@ private fun ContinueWatchingCard(
                 .thumbnailGradientOverlay()
         ) {
             VideoThumbnailImage(
-                videoId = entry.videoId,
-                model = entry.thumbnailUrl,
+                videoId = videoId,
+                model = thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            // Remaining time badge
-            if (entry.duration > 0) {
-                val remainingMs = (entry.duration - entry.position).coerceAtLeast(0L)
+            if (durationText != null) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -1439,23 +1479,24 @@ private fun ContinueWatchingCard(
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = formatContinueWatchingTime(remainingMs),
+                        text = durationText,
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
-            // Progress bar
-            LinearProgressIndicator(
-                progress = { (entry.progressPercentage / 100f).coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .height(3.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = Color.Black.copy(alpha = 0.4f)
-            )
+            if (progress != null) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color.Black.copy(alpha = 0.4f)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(6.dp))
         Row(
@@ -1464,7 +1505,7 @@ private fun ContinueWatchingCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = entry.title,
+                    text = title,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall.copy(
@@ -1472,10 +1513,10 @@ private fun ContinueWatchingCard(
                     ),
                     fontWeight = FontWeight.SemiBold
                 )
-                if (displayChannelName.isNotEmpty()) {
+                if (channelName.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = displayChannelName,
+                        text = channelName,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1483,17 +1524,7 @@ private fun ContinueWatchingCard(
                     )
                 }
             }
-            IconButton(
-                onClick = onRemove,
-                modifier = Modifier.size(28.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+            trailingContent?.invoke()
         }
     }
 }

@@ -3,25 +3,24 @@ package io.github.aedev.flow.ui.screens.music
 import androidx.compose.foundation.background
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.aedev.flow.ui.screens.music.components.AlbumCard
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,7 +31,7 @@ fun MusicPlaylistsScreen(
     modifier: Modifier = Modifier,
     viewModel: MusicPlaylistsViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showCreateDialog by remember { mutableStateOf(false) }
     var playlistToRename by remember { mutableStateOf<PlaylistInfo?>(null) }
     var playlistToDelete by remember { mutableStateOf<PlaylistInfo?>(null) }
@@ -66,21 +65,40 @@ fun MusicPlaylistsScreen(
             if (uiState.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
-                LazyColumn(
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(160.dp),
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        top = 16.dp,
+                        end = 16.dp,
+                        bottom = 96.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    item {
+                    item(
+                        key = "collection-header",
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = "header"
+                    ) {
                         MusicLibrarySectionHeader(stringResource(R.string.header_your_collection))
                     }
                     
-                    item {
+                    item(
+                        key = "playlists-header",
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = "header"
+                    ) {
                         MusicLibrarySectionHeader(stringResource(R.string.library_playlists_label))
                     }
 
                     if (uiState.playlists.isEmpty()) {
-                        item {
+                        item(
+                            key = "empty-playlists",
+                            span = { GridItemSpan(maxLineSpan) },
+                            contentType = "empty"
+                        ) {
                             Box(
                                 modifier = Modifier.fillMaxWidth().padding(32.dp),
                                 contentAlignment = Alignment.Center
@@ -93,8 +111,12 @@ fun MusicPlaylistsScreen(
                             }
                         }
                     } else {
-                        items(uiState.playlists, key = { it.id }) { playlist ->
-                            MusicPlaylistCard(
+                        items(
+                            items = uiState.playlists,
+                            key = { it.id },
+                            contentType = { "playlist" }
+                        ) { playlist ->
+                            MusicPlaylistAlbumCard(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },
                                 onDownload = { viewModel.downloadPlaylist(playlist) },
@@ -106,16 +128,24 @@ fun MusicPlaylistsScreen(
 
                     // Saved music playlists section
                     if (uiState.savedPlaylists.isNotEmpty()) {
-                        item {
+                        item(
+                            key = "saved-header",
+                            span = { GridItemSpan(maxLineSpan) },
+                            contentType = "header"
+                        ) {
                             MusicLibrarySectionHeader(stringResource(R.string.saved_playlists_header))
                         }
 
-                        items(uiState.savedPlaylists, key = { it.id }) { playlist ->
-                            MusicPlaylistCard(
+                        items(
+                            items = uiState.savedPlaylists,
+                            key = { it.id },
+                            contentType = { "saved-playlist" }
+                        ) { playlist ->
+                            MusicPlaylistAlbumCard(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },
-                                onDownload = {},
-                                onRename = {},
+                                onDownload = null,
+                                onRename = null,
                                 onDelete = { playlistToDelete = playlist }
                             )
                         }
@@ -186,7 +216,7 @@ private fun MusicPlaylistLibraryTopBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back))
             }
             Text(
                 text = title,
@@ -249,182 +279,77 @@ private fun MusicLibrarySectionHeader(title: String) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MusicLibraryCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        ),
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Icon Container
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-        }
-    }
-}
-
-@Composable
-fun MusicPlaylistCard(
+private fun MusicPlaylistAlbumCard(
     playlist: PlaylistInfo,
     onClick: () -> Unit,
-    onDownload: () -> Unit,
-    onRename: () -> Unit,
+    onDownload: (() -> Unit)?,
+    onRename: (() -> Unit)?,
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(80.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        AlbumCard(
+            title = playlist.name,
+            subtitle = stringResource(R.string.tracks_count_template, playlist.videoCount),
+            thumbnailUrl = playlist.thumbnailUrl,
+            onClick = onClick,
+            onLongClick = { showMenu = true },
+            modifier = Modifier.fillMaxWidth()
         )
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Thumbnail
-            Surface(
-                modifier = Modifier
-                    .size(80.dp)
-                    .padding(8.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                if (playlist.thumbnailUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = playlist.thumbnailUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                verticalArrangement = Arrangement.Center
+        Box(modifier = Modifier.align(Alignment.TopEnd)) {
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 2.dp,
+                modifier = Modifier.padding(6.dp)
             ) {
-                Text(
-                    text = playlist.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = stringResource(R.string.tracks_count_template, playlist.videoCount),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            Box {
-                IconButton(onClick = { showMenu = true }) {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.more_options),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                if (onDownload != null) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.download)) },
                         onClick = {
                             showMenu = false
                             onDownload()
                         },
-                        leadingIcon = {
-                            Icon(Icons.Default.Download, null)
-                        }
+                        leadingIcon = { Icon(Icons.Default.Download, null) }
                     )
+                }
+                if (onRename != null) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_rename)) },
                         onClick = {
                             showMenu = false
                             onRename()
                         },
-                        leadingIcon = {
-                            Icon(Icons.Default.Edit, null)
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_delete)) },
-                        onClick = {
-                            showMenu = false
-                            onDelete()
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Delete, null)
-                        }
+                        leadingIcon = { Icon(Icons.Default.Edit, null) }
                     )
                 }
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_delete)) },
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    },
+                    leadingIcon = { Icon(Icons.Default.Delete, null) }
+                )
             }
         }
     }

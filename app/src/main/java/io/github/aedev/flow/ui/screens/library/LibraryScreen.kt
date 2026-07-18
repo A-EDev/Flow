@@ -1,34 +1,37 @@
 package io.github.aedev.flow.ui.screens.library
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.outlined.PermMedia
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import io.github.aedev.flow.ui.theme.extendedColors
-import androidx.compose.ui.res.vectorResource
 import io.github.aedev.flow.R
-import androidx.compose.ui.res.stringResource
+import io.github.aedev.flow.data.music.DownloadedTrack
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.video.DownloadedVideo
+import io.github.aedev.flow.ui.screens.music.MusicTrack
 
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     onNavigateToHistory: () -> Unit,
@@ -40,215 +43,155 @@ fun LibraryScreen(
     onNavigateToDownloads: () -> Unit,
     onNavigateToLocalMedia: () -> Unit,
     onManageData: () -> Unit,
+    onVideoClick: (Video) -> Unit,
+    onMusicClick: (MusicTrack, List<MusicTrack>, String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
+    onMusicPlaylistClick: (String) -> Unit,
+    onDownloadedVideoClick: (List<DownloadedVideo>, Int) -> Unit,
+    onDownloadedMusicClick: (List<DownloadedTrack>, Int) -> Unit,
+    onSavedShortClick: (Video) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
-    val uiState by viewModel.uiState.collectAsState()
-    
-    // Initialize view model
-    LaunchedEffect(Unit) {
-        viewModel.initialize(context)
-    }
-    
+    val historyTitle = stringResource(R.string.library_history_label)
+    val playlistsTitle = stringResource(R.string.library_playlists_label)
+    val musicPlaylistsTitle = stringResource(R.string.library_music_playlists_label)
+    val likesTitle = stringResource(R.string.library_liked_videos_label)
+    val downloadsTitle = stringResource(R.string.library_downloads_label)
+    val watchLaterTitle = stringResource(R.string.library_watch_later_label)
+    val savedShortsTitle = stringResource(R.string.library_saved_shorts_label)
+
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
-        topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = androidx.compose.ui.res.stringResource(R.string.library),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-            }
-        }
+        topBar = { LibraryTopBar() }
     ) { padding ->
         LazyColumn(
             modifier = modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Main Navigation Items
-            item {
-                LibrarySectionHeader(context.getString(R.string.library_section_header))
-            }
-
-            item {
-                LibraryCard(
-                    icon = Icons.Outlined.History,
-                    title = context.getString(R.string.library_history_label),
-                    subtitle = stringResource(R.string.videos_count_template, uiState.watchHistoryCount),
-                    onClick = onNavigateToHistory
+            item(key = "history", contentType = "media-shelf") {
+                LibraryMediaShelfRoute(
+                    title = historyTitle,
+                    itemsFlow = viewModel.history,
+                    sourceName = historyTitle,
+                    onTitleClick = onNavigateToHistory,
+                    onVideoClick = onVideoClick,
+                    onMusicClick = onMusicClick,
+                    onDownloadedVideoClick = onDownloadedVideoClick,
+                    onDownloadedMusicClick = onDownloadedMusicClick
                 )
             }
 
-            item {
-                LibraryCard(
-                    icon = Icons.Outlined.PlaylistPlay,
-                    title = context.getString(R.string.library_playlists_label),
-                    subtitle = stringResource(R.string.playlists_count_template, uiState.playlistsCount),
-                    onClick = onNavigateToPlaylists
+            item(key = "playlists", contentType = "playlist-shelf") {
+                LibraryPlaylistsShelf(
+                    title = playlistsTitle,
+                    playlistsFlow = viewModel.playlists,
+                    onTitleClick = onNavigateToPlaylists,
+                    onPlaylistClick = onPlaylistClick
                 )
             }
 
-            item {
-                LibraryCard(
-                    icon = Icons.Outlined.QueueMusic,
-                    title = context.getString(R.string.library_music_playlists_label),
-                    subtitle = context.getString(R.string.library_music_playlists_subtitle),
-                    onClick = onNavigateToMusicPlaylists
+            item(key = "music-playlists", contentType = "album-shelf") {
+                LibraryMusicPlaylistsShelf(
+                    title = musicPlaylistsTitle,
+                    playlistsFlow = viewModel.musicPlaylists,
+                    onTitleClick = onNavigateToMusicPlaylists,
+                    onPlaylistClick = onMusicPlaylistClick
                 )
             }
 
-            item {
-                LibraryCard(
-                    icon = Icons.Outlined.ThumbUp,
-                    title = context.getString(R.string.library_liked_videos_label),
-                    subtitle = stringResource(R.string.likes_count_template, uiState.likedVideosCount),
-                    onClick = onNavigateToLikedVideos
+            item(key = "watch-later", contentType = "video-shelf") {
+                LibraryVideoShelf(
+                    title = watchLaterTitle,
+                    videosFlow = viewModel.watchLater,
+                    onTitleClick = onNavigateToWatchLater,
+                    onVideoClick = onVideoClick
                 )
             }
 
-            item {
-                LibraryCard(
-                    icon = ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                    title = context.getString(R.string.library_saved_shorts_label),
-                    subtitle = stringResource(R.string.shorts_count_template, uiState.savedShortsCount),
-                    onClick = onNavigateToSavedShorts
+            item(key = "likes", contentType = "media-shelf") {
+                LibraryMediaShelfRoute(
+                    title = likesTitle,
+                    itemsFlow = viewModel.likes,
+                    sourceName = likesTitle,
+                    onTitleClick = onNavigateToLikedVideos,
+                    onVideoClick = onVideoClick,
+                    onMusicClick = onMusicClick,
+                    onDownloadedVideoClick = onDownloadedVideoClick,
+                    onDownloadedMusicClick = onDownloadedMusicClick
                 )
             }
 
-            item {
-                LibraryCard(
-                    icon = Icons.Outlined.WatchLater,
-                    title = context.getString(R.string.library_watch_later_label),
-                    subtitle = stringResource(R.string.videos_count_template, uiState.watchLaterCount),
-                    onClick = onNavigateToWatchLater
+            item(key = "downloads", contentType = "media-shelf") {
+                LibraryMediaShelfRoute(
+                    title = downloadsTitle,
+                    itemsFlow = viewModel.downloads,
+                    sourceName = downloadsTitle,
+                    onTitleClick = onNavigateToDownloads,
+                    onVideoClick = onVideoClick,
+                    onMusicClick = onMusicClick,
+                    onDownloadedVideoClick = onDownloadedVideoClick,
+                    onDownloadedMusicClick = onDownloadedMusicClick
                 )
             }
 
-            item {
-                LibraryCard(
-                    icon = Icons.Outlined.Download,
-                    title = context.getString(R.string.library_downloads_label),
-                    subtitle = buildString {
-                        val v = uiState.downloadedVideosCount
-                        val s = uiState.downloadedSongsCount
-                        if (v == 0 && s == 0) {
-                            append(context.getString(R.string.empty_downloads))
-                        } else {
-                            if (v > 0) append(context.getString(R.string.videos_count_template, v))
-                            if (v > 0 && s > 0) append(" · ")
-                            if (s > 0) append(context.getString(R.string.songs_count_template, s))
-                        }
-                    },
-                    onClick = onNavigateToDownloads
+            item(key = "saved-shorts", contentType = "shorts-shelf") {
+                LibraryShortsShelfRoute(
+                    title = savedShortsTitle,
+                    shortsFlow = viewModel.savedShorts,
+                    onTitleClick = onNavigateToSavedShorts,
+                    onShortClick = onSavedShortClick
                 )
             }
 
-            item {
-                LibraryCard(
-                    icon = Icons.Outlined.PermMedia,
-                    title = context.getString(R.string.library_local_media_label),
-                    subtitle = context.getString(R.string.library_local_media_subtitle),
-                    onClick = onNavigateToLocalMedia
-                )
-            }
-
-            item {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            }
-            
-            item {
-                LibrarySectionHeader(context.getString(R.string.library_settings_data_header))
-            }
-            
-            item {
-                LibraryCard(
-                    icon = Icons.Outlined.Storage,
-                    title = context.getString(R.string.library_manage_data_label),
-                    subtitle = context.getString(R.string.library_manage_data_subtitle),
-                    onClick = onManageData
-                )
+            item(key = "settings-data", contentType = "navigation-section") {
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Text(
+                        text = stringResource(R.string.library_settings_data_header),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                    )
+                    LibraryNavigationRow(
+                        icon = Icons.Outlined.PermMedia,
+                        title = stringResource(R.string.library_local_media_label),
+                        subtitle = stringResource(R.string.library_local_media_subtitle),
+                        onClick = onNavigateToLocalMedia
+                    )
+                    LibraryNavigationRow(
+                        icon = Icons.Outlined.Storage,
+                        title = stringResource(R.string.library_manage_data_label),
+                        subtitle = stringResource(R.string.library_manage_data_subtitle),
+                        onClick = onManageData
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun LibrarySectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 8.dp)
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LibraryCard(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+private fun LibraryTopBar() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        // Icon Container
-        Box(
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                text = stringResource(R.string.library),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
             )
-            if (subtitle.isNotEmpty()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
-        
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-        )
     }
 }

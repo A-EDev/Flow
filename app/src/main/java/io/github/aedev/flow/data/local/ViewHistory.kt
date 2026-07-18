@@ -190,6 +190,9 @@ class ViewHistory private constructor(private val context: Context) {
     fun getAllHistory(): Flow<List<VideoHistoryEntry>> =
         dao.getAllHistory().map { list -> list.map { it.toDomain() } }
 
+    fun getRecentLibraryHistory(limit: Int): Flow<List<VideoHistoryEntry>> =
+        dao.getRecentLibraryHistory(limit).map { list -> list.map { it.toDomain() } }
+
     /** Video (non-music) history, newest first. */
     fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> =
         dao.getVideoHistory().map { list -> list.map { it.toDomain() } }
