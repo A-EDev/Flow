@@ -87,6 +87,9 @@
     <string name="download_all_confirmation">Download all %1$d videos? This may use significant storage.</string>
     <string name="save">Save</string>
     <string name="saved">Saved</string>
+    <string name="playlist_filter_owned">Owned</string>
+    <string name="playlist_creation_menu_open">Create playlist</string>
+    <string name="playlist_creation_menu_close">Close playlist creation menu</string>
     <string name="add_to_library">Add to library</string>
     <string name="saved_to_library">Saved to library</string>
     <string name="failed_to_save_to_library">Failed to save to library</string>

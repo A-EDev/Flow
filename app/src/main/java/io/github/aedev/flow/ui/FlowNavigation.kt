@@ -236,9 +236,6 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToPlaylists = { 
                 navController.navigate("playlists")
             },
-            onNavigateToMusicPlaylists = {
-                navController.navigate("musicPlaylists")
-            },
             onNavigateToLikedVideos = { 
                 navController.navigate("likes")
             },
@@ -696,20 +693,10 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = false
         PlaylistsScreen(
             onBackClick = { navController.popBackStack() },
-            onPlaylistClick = { playlist ->
+            onVideoPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
             },
-            onNavigateToWatchLater = { navController.navigate("playlist/${PlaylistRepository.WATCH_LATER_ID}") }
-        )
-    }
-
-    // Music Playlists Screen
-    composable("musicPlaylists") {
-        currentRoute.value = "musicPlaylists"
-        showBottomNav.value = false
-        io.github.aedev.flow.ui.screens.music.MusicPlaylistsScreen(
-            onBackClick = { navController.popBackStack() },
-            onPlaylistClick = { playlist ->
+            onMusicPlaylistClick = { playlist ->
                 navController.navigate("musicPlaylist/${playlist.id}")
             }
         )

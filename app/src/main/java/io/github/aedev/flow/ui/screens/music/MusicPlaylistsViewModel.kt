@@ -47,7 +47,6 @@ class MusicPlaylistsViewModel @Inject constructor(
 
     init {
         loadPlaylists()
-        enrichMusicPlaylistStubs()
     }
 
     /**

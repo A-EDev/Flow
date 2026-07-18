@@ -36,7 +36,6 @@ import io.github.aedev.flow.ui.screens.music.MusicTrack
 fun LibraryScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToPlaylists: () -> Unit,
-    onNavigateToMusicPlaylists: () -> Unit,
     onNavigateToLikedVideos: () -> Unit,
     onNavigateToWatchLater: () -> Unit,
     onNavigateToSavedShorts: () -> Unit,
@@ -55,7 +54,6 @@ fun LibraryScreen(
 ) {
     val historyTitle = stringResource(R.string.library_history_label)
     val playlistsTitle = stringResource(R.string.library_playlists_label)
-    val musicPlaylistsTitle = stringResource(R.string.library_music_playlists_label)
     val likesTitle = stringResource(R.string.library_liked_videos_label)
     val downloadsTitle = stringResource(R.string.library_downloads_label)
     val watchLaterTitle = stringResource(R.string.library_watch_later_label)
@@ -89,18 +87,11 @@ fun LibraryScreen(
             item(key = "playlists", contentType = "playlist-shelf") {
                 LibraryPlaylistsShelf(
                     title = playlistsTitle,
-                    playlistsFlow = viewModel.playlists,
+                    videoPlaylistsFlow = viewModel.playlists,
+                    musicPlaylistsFlow = viewModel.musicPlaylists,
                     onTitleClick = onNavigateToPlaylists,
-                    onPlaylistClick = onPlaylistClick
-                )
-            }
-
-            item(key = "music-playlists", contentType = "album-shelf") {
-                LibraryMusicPlaylistsShelf(
-                    title = musicPlaylistsTitle,
-                    playlistsFlow = viewModel.musicPlaylists,
-                    onTitleClick = onNavigateToMusicPlaylists,
-                    onPlaylistClick = onMusicPlaylistClick
+                    onVideoPlaylistClick = onPlaylistClick,
+                    onMusicPlaylistClick = onMusicPlaylistClick
                 )
             }
 

@@ -44,46 +44,37 @@ internal fun LibraryMediaShelfRoute(
 @Composable
 internal fun LibraryPlaylistsShelf(
     title: String,
-    playlistsFlow: StateFlow<List<PlaylistInfo>>,
+    videoPlaylistsFlow: StateFlow<List<PlaylistInfo>>,
+    musicPlaylistsFlow: StateFlow<List<PlaylistInfo>>,
     onTitleClick: () -> Unit,
-    onPlaylistClick: (String) -> Unit
+    onVideoPlaylistClick: (String) -> Unit,
+    onMusicPlaylistClick: (String) -> Unit
 ) {
-    val playlists by playlistsFlow.collectAsStateWithLifecycle()
+    val videoPlaylists by videoPlaylistsFlow.collectAsStateWithLifecycle()
+    val musicPlaylists by musicPlaylistsFlow.collectAsStateWithLifecycle()
     LibraryShelf(title = title, onTitleClick = onTitleClick) {
         items(
-            items = playlists,
-            key = { it.id },
-            contentType = { "playlist" }
+            items = videoPlaylists,
+            key = { "video-${it.id}" },
+            contentType = { "video-playlist" }
         ) { playlist ->
             PlaylistCard(
                 playlist = playlist,
-                onClick = { onPlaylistClick(playlist.id) },
+                onClick = { onVideoPlaylistClick(playlist.id) },
                 layout = PlaylistCardLayout.SHELF,
                 modifier = Modifier.width(LibraryShelfCardWidth)
             )
         }
-    }
-}
-
-@Composable
-internal fun LibraryMusicPlaylistsShelf(
-    title: String,
-    playlistsFlow: StateFlow<List<PlaylistInfo>>,
-    onTitleClick: () -> Unit,
-    onPlaylistClick: (String) -> Unit
-) {
-    val playlists by playlistsFlow.collectAsStateWithLifecycle()
-    LibraryShelf(title = title, onTitleClick = onTitleClick) {
         items(
-            items = playlists,
-            key = { it.id },
-            contentType = { "album" }
+            items = musicPlaylists,
+            key = { "music-${it.id}" },
+            contentType = { "music-playlist" }
         ) { playlist ->
             LibraryAlbumCard(
                 title = playlist.name,
                 subtitle = stringResource(R.string.tracks_count_template, playlist.videoCount),
                 thumbnailUrl = playlist.thumbnailUrl,
-                onClick = { onPlaylistClick(playlist.id) }
+                onClick = { onMusicPlaylistClick(playlist.id) }
             )
         }
     }
