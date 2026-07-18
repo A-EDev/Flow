@@ -339,7 +339,7 @@
     <string name="clear_watch_history_alert_body">هذا سيزيل كل المقاطع من سجل المشاهدة. لا يمكنك التراجع عن هذا الإجراء.</string>
     <string name="empty_liked">لا إعجابات</string>
     <string name="empty_liked_body">المقاطع المعجب بها ستظهر هنا</string>
-    <string name="video">مقطع</string>
+    <string name="video">فيديو</string>
     <string name="up_next">التالي</string>
     <string name="playing">يُشغّل</string>
     <string name="hz">هرتز</string>
@@ -347,7 +347,7 @@
     <string name="filter_discover">اكتشف</string>
     <string name="audio_info_not_available">معلومات التدفق الصوتي غير متوفرة حاليا.</string>
     <string name="unsubscribed_from">تم إلغاء الاشتراك من %s</string>
-    <string name="play_mode_suggestion_body">هذا المقطع اقل من دقيقتين. هل تود الانتقال الى مشغّل مخصص؟</string>
+    <string name="play_mode_suggestion_body">هذا الفيديو اقل من دقيقتين. هل تود الانتقال الى مشغّل مخصص؟</string>
     <string name="shorts_player">مشغّل الشورتز</string>
     <plurals name="channels_count">
         <item quantity="zero">%d قناة</item>
@@ -1960,4 +1960,8 @@
     <string name="widget_quick_actions_description">إبحث في Flow و انتقل إلى التنزيلات أو السجل أو التعرف علي الموسيقى</string>
     <string name="widget_turntable_label">قرص دوار</string>
     <string name="widget_turntable_description">إجعل موسيقاك كقرص دوار</string>
+    <string name="playlist_creation_menu_open">إنشاء قائمة تشغيل</string>
+    <string name="playlist_creation_menu_close">‎إغلاق قائمة إنشاء قوائم التشغيل</string>
+    <string name="playlist_visibility_metadata">%1$s • %2$s</string>
+    <string name="playlist_filter_owned">مملوكة</string>
 </resources>
