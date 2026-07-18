@@ -325,7 +325,7 @@
     <string name="content_settings_related_card_compact_desc">الصورة المصغرة و المعلومات جنبًا إلى جنب</string>
     <string name="content_settings_related_card_full_width">عرض كامل</string>
     <string name="content_settings_related_card_full_width_desc">صورة مصغرة كبيرة مع العنوان أسفله</string>
-    <string name="subscriptions_search_placeholder">فتش اشتركاتك...</string>
+    <string name="subscriptions_search_placeholder">ابحث في اشتركاتك...</string>
     <string name="empty_subscriptions_body">اشترك بالقنوات لترى هنا\nأحدث مقاطعهم هنا</string>
     <string name="shorts">شورتز</string>
     <string name="subscribers">المشتركون</string>
@@ -400,7 +400,7 @@
     <string name="category_live">بث مباشر</string>
     <string name="settings_continue_watching_title">رف مواصلة المشاهدة</string>
     <string name="continue_watching_title">مواصلة المشاهدة</string>
-    <string name="player_settings_mini_player_continue_watching_title">المشغل المصغرة لمواصلة المشاهدة</string>
+    <string name="player_settings_mini_player_continue_watching_title">متابعة مشاهدة المشغل المصغر</string>
     <string name="player_settings_mini_player_continue_watching_subtitle">عرض الفيديو الذي تمت مشاهدته مؤخرًا تلقائيًا في فقاعة عائمة</string>
     <string name="player_mini_player_continue_watching_label">مواصلة المشاهدة</string>
     <string name="player_settings_title">إعدادات المشغل</string>
@@ -501,7 +501,7 @@
     <string name="cache_size_unlimited">غير محدود</string>
     <string name="btn_back">رجوع</string>
     <string name="back">رجوع</string>
-    <string name="btn_close">غلق</string>
+    <string name="btn_close">إغلاق</string>
     <string name="loading_shorts">تحميل الفيديوهات القصيرة…</string>
     <string name="error_short_load">حدث خطأ</string>
     <string name="share_short_template">شاهد هذا الفيديو القصير: https://youtu.be/%1$s</string>
@@ -1336,7 +1336,7 @@
     <string name="proxy_settings_type">نوع Proxy</string>
     <string name="proxy_settings_host">المضيف (Host)</string>
     <string name="proxy_settings_port">المنفذ</string>
-    <string name="proxy_settings_optional_auth">أترك إسم المستخدم و كلمة المرور فارغتين لخوادم ال Proxy غير المصادق عليها التي لا تتطلب اسم مستخدم أو كلمة مرور.</string>
+    <string name="proxy_settings_optional_auth">أترك إسم المستخدم و كلمة المرور فارغيين لخوادم ال Proxy غير المصادق عليها التي لا تتطلب اسم مستخدم أو كلمة مرور.</string>
     <string name="proxy_settings_restart_notice">قد تحتاج عمليات التنزيل النشطة أو طلبات التشغيل طويلة الأمد إلى إعادة تشغيل قبل أن تتكيف مع مسار جديد للوكيل (proxy) بشكل كامل.</string>
     <string name="proxy_settings_invalid_host">أدخل اسم مضيف (host) الوكيل قبل تفعيل الوكيل.</string>
     <string name="proxy_settings_invalid_port">أدخل منفذ proxy صالح بين 1 و 65535.</string>
@@ -1773,7 +1773,7 @@
     <string name="sync_progress_fraction">%1$d / %2$d</string>
     <string name="sync_complete">تمت المزامنة بنجاح 🎉</string>
     <string name="sync_synced_with">تمت المزامنة مع %1$s</string>
-    <string name="sync_done_collection_stats">%1$s: +%2$d تمت إضافته، و تم تحديث %3$d ، وتم تخطي %4$d</string>
+    <string name="sync_done_collection_stats">%1$s تم إضافة : +%2$d، و تم تحديث %3$d ، و تم تخطي %4$d</string>
     <string name="sync_done_button">اكتمل</string>
     <string name="sync_failed_title">فشلت المزامنة</string>
     <string name="sync_try_again">حاول مره اخرى</string>
@@ -1934,4 +1934,30 @@
     <string name="content_settings_hide_watched_home_subtitle">قم بتصفية الفيديوهات التي شاهدتها بالفعل من صفحتك الرئيسية</string>
     <string name="content_settings_hide_watched_subscriptions_title">إخفاء الفيديوهات التي تمت مشاهدتها من صفحة الإشتراكات</string>
     <string name="content_settings_hide_watched_subscriptions_subtitle">تصفية الفيديوهات التي شاهدتها بالفعل من اشتراكاتك</string>
+    <string name="desc_more">المزيد...</string>
+    <string name="widget_now_playing_label">يعرض الأن</string>
+    <string name="widget_now_playing_description">تحكم في الموسيقى التي يتم تشغيلها في Flow</string>
+    <string name="widget_quick_actions_label">الاجراءات السريعة</string>
+    <string name="widget_recognize_label">التعرف علي الموسيقى</string>
+    <string name="widget_recognize_description">تعرف على الأغنية التي تسمعها من حولك بنقرة واحدة</string>
+    <string name="widget_recently_played_label">تم تشغيله مؤخراً</string>
+    <string name="widget_recently_played_description">استكمل من حيث توقفت</string>
+    <string name="widget_downloads_label">التحميلات</string>
+    <string name="widget_downloads_description">قم بتشغيل التنزيلات التي قمت بتنزيلها بدون إنترنت</string>
+    <string name="widget_recently_played">تم تشغيله مؤخراً</string>
+    <string name="widget_downloads">التحميلات</string>
+    <string name="widget_nothing_playing">لا شيء يعرض</string>
+    <string name="widget_play">تشغيل</string>
+    <string name="widget_pause">إيقاف</string>
+    <string name="widget_next">المسار التالي</string>
+    <string name="widget_previous">المسار السابق</string>
+    <string name="widget_like">إعجاب</string>
+    <string name="widget_artwork">صورة غلاف العمل الفني</string>
+    <string name="widget_open_downloads">فتح التحميلات</string>
+    <string name="widget_open_history">‎فتح السجل</string>
+    <string name="widget_no_recent">ستظهر مقاطع الفيديو التي تشاهدها هنا</string>
+    <string name="widget_no_downloads">ستظهر تنزيلاتك هنا</string>
+    <string name="widget_quick_actions_description">إبحث في Flow و انتقل إلى التنزيلات أو السجل أو التعرف علي الموسيقى</string>
+    <string name="widget_turntable_label">قرص دوار</string>
+    <string name="widget_turntable_description">إجعل موسيقاك كقرص دوار</string>
 </resources>
