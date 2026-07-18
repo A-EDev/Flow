@@ -33,8 +33,8 @@
     <string name="clear_watch_history_alert_body">Это удалит все видео из вашей истории просмотров. Это действие нельзя отменить.</string>
     <string name="clear">Очистить</string>
     <string name="cancel">Отмена</string>
-    <string name="empty_watch_history">История просмотров пуста</string>
-    <string name="empty_watch_history_body">Здесь будут видео, которые вы смотрели</string>
+    <string name="empty_watch_history">История просмотра пуста</string>
+    <string name="empty_watch_history_body">Здесь будут показываться просмотренные видео</string>
     <string name="liked">Понравилось</string>
     <string name="liked_music">Понравившаяся музыка</string>
     <string name="liked_videos">Нравится</string>
@@ -146,7 +146,7 @@
     <string name="itag">iTag</string>
     <string name="mime_type">Mime-тип</string>
     <string name="status_upcoming">ПРЕДСТОЯЩЕЕ</string>
-    <string name="status_live">ТРАНСЛЯЦИЯ</string>
+    <string name="status_live">ПРЯМОЙ ЭФИР</string>
     <string name="video_metadata_template">%1$s • %2$s • %3$s</string>
     <string name="video_metadata_short_template">%1$s • %2$s</string>
     <string name="premiere_soon">Скоро премьера</string>
@@ -210,7 +210,7 @@
     <string name="search_subscriptions">Поиск в подписках</string>
     <string name="toggle_view_mode">Переключить режим вида</string>
     <string name="unsubscribed_from_template">Вы отписались от %1$s</string>
-    <string name="videos_count_template">%1$d видео</string>
+    <string name="videos_count_template">Видео: %1$d</string>
     <string name="playlists_count_template">Плейлистов: %1$d</string>
     <string name="shorts_count_template">Shorts: %1$d</string>
     <string name="songs_count_template">Треков: %1$d</string>
@@ -854,8 +854,8 @@
     <string name="proxy_settings_type">Тип прокси</string>
     <string name="learning_stats_title">Сигналы рекомендаций</string>
     <string name="label_description_optional">Описание (Опционально)</string>
-    <string name="now_playing">Сейчас играет</string>
-    <string name="voice_search_cd">Поиск Голосом</string>
+    <string name="now_playing">СЕЙЧАС ИГРАЕТ</string>
+    <string name="voice_search_cd">Голосовой поиск</string>
     <string name="filter_albums">Альбомы</string>
     <string name="filter_songs">Треки</string>
     <string name="filter_community_playlists">Плейлисты сообщества</string>
@@ -907,7 +907,7 @@
     <string name="subscriptions_video_section_title">Видео</string>
     <string name="subscriptions_music_section_title">Музыка</string>
     <string name="upcoming_video_reminder_action">Напомнить</string>
-    <string name="upcoming_video_overlay_title">Это видео запланировано. Воспроизведение станет доступно после начала трансляции.</string>
+    <string name="upcoming_video_overlay_title">Видео запланировано. Просмотр станет доступен после начала трансляции.</string>
     <string name="subscriptions_quick_access_title">Быстрый доступ</string>
     <string name="subscriptions_music_chip_label">Музыка</string>
     <string name="subscriptions_music_badge_cd">Музыка (подписка)</string>
@@ -1140,7 +1140,7 @@
     <string name="playlist_empty_desc">Добавляйте видео прямо из плеера,\nчтобы собрать свой плейлист</string>
     <string name="delete_playlist_dialog_title">Удалить плейлист?</string>
     <string name="onboarding_channels_empty_prompt">Введите название канала для поиска</string>
-    <string name="onboarding_channels_no_results">Каналы по запросу „%1$s“ не найдены</string>
+    <string name="onboarding_channels_no_results">Каналы по запросу «%1$s» не найдены</string>
     <string name="onboarding_channels_added_count">Добавлено каналов: %1$d</string>
     <string name="onboarding_channels_subscribers">Подписчики: %1$s</string>
     <string name="onboarding_n_selected">Выбрано: %1$d</string>
@@ -1420,7 +1420,7 @@
     <string name="player_settings_overlay_speed_indicator">Индикатор скорости воспроизведения</string>
     <string name="player_settings_overlay_speed_indicator_subtitle">Отображать текущую скорость на экране видеоплеера</string>
     <string name="link_with_timestamp_copied">Ссылка с тайм-кодом скопирована</string>
-    <string name="player_live_label">Трансляция</string>
+    <string name="player_live_label">Прямой эфир</string>
     <string name="player_action_dislike">Не нравится</string>
     <string name="player_settings_queue_autoplay">Автоматически воспроизводить видео в очереди</string>
     <string name="player_settings_queue_autoplay_subtitle">Автоматически включать следующее видео в плейлисте или очереди «Смотреть позже». Когда опция отключена, переключать ролики можно вручную.</string>
@@ -1520,7 +1520,7 @@
     <string name="export_newpipe_subs_failed">Не удалось экспортировать подписки NewPipe</string>
     <string name="export_app_data_title">Резервное копирование данных приложения</string>
     <string name="export_app_data_desc">Экспортируйте подписки, историю, плейлисты и настройки</string>
-    <string name="export_watch_history_title">История просмотров</string>
+    <string name="export_watch_history_title">История просмотра</string>
     <string name="history_export_failed">Не удалось экспортировать историю просмотров</string>
     <string name="master_backup_title">Полная резервная копия</string>
     <string name="master_backup_subtitle">Экспорт данных движка и приложения в один файл</string>
@@ -1577,7 +1577,7 @@
     <string name="sync_notification_text">Перенос вашей библиотеки по локальной сети Wi-Fi…</string>
     <string name="sync_notification_channel">Синхронизация устройств</string>
     <string name="sync_collection_playlists">Плейлисты</string>
-    <string name="sync_collection_watch_history">История просмотров</string>
+    <string name="sync_collection_watch_history">История просмотра</string>
     <string name="sync_collection_likes">Отметки «Нравится»</string>
     <string name="sync_receive_from_device">Получить с устройства</string>
     <string name="sync_pairing_title">Как выполнить сопряжение устройств?</string>
@@ -1697,7 +1697,7 @@
     <string name="section_app">Приложение</string>
     <string name="section_contact">Контакты</string>
     <string name="section_legal">Лицензии</string>
-    <string name="delete_playlist_dialog_text">Это навсегда удалит \'%1$s\' и все содержащиеся в нем видео.</string>
+    <string name="delete_playlist_dialog_text">Это навсегда удалит «%1$s» и все содержащиеся в нем видео.</string>
     <string name="onboarding_channels_title">Найти каналы</string>
     <string name="onboarding_channels_subtitle">Найдите каналы, за которыми вы уже следите, и подпишитесь одним касанием.</string>
     <string name="onboarding_channels_search_placeholder">Поиск каналов…</string>
@@ -1731,7 +1731,7 @@
     <string name="daily_discover_based_on">На основе %1$s</string>
     <string name="daily_discover_for_fans_of">Для поклонников %1$s</string>
     <string name="section_recommended">Рекомендации</string>
-    <string name="section_recently_played">Недавно прослушанные</string>
+    <string name="section_recently_played">Недавно просмотренные</string>
     <string name="section_new_releases">Новинки</string>
     <string name="genre_mix_template">Микс: %1$s</string>
     <string name="section_vibe_vibes">Настроение: %1$s</string>
@@ -1930,4 +1930,30 @@
     <string name="content_settings_hide_watched_home_subtitle">Скрывать просмотренные видео из ленты на главной</string>
     <string name="content_settings_hide_watched_subscriptions_title">Скрыть просмотренные видео из подписок</string>
     <string name="content_settings_hide_watched_subscriptions_subtitle">Скрывать просмотренные видео из ленты подписок</string>
+    <string name="desc_more">...еще</string>
+    <string name="widget_now_playing_label">Сейчас играет</string>
+    <string name="widget_now_playing_description">Управление воспроизведением в Flow</string>
+    <string name="widget_quick_actions_label">Быстрые действия</string>
+    <string name="widget_quick_actions_description">Поиск в Flow и быстрый переход к загрузкам, истории или распознаванию</string>
+    <string name="widget_recognize_label">Распознать музыку</string>
+    <string name="widget_recognize_description">Узнайте одним касанием, какая песня играет рядом</string>
+    <string name="widget_turntable_description">Ваша музыка в виде вращающейся пластинки</string>
+    <string name="widget_turntable_label">Пластинка</string>
+    <string name="widget_recently_played_label">Недавно просмотренные</string>
+    <string name="widget_recently_played_description">Продолжить с того же места</string>
+    <string name="widget_recently_played">Недавно просмотренные</string>
+    <string name="widget_downloads_label">Скачанные</string>
+    <string name="widget_downloads_description">Смотрите скачанные видео без интернета</string>
+    <string name="widget_downloads">Скачанные</string>
+    <string name="widget_nothing_playing">Ничего не играет</string>
+    <string name="widget_play">Воспроизвести</string>
+    <string name="widget_pause">Пауза</string>
+    <string name="widget_next">Следующий трек</string>
+    <string name="widget_previous">Предыдущий трек</string>
+    <string name="widget_like">Нравится</string>
+    <string name="widget_artwork">Обложка альбома</string>
+    <string name="widget_open_downloads">Открыть скачанное</string>
+    <string name="widget_open_history">Открыть историю</string>
+    <string name="widget_no_recent">Здесь будут показываться просмотренные видео</string>
+    <string name="widget_no_downloads">Ваши загрузки появятся здесь</string>
 </resources>
