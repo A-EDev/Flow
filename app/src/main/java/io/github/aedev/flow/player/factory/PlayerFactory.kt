@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultAllocator
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.renderer.CustomRenderersFactory
 import kotlinx.coroutines.flow.first
@@ -180,7 +181,7 @@ class PlayerFactory {
                     .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                     .setUsage(C.USAGE_MEDIA)
                     .build(),
-                !prefs.playDuringCalls
+                shouldHandleAudioFocus(prefs.playDuringCalls)
             )
             .setHandleAudioBecomingNoisy(true)
             .setLoadControl(loadControl)

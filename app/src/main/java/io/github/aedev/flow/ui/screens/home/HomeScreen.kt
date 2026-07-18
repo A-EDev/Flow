@@ -103,7 +103,6 @@ fun HomeScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val unreadNotifications by notificationViewModel.unreadCount.collectAsStateWithLifecycle()
-    
     val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
     val homeViewMode by preferences.homeViewMode.collectAsStateWithLifecycle(
         initialValue = io.github.aedev.flow.data.local.HomeViewMode.GRID
@@ -112,10 +111,10 @@ fun HomeScreen(
     val refreshHomeOnReselect by preferences.refreshHomeOnReselect.collectAsStateWithLifecycle(initialValue = true)
     val showAppLogoIcon by preferences.showAppLogoIcon.collectAsStateWithLifecycle(initialValue = true)
     val deepFlowActive by preferences.deepFlowActive.collectAsStateWithLifecycle(initialValue = false)
-    
+
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
-    
+
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
     }
@@ -263,7 +262,8 @@ fun HomeScreen(
             }
         }
     ) { padding ->
-        PullToRefreshBox(
+        ResettableHomePullToRefreshBox(
+            resetKey = uiState.isLoading && uiState.videos.isEmpty(),
             isRefreshing = uiState.isRefreshing,
             onRefresh = { viewModel.refreshFeed() },
             modifier = Modifier
@@ -307,14 +307,14 @@ fun HomeScreen(
                         }
                     }
                 }
-                
+
                 uiState.error != null && uiState.videos.isEmpty() -> {
                     ErrorState(
                         message = uiState.error ?: stringResource(R.string.error_occurred),
                         onRetry = { viewModel.retry() }
                     )
                 }
-                
+
                 else -> {
                     LazyVerticalGrid(
                         columns = gridCells,
@@ -323,7 +323,7 @@ fun HomeScreen(
                         contentPadding = PaddingValues(
                             start = if (isListView) 0.dp else layoutConfig.contentPadding,
                             end = if (isListView) 0.dp else layoutConfig.contentPadding,
-                            top = 4.dp, 
+                            top = 4.dp,
                             bottom = 80.dp
                         ),
                         horizontalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
@@ -332,7 +332,7 @@ fun HomeScreen(
                         val videos = uiState.videos
                         if (videos.isNotEmpty()) {
                             val insertShortsAfter = layoutConfig.shortsShelfAfterIndex.coerceAtMost(videos.size)
-                            
+
                             // ── Videos before shelves ──
                             val videosBeforeShorts = videos.take(insertShortsAfter)
                             items(
@@ -361,7 +361,7 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            
+
                             // ── Continue Watching Shelf (between first videos and shorts) ──
                             if (uiState.continueWatchingVideos.isNotEmpty()) {
                                 item(
@@ -394,11 +394,11 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            
+
                             // ── Shorts Shelf ──
                             if (uiState.shorts.isNotEmpty()) {
                                 item(
-                                    span = { GridItemSpan(maxLineSpan) }, 
+                                    span = { GridItemSpan(maxLineSpan) },
                                     key = "shorts_shelf"
                                 ) {
                                     ShortsShelf(
@@ -408,7 +408,7 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            
+
                             // ── Remaining Videos ──
                             val videosAfterShorts = videos.drop(insertShortsAfter)
                             items(
@@ -438,7 +438,7 @@ fun HomeScreen(
                                 }
                             }
                         }
-                        
+
                         if (uiState.isLoadingMore) {
                             item(
                                 key = "loading_indicator",
@@ -457,7 +457,7 @@ fun HomeScreen(
                                 }
                             }
                         }
-                        
+
                         // End of feed indicator
                         if (!uiState.hasMorePages && uiState.videos.size > 100 && !uiState.isLoadingMore) {
                             item(
@@ -475,6 +475,25 @@ fun HomeScreen(
             }
         }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ResettableHomePullToRefreshBox(
+    resetKey: Boolean,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit
+) {
+    key(resetKey) {
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = modifier,
+            content = content
+        )
     }
 }
 
