@@ -11,6 +11,7 @@ data class EnhancedPlayerState(
     val effectiveQuality: Int = 0,
     val currentQualityKey: String? = null,
     val currentAudioTrack: Int = 0,
+    val sourceVideoAspectRatio: Float? = null,
     val availableQualities: List<QualityOption> = emptyList(),
     val availableAudioTracks: List<AudioTrackOption> = emptyList(),
     val availableSubtitles: List<SubtitleOption> = emptyList(),

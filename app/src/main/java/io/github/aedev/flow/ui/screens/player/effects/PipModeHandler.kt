@@ -83,9 +83,10 @@ fun PipParamsUpdateEffect(
     isPlaying: Boolean,
     autoPipEnabled: Boolean,
     isBackgroundPlaybackMode: Boolean,
+    videoAspectRatio: Float,
     activity: Activity?
 ) {
-    LaunchedEffect(isPlaying, autoPipEnabled, isBackgroundPlaybackMode) {
+    LaunchedEffect(isPlaying, autoPipEnabled, isBackgroundPlaybackMode, videoAspectRatio) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
             val autoEnterEnabled = BackgroundPlaybackPolicy.shouldEnterAutoPip(
                 autoPipEnabled = autoPipEnabled,
@@ -94,8 +95,7 @@ fun PipParamsUpdateEffect(
             )
             PictureInPictureHelper.updatePipParams(
                 activity = activity,
-                aspectRatioWidth = 16,
-                aspectRatioHeight = 9,
+                aspectRatio = videoAspectRatio,
                 isPlaying = isPlaying,
                 autoEnterEnabled = autoEnterEnabled
             )
@@ -107,8 +107,7 @@ fun PipParamsUpdateEffect(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
                 PictureInPictureHelper.updatePipParams(
                     activity = activity,
-                    aspectRatioWidth = 16,
-                    aspectRatioHeight = 9,
+                    aspectRatio = videoAspectRatio,
                     isPlaying = false,
                     autoEnterEnabled = false
                 )
@@ -154,6 +153,7 @@ fun SetupPipEffects(
     lifecycleOwner: LifecycleOwner,
     isPlaying: Boolean,
     isBackgroundPlaybackMode: Boolean,
+    videoAspectRatio: Float,
     pipPreferences: PipPreferences,
     onPipModeChanged: (Boolean) -> Unit
 ) {
@@ -172,6 +172,7 @@ fun SetupPipEffects(
         isPlaying = isPlaying,
         autoPipEnabled = pipPreferences.autoPipEnabled,
         isBackgroundPlaybackMode = isBackgroundPlaybackMode,
+        videoAspectRatio = videoAspectRatio,
         activity = activity
     )
 }

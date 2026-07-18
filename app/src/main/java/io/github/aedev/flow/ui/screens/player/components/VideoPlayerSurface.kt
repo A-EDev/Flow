@@ -35,6 +35,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PictureInPictureHelper
+import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
 
 private fun pickPlayerViewLayoutRes(): Int =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -244,7 +245,7 @@ private fun applyOutlineCornerRadius(view: PlayerView, radiusPx: Float) {
 private fun VideoSize.toDisplayAspectRatioOrNull(): Float? {
     if (width <= 0 || height <= 0) return null
     val par = if (pixelWidthHeightRatio > 0f) pixelWidthHeightRatio else 1f
-    return (width * par / height).coerceIn(0.56f, 2.5f)
+    return sanitizeDisplayAspectRatio(width * par / height)
 }
 
 private fun Context.isDisplayInteractive(): Boolean =

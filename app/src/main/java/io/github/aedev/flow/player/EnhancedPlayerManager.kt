@@ -872,6 +872,7 @@ class EnhancedPlayerManager private constructor() {
         // Update state with available options
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId,
+            sourceVideoAspectRatio = resolveSourceVideoAspectRatio(),
             effectiveQuality = currentVideoStream?.let { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) } ?: 0,
             availableQualities = buildAvailableQualityOptions(),
             availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
@@ -922,6 +923,7 @@ class EnhancedPlayerManager private constructor() {
             currentVideoId = videoId, isBuffering = true, error = null,
             hasEnded = false, isPrepared = false, recoveryAttempted = false, currentQuality = 0,
             currentQualityKey = null,
+            sourceVideoAspectRatio = null,
             playWhenReady = player?.playWhenReady ?: true,
             isAtLiveEdge = false,
             liveDurationMs = 0L
@@ -1978,6 +1980,7 @@ class EnhancedPlayerManager private constructor() {
         val isAutoMode = data.videoStream == null
         _playerState.value = _playerState.value.copy(
             currentVideoId = data.enrichedVideo.id,
+            sourceVideoAspectRatio = resolveSourceVideoAspectRatio(),
             isBuffering = false,
             isPlaying = player?.isPlaying ?: false,
             playWhenReady = player?.playWhenReady ?: true,
@@ -2371,6 +2374,19 @@ class EnhancedPlayerManager private constructor() {
     }
 
     fun hasAbandonedPlayback(): Boolean = errorHandler?.hasGivenUp() == true
+
+    private fun resolveSourceVideoAspectRatio(): Float? {
+        val innerTubeDimensions = innerTubeVideoFormats.asSequence()
+            .filterNot { it.isAudio }
+            .mapNotNull { format ->
+                val width = format.width ?: return@mapNotNull null
+                val height = format.height ?: return@mapNotNull null
+                width to height
+            }
+        val extractedDimensions = availableVideoStreams.asSequence()
+            .map { stream -> stream.width to stream.height }
+        return sourceVideoAspectRatio((innerTubeDimensions + extractedDimensions).asIterable())
+    }
 
     private fun buildAvailableQualityOptions(): List<QualityOption> {
         val directOptions = qualityManager?.buildQualityOptions().orEmpty()

@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import io.github.aedev.flow.R
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.service.VideoPlayerService
+import kotlin.math.roundToInt
 
 /**
  * Helper class for Picture-in-Picture mode support
@@ -41,6 +42,10 @@ object PictureInPictureHelper {
 
     @Volatile
     var sourceRectHint: android.graphics.Rect? = null
+
+    @Volatile
+    var currentVideoAspectRatio: Float = DEFAULT_VIDEO_ASPECT_RATIO
+        private set
 
     @Volatile
     var isPopupActive: Boolean = false
@@ -106,8 +111,7 @@ object PictureInPictureHelper {
     @RequiresApi(Build.VERSION_CODES.O)
     fun enterPipMode(
         activity: Activity,
-        aspectRatioWidth: Int = 16,
-        aspectRatioHeight: Int = 9,
+        aspectRatio: Float = currentVideoAspectRatio,
         isPlaying: Boolean = true,
         autoEnterEnabled: Boolean = false
     ): Boolean {
@@ -116,8 +120,7 @@ object PictureInPictureHelper {
         return try {
             val params = buildPipParams(
                 activity,
-                aspectRatioWidth,
-                aspectRatioHeight,
+                aspectRatio,
                 isPlaying,
                 autoEnterEnabled
             )
@@ -130,8 +133,7 @@ object PictureInPictureHelper {
 
     fun requestPlayerPipMode(
         activity: Activity,
-        aspectRatioWidth: Int = 16,
-        aspectRatioHeight: Int = 9,
+        aspectRatio: Float = currentVideoAspectRatio,
         isPlaying: Boolean = true,
         autoEnterEnabled: Boolean = false
     ): Boolean {
@@ -142,16 +144,14 @@ object PictureInPictureHelper {
             }
             val entered = if (activity is MainActivity) {
                 activity.enterPlayerPictureInPictureMode(
-                    aspectRatioWidth = aspectRatioWidth,
-                    aspectRatioHeight = aspectRatioHeight,
+                    aspectRatio = aspectRatio,
                     isPlaying = isPlaying,
                     openSettingsOnDenied = true
                 )
             } else {
                 enterPipMode(
                     activity = activity,
-                    aspectRatioWidth = aspectRatioWidth,
-                    aspectRatioHeight = aspectRatioHeight,
+                    aspectRatio = aspectRatio,
                     isPlaying = isPlaying,
                     autoEnterEnabled = autoEnterEnabled
                 )
@@ -201,8 +201,7 @@ object PictureInPictureHelper {
     @RequiresApi(Build.VERSION_CODES.O)
     fun updatePipParams(
         activity: Activity,
-        aspectRatioWidth: Int = 16,
-        aspectRatioHeight: Int = 9,
+        aspectRatio: Float = currentVideoAspectRatio,
         isPlaying: Boolean = true,
         autoEnterEnabled: Boolean = false
     ) {
@@ -211,8 +210,7 @@ object PictureInPictureHelper {
         try {
             val params = buildPipParams(
                 activity,
-                aspectRatioWidth,
-                aspectRatioHeight,
+                aspectRatio,
                 isPlaying,
                 autoEnterEnabled
             )
@@ -225,12 +223,13 @@ object PictureInPictureHelper {
     @RequiresApi(Build.VERSION_CODES.O)
     private fun buildPipParams(
         context: Context,
-        aspectRatioWidth: Int,
-        aspectRatioHeight: Int,
+        requestedAspectRatio: Float,
         isPlaying: Boolean,
         autoEnterEnabled: Boolean
     ): PictureInPictureParams {
-        val aspectRatio = Rational(aspectRatioWidth, aspectRatioHeight)
+        val safeAspectRatio = sanitizePipAspectRatio(requestedAspectRatio)
+        currentVideoAspectRatio = safeAspectRatio
+        val aspectRatio = Rational((safeAspectRatio * 1_000).roundToInt(), 1_000)
         
         val actions = mutableListOf<RemoteAction>()
         

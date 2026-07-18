@@ -38,11 +38,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
 import io.github.aedev.flow.ui.components.playbackSpeedOptions
 import io.github.aedev.flow.ui.components.playbackSpeedSliderPresets
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-private const val SPEED_SELECTION_DISMISS_DELAY_MS = 1_500L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +83,6 @@ fun SettingsMenuDialog(
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
     var currentPage by remember { mutableStateOf(initialPage) }
-    var speedDismissJob by remember { mutableStateOf<Job?>(null) }
     val sheetProgress = if (expandedHeightPx > 0f) {
         ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
     } else {
@@ -122,8 +117,6 @@ fun SettingsMenuDialog(
 
     fun animateToDismiss(afterDismiss: () -> Unit = {}) {
         if (isAnimatingOut) return
-        speedDismissJob?.cancel()
-        speedDismissJob = null
         if (!enableVerticalDismiss) {
             latestOnDismiss()
             afterDismiss()
@@ -140,15 +133,6 @@ fun SettingsMenuDialog(
             )
             latestOnDismiss()
             afterDismiss()
-        }
-    }
-
-    fun scheduleSpeedDismiss() {
-        speedDismissJob?.cancel()
-        speedDismissJob = coroutineScope.launch {
-            delay(SPEED_SELECTION_DISMISS_DELAY_MS)
-            speedDismissJob = null
-            animateToDismiss()
         }
     }
 
@@ -418,7 +402,7 @@ fun SettingsMenuDialog(
                 PlayerSettingsPage.Speed -> PlayerSettingsSpeedPage(
                     currentSpeed = playerState.playbackSpeed,
                     onSpeedSelected = onSpeedSelected,
-                    onSpeedSelectionFinished = ::scheduleSpeedDismiss
+                    onSpeedSelectionFinished = { animateToDismiss() }
                 )
                 PlayerSettingsPage.Audio -> PlayerSettingsAudioPage(
                     availableAudioTracks = playerState.availableAudioTracks,

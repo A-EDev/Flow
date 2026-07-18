@@ -68,7 +68,17 @@ fun PlayerGestureOverlays(
             SpeedBoostOverlay(
                 isVisible = screenState.isSpeedBoostActive,
                 speed = speedBoostSpeed,
-                modifier = Modifier.align(Alignment.TopCenter)
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .then(
+                        if (screenState.isFullscreen) {
+                            Modifier
+                                .windowInsetsPadding(WindowInsets.displayCutout)
+                                .padding(top = 8.dp)
+                        } else {
+                            Modifier
+                        }
+                    )
             )
         }
     }

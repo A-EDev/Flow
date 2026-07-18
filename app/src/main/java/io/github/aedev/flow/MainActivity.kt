@@ -672,8 +672,7 @@ class MainActivity : ComponentActivity() {
         )
         if (shouldEnterAutoPip && !isMusicPlaying) {
             enterPlayerPictureInPictureMode(
-                aspectRatioWidth = 16,
-                aspectRatioHeight = 9,
+                aspectRatio = PictureInPictureHelper.currentVideoAspectRatio,
                 isPlaying = true
             )
         }
@@ -689,8 +688,7 @@ class MainActivity : ComponentActivity() {
     }
 
     fun enterPlayerPictureInPictureMode(
-        aspectRatioWidth: Int = 16,
-        aspectRatioHeight: Int = 9,
+        aspectRatio: Float = PictureInPictureHelper.currentVideoAspectRatio,
         isPlaying: Boolean = true,
         openSettingsOnDenied: Boolean = false
     ): Boolean {
@@ -705,8 +703,7 @@ class MainActivity : ComponentActivity() {
         pendingAutoPip = true
         val entered = PictureInPictureHelper.enterPipMode(
             activity = this,
-            aspectRatioWidth = aspectRatioWidth,
-            aspectRatioHeight = aspectRatioHeight,
+            aspectRatio = aspectRatio,
             isPlaying = isPlaying,
             autoEnterEnabled = false
         )

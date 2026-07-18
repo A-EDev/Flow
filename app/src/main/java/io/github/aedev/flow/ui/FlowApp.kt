@@ -129,6 +129,9 @@ fun FlowApp(
     val miniPlayerScale by preferences.miniPlayerScale.collectAsState(initial = 0.45f)
     val miniPlayerShowSkipControls by preferences.miniPlayerShowSkipControls.collectAsState(initial = false)
     val miniPlayerShowNextPrevControls by preferences.miniPlayerShowNextPrevControls.collectAsState(initial = false)
+    val showRestoredMusicMiniPlayer by produceState<Boolean?>(initialValue = null, preferences) {
+        preferences.showRestoredMusicMiniPlayer.collect { value = it }
+    }
     
     // Offline Monitoring
     val currentRoute = remember { mutableStateOf(defaultStartRoute) }
@@ -369,10 +372,19 @@ fun FlowApp(
         }
     }
 
-    LaunchedEffect(currentMusicTrack) {
-        if (currentMusicTrack != null && musicPlayerSheetState.isDismissed) {
+    LaunchedEffect(currentMusicTrack, showRestoredMusicMiniPlayer) {
+        if (currentMusicTrack != null &&
+            showRestoredMusicMiniPlayer == true &&
+            musicPlayerSheetState.isDismissed
+        ) {
             musicPlayerSheetState.collapse()
         } else if (currentMusicTrack == null) {
+            musicPlayerSheetState.dismiss()
+        }
+    }
+
+    LaunchedEffect(showRestoredMusicMiniPlayer) {
+        if (showRestoredMusicMiniPlayer == false && !musicPlayerSheetState.isExpanded) {
             musicPlayerSheetState.dismiss()
         }
     }
