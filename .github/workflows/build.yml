@@ -115,11 +115,12 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare release notes
-        shell: pwsh
+      - name: Validate release notes
         env:
           RELEASE_VERSION: ${{ steps.get_version.outputs.VERSION }}
-        run: ./releasenote.ps1 -Version $env:RELEASE_VERSION -OutputPath release-notes.md
+        run: |
+          test -s release-notes.md
+          grep -Fqx "# Flow ${RELEASE_VERSION}" release-notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v3
