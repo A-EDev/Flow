@@ -1925,4 +1925,8 @@
     <string name="subtitle_background_opacity_template">Opacità dello sfondo: %1$d</string>
     <string name="subtitle_bold_text">Testo grassetto</string>
     <string name="subtitle_reset_default">Reimposta a predefiniti</string>
+    <string name="content_settings_hide_watched_home_title">Nascondi i video visti dalla home</string>
+    <string name="content_settings_hide_watched_home_subtitle">Filtra i video che hai già visto dal feed della home</string>
+    <string name="content_settings_hide_watched_subscriptions_title">Nascondi i video visti dalle iscrizioni</string>
+    <string name="content_settings_hide_watched_subscriptions_subtitle">Filtra i video che hai già visto dalle tue iscrizioni</string>
 </resources>
