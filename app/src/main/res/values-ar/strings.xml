@@ -1142,7 +1142,7 @@
     <string name="content_settings_header_nav_tabs">علامات تبويب التنقل</string>
     <string name="settings_home_shorts_shelf_title">رفّ فيديوهات الشاشة الرئيسية القصيرة</string>
     <string name="settings_home_shorts_shelf_subtitle">اعرض رف الفيديوهات القصيرة الأفقي على الشاشة الرئيسية.</string>
-    <string name="settings_categories_nav_tab_title">استكشاف علامة التبويب في التنقل</string>
+    <string name="settings_categories_nav_tab_title">علامة التبويب إستكشاف في شريط التنقل</string>
     <string name="settings_categories_nav_tab_subtitle">اعرض علامة تبويب \"الأكثر رواجاً والفئات\" في شريط التنقل السفلي.</string>
     <string name="nav_explore">استكشاف</string>
     <string name="settings_continue_watching_subtitle">اعرض رفًا يحتوي على مقاطع الفيديو قيد التقدم على الشاشة الرئيسية.</string>
