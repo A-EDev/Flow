@@ -22,6 +22,7 @@ import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceResult
 import io.github.aedev.flow.player.sabr.integration.SabrOrchestrator
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -238,7 +239,9 @@ class MediaLoader(
         val sabrAvailable = sabrInfo != null && sabrInfo.streamingUrl.isNotEmpty() &&
             sabrVideoId != null && sabrInfo.audioItag > 0 && sabrInfo.videoItag > 0
 
-        if (sabrAvailable && sabrPreferred) {
+        val overridesDefaultAudio = StreamProcessor.overridesDefaultAudioTrack(audioStream)
+
+        if (sabrAvailable && sabrPreferred && !overridesDefaultAudio) {
             createSabrMediaSource(sabrInfo!!, sabrVideoId!!, finalDuration, startPositionMs)
                 ?.let { return mergeSubtitleSourcesIfNeeded(it, subtitleStreams, dataSourceFactory) }
         }

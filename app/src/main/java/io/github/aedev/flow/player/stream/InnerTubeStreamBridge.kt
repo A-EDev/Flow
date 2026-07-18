@@ -45,7 +45,7 @@ object InnerTubeStreamBridge {
     fun convertAudioFormats(
         formats: List<PlayerResponse.StreamingData.Format>
     ): List<AudioStream> {
-        return formats.mapNotNull { format ->
+        return formats.preferNonDrc().mapNotNull { format ->
             val url = format.url ?: return@mapNotNull null
             val mediaFormat = mapAudioMimeToMediaFormat(format.mimeType) ?: return@mapNotNull null
             val bitrate = format.averageBitrate ?: format.bitrate
@@ -64,6 +64,21 @@ object InnerTubeStreamBridge {
                 Log.w(TAG, "Failed to build AudioStream for itag=${format.itag}: ${e.message}")
                 null
             }
+        }
+    }
+
+    /**
+     * Drop a DRC format when its normal twin is present. YouTube ships both at bitrates that differ
+     * by a handful of bytes/s, so any downstream "highest bitrate wins" pick would otherwise land on
+     * the loudness-flattened copy. Order is preserved so default-track selection is unaffected.
+     */
+    private fun List<PlayerResponse.StreamingData.Format>.preferNonDrc():
+        List<PlayerResponse.StreamingData.Format> {
+        val normalTwins = filterNot { it.isDynamicRangeCompressed }
+            .mapTo(mutableSetOf()) { it.itag to it.audioTrack?.id }
+        if (normalTwins.isEmpty()) return this
+        return filterNot {
+            it.isDynamicRangeCompressed && (it.itag to it.audioTrack?.id) in normalTwins
         }
     }
 

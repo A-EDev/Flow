@@ -879,7 +879,7 @@ class EnhancedPlayerManager private constructor() {
             availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
             currentQuality = if (isAutoMode) 0 else (currentVideoStream?.let { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) } ?: 0),
             currentQualityKey = if (isAutoMode) null else currentVideoStream?.getContent()?.takeIf { it.isNotBlank() },
-            currentAudioTrack = currentAudioStream?.let { availableAudioStreams.indexOf(it).coerceAtLeast(0) } ?: 0,
+            currentAudioTrack = StreamProcessor.indexOfAudioTrack(availableAudioStreams, currentAudioStream),
             isLive = currentIsLiveStream,
             isAtLiveEdge = false,
             liveDurationMs = liveDurationMs
@@ -1993,7 +1993,7 @@ class EnhancedPlayerManager private constructor() {
             availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
             currentQuality = if (isAutoMode) 0 else (currentVideoStream?.let { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) } ?: 0),
             currentQualityKey = if (isAutoMode) null else currentVideoStream?.getContent()?.takeIf { it.isNotBlank() },
-            currentAudioTrack = currentAudioStream?.let { availableAudioStreams.indexOf(it).coerceAtLeast(0) } ?: 0,
+            currentAudioTrack = StreamProcessor.indexOfAudioTrack(availableAudioStreams, currentAudioStream),
             isLive = false,
             isAtLiveEdge = false,
             liveDurationMs = 0L

@@ -6,6 +6,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.hls.playlist.DefaultHlsPlaylistTracker
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
+import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.config.PlayerConfig
 import org.schabi.newpipe.extractor.stream.AudioStream
@@ -102,9 +103,14 @@ class VideoPlaybackResolver(
         // If only 1 video stream is passed, the user selected a specific quality
         // In this case, DON'T use YouTube's DASH URL (which has all qualities) - use the specific stream
         val useSpecificStream = videoStreams.size == 1
-        
+
+        // YouTube's manifest carries only the default audio track, so honouring it would silently
+        // ignore a dub the user picked. Fall through to the generated manifest, which is built from
+        // the selected stream.
+        val overridesDefaultAudio = StreamProcessor.overridesDefaultAudioTrack(audioStream)
+
         // 2. Priority: YouTube's native DASH manifest (only for adaptive/auto mode with multiple streams)
-        if (!dashManifestUrl.isNullOrEmpty() && !useSpecificStream) {
+        if (!dashManifestUrl.isNullOrEmpty() && !useSpecificStream && !overridesDefaultAudio) {
             try {
                 Log.d(TAG, "Using YouTube DASH manifest for adaptive playback: ${dashManifestUrl.take(80)}...")
                 val dashItem = androidx.media3.common.MediaItem.Builder()
@@ -116,6 +122,8 @@ class VideoPlaybackResolver(
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to use YouTube DASH manifest, trying generated manifests", e)
             }
+        } else if (overridesDefaultAudio) {
+            Log.d(TAG, "Non-default audio track selected (${audioStream?.audioTrackName}) - bypassing YouTube DASH URL")
         } else if (useSpecificStream) {
             Log.d(TAG, "User selected specific quality (${videoStreams.firstOrNull()?.let(VideoCodecUtils::qualityHeightFromStream)}p) - bypassing YouTube DASH URL")
         }

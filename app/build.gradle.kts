@@ -157,6 +157,12 @@ android {
         abortOnError = false
     }
 
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
+
 }
 
 dependencies {

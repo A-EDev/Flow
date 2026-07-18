@@ -5,6 +5,7 @@ import io.github.aedev.flow.player.state.AudioTrackOption
 import io.github.aedev.flow.player.state.SubtitleOption
 import java.util.Locale
 import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.AudioTrackType
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 
@@ -14,6 +15,9 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 object StreamProcessor {
     
     private const val TAG = "StreamProcessor"
+
+    /** Grouping key for audio carrying no track identity at all. */
+    internal const val UNTAGGED_TRACK_KEY = "default"
     
     /**
      * Process video streams - deduplicate and sort by height descending.
@@ -33,12 +37,22 @@ object StreamProcessor {
         return streams
             .sortedByDescending { it.averageBitrate }
             .groupBy { stream -> extractTrackLanguageKey(stream) }
+            .dropUntaggedGroupWhenTracksAreKnown()
             .map { (_, group) ->
                 group.first()
             }
             .sortedBy { stream -> audioTrackDisplayName(stream).orEmpty() }
             .also { Log.d(TAG, "Processed ${streams.size} audio streams -> ${it.size} unique tracks") }
     }
+
+    /**
+     * Once named tracks are present, the untagged bucket is the same audio arriving from a backend
+     * that does not name tracks (the two extraction paths get merged). Keeping it would render an
+     * unlabelled duplicate row beside the real ones.
+     */
+    private fun Map<String, List<AudioStream>>.dropUntaggedGroupWhenTracksAreKnown():
+        Map<String, List<AudioStream>> =
+        if (size > 1) this - UNTAGGED_TRACK_KEY else this
 
     fun processSubtitleStreams(streams: List<SubtitlesStream>): List<SubtitlesStream> {
         return streams
@@ -52,6 +66,29 @@ object StreamProcessor {
                     .thenBy { it.displayLanguageName ?: it.languageTag ?: "" }
             )
             .also { Log.d(TAG, "Processed ${streams.size} subtitle streams -> ${it.size} unique tracks") }
+    }
+
+    /**
+     * Index of [stream]'s logical track within [tracks], or 0 when it cannot be placed.
+     *
+     * Matched by track identity rather than instance: the playing stream is picked from the raw
+     * list while [tracks] holds one representative per track, so the two are rarely the same
+     * object and an instance lookup silently reports the wrong row as selected.
+     */
+    fun indexOfAudioTrack(tracks: List<AudioStream>, stream: AudioStream?): Int {
+        if (stream == null) return 0
+        val key = extractTrackLanguageKey(stream)
+        return tracks.indexOfFirst { extractTrackLanguageKey(it) == key }.coerceAtLeast(0)
+    }
+
+    /**
+     * True when this stream is a track chosen over YouTube's default. Neither YouTube's own DASH
+     * manifest nor a SABR session can serve such a choice — both carry only the default track — so
+     * playback has to fall through to a manifest generated from this specific stream.
+     */
+    fun overridesDefaultAudioTrack(stream: AudioStream?): Boolean {
+        val type = stream?.audioTrackType ?: return false
+        return type != AudioTrackType.ORIGINAL
     }
 
     /** Derive a stable logical-track key while collapsing only alternate formats of that track. */
@@ -159,6 +196,6 @@ object StreamProcessor {
             ?.let { return "name:${it.lowercase(Locale.ROOT)}|$type" }
         languageTag?.trim()?.takeIf { it.isNotEmpty() }
             ?.let { return "language:${it.lowercase(Locale.ROOT)}|$type" }
-        return "default"
+        return UNTAGGED_TRACK_KEY
     }
 }

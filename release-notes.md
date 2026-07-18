@@ -1,6 +1,6 @@
 # Flow v2.2.0
 
-**Release date:** 2026-07-16
+**Release date:** 2026-07-18
 **Status:** Pre-release
 
 ## New features
@@ -55,6 +55,7 @@
 - Refine the subscriptions feed cards to match the home layout #678
 - Onboarding screen redesign
 - Faster playback startup
+- Library screen redesign
 
 ## Fixes and stability
 
