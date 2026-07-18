@@ -1996,4 +1996,5 @@
     <string name="widget_no_recent">Les vidéos que vous regardez s\'afficheront ici</string>
     <string name="widget_no_downloads">Vos téléchargements s\'afficheront ici</string>
     <string name="widget_like">Favoris</string>
+    <string name="desc_more">…et plus</string>
 </resources>
