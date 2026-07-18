@@ -1957,4 +1957,7 @@
     <string name="widget_no_recent">Здесь будут показываться просмотренные видео</string>
     <string name="widget_no_downloads">Ваши загрузки появятся здесь</string>
     <string name="playlist_visibility_metadata">%1$s • %2$s</string>
+    <string name="playlist_filter_owned">Собственные</string>
+    <string name="playlist_creation_menu_open">Создать плейлист</string>
+    <string name="playlist_creation_menu_close">Закрыть меню создания плейлиста</string>
 </resources>
