@@ -1964,4 +1964,5 @@
     <string name="playlist_creation_menu_close">‎إغلاق قائمة إنشاء قوائم التشغيل</string>
     <string name="playlist_visibility_metadata">%1$s • %2$s</string>
     <string name="playlist_filter_owned">مملوكة</string>
+    <string name="content_settings_restored_music_mini_player_title">إظهار مُشغّل الصوتيات المصغّر المُستعاد</string>
 </resources>
