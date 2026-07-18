@@ -1956,4 +1956,5 @@
     <string name="widget_open_history">Открыть историю</string>
     <string name="widget_no_recent">Здесь будут показываться просмотренные видео</string>
     <string name="widget_no_downloads">Ваши загрузки появятся здесь</string>
+    <string name="playlist_visibility_metadata">%1$s • %2$s</string>
 </resources>
