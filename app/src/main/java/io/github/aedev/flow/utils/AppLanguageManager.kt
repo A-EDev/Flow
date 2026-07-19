@@ -34,7 +34,8 @@ object AppLanguageManager {
         "pt-BR",
         "ru",
         "tr",
-        "uk"
+        "uk",
+        "zh-CN"
     )
 
     fun loadSelectedLanguageTag(context: Context): String {
