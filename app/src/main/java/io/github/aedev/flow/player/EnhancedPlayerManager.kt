@@ -148,6 +148,10 @@ class EnhancedPlayerManager private constructor() {
     private var videoTracksDisabled = false
     @Volatile private var videoSurfaceRestorePending = false
 
+    // Position captured right before the playlist is emptied under memory pressure
+    // (handleCriticalMemoryPressure), so recovery can resume where the user left off.
+    @Volatile private var clearedMediaResumePositionMs = 0L
+
     // Queue management
     private var playbackQueue: List<io.github.aedev.flow.data.model.Video> = emptyList()
     private var originalPlaybackQueue: List<io.github.aedev.flow.data.model.Video> = emptyList()
@@ -2191,7 +2195,38 @@ class EnhancedPlayerManager private constructor() {
         if (isAudioOnlyMode || videoSurfaceRestorePending) {
             restoreVideoOutput()
         }
-        player?.play()
+        val p = player ?: return
+        // The player can be reset to STATE_IDLE while backgrounded (e.g. media items
+        // cleared under memory pressure). A bare play() is a no-op on an IDLE player,
+        // which is why the play button appears dead after returning to a video —
+        // recover the media first.
+        if (p.playbackState == Player.STATE_IDLE) {
+            if (!reloadClearedMediaIfNeeded() && p.mediaItemCount > 0) {
+                Log.d(TAG, "play(): player IDLE with media — calling prepare()")
+                p.prepare()
+            }
+        }
+        p.play()
+    }
+
+    /**
+     * Reloads the cached streams when the player was reset with an empty playlist —
+     * the state handleCriticalMemoryPressure() leaves behind when it stops and clears
+     * media items under memory pressure. An empty playlist cannot be recovered with
+     * prepare() alone, so the reload restores the media (resuming from the position
+     * captured before the playlist was cleared).
+     *
+     * @return true if a reload was issued.
+     */
+    private fun reloadClearedMediaIfNeeded(): Boolean {
+        val p = player ?: return false
+        if (p.playbackState != Player.STATE_IDLE || p.mediaItemCount > 0) return false
+        if (currentVideoStream == null && currentAudioStream == null) return false
+        val resumePos = clearedMediaResumePositionMs.takeIf { it > 0L }
+        Log.w(TAG, "reloadClearedMedia: player reset with empty playlist — reloading cached streams (resumePos=$resumePos)")
+        clearedMediaResumePositionMs = 0L
+        loadMediaInternal(currentVideoStream, currentAudioStream, preservePosition = resumePos)
+        return true
     }
     fun pause() = player?.pause()
     fun seekTo(position: Long) {
@@ -2718,6 +2753,16 @@ class EnhancedPlayerManager private constructor() {
             switchToAudioOnly()
             clearSurface()
         } else {
+            // Remember where we were so returning to the video can resume, then free
+            // the video buffers. Note: clearing media items empties the playlist, so
+            // a later prepare() alone cannot recover it — recovery must reload the
+            // cached streams (see reloadClearedMediaIfNeeded()). Only capture the
+            // position when there is still media to lose, so a repeated trim (which
+            // arrives with an already-empty playlist at position 0) does not clobber
+            // the good value.
+            if (p.mediaItemCount > 0) {
+                clearedMediaResumePositionMs = p.currentPosition.coerceAtLeast(0L)
+            }
             p.stop()
             p.clearMediaItems()
         }
@@ -2992,6 +3037,12 @@ class EnhancedPlayerManager private constructor() {
      */
     fun handleRefocusStuck(videoId: String?) {
         val p = player ?: return
+        // If the playlist was emptied under memory pressure, the errorHandler's
+        // prepare()-based recovery is a no-op. Reload the cached streams instead.
+        if (reloadClearedMediaIfNeeded()) {
+            if (p.playWhenReady) p.play()
+            return
+        }
         errorHandler?.handleRefocusStuck(p, videoId)
     }
 }
