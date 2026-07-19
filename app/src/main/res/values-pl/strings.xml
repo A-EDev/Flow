@@ -886,7 +886,7 @@
     <string name="player_settings_double_tap_seek_subtitle_template">%d s po dwukrotnym stuknięciu</string>
     <string name="player_settings_double_tap_seek_dialog_title">Czas Przewijania Stuknięciem</string>
     <string name="player_settings_double_tap_seek_dialog_body">Wybierz, o ile sekund ma nastąpić przeskok po dwukrotnym stuknięciu lewej lub prawej strony odtwarzacza.</string>
-    <string name="persona_initiate_description">To dopiero początek. Twój profil wciąż się kształtuje.</string>
+    <string name="persona_initiate_description">To dopiero początek. Twój profil wciąż się tworzy.</string>
     <string name="persona_initiate_title">Inicjalizacja</string>
     <string name="player_appearance_volume_boost_title">Zezwól na dodatkowe podbicie głośności</string>
     <string name="player_appearance_volume_boost_subtitle">Gdy ta opcja jest wyłączona, gest przesunięcia palcem w celu zmiany głośności zatrzymuje się przy maksymalnej głośności systemowej. Włącz tę opcję, aby jeszcze bardziej podbić poziom głośności.</string>
