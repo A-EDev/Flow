@@ -220,7 +220,7 @@
     <string name="add_to_playlist">Dodaj do playlisty</string>
     <string name="playback_header">Odtwarzanie</string>
     <string name="play_next">Odtwórz jako następne</string>
-    <string name="subscriptions_last_refreshed_time_only_template">Ostatnio odświeżono %1$s</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Ostatnie odświeżenie %1$s</string>
     <string name="history_filter_all_years">Kiedykolwiek</string>
     <string name="autoplay">Autoodtwarzanie</string>
     <string name="move_up">Przesuń do góry</string>
@@ -828,7 +828,7 @@
     <string name="datetime_context_lists">Lista i karty</string>
     <string name="settings_item_datetime_subtitle">Dostosuj sposób wyświetlania dat dodania filmów</string>
     <string name="persona_explorer_title">Eksploracja</string>
-    <string name="persona_explorer_description">Chaotyczne i piękne. Po trochu wszystkiego.</string>
+    <string name="persona_explorer_description">Chaotyczna i piękna. Po trochu wszystkiego.</string>
     <string name="flow_control_center">Centrum Kontroli Flow</string>
     <string name="player_settings_overlay_cast">Przycisk Przesyłania</string>
     <string name="player_settings_overlay_cast_subtitle">Pokaż przycisk przesyłania na nakładce odtwarzacza wideo</string>
@@ -1341,4 +1341,5 @@
     <string name="content_settings_hide_watched_subscriptions_subtitle">Filtruj i ukrywaj obejrzane filmy ze strony subskrypcji</string>
     <string name="content_settings_share_without_text_title">Udostępniaj Linki bez Tekstu</string>
     <string name="content_settings_share_without_text_subtitle">Udostępniaj sam link do filmu, pomijając tekst „Zobacz ten film”</string>
+    <string name="parallel_downloading_title">Pobieranie Równoległe</string>
 </resources>
