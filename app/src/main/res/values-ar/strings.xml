@@ -381,8 +381,8 @@
     <string name="content_settings_disable_shorts_player_subtitle">قم بتشغيل جميع مقاطع الفيديو (بما في ذلك مقاطع يوتيوب القصيرة) في مشغل الفيديو العادي</string>
     <string name="content_settings_explore_region_picker_subtitle">اعرض أيقونة عامة في الشريط العلوي لشاشة الاستكشاف لتغيير المنطقة الرائجة على الفور.</string>
     <string name="categories_region_picker_desc">تغيير منطقة الفيديوهات الرائجة (الحالي: %1$s)</string>
-    <string name="settings_subs_shorts_shelf_title">رف اشتراكات الفيديوهات القصيرة</string>
-    <string name="settings_subs_shorts_shelf_subtitle">اعرض رفّ الفيديوهات القصيرة الأفقي في شبكة تغذية الاشتراكات.</string>
+    <string name="settings_subs_shorts_shelf_title">رف الفيديوهات القصيرة في تبويب الإشتراكات</string>
+    <string name="settings_subs_shorts_shelf_subtitle">اعرض رفّ الفيديوهات القصيرة الأفقية في شبكة تغذية الاشتراكات.</string>
     <string name="settings_shorts_nav_tab_title">علامة تبويب \"الفيديوهات القصيرة\" في شريط التنقل</string>
     <string name="settings_shorts_nav_tab_subtitle">اعرض علامة تبويب \"الفيديوهات القصيرة\" في شريط التنقل السفلي.</string>
     <string name="settings_music_nav_tab_title">علامة تبويب الموسيقى في شريط التنقل</string>
@@ -1140,8 +1140,8 @@
     <string name="content_settings_preview_small">صغير - 104dp صور مصغرة</string>
     <string name="content_settings_explore_region_picker_title">أداة اختيار البلد السريعة في الاستكشاف</string>
     <string name="content_settings_header_nav_tabs">علامات تبويب التنقل</string>
-    <string name="settings_home_shorts_shelf_title">رفّ فيديوهات الشاشة الرئيسية القصيرة</string>
-    <string name="settings_home_shorts_shelf_subtitle">اعرض رف الفيديوهات القصيرة الأفقي على الشاشة الرئيسية.</string>
+    <string name="settings_home_shorts_shelf_title">رفّ المقاطع القصير في الشاشة الرئيسية</string>
+    <string name="settings_home_shorts_shelf_subtitle">اعرض رف الفيديوهات القصيرة الأفقية على الشاشة الرئيسية.</string>
     <string name="settings_categories_nav_tab_title">علامة التبويب إستكشاف في شريط التنقل</string>
     <string name="settings_categories_nav_tab_subtitle">اعرض علامة تبويب \"الأكثر رواجاً والفئات\" في شريط التنقل السفلي.</string>
     <string name="nav_explore">استكشاف</string>
@@ -1965,4 +1965,5 @@
     <string name="playlist_visibility_metadata">%1$s • %2$s</string>
     <string name="playlist_filter_owned">مملوكة</string>
     <string name="content_settings_restored_music_mini_player_title">إظهار مُشغّل الصوتيات المصغّر المُستعاد</string>
+    <string name="content_settings_restored_music_mini_player_subtitle">عرض جلسة الموسيقى الأخيرة تلقائياً بعد إستعادتها</string>
 </resources>
