@@ -384,7 +384,7 @@ fun VideoCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
+                    contentDescription = stringResource(R.string.ui_options),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -868,7 +868,7 @@ fun VideoCardFullWidth(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options",
+                    contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -1192,7 +1192,7 @@ fun CompactVideoCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options",
+                    contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.size(16.dp)
                 )
@@ -1559,7 +1559,7 @@ fun ShortsShelf(
         ) {
             Icon(
                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                contentDescription = "Shorts",
+                contentDescription = stringResource(R.string.shorts),
                 tint = Color.Red,
                 modifier = Modifier.size(24.dp)
             )

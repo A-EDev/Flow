@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -137,7 +138,7 @@ fun FlowSplashScreen(
                     ) {
                         Image(
                             painter = painterResource(id = activeIcon.drawableRes),
-                            contentDescription = "Flow Logo",
+                            contentDescription = stringResource(R.string.ui_flow_logo),
                             colorFilter = ColorFilter.tint(colorScheme.onSecondaryContainer),
                             modifier = Modifier.fillMaxSize()
                         )
@@ -145,7 +146,7 @@ fun FlowSplashScreen(
                 } else {
                     Image(
                         painter = painterResource(id = activeIcon.drawableRes),
-                        contentDescription = "Flow Logo",
+                        contentDescription = stringResource(R.string.ui_flow_logo),
                         modifier = Modifier
                             .scale(scale.value)
                             .size(90.dp)

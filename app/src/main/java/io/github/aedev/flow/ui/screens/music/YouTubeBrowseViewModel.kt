@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.music
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -7,7 +8,9 @@ import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.pages.BrowseResult
+import io.github.aedev.flow.R
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +19,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class YouTubeBrowseViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
     
     private val browseId: String = savedStateHandle.get<String>("browseId") ?: ""
@@ -49,14 +53,14 @@ class YouTubeBrowseViewModel @Inject constructor(
                         Log.e("YouTubeBrowse", "Failed to load browse content", error)
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            error = error.message ?: "Failed to load content"
+                            error = error.message ?: context.getString(R.string.error_failed_to_load_content)
                         )
                     }
             } catch (e: Exception) {
                 Log.e("YouTubeBrowse", "Exception loading browse content", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "An error occurred"
+                    error = e.message ?: context.getString(R.string.error_generic_hint)
                 )
             }
         }

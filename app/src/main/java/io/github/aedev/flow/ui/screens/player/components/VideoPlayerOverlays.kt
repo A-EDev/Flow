@@ -155,7 +155,7 @@ private fun SeekChevronLabel(forward: Boolean, seconds: Int) {
             )
         }
         Text(
-            text = if (forward) "+${seconds}s" else "-${seconds}s",
+            text = if (forward) "+${seconds}" else "-${seconds}",
             color = Color.White,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold

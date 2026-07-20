@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.channel
 
 import android.util.Log
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -31,8 +32,10 @@ import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
 import java.util.Locale
+import io.github.aedev.flow.R
 
 class ChannelViewModel : ViewModel() {
+    private lateinit var appContext: Context
     private val _uiState = MutableStateFlow(ChannelUiState())
     val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
     private val communityController = ChannelCommunityController(viewModelScope)
@@ -83,6 +86,7 @@ class ChannelViewModel : ViewModel() {
     }
     
     fun initialize(context: android.content.Context) {
+        appContext = context.applicationContext
         if (subscriptionRepository == null) {
             subscriptionRepository = SubscriptionRepository.getInstance(context)
         }
@@ -93,7 +97,7 @@ class ChannelViewModel : ViewModel() {
      */
     fun loadChannel(channelUrl: String) {
         if (channelUrl.isBlank()) {
-            _uiState.update { it.copy(error = "Invalid channel URL", isLoading = false) }
+            _uiState.update { it.copy(error = appContext.getString(R.string.error_invalid_channel_url), isLoading = false) }
             return
         }
         
@@ -123,7 +127,7 @@ class ChannelViewModel : ViewModel() {
                 if (channelInfo == null) {
                     _uiState.update { 
                         it.copy(
-                            error = "Channel loading timed out",
+                            error = appContext.getString(R.string.error_channel_loading_timed_out),
                             isLoading = false
                         )
                     }
@@ -160,7 +164,7 @@ class ChannelViewModel : ViewModel() {
                 Log.e(TAG, "Failed to load channel", e)
                 _uiState.update { 
                     it.copy(
-                        error = e.message ?: "Failed to load channel",
+                        error = e.message ?: appContext.getString(R.string.error_failed_to_load_channel),
                         isLoading = false
                     )
                 }

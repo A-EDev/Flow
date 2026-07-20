@@ -9,6 +9,7 @@ import android.os.Environment
 import android.provider.Settings
 import android.widget.Toast
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.R
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import org.schabi.newpipe.extractor.stream.VideoStream
 
@@ -137,9 +138,9 @@ object VideoPlayerUtils {
                 fallbackQuality = fallbackQuality
             )
 
-            Toast.makeText(context, "Started download: ${video.title}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.ui_started_download, video.title), Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(context, "Download failed to start: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.ui_download_start_failed, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 }

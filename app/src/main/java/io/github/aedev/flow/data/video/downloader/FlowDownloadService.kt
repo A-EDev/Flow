@@ -422,7 +422,7 @@ class FlowDownloadService : Service() {
                 id = videoId, title = title, channelName = channel, channelId = "local",
                 thumbnailUrl = thumbnail, duration = duration, viewCount = 0,
                 uploadDate = System.currentTimeMillis().toString(),
-                description = "Downloaded locally",
+                description = getString(R.string.fallback_downloaded_locally),
                 isMusic = isMusic
             )
 
@@ -504,7 +504,7 @@ class FlowDownloadService : Service() {
                         if (wifiOnly && !isOnWifi()) {
                             Log.i(TAG, "WiFi only enabled but not on WiFi. Pausing.")
                             mission.status = MissionStatus.PAUSED
-                            mission.error = "Waiting for WiFi"
+                            mission.error = getString(R.string.download_waiting_for_wifi)
                             updateAllItemStatuses(videoId, DownloadItemStatus.PAUSED)
                             updateNotification(mission, videoId)
                             registerWifiCallback(videoId)
@@ -538,7 +538,7 @@ class FlowDownloadService : Service() {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     Log.e(TAG, "Error in download job for $videoId", e)
                     mission.status = MissionStatus.FAILED
-                    mission.error = "Download failed. Please try again."
+                    mission.error = getString(R.string.download_failed_try_again)
                     updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
                     updateNotification(mission, videoId)
                     activeMissions.remove(videoId)
@@ -614,7 +614,7 @@ class FlowDownloadService : Service() {
                     }
 
                     // Update notification to show muxing phase
-                    mission.error = "Merging audio & video..."
+                    mission.error = getString(R.string.download_merging_audio_video)
                     updateNotification(mission, videoId, isMuxing = true)
                     
                     val videoTmp = "${mission.savePath}.video.tmp"
@@ -648,7 +648,7 @@ class FlowDownloadService : Service() {
                         Log.e(TAG, "executeDownload: Muxing failed. Audio/video format mismatch likely.")
                         finalSuccess = false
                         mission.status = MissionStatus.FAILED
-                        mission.error = "Muxing failed — audio format incompatible with video container. Try re-downloading."
+                        mission.error = getString(R.string.download_muxing_incompatible)
                         updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
                         
                         // Clean up temp files
@@ -745,7 +745,7 @@ class FlowDownloadService : Service() {
                 mission.error = if (mission.gatedHttp403) {
                     "Stream blocked or expired (HTTP 403). Try another quality/codec or try again later."
                 } else {
-                    mission.error ?: "Download failed"
+                    mission.error ?: getString(R.string.download_failed_try_again)
                 }
                 updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
                 updateNotification(mission, videoId)
@@ -754,7 +754,7 @@ class FlowDownloadService : Service() {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e(TAG, "executeDownload: Critical error", e)
             mission.status = MissionStatus.FAILED
-            mission.error = "Download failed. Please try again."
+            mission.error = getString(R.string.download_failed_try_again)
             updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
             updateNotification(mission, videoId)
         } finally {
@@ -816,7 +816,7 @@ class FlowDownloadService : Service() {
 
         if (sabrInfo == null) {
             mission.status = MissionStatus.FAILED
-            mission.error = mission.error ?: "URL expired (403). Re-fetch needed."
+            mission.error = mission.error ?: getString(R.string.download_url_expired)
             updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
             updateNotification(mission, videoId)
             stopServiceIfIdle()
@@ -979,7 +979,7 @@ class FlowDownloadService : Service() {
                             )
                         )
                     }
-                    mission.error = "Merging audio & video..."
+                    mission.error = getString(R.string.download_merging_audio_video)
                     updateNotification(mission, videoId, isMuxing = true)
 
                     val prevPriority = android.os.Process.getThreadPriority(android.os.Process.myTid())
@@ -1001,7 +1001,7 @@ class FlowDownloadService : Service() {
                         Log.e(TAG, "executeSabrDownload: Mux failed")
                         finalSuccess = false
                         mission.status = MissionStatus.FAILED
-                        mission.error = "Muxing failed — try re-downloading."
+                        mission.error = getString(R.string.download_muxing_failed_retry)
                         updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
                         listOf(videoTmp, audioTmp, mission.savePath).forEach { path ->
                             try { File(path).takeIf { it.exists() }?.delete() } catch (_: Exception) {}
@@ -1063,7 +1063,7 @@ class FlowDownloadService : Service() {
                 }
             } else {
                 mission.status = MissionStatus.FAILED
-                mission.error = "SABR download failed"
+                mission.error = getString(R.string.download_sabr_failed)
                 updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
                 updateNotification(mission, videoId)
                 listOf("${mission.savePath}.video.tmp", "${mission.savePath}.audio.tmp").forEach { path ->
@@ -1074,7 +1074,7 @@ class FlowDownloadService : Service() {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e(TAG, "executeSabrDownload: Critical error", e)
             mission.status = MissionStatus.FAILED
-            mission.error = "SABR download failed. Please try again."
+            mission.error = getString(R.string.download_sabr_failed_try_again)
             updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
             updateNotification(mission, videoId)
         } finally {
@@ -1237,7 +1237,7 @@ class FlowDownloadService : Service() {
                         // Pause all running downloads
                         activeMissions.forEach { (id, mission) ->
                             if (mission.status == MissionStatus.RUNNING) {
-                                mission.error = "Waiting for WiFi"
+                mission.error = getString(R.string.download_waiting_for_wifi)
                                 handlePause(id)
                             }
                         }
@@ -1386,7 +1386,7 @@ class FlowDownloadService : Service() {
                 CHANNEL_ID, "Flow Downloads",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Video and audio download progress"
+                description = getString(R.string.notification_download_progress_description)
             }
             val nm = getSystemService(NotificationManager::class.java)
             nm.createNotificationChannel(channel)

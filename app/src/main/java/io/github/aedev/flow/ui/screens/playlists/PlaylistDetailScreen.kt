@@ -523,7 +523,7 @@ private fun PlaylistDetailTopBar(
                         IconButton(onClick = onSaveToggle) {
                             Icon(
                                 imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (isSaved) "Remove from library" else "Save to library",
+                                contentDescription = if (isSaved) stringResource(R.string.ui_remove_from_library) else stringResource(R.string.ui_save_to_library),
                                 tint = if (isSaved) MaterialTheme.colorScheme.primary else LocalContentColor.current
                             )
                         }
@@ -709,7 +709,7 @@ private fun PlaylistHeader(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = if (isDownloading) Icons.Default.Downloading else Icons.Default.ArrowDownward,
-                                contentDescription = if (isDownloading) "Downloading playlist" else "Download all",
+                                contentDescription = if (isDownloading) stringResource(R.string.ui_downloading_playlist) else stringResource(R.string.download_all),
                                 tint = if (isDownloading) MaterialTheme.colorScheme.primary else LocalContentColor.current,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -1335,13 +1335,13 @@ class PlaylistDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val videos = _uiState.value.videos
             if (videos.isEmpty()) {
-                Toast.makeText(context, "Playlist is empty", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.ui_playlist_empty), Toast.LENGTH_SHORT).show()
                 return@launch
             }
 
             _isDownloadingPlaylist.value = true
             _playlistDownloadProgress.value = 0f
-            Toast.makeText(context, "Downloading ${videos.size} videos…", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.ui_downloading_videos, videos.size), Toast.LENGTH_SHORT).show()
 
             var successCount = 0
             var processedCount = 0
@@ -1606,7 +1606,7 @@ class PlaylistDetailViewModel @Inject constructor(
                 repository.addVideoToPlaylist(playlistId, video)
             }
             _uiState.update { it.copy(isLocalPlaylist = true, isSaved = true) }
-            android.widget.Toast.makeText(context, "Playlist saved to library", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.ui_playlist_saved_to_library), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1614,7 +1614,7 @@ class PlaylistDetailViewModel @Inject constructor(
         viewModelScope.launch {
             repository.unsaveExternalPlaylist(playlistId)
             _uiState.update { it.copy(isLocalPlaylist = false, isSaved = false) }
-            android.widget.Toast.makeText(context, "Playlist removed from library", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.ui_playlist_removed_from_library), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1691,7 +1691,7 @@ class PlaylistDetailViewModel @Inject constructor(
                 ).show()
             } catch (e: Exception) {
                 android.util.Log.e("PlaylistDetailVM", "Failed to merge playlist", e)
-                Toast.makeText(context, "Failed to merge playlist", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_failed_to_merge_playlist), Toast.LENGTH_SHORT).show()
             } finally {
                 _isMerging.value = false
             }

@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsRepository
+import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CancellationException
@@ -1169,7 +1170,7 @@ class HomeViewModel @Inject constructor(
                 requestOptimisticHomePrefetch()
                 
             } catch (e: Exception) {
-                 _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = "Failed to load feed") }
+                 _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = appContext.getString(R.string.error_failed_to_load_feed)) }
                  loadTrendingFallback() 
             }
         }
@@ -1451,7 +1452,7 @@ class HomeViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update { it.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to load videos"
+                    error = e.message ?: appContext.getString(R.string.error_failed_to_load_videos)
                 ) }
             }
         }

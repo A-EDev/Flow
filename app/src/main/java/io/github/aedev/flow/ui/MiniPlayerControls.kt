@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
@@ -92,9 +94,9 @@ internal fun MiniPlayerControls(
                             else -> Icons.Rounded.PlayArrow
                         },
                         contentDescription = when {
-                            playerState.hasEnded -> "Replay"
-                            playerState.playWhenReady -> "Pause"
-                            else -> "Play"
+                            playerState.hasEnded -> stringResource(R.string.ui_replay)
+                            playerState.playWhenReady -> stringResource(R.string.pause)
+                            else -> stringResource(R.string.play)
                         },
                         tint = Color.White,
                         modifier = Modifier.size(if (isTablet) 42.dp else 34.dp)
@@ -120,7 +122,7 @@ internal fun MiniPlayerControls(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
-                    contentDescription = "Close",
+                    contentDescription = stringResource(R.string.close),
                     tint = Color.White,
                     modifier = Modifier.size(if (isTablet) 34.dp else 30.dp)
                 )
@@ -139,7 +141,7 @@ internal fun MiniPlayerControls(
                 if (showNextPrevControls) {
                     MiniPlayerIconButton(
                         imageVector = Icons.Rounded.SkipPrevious,
-                        contentDescription = "Previous",
+                        contentDescription = stringResource(R.string.previous),
                         touchSize = finalTouchSize,
                         backgroundSize = finalBgSize,
                         iconSize = finalIconSize,
@@ -150,7 +152,7 @@ internal fun MiniPlayerControls(
                 if (showSkipControls) {
                     MiniPlayerIconButton(
                         imageVector = Icons.Rounded.Replay10,
-                        contentDescription = "Skip Back 10s",
+                        contentDescription = stringResource(R.string.ui_skip_back_10_seconds),
                         touchSize = finalTouchSize,
                         backgroundSize = finalBgSize,
                         iconSize = finalIconSize,
@@ -161,7 +163,7 @@ internal fun MiniPlayerControls(
                 if (showSkipControls) {
                     MiniPlayerIconButton(
                         imageVector = Icons.Rounded.Forward10,
-                        contentDescription = "Skip Forward 10s",
+                        contentDescription = stringResource(R.string.ui_skip_forward_10_seconds),
                         touchSize = finalTouchSize,
                         backgroundSize = finalBgSize,
                         iconSize = finalIconSize,
@@ -172,7 +174,7 @@ internal fun MiniPlayerControls(
                 if (showNextPrevControls) {
                     MiniPlayerIconButton(
                         imageVector = Icons.Rounded.SkipNext,
-                        contentDescription = "Next",
+                        contentDescription = stringResource(R.string.next),
                         touchSize = finalTouchSize,
                         backgroundSize = finalBgSize,
                         iconSize = finalIconSize,
