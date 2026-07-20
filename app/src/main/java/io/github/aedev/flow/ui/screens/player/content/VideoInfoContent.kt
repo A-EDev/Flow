@@ -170,14 +170,14 @@ fun VideoInfoContent(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(4.dp))
-                        Text("Retry", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(stringResource(R.string.retry), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                     OutlinedButton(
                         onClick = {
                             val ok = PlayerDiagnostics.copyToClipboard(context)
                             Toast.makeText(
                                 context,
-                                if (ok) "Logs copied to clipboard" else "Failed to copy logs",
+                                if (ok) context.getString(R.string.logs_copied) else context.getString(R.string.logs_copy_failed),
                                 Toast.LENGTH_SHORT
                             ).show()
                         },
@@ -191,7 +191,7 @@ fun VideoInfoContent(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(4.dp))
-                        Text("Copy Logs", fontSize = 13.sp)
+                        Text(stringResource(R.string.copy_logs), fontSize = 13.sp)
                     }
                 }
                 // Row 2: Open in YouTube (full width)
@@ -213,7 +213,7 @@ fun VideoInfoContent(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("Open in YouTube", fontSize = 13.sp)
+                    Text(stringResource(R.string.ui_open_in_youtube), fontSize = 13.sp)
                 }
             }
         }

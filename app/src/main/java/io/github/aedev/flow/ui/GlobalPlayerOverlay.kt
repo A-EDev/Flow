@@ -1037,7 +1037,7 @@ fun GlobalPlayerOverlay(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.ErrorOutline,
-                                            contentDescription = "Playback error",
+                                            contentDescription = stringResource(R.string.ui_playback_error),
                                             tint = Color(0xFFFF6B6B),
                                             modifier = Modifier.size(48.dp)
                                         )

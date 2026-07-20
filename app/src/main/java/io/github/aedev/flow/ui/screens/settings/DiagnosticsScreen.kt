@@ -309,7 +309,7 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
                 Button(
                     onClick = {
                         FlowDiagnostics.clearCrashLogs(context)
-                        crashText       = "No crash logs"
+                        crashText       = context.getString(R.string.ui_no_crash_logs)
                         showClearDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(

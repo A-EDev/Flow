@@ -794,12 +794,12 @@ class MainActivity : ComponentActivity() {
                         if (isNewerVersion(cleanLatest, cleanCurrent)) {
                             withContext(Dispatchers.Main) {
                                 AlertDialog.Builder(this@MainActivity)
-                                    .setTitle("Update Available")
-                                    .setMessage("A new version of Flow is available ($latestTag). Download the latest APK?")
-                                    .setPositiveButton("Download") { _, _ ->
+                                    .setTitle(getString(R.string.new_update_available))
+                                    .setMessage(getString(R.string.update_download_prompt, latestTag))
+                                    .setPositiveButton(getString(R.string.download)) { _, _ ->
                                         ApkUpdateHelper.requestDownload(this@MainActivity, "https://github.com/A-EDev/Flow/releases/latest")
                                     }
-                                    .setNegativeButton("Later", null)
+                                    .setNegativeButton(getString(R.string.maybe_later), null)
                                     .show()
                             }
                         }

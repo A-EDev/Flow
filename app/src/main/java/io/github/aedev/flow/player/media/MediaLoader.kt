@@ -25,6 +25,7 @@ import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
+import io.github.aedev.flow.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
@@ -37,6 +38,7 @@ import java.util.Locale
  */
 @UnstableApi
 class MediaLoader(
+    private val appContext: Context,
     private val stateFlow: MutableStateFlow<EnhancedPlayerState>,
     private val cacheManager: PlayerCacheManager?,
     private val surfaceManager: SurfaceManager?
@@ -156,12 +158,12 @@ class MediaLoader(
                     return true
                 } else {
                     Log.e(TAG, "Failed to resolve media source - streams invalid")
-                    stateFlow.value = stateFlow.value.copy(error = "Failed to load media: Invalid streams")
+                    stateFlow.value = stateFlow.value.copy(error = appContext.getString(R.string.error_failed_to_load_media_invalid_streams))
                     return false
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading media", e)
-                stateFlow.value = stateFlow.value.copy(error = "Failed to load media: ${e.message}")
+                stateFlow.value = stateFlow.value.copy(error = appContext.getString(R.string.error_failed_to_load_media, e.message.orEmpty()))
                 return false
             }
         }

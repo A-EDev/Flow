@@ -413,7 +413,7 @@ fun LicenseDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("OK") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_ok)) }
         }
     )
 }
@@ -499,7 +499,7 @@ fun ChangelogDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("OK") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_ok)) }
         }
     )
 }

@@ -898,7 +898,7 @@ class MusicViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isPlaylistLoading = false,
-                    error = "Failed to load playlist"
+                    error = context.getString(R.string.error_failed_to_load_playlist)
                 )
             }
         }

@@ -217,8 +217,8 @@ fun UserPreferencesScreen(
                         
                         item {
                             PreferencesSectionHeader(
-                                title = "Add Custom Interest",
-                                subtitle = "Type any topic you want to follow"
+                                title = stringResource(R.string.ui_custom_interest_title),
+                                subtitle = stringResource(R.string.ui_custom_interest_subtitle)
                             )
                         }
 
@@ -235,7 +235,7 @@ fun UserPreferencesScreen(
                                     OutlinedTextField(
                                         value = newInterestTopic,
                                         onValueChange = { newInterestTopic = it },
-                                        label = { Text("Custom interest (e.g. Jazz, Astrophysics)") },
+                                        label = { Text(stringResource(R.string.ui_custom_interest_hint)) },
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(12.dp),
                                         singleLine = true,
@@ -255,7 +255,7 @@ fun UserPreferencesScreen(
                                             ) {
                                                 Icon(
                                                     Icons.Default.AddCircle,
-                                                    contentDescription = "Add interest",
+                                                    contentDescription = stringResource(R.string.ui_add_interest),
                                                     tint = if (newInterestTopic.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }

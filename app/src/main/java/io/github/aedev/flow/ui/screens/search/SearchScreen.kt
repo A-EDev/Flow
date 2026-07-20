@@ -1133,7 +1133,7 @@ private fun PagingFooter(
                 OutlinedButton(onClick = onRetry) {
                     Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Retry", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.retry), style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -1835,7 +1835,7 @@ private fun SearchErrorState(message: String, onRetry: () -> Unit) {
             Button(onClick = onRetry) {
                 Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Retry")
+                Text(stringResource(R.string.retry))
             }
         }
     }

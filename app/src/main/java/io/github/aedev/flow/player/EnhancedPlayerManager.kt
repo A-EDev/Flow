@@ -421,7 +421,7 @@ class EnhancedPlayerManager private constructor() {
         trackSelector = playerFactory.createTrackSelector(context)
         
         // Initialize media loader
-        mediaLoader = MediaLoader(_playerState, cacheManager, surfaceManager).also { loader ->
+        mediaLoader = MediaLoader(context.applicationContext, _playerState, cacheManager, surfaceManager).also { loader ->
             loader.onSabrFallbackNeeded = {
                 scope.launch {
                     Log.w(TAG, "SABR fallback triggered — requesting full re-extraction")
@@ -447,6 +447,7 @@ class EnhancedPlayerManager private constructor() {
         
         // Initialize error handler
         errorHandler = PlayerErrorHandler(
+            appContext = context.applicationContext,
             stateFlow = _playerState,
             onReloadStream = { position, reason -> reloadCurrentStream(position, reason) },
             onQualityDowngrade = { attemptQualityDowngrade() },
@@ -1552,7 +1553,7 @@ class EnhancedPlayerManager private constructor() {
                     autoNextLog("playVideoFromServiceLayer streamInfo failed video=${video.id}")
                     _playerState.value = _playerState.value.copy(
                         isBuffering = false,
-                        error = "Unable to load next video"
+                        error = appContext?.getString(io.github.aedev.flow.R.string.error_unable_to_load_next_video).orEmpty()
                     )
                     releaseAdvanceWakeLock()
                     return@launch
@@ -1635,7 +1636,7 @@ class EnhancedPlayerManager private constructor() {
                 autoNextLog("playVideoFromServiceLayer failed video=${video.id} reason=$reason error=${e.javaClass.simpleName}:${e.message}")
                 _playerState.value = _playerState.value.copy(
                     isBuffering = false,
-                    error = e.message ?: "Unable to load next video"
+                    error = e.message ?: appContext?.getString(io.github.aedev.flow.R.string.error_unable_to_load_next_video).orEmpty()
                 )
                 releaseAdvanceWakeLock()
             } finally {
@@ -3082,7 +3083,7 @@ class EnhancedPlayerManager private constructor() {
             loadMediaInternal(newStream, currentAudioStream)
         } else {
             _playerState.value = _playerState.value.copy(
-                error = "Unable to play - all quality options failed", isPlaying = false, isBuffering = false
+                error = appContext?.getString(io.github.aedev.flow.R.string.error_unable_to_play_quality_options).orEmpty(), isPlaying = false, isBuffering = false
             )
             onPlaybackShutdown()
         }

@@ -2,7 +2,10 @@ package io.github.aedev.flow.ui.screens.categories
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -35,7 +38,8 @@ private const val PAGE_SIZE = 20
 @HiltViewModel
 class CategoriesViewModel @Inject constructor(
     private val repository: YouTubeRepository,
-    private val preferences: PlayerPreferences
+    private val preferences: PlayerPreferences,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CategoriesUiState())
@@ -106,7 +110,7 @@ class CategoriesViewModel @Inject constructor(
                         currentPage = 1,
                         canLoadMore = rawVideos.size > PAGE_SIZE,
                         isLoading = false,
-                        error = if (rawVideos.isEmpty()) "No videos found for this category." else null
+                        error = if (rawVideos.isEmpty()) context.getString(R.string.error_no_videos_for_category) else null
                     )
                 }
 
@@ -129,7 +133,7 @@ class CategoriesViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = e.localizedMessage ?: "Failed to load videos."
+                        error = e.localizedMessage ?: context.getString(R.string.error_failed_to_load_videos)
                     )
                 }
             }

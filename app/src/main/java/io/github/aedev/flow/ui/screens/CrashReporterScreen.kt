@@ -15,8 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
 
 @Composable
 fun CrashReporterScreen(
@@ -47,7 +49,7 @@ fun CrashReporterScreen(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Flow crashed last session",
+                    text = stringResource(R.string.ui_crashed_last_session),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.error
@@ -57,7 +59,7 @@ fun CrashReporterScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Copy the log below and paste it into a GitHub issue so it can be fixed.",
+                text = stringResource(R.string.ui_copy_log_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -93,18 +95,18 @@ fun CrashReporterScreen(
                         val clipboard =
                             context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("Flow Crash Log", crashLog))
-                        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.toast_copied_to_clipboard), Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Copy Log")
+                    Text(stringResource(R.string.ui_copy_log))
                 }
 
                 OutlinedButton(
                     onClick = onClearAndRestart,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Clear & Continue")
+                    Text(stringResource(R.string.ui_clear_and_continue))
                 }
             }
 

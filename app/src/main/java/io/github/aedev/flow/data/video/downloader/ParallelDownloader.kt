@@ -1,7 +1,10 @@
 package io.github.aedev.flow.data.video.downloader
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -19,7 +22,9 @@ import javax.inject.Singleton
 import kotlin.math.min
 
 @Singleton
-class ParallelDownloader @Inject constructor() {
+class ParallelDownloader @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     companion object {
         private const val TAG = "ParallelDownloader"
@@ -168,7 +173,7 @@ class ParallelDownloader @Inject constructor() {
                     Log.d(TAG, "start: Video content length=$length")
                     if (length <= 0) {
                         mission.status = MissionStatus.FAILED
-                        mission.error = "Failed to get video content length"
+                        mission.error = context.getString(R.string.download_failed_video_length)
                         return@withContext false
                     }
                     mission.totalBytes = length
@@ -189,7 +194,7 @@ class ParallelDownloader @Inject constructor() {
                     Log.d(TAG, "start: Audio content length=$audioLength")
                     if (audioLength <= 0) {
                         mission.status = MissionStatus.FAILED
-                        mission.error = "Failed to get audio content length"
+                        mission.error = context.getString(R.string.download_failed_audio_length)
                         return@withContext false
                     }
                     mission.audioTotalBytes = audioLength
@@ -277,11 +282,11 @@ class ParallelDownloader @Inject constructor() {
                             Log.d(TAG, "start: Download paused")
                         } else if (mission.gatedHttp403) {
                             Log.w(TAG, "start: Download stopped because direct stream returned HTTP 403")
-                            mission.error = mission.error ?: "URL expired (403). Re-fetch needed."
+                            mission.error = mission.error ?: context.getString(R.string.download_url_expired)
                         } else {
                             Log.e(TAG, "start: One or more workers failed")
                             mission.status = MissionStatus.FAILED
-                            mission.error = mission.error ?: "One or more workers failed"
+                            mission.error = mission.error ?: context.getString(R.string.download_workers_failed)
                         }
                         false
                     }
@@ -387,7 +392,7 @@ class ParallelDownloader @Inject constructor() {
         }
 
         Log.e(TAG, "Block $blockName failed after $MAX_RETRIES retries", lastError)
-        mission.error = "Block $blockName failed: ${lastError?.message}"
+        mission.error = context.getString(R.string.download_block_failed, blockName, lastError?.message.orEmpty())
         return false
     }
 
@@ -457,7 +462,7 @@ class ParallelDownloader @Inject constructor() {
                 val code = response.code
                 Log.e(TAG, "Block download failed: HTTP $code (range=$resumeFrom-$endByte, yt=$isYT)")
                 if (code == 403) {
-                    mission.error = "URL expired (403). Re-fetch needed."
+                    mission.error = context.getString(R.string.download_url_expired)
                     mission.gatedHttp403 = true
                     mission.cancelActiveCalls()
                 }

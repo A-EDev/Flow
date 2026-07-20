@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.music
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.data.music.DownloadManager
@@ -9,7 +10,9 @@ import io.github.aedev.flow.innertube.models.SearchSuggestions
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.R
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +24,8 @@ import javax.inject.Inject
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class MusicSearchViewModel @Inject constructor(
-    private val downloadManager: DownloadManager
+    private val downloadManager: DownloadManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -101,7 +105,7 @@ class MusicSearchViewModel @Inject constructor(
             }?.onFailure { throwable ->
                 _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
             } ?: run {
-                _uiState.update { state -> state.copy(isLoading = false, error = "Search timed out") }
+                _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.error_search_timed_out)) }
             }
         }
     }
@@ -132,7 +136,7 @@ class MusicSearchViewModel @Inject constructor(
                 }?.onFailure { throwable ->
                     _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
                 } ?: run {
-                    _uiState.update { state -> state.copy(isLoading = false, error = "Filter search timed out") }
+                    _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.error_filter_search_timed_out)) }
                 }
             }
         }

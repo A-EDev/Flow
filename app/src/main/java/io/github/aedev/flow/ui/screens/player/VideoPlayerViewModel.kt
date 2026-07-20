@@ -53,6 +53,7 @@ import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+import io.github.aedev.flow.R
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
@@ -305,8 +306,8 @@ class VideoPlayerViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = "Unable to play this video. All stream sources returned errors.",
-                            errorHint = "Try again later or check your network connection."
+                            error = context.getString(R.string.error_all_stream_sources_failed),
+                            errorHint = context.getString(R.string.error_playback_retry_hint)
                         )
                     }
                     return@collect
@@ -366,8 +367,8 @@ class VideoPlayerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = "Unable to play this video. All stream sources returned errors.",
-                        errorHint = "Try again later or check your network connection."
+                        error = context.getString(R.string.error_all_stream_sources_failed),
+                        errorHint = context.getString(R.string.error_playback_retry_hint)
                     )
                 }
             }

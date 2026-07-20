@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
+import io.github.aedev.flow.R
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -105,7 +106,7 @@ class QuickActionsViewModel @Inject constructor(
                 if (isCurrentlySubscribed) {
                     subscriptionRepository.unsubscribe(channelId)
                     _subscribedChannelIds.update { it - channelId }
-                    Toast.makeText(context, "Unsubscribed from $channelName", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_unsubscribed_from, channelName), Toast.LENGTH_SHORT).show()
                 } else {
                     val resolvedThumbnail = channelThumbnail
                         .takeUnless { ThumbnailUrlResolver.isYoutubeVideoThumbnail(it) }
@@ -122,7 +123,7 @@ class QuickActionsViewModel @Inject constructor(
                         )
                     )
                     _subscribedChannelIds.update { it + channelId }
-                    Toast.makeText(context, "Subscribed to $channelName", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_subscribed_to, channelName), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(
@@ -144,11 +145,11 @@ class QuickActionsViewModel @Inject constructor(
                 if (isInWatchLater) {
                     playlistRepository.removeFromWatchLater(video.id)
                     android.util.Log.d("QuickActionsViewModel", "Removed from Watch Later")
-                    Toast.makeText(context, "Removed from Watch Later", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_removed_from_watch_later), Toast.LENGTH_SHORT).show()
                 } else {
                     playlistRepository.addToWatchLater(video)
                     android.util.Log.d("QuickActionsViewModel", "Added to Watch Later")
-                    Toast.makeText(context, "Added to Watch Later", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_added_to_watch_later), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 android.util.Log.e("QuickActionsViewModel", "Error toggling Watch Later", e)
@@ -324,7 +325,7 @@ class QuickActionsViewModel @Inject constructor(
                 val targetQuality = playerPreferences.defaultDownloadQuality.first()
                 val targetHeight = targetQuality.height
 
-                Toast.makeText(context, "Fetching download links...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_fetching_download_links), Toast.LENGTH_SHORT).show()
 
                 // Try innertube extraction first (HD+ quality, direct URLs)
                 val innerTubeResult = withContext(Dispatchers.IO) {
@@ -478,7 +479,7 @@ class QuickActionsViewModel @Inject constructor(
                             audioUrl = audioUrl,
                             videoCodec = videoCodec
                         )
-                        Toast.makeText(context, "Download started: ${fullVideo.title}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.toast_download_started, fullVideo.title), Toast.LENGTH_SHORT).show()
                     } else {
                         trySabrDownload(fullVideo, targetHeight)
                     }
@@ -568,13 +569,13 @@ class QuickActionsViewModel @Inject constructor(
             fallbackCodec = fallbackCodec,
             fallbackQuality = fallbackQuality
         )
-        Toast.makeText(context, "Download started: ${video.title}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.toast_download_started, video.title), Toast.LENGTH_SHORT).show()
     }
 
     private fun trySabrDownload(video: Video, targetHeight: Int) {
         viewModelScope.launch {
             try {
-                Toast.makeText(context, "Trying SABR download...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_trying_sabr_download), Toast.LENGTH_SHORT).show()
                 val sabrInfo = withContext(Dispatchers.IO) {
                     withTimeoutOrNull(8000L) {
                         val playerResponse = YouTube.player(video.id, client = YouTubeClient.ANDROID)
@@ -604,12 +605,12 @@ class QuickActionsViewModel @Inject constructor(
                         durationMs = sabrInfo.durationMs,
                         videoCodec = codecHint
                     )
-                    Toast.makeText(context, "SABR download started: ${video.title}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_sabr_download_started_for_video, video.title), Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(context, "No download source available", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_no_download_source), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "SABR download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_sabr_download_failed, e.message), Toast.LENGTH_SHORT).show()
             }
         }
     }

@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import io.github.aedev.flow.R
 
 @Composable
 fun NavigationTitle(
@@ -65,7 +67,7 @@ fun NavigationTitle(
         if (onClick != null) {
             Icon(
                 imageVector = Icons.Filled.ArrowForward,
-                contentDescription = "Navigate",
+                contentDescription = stringResource(R.string.ui_navigate),
                 tint = MaterialTheme.colorScheme.primary
             )
         }

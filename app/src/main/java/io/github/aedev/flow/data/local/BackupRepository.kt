@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import io.github.aedev.flow.BuildConfig
+import io.github.aedev.flow.R
 import io.github.aedev.flow.util.AppIcons
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
@@ -1427,7 +1428,7 @@ class BackupRepository(private val context: Context) {
                     if (existing == null) {
                         database.playlistDao().insertPlaylist(PlaylistEntity(
                             id = playlistId, name = if (isWatchLater) "Watch Later" else playlistName,
-                            description = "Imported from Google Takeout",
+                            description = context.getString(R.string.imported_from_google_takeout),
                             thumbnailUrl = firstThumb,
                             isPrivate = isWatchLater, createdAt = System.currentTimeMillis(),
                             isMusic = false, isUserCreated = true

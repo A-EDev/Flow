@@ -763,7 +763,7 @@ private fun FilterAndToggleBar(
             IconButton(onClick = onToggleGridView) {
                 Icon(
                     imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
-                    contentDescription = if (isGridView) "List view" else "Grid view",
+                    contentDescription = if (isGridView) stringResource(R.string.ui_list_view) else stringResource(R.string.ui_grid_view),
                     modifier = Modifier.size(22.dp)
                 )
             }

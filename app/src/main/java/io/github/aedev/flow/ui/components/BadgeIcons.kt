@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.exoplayer.offline.Download
+import androidx.compose.ui.res.stringResource
+import io.github.aedev.flow.R
 
 object BadgeIcon {
     
@@ -35,7 +37,7 @@ object BadgeIcon {
     ) {
         Icon(
             imageVector = Icons.Filled.Favorite,
-            contentDescription = "Liked",
+            contentDescription = stringResource(R.string.liked),
             tint = MaterialTheme.colorScheme.primary,
             modifier = modifier
                 .size(BadgeSize)
@@ -85,9 +87,9 @@ object BadgeIcon {
         Icon(
             imageVector = icon,
             contentDescription = when (state) {
-                Download.STATE_QUEUED -> "Queued for download"
-                Download.STATE_DOWNLOADING -> "Downloading"
-                Download.STATE_COMPLETED -> "Downloaded"
+                Download.STATE_QUEUED -> stringResource(R.string.ui_queued_for_download)
+                Download.STATE_DOWNLOADING -> stringResource(R.string.ui_downloading)
+                Download.STATE_COMPLETED -> stringResource(R.string.downloaded)
                 else -> null
             },
             tint = tint,
@@ -103,7 +105,7 @@ object BadgeIcon {
     ) {
         Icon(
             imageVector = Icons.Outlined.DownloadDone,
-            contentDescription = "In library",
+            contentDescription = stringResource(R.string.ui_in_library),
             tint = MaterialTheme.colorScheme.primary,
             modifier = modifier
                 .size(BadgeSize)

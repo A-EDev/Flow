@@ -84,10 +84,10 @@ object NotificationHelper {
             // Downloads channel - High importance for active downloads
             val downloadsChannel = NotificationChannel(
                 CHANNEL_DOWNLOADS,
-                "Downloads",
+                context.getString(R.string.notification_channel_downloads),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shows download progress and completion"
+                description = context.getString(R.string.notification_channel_downloads_description)
                 setShowBadge(true)
                 enableLights(true)
                 enableVibration(false)
@@ -96,10 +96,10 @@ object NotificationHelper {
             // Subscriptions channel - Default importance for new videos
             val subscriptionsChannel = NotificationChannel(
                 CHANNEL_SUBSCRIPTIONS,
-                "New Videos",
+                context.getString(R.string.notification_channel_new_videos),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Notifications when subscribed channels upload new videos"
+                description = context.getString(R.string.notification_channel_new_videos_description)
                 setShowBadge(true)
                 enableLights(true)
                 enableVibration(true)
@@ -108,10 +108,10 @@ object NotificationHelper {
             // Video playback channel - Low importance for background playback
             val playbackChannel = NotificationChannel(
                 CHANNEL_PLAYBACK,
-                "Video Playback",
+                context.getString(R.string.notification_channel_video_playback),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Video playback controls"
+                description = context.getString(R.string.notification_channel_video_playback_description)
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
@@ -120,10 +120,10 @@ object NotificationHelper {
             // Music playback channel - Low importance for background music
             val musicPlaybackChannel = NotificationChannel(
                 CHANNEL_MUSIC_PLAYBACK,
-                "Music Playback",
+                context.getString(R.string.notification_channel_music_playback),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Music playback controls"
+                description = context.getString(R.string.notification_channel_music_playback_description)
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
@@ -132,38 +132,38 @@ object NotificationHelper {
             // General notifications channel
             val generalChannel = NotificationChannel(
                 CHANNEL_GENERAL,
-                "General",
+                context.getString(R.string.notification_channel_general),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "General app notifications"
+                description = context.getString(R.string.notification_channel_general_description)
                 setShowBadge(true)
             }
             
             val remindersChannel = NotificationChannel(
                 CHANNEL_REMINDERS,
-                "Reminders",
+                context.getString(R.string.notification_channel_reminders),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Bedtime and break reminders"
+                description = context.getString(R.string.notification_channel_break_reminders_description)
                 setShowBadge(true)
             }
             
             // Updates channel
             val updatesChannel = NotificationChannel(
                 CHANNEL_UPDATES,
-                "App Updates",
+                context.getString(R.string.notification_channel_updates),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "App update notifications"
+                description = context.getString(R.string.notification_channel_updates_description)
                 setShowBadge(true)
             }
             
             val importsChannel = NotificationChannel(
                 CHANNEL_IMPORTS,
-                "Data Import",
+                context.getString(R.string.notification_channel_imports),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shows progress while importing subscriptions or watch history"
+                description = context.getString(R.string.notification_channel_import_description)
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
@@ -215,7 +215,7 @@ object NotificationHelper {
         val contentText = if (total > 0) "$current / $total" else "Starting…"
         val builder = NotificationCompat.Builder(context, CHANNEL_IMPORTS)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("Importing $label")
+            .setContentTitle(context.getString(R.string.notification_importing, label))
             .setContentText(contentText)
             .apply {
                 if (total > 0) setProgress(total, current, false)
@@ -235,8 +235,8 @@ object NotificationHelper {
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_IMPORT_PROGRESS)
         val builder = NotificationCompat.Builder(context, CHANNEL_IMPORTS)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("Import complete")
-            .setContentText(message ?: "Imported $count ${label.lowercase()}")
+            .setContentTitle(context.getString(R.string.notification_import_complete))
+            .setContentText(message ?: context.getString(R.string.notification_imported, count, label.lowercase()))
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
         NotificationManagerCompat.from(context).notify(NOTIFICATION_IMPORT_COMPLETE, builder.build())
@@ -283,14 +283,14 @@ object NotificationHelper {
         
         val builder = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("Downloading: $videoTitle")
+            .setContentTitle(context.getString(R.string.notification_downloading, videoTitle))
             .setContentText(contentText)
             .setProgress(100, progress, false)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .addAction(
                 android.R.drawable.ic_delete,
-                "Cancel",
+                context.getString(R.string.cancel),
                 cancelPendingIntent
             )
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -330,7 +330,7 @@ object NotificationHelper {
         
         val builder = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("Download complete")
+            .setContentTitle(context.getString(R.string.notification_download_complete))
             .setContentText(videoTitle)
             .setContentIntent(openPendingIntent)
             .setAutoCancel(true)
@@ -377,13 +377,13 @@ object NotificationHelper {
         
         val notification = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("Download failed")
+            .setContentTitle(context.getString(R.string.notification_download_failed))
             .setContentText(videoTitle)
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText("$videoTitle\n${errorMessage ?: "An error occurred"}"))
+                .bigText("$videoTitle\n${errorMessage ?: context.getString(R.string.error_generic_hint)}"))
             .addAction(
                 android.R.drawable.ic_menu_rotate,
-                "Retry",
+                context.getString(R.string.retry),
                 retryPendingIntent
             )
             .setAutoCancel(true)
@@ -476,18 +476,18 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val inboxStyle = NotificationCompat.InboxStyle()
-            .setBigContentTitle("${videos.size} new videos")
+            .setBigContentTitle(context.getString(R.string.notification_new_videos_from_subscriptions, videos.size))
         videos.take(6).forEach { v ->
             inboxStyle.addLine("${v.channelName}: ${v.videoTitle}")
         }
         if (videos.size > 6) {
-            inboxStyle.setSummaryText("+${videos.size - 6} more")
+            inboxStyle.setSummaryText(context.getString(R.string.notification_more, videos.size - 6))
         }
 
         val summaryNotification = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("New videos")
-            .setContentText("${videos.size} new videos from your subscriptions")
+            .setContentTitle(context.getString(R.string.notification_new_videos))
+            .setContentText(context.getString(R.string.notification_new_videos_from_subscriptions, videos.size))
             .setContentIntent(summaryPendingIntent)
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
@@ -581,8 +581,8 @@ object NotificationHelper {
         
         val summaryNotification = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("New videos")
-            .setContentText("$videoCount new videos from your subscriptions")
+            .setContentTitle(context.getString(R.string.notification_new_videos))
+            .setContentText(context.getString(R.string.notification_new_videos_from_subscriptions, videoCount))
             .setGroup("new_videos")
             .setGroupSummary(true)
             .setAutoCancel(true)
@@ -622,8 +622,8 @@ object NotificationHelper {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_UPDATES)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("Update Available: $version")
-            .setContentText("Tap to update to the latest version.")
+            .setContentTitle(context.getString(R.string.notification_update_available, version))
+            .setContentText(context.getString(R.string.notification_tap_to_update))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -696,7 +696,7 @@ object NotificationHelper {
         
         val notification = NotificationCompat.Builder(context, CHANNEL_GENERAL)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("Watch Later Reminder")
+            .setContentTitle(context.getString(R.string.notification_watch_later_reminder))
             .setContentText(videoTitle)
             .setContentIntent(watchPendingIntent)
             .setAutoCancel(true)
@@ -773,9 +773,9 @@ object NotificationHelper {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle("Video is live")
-            .setContentText("$channelName is now live: $title")
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$channelName is now live: $title"))
+            .setContentTitle(context.getString(R.string.notification_video_live))
+            .setContentText(context.getString(R.string.notification_channel_live, channelName, title))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(R.string.notification_channel_live, channelName, title)))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
