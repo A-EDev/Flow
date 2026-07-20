@@ -220,7 +220,7 @@
     <string name="add_to_playlist">Dodaj do playlisty</string>
     <string name="playback_header">Odtwarzanie</string>
     <string name="play_next">Odtwórz jako następne</string>
-    <string name="subscriptions_last_refreshed_time_only_template">Ostatnio odświeżono %1$s</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Ostatnie odświeżenie %1$s</string>
     <string name="history_filter_all_years">Kiedykolwiek</string>
     <string name="autoplay">Autoodtwarzanie</string>
     <string name="move_up">Przesuń do góry</string>
