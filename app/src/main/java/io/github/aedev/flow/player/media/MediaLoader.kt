@@ -66,6 +66,7 @@ class MediaLoader(
      * @param localFilePath Optional local file path for offline playback
      * @param currentDurationSeconds Fallback duration from stream info
      * @param audioOnly When true, never selects video streams or video manifests.
+     * @param playWhenReady Whether playback should start after the source is prepared.
      */
     fun loadMedia(
         player: ExoPlayer?,
@@ -82,6 +83,7 @@ class MediaLoader(
         preservePosition: Long? = null,
         localFilePath: String? = null,
         audioOnly: Boolean = false,
+        playWhenReady: Boolean = true,
         subtitleStreams: List<SubtitlesStream> = emptyList(),
         sabrInfo: SabrStreamInfo? = null,
         sabrVideoId: String? = null,
@@ -149,7 +151,7 @@ class MediaLoader(
                         Log.d(TAG, "Seeking to preserved position: ${preservePosition}ms")
                     }
 
-                    exoPlayer.playWhenReady = true
+                    exoPlayer.playWhenReady = playWhenReady
                     Log.d(TAG, "Media loaded successfully via VideoPlaybackResolver")
                     return true
                 } else {
