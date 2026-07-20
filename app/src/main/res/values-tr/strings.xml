@@ -1669,4 +1669,16 @@
     <string name="history_tab_local_videos">Yerel videolar</string>
     <string name="history_tab_local_music">Yerel müzikler</string>
     <string name="share_link_only_template">https://youtube.com/watch?v=%1</string>
+    <string name="subscriptions_sort_label">Kanalları sırala</string>
+    <string name="subscriptions_sort_default">Varsayılan</string>
+    <string name="subscriptions_sort_name">Ad (A–Z)</string>
+    <string name="subscriptions_sort_recent">Son zamanlarda güncellendi</string>
+    <string name="content_settings_share_without_text_title">Metin içermeyen bağlantıları paylaşın</string>
+    <string name="content_settings_share_without_text_subtitle">“Bu videoyu izleyin” mesajı olmadan, sadece video bağlantısını paylaşın</string>
+    <string name="not_interested_toast">Tamamdır! Bundan sonra bu tür içerikleri daha az göreceksin.</string>
+    <string name="quick_actions_error_template">Hata:%1$s</string>
+    <string name="upcoming_label">Yakında</string>
+    <string name="upcoming_waiting_count">Bekleniyor%1$s</string>
+    <string name="upcoming_video_starts_in">Başlayacak</string>
+    <string name="sb_skip_segment">Geç%1$s</string>
 </resources>
