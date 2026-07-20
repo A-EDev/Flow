@@ -6,6 +6,9 @@ import android.os.Build
 import android.os.PowerManager
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -36,9 +39,10 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
+import io.github.aedev.flow.player.surface.VideoSurfacePolicy
 
 private fun pickPlayerViewLayoutRes(): Int =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+    if (VideoSurfacePolicy.usesSurfaceView(Build.VERSION.SDK_INT)) {
         R.layout.video_player_view_surface
     } else {
         R.layout.video_player_view
@@ -74,6 +78,56 @@ fun VideoPlayerSurface(
             )
             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
             setKeepContentOnPlayerReset(true)
+        }
+    }
+
+    DisposableEffect(playerView) {
+        val surfaceView = playerView.videoSurfaceView as? SurfaceView
+        if (surfaceView == null) {
+            return@DisposableEffect onDispose { }
+        }
+
+        val manager = EnhancedPlayerManager.getInstance()
+        var attachedHolder: SurfaceHolder? = null
+        var attachedSurface: Surface? = null
+
+        fun attachIfValid(holder: SurfaceHolder) {
+            val surface = holder.surface
+            if (!surface.isValid || (attachedHolder === holder && attachedSurface === surface)) return
+            attachedHolder = holder
+            attachedSurface = surface
+            manager.attachVideoSurface(holder, forceAttach = true)
+        }
+
+        val callback = object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) {
+                attachIfValid(holder)
+            }
+
+            override fun surfaceChanged(
+                holder: SurfaceHolder,
+                format: Int,
+                width: Int,
+                height: Int
+            ) {
+                attachIfValid(holder)
+            }
+
+            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                if (attachedHolder === holder) {
+                    manager.detachVideoSurface(holder)
+                    attachedHolder = null
+                    attachedSurface = null
+                }
+            }
+        }
+
+        surfaceView.holder.addCallback(callback)
+        attachIfValid(surfaceView.holder)
+
+        onDispose {
+            surfaceView.holder.removeCallback(callback)
+            attachedHolder?.let(manager::detachVideoSurface)
         }
     }
 

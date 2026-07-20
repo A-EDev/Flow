@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.theme.FlowTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
@@ -681,7 +682,7 @@ class MainActivity : ComponentActivity() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         FlowCrashHandler.recordPhase("memory", "MainActivity.onTrimMemory level=$level")
-        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
+        if (MemoryPressurePolicy.shouldReleaseVideoPlayback(level)) {
             io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
                 .handleCriticalMemoryPressure()
         }
