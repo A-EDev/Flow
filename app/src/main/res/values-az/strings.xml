@@ -1,3 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Flow</string>
+    <string name="subscriptions_search_placeholder">Abunəlikləri axtar...</string>
+    <string name="subscriptions_sort_label">Kanalları sırala</string>
+    <string name="subscriptions_sort_default">İlkin</string>
 </resources>
