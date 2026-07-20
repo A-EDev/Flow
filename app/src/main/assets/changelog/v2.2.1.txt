@@ -1,0 +1,8 @@
+FLOW CHANGE LOG
+VERSION: 2.2.1
+DATE: 2026-07-21
+STATUS: PRE-RELEASE
+
+IMPROVEMENTS
+- Slimmer player seekbar segment gaps #786
+- Improve restricted content filtering #783

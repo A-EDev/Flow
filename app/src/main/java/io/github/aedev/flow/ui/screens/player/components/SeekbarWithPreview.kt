@@ -125,7 +125,7 @@ fun SeekbarWithPreview(
             val trackCenterY = trackTop + trackHeightPx / 2f
             val capRadius = CornerRadius(trackHeightPx / 2f)
 
-            val gapWidth = if (isInteracting) 5.dp.toPx() else 4.dp.toPx()
+            val gapWidth = if (isInteracting) 3.dp.toPx() else 2.dp.toPx()
             val boundaries = if (chapters.isNotEmpty() && duration > 0) {
                 chapters.asSequence()
                     .map { it.startTimeSeconds }
@@ -139,17 +139,33 @@ fun SeekbarWithPreview(
                 emptyList()
             }
 
-            val trackPath = Path().apply {
+            val segments = buildList {
                 var segStart = 0f
                 for (boundary in boundaries) {
                     val segEnd = boundary - gapWidth / 2f
                     if (segEnd > segStart) {
-                        addRoundRect(RoundRect(Rect(segStart, trackTop, segEnd, trackBottom), capRadius))
+                        add(segStart to segEnd)
                     }
                     segStart = (boundary + gapWidth / 2f).coerceAtMost(width)
                 }
                 if (width > segStart) {
-                    addRoundRect(RoundRect(Rect(segStart, trackTop, width, trackBottom), capRadius))
+                    add(segStart to width)
+                }
+            }
+
+            val trackPath = Path().apply {
+                segments.forEachIndexed { index, (segStart, segEnd) ->
+                    val startRadius = if (index == 0) capRadius else CornerRadius.Zero
+                    val endRadius = if (index == segments.lastIndex) capRadius else CornerRadius.Zero
+                    addRoundRect(
+                        RoundRect(
+                            rect = Rect(segStart, trackTop, segEnd, trackBottom),
+                            topLeft = startRadius,
+                            topRight = endRadius,
+                            bottomRight = endRadius,
+                            bottomLeft = startRadius
+                        )
+                    )
                 }
             }
 
