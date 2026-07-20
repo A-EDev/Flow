@@ -1929,4 +1929,15 @@
     <string name="content_settings_hide_watched_home_subtitle">Filtra i video che hai già visto dal feed della home</string>
     <string name="content_settings_hide_watched_subscriptions_title">Nascondi i video visti dalle iscrizioni</string>
     <string name="content_settings_hide_watched_subscriptions_subtitle">Filtra i video che hai già visto dalle tue iscrizioni</string>
+    <string name="playlist_creation_menu_open">Crea playlist</string>
+    <string name="playlist_creation_menu_close">Chiudi menu di creazione playlist</string>
+    <string name="playlist_visibility_metadata">%1$s • %2$s</string>
+    <string name="content_settings_restored_music_mini_player_title">Mostra il mini-lettore musicale ripristinato</string>
+    <string name="content_settings_restored_music_mini_player_subtitle">Mostra automaticamente l\'ultima sessione musicale dopo il ripristino</string>
+    <string name="subtitle_preview_text">Anteprima del testo dei sottotitoli</string>
+    <string name="desc_more">…altro</string>
+    <string name="widget_now_playing_label">In riproduzione</string>
+    <string name="widget_now_playing_description">Controlla la musica in riproduzione su Flow</string>
+    <string name="widget_quick_actions_label">Azioni rapide</string>
+    <string name="widget_quick_actions_description">Cerca su Flow e passa a download, cronologia o riconoscimento</string>
 </resources>
