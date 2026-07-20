@@ -1342,4 +1342,5 @@
     <string name="content_settings_share_without_text_title">Udostępniaj Linki bez Tekstu</string>
     <string name="content_settings_share_without_text_subtitle">Udostępniaj sam link do filmu, pomijając tekst „Zobacz ten film”</string>
     <string name="parallel_downloading_title">Pobieranie Równoległe</string>
+    <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
 </resources>
