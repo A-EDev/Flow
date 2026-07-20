@@ -136,7 +136,7 @@
     <string name="i_like_this">Я хочу больше такого контента</string>
     <string name="i_like_this_toast">Принято! Вы будете видеть больше подобного контента.</string>
     <string name="go_to_channel">Перейти на канал</string>
-    <string name="track_info">Информация о треке</string>
+    <string name="track_info">Информация о медиа</string>
     <string name="track_info_subtitle">Подробные технические и социальные метрики</string>
     <string name="views">Просмотры</string>
     <string name="likes">Нравится</string>
@@ -1258,7 +1258,7 @@
     <string name="sync_sas_match">Они совпадают</string>
     <string name="sync_consent_title">Объединить полученные данные?</string>
     <string name="auto_backup_type_brain">Профиль движка</string>
-    <string name="auto_backup_type_master">Основная резервная копия</string>
+    <string name="auto_backup_type_master">Полная резервная копия</string>
     <string name="auto_backup_folder_label">Папка резервных копий</string>
     <string name="auto_backup_pick_folder">Выбрать папку</string>
     <string name="auto_backup_no_folder">Папка не выбрана</string>
