@@ -730,7 +730,7 @@
     <string name="cd_liked">Вподобано</string>
     <string name="cd_pause">Пауза</string>
     <string name="cd_play">Відтворити</string>
-    <string name="cd_more_options">Більше налаштувань</string>
+    <string name="cd_more_options">Більше</string>
     <string name="shorts_original_sound">Оригінальний звук — %1$s</string>
     <string name="view_count_billion_suffix">млрд</string>
     <string name="view_count_million_suffix">млн</string>
@@ -1964,4 +1964,7 @@
     <string name="widget_open_history">Відкрити історію</string>
     <string name="widget_no_recent">Відео, які ви переглянете, з’являться тут</string>
     <string name="widget_no_downloads">Ваші завантаження з’являться тут</string>
+    <string name="ui_open_in_youtube">Відкрити в YouTube</string>
+    <string name="ui_playback_error">Помилка відтворення</string>
+    <string name="ui_replay">Повтор</string>
 </resources>

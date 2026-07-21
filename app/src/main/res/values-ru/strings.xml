@@ -160,7 +160,7 @@
     <string name="filter_top">Лучшие</string>
     <string name="filter_newest">Новые</string>
     <string name="no_comments_yet">Комментариев пока нет</string>
-    <string name="read_more">Читать далее</string>
+    <string name="read_more">Читать дальше</string>
     <string name="reply">Ответить</string>
     <string name="hide_replies">Скрыть ответы</string>
     <string name="view_replies_template">Посмотреть ответы (%1$d)</string>
