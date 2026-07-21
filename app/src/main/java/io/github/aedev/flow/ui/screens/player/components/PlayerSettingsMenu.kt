@@ -35,7 +35,9 @@ import io.github.aedev.flow.player.*
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import io.github.aedev.flow.player.audio.AudioEffectsController
 import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
+import io.github.aedev.flow.ui.components.audio.EqualizerEditor
 import io.github.aedev.flow.ui.components.playbackSpeedOptions
 import io.github.aedev.flow.ui.components.playbackSpeedSliderPresets
 import kotlinx.coroutines.launch
@@ -97,6 +99,7 @@ fun SettingsMenuDialog(
         PlayerSettingsPage.Speed -> stringResource(R.string.playback_speed)
         PlayerSettingsPage.Audio -> stringResource(R.string.audio_track)
         PlayerSettingsPage.Subtitles -> stringResource(R.string.filter_subtitles)
+        PlayerSettingsPage.Equalizer -> stringResource(R.string.equalizer)
     }
 
     fun animateToExpanded() {
@@ -363,8 +366,21 @@ fun SettingsMenuDialog(
                 onToggle = onAutoplayToggle
             )
 
-            // ── Skip Silence ──
+            // ── Audio Effects ──
             PlayerSettingsSectionHeader(stringResource(R.string.audio_effects))
+
+            // ── Equalizer ──
+            val eqProfile by AudioEffectsController.eqProfileName.collectAsState()
+            PlayerSettingsNavRow(
+                icon = Icons.Filled.Equalizer,
+                label = stringResource(R.string.equalizer),
+                value = eqProfile,
+                onClick = {
+                    currentPage = PlayerSettingsPage.Equalizer
+                }
+            )
+
+            // ── Skip Silence ──
             PlayerSettingsToggleRow(
                 icon = Icons.Rounded.GraphicEq,
                 label = stringResource(R.string.player_settings_skip_silence),
@@ -412,6 +428,11 @@ fun SettingsMenuDialog(
                         animateToDismiss()
                     }
                 )
+                PlayerSettingsPage.Equalizer -> EqualizerEditor(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 8.dp, bottom = 16.dp)
+                )
                 PlayerSettingsPage.Subtitles -> PlayerSettingsSubtitlesPage(
                     availableSubtitles = playerState.availableSubtitles,
                     selectedSubtitleUrl = selectedSubtitleUrl,
@@ -441,7 +462,8 @@ enum class PlayerSettingsPage {
     Quality,
     Speed,
     Audio,
-    Subtitles
+    Subtitles,
+    Equalizer
 }
 
 @Composable

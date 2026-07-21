@@ -295,6 +295,7 @@ class PlayerPreferences(context: Context) {
 
         // Newest-first, newline-delimited so the list can be trimmed to a bounded size.
         val UNPLAYABLE_VIDEO_IDS = stringPreferencesKey("unplayable_video_ids")
+        val HIDE_UNPLAYABLE_SUBSCRIPTIONS = booleanPreferencesKey("hide_unplayable_subscriptions")
 
         // Deep Flow (Incognito / No-Engine) mode
         val DEEP_FLOW_ACTIVE = booleanPreferencesKey("deep_flow_active")
@@ -1765,9 +1766,22 @@ class PlayerPreferences(context: Context) {
         }
     }
 
+    /** Opt-in: off by default, so the feed never hides anything unless the user asks for it. */
+    val hideUnplayableVideosFromSubscriptions: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.HIDE_UNPLAYABLE_SUBSCRIPTIONS] ?: false
+        }
+
+    suspend fun setHideUnplayableVideosFromSubscriptions(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HIDE_UNPLAYABLE_SUBSCRIPTIONS] = enabled
+        }
+    }
+
     /**
      * Videos the player has permanently given up on (restricted, removed, or otherwise
-     * unplayable). Used to hide dead entries from the subscription feed.
+     * unplayable). Recorded regardless of the filter toggle so that enabling
+     * [hideUnplayableVideosFromSubscriptions] takes effect retroactively.
      */
     val unplayableVideoIds: Flow<Set<String>> = context.playerPreferencesDataStore.data
         .map { preferences ->

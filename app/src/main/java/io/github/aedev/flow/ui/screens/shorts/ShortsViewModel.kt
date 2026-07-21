@@ -4,7 +4,10 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import io.github.aedev.flow.data.local.LikedVideosRepository
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
@@ -183,7 +186,13 @@ class ShortsViewModel @Inject constructor(
         }
 
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-        
+
+        // Start resolving the tapped short's stream URLs in parallel with the feed fetch, so
+        // playback isn't gated on the (slower) reel-feed network call.
+        if (startVideoId != null) {
+            prefetchPlaybackStreams(listOf(startVideoId))
+        }
+
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 val result = shortsRepository.getShortsFeed(seedVideoId = startVideoId)
@@ -219,7 +228,10 @@ class ShortsViewModel @Inject constructor(
                     hasMorePages = result.continuation != null || shorts.size >= 5,
                     continuation = result.continuation
                 )
-                
+
+                // Pre-resolve the first two shorts so the pager's prepare pass is a cache hit.
+                prefetchPlaybackStreams(shorts.take(2).map { it.id })
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading shorts", e)
                 _uiState.value = _uiState.value.copy(
@@ -304,6 +316,35 @@ class ShortsViewModel @Inject constructor(
                     isLoading = false,
                     hasMorePages = false
                 )
+                prefetchPlaybackStreams(shorts.drop(startIndex).take(2).map { it.id })
+            }
+        }
+    }
+
+    /**
+     * Resolve playback stream URLs ahead of the pager's own prepare pass. Results land in the
+     * repository's single-flighted playback-stream cache, so the screen's later
+     * [getPlaybackStreams] call for the same short returns instantly.
+     */
+    private fun prefetchPlaybackStreams(videoIds: List<String>) {
+        if (videoIds.isEmpty()) return
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            try {
+                val prefs = PlayerPreferences(context)
+                val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                val isWifi = cm?.getNetworkCapabilities(cm.activeNetwork)
+                    ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+                val targetHeight = if (isWifi) {
+                    prefs.shortsQualityWifi.first().height
+                } else {
+                    prefs.shortsQualityCellular.first().height
+                }
+                val preferredLang = prefs.preferredAudioLanguage.first()
+                videoIds.forEach { id ->
+                    launch { shortsRepository.resolvePlaybackStreams(id, targetHeight, preferredLang) }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Shorts stream prefetch failed: ${e.message}")
             }
         }
     }

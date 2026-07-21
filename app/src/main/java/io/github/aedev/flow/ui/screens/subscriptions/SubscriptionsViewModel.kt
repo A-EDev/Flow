@@ -210,7 +210,12 @@ class SubscriptionsViewModel : ViewModel() {
         }
 
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
-            playerPreferences.unplayableVideoIds
+            combine(
+                playerPreferences.unplayableVideoIds,
+                playerPreferences.hideUnplayableVideosFromSubscriptions
+            ) { ids, hideUnplayable ->
+                if (hideUnplayable) ids else emptySet()
+            }
                 .distinctUntilChanged()
                 .collect { ids ->
                     unplayableVideoIds = ids

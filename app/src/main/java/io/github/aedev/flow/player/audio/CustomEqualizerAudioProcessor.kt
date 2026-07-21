@@ -122,8 +122,10 @@ class CustomEqualizerAudioProcessor : AudioProcessor {
         }
 
         if (encoding != C.ENCODING_PCM_16BIT || channelCount > 2) {
-            val exception = AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
-            throw exception 
+
+            Log.w(TAG, "Unsupported format for EQ (encoding=$encoding, channels=$channelCount) — bypassing")
+            isActive = false
+            return AudioProcessor.AudioFormat.NOT_SET
         }
 
         isActive = true

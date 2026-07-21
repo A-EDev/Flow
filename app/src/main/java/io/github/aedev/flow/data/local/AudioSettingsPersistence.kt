@@ -21,6 +21,8 @@ class AudioSettingsPersistence private constructor(private val context: Context)
         private val BASS_BOOST_KEY = floatPreferencesKey("bass_boost_strength")
         private val VIRTUALIZER_KEY = floatPreferencesKey("virtualizer_strength")
         private val VOLUME_MULTIPLIER_KEY = floatPreferencesKey("volume_multiplier")
+        private val CUSTOM_EQ_KEY = stringPreferencesKey("custom_eq_profile_json")
+        private val CUSTOM_PRESETS_KEY = stringPreferencesKey("custom_eq_presets_json")
 
         @Volatile
         private var INSTANCE: AudioSettingsPersistence? = null
@@ -75,5 +77,19 @@ class AudioSettingsPersistence private constructor(private val context: Context)
 
     suspend fun saveVolumeMultiplier(multiplier: Float) {
         context.audioSettingsDataStore.edit { it[VOLUME_MULTIPLIER_KEY] = multiplier }
+    }
+
+    val customEqJsonFlow: Flow<String?> = context.audioSettingsDataStore.data
+        .map { it[CUSTOM_EQ_KEY] }
+
+    val customPresetsJsonFlow: Flow<String?> = context.audioSettingsDataStore.data
+        .map { it[CUSTOM_PRESETS_KEY] }
+
+    suspend fun saveCustomEqJson(json: String) {
+        context.audioSettingsDataStore.edit { it[CUSTOM_EQ_KEY] = json }
+    }
+
+    suspend fun saveCustomPresetsJson(json: String) {
+        context.audioSettingsDataStore.edit { it[CUSTOM_PRESETS_KEY] = json }
     }
 }
