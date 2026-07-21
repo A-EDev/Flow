@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
@@ -93,6 +94,7 @@ fun ContentSettingsScreen(
     val currentRelatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.COMPACT)
     val hideWatchedVideosFromHome by preferences.hideWatchedVideosFromHome.collectAsState(initial = false)
     val hideWatchedVideosFromSubscriptions by preferences.hideWatchedVideosFromSubscriptions.collectAsState(initial = false)
+    val hideUnplayableVideosFromSubscriptions by preferences.hideUnplayableVideosFromSubscriptions.collectAsState(initial = false)
     val watchedThreshold by preferences.watchedThreshold.collectAsState(initial = io.github.aedev.flow.data.local.WatchedThreshold.ALMOST_FINISHED)
     var showWatchedThresholdDialog by remember { mutableStateOf(false) }
     val bottomNavHideOnScroll by preferences.bottomNavHideOnScroll.collectAsState(initial = true)
@@ -485,6 +487,18 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setHideWatchedVideosFromSubscriptions(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Block,
+                        title = stringResource(R.string.content_settings_hide_unplayable_subscriptions_title),
+                        subtitle = stringResource(R.string.content_settings_hide_unplayable_subscriptions_subtitle),
+                        checked = hideUnplayableVideosFromSubscriptions,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setHideUnplayableVideosFromSubscriptions(enabled)
                             }
                         }
                     )

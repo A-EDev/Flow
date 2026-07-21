@@ -74,7 +74,7 @@
     <string name="liked_videos">Likes</string>
     <string name="share_song">Share song</string>
     <string name="empty_liked">No Likes</string>
-    <string name="empty_liked_body">Videos you like will appear here</string>
+    <string name="empty_liked_body">Your liked content will appear here</string>
     <string name="empty_liked_videos">No liked videos</string>
     <string name="empty_liked_music">No liked music</string>
     <string name="empty_liked_music_body">Songs you like will appear here</string>
@@ -780,6 +780,8 @@
     <string name="content_settings_hide_watched_home_subtitle">Filter videos you\'ve already watched from your home feed</string>
     <string name="content_settings_hide_watched_subscriptions_title">Hide Watched Videos from Subscriptions</string>
     <string name="content_settings_hide_watched_subscriptions_subtitle">Filter videos you\'ve already watched from your subscriptions</string>
+    <string name="content_settings_hide_unplayable_subscriptions_title">Hide Unplayable Videos from Subscriptions</string>
+    <string name="content_settings_hide_unplayable_subscriptions_subtitle">Filter out age-restricted, private, members-only and removed videos after they fail to play</string>
     <string name="content_settings_watched_threshold_title">Mark as watched when</string>
     <string name="content_settings_watched_threshold_dialog_body">Choose how much of a video must be played before it counts as watched and gets hidden.</string>
     <string name="content_settings_watched_threshold_90">90% played</string>

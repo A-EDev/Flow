@@ -131,10 +131,10 @@ class PlayerFactory {
         }
 
         val prefs = ensurePrefs(context)
-        val minBufferMs = prefs.minBufferMs.coerceIn(2_500, maxSafeMinBufferMs)
+        val minBufferMs = maxOf(prefs.minBufferMs, prefs.bufferRebufferMs).coerceIn(2_500, maxSafeMinBufferMs)
         val maxBufferMs = prefs.maxBufferMs.coerceIn(minBufferMs + 5_000, maxSafeBufferMs)
         val bufferForPlaybackMs = prefs.bufferForPlaybackMs.coerceIn(250, minBufferMs)
-        val bufferRebufferMs = prefs.bufferRebufferMs.coerceIn(750, maxBufferMs)
+        val bufferRebufferMs = prefs.bufferRebufferMs.coerceIn(750, minBufferMs)
 
         Log.d(TAG, "Buffer config: min=${minBufferMs}ms, max=${maxBufferMs}ms, playback=${bufferForPlaybackMs}ms, rebuffer=${bufferRebufferMs}ms, target=${targetBufferBytes / 1024 / 1024}MB, back=${backBufferMs}ms, heap=${memoryClassMb}MB")
 

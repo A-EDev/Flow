@@ -736,9 +736,9 @@ fun DraggablePlayerLayout(
                                 val grownHeight =
                                     lerpFloat(currentExpandedVideoHeight, screenHeight, portraitFsFraction)
                                 val targetW = expandedVideoWidth.toInt()
-                                    .coerceIn(1, constraints.maxWidth)
+                                    .coerceIn(1, constraints.maxWidth.coerceAtLeast(1))
                                 val targetH = grownHeight.toInt()
-                                    .coerceIn(1, constraints.maxHeight)
+                                    .coerceIn(1, constraints.maxHeight.coerceAtLeast(1))
                                 val placeable = measurable.measure(
                                     constraints.copy(
                                         minWidth = targetW,
