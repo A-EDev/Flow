@@ -1940,4 +1940,5 @@
     <string name="widget_now_playing_description">Controlla la musica in riproduzione su Flow</string>
     <string name="widget_quick_actions_label">Azioni rapide</string>
     <string name="widget_quick_actions_description">Cerca su Flow e passa a download, cronologia o riconoscimento</string>
+    <string name="widget_recently_played_label">Riprodotto di recente</string>
 </resources>
