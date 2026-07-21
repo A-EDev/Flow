@@ -1531,6 +1531,9 @@
     <string name="template_freq">%1$dHz</string>
     <string name="template_gain">%1$.1fdB</string>
     <string name="template_q">%1$.1f</string>
+    <string name="equalizer">Equalizer</string>
+    <string name="action_save_preset">Save preset</string>
+    <string name="label_preset_name">Preset name</string>
     <!-- Player -->
     <string name="now_playing">NOW PLAYING</string>
     <!-- Music Search Screen -->

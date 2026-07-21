@@ -109,6 +109,18 @@ object EqPresets {
                   ParametricEQBand(1500.0, 2.0, 1.0, FilterType.PK),
                   ParametricEQBand(4000.0, 4.0, 1.0, FilterType.PK) // Distortion/Edge
              )
+        ),
+
+        "Heavy Metal" to ParametricEQ(
+             preamp = -1.0,
+             bands = listOf(
+                  ParametricEQBand(60.0, 6.0, 0.8, FilterType.LSC),
+                  ParametricEQBand(250.0, 2.0, 1.0, FilterType.PK),
+                  ParametricEQBand(700.0, -3.0, 1.0, FilterType.PK),
+                  ParametricEQBand(2000.0, 1.0, 1.0, FilterType.PK),
+                  ParametricEQBand(4000.0, 4.0, 1.0, FilterType.PK),
+                  ParametricEQBand(10000.0, 5.0, 0.7, FilterType.HSC)
+             )
         )
     )
 }

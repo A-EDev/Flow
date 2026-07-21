@@ -1261,6 +1261,16 @@ class VideoPlayerViewModel @Inject constructor(
                     }
                 }
 
+                // Startup-critical disk reads, resolved in parallel with stream extraction so the
+                // playback-preparation path below never blocks on DataStore/DB.
+                val savedPositionDeferred = async(PerformanceDispatcher.diskIO) {
+                    resumePositionOverrideMs?.takeIf { it > 0L }
+                        ?: viewHistory.getPlaybackPosition(videoId).first()
+                }
+                val autoplayDeferred = async(PerformanceDispatcher.diskIO) {
+                    playerPreferences.autoplayEnabled.first()
+                }
+
                 viewModelScope.launch(PerformanceDispatcher.networkIO) {
                     if (playerPreferences.rytdEnabled.first()) {
                         withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }?.let { dislikeCount ->
@@ -1404,23 +1414,26 @@ class VideoPlayerViewModel @Inject constructor(
                     }
 
                     if (streamInfo != null) {
-                        // Record interaction for Flow Neuro Engine
-                        try {
-                            val video = Video(
-                                id = videoId,
-                                title = streamInfo.name ?: "",
-                                channelName = streamInfo.uploaderName ?: "",
-                                channelId = streamInfo.uploaderUrl?.split("/")?.last() ?: "",
-                                thumbnailUrl = streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
-                                duration = streamInfo.duration.toInt(),
-                                viewCount = streamInfo.viewCount,
-                                uploadDate = "",
-                                description = streamInfo.description?.content ?: "",
-                                tags = streamInfo.tags ?: emptyList()
-                            )
-                            FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
-                        } catch (e: Exception) {
-                            Log.e("VideoPlayerViewModel", "Failed to record interaction", e)
+                        // Record interaction for Flow Neuro Engine — off the startup path: it takes
+                        // the brain mutex and updates vectors, none of which first frame needs.
+                        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                            try {
+                                val video = Video(
+                                    id = videoId,
+                                    title = streamInfo.name ?: "",
+                                    channelName = streamInfo.uploaderName ?: "",
+                                    channelId = streamInfo.uploaderUrl?.split("/")?.last() ?: "",
+                                    thumbnailUrl = streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
+                                    duration = streamInfo.duration.toInt(),
+                                    viewCount = streamInfo.viewCount,
+                                    uploadDate = "",
+                                    description = streamInfo.description?.content ?: "",
+                                    tags = streamInfo.tags ?: emptyList()
+                                )
+                                FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
+                            } catch (e: Exception) {
+                                Log.e("VideoPlayerViewModel", "Failed to record interaction", e)
+                            }
                         }
 
                         val realTitle = streamInfo.name?.takeIf { it.isNotBlank() }
@@ -1538,8 +1551,8 @@ class VideoPlayerViewModel @Inject constructor(
                             ?.let(::flowOf)
                             ?: viewHistory.getPlaybackPosition(videoId)
                         
-                        // Load autoplay preference
-                        val autoplay = playerPreferences.autoplayEnabled.first()
+                        // Autoplay preference was read in parallel with extraction
+                        val autoplay = autoplayDeferred.await()
                         EnhancedPlayerManager.getInstance().setAutoplayCandidates(
                             sourceVideoId = videoId,
                             videos = relatedVideos,
@@ -1596,7 +1609,7 @@ class VideoPlayerViewModel @Inject constructor(
                                 videoStreams = effectiveVideoStreams,
                                 audioStreams = effectiveAudioStreams,
                                 subtitles = mergedSubtitleStreams,
-                                savedPosition = savedPosition.first(),
+                                savedPosition = savedPositionDeferred.await(),
                                 localFilePath = localFilePath,
                                 offlineSegments = offlineSegments,
                                 hlsUrl = liveHlsUrl,

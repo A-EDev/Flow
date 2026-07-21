@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
@@ -158,8 +159,11 @@ class PlayerFactory {
         }
     }
 
-    fun createRenderersFactory(context: Context): DefaultRenderersFactory {
-        return CustomRenderersFactory(context)
+    fun createRenderersFactory(
+        context: Context,
+        audioProcessors: Array<AudioProcessor> = emptyArray()
+    ): DefaultRenderersFactory {
+        return CustomRenderersFactory(context, audioProcessors)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setEnableDecoderFallback(true)
     }
