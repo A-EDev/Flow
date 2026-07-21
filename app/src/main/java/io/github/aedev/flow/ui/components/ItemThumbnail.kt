@@ -35,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import io.github.aedev.flow.R
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import io.github.aedev.flow.ui.theme.Dimensions
@@ -87,7 +89,7 @@ fun ItemThumbnail(
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Selected",
+                    contentDescription = stringResource(R.string.ui_selected),
                     tint = Color.White,
                     modifier = Modifier.size(size / 2)
                 )

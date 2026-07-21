@@ -68,7 +68,17 @@ fun PlayerGestureOverlays(
             SpeedBoostOverlay(
                 isVisible = screenState.isSpeedBoostActive,
                 speed = speedBoostSpeed,
-                modifier = Modifier.align(Alignment.TopCenter)
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .then(
+                        if (screenState.isFullscreen) {
+                            Modifier
+                                .windowInsetsPadding(WindowInsets.displayCutout)
+                                .padding(top = 8.dp)
+                        } else {
+                            Modifier
+                        }
+                    )
             )
         }
     }
@@ -145,7 +155,7 @@ private fun SeekChevronLabel(forward: Boolean, seconds: Int) {
             )
         }
         Text(
-            text = if (forward) "+${seconds}s" else "-${seconds}s",
+            text = if (forward) "+${seconds}" else "-${seconds}",
             color = Color.White,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold

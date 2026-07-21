@@ -125,6 +125,7 @@ class HistoryViewModel : ViewModel() {
                                 duration = e.duration,
                                 viewCount = e.viewCount,
                                 uploadDate = e.uploadDate,
+                                timestamp = e.timestamp,
                                 description = e.description,
                                 channelThumbnailUrl = e.channelThumbnailUrl
                             )
@@ -179,4 +180,3 @@ data class HistoryUiState(
     val shortVideos: Map<String, Video> = emptyMap(),
     val isLoading: Boolean = false
 )
-

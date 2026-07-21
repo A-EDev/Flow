@@ -121,7 +121,7 @@ fun DownloadQualityDialog(
                                  },
                                  modifier = Modifier.fillMaxWidth()
                              ) {
-                                 Text("Try SABR Download")
+        Text(stringResource(R.string.ui_try_sabr_download))
                              }
                          }
                     }
@@ -310,7 +310,7 @@ fun DownloadQualityDialog(
                                             audioExtension = DownloadStreamHelpers.audioFileExtension(audioStream),
                                             audioMimeType = audioStream.format?.mimeType
                                         )
-                                        Toast.makeText(context, "Downloading audio: ${bitrate}kbps $audioFormat", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.ui_download_audio, bitrate, audioFormat), Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 shape = RoundedCornerShape(16.dp),
@@ -442,7 +442,7 @@ fun SubtitleStyleCustomizerDialog(
 
 private suspend fun trySabrDownloadFromDialog(context: Context, video: Video) {
     try {
-        Toast.makeText(context, "Trying SABR download...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.toast_trying_sabr_download), Toast.LENGTH_SHORT).show()
         val sabrInfo = withContext(Dispatchers.IO) {
             withTimeoutOrNull(8000L) {
                 val playerResponse = YouTube.player(video.id, client = YouTubeClient.ANDROID)
@@ -467,11 +467,11 @@ private suspend fun trySabrDownloadFromDialog(context: Context, video: Video) {
                 durationMs = sabrInfo.durationMs,
                 videoCodec = codecHint
             )
-            Toast.makeText(context, "SABR download started", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_sabr_download_started), Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(context, "No download source available", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_no_download_source), Toast.LENGTH_SHORT).show()
         }
     } catch (e: Exception) {
-        Toast.makeText(context, "SABR download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.toast_sabr_download_failed, e.message), Toast.LENGTH_SHORT).show()
     }
 }

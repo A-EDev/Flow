@@ -18,8 +18,11 @@ import io.github.aedev.flow.utils.cipher.PipePipeNsigDecoder
 import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -35,6 +38,7 @@ object InnerTubeVideoStreamExtractor {
     private data class ExtractionKey(
         val videoId: String,
         val forceSabr: Boolean,
+        val enumerateAudioTracks: Boolean,
     )
 
     //* Fast, token-free clients tried first. They return direct adaptive URLs (played via normal DASH/progressive) when not bot-walled
@@ -56,6 +60,13 @@ object InnerTubeVideoStreamExtractor {
         YouTubeClient.ANDROID_CREATOR,
     )
 
+    // Clients that enumerate every dubbed audio track (with direct URLs), used only to top up a
+    // winner that reported just the default track. See [withCompleteAudioTracks].
+    private val AUDIO_TRACK_CLIENTS: List<YouTubeClient> = listOf(
+        YouTubeClient.IPADOS,
+        YouTubeClient.IOS,
+    )
+
     private val LIVE_MANIFEST_CLIENTS: List<YouTubeClient> = listOf(
         YouTubeClient.IOS,
         YouTubeClient.IPADOS,
@@ -75,15 +86,46 @@ object InnerTubeVideoStreamExtractor {
     )
 
 
+    /**
+     * @param enumerateAudioTracks whether a track-poor result should be topped up with the full
+     *   dub list ([withCompleteAudioTracks]). Pass false for surfaces with no audio-track selector
+     *   (Shorts), where the extra request would never be used.
+     */
     @OptIn(UnstableApi::class)
-    suspend fun extract(videoId: String, forceSabr: Boolean = false): VideoExtractionResult? {
-        val key = ExtractionKey(videoId, forceSabr)
+    suspend fun extract(
+        videoId: String,
+        forceSabr: Boolean = false,
+        enumerateAudioTracks: Boolean = true,
+    ): VideoExtractionResult? {
+        val key = ExtractionKey(videoId, forceSabr, enumerateAudioTracks)
         return extractionCoalescer.run(key) {
-            extractUnshared(videoId, forceSabr)
+            extractUnshared(videoId, forceSabr, enumerateAudioTracks)
         }
     }
 
     private suspend fun extractUnshared(
+        videoId: String,
+        forceSabr: Boolean,
+        enumerateAudioTracks: Boolean,
+    ): VideoExtractionResult? = coroutineScope {
+        // Launched alongside the client ladder rather than after it: the probe is only needed when
+        // the winner turns out to be track-poor, and overlapping it keeps that discovery off the
+        // critical path to first frame. Cancelled unused in the common case.
+        val audioTrackProbe = if (forceSabr || !enumerateAudioTracks) {
+            null
+        } else {
+            async { fetchAudioTrackFormats(videoId) }
+        }
+
+        val result = selectStreams(videoId, forceSabr)
+        if (result == null) {
+            audioTrackProbe?.cancel()
+            return@coroutineScope null
+        }
+        withCompleteAudioTracks(result, audioTrackProbe)
+    }
+
+    private suspend fun selectStreams(
         videoId: String,
         forceSabr: Boolean,
     ): VideoExtractionResult? = withContext(Dispatchers.IO) {
@@ -142,6 +184,106 @@ object InnerTubeVideoStreamExtractor {
         PlayerDiagnostics.logError(TAG, "ALL clients failed $videoId: ${failureReasons.joinToString(" | ")}")
         null
     }
+
+    /**
+     * Re-sources audio from a track-enumerating client when the winning client exposed only the
+     * default track.
+     *
+     * ANDROID_VR — first in [FAST_CLIENTS] and therefore the usual winner — serves no dubbed audio
+     * formats at all, so a video with 20+ dubs surfaces a single-entry track selector. Reordering
+     * the ladder would fix that but the order is load-bearing (AV1 availability, and direct URLs
+     * that survive GVS enforcement past ~70s), so instead the winner keeps its video ladder and
+     * only its audio list is replaced.
+     *
+     * Replacement rather than merge is deliberate: the winner's untagged formats would otherwise
+     * collapse into an unlabelled extra row alongside the real tracks, and sourcing every track
+     * from one client keeps switching between them homogeneous.
+     *
+     * Fail-open — a timeout, an error, or a probe that is no richer than what we already have
+     * leaves the result untouched, so a video that plays today cannot regress.
+     */
+    private suspend fun withCompleteAudioTracks(
+        result: VideoExtractionResult,
+        probe: Deferred<List<PlayerResponse.StreamingData.Format>>?,
+    ): VideoExtractionResult {
+        if (probe == null) return result
+
+        val exposedTracks = distinctAudioTrackCount(result.audioFormats)
+        val needsTopUp = !result.isLive &&
+            result.usedClient !in AUDIO_TRACK_CLIENTS &&
+            exposedTracks < 2
+        if (!needsTopUp) {
+            probe.cancel()
+            return result
+        }
+
+        val formats = try {
+            probe.await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Audio track probe failed: ${e.message}")
+            emptyList()
+        }
+        if (formats.isEmpty()) return result
+
+        val topUpTracks = distinctAudioTrackCount(formats)
+        Log.w(TAG, "Audio top-up: ${result.usedClient.clientName} exposed $exposedTracks track(s), replaced with $topUpTracks")
+        PlayerDiagnostics.logWarning(
+            TAG,
+            "audio top-up ${result.usedClient.clientName}: $exposedTracks -> $topUpTracks tracks"
+        )
+        return result.copy(audioFormats = formats)
+    }
+
+    /** Playable audio formats from the first client that enumerates more than one track. */
+    private suspend fun fetchAudioTrackFormats(
+        videoId: String,
+    ): List<PlayerResponse.StreamingData.Format> = withContext(Dispatchers.IO) {
+        val sts: Int? = if (AUDIO_TRACK_CLIENTS.any { it.useSignatureTimestamp }) {
+            NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
+        } else null
+        val poToken = WebPoTokenSession.mintBounded(videoId)?.playerRequestPoToken
+
+        for (client in AUDIO_TRACK_CLIENTS) {
+            try {
+                val playerResponse = withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
+                    YouTube.player(
+                        videoId,
+                        client = client,
+                        signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
+                        poToken = poToken,
+                        localeOverride = YouTubeLocale.EXTRACTION,
+                        apiUrl = YouTubeClient.API_URL_YOUTUBE,
+                    ).getOrNull()
+                } ?: continue
+
+                if (playerResponse.playabilityStatus.status != "OK") continue
+
+                val audioFormats = playerResponse.streamingData?.adaptiveFormats
+                    ?.filter { it.isAudio }
+                    .orEmpty()
+                if (distinctAudioTrackCount(audioFormats) < 2) continue
+
+                val playable = audioFormats.mapNotNull {
+                    it.toPlayableFormat(videoId, allowUntransformedN = false)
+                }
+                if (distinctAudioTrackCount(playable) < 2) continue
+
+                Log.d(TAG, "Audio track probe: ${client.clientName} yielded ${distinctAudioTrackCount(playable)} tracks")
+                return@withContext playable
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Audio track probe via ${client.clientName} failed: ${e.message}")
+            }
+        }
+        emptyList()
+    }
+
+    private fun distinctAudioTrackCount(
+        formats: List<PlayerResponse.StreamingData.Format>,
+    ): Int = formats.mapNotNullTo(mutableSetOf()) { it.audioTrack?.id }.size
 
     private fun resultMode(r: VideoExtractionResult): String = when {
         r.isLive -> "LIVE"

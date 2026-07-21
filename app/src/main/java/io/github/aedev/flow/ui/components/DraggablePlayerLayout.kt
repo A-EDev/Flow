@@ -44,6 +44,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -355,7 +356,7 @@ fun DraggablePlayerLayout(
             val maxWideWidth = ((screenWidth * maxWideFraction) - (margin * 2f))
                 .coerceAtLeast(baseMiniWidth)
 
-            val clampedAspect = videoAspectRatio.coerceAtMost(2.0f)
+            val clampedAspect = sanitizeDisplayAspectRatio(videoAspectRatio)
             fun miniBoxWidth(envelopeSide: Float) =
                 if (clampedAspect >= 1f) envelopeSide else envelopeSide * clampedAspect
 

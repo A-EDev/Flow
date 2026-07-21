@@ -81,6 +81,7 @@ fun ContentSettingsScreen(
     val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
     val isCategoriesNavigationEnabled by preferences.categoriesNavigationEnabled.collectAsState(initial = false)
     val isContinueWatchingEnabled by preferences.continueWatchingEnabled.collectAsState(initial = true)
+    val showRestoredMusicMiniPlayer by preferences.showRestoredMusicMiniPlayer.collectAsState(initial = true)
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
     
     val homeViewModeString by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
@@ -411,6 +412,18 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setContinueWatchingEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.MusicNote,
+                        title = stringResource(R.string.content_settings_restored_music_mini_player_title),
+                        subtitle = stringResource(R.string.content_settings_restored_music_mini_player_subtitle),
+                        checked = showRestoredMusicMiniPlayer,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShowRestoredMusicMiniPlayer(enabled)
                             }
                         }
                     )
@@ -1102,7 +1115,7 @@ private fun GridSizeOption(
                 if (isSelected) {
                     Icon(
                         Icons.Default.Check,
-                        contentDescription = "Selected",
+                        contentDescription = stringResource(R.string.ui_selected),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
                     )

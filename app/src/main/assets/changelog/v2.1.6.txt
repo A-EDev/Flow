@@ -1,7 +1,7 @@
 FLOW CHANGE LOG
 VERSION: 2.2.0
-DATE: 2026-07-16
-STATUS: PRE-RELEASE
+DATE: 2026-07-18
+STATUS: RELEASE
 
 NEW FEATURES
 - Add a local media library (play local on-device media)
@@ -52,6 +52,7 @@ IMPROVEMENTS
 - Refine the subscriptions feed cards to match the home layout #678
 - Onboarding screen redesign
 - Faster playback startup
+- Library screen redesign
 
 FIXES AND STABILITY
 - Fix Crashes from missing media notification provider #578

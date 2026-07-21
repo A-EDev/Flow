@@ -83,7 +83,9 @@ fun FlowApp(
     deeplinkVideoId: String? = null,
     isShort: Boolean = false,
     openMusicPlayerRequest: Int = 0,
-    onDeeplinkConsumed: () -> Unit = {}
+    onDeeplinkConsumed: () -> Unit = {},
+    pendingWidgetRoute: String? = null,
+    onWidgetRouteConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
@@ -127,6 +129,9 @@ fun FlowApp(
     val miniPlayerScale by preferences.miniPlayerScale.collectAsState(initial = 0.45f)
     val miniPlayerShowSkipControls by preferences.miniPlayerShowSkipControls.collectAsState(initial = false)
     val miniPlayerShowNextPrevControls by preferences.miniPlayerShowNextPrevControls.collectAsState(initial = false)
+    val showRestoredMusicMiniPlayer by produceState<Boolean?>(initialValue = null, preferences) {
+        preferences.showRestoredMusicMiniPlayer.collect { value = it }
+    }
     
     // Offline Monitoring
     val currentRoute = remember { mutableStateOf(defaultStartRoute) }
@@ -367,11 +372,30 @@ fun FlowApp(
         }
     }
 
-    LaunchedEffect(currentMusicTrack) {
-        if (currentMusicTrack != null && musicPlayerSheetState.isDismissed) {
+    LaunchedEffect(currentMusicTrack, showRestoredMusicMiniPlayer) {
+        if (currentMusicTrack != null &&
+            showRestoredMusicMiniPlayer == true &&
+            musicPlayerSheetState.isDismissed
+        ) {
             musicPlayerSheetState.collapse()
         } else if (currentMusicTrack == null) {
             musicPlayerSheetState.dismiss()
+        }
+    }
+
+    LaunchedEffect(showRestoredMusicMiniPlayer) {
+        if (showRestoredMusicMiniPlayer == false && !musicPlayerSheetState.isExpanded) {
+            musicPlayerSheetState.dismiss()
+        }
+    }
+
+    LaunchedEffect(pendingWidgetRoute) {
+        pendingWidgetRoute?.let { route ->
+            // Cold start: suspend until the NavHost has set its graph (first back-stack
+            // entry emitted) — navigating earlier throws "graph has not been set".
+            navController.currentBackStackEntryFlow.first()
+            navController.navigate(route)
+            onWidgetRouteConsumed()
         }
     }
 
@@ -720,7 +744,6 @@ private fun String.isLibraryOrSettingsRouteForMusicMiniPlayer(): Boolean {
         this == "likes" ||
         this == "downloads" ||
         this == "musicLibrary" ||
-        this == "musicPlaylists" ||
         this == "savedShorts" ||
         startsWith("settings")
 }

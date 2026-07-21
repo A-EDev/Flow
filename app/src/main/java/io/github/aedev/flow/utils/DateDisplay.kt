@@ -98,7 +98,7 @@ fun formatUploadDateConfigured(
 ): String {
     if (date?.trim().equals("live", ignoreCase = true)) return "LIVE"
 
-    val timestamp = parseToTimestamp(date) ?: timestampFallbackMs.takeIf { it > 0L }
+    val timestamp = resolveDisplayUploadTimestamp(date, timestampFallbackMs)
     val prefix = relativePrefix(date)
     val relative = applyRelativePrefix(relativeString(date, timestamp, locale), prefix)
     val exact = if (timestamp != null && timestamp > 0L) formatExactDate(timestamp, style, locale) else ""
@@ -170,7 +170,21 @@ fun parseToTimestamp(text: String?): Long? {
     return parseRelativeToTimestamp(cleanRaw)
 }
 
-private fun parseRelativeToTimestamp(text: String, now: Long = System.currentTimeMillis()): Long? {
+internal fun resolveDisplayUploadTimestamp(
+    date: String?,
+    timestampFallbackMs: Long,
+    nowMillis: Long = System.currentTimeMillis(),
+): Long? {
+    val storedTimestamp = timestampFallbackMs.takeIf { it > 0L }
+    val relativeTimestamp = parseRelativeToTimestamp(date.orEmpty(), nowMillis)
+    return when {
+        storedTimestamp != null && relativeTimestamp != null -> minOf(storedTimestamp, relativeTimestamp)
+        relativeTimestamp != null -> relativeTimestamp
+        else -> parseToTimestamp(date) ?: storedTimestamp
+    }
+}
+
+internal fun parseRelativeToTimestamp(text: String, now: Long = System.currentTimeMillis()): Long? {
     val n = text.lowercase(Locale.US)
         .replace("streamed", "")
         .replace("premiered", "")

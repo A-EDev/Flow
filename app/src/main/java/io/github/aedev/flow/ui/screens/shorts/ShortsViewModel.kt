@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.shorts
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,7 +19,9 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.R
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +51,7 @@ import io.github.aedev.flow.ui.components.FeedInvalidationBus
  */
 @HiltViewModel
 class ShortsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val repository: YouTubeRepository,
     private val shortsRepository: ShortsRepository,
     private val likedVideosRepository: LikedVideosRepository,
@@ -220,7 +224,7 @@ class ShortsViewModel @Inject constructor(
                 Log.e(TAG, "Error loading shorts", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to load shorts"
+                    error = e.message ?: context.getString(R.string.error_failed_to_load_shorts)
                 )
             }
         }
@@ -276,7 +280,7 @@ class ShortsViewModel @Inject constructor(
                 Log.e(TAG, "Error loading more shorts", e)
                 _uiState.value = _uiState.value.copy(
                     isLoadingMore = false,
-                    error = e.message ?: "Failed to load more shorts"
+                    error = e.message ?: context.getString(R.string.error_failed_to_load_more_shorts)
                 )
             } finally {
                 isLoadingMore = false

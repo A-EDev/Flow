@@ -585,7 +585,7 @@ class ShortsRepository private constructor(private val context: Context) {
     suspend fun getAvailableVideoQualities(videoId: String): List<ShortVideoQuality> = withContext(Dispatchers.IO) {
         try {
             val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                InnerTubeVideoStreamExtractor.extract(videoId)
+                InnerTubeVideoStreamExtractor.extract(videoId, enumerateAudioTracks = false)
             }
             val formats = result?.videoFormats?.filter { !it.url.isNullOrBlank() }.orEmpty()
             if (formats.isNotEmpty()) {
@@ -640,7 +640,7 @@ class ShortsRepository private constructor(private val context: Context) {
         withContext(Dispatchers.IO) {
             try {
                 val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                    InnerTubeVideoStreamExtractor.extract(videoId)
+                    InnerTubeVideoStreamExtractor.extract(videoId, enumerateAudioTracks = false)
                 } ?: return@withContext emptyList<PlayerResponse.StreamingData.Format>() to emptyList<PlayerResponse.StreamingData.Format>()
                 val video = result.videoFormats.filter { !it.url.isNullOrBlank() }
                 val audio = result.audioFormats.filter { !it.url.isNullOrBlank() }
@@ -715,7 +715,7 @@ class ShortsRepository private constructor(private val context: Context) {
     ): ShortPlaybackStreams? {
         return try {
             val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                InnerTubeVideoStreamExtractor.extract(videoId)
+                InnerTubeVideoStreamExtractor.extract(videoId, enumerateAudioTracks = false)
             } ?: return null
 
             val videoFormats = result.videoFormats.filter { !it.url.isNullOrBlank() }

@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -633,7 +634,7 @@ fun InlineLyricsPanel(
                 IconButton(onClick = resyncToCurrentLine) {
                     Icon(
                         imageVector = Icons.Outlined.Sync,
-                        contentDescription = "Sync lyrics"
+                        contentDescription = stringResource(R.string.ui_sync_lyrics)
                     )
                 }
             }

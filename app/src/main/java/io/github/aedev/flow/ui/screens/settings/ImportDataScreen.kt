@@ -265,7 +265,7 @@ fun ImportDataScreen(
                 InfoCard(
                     icon = Icons.Outlined.FileDownload,
                     title = stringResource(R.string.import_data_title),
-                    description = "Migrate your subscriptions and history from other platforms to Flow seamlessly.",
+                    description = stringResource(R.string.import_migrate_description),
                     containerColor = MaterialTheme.colorScheme.primary,
                     iconTint = MaterialTheme.colorScheme.onPrimary
                 )
@@ -273,8 +273,8 @@ fun ImportDataScreen(
 
             item {
                 PreferencesSectionHeader(
-                    title = "Backup & Restore",
-                    subtitle = "Manage your Flow backups"
+                    title = stringResource(R.string.import_backup_restore),
+                    subtitle = stringResource(R.string.import_manage_backups)
                 )
             }
 
@@ -310,8 +310,8 @@ fun ImportDataScreen(
             
             item {
                 PreferencesSectionHeader(
-                    title = "External Services",
-                    subtitle = "Import from other YouTube clients"
+                    title = stringResource(R.string.import_external_services),
+                    subtitle = stringResource(R.string.import_other_youtube_clients)
                 )
             }
 

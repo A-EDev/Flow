@@ -225,15 +225,16 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "library"
         showBottomNav.value = true
         selectedBottomNavIndex.intValue = 4
+        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val downloadsSourceName = androidx.compose.ui.res.stringResource(
+            io.github.aedev.flow.R.string.library_downloads_label
+        )
         LibraryScreen(
             onNavigateToHistory = { 
                 navController.navigate("history")
             },
             onNavigateToPlaylists = { 
                 navController.navigate("playlists")
-            },
-            onNavigateToMusicPlaylists = {
-                navController.navigate("musicPlaylists")
             },
             onNavigateToLikedVideos = { 
                 navController.navigate("likes")
@@ -252,6 +253,43 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onManageData = {
                 navController.navigate("settings")
+            },
+            onVideoClick = { video ->
+                if (video.isShort && !disableShortsPlayer) {
+                    navController.navigate("shorts?startVideoId=${video.id}")
+                } else {
+                    navController.navigate("player/${video.id}")
+                }
+            },
+            onMusicClick = { track, queue, sourceName ->
+                musicPlayerViewModel.loadAndPlayTrack(track, queue, sourceName)
+                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                val encodedTitle = android.net.Uri.encode(track.title)
+                val encodedArtist = android.net.Uri.encode(track.artist)
+                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+            },
+            onPlaylistClick = { playlistId ->
+                navController.navigate("playlist/$playlistId")
+            },
+            onMusicPlaylistClick = { playlistId ->
+                navController.navigate("musicPlaylist/$playlistId")
+            },
+            onDownloadedVideoClick = { videos, index ->
+                val videoList = videos.map { it.video }
+                playerViewModel.playPlaylist(videoList, index, downloadsSourceName)
+                GlobalPlayerState.setCurrentVideo(videoList[index])
+            },
+            onDownloadedMusicClick = { tracks, index ->
+                val musicTracks = tracks.map { it.track }
+                val selectedTrack = musicTracks[index]
+                musicPlayerViewModel.loadAndPlayTrack(selectedTrack, musicTracks, downloadsSourceName)
+                val encodedUrl = android.net.Uri.encode(selectedTrack.thumbnailUrl)
+                val encodedTitle = android.net.Uri.encode(selectedTrack.title)
+                val encodedArtist = android.net.Uri.encode(selectedTrack.artist)
+                navController.navigate("musicPlayer/${selectedTrack.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+            },
+            onSavedShortClick = { video ->
+                navController.navigate("savedShortsPlayer/${video.id}")
             }
         )
     }
@@ -664,20 +702,10 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = false
         PlaylistsScreen(
             onBackClick = { navController.popBackStack() },
-            onPlaylistClick = { playlist ->
+            onVideoPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
             },
-            onNavigateToWatchLater = { navController.navigate("playlist/${PlaylistRepository.WATCH_LATER_ID}") }
-        )
-    }
-
-    // Music Playlists Screen
-    composable("musicPlaylists") {
-        currentRoute.value = "musicPlaylists"
-        showBottomNav.value = false
-        io.github.aedev.flow.ui.screens.music.MusicPlaylistsScreen(
-            onBackClick = { navController.popBackStack() },
-            onPlaylistClick = { playlist ->
+            onMusicPlaylistClick = { playlist ->
                 navController.navigate("musicPlaylist/${playlist.id}")
             }
         )

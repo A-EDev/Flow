@@ -1876,6 +1876,13 @@ object YouTube {
         }
     }
 
+    suspend fun watchMetadataLite(
+        videoId: String,
+    ): Result<io.github.aedev.flow.innertube.models.response.WatchMetadataResponse> = runCatching {
+        innerTube.next(WEB, videoId, null, null, null, null, null)
+            .body<io.github.aedev.flow.innertube.models.response.WatchMetadataResponse>()
+    }
+
     suspend fun registerPlayback(playlistId: String? = null, playbackTracking: String) = runCatching {
         val cpn = (1..16).map {
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"[Random.Default.nextInt(

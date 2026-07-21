@@ -137,22 +137,6 @@ class SurfaceManager(
     }
     
     /**
-     * Explicitly clear surface holder reference and placeholder.
-     * Called when the screen is actually disposed.
-     */
-    fun clearSurface(player: ExoPlayer?) {
-        Log.d(TAG, "clearSurface() called")
-        surfaceHolder = null
-        placeholderSurface?.let { surface ->
-            runCatching { surface.release() }
-        }
-        placeholderSurface = null
-        isSurfaceReady = false
-        _surfaceReadyFlow.value = false
-        player?.clearVideoSurface()
-    }
-    
-    /**
      * Reattach surface to player if holder is still valid.
      * Used after player initialization or recreation.
      */

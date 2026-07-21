@@ -458,7 +458,7 @@ private fun PlaylistTopBar(
                 IconButton(onClick = onSearchToggle) {
                     Icon(
                         imageVector = if (searchActive) Icons.Default.Close else Icons.Default.Search,
-                        contentDescription = if (searchActive) "Close search" else "Add songs",
+                        contentDescription = if (searchActive) stringResource(R.string.ui_close_search) else stringResource(R.string.ui_add_songs),
                         tint = Color.White
                     )
                 }
@@ -478,7 +478,7 @@ private fun PlaylistTopBar(
                         IconButton(onClick = onSaveToggle) {
                             Icon(
                                 imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (isSaved) "Remove from library" else "Save to library",
+                                contentDescription = if (isSaved) stringResource(R.string.ui_remove_from_library) else stringResource(R.string.ui_save_to_library),
                                 tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White
                             )
                         }
@@ -615,7 +615,7 @@ private fun PlaylistCenteredHeader(
                 ) {
                     Icon(
                         imageVector = if (isDownloading) Icons.Outlined.Downloading else Icons.Outlined.Download,
-                        contentDescription = "Download",
+                        contentDescription = stringResource(R.string.download),
                         tint = Color.White,
                         modifier = Modifier.size(22.dp)
                     )
@@ -651,7 +651,7 @@ private fun PlaylistCenteredHeader(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Play all",
+                    text = stringResource(R.string.play_all),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
@@ -667,7 +667,7 @@ private fun PlaylistCenteredHeader(
             ) {
                 Icon(
                     imageVector = Icons.Default.Shuffle,
-                    contentDescription = "Shuffle",
+                    contentDescription = stringResource(R.string.shuffle),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
                 )
@@ -705,7 +705,7 @@ private fun PlaylistSearchBar(
                 IconButton(onClick = onToggleSearch, modifier = Modifier.size(40.dp)) {
                     Icon(
                         Icons.Default.ArrowBack,
-                        contentDescription = "Close search",
+                        contentDescription = stringResource(R.string.ui_close_search),
                         tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
@@ -748,7 +748,7 @@ private fun PlaylistSearchBar(
                     decorationBox = { inner ->
                         if (query.isEmpty()) {
                             Text(
-                                text = if (searchActive) "Search songs to add…" else "Add songs to playlist",
+                                text = if (searchActive) stringResource(R.string.ui_search_songs_to_add) else stringResource(R.string.ui_add_songs_to_playlist),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 16.sp
                             )
@@ -760,7 +760,7 @@ private fun PlaylistSearchBar(
                     IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Clear",
+                            contentDescription = stringResource(R.string.ui_clear),
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(18.dp)
                         )
@@ -859,7 +859,7 @@ private fun PlaylistTrackRow(
                 IconButton(onClick = onDeleteClick, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete from playlist",
+                        contentDescription = stringResource(R.string.ui_delete_from_playlist),
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                         modifier = Modifier.size(18.dp)
                     )
@@ -869,7 +869,7 @@ private fun PlaylistTrackRow(
             IconButton(onClick = onMenuClick, modifier = Modifier.size(32.dp)) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More",
+                    contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
                     modifier = Modifier.size(18.dp)
                 )
@@ -925,7 +925,7 @@ private fun SearchResultTrackRow(
         if (isAdded) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
-                contentDescription = "Added",
+                contentDescription = stringResource(R.string.ui_added),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(28.dp)
             )
@@ -933,7 +933,7 @@ private fun SearchResultTrackRow(
             IconButton(onClick = onAddClick) {
                 Icon(
                     imageVector = Icons.Outlined.AddCircle,
-                    contentDescription = "Add to playlist",
+                    contentDescription = stringResource(R.string.add_to_playlist),
                     tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     modifier = Modifier.size(28.dp)
                 )

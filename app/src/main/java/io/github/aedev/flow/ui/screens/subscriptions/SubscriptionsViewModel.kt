@@ -71,6 +71,7 @@ class SubscriptionsViewModel : ViewModel() {
     private var isNetworkFetchRunning = false
     private var latestFeedVideos: List<Video> = emptyList()
     private var watchedVideoIds: Set<String> = emptySet()
+    private var unplayableVideoIds: Set<String> = emptySet()
     private var excludedShortsChannelIds: Set<String> = emptySet()
     private var observedChannelIds: List<String>? = null
     private var isDurationEnrichmentRunning = false
@@ -207,7 +208,18 @@ class SubscriptionsViewModel : ViewModel() {
                     }
                 }
         }
-        
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.unplayableVideoIds
+                .distinctUntilChanged()
+                .collect { ids ->
+                    unplayableVideoIds = ids
+                    if (latestFeedVideos.isNotEmpty()) {
+                        updateVideos(latestFeedVideos)
+                    }
+                }
+        }
+
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             subscriptionRepository.getAllSubscriptions()
                 .collect { allSubs ->
@@ -486,7 +498,9 @@ class SubscriptionsViewModel : ViewModel() {
 
     private suspend fun updateVideos(videos: List<Video>) {
         val sortNow = System.currentTimeMillis()
+        val unplayableIds = unplayableVideoIds
         val sortedVideos = videos.withHighQualityThumbnails().withSubscriptionAvatars()
+            .filter { video -> video.id !in unplayableIds }
             .filter { video ->
                 when {
                     video.isShort -> _uiState.value.showSubscriptionShorts

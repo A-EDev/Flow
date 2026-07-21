@@ -676,7 +676,7 @@ fun EnhancedDescriptionBox(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Description",
+                    text = stringResource(R.string.description),
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = secondaryTextColor
                 )
@@ -711,7 +711,7 @@ fun EnhancedDescriptionBox(
                         .padding(top = 4.dp)
                 ) {
                     Text(
-                        text = if (expanded) "Show less" else "Show more",
+                        text = if (expanded) stringResource(R.string.ui_show_less) else stringResource(R.string.ui_show_more),
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                         color = primaryColor
                     )
@@ -725,7 +725,7 @@ fun EnhancedDescriptionBox(
                 }
             } else {
                 Text(
-                    text = "No description available",
+                    text = stringResource(R.string.empty_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = secondaryTextColor
                 )

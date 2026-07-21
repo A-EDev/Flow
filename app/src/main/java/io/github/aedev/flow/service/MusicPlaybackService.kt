@@ -250,7 +250,7 @@ class MusicPlaybackService : Service() {
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Music playback controls"
+                description = getString(R.string.notification_channel_music_playback_description)
                 setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 setSound(null, null)

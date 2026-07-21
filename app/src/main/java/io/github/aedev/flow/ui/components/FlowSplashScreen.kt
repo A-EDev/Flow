@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +42,7 @@ private data class SplashIconOption(
 private val SPLASH_ICONS = listOf(
     SplashIconOption(".IconFlowRed",    R.drawable.ic_flow_logo),
     SplashIconOption(".IconFlowLight",  R.drawable.ic_flow_logo),
+    SplashIconOption(".IconFlowPlay",   R.drawable.ic_fg_flow_play),
     SplashIconOption(".IconAmoled",     R.drawable.splash_icon_amoled),
     SplashIconOption(".IconMonochrome", R.drawable.splash_icon_monochrome),
     SplashIconOption(".IconGhost",      R.drawable.splash_icon_ghost),
@@ -136,7 +138,7 @@ fun FlowSplashScreen(
                     ) {
                         Image(
                             painter = painterResource(id = activeIcon.drawableRes),
-                            contentDescription = "Flow Logo",
+                            contentDescription = stringResource(R.string.ui_flow_logo),
                             colorFilter = ColorFilter.tint(colorScheme.onSecondaryContainer),
                             modifier = Modifier.fillMaxSize()
                         )
@@ -144,7 +146,7 @@ fun FlowSplashScreen(
                 } else {
                     Image(
                         painter = painterResource(id = activeIcon.drawableRes),
-                        contentDescription = "Flow Logo",
+                        contentDescription = stringResource(R.string.ui_flow_logo),
                         modifier = Modifier
                             .scale(scale.value)
                             .size(90.dp)

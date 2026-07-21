@@ -33,6 +33,7 @@ data class WatchMetadataResponse(
     data class PrimaryInfo(
         val title: Runs? = null,
         val viewCount: ViewCount? = null,
+        val dateText: SimpleText? = null,
     ) {
         @Serializable
         data class ViewCount(val videoViewCountRenderer: Inner? = null) {
@@ -280,6 +281,7 @@ data class WatchMetadataResponse(
 
     fun title(): String? = primary()?.title?.text()
     fun viewCountText(): String? = primary()?.viewCount?.videoViewCountRenderer?.viewCount?.text()
+    fun uploadDate(): String? = primary()?.dateText?.text()
     fun description(): String? = secondary()?.attributedDescription?.content
     fun channelName(): String? = secondary()?.owner?.videoOwnerRenderer?.title?.text()
     fun channelId(): String? = secondary()?.owner?.videoOwnerRenderer?.navigationEndpoint?.browseEndpoint?.browseId

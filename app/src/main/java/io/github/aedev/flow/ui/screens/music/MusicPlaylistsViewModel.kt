@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -47,7 +48,6 @@ class MusicPlaylistsViewModel @Inject constructor(
 
     init {
         loadPlaylists()
-        enrichMusicPlaylistStubs()
     }
 
     /**
@@ -82,6 +82,7 @@ class MusicPlaylistsViewModel @Inject constructor(
                                     duration = e.duration,
                                     viewCount = e.viewCount,
                                     uploadDate = e.uploadDate,
+                                    timestamp = e.timestamp,
                                     description = e.description,
                                     channelThumbnailUrl = e.channelThumbnailUrl
                                 )
@@ -143,14 +144,14 @@ class MusicPlaylistsViewModel @Inject constructor(
     fun deletePlaylist(playlistId: String) {
         viewModelScope.launch {
             playlistRepository.deletePlaylist(playlistId)
-            Toast.makeText(context, "Playlist deleted", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_playlist_deleted), Toast.LENGTH_SHORT).show()
         }
     }
 
     fun renamePlaylist(playlistId: String, newName: String) {
         viewModelScope.launch {
             playlistRepository.updatePlaylistName(playlistId, newName)
-            Toast.makeText(context, "Playlist renamed", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_playlist_renamed), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -168,14 +169,14 @@ class MusicPlaylistsViewModel @Inject constructor(
             if (_isDownloadingPlaylist.value) return@launch
 
             _isDownloadingPlaylist.value = true
-            Toast.makeText(context, "Starting download for ${playlist.name}...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_starting_playlist_download, playlist.name), Toast.LENGTH_SHORT).show()
             
             try {
                 val videos = playlistRepository.getPlaylistVideosFlow(playlist.id).first()
                 val totalTracks = videos.size
                 
                 if (totalTracks == 0) {
-                     Toast.makeText(context, "Playlist is empty", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.ui_playlist_empty), Toast.LENGTH_SHORT).show()
                      _isDownloadingPlaylist.value = false
                      return@launch
                 }
@@ -207,13 +208,13 @@ class MusicPlaylistsViewModel @Inject constructor(
                 }
                 
                 if (successCount > 0) {
-                    Toast.makeText(context, "Downloaded $successCount tracks from ${playlist.name}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.toast_downloaded_tracks_from_playlist, successCount, playlist.name), Toast.LENGTH_LONG).show()
                 } else {
-                    Toast.makeText(context, "Failed to download playlist", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_failed_to_download_playlist), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Log.e("MusicViewModel", "Error downloading playlist", e)
-                Toast.makeText(context, "Error downloading playlist", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_error_downloading_playlist), Toast.LENGTH_SHORT).show()
             } finally {
                  _isDownloadingPlaylist.value = false
                  _currentDownloadingTrack.value = null
@@ -227,7 +228,7 @@ class MusicPlaylistsViewModel @Inject constructor(
             if (_isDownloadingPlaylist.value) return@launch
 
             _isDownloadingPlaylist.value = true
-            Toast.makeText(context, "Starting download for ${playlistDetails.title}...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_starting_playlist_download, playlistDetails.title), Toast.LENGTH_SHORT).show()
             
             try {
                 val tracks = playlistDetails.tracks
@@ -279,11 +280,11 @@ class MusicPlaylistsViewModel @Inject constructor(
 
                 
                 if (successCount > 0) {
-                    Toast.makeText(context, "Downloaded $successCount tracks", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.toast_downloaded_tracks, successCount), Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                  Log.e("MusicViewModel", "Error downloading playlist details", e)
-                 Toast.makeText(context, "Error downloading playlist", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_error_downloading_playlist), Toast.LENGTH_SHORT).show()
             } finally {
                  _isDownloadingPlaylist.value = false
                  _currentDownloadingTrack.value = null
@@ -341,12 +342,12 @@ class MusicPlaylistsViewModel @Inject constructor(
                 _addedTrackIds.update { it + track.videoId }
                 _locallyAddedTracks.update { it + track }
                 kotlinx.coroutines.withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Added to playlist", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_added_to_playlist), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Log.e("MusicPlaylistsVM", "addTrackToPlaylist failed", e)
                 kotlinx.coroutines.withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Failed to add track", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_failed_to_add_track), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -360,10 +361,10 @@ class MusicPlaylistsViewModel @Inject constructor(
                 _addedTrackIds.update { it - videoId }
                 _locallyAddedTracks.update { list -> list.filter { it.videoId != videoId } }
                 
-                Toast.makeText(context, "Removed from playlist", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_removed_from_playlist), Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e("MusicPlaylistsVM", "removeTrackFromPlaylist failed", e)
-                Toast.makeText(context, "Failed to remove track", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_failed_to_remove_track), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -419,10 +420,10 @@ class MusicPlaylistsViewModel @Inject constructor(
                     playlistRepository.addVideoToPlaylist(details.id, video)
                 }
                 _isSavedPlaylist.value = true
-                Toast.makeText(context, "Playlist saved to your music library", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_saved_playlist_to_music_library), Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e("MusicPlaylistsVM", "savePlaylistToLibrary failed", e)
-                Toast.makeText(context, "Failed to save playlist", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_failed_to_save_playlist), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -432,7 +433,7 @@ class MusicPlaylistsViewModel @Inject constructor(
             try {
                 playlistRepository.unsaveExternalPlaylist(playlistId)
                 _isSavedPlaylist.value = false
-                Toast.makeText(context, "Playlist removed from library", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_removed_playlist_from_library), Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e("MusicPlaylistsVM", "unsavePlaylistFromLibrary failed", e)
             }
@@ -477,7 +478,7 @@ class MusicPlaylistsViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("MusicPlaylistsVM", "mergeTracksIntoPlaylist failed", e)
                 kotlinx.coroutines.withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Failed to merge playlist", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_failed_to_merge_playlist), Toast.LENGTH_SHORT).show()
                 }
             }
         }

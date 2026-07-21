@@ -53,6 +53,7 @@ import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+import io.github.aedev.flow.R
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
@@ -114,6 +115,7 @@ class VideoPlayerViewModel @Inject constructor(
     private var playbackLoadToken: Long = 0L
     private var loadingVideoId: String? = null
     private var playbackAbandonedVideoId: String? = null
+    private var clearedUnplayableVideoId: String? = null
     private var channelMetadataJob: Job? = null
     private var channelMetadataVideoId: String? = null
     private var relatedVideosJob: Job? = null
@@ -297,6 +299,7 @@ class VideoPlayerViewModel @Inject constructor(
                 if (streamExpiryCount > MAX_STREAM_EXPIRY_RETRIES) {
                     Log.e("VideoPlayerViewModel", "Stream expiry retry limit ($MAX_STREAM_EXPIRY_RETRIES) reached for $videoId — giving up")
                     playbackAbandonedVideoId = videoId
+                    playerPreferences.markVideoUnplayable(videoId)
                     cancelActivePlaybackLoad(invalidateToken = true)
                     EnhancedPlayerManager.getInstance().getPlayer()?.let { p ->
                         p.stop()
@@ -305,8 +308,8 @@ class VideoPlayerViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = "Unable to play this video. All stream sources returned errors.",
-                            errorHint = "Try again later or check your network connection."
+                            error = context.getString(R.string.error_all_stream_sources_failed),
+                            errorHint = context.getString(R.string.error_playback_retry_hint)
                         )
                     }
                     return@collect
@@ -361,13 +364,14 @@ class VideoPlayerViewModel @Inject constructor(
             EnhancedPlayerManager.getInstance().playbackAbandonedEvent.collect {
                 val videoId = _uiState.value.cachedVideo?.id ?: return@collect
                 playbackAbandonedVideoId = videoId
+                playerPreferences.markVideoUnplayable(videoId)
                 cancelActivePlaybackLoad(invalidateToken = true)
                 Log.w("VideoPlayerViewModel", "Playback abandoned for $videoId — surfacing terminal error")
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = "Unable to play this video. All stream sources returned errors.",
-                        errorHint = "Try again later or check your network connection."
+                        error = context.getString(R.string.error_all_stream_sources_failed),
+                        errorHint = context.getString(R.string.error_playback_retry_hint)
                     )
                 }
             }
@@ -380,6 +384,14 @@ class VideoPlayerViewModel @Inject constructor(
                         queueTitle = playerState.queueTitle
                     )
                 }
+
+                // A video that prepares successfully is not unplayable, whatever a past failure said.
+                playerState.currentVideoId
+                    ?.takeIf { playerState.isPrepared && it != clearedUnplayableVideoId }
+                    ?.let { preparedVideoId ->
+                        clearedUnplayableVideoId = preparedVideoId
+                        playerPreferences.clearVideoUnplayable(preparedVideoId)
+                    }
 
                 // Handle external video id changes (e.g. from queue auto-advance)
                 playerState.currentVideoId?.let { videoId ->
@@ -1844,6 +1856,9 @@ class VideoPlayerViewModel @Inject constructor(
                         )
                     } else if (!tryEnterUpcomingState(videoId, emptyList(), loadToken)) {
                         val videoError = VideoErrorMapper.from(context, e, videoId)
+                        if (!videoError.isRetryable) {
+                            playerPreferences.markVideoUnplayable(videoId)
+                        }
                         _uiState.update {
                             it.copy(
                                 isLoading = false,

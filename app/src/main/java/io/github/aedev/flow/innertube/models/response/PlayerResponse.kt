@@ -137,15 +137,34 @@ data class PlayerResponse(
             val signatureCipher: String?,
             val cipher: String? = null,
             val audioTrack: AudioTrack? = null,
+            val isDrc: Boolean? = null,
+            val xtags: String? = null,
+            val trackAbsoluteLoudnessLkfs: Double? = null,
             val initRange: Range? = null,
             val indexRange: Range? = null,
         ) {
             val isAudio: Boolean
                 get() = width == null
+
+            /**
+             * Dynamic-range-compressed variant. YouTube ships DRC and non-DRC copies of the same
+             * itag+track (identical bitrate to within a few bytes/s), so bitrate alone cannot tell
+             * them apart — without this flag the DRC copy wins a bitrate sort and the user silently
+             * gets loudness-flattened audio.
+             */
+            val isDynamicRangeCompressed: Boolean
+                get() = isDrc == true || audioContentTags["drc"] == "1"
+
+            /**
+             * YouTube's authoritative audio role, decoded from `xtags` (e.g. acont=original vs
+             * acont=dubbed). Preferred over the audioTrack id suffix, which is only a convention.
+             */
             val isOriginal: Boolean
                 get() {
+                    audioContentTags["acont"]?.let { return it.equals("original", ignoreCase = true) }
                     val track = audioTrack ?: return true
                     if (track.isAutoDubbed == true) return false
+                    track.audioIsDefault?.let { return it }
                     track.displayName?.let { if (it.contains("original", ignoreCase = true)) return true }
                     val id = track.id ?: return true
                     return id.substringAfterLast('.', missingDelimiterValue = "4") == "4"
@@ -155,12 +174,17 @@ data class PlayerResponse(
                 get() = audioTrack?.id
                     ?.substringBeforeLast('.', missingDelimiterValue = "")
                     ?.takeIf { it.isNotBlank() }
+                    ?: audioContentTags["lang"]
+
+            private val audioContentTags: Map<String, String>
+                get() = xtags?.takeIf { it.isNotBlank() }?.let(AudioXTags::decode).orEmpty()
 
             @Serializable
             data class AudioTrack(
                 val displayName: String?,
                 val id: String?,
-                val isAutoDubbed: Boolean?,
+                val isAutoDubbed: Boolean? = null,
+                val audioIsDefault: Boolean? = null,
             )
 
             @Serializable

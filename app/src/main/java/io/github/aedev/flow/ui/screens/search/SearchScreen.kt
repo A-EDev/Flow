@@ -919,7 +919,7 @@ private fun SearchResultList(
                             }
                         )
                     is SearchResultItem.PlaylistResult ->
-                        SearchPlaylistCard(
+                        PlaylistCard(
                             item.playlist,
                             onClick = {
                                 onPlaylistClick(item.playlist)
@@ -1133,7 +1133,7 @@ private fun PagingFooter(
                 OutlinedButton(onClick = onRetry) {
                     Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Retry", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.retry), style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -1768,86 +1768,6 @@ private fun SearchChannelCardCompact(
 }
 
 @Composable
-private fun SearchPlaylistCard(
-    playlist: Playlist,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        Arrangement.spacedBy(14.dp)
-    ) {
-        Box(
-            Modifier
-                .width(140.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            AsyncImage(
-                playlist.thumbnailUrl, playlist.name,
-                Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            Box(
-                Modifier
-                    .fillMaxHeight()
-                    .aspectRatio(1f)
-                    .align(Alignment.CenterEnd)
-                    .background(Color.Black.copy(0.65f)),
-                Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.PlaylistPlay, null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Text(
-                        playlist.videoCount.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold, color = Color.White
-                    )
-                }
-            }
-        }
-        Column(Modifier.weight(1f)) {
-            Text(
-                playlist.name,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 2, overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "${playlist.videoCount} videos",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Surface(
-                Modifier.padding(top = 6.dp),
-                RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer
-            ) {
-                Text(
-                    "Playlist",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.padding(
-                        horizontal = 8.dp,
-                        vertical = 3.dp
-                    )
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun SearchPlaylistCardCompact(
     playlist: Playlist,
     onClick: () -> Unit,
@@ -1915,7 +1835,7 @@ private fun SearchErrorState(message: String, onRetry: () -> Unit) {
             Button(onClick = onRetry) {
                 Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Retry")
+                Text(stringResource(R.string.retry))
             }
         }
     }

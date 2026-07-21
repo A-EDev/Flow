@@ -22,6 +22,7 @@ import androidx.media3.session.MediaSession
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.ParametricEQ
+import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -45,6 +46,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -98,6 +100,11 @@ class Media3MusicService : MediaLibraryService() {
     private lateinit var mediaLibrarySession: MediaLibrarySession
     private lateinit var player: ExoPlayer
     private val customEqualizer = CustomEqualizerAudioProcessor()
+    private val musicAudioAttributes = AudioAttributes.Builder()
+        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+        .setUsage(C.USAGE_MEDIA)
+        .build()
+    private var handlesAudioFocus = true
     private lateinit var connectivityObserver: NetworkConnectivityObserver
     
     private var wakeLock: PowerManager.WakeLock? = null
@@ -160,8 +167,8 @@ class Media3MusicService : MediaLibraryService() {
             }
         }
 
+        val prefs = io.github.aedev.flow.data.local.PlayerPreferences(this@Media3MusicService)
         serviceScope.launch {
-            val prefs = io.github.aedev.flow.data.local.PlayerPreferences(this@Media3MusicService)
             var lastQuality: io.github.aedev.flow.data.local.MusicAudioQuality? = null
             prefs.musicAudioQuality.collect { quality ->
                 val previous = lastQuality
@@ -174,6 +181,21 @@ class Media3MusicService : MediaLibraryService() {
 
         initializePlayer()
         initializeSession()
+
+        serviceScope.launch {
+            prefs.playDuringCalls
+                .distinctUntilChanged()
+                .collectLatest(::applyPlayDuringCallsPreference)
+        }
+    }
+
+    private fun applyPlayDuringCallsPreference(playDuringCalls: Boolean) {
+        val handleAudioFocus = shouldHandleAudioFocus(playDuringCalls)
+        if (handlesAudioFocus == handleAudioFocus) return
+
+        handlesAudioFocus = handleAudioFocus
+        player.setAudioAttributes(musicAudioAttributes, handleAudioFocus)
+        Log.i(TAG, "Music audio focus handling enabled: $handleAudioFocus")
     }
 
     private fun applyMusicQualityChange() {
@@ -205,11 +227,6 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun initializePlayer() {
-        val audioAttributes = AudioAttributes.Builder()
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .setUsage(C.USAGE_MEDIA)
-            .build()
-            
         val mediaSourceFactory = DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory())
         
         val renderersFactory = object : androidx.media3.exoplayer.DefaultRenderersFactory(this) {
@@ -238,7 +255,7 @@ class Media3MusicService : MediaLibraryService() {
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(mediaSourceFactory)
             .setRenderersFactory(renderersFactory)
-            .setAudioAttributes(audioAttributes, true)
+            .setAudioAttributes(musicAudioAttributes, handlesAudioFocus)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setLoadControl(loadControl)

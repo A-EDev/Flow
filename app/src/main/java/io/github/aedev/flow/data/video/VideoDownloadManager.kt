@@ -12,6 +12,7 @@ import android.util.Log
 import android.provider.MediaStore
 import android.content.ContentValues
 import io.github.aedev.flow.data.local.dao.DownloadDao
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.DownloadEntity
 import io.github.aedev.flow.data.local.entity.DownloadFileType
 import io.github.aedev.flow.data.local.entity.DownloadItemEntity
@@ -550,7 +551,7 @@ class VideoDownloadManager @Inject constructor(
                 duration = dwi.download.duration.toInt(),
                 viewCount = 0,
                 uploadDate = dwi.download.createdAt.toString(),
-                description = "Downloaded locally"
+                description = context.getString(R.string.fallback_downloaded_locally)
             ),
             filePath = dwi.primaryFilePath ?: "",
             downloadedAt = dwi.download.createdAt,

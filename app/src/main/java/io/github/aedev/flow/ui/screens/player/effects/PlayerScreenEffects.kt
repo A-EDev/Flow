@@ -28,6 +28,7 @@ import kotlinx.coroutines.delay
 import android.view.OrientationEventListener
 import android.widget.Toast
 import android.provider.Settings
+import io.github.aedev.flow.R
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
@@ -262,14 +263,15 @@ fun PlaybackRefocusEffect(
 
     LaunchedEffect(resumeTrigger) {
         if (resumeTrigger == 0) return@LaunchedEffect
-
-        delay(150L)
-
         val mgr = EnhancedPlayerManager.getInstance()
         val player = mgr.getPlayer() ?: return@LaunchedEffect
         if (mgr.isInAudioOnlyMode() || mgr.isVideoSurfaceRestorePending()) {
             mgr.restoreVideoOutput()
         }
+        if (mgr.recoverClearedMediaAfterForeground()) return@LaunchedEffect
+
+        delay(150L)
+
         val playerMgrState = mgr.playerState.value
 
         if (!playerMgrState.hasEnded &&
@@ -822,7 +824,7 @@ fun SubscriptionAndLikeEffect(
 fun SponsorSkipEffect(context: Context) {
     LaunchedEffect(Unit) {
         EnhancedPlayerManager.getInstance().skipEvent.collect { segment ->
-            Toast.makeText(context, "Skipped ${segment.category}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.ui_skipped_segment, segment.category), Toast.LENGTH_SHORT).show()
         }
     }
 }

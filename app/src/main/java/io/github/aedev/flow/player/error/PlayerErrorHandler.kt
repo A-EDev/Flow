@@ -1,11 +1,13 @@
 package io.github.aedev.flow.player.error
 
+import android.content.Context
 import android.util.Log
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import io.github.aedev.flow.player.config.PlayerConfig
+import io.github.aedev.flow.R
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +34,7 @@ import org.schabi.newpipe.extractor.stream.VideoStream
  */
 @UnstableApi
 class PlayerErrorHandler(
+    private val appContext: Context,
     private val stateFlow: MutableStateFlow<EnhancedPlayerState>,
     private val onReloadStream: (Long, String) -> Unit,
     private val onQualityDowngrade: () -> Unit,
@@ -94,7 +97,7 @@ class PlayerErrorHandler(
             PlaybackException.ERROR_CODE_REMOTE_ERROR -> {
                 PlayerDiagnostics.logError(TAG, "Remote playback error: ${error.message}")
                 stateFlow.value = stateFlow.value.copy(
-                    error = "Remote playback error. Please try again.",
+                    error = appContext.getString(R.string.error_remote_playback),
                     isPlaying = false
                 )
             }
@@ -121,7 +124,7 @@ class PlayerErrorHandler(
             PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> {
                 PlayerDiagnostics.logError(TAG, "IO permission denied for stream URL")
                 stateFlow.value = stateFlow.value.copy(
-                    error = "Playback permission denied. Please try again.",
+                    error = appContext.getString(R.string.error_playback_permission_denied),
                     isPlaying = false
                 )
             }
@@ -129,7 +132,7 @@ class PlayerErrorHandler(
             PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED -> {
                 PlayerDiagnostics.logError(TAG, "Cleartext HTTP not permitted — stream uses plain http://")
                 stateFlow.value = stateFlow.value.copy(
-                    error = "Insecure stream blocked by device policy.",
+                    error = appContext.getString(R.string.error_insecure_stream_blocked),
                     isPlaying = false
                 )
             }
@@ -288,7 +291,7 @@ class PlayerErrorHandler(
                 stateFlow.value = stateFlow.value.copy(
                     isBuffering = false,
                     isPlaying = false,
-                    error = "Unable to play - stream URLs keep expiring.",
+                    error = appContext.getString(R.string.error_expiring_stream_urls),
                     recoveryAttempted = true
                 )
                 onPlaybackAbandoned()
@@ -459,7 +462,7 @@ class PlayerErrorHandler(
         Log.e(TAG, "Decoder error — no alternatives available, stopping playback")
         onPlaybackShutdown()
         stateFlow.value = stateFlow.value.copy(
-            error = "Playback device error: ${error.message}",
+            error = appContext.getString(R.string.error_playback_device, error.message.orEmpty()),
             isPlaying = false
         )
     }
@@ -469,7 +472,7 @@ class PlayerErrorHandler(
         PlayerDiagnostics.logError(TAG, "DRM error (${error.errorCode}): ${error.message}")
         onPlaybackShutdown()
         stateFlow.value = stateFlow.value.copy(
-            error = "Content protection error: ${error.message}",
+            error = appContext.getString(R.string.error_content_protection, error.message.orEmpty()),
             isPlaying = false
         )
     }
@@ -518,7 +521,7 @@ class PlayerErrorHandler(
             stateFlow.value = stateFlow.value.copy(
                 isPlaying = false,
                 isBuffering = false,
-                error = "Playback stopped due to critical error"
+                error = appContext.getString(R.string.error_playback_stopped)
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error during playback shutdown", e)

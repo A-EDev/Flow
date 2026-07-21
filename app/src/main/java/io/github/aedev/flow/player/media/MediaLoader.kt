@@ -22,8 +22,10 @@ import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceResult
 import io.github.aedev.flow.player.sabr.integration.SabrOrchestrator
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
+import io.github.aedev.flow.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
@@ -36,6 +38,7 @@ import java.util.Locale
  */
 @UnstableApi
 class MediaLoader(
+    private val appContext: Context,
     private val stateFlow: MutableStateFlow<EnhancedPlayerState>,
     private val cacheManager: PlayerCacheManager?,
     private val surfaceManager: SurfaceManager?
@@ -65,6 +68,7 @@ class MediaLoader(
      * @param localFilePath Optional local file path for offline playback
      * @param currentDurationSeconds Fallback duration from stream info
      * @param audioOnly When true, never selects video streams or video manifests.
+     * @param playWhenReady Whether playback should start after the source is prepared.
      */
     fun loadMedia(
         player: ExoPlayer?,
@@ -81,6 +85,7 @@ class MediaLoader(
         preservePosition: Long? = null,
         localFilePath: String? = null,
         audioOnly: Boolean = false,
+        playWhenReady: Boolean = true,
         subtitleStreams: List<SubtitlesStream> = emptyList(),
         sabrInfo: SabrStreamInfo? = null,
         sabrVideoId: String? = null,
@@ -148,17 +153,17 @@ class MediaLoader(
                         Log.d(TAG, "Seeking to preserved position: ${preservePosition}ms")
                     }
 
-                    exoPlayer.playWhenReady = true
+                    exoPlayer.playWhenReady = playWhenReady
                     Log.d(TAG, "Media loaded successfully via VideoPlaybackResolver")
                     return true
                 } else {
                     Log.e(TAG, "Failed to resolve media source - streams invalid")
-                    stateFlow.value = stateFlow.value.copy(error = "Failed to load media: Invalid streams")
+                    stateFlow.value = stateFlow.value.copy(error = appContext.getString(R.string.error_failed_to_load_media_invalid_streams))
                     return false
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading media", e)
-                stateFlow.value = stateFlow.value.copy(error = "Failed to load media: ${e.message}")
+                stateFlow.value = stateFlow.value.copy(error = appContext.getString(R.string.error_failed_to_load_media, e.message.orEmpty()))
                 return false
             }
         }
@@ -238,7 +243,9 @@ class MediaLoader(
         val sabrAvailable = sabrInfo != null && sabrInfo.streamingUrl.isNotEmpty() &&
             sabrVideoId != null && sabrInfo.audioItag > 0 && sabrInfo.videoItag > 0
 
-        if (sabrAvailable && sabrPreferred) {
+        val overridesDefaultAudio = StreamProcessor.overridesDefaultAudioTrack(audioStream)
+
+        if (sabrAvailable && sabrPreferred && !overridesDefaultAudio) {
             createSabrMediaSource(sabrInfo!!, sabrVideoId!!, finalDuration, startPositionMs)
                 ?.let { return mergeSubtitleSourcesIfNeeded(it, subtitleStreams, dataSourceFactory) }
         }

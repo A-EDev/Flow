@@ -29,6 +29,11 @@ const val DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP = 48
 const val MAX_FULLSCREEN_SEEKBAR_PADDING_DP = 120
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
+private const val MAX_UNPLAYABLE_VIDEO_IDS = 300
+
+private fun String?.decodeUnplayableIds(): Set<String> =
+    if (isNullOrBlank()) emptySet() else splitToSequence('\n').filter { it.isNotBlank() }.toCollection(LinkedHashSet())
+
 class PlayerPreferences(context: Context) {
     private val context: Context = context.applicationContext
     
@@ -200,6 +205,7 @@ class PlayerPreferences(context: Context) {
         val MINI_PLAYER_SHOW_SKIP_CONTROLS = booleanPreferencesKey("mini_player_show_skip_controls")
         val MINI_PLAYER_SHOW_NEXT_PREV_CONTROLS = booleanPreferencesKey("mini_player_show_next_prev_controls")
         val MINI_PLAYER_CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("mini_player_continue_watching_enabled")
+        val SHOW_RESTORED_MUSIC_MINI_PLAYER = booleanPreferencesKey("show_restored_music_mini_player")
 
         // Audio focus during calls
         val PLAY_DURING_CALLS = booleanPreferencesKey("play_during_calls")
@@ -286,6 +292,9 @@ class PlayerPreferences(context: Context) {
         val SUBSCRIPTION_SHOW_LIVE = booleanPreferencesKey("subscription_show_live")
         val SUBSCRIPTION_SHORTS_EXCLUDED_CHANNELS = stringSetPreferencesKey("subscription_shorts_excluded_channels")
         val UPCOMING_VIDEO_REMINDER_IDS = stringSetPreferencesKey("upcoming_video_reminder_ids")
+
+        // Newest-first, newline-delimited so the list can be trimmed to a bounded size.
+        val UNPLAYABLE_VIDEO_IDS = stringPreferencesKey("unplayable_video_ids")
 
         // Deep Flow (Incognito / No-Engine) mode
         val DEEP_FLOW_ACTIVE = booleanPreferencesKey("deep_flow_active")
@@ -1756,6 +1765,43 @@ class PlayerPreferences(context: Context) {
         }
     }
 
+    /**
+     * Videos the player has permanently given up on (restricted, removed, or otherwise
+     * unplayable). Used to hide dead entries from the subscription feed.
+     */
+    val unplayableVideoIds: Flow<Set<String>> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.UNPLAYABLE_VIDEO_IDS].decodeUnplayableIds()
+        }
+
+    suspend fun markVideoUnplayable(videoId: String) {
+        if (videoId.isBlank()) return
+        context.playerPreferencesDataStore.edit { preferences ->
+            val current = preferences[Keys.UNPLAYABLE_VIDEO_IDS].decodeUnplayableIds()
+            if (current.firstOrNull() == videoId) return@edit
+            val updated = LinkedHashSet<String>(current.size + 1).apply {
+                add(videoId)
+                addAll(current)
+            }.take(MAX_UNPLAYABLE_VIDEO_IDS)
+            preferences[Keys.UNPLAYABLE_VIDEO_IDS] = updated.joinToString("\n")
+        }
+    }
+
+    /**
+     * Clears the flag when a video turns out to play fine after all. Reads before writing so the
+     * common case (video was never flagged) costs no disk write — this runs on every playback start.
+     */
+    suspend fun clearVideoUnplayable(videoId: String) {
+        if (videoId.isBlank()) return
+        val current = context.playerPreferencesDataStore.data.first()[Keys.UNPLAYABLE_VIDEO_IDS]
+            .decodeUnplayableIds()
+        if (videoId !in current) return
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.UNPLAYABLE_VIDEO_IDS] =
+                current.asSequence().filter { it != videoId }.joinToString("\n")
+        }
+    }
+
     // Cache size — 0 means unlimited. Default 500 MB.
     val mediaCacheSizeMb: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
@@ -2247,6 +2293,17 @@ class PlayerPreferences(context: Context) {
     suspend fun setMiniPlayerContinueWatchingEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MINI_PLAYER_CONTINUE_WATCHING_ENABLED] = enabled
+        }
+    }
+
+    val showRestoredMusicMiniPlayer: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHOW_RESTORED_MUSIC_MINI_PLAYER] ?: true
+        }
+
+    suspend fun setShowRestoredMusicMiniPlayer(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHOW_RESTORED_MUSIC_MINI_PLAYER] = enabled
         }
     }
 

@@ -5,6 +5,7 @@ import io.github.aedev.flow.player.state.AudioTrackOption
 import io.github.aedev.flow.player.state.SubtitleOption
 import java.util.Locale
 import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.AudioTrackType
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 
@@ -14,6 +15,9 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 object StreamProcessor {
     
     private const val TAG = "StreamProcessor"
+
+    /** Grouping key for audio carrying no track identity at all. */
+    internal const val UNTAGGED_TRACK_KEY = "default"
     
     /**
      * Process video streams - deduplicate and sort by height descending.
@@ -33,12 +37,22 @@ object StreamProcessor {
         return streams
             .sortedByDescending { it.averageBitrate }
             .groupBy { stream -> extractTrackLanguageKey(stream) }
+            .dropUntaggedGroupWhenTracksAreKnown()
             .map { (_, group) ->
                 group.first()
             }
             .sortedBy { stream -> audioTrackDisplayName(stream).orEmpty() }
             .also { Log.d(TAG, "Processed ${streams.size} audio streams -> ${it.size} unique tracks") }
     }
+
+    /**
+     * Once named tracks are present, the untagged bucket is the same audio arriving from a backend
+     * that does not name tracks (the two extraction paths get merged). Keeping it would render an
+     * unlabelled duplicate row beside the real ones.
+     */
+    private fun Map<String, List<AudioStream>>.dropUntaggedGroupWhenTracksAreKnown():
+        Map<String, List<AudioStream>> =
+        if (size > 1) this - UNTAGGED_TRACK_KEY else this
 
     fun processSubtitleStreams(streams: List<SubtitlesStream>): List<SubtitlesStream> {
         return streams
@@ -55,21 +69,36 @@ object StreamProcessor {
     }
 
     /**
-     * Derive a unique grouping key for deduplication. Uses audioTrackName, audioLocale, or
-     * audioTrackId (trying both dot- and underscore-separated suffixes, then full ID) so that
-     * tracks with formats like "A_hi" are not all collapsed into a single "default" group.
+     * Index of [stream]'s logical track within [tracks], or 0 when it cannot be placed.
+     *
+     * Matched by track identity rather than instance: the playing stream is picked from the raw
+     * list while [tracks] holds one representative per track, so the two are rarely the same
+     * object and an instance lookup silently reports the wrong row as selected.
      */
+    fun indexOfAudioTrack(tracks: List<AudioStream>, stream: AudioStream?): Int {
+        if (stream == null) return 0
+        val key = extractTrackLanguageKey(stream)
+        return tracks.indexOfFirst { extractTrackLanguageKey(it) == key }.coerceAtLeast(0)
+    }
+
+    /**
+     * True when this stream is a track chosen over YouTube's default. Neither YouTube's own DASH
+     * manifest nor a SABR session can serve such a choice — both carry only the default track — so
+     * playback has to fall through to a manifest generated from this specific stream.
+     */
+    fun overridesDefaultAudioTrack(stream: AudioStream?): Boolean {
+        val type = stream?.audioTrackType ?: return false
+        return type != AudioTrackType.ORIGINAL
+    }
+
+    /** Derive a stable logical-track key while collapsing only alternate formats of that track. */
     private fun extractTrackLanguageKey(stream: AudioStream): String {
-        stream.audioTrackName?.takeIf { it.isNotBlank() }?.let { return it }
-        stream.audioLocale?.language?.takeIf { it.isNotBlank() }?.let { return it }
-        stream.audioTrackId?.let { id ->
-            val dotPart = id.substringAfterLast(".").takeIf { it.isNotBlank() && it != id }
-            if (dotPart != null) return dotPart
-            val underPart = id.substringAfterLast("_").takeIf { it.isNotBlank() && it != id }
-            if (underPart != null) return underPart
-            return id
-        }
-        return "default"
+        return audioTrackGroupingKey(
+            trackId = stream.audioTrackId,
+            trackName = stream.audioTrackName,
+            languageTag = stream.audioLocale?.toLanguageTag(),
+            trackType = stream.audioTrackType?.name
+        )
     }
 
     /**
@@ -84,11 +113,8 @@ object StreamProcessor {
         }
 
         stream.audioTrackId?.let { trackId ->
-            val dotCode = trackId.substringAfterLast(".").takeIf { it.isNotBlank() && it != trackId }
-            val underCode = trackId.substringAfterLast("_").takeIf { it.isNotBlank() && it != trackId }
-            val langCode = dotCode ?: underCode
-            if (langCode != null) {
-                localizedLanguageName(langCode)?.let { return it }
+            audioTrackLanguageTag(trackId)?.let { languageTag ->
+                localizedLanguageName(languageTag)?.let { return it }
             }
             return trackId.replaceFirstChar { it.uppercase() }
         }
@@ -139,5 +165,37 @@ object StreamProcessor {
         return displayName.replaceFirstChar { character ->
             if (character.isLowerCase()) character.titlecase(displayLocale) else character.toString()
         }
+    }
+
+    internal fun audioTrackLanguageTag(trackId: String): String? {
+        val normalized = trackId.trim()
+        if (normalized.isEmpty()) return null
+
+        val withoutRoleSuffix = normalized.substringBeforeLast('.', missingDelimiterValue = "")
+        if (withoutRoleSuffix.isNotBlank()) return withoutRoleSuffix
+
+        if (normalized.startsWith("A_")) {
+            return normalized.substringAfterLast('_').takeIf { it.isNotBlank() }
+        }
+
+        return normalized.replace('_', '-').takeIf {
+            Locale.forLanguageTag(it.replace('_', '-')).language.isNotBlank()
+        }
+    }
+
+    internal fun audioTrackGroupingKey(
+        trackId: String?,
+        trackName: String?,
+        languageTag: String?,
+        trackType: String?
+    ): String {
+        val type = trackType.orEmpty().lowercase(Locale.ROOT)
+        trackId?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { return "id:${it.lowercase(Locale.ROOT)}" }
+        trackName?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { return "name:${it.lowercase(Locale.ROOT)}|$type" }
+        languageTag?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { return "language:${it.lowercase(Locale.ROOT)}|$type" }
+        return UNTAGGED_TRACK_KEY
     }
 }

@@ -219,7 +219,10 @@ fun GlobalPlayerOverlay(
         }
     }
 
-    var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
+    var decodedVideoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
+    val videoAspectRatio = playerState.sourceVideoAspectRatio
+        .takeIf { playerState.currentVideoId == video.id }
+        ?: decodedVideoAspectRatio
     var mediaSheetProgress by remember { mutableFloatStateOf(0f) }
     var lockedMediaSheetCollapsedHeight by remember { mutableStateOf<androidx.compose.ui.unit.Dp?>(null) }
     val progressDrivenMediaSheetVisible =
@@ -266,7 +269,7 @@ fun GlobalPlayerOverlay(
     var pipForcedFullscreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(video.id) {
-        videoAspectRatio = 16f / 9f
+        decodedVideoAspectRatio = 16f / 9f
         screenState.zoomScale = 1f
         screenState.zoomOffsetX = 0f
         screenState.zoomOffsetY = 0f
@@ -455,6 +458,7 @@ fun GlobalPlayerOverlay(
         lifecycleOwner = lifecycleOwner,
         isPlaying = playerState.playWhenReady,
         isBackgroundPlaybackMode = playerUiState.isBackgroundPlaybackMode,
+        videoAspectRatio = videoAspectRatio,
         pipPreferences = pipPreferences,
         onPipModeChanged = { inPipMode ->
             GlobalPlayerState.setPipMode(inPipMode)
@@ -939,7 +943,7 @@ fun GlobalPlayerOverlay(
                             video = video,
                             resizeMode = screenState.resizeMode,
                             modifier = Modifier.fillMaxSize(),
-                            onVideoAspectRatioChanged = { videoAspectRatio = it },
+                            onVideoAspectRatioChanged = { decodedVideoAspectRatio = it },
                             cornerRadiusDp = if (isMinimized && !localIsInPipMode) {
                                 12f / playerSheetState.miniVisualScale
                             } else 0f,
@@ -1033,7 +1037,7 @@ fun GlobalPlayerOverlay(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.ErrorOutline,
-                                            contentDescription = "Playback error",
+                                            contentDescription = stringResource(R.string.ui_playback_error),
                                             tint = Color(0xFFFF6B6B),
                                             modifier = Modifier.size(48.dp)
                                         )
@@ -1112,6 +1116,7 @@ fun GlobalPlayerOverlay(
                                 onPipClick = {
                                     PictureInPictureHelper.requestPlayerPipMode(
                                         activity = activity,
+                                        aspectRatio = videoAspectRatio,
                                         isPlaying = playerState.isPlaying
                                     )
                                 },
@@ -1412,6 +1417,7 @@ fun GlobalPlayerOverlay(
                             ) {
                                 PictureInPictureHelper.requestPlayerPipMode(
                                     activity = activity,
+                                    aspectRatio = videoAspectRatio,
                                     isPlaying = playerState.isPlaying
                                 )
                             }
