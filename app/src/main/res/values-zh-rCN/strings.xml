@@ -1887,7 +1887,6 @@
     <string name="reset_profile_confirm">重置</string>
     <string name="taste_chart_profile">画像</string>
     <string name="taste_chart_now">现在</string>
-    <string name="topic_score_prefix"></string>
     <string name="settings_item_datetime">日期和时间</string>
     <string name="settings_item_datetime_subtitle">自定义上传日期的显示方式</string>
     <string name="datetime_title">日期和时间显示</string>
