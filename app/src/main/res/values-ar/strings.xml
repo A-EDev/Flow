@@ -362,7 +362,7 @@
     <string name="watch_later">المشاهدة لاحقا</string>
     <string name="playlist_private">خاص</string>
     <string name="playlist_public">عام</string>
-    <string name="create_new_playlist">أنشئ قامة تشغيل جديدة</string>
+    <string name="create_new_playlist">أنشئ قائمة تشغيل جديدة</string>
     <string name="playlist_name">الاسم</string>
     <string name="playlist_description_optional">الوصف (اختياري)</string>
     <string name="mark_as_watched">علّم كمشاهَد</string>
@@ -2140,4 +2140,9 @@
     <string name="fallback_your_watch_later_list">قائمة المشاهدة لاحقاً</string>
     <string name="fallback_downloaded_locally">تم تنزيله محلياً</string>
     <string name="fallback_more_results">المزيد من النتائج</string>
+    <string name="content_settings_hide_unplayable_subscriptions_title">إخفاء الفيديوهات الغير قابلة للتشغيل من صفحة الإشتراكات</string>
+    <string name="content_settings_hide_unplayable_subscriptions_subtitle">قم بتصفية مقاطع الفيديو المقيدة بالعمر، و الخاصة، و المخصصة للأعضاء فقط، و المحذوفة بعد فشل تشغيلها</string>
+    <string name="equalizer">المعادل</string>
+    <string name="action_save_preset">حفظ الإعداد المسبق</string>
+    <string name="label_preset_name">إسم‌ الإعداد المسبق</string>
 </resources>
