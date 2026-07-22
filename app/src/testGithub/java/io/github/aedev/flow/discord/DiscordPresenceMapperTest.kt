@@ -4,7 +4,11 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class DiscordPresenceMapperTest {
-    private val mapper = DiscordPresenceMapper()
+    private val mapper = DiscordPresenceMapper(
+        appName = "Flow",
+        playingFallback = "Playing in Flow",
+        creatorLabel = { creator -> "by $creator" },
+    )
 
     @Test
     fun musicMapsToListeningWithArtistAndCountdown() {

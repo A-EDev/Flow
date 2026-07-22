@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.tv
 
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,8 +10,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,6 +39,7 @@ import io.github.aedev.flow.ui.tv.screens.TvSettingsScreen
 import io.github.aedev.flow.ui.tv.screens.TvSubscriptionsScreen
 
 @androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun FlowTvApp(
     deeplinkVideoId: String? = null,
@@ -44,8 +52,10 @@ fun FlowTvApp(
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity)
     val subscriptionsViewModel: SubscriptionsViewModel = viewModel(viewModelStoreOwner = activity)
     val searchViewModel: SearchViewModel = viewModel(viewModelStoreOwner = activity)
-    var destination by remember { mutableStateOf(TvDestination.HOME) }
+    var destination by rememberSaveable { mutableStateOf(TvDestination.HOME) }
     val activeVideo by GlobalPlayerState.currentVideo.collectAsStateWithLifecycle()
+    val appFocusRequester = remember { FocusRequester() }
+    var restoreAppFocus by remember { mutableStateOf(true) }
 
     fun play(video: Video) {
         GlobalPlayerState.setCurrentVideo(video)
@@ -70,8 +80,26 @@ fun FlowTvApp(
         onDeeplinkConsumed()
     }
 
+    LaunchedEffect(activeVideo, restoreAppFocus) {
+        if (activeVideo == null && restoreAppFocus) {
+            appFocusRequester.requestFocus()
+            restoreAppFocus = false
+        }
+    }
+
+    val backDestination = destination.backDestination()
+    BackHandler(enabled = activeVideo == null && backDestination != null) {
+        destination = backDestination ?: TvDestination.HOME
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        Row(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .focusRestorer()
+                .focusRequester(appFocusRequester)
+                .focusProperties { canFocus = activeVideo == null },
+        ) {
             TvNavigationRail(
                 selected = destination,
                 onSelected = { destination = it },
@@ -109,6 +137,7 @@ fun FlowTvApp(
                 onClose = {
                     playerViewModel.clearVideo()
                     GlobalPlayerState.setCurrentVideo(null)
+                    restoreAppFocus = true
                 },
             )
         }

@@ -1,10 +1,16 @@
 package io.github.aedev.flow.discord
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import androidx.annotation.StringRes
+import io.github.aedev.flow.R
 import java.lang.ref.WeakReference
-import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
+import java.util.LinkedHashMap
 import java.util.concurrent.TimeUnit
+import kotlin.random.Random
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +24,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.MediaType.Companion.toMediaType
@@ -35,6 +43,7 @@ import org.json.JSONObject
  * This uses a Discord user session and is not an official Discord integration.
  */
 class KizzyDiscordPresenceTransport(
+    private val context: Context,
     private val client: OkHttpClient,
     private val tokenStore: DiscordTokenStore,
     private val applicationId: String,
@@ -43,7 +52,15 @@ class KizzyDiscordPresenceTransport(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val connectionMutex = Mutex()
-    private val imageCache = ConcurrentHashMap<String, String>()
+    private val accountLinkMutex = Mutex()
+    private val reconnectBackoff = DiscordReconnectBackoff()
+    private val heartbeatTracker = DiscordHeartbeatTracker()
+    private val imageCache = Collections.synchronizedMap(
+        object : LinkedHashMap<String, String>(MAX_IMAGE_CACHE_ENTRIES, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean =
+                size > MAX_IMAGE_CACHE_ENTRIES
+        },
+    )
     private var activityReference = WeakReference<Activity>(null)
     private var socket: WebSocket? = null
     private var heartbeatJob: Job? = null
@@ -66,19 +83,37 @@ class KizzyDiscordPresenceTransport(
     }
 
     override suspend fun link(): DiscordLinkResult {
+        if (!accountLinkMutex.tryLock()) {
+            return fail(R.string.discord_error_connection_in_progress)
+        }
+
+        return try {
+            linkAccount()
+        } finally {
+            accountLinkMutex.unlock()
+        }
+    }
+
+    private suspend fun linkAccount(): DiscordLinkResult {
         val activity = activityReference.get()
-            ?: return fail("Open Flow before connecting Discord.")
+            ?: return fail(R.string.discord_error_open_flow)
         val result = DiscordLoginBroker.begin()
-            ?: return fail("A Discord connection is already in progress.")
+            ?: return fail(R.string.discord_error_connection_in_progress)
 
         _connectionState.value = DiscordConnectionState.LINKING
         _lastError.value = null
         activity.startActivity(Intent(activity, DiscordLoginActivity::class.java))
 
-        val token = runCatching {
+        val token = try {
             withTimeout(LOGIN_TIMEOUT_MS) { result.await().getOrThrow() }
-        }.getOrElse { error ->
-            return fail(error.message ?: "Discord connection did not complete.")
+        } catch (error: TimeoutCancellationException) {
+            DiscordLoginBroker.cancel()
+            return fail(R.string.discord_error_login_timeout)
+        } catch (error: CancellationException) {
+            DiscordLoginBroker.cancel()
+            throw error
+        } catch (error: Throwable) {
+            return fail(error.message ?: context.getString(R.string.discord_error_connection_incomplete))
         }
 
         return connect(
@@ -91,17 +126,16 @@ class KizzyDiscordPresenceTransport(
     }
 
     override suspend fun connect(tokens: DiscordAuthTokens): DiscordLinkResult {
-        connectionMutex.lock()
-        return try {
+        val result = connectionMutex.withLock {
             connectLocked(tokens)
-        } finally {
-            connectionMutex.unlock()
         }
+        if (result == DiscordLinkResult.Success) reconnectBackoff.reset()
+        return result
     }
 
     private suspend fun connectLocked(tokens: DiscordAuthTokens): DiscordLinkResult {
-        if (tokens.accessToken.isBlank()) return fail("Discord returned an empty session token.")
-        if (applicationId.isBlank()) return fail("Discord application ID is missing from this build.")
+        if (tokens.accessToken.isBlank()) return fail(R.string.discord_error_empty_token)
+        if (applicationId.isBlank()) return fail(R.string.discord_error_missing_application_id)
         if (
             _connectionState.value == DiscordConnectionState.CONNECTED &&
             currentToken == tokens.accessToken
@@ -121,11 +155,14 @@ class KizzyDiscordPresenceTransport(
         val request = Request.Builder().url(KizzyGatewayProtocol.GATEWAY_URL).build()
         socket = client.newWebSocket(request, gatewayListener(connectionGeneration, tokens))
 
-        return runCatching {
+        return try {
             withTimeout(CONNECTION_TIMEOUT_MS) { signal.await() }
-        }.getOrElse {
+        } catch (error: TimeoutCancellationException) {
             closeSocket()
-            fail("Discord Gateway connection timed out.")
+            fail(R.string.discord_error_gateway_timeout)
+        } catch (error: CancellationException) {
+            closeSocket()
+            throw error
         }
     }
 
@@ -133,31 +170,76 @@ class KizzyDiscordPresenceTransport(
         if (!ensureConnected()) return false
         val resolvedImage = resolveExternalImage(payload.largeImage)
         return socket?.send(
-            KizzyGatewayProtocol.presence(payload, applicationId, resolvedImage),
+            KizzyGatewayProtocol.presence(
+                payload = payload,
+                applicationId = applicationId,
+                resolvedImage = resolvedImage,
+                activityName = context.getString(R.string.app_name),
+            ),
         ) == true
     }
 
     override suspend fun clear(): Boolean {
         if (_connectionState.value != DiscordConnectionState.CONNECTED) return true
-        return socket?.send(KizzyGatewayProtocol.presence(null, applicationId, null)) == true
+        return socket?.send(
+            KizzyGatewayProtocol.presence(
+                payload = null,
+                applicationId = applicationId,
+                resolvedImage = null,
+                activityName = context.getString(R.string.app_name),
+            ),
+        ) == true
+    }
+
+    override suspend fun disconnect(): Boolean {
+        // Opening Discord's login activity stops MainActivity. Presence lifecycle teardown must
+        // not cancel the account-link handshake while the gateway is waiting for READY.
+        if (!accountLinkMutex.tryLock()) return true
+        return try {
+            disconnectSocket()
+        } finally {
+            accountLinkMutex.unlock()
+        }
     }
 
     override suspend fun unlink(): Boolean {
-        clear()
-        closeSocket()
+        DiscordLoginBroker.cancel()
+        disconnectSocket()
         tokenStore.clear()
         currentToken = null
+        imageCache.clear()
         _linkedAccountName.value = null
         _lastError.value = null
         _connectionState.value = DiscordConnectionState.DISCONNECTED
         return true
     }
 
+    private suspend fun disconnectSocket(): Boolean {
+        val cleared = clear()
+        closeSocket()
+        currentToken = null
+        imageCache.clear()
+        if (_connectionState.value != DiscordConnectionState.UNAVAILABLE) {
+            _connectionState.value = DiscordConnectionState.DISCONNECTED
+        }
+        return cleared
+    }
+
     override fun close() {
         if (_connectionState.value == DiscordConnectionState.CONNECTED) {
-            socket?.send(KizzyGatewayProtocol.presence(null, applicationId, null))
+            socket?.send(
+                KizzyGatewayProtocol.presence(
+                    payload = null,
+                    applicationId = applicationId,
+                    resolvedImage = null,
+                    activityName = context.getString(R.string.app_name),
+                ),
+            )
         }
         closeSocket()
+        DiscordLoginBroker.cancel()
+        currentToken = null
+        imageCache.clear()
         scope.cancel()
     }
 
@@ -176,7 +258,7 @@ class KizzyDiscordPresenceTransport(
                     val accountName = user?.optString("global_name")
                         ?.takeIf(String::isNotBlank)
                         ?: user?.optString("username")?.takeIf(String::isNotBlank)
-                        ?: "Discord user"
+                        ?: context.getString(R.string.discord_account_fallback)
                     _linkedAccountName.value = accountName
                     _connectionState.value = DiscordConnectionState.CONNECTED
                     _lastError.value = null
@@ -184,20 +266,27 @@ class KizzyDiscordPresenceTransport(
                     readySignal?.complete(DiscordLinkResult.Success)
                 }
 
-                1 -> webSocket.send(KizzyGatewayProtocol.heartbeat(sequence))
-                7 -> failFromCallback("Discord requested a reconnect.")
-                9 -> failFromCallback("Discord rejected the session. Reconnect your account.")
+                1 -> {
+                    heartbeatTracker.markRequestedHeartbeatSent()
+                    if (!webSocket.send(KizzyGatewayProtocol.heartbeat(sequence))) {
+                        failFromCallback(context.getString(R.string.discord_error_heartbeat_failed))
+                    }
+                }
+                7 -> failFromCallback(context.getString(R.string.discord_error_gateway_reconnect))
+                9 -> failFromCallback(context.getString(R.string.discord_error_session_rejected))
                 10 -> {
                     val interval = payload.optJSONObject("d")?.optLong("heartbeat_interval") ?: 0L
                     startHeartbeat(webSocket, interval, connectionGeneration)
                     webSocket.send(KizzyGatewayProtocol.identify(tokens.accessToken))
                 }
+
+                11 -> heartbeatTracker.acknowledge()
             }
         }
 
         override fun onFailure(webSocket: WebSocket, throwable: Throwable, response: Response?) {
             if (connectionGeneration != generation) return
-            failFromCallback("Discord Gateway connection failed.")
+            failFromCallback(context.getString(R.string.discord_error_gateway_failed))
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -212,18 +301,30 @@ class KizzyDiscordPresenceTransport(
     private fun startHeartbeat(webSocket: WebSocket, intervalMs: Long, connectionGeneration: Int) {
         heartbeatJob?.cancel()
         if (intervalMs <= 0) return
+        heartbeatTracker.reset()
         heartbeatJob = scope.launch {
+            delay(Random.nextLong(intervalMs.coerceAtLeast(1L)))
             while (isActive && connectionGeneration == generation) {
+                if (!heartbeatTracker.markPeriodicHeartbeatSent()) {
+                    failFromCallback(context.getString(R.string.discord_error_heartbeat_unacknowledged))
+                    return@launch
+                }
+                if (!webSocket.send(KizzyGatewayProtocol.heartbeat(sequence))) {
+                    failFromCallback(context.getString(R.string.discord_error_heartbeat_failed))
+                    return@launch
+                }
                 delay(intervalMs)
-                webSocket.send(KizzyGatewayProtocol.heartbeat(sequence))
             }
         }
     }
 
     private suspend fun ensureConnected(): Boolean {
         if (_connectionState.value == DiscordConnectionState.CONNECTED) return true
+        if (!reconnectBackoff.canAttempt()) return false
         val saved = tokenStore.load() ?: return false
-        return connect(saved) == DiscordLinkResult.Success
+        val connected = connect(saved) == DiscordLinkResult.Success
+        if (!connected) reconnectBackoff.recordFailure()
+        return connected
     }
 
     private suspend fun resolveExternalImage(imageUrl: String): String? {
@@ -263,6 +364,8 @@ class KizzyDiscordPresenceTransport(
         socket?.close(1000, "Flow Discord presence closed")
         socket = null
         sequence = null
+        heartbeatTracker.reset()
+        currentToken = null
     }
 
     private fun fail(message: String): DiscordLinkResult.Failure {
@@ -281,5 +384,9 @@ class KizzyDiscordPresenceTransport(
         val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         val LOGIN_TIMEOUT_MS = TimeUnit.MINUTES.toMillis(5)
         val CONNECTION_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(20)
+        const val MAX_IMAGE_CACHE_ENTRIES = 64
     }
+
+    private fun fail(@StringRes messageRes: Int): DiscordLinkResult.Failure =
+        fail(context.getString(messageRes))
 }

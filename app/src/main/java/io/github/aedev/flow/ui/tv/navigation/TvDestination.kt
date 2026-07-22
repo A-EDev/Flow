@@ -22,6 +22,8 @@ enum class TvDestination(
     LIBRARY("library", R.string.library, Icons.Outlined.VideoLibrary),
     SETTINGS("settings", R.string.settings, Icons.Outlined.Settings);
 
+    fun backDestination(): TvDestination? = if (this == HOME) null else HOME
+
     companion object {
         val primary: List<TvDestination> = entries.toList()
 

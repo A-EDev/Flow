@@ -60,6 +60,20 @@ class DiscordSettingsStateTest {
     }
 
     @Test
+    fun `linked account remains ready while gateway is idle`() {
+        val state = deriveDiscordSettingsState(
+            preferenceEnabled = true,
+            transportAvailable = true,
+            connectionState = DiscordConnectionState.DISCONNECTED,
+            accountName = "pasta",
+            errorMessage = null,
+        )
+
+        assertThat(state.summary).isEqualTo(DiscordSettingsSummary.READY)
+        assertThat(state.accountName).isEqualTo("pasta")
+    }
+
+    @Test
     fun `transport error takes precedence while enabled`() {
         val state = deriveDiscordSettingsState(
             preferenceEnabled = true,

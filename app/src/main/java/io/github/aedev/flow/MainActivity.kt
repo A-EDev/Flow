@@ -418,7 +418,12 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    
+
+    override fun onStart() {
+        super.onStart()
+        DiscordPresenceRuntime.setAppForeground(true)
+    }
+
     override fun onDestroy() {
         videoLifecycleLog("onDestroy")
         DiscordPresenceRuntime.detachActivity(this)
@@ -607,6 +612,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        DiscordPresenceRuntime.setAppForeground(false)
         super.onStop()
         FlowCrashHandler.recordPhase(
             "activity",

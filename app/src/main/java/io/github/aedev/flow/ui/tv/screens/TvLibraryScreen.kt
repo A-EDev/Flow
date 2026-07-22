@@ -36,6 +36,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.tv.components.TvFocusableCard
 import io.github.aedev.flow.ui.tv.components.TvMessageState
 import io.github.aedev.flow.ui.tv.components.TvVideoCard
+import io.github.aedev.flow.ui.tv.toTvVideo
 
 private enum class TvLibrarySection(@StringRes val titleRes: Int) {
     HISTORY(R.string.tv_library_history),
@@ -112,29 +113,3 @@ fun TvLibraryScreen(
         }
     }
 }
-
-private fun VideoHistoryEntry.toTvVideo(): Video = Video(
-    id = videoId,
-    title = title,
-    channelName = channelName,
-    channelId = channelId,
-    thumbnailUrl = thumbnailUrl,
-    duration = (duration / 1_000L).toInt(),
-    viewCount = 0L,
-    uploadDate = "",
-    timestamp = timestamp,
-    isShort = isShort,
-)
-
-private fun LikedVideoInfo.toTvVideo(): Video = Video(
-    id = videoId,
-    title = title,
-    channelName = channelName,
-    channelId = "",
-    thumbnailUrl = thumbnail,
-    duration = 0,
-    viewCount = 0L,
-    uploadDate = "",
-    timestamp = likedAt,
-    isMusic = isMusic,
-)

@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
+import androidx.paging.LoadState
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
@@ -37,6 +39,7 @@ import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.tv.components.TvFocusableCard
 import io.github.aedev.flow.ui.tv.components.TvMessageState
+import io.github.aedev.flow.ui.tv.components.TvLoadingState
 import io.github.aedev.flow.ui.tv.components.TvVideoCard
 
 @Composable
@@ -90,14 +93,16 @@ fun TvSearchScreen(
             }
         }
 
-        val videos = remember(results.itemSnapshotList.items) {
-            results.itemSnapshotList.items.mapNotNull { item ->
-                (item as? SearchResultItem.VideoResult)?.video
-            }
-        }
-        if (videos.isEmpty() && results.itemCount == 0) {
+        if (results.loadState.refresh is LoadState.Loading && results.itemCount == 0) {
+            TvLoadingState(modifier = Modifier.weight(1f))
+        } else if (results.loadState.refresh is LoadState.Error && results.itemCount == 0) {
             TvMessageState(
-                title = stringResource(R.string.tv_search_prompt),
+                title = stringResource(R.string.tv_error_loading),
+                modifier = Modifier.weight(1f),
+            )
+        } else if (results.loadState.refresh is LoadState.NotLoading && results.itemCount == 0) {
+            TvMessageState(
+                title = stringResource(R.string.tv_search_no_results),
                 modifier = Modifier.weight(1f),
             )
         } else {
@@ -108,12 +113,31 @@ fun TvSearchScreen(
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                items(videos, key = Video::id) { video ->
-                    TvVideoCard(
-                        video = video,
-                        onClick = { onVideoClick(video) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                items(
+                    count = results.itemCount,
+                    key = results.itemKey { item ->
+                        when (item) {
+                            is SearchResultItem.VideoResult -> "video:${item.video.id}"
+                            is SearchResultItem.ChannelResult -> "channel:${item.channel.id}"
+                            is SearchResultItem.PlaylistResult -> "playlist:${item.playlist.id}"
+                            is SearchResultItem.ShortsShelfResult -> "shorts:${item.shorts.firstOrNull()?.id.orEmpty()}"
+                        }
+                    },
+                ) { index ->
+                    val video = (results[index] as? SearchResultItem.VideoResult)?.video
+                    if (video != null) {
+                        TvVideoCard(
+                            video = video,
+                            onClick = { onVideoClick(video) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                if (results.loadState.append is LoadState.Loading) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        TvLoadingState()
+                    }
                 }
             }
         }

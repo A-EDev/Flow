@@ -14,6 +14,7 @@ interface DiscordPresenceTransport {
     suspend fun connect(tokens: DiscordAuthTokens): DiscordLinkResult
     suspend fun update(payload: DiscordPresencePayload): Boolean
     suspend fun clear(): Boolean
+    suspend fun disconnect(): Boolean
     suspend fun unlink(): Boolean
     fun close()
 }

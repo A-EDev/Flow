@@ -21,4 +21,14 @@ class TvDestinationTest {
         assertThat(TvDestination.fromRoute("missing")).isEqualTo(TvDestination.HOME)
         assertThat(TvDestination.fromRoute(null)).isEqualTo(TvDestination.HOME)
     }
+
+    @Test
+    fun `back from top level destinations converges on home then exits`() {
+        TvDestination.primary
+            .filterNot { it == TvDestination.HOME }
+            .forEach { destination ->
+                assertThat(destination.backDestination()).isEqualTo(TvDestination.HOME)
+            }
+        assertThat(TvDestination.HOME.backDestination()).isNull()
+    }
 }

@@ -21,6 +21,7 @@ svglogo
 metro*
 release.ps1
 release.bat
+releasenote.ps1
 build_result.md
 LibreTube-master
 # Secrets and Local configuration

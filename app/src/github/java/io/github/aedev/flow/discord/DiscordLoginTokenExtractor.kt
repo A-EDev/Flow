@@ -6,10 +6,15 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonPrimitive
 
 internal object DiscordLoginTokenExtractor {
-    fun isAuthenticatedAppUrl(url: String): Boolean = runCatching {
+    fun isAllowedNavigation(url: String): Boolean = runCatching {
         val uri = URI(url)
         uri.scheme.equals("https", ignoreCase = true) &&
-            uri.host.equals("discord.com", ignoreCase = true) &&
+            uri.host.equals(DISCORD_HOST, ignoreCase = true)
+    }.getOrDefault(false)
+
+    fun isAuthenticatedAppUrl(url: String): Boolean = runCatching {
+        val uri = URI(url)
+        isAllowedNavigation(url) &&
             uri.path.trimEnd('/') == "/app"
     }.getOrDefault(false)
 
@@ -20,4 +25,6 @@ internal object DiscordLoginTokenExtractor {
         ?.trim()
         ?.removeSurrounding("\"")
         ?.takeIf { it.isNotEmpty() && it != "null" }
+
+    private const val DISCORD_HOST = "discord.com"
 }

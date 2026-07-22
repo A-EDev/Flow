@@ -21,6 +21,20 @@ class DiscordLoginTokenExtractorTest {
     }
 
     @Test
+    fun `navigation permits only exact HTTPS Discord origin`() {
+        assertThat(DiscordLoginTokenExtractor.isAllowedNavigation("https://discord.com/login"))
+            .isTrue()
+        assertThat(DiscordLoginTokenExtractor.isAllowedNavigation("http://discord.com/login"))
+            .isFalse()
+        assertThat(DiscordLoginTokenExtractor.isAllowedNavigation("https://discord.com.evil.example/app"))
+            .isFalse()
+        assertThat(DiscordLoginTokenExtractor.isAllowedNavigation("https://evil.example/?next=discord.com"))
+            .isFalse()
+        assertThat(DiscordLoginTokenExtractor.isAllowedNavigation("file:///data/local/tmp/token"))
+            .isFalse()
+    }
+
+    @Test
     fun `JavaScript result decodes a token and rejects null`() {
         assertThat(DiscordLoginTokenExtractor.decodeJavascriptValue("\"discord-token\""))
             .isEqualTo("discord-token")

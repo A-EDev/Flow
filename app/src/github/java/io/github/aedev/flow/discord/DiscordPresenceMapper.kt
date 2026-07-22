@@ -1,14 +1,18 @@
 package io.github.aedev.flow.discord
 
-class DiscordPresenceMapper {
+class DiscordPresenceMapper(
+    private val appName: String,
+    private val playingFallback: String,
+    private val creatorLabel: (String) -> String,
+) {
     fun map(
         snapshot: PlaybackSnapshot,
         nowEpochSeconds: Long,
     ): DiscordPresencePayload? {
         if (!snapshot.isPlaying || snapshot.mediaId.isBlank()) return null
 
-        val details = normalize(snapshot.title, fallback = "Playing in Flow")
-        val subtitle = normalize(snapshot.subtitle, fallback = "Flow")
+        val details = normalize(snapshot.title, fallback = playingFallback)
+        val subtitle = normalize(snapshot.subtitle, fallback = appName)
         val durationMs = snapshot.durationMs.coerceAtLeast(0L)
         val positionMs = snapshot.positionMs.coerceAtLeast(0L).let { position ->
             if (durationMs > 0L) position.coerceAtMost(durationMs) else position
@@ -28,7 +32,7 @@ class DiscordPresenceMapper {
             state = if (snapshot.kind == PlaybackKind.MUSIC) {
                 subtitle
             } else {
-                normalize("by $subtitle", fallback = "Flow")
+                normalize(creatorLabel(subtitle), fallback = appName)
             },
             largeImage = snapshot.artworkUrl
                 .trim()

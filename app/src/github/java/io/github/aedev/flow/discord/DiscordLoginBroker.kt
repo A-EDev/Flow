@@ -22,4 +22,10 @@ internal object DiscordLoginBroker {
         pending?.complete(Result.failure(IllegalStateException(message)))
         pending = null
     }
+
+    @Synchronized
+    fun cancel() {
+        pending?.cancel()
+        pending = null
+    }
 }

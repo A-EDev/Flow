@@ -8,7 +8,7 @@ class DiscordPresenceCoordinator(
     private val enabled: Flow<Boolean>,
     private val playback: Flow<PlaybackSnapshot?>,
     private val transport: DiscordPresenceTransport,
-    private val mapper: DiscordPresenceMapper = DiscordPresenceMapper(),
+    private val mapper: DiscordPresenceMapper,
     private val policy: DiscordPresencePolicy = DiscordPresencePolicy(),
     private val nowEpochSeconds: () -> Long = { System.currentTimeMillis() / 1_000L },
     private val nowElapsedMs: () -> Long,

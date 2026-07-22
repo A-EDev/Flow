@@ -32,6 +32,7 @@ import io.github.aedev.flow.ui.tv.components.TvFocusableCard
 import io.github.aedev.flow.ui.tv.components.TvLoadingState
 import io.github.aedev.flow.ui.tv.components.TvMessageState
 import io.github.aedev.flow.ui.tv.components.TvVideoRow
+import io.github.aedev.flow.ui.tv.toTvVideo
 
 @Composable
 fun TvHomeScreen(
@@ -110,7 +111,6 @@ fun TvHomeScreen(
         }
     }
 }
-
 @Composable
 private fun TvSection(
     title: String,
@@ -126,16 +126,3 @@ private fun TvSection(
         TvVideoRow(videos = videos, onVideoClick = onVideoClick)
     }
 }
-
-private fun VideoHistoryEntry.toTvVideo(): Video = Video(
-    id = videoId,
-    title = title,
-    channelName = channelName,
-    channelId = channelId,
-    thumbnailUrl = thumbnailUrl,
-    duration = (duration / 1_000L).toInt(),
-    viewCount = 0L,
-    uploadDate = "",
-    timestamp = timestamp,
-    isShort = isShort,
-)

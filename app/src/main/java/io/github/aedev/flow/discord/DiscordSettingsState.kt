@@ -3,6 +3,7 @@ package io.github.aedev.flow.discord
 enum class DiscordSettingsSummary {
     OFF,
     NOT_CONNECTED,
+    READY,
     CONNECTED,
     UNAVAILABLE,
     ERROR,
@@ -27,11 +28,13 @@ fun deriveDiscordSettingsState(
 ): DiscordSettingsState {
     val available = transportAvailable && connectionState != DiscordConnectionState.UNAVAILABLE
     val enabled = preferenceEnabled && available
+    val linkedAccount = accountName?.takeIf(String::isNotBlank)
     val summary = when {
         !available -> DiscordSettingsSummary.UNAVAILABLE
         connectionState == DiscordConnectionState.ERROR -> DiscordSettingsSummary.ERROR
         !enabled -> DiscordSettingsSummary.OFF
         connectionState == DiscordConnectionState.CONNECTED -> DiscordSettingsSummary.CONNECTED
+        linkedAccount != null -> DiscordSettingsSummary.READY
         else -> DiscordSettingsSummary.NOT_CONNECTED
     }
 
@@ -41,7 +44,7 @@ fun deriveDiscordSettingsState(
         canEnable = available,
         connectionState = connectionState,
         summary = summary,
-        accountName = accountName?.takeIf(String::isNotBlank),
+        accountName = linkedAccount,
         errorMessage = errorMessage?.takeIf(String::isNotBlank),
     )
 }

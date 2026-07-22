@@ -2,6 +2,8 @@ package io.github.aedev.flow.discord
 
 import android.app.Activity
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +14,11 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiscordPresenceCoordinatorTest {
+    private val mapper = DiscordPresenceMapper(
+        appName = "Flow",
+        playingFallback = "Playing in Flow",
+        creatorLabel = { creator -> "by $creator" },
+    )
 
     @Test
     fun `disabled setting clears presence`() = runTest {
@@ -22,6 +29,7 @@ class DiscordPresenceCoordinatorTest {
             enabled = enabled,
             playback = playback,
             transport = transport,
+            mapper = mapper,
             nowEpochSeconds = { 1_000L },
             nowElapsedMs = { 1_000L },
         )
@@ -30,6 +38,7 @@ class DiscordPresenceCoordinatorTest {
         runCurrent()
 
         assertThat(transport.clears).isEqualTo(1)
+        assertThat(transport.disconnects).isEqualTo(0)
         assertThat(transport.updates).isEmpty()
         job.cancelAndJoin()
     }
@@ -55,6 +64,7 @@ class DiscordPresenceCoordinatorTest {
             enabled = enabled,
             playback = playback,
             transport = transport,
+            mapper = mapper,
             nowEpochSeconds = { 100_000L },
             nowElapsedMs = { 1_000L },
         )
@@ -89,6 +99,7 @@ class DiscordPresenceCoordinatorTest {
             enabled = enabled,
             playback = playback,
             transport = transport,
+            mapper = mapper,
             nowEpochSeconds = { 100_000L },
             nowElapsedMs = { elapsed },
         )
@@ -123,6 +134,7 @@ class DiscordPresenceCoordinatorTest {
             enabled = enabled,
             playback = playback,
             transport = transport,
+            mapper = mapper,
             nowEpochSeconds = { 100L },
             nowElapsedMs = { 10_000L },
         )
@@ -158,6 +170,7 @@ class DiscordPresenceCoordinatorTest {
             enabled = enabled,
             playback = playback,
             transport = transport,
+            mapper = mapper,
             nowEpochSeconds = { 100L },
             nowElapsedMs = { 10_000L },
         )
@@ -169,8 +182,80 @@ class DiscordPresenceCoordinatorTest {
 
         assertThat(transport.updates).hasSize(1)
         assertThat(transport.clears).isEqualTo(1)
+        assertThat(transport.disconnects).isEqualTo(0)
         job.cancelAndJoin()
     }
+
+    @Test
+    fun `transient playback gap keeps gateway connected for next media`() = runTest {
+        val enabled = MutableStateFlow(true)
+        val playback = MutableStateFlow<PlaybackSnapshot?>(snapshot("video-1"))
+        val transport = RecordingTransport()
+        val coordinator = coordinator(enabled, playback, transport)
+
+        val job = launch { coordinator.run() }
+        runCurrent()
+        playback.value = null
+        runCurrent()
+        playback.value = snapshot("video-2")
+        runCurrent()
+
+        assertThat(transport.updates.map(DiscordPresencePayload::mediaId))
+            .containsExactly("video-1", "video-2")
+            .inOrder()
+        assertThat(transport.clears).isEqualTo(1)
+        assertThat(transport.disconnects).isEqualTo(0)
+        job.cancelAndJoin()
+    }
+
+    @Test
+    fun `rapid media change does not cancel in flight transport update`() = runTest {
+        val enabled = MutableStateFlow(true)
+        val playback = MutableStateFlow<PlaybackSnapshot?>(snapshot("video-1"))
+        val updateGate = CompletableDeferred<Unit>()
+        val transport = RecordingTransport().apply {
+            blockNextUpdate = updateGate
+        }
+        val coordinator = coordinator(enabled, playback, transport)
+
+        val job = launch { coordinator.run() }
+        runCurrent()
+        playback.value = snapshot("video-2")
+        runCurrent()
+        updateGate.complete(Unit)
+        runCurrent()
+
+        assertThat(transport.cancelledUpdates).isEqualTo(0)
+        assertThat(transport.updates.map(DiscordPresencePayload::mediaId))
+            .containsExactly("video-1", "video-2")
+            .inOrder()
+        job.cancelAndJoin()
+    }
+
+    private fun coordinator(
+        enabled: MutableStateFlow<Boolean>,
+        playback: MutableStateFlow<PlaybackSnapshot?>,
+        transport: DiscordPresenceTransport,
+    ) = DiscordPresenceCoordinator(
+        enabled = enabled,
+        playback = playback,
+        transport = transport,
+        mapper = mapper,
+        nowEpochSeconds = { 100L },
+        nowElapsedMs = { 10_000L },
+    )
+
+    private fun snapshot(mediaId: String) = PlaybackSnapshot(
+        kind = PlaybackKind.VIDEO,
+        mediaId = mediaId,
+        title = mediaId,
+        subtitle = "Creator",
+        artworkUrl = "",
+        durationMs = 60_000L,
+        positionMs = 1_000L,
+        isPlaying = true,
+        isLive = false,
+    )
 
     private class RecordingTransport : DiscordPresenceTransport {
         override val isAvailable: Boolean = true
@@ -180,7 +265,10 @@ class DiscordPresenceCoordinatorTest {
         val updates = mutableListOf<DiscordPresencePayload>()
         var updateAttempts = 0
         var failNextUpdate = false
+        var disconnects: Int = 0
         var clears: Int = 0
+        var cancelledUpdates: Int = 0
+        var blockNextUpdate: CompletableDeferred<Unit>? = null
 
         override fun attachActivity(activity: Activity?) = Unit
 
@@ -190,6 +278,15 @@ class DiscordPresenceCoordinatorTest {
 
         override suspend fun update(payload: DiscordPresencePayload): Boolean {
             updateAttempts += 1
+            blockNextUpdate?.let { blocker ->
+                blockNextUpdate = null
+                try {
+                    blocker.await()
+                } catch (error: CancellationException) {
+                    cancelledUpdates += 1
+                    throw error
+                }
+            }
             if (failNextUpdate) {
                 failNextUpdate = false
                 return false
@@ -200,6 +297,11 @@ class DiscordPresenceCoordinatorTest {
 
         override suspend fun clear(): Boolean {
             clears += 1
+            return true
+        }
+
+        override suspend fun disconnect(): Boolean {
+            disconnects += 1
             return true
         }
 

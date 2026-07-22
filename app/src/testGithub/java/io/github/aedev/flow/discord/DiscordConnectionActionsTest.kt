@@ -67,6 +67,7 @@ class DiscordConnectionActionsTest {
 
         override suspend fun update(payload: DiscordPresencePayload) = true
         override suspend fun clear() = true
+        override suspend fun disconnect() = true
 
         override suspend fun unlink(): Boolean {
             unlinkCalls += 1

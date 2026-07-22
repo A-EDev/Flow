@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.utils.formatDuration
 
 @Composable
 fun TvVideoCard(
@@ -49,7 +50,7 @@ fun TvVideoCard(
                 )
                 if (video.duration > 0) {
                     Text(
-                        text = formatTvDuration(video.duration),
+                        text = formatDuration(video.duration),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.inverseOnSurface,
                         modifier = Modifier
@@ -85,7 +86,6 @@ fun TvVideoCard(
         }
     }
 }
-
 @Composable
 fun TvVideoRow(
     videos: List<Video>,
@@ -99,16 +99,5 @@ fun TvVideoRow(
         items(videos, key = Video::id) { video ->
             TvVideoCard(video = video, onClick = { onVideoClick(video) })
         }
-    }
-}
-
-private fun formatTvDuration(totalSeconds: Int): String {
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
     }
 }

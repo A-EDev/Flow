@@ -38,12 +38,13 @@ internal object KizzyGatewayProtocol {
         payload: DiscordPresencePayload?,
         applicationId: String,
         resolvedImage: String?,
+        activityName: String,
     ): String {
         val activities = buildJsonArray {
             if (payload != null) {
                 add(
                     buildJsonObject {
-                        put("name", "Flow")
+                        put("name", activityName)
                         put("type", if (payload.type == DiscordActivityType.LISTENING) 2 else 3)
                         put("details", payload.details)
                         put("state", payload.state)
