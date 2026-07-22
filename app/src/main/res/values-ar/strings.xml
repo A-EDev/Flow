@@ -338,7 +338,7 @@
     <string name="empty_description">لا يوجد وصف</string>
     <string name="clear_watch_history_alert_body">هذا سيزيل كل المقاطع من سجل المشاهدة. لا يمكنك التراجع عن هذا الإجراء.</string>
     <string name="empty_liked">لا إعجابات</string>
-    <string name="empty_liked_body">المقاطع المعجب بها ستظهر هنا</string>
+    <string name="empty_liked_body">المحتوى الذي أعجبتَ به سيظهر هنا</string>
     <string name="video">فيديو</string>
     <string name="up_next">التالي</string>
     <string name="playing">يُشغّل</string>
@@ -445,7 +445,7 @@
     <string name="sb_action_skip">تخطي</string>
     <string name="sb_action_mute">كتم</string>
     <string name="sb_action_show_toast">تنبيه فقط</string>
-    <string name="sb_action_ignore">تجاهل</string>
+    <string name="sb_action_ignore">تَجَاهل</string>
     <string name="sb_submit_start_time">وقت البداية</string>
     <string name="sb_submit_end_time">وقت النهاية</string>
     <string name="sb_submit_category">الفئات</string>
@@ -967,7 +967,7 @@
     <string name="error_not_available_hint">ربما تم حذف هذا الفيديو أو جعله خاصًا أو تمت إزالته بواسطة YouTube.</string>
     <string name="error_not_supported">نوع المحتوى غير مدعوم</string>
     <string name="error_not_supported_hint">لا يمكن تشغيل هذا التنسيق أو نوع المحتوى هذا في Flow.</string>
-    <string name="error_no_internet">لا يوجد اتصال بالإنترنت</string>
+    <string name="error_no_internet">ليس هنالك اتصال بالإنترنت</string>
     <string name="error_no_internet_hint">تحقق من اتصالك بشبكة الWi-Fi أو بيانات الهاتف المحمول وحاول مرة أخرى.</string>
     <string name="error_timeout">انتهت مهلة الاتصال</string>
     <string name="error_timeout_hint">استغرق الخادم وقتاً طويلاً للاستجابة. تحقق من اتصالك وحاول مرة أخرى.</string>
@@ -1094,7 +1094,7 @@
     <string name="filter_hd">HD</string>
     <string name="filter_4k">4K</string>
     <string name="tab_shorts">المقاطع القصيرة</string>
-    <string name="dismiss">تجاهل</string>
+    <string name="dismiss">تَجاهُل</string>
     <string name="peace_and_quiet">سلام و هدوء</string>
     <string name="notifications_empty_body">لقد وصلت للنهاية! ستظهر التحديثات الجديدة من اشتراكاتك هنا.</string>
     <string name="notif_system_settings_subtitle">افتح إعدادات أندرويد لإدارة أذونات كل قناة على حدة</string>
@@ -1265,7 +1265,7 @@
     <string name="files_access_granted_subtitle">ممكن، تظهر التنزيلات على الفور</string>
     <string name="files_access_title">الوصول إلى الملفات</string>
     <string name="permissions_header">الأذونات</string>
-    <string name="appearance_role_scrim">Scrim</string>
+    <string name="appearance_role_scrim">تعتيم</string>
     <string name="deep_flow_mode_subtitle">‏أوقف التعلم مؤقتًا — تصفح دون التأثير على ملفك الشخصي</string>
     <string name="deep_flow_learning_paused">التعلم متوقف</string>
     <string name="deep_flow_expires_in">تنتهي صلاحيته خلال %s</string>
@@ -1473,7 +1473,7 @@
     <string name="icon_name_flow_light">Flow فاتح</string>
     <string name="icon_name_material_sky">سماوي Material</string>
     <string name="icon_name_material_mint">نعناع Material</string>
-    <string name="theme_name_material_you">Material You</string>
+    <string name="theme_name_material_you">الألوان الديناميكية</string>
     <string name="theme_desc_material_you">ألوان خلفية الشاشة على أندرويد 12+</string>
     <string name="content_settings_comments_preview_title">معاينة التعليقات</string>
     <string name="content_settings_comments_preview_subtitle">إعرض أحدث تعليق داخل بطاقة التعليقات</string>
@@ -1508,10 +1508,10 @@
     <string name="discovery_status_subtitle">الإستفسارات والضوابط التي تشكل حاليًا عملية الاستكشاف</string>
     <string name="discovery_queries">الكميات</string>
     <string name="discovery_query_memory">ذاكرة طلبات البحث</string>
-    <string name="discovery_query_memory_detail">recent token sets</string>
+    <string name="discovery_query_memory_detail">مجموعات الرموز الأخيرة</string>
     <string name="discovery_rejections">مرفوض</string>
     <string name="discovery_shorts_seen">Shorts تم رؤيته</string>
-    <string name="discovery_shorts_seen_detail">repeat guard</string>
+    <string name="discovery_shorts_seen_detail">مانع التكرار</string>
     <string name="search_watch_history">البحث في سجل المشاهدة</string>
     <string name="history_filter_all_years">كل الوقت</string>
     <string name="history_sort_newest">الأحدث أولاً</string>
@@ -1680,7 +1680,7 @@
     <string name="content_settings_share_without_text_subtitle">شارك فقط رابط الفيديو، بدون رسالة \"شاهد هذا الفيديو\"</string>
     <string name="deep_flow_save_history_title">حفظ إلي سجل المشاهدة</string>
     <string name="deep_flow_save_history_subtitle">إحتفظ بالفيديوهات التي شاهدتها في سجل المشاهدة (مع مؤشر التقدم في الفيديو). لن يتعلم محرك الإقتراحات منها. إيقاف = عدم حفظ أي شيء.</string>
-    <string name="icon_name_flow_play">Flow Play</string>
+    <string name="icon_name_flow_play">تشغيل Flow</string>
     <string name="player_appearance_controls_while_loading_subtitle">إعرض عناصر التحكم في المشغل قبل اكتمال تحميل الفيديو حتى تتمكن من ضبط مستوى الصوت على الفور</string>
     <string name="content_settings_watched_threshold_90">تم تشغيل 90%</string>
     <string name="content_settings_watched_threshold_95">تم تشغيل 95%</string>
@@ -2075,7 +2075,7 @@
     <string name="notification_channel_reminders">التذكيرات</string>
     <string name="notification_channel_updates">تحديثات التطبيق</string>
     <string name="notification_channel_imports">استيراد البيانات</string>
-    <string name="error_no_internet_found">لا يوجد اتصال بالإنترنت</string>
+    <string name="error_no_internet_found">لم يُعثَر على اتصال بالإنترنت</string>
     <string name="error_no_videos_for_category">لم يتم العثور على فيديوهات لهذه الفئة.</string>
     <string name="error_failed_to_load_videos">فشل تحميل الفيديوهات.</string>
     <string name="error_invalid_channel_url">عنوان URL غير صالح للقناة</string>
@@ -2145,4 +2145,5 @@
     <string name="equalizer">المعادل</string>
     <string name="action_save_preset">حفظ الإعداد المسبق</string>
     <string name="label_preset_name">إسم‌ الإعداد المسبق</string>
+    <string name="ui_instrumental">INSTRUMENTAL</string>
 </resources>
