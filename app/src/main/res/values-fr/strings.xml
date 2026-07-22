@@ -40,7 +40,7 @@
     <string name="liked_videos">J\'aime</string>
     <string name="share_song">Partager la chanson</string>
     <string name="empty_liked">Pas de « J\'aime »</string>
-    <string name="empty_liked_body">Les vidéos que vous aimez apparaîtront ici</string>
+    <string name="empty_liked_body">Les contenus que vous avez aimés s\'afficheront ici</string>
     <string name="song">Chanson</string>
     <string name="video">Vidéo</string>
     <string name="share">Partager</string>
@@ -2028,4 +2028,26 @@
     <string name="ui_sync_lyrics">Synchroniser les paroles</string>
     <string name="ui_downloading_playlist">Téléchargement de la playlist</string>
     <string name="ui_no_songs_found">Aucun titre trouvé</string>
+    <string name="content_settings_hide_unplayable_subscriptions_title">Masquer les vidéos non lisibles dans les abonnements</string>
+    <string name="content_settings_hide_unplayable_subscriptions_subtitle">Filtrer les vidéos soumises à une restriction d\'âge, privées, réservées aux membres et supprimées lorsqu\'elles ne peuvent pas être lues</string>
+    <string name="ui_search_songs_to_add">Rechercher des titres à ajouter</string>
+    <string name="ui_add_songs_to_playlist">Ajouter des titres à la playlist</string>
+    <string name="ui_show_less">Afficher moins</string>
+    <string name="ui_show_more">Afficher plus</string>
+    <string name="ui_try_sabr_download">Essayez SABR Download</string>
+    <string name="ui_audio_only">Audio uniquement</string>
+    <string name="ui_no_crash_logs">Aucun journal d\'erreurs</string>
+    <string name="ui_copy_log">Journal des copies</string>
+    <string name="ui_clear_and_continue">Effacer et continuer</string>
+    <string name="ui_crashed_last_session">Flow a planté lors de la dernière session</string>
+    <string name="ui_copy_log_description">Copiez le journal ci-dessous et collez-le dans un ticket GitHub afin que le problème puisse être résolu.</string>
+    <string name="ui_search_settings">Paramètres de recherche</string>
+    <string name="ui_custom_interest_title">Ajouter un centre d\'intérêt personnalisé</string>
+    <string name="ui_custom_interest_subtitle">Saisissez le sujet que vous souhaitez suivre</string>
+    <string name="ui_custom_interest_hint">Centres d\'intérêt personnels (par exemple : le jazz, l\'astrophysique)</string>
+    <string name="ui_add_interest">Ajouter de l\'intérêt</string>
+    <string name="ui_version">Version %1$s</string>
+    <string name="update_download_prompt">Une nouvelle version de Flow est disponible (%1$s). Voulez-vous télécharger la dernière version de l\'APK ?</string>
+    <string name="ui_instrumental">I N S T R U M E N T A L</string>
+    <string name="ui_playlist_empty">La playlist est vide</string>
 </resources>

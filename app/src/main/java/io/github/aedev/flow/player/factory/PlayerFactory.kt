@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
@@ -131,10 +132,10 @@ class PlayerFactory {
         }
 
         val prefs = ensurePrefs(context)
-        val minBufferMs = prefs.minBufferMs.coerceIn(2_500, maxSafeMinBufferMs)
+        val minBufferMs = maxOf(prefs.minBufferMs, prefs.bufferRebufferMs).coerceIn(2_500, maxSafeMinBufferMs)
         val maxBufferMs = prefs.maxBufferMs.coerceIn(minBufferMs + 5_000, maxSafeBufferMs)
         val bufferForPlaybackMs = prefs.bufferForPlaybackMs.coerceIn(250, minBufferMs)
-        val bufferRebufferMs = prefs.bufferRebufferMs.coerceIn(750, maxBufferMs)
+        val bufferRebufferMs = prefs.bufferRebufferMs.coerceIn(750, minBufferMs)
 
         Log.d(TAG, "Buffer config: min=${minBufferMs}ms, max=${maxBufferMs}ms, playback=${bufferForPlaybackMs}ms, rebuffer=${bufferRebufferMs}ms, target=${targetBufferBytes / 1024 / 1024}MB, back=${backBufferMs}ms, heap=${memoryClassMb}MB")
 
@@ -158,8 +159,11 @@ class PlayerFactory {
         }
     }
 
-    fun createRenderersFactory(context: Context): DefaultRenderersFactory {
-        return CustomRenderersFactory(context)
+    fun createRenderersFactory(
+        context: Context,
+        audioProcessors: Array<AudioProcessor> = emptyArray()
+    ): DefaultRenderersFactory {
+        return CustomRenderersFactory(context, audioProcessors)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setEnableDecoderFallback(true)
     }

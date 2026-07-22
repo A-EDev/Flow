@@ -38,6 +38,7 @@ import kotlinx.serialization.json.Json
 import android.os.Bundle
 import androidx.media3.session.SessionCommand
 import io.github.aedev.flow.data.local.AudioSettingsPersistence
+import io.github.aedev.flow.player.audio.AudioEffectsController
 import kotlinx.coroutines.flow.first
 
 @OptIn(UnstableApi::class)
@@ -71,12 +72,6 @@ object EnhancedMusicPlayerManager {
 
     private val _playbackPitch = MutableStateFlow(0.0f)
     val playbackPitch: StateFlow<Float> = _playbackPitch.asStateFlow()
-
-    private val _currentEqProfile = MutableStateFlow("Flat")
-    val currentEqProfile: StateFlow<String> = _currentEqProfile.asStateFlow()
-    
-    private val _bassBoostLevel = MutableStateFlow(0f)
-    val bassBoostLevel: StateFlow<Float> = _bassBoostLevel.asStateFlow()
 
     // Player state flows
     private val _playerState = MutableStateFlow(MusicPlayerState())
@@ -189,7 +184,8 @@ object EnhancedMusicPlayerManager {
         
         queuePersistence = QueuePersistence.getInstance(context)
         audioSettingsPersistence = AudioSettingsPersistence.getInstance(context)
-        
+        AudioEffectsController.initialize(context)
+
         val sessionToken = SessionToken(context, ComponentName(context, Media3MusicService::class.java))
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         
@@ -205,7 +201,11 @@ object EnhancedMusicPlayerManager {
                         restoreSavedQueue()
                         restoreAudioSettings()
                     }
-                    
+
+                    scope.launch {
+                        AudioEffectsController.resolvedEq.collect { applyEqProfile(it) }
+                    }
+
                     queuePersistence?.startAutoSave {
                         val currentQ = _queue.value
                         if (currentQ.isNotEmpty()) {
@@ -267,9 +267,7 @@ object EnhancedMusicPlayerManager {
                 }
                 prefetchNextTrack()
 
-                scope.launch {
-                    setEqProfile(_currentEqProfile.value)
-                }
+                applyEqProfile(AudioEffectsController.resolvedEq.value)
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
@@ -860,52 +858,7 @@ object EnhancedMusicPlayerManager {
         }
     }
 
-    fun setBassBoost(strength: Float) {
-        _bassBoostLevel.value = strength
-        scope.launch { audioSettingsPersistence?.saveBassBoost(strength) }
-        
-        val currentProfileName = _currentEqProfile.value
-        setEqProfile(currentProfileName)
-    }
-
-    fun setEqProfile(profileName: String) {
-        _currentEqProfile.value = profileName
-        scope.launch { audioSettingsPersistence?.saveEqProfile(profileName) }
-        
-        val baseProfile = io.github.aedev.flow.data.model.EqPresets.presets[profileName] 
-            ?: io.github.aedev.flow.data.model.EqPresets.presets["Flat"]
-            ?: io.github.aedev.flow.data.model.ParametricEQ.createFlat()
-            
-        val boost = _bassBoostLevel.value
-        val finalProfile = if (boost > 0) {
-            val existingBandIndex = baseProfile.bands.indexOfFirst { 
-                it.filterType == io.github.aedev.flow.data.model.FilterType.LSC && 
-                it.frequency in 40.0..80.0 
-            }
-            
-            val newBands = if (existingBandIndex >= 0) {
-                val mutableBands = baseProfile.bands.toMutableList()
-                val existing = mutableBands[existingBandIndex]
-                mutableBands[existingBandIndex] = existing.copy(gain = existing.gain + boost.toDouble())
-                mutableBands.toList()
-            } else {
-                 val boostBand = io.github.aedev.flow.data.model.ParametricEQBand(
-                    60.0, 
-                    boost.toDouble(), 
-                    0.7, 
-                    io.github.aedev.flow.data.model.FilterType.LSC
-                )
-                listOf(boostBand) + baseProfile.bands
-            }
-            baseProfile.copy(bands = newBands)
-        } else {
-            baseProfile
-        }
-        
-        applyEqProfile(finalProfile)
-    }
-
-    fun applyEqProfile(profile: io.github.aedev.flow.data.model.ParametricEQ) {
+    private fun applyEqProfile(profile: io.github.aedev.flow.data.model.ParametricEQ) {
         try {
             val json = Json.encodeToString(io.github.aedev.flow.data.model.ParametricEQ.serializer(), profile)
             val bundle = Bundle().apply {
@@ -929,16 +882,12 @@ object EnhancedMusicPlayerManager {
             
             _playbackSpeed.value = settings.speed
             _playbackPitch.value = settings.pitch
-            _currentEqProfile.value = settings.eqProfile
-            _bassBoostLevel.value = settings.bassBoost
-            
+
             player?.let { p ->
                 val pitch = 2.0.pow(settings.pitch.toDouble() / 12.0).toFloat()
                 p.playbackParameters = PlaybackParameters(settings.speed, pitch)
             }
-            
-            setEqProfile(settings.eqProfile)
-            
+
         } catch (e: Exception) {
             Log.e("EnhancedMusicPlayer", "Failed to restore audio settings", e)
         }

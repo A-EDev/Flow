@@ -34,7 +34,9 @@ import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 // Modular components
+import io.github.aedev.flow.player.audio.AudioEffectsController
 import io.github.aedev.flow.player.audio.AudioFeaturesManager
+import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
 import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
@@ -114,6 +116,8 @@ class EnhancedPlayerManager private constructor() {
     private var player: ExoPlayer? = null
     private var trackSelector: DefaultTrackSelector? = null
     private var bandwidthMeter: DefaultBandwidthMeter? = null
+    private var videoEqualizer: CustomEqualizerAudioProcessor? = null
+    private var eqObserverStarted = false
     
     // State management
     private val _playerState = MutableStateFlow(EnhancedPlayerState())
@@ -508,9 +512,23 @@ class EnhancedPlayerManager private constructor() {
     }
     
     private fun initializePlayer(context: Context) {
+        AudioEffectsController.initialize(context)
         val loadControl = playerFactory.createLoadControl(context)
-        val renderersFactory = playerFactory.createRenderersFactory(context)
-        
+        // Fresh processor per player instance — a sink must never share one with a live player.
+        val equalizer = CustomEqualizerAudioProcessor().also {
+            it.applyProfile(AudioEffectsController.resolvedEq.value)
+        }
+        videoEqualizer = equalizer
+        if (!eqObserverStarted) {
+            eqObserverStarted = true
+            scope.launch {
+                AudioEffectsController.resolvedEq.collect { profile ->
+                    videoEqualizer?.applyProfile(profile)
+                }
+            }
+        }
+        val renderersFactory = playerFactory.createRenderersFactory(context, arrayOf(equalizer))
+
         player = playerFactory.createPlayer(
             context = context,
             trackSelector = trackSelector!!,

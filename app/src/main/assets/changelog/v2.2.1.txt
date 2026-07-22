@@ -6,3 +6,8 @@ STATUS: PRE-RELEASE
 IMPROVEMENTS
 - Slimmer player seekbar segment gaps #786
 - Improve restricted content filtering #783
+- Improve EQ and add it for video player #781
+- Improve playback speed 
+
+FIXES AND STABILITY
+- Fix crash issues
