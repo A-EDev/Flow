@@ -109,7 +109,7 @@
     </plurals>
     <string name="tab_videos">Видео</string>
     <string name="tab_music">Музыка</string>
-    <string name="empty_offline_title">%1$s (офлайн)</string>
+    <string name="empty_offline_title">%1$s офлайн</string>
     <string name="empty_offline_body">Ваши загрузки появятся здесь.\nНаслаждайтесь контентом даже без интернета.</string>
     <string name="action_go_to_home">На главную</string>
     <string name="action_delete">Удалить</string>
