@@ -103,11 +103,45 @@
     <string name="playing">Hraje</string>
     <string name="remove">Odstranit</string>
     <string name="related_content">Obnovit Content</string>
-    <string name="filter_discover">Najít</string>
+    <string name="filter_discover">Objevit</string>
     <string name="filter_popular">Populární</string>
     <string name="channels_label">Kanály</string>
     <string name="share_video">Sdílet video</string>
     <string name="content_settings_share_without_text_title">Sdílet odkaz bez textu</string>
     <string name="related_videos">Navrhnout Videa</string>
     <string name="video_marked_not_interested">Video označeno jako nezajímá</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Naposledy aktualizováno %1$s</string>
+    <string name="channel_error_log_clip_label">Záznam chyb průtokového kanálu</string>
+    <string name="channel_and_more_template">A další</string>
+    <string name="local_media_empty_title">Není nalezeno</string>
+    <string name="local_media_permission_body">Povolte přístup k médiím, aby Flow mohl vyhledávat a přehrávat místní videa a hudbu.</string>
+    <string name="download_all_confirmation">Stáhnout všechna videa? To může zabrat značné množství úložného prostoru.</string>
+    <string name="failed_to_save_to_library">"Nepovedlo se uložit do  knihovny"</string>
+    <string name="lyrics">karaoke</string>
+    <string name="related">SOUVISEJÍCÍ</string>
+    <string name="shuffle">Náhodně</string>
+    <string name="loading_track">Načítání skladby...</string>
+    <string name="autoplay">Auto-Přehrávání</string>
+    <string name="refresh_lyrics">Obnovit Karaoke</string>
+    <string name="no_related_content">Nebyl nalezen žádný související obsah</string>
+    <string name="share_message_template">Poslechněte si tuto píseň: %1$s od %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
+    <string name="hz">Hz</string>
+    <string name="kbps">kbps</string>
+    <string name="filter_deep_cuts">Hluboké řezy</string>
+    <string name="filter_workout">PrácePryč</string>
+    <string name="track_details">Sledovací Detaily</string>
+    <string name="title_label">Text</string>
+    <string name="artist_label">Umělec</string>
+    <string name="album_label">Album</string>
+    <string name="video_id_label">Video ID</string>
+    <string name="codec_label">Codec</string>
+    <string name="sample_rate_label">Vzorkovací frekvence</string>
+    <string name="bitrate_label">Bitrate</string>
+    <string name="audio_info_not_available">Informace o zvukovém streamu zatím nejsou k dispozici.</string>
+    <string name="undo">Zpátky</string>
+    <string name="subscribed_to">Odebírej %s</string>
+    <string name="unsubscribed_from">Přestat sledovat %s</string>
+    <string name="unsubscribe">Přestat sledovat</string>
+    <string name="check_out_video_template">Podívejte se na toto video: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
+    <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
 </resources>
