@@ -178,7 +178,7 @@ fun VideoInfoSection(
             Spacer(modifier = Modifier.width(4.dp))
             
             Text(
-                text = stringResource(R.string.desc_more),
+                text = stringResource(R.string.read_more),
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.clickable(onClick = onDescriptionClick)

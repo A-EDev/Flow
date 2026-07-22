@@ -47,6 +47,7 @@ android {
             dimension = "version"
             isDefault = true
             buildConfigField("Boolean", "UPDATER_ENABLED", "true")
+            buildConfigField("String", "DISCORD_APPLICATION_ID", "\"1526515771021328514\"")
         }
         create("foss") {
             dimension = "version"
@@ -250,12 +251,6 @@ dependencies {
     
     implementation(libs.androidx.datastore.preferences)
     // implementation(libs.androidx.datastore) // In TOML if needed
-
-    // --- Home-screen widgets (Jetpack Glance) ---
-    implementation(libs.androidx.glance.appwidget)
-    implementation(libs.androidx.glance.material3)
-    // M3 Expressive shape geometry (RoundedPolygon) for widget artwork/decor clipping
-    implementation(libs.androidx.graphics.shapes)
 
     // --- Async & Utils ---
     implementation(libs.kotlinx.coroutines.android)

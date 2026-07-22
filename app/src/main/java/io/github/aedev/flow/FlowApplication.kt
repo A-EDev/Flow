@@ -29,6 +29,7 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.potoken.NewPipePoTokenProvider
+import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -69,6 +70,8 @@ class FlowApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         appContext = applicationContext
+
+        DiscordPresenceRuntime.initialize(this, okHttpClient)
 
         val playerPreferences = PlayerPreferences(this)
         
@@ -253,6 +256,7 @@ class FlowApplication : Application(), ImageLoaderFactory {
     }
 
     override fun onTerminate() {
+        DiscordPresenceRuntime.shutdown()
         super.onTerminate()
         // Clean up performance dispatcher resources
         PerformanceDispatcher.shutdown()

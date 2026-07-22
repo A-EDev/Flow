@@ -364,7 +364,16 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToAutoBackup = { navController.navigate("settings/auto_backup") },
             onNavigateToSyncDevices = { navController.navigate("settings/sync_devices") },
             onNavigateToExport = { navController.navigate("settings/export") },
-            onNavigateToSponsorBlockSettings = { navController.navigate("settings/sponsorblock") }
+            onNavigateToSponsorBlockSettings = { navController.navigate("settings/sponsorblock") },
+            onNavigateToDiscordSettings = { navController.navigate("settings/discord") }
+        )
+    }
+
+    composable("settings/discord") {
+        currentRoute.value = "settings/discord"
+        showBottomNav.value = false
+        io.github.aedev.flow.ui.screens.settings.DiscordSettingsScreen(
+            onNavigateBack = { navController.popBackStack() }
         )
     }
 

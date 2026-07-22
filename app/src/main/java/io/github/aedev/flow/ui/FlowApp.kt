@@ -83,9 +83,7 @@ fun FlowApp(
     deeplinkVideoId: String? = null,
     isShort: Boolean = false,
     openMusicPlayerRequest: Int = 0,
-    onDeeplinkConsumed: () -> Unit = {},
-    pendingWidgetRoute: String? = null,
-    onWidgetRouteConsumed: () -> Unit = {}
+    onDeeplinkConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
@@ -389,16 +387,6 @@ fun FlowApp(
         }
     }
 
-    LaunchedEffect(pendingWidgetRoute) {
-        pendingWidgetRoute?.let { route ->
-            // Cold start: suspend until the NavHost has set its graph (first back-stack
-            // entry emitted) — navigating earlier throws "graph has not been set".
-            navController.currentBackStackEntryFlow.first()
-            navController.navigate(route)
-            onWidgetRouteConsumed()
-        }
-    }
-
     LaunchedEffect(openMusicPlayerRequest, currentMusicTrack?.videoId) {
         if (openMusicPlayerRequest > handledMusicPlayerRequest && currentMusicTrack != null) {
             handledMusicPlayerRequest = openMusicPlayerRequest
@@ -610,10 +598,6 @@ fun FlowApp(
                     val activeRoute = navController.currentBackStackEntry?.destination?.route
                     if (activeRoute == route) {
                         TabScrollEventBus.emitScrollToTop(route)
-                    } else if (route == defaultStartRoute) {
-                        selectedBottomNavIndex.intValue = index
-                        currentRoute.value = route
-                        navController.popBackStack(defaultStartRoute, inclusive = false)
                     } else {
                         selectedBottomNavIndex.intValue = index
                         currentRoute.value = route

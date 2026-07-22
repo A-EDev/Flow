@@ -17,9 +17,10 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.data.local.LocalDataManager
-import io.github.aedev.flow.player.BackgroundPlaybackPolicy
+import io.github.aedev.flow.data.local.AppUiModePreferences
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.ui.FlowApp
@@ -46,14 +47,18 @@ import io.github.aedev.flow.utils.UpdateManager
 import io.github.aedev.flow.utils.UpdateInfo
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.player.PictureInPictureHelper
+import io.github.aedev.flow.platform.AppUiMode
+import io.github.aedev.flow.platform.AppUiRoot
+import io.github.aedev.flow.platform.DeviceFormFactorDetector
 import io.github.aedev.flow.ui.components.UpdateDialog
+import io.github.aedev.flow.ui.tv.FlowTvApp
 import io.github.aedev.flow.BuildConfig
 import androidx.activity.SystemBarStyle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.github.aedev.flow.utils.AppLanguageManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.drop
+import io.github.aedev.flow.discord.DiscordPresenceRuntime
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -69,9 +74,6 @@ class MainActivity : ComponentActivity() {
     private val _openMusicPlayerRequest = mutableIntStateOf(0)
     val openMusicPlayerRequest: State<Int> = _openMusicPlayerRequest
 
-    private val _pendingWidgetRoute = mutableStateOf<String?>(null)
-    val pendingWidgetRoute: State<String?> = _pendingWidgetRoute
-
     // Cached auto-PiP preference
     private var cachedAutoPipEnabled = false
 
@@ -83,6 +85,7 @@ class MainActivity : ComponentActivity() {
 
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
+    private var cachedAppUiRoot = AppUiRoot.MOBILE
 
     private fun videoPlaybackStateName(state: Int?): String = when (state) {
         androidx.media3.common.Player.STATE_IDLE -> "IDLE"
@@ -101,7 +104,6 @@ class MainActivity : ComponentActivity() {
         return "interactive=${powerManager?.isInteractive} lifecycle=${lifecycle.currentState} " +
             "pip=$isInPictureInPictureMode pendingAutoPip=$pendingAutoPip " +
             "bgPref=$cachedBackgroundPlayEnabled shortsBgPref=$cachedShortsBackgroundPlay " +
-            "explicitBg=${GlobalPlayerState.isExplicitBackgroundPlaybackActive.value} " +
             "video=${playerState.currentVideoId} exo=${videoPlaybackStateName(player?.playbackState)} " +
             "pwr=${player?.playWhenReady} playing=${player?.isPlaying} buffering=${playerState.isBuffering} " +
             "pos=${player?.currentPosition}/${player?.duration} idx=${player?.currentMediaItemIndex} count=${player?.mediaItemCount}"
@@ -121,6 +123,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
 
         super.onCreate(savedInstanceState)
+        DiscordPresenceRuntime.attachActivity(this)
         
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         
@@ -170,16 +173,6 @@ class MainActivity : ComponentActivity() {
 
         val dataManager = LocalDataManager(applicationContext)
 
-        // Re-render home-screen widgets whenever the in-app theme changes so they
-        // always match the app's active palette.
-        lifecycleScope.launch {
-            io.github.aedev.flow.widget.core.widgetThemeSignatureFlow(applicationContext)
-                .drop(1)
-                .collect {
-                    io.github.aedev.flow.widget.core.FlowWidgets.updateAll(applicationContext)
-                }
-        }
-
         handleIntent(intent)
 
         
@@ -200,6 +193,14 @@ class MainActivity : ComponentActivity() {
             var showSplash by remember { mutableStateOf(true) }
 
             val context = LocalContext.current
+            val configuration = LocalConfiguration.current
+            val uiPreferences = remember { AppUiModePreferences(applicationContext) }
+            val appUiMode by uiPreferences.mode.collectAsState(initial = AppUiMode.AUTOMATIC)
+            val deviceFormFactor = remember(configuration.uiMode, context) {
+                DeviceFormFactorDetector.detect(context)
+            }
+            val appUiRoot = appUiMode.resolve(deviceFormFactor)
+            SideEffect { cachedAppUiRoot = appUiRoot }
 
             // Check for a crash that happened last session.
             // If found, show the CrashReporterScreen instead of the normal UI.
@@ -345,62 +346,65 @@ class MainActivity : ComponentActivity() {
                     val deeplinkVideoId by this@MainActivity.deeplinkVideoId
                     val isDeeplinkShort by this@MainActivity.isDeeplinkShort
                     val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
-                    val pendingWidgetRoute by this@MainActivity.pendingWidgetRoute
 
-                    FlowApp(
-                        currentTheme = themeMode,
-                        themeVariant = themeVariant,
-                        customThemePalettes = customThemePalettes,
-                        systemLightThemeMode = systemLightThemeMode,
-                        systemDarkThemeMode = systemDarkThemeMode,
-                        systemDarkThemeVariant = systemDarkThemeVariant,
-                        onThemeChange = { newTheme ->
-                            themeMode = newTheme
-                            scope.launch {
-                                dataManager.setThemeMode(newTheme)
+                    if (appUiRoot == AppUiRoot.TV) {
+                        FlowTvApp(
+                            deeplinkVideoId = deeplinkVideoId,
+                            isShort = isDeeplinkShort,
+                            onDeeplinkConsumed = { consumeDeeplink() },
+                        )
+                    } else {
+                        FlowApp(
+                            currentTheme = themeMode,
+                            themeVariant = themeVariant,
+                            customThemePalettes = customThemePalettes,
+                            systemLightThemeMode = systemLightThemeMode,
+                            systemDarkThemeMode = systemDarkThemeMode,
+                            systemDarkThemeVariant = systemDarkThemeVariant,
+                            onThemeChange = { newTheme ->
+                                themeMode = newTheme
+                                scope.launch {
+                                    dataManager.setThemeMode(newTheme)
+                                }
+                            },
+                            onThemeVariantChange = { variant ->
+                                themeVariant = variant
+                                scope.launch {
+                                    dataManager.setThemeVariant(variant)
+                                }
+                            },
+                            onCustomThemePalettesChange = { palettes ->
+                                customThemePalettes = palettes
+                                scope.launch {
+                                    dataManager.setCustomThemePalettes(palettes)
+                                }
+                            },
+                            onSystemLightThemeChange = { newTheme ->
+                                systemLightThemeMode = newTheme
+                                scope.launch {
+                                    dataManager.setSystemLightThemeMode(newTheme)
+                                }
+                            },
+                            onSystemDarkThemeChange = { newTheme ->
+                                systemDarkThemeMode = newTheme
+                                scope.launch {
+                                    dataManager.setSystemDarkThemeMode(newTheme)
+                                }
+                            },
+                            onSystemDarkThemeVariantChange = { variant ->
+                                systemDarkThemeVariant = variant
+                                scope.launch {
+                                    dataManager.setSystemDarkThemeVariant(variant)
+                                }
+                            },
+                            deeplinkVideoId = deeplinkVideoId,
+                            isShort = isDeeplinkShort,
+                            openMusicPlayerRequest = openMusicPlayerRequest,
+                            onDeeplinkConsumed = {
+                                consumeDeeplink()
                             }
-                        },
-                        onThemeVariantChange = { variant ->
-                            themeVariant = variant
-                            scope.launch {
-                                dataManager.setThemeVariant(variant)
-                            }
-                        },
-                        onCustomThemePalettesChange = { palettes ->
-                            customThemePalettes = palettes
-                            scope.launch {
-                                dataManager.setCustomThemePalettes(palettes)
-                            }
-                        },
-                        onSystemLightThemeChange = { newTheme ->
-                            systemLightThemeMode = newTheme
-                            scope.launch {
-                                dataManager.setSystemLightThemeMode(newTheme)
-                            }
-                        },
-                        onSystemDarkThemeChange = { newTheme ->
-                            systemDarkThemeMode = newTheme
-                            scope.launch {
-                                dataManager.setSystemDarkThemeMode(newTheme)
-                            }
-                        },
-                        onSystemDarkThemeVariantChange = { variant ->
-                            systemDarkThemeVariant = variant
-                            scope.launch {
-                                dataManager.setSystemDarkThemeVariant(variant)
-                            }
-                        },
-                        deeplinkVideoId = deeplinkVideoId,
-                        isShort = isDeeplinkShort,
-                        openMusicPlayerRequest = openMusicPlayerRequest,
-                        onDeeplinkConsumed = {
-                            consumeDeeplink()
-                        },
-                        pendingWidgetRoute = pendingWidgetRoute,
-                        onWidgetRouteConsumed = {
-                            _pendingWidgetRoute.value = null
-                        }
-                    )
+                        )
+                    }
 
                     // 2. THE SPLASH SCREEN (Z-Index Top)
                     if (showSplash) {
@@ -414,19 +418,21 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    
+
+    override fun onStart() {
+        super.onStart()
+        DiscordPresenceRuntime.setAppForeground(true)
+    }
+
     override fun onDestroy() {
         videoLifecycleLog("onDestroy")
+        DiscordPresenceRuntime.detachActivity(this)
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
         val playerState = playerManager.playerState.value
-        val hasActiveVideo =
-            playerState.currentVideoId != null &&
+        val shouldKeepBackgroundPlayback =
+            cachedBackgroundPlayEnabled &&
+                playerState.currentVideoId != null &&
                 (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
-        val shouldKeepBackgroundPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
-            backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
-            explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
-            hasActiveVideo = hasActiveVideo
-        )
 
         if (shouldKeepBackgroundPlayback) {
             handOffVideoPlaybackToBackground()
@@ -445,15 +451,6 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent) {
         val data = intent.data
         val notificationVideoId = intent.getStringExtra("notification_video_id") ?: intent.getStringExtra("video_id")
-
-        val widgetRoute = intent.getStringExtra(
-            io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE
-        )
-        if (widgetRoute != null) {
-            intent.removeExtra(io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
-            _pendingWidgetRoute.value = widgetRoute
-            return
-        }
 
         if (intent.getBooleanExtra("open_music_player", false)) {
             _deeplinkVideoId.value = null
@@ -615,6 +612,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        DiscordPresenceRuntime.setAppForeground(false)
         super.onStop()
         FlowCrashHandler.recordPhase(
             "activity",
@@ -622,7 +620,9 @@ class MainActivity : ComponentActivity() {
         )
         videoLifecycleLog("onStop")
         if (!isInPictureInPictureMode && !PictureInPictureHelper.isPopupActive) {
-            requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            if (cachedAppUiRoot == AppUiRoot.MOBILE) {
+                requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
             if (!cachedShortsBackgroundPlay) {
                 io.github.aedev.flow.player.shorts.ShortsPlayerPool.getInstance().pauseAll()
             }
@@ -647,12 +647,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        val explicitBackgroundPlaybackActive =
-            GlobalPlayerState.isExplicitBackgroundPlaybackActive.value
-        FlowCrashHandler.recordPhase(
-            "activity",
-            "onUserLeaveHint autoPip=$cachedAutoPipEnabled explicitBackground=$explicitBackgroundPlaybackActive"
-        )
+        if (cachedAppUiRoot == AppUiRoot.TV) return
+        FlowCrashHandler.recordPhase("activity", "onUserLeaveHint autoPip=$cachedAutoPipEnabled")
         videoLifecycleLog("onUserLeaveHint")
         // Only enter PiP mode if video is playing and has progressed
         // We use the EnhancedPlayerManager directly to get the immediate state
@@ -666,12 +662,7 @@ class MainActivity : ComponentActivity() {
         val isMusicPlaying = musicManager.playerState.value.isPlaying
         
         // Only enter PiP for video, not for music (which uses background service)
-        val shouldEnterAutoPip = BackgroundPlaybackPolicy.shouldEnterAutoPip(
-            autoPipEnabled = cachedAutoPipEnabled,
-            isVideoPlaying = isVideoPlaying,
-            explicitBackgroundPlaybackActive = explicitBackgroundPlaybackActive
-        )
-        if (shouldEnterAutoPip && !isMusicPlaying) {
+        if (isVideoPlaying && !isMusicPlaying && cachedAutoPipEnabled) {
             enterPlayerPictureInPictureMode(
                 aspectRatio = PictureInPictureHelper.currentVideoAspectRatio,
                 isPlaying = true
@@ -693,6 +684,7 @@ class MainActivity : ComponentActivity() {
         isPlaying: Boolean = true,
         openSettingsOnDenied: Boolean = false
     ): Boolean {
+        if (cachedAppUiRoot == AppUiRoot.TV) return false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
         if (!PictureInPictureHelper.isPipAllowed(this)) {
             if (openSettingsOnDenied) {
@@ -745,13 +737,7 @@ class MainActivity : ComponentActivity() {
 
         if (!hasActiveVideo) return
 
-        val shouldKeepBackgroundPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
-            backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
-            explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
-            hasActiveVideo = hasActiveVideo
-        )
-
-        if (shouldKeepBackgroundPlayback) {
+        if (cachedBackgroundPlayEnabled) {
             videoLifecycleLog("handleBackgroundPlaybackOnStop handoff")
             handOffVideoPlaybackToBackground()
         } else {

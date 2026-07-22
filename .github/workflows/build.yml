@@ -2,14 +2,14 @@ name: Android CI/CD
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [ main, master, develop, agent/discord-rich-presence ]
     tags:
-      - "v*"
+      - 'v*'
   pull_request:
-    branches: [main, master]
+    branches: [ main, master ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -19,15 +19,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: "17"
-          distribution: temurin
+          java-version: '17'
+          distribution: 'temurin'
           cache: gradle
 
-      # Cache build outputs so Gradle can reuse work between CI runs.
+      # Explicit Gradle cache on top of setup-java's built-in cache.
+      # Caches the build-cache directory so incremental tasks are skipped.
       - name: Cache Gradle build cache
         uses: actions/cache@v4
         with:
@@ -38,7 +41,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Decode keystore
+      - name: Decode Keystore
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
@@ -48,7 +51,21 @@ jobs:
             echo "Release keystore secret is not available. Skipping decoding."
           fi
 
-      # Build all variants together so they share configuration and cache data.
+      - name: Run unit tests
+        run: >
+          ./gradlew :app:testGithubNightlyUnitTest :app:testFossReleaseUnitTest
+          --parallel --build-cache --no-daemon --stacktrace
+
+      - name: Lint GitHub nightly
+        run: >
+          ./gradlew :app:lintGithubNightly
+          --build-cache --no-daemon --stacktrace
+
+      # Build all variants in a single Gradle invocation so tasks share the
+      # configuration phase, classpath resolution and incremental build cache.
+      # --parallel  — lets Gradle run independent subproject tasks concurrently.
+      # --build-cache — reuses outputs from previous runs stored above.
+      # --no-daemon  — avoids daemon startup overhead inside the ephemeral runner.
       - name: Build all APKs
         run: >
           ./gradlew assembleGithubRelease assembleGithubNightly assembleFossRelease
@@ -58,27 +75,34 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload release APK
+      - name: Verify Discord nightly APK
+        run: |
+          test -f app/build/outputs/apk/github/nightly/app-github-nightly.apk
+          sha256sum app/build/outputs/apk/github/nightly/app-github-nightly.apk | tee app/build/outputs/apk/github/nightly/app-github-nightly.apk.sha256
+
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-release-apk
-          path: app/build/outputs/apk/github/release/app-github-release.apk
+          path: app/build/outputs/apk/github/release/*.apk
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload nightly APK
+      - name: Upload Nightly APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-nightly-apk
-          path: app/build/outputs/apk/github/nightly/app-github-nightly.apk
+          path: |
+            app/build/outputs/apk/github/nightly/app-github-nightly.apk
+            app/build/outputs/apk/github/nightly/app-github-nightly.apk.sha256
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload FOSS release APK
+      - name: Upload FOSS Release APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-foss-release-apk
-          path: app/build/outputs/apk/foss/release/app-foss-release.apk
+          path: app/build/outputs/apk/foss/release/*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -87,20 +111,25 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download release APK
+      # Download pre-built APKs from the build job — no recompilation needed.
+      - name: Download Release APK
         uses: actions/download-artifact@v4
         with:
           name: flow-release-apk
           path: dist/
 
-      - name: Download FOSS release APK
+      - name: Download Nightly APK
+        uses: actions/download-artifact@v4
+        with:
+          name: flow-discord-rpc-nightly-apk
+          path: dist/
+
+      - name: Download FOSS Release APK
         uses: actions/download-artifact@v4
         with:
           name: flow-foss-release-apk
@@ -109,28 +138,151 @@ jobs:
       - name: Rename APKs for release
         run: |
           mv dist/app-github-release.apk dist/flow.apk
+          mv dist/app-github-nightly.apk dist/flow-nightly.apk
           mv dist/app-foss-release.apk dist/flow-foss.apk
 
       - name: Get version from tag
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-
-      - name: Validate release notes
-        env:
-          RELEASE_VERSION: ${{ steps.get_version.outputs.VERSION }}
-        run: |
-          test -s release-notes.md
-          grep -Fqx "# Flow ${RELEASE_VERSION}" release-notes.md
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           name: Flow ${{ steps.get_version.outputs.VERSION }}
-          body_path: release-notes.md
-          generate_release_notes: false
+          body: |
+          
+            FEATURES
+            - Add new Proxy manager and routing #362
+            - Add new App language selection in settings #376
+            - Add text highlight and selection for comments and description #374
+            - Zoom level indicator #348
+            - Subtitle customization #348
+            - Add playlist items re-ordering and video watch progress #380 #382
+            - Add more data import options #396 #357 #424 #428
+            - Add copy video title by long press #426
+            - Add playlist video downloads confirmation dialog  #413
+            - Add RYD disable option #433
+            - Add background worker and notification disable option #411
+            - Add new video player controls lock mode #441
+            - Add toggle to refresh subscriptions at app startup #435
+            - Add navigation tab order controls and default tab selection
+            - Add comment and comment preview disable options
+            - Add Material You dynamic color theme #448
+            - Add custom light and dark theme choices for System Default #367
+            - Add more app icon variants with updated adaptive icon packaging #400
+            - Add shorts history #285
+            - Add time based shorts auto scroll #398
+            - Add block shorts from channels #285
+            - Add new watch history search #393
+            - Add new sorting options in playlists
+            - Add new player seekbar width customization
+            - Add remeber brightness toggle #474
+            - Add new more lyrics providers (Based on Metrolist's provider implementation https://github.com/MetrolistGroup/Metrolist )
+            - Add new lyrics engine (Based on Metrolist's ExperimentalLyrics.kt, LyricsLine.kt, LyricsCommon.kt, and FadingEdge.kt.)
+            - Add new Music Audio Quality selector #521
+            - Add external music downloads #256
+            - Add shorts history delete option #514
+            - Add LireTube history export option #507
+            - Add shorts playback speed selection #496
+            - Add option to disable or change long-press playback speed #475
+            - Add option to disable volume boost #491
+            - Add date and time format customization #481 
+            - Add codec preference settings #560 
+            - Add Android Auto support
+            - Add live chat support
+
+            IMPROVEMENTS
+            - Seekbar preview and slider optimization #360 #361
+            - Improve media playback notification handling #347
+            - Improve Monochrome app logo quality #336
+            - Add paging to comment replies #369
+            - Add master backup import to onboarding #365
+            - Improve video watch progress handling #379
+            - Add share button to channel screen #397
+            - Add download pause/resume to download screen #407
+            - Add to playlist sheet redesign and video addition to multiple playlists #391
+            - Improve comments and description sheets design and interactions #397
+            - Chapters sheet redesign
+            - Battery optimization #383 #559
+            - Personality/control center redesign and optimization
+            - Improve dislike signals from video player
+            - Improve topics categories
+            - Improve dynamic video player sizing and handling
+            - Player settings sheet redesign and Introduce new sheet sidebar in player
+            - Add player sizing toggle
+            - Add paid videos filters #439
+            - Improve video and shorts playback performance #442 #425
+            - Prefer VP9/H264 over AV1 for playback #406
+            - Improve Live streams handling and UI #435 #416 #390
+            - Improved watched content filtering #451
+            - Improve subscriptions feed UI, count, content and cache #435 #468
+            - Redesign App Icon picker #400
+            - Improve shorts UI and performance #446
+            - Watch history and likes screens redesign
+            - Improve playlists and library screens UI design
+            - Improve subtitle handling #271
+            - Improve upcoming videos handling and add a reminder #470
+            - Improve mini video player animaton #464
+            - Improve sponsor skip button placement #476
+            - Improve music playback speed and simpmusic issues
+            - Improve lyrics formatting, seeking and better word level lyrics hightlight
+            - Improve Music feed and add more sections
+            - Music player and its components redesign
+            - New queue sheet design, improved queue handling and similar content fetching
+            - Improve AV1 handling #548
+            - Increase subscription feed cache size
+            - Reduce player UI position update churn during playback to improve high-FPS fast-speed smoothness #478
+            - Improve playlist and background playback STABILITY
+
+            FIXES AND STABILITY
+            - Fix play mode switch pop up #378
+            - Fix Go to channel on home and related videos #370 #351
+            - Fix comment loading in queue #352
+            - Fix queue dock position by @ItsMe-95fx #371
+            - Fix channel content rendering #366
+            - Fix empty media playback notification #347
+            - Fix limited playlist content #385
+            - Fix auto play when in background playback #388
+            - Fix pip mode freeze #354
+            - Fix low thumbnail quality #403
+            - Fix channel avatar on subscription #387
+            - Fix background playback #417 #434
+            - Fix playback issues when playing from shared links #422
+            - Fix playlist playback history #413
+            - Fix album and subscriptions search crashes #443 #445
+            - Fix video downloads and songs playback in wrong language #381 #353
+            - Fix large playlist crashing #454
+            - Fix video player supression  #453
+            - Fix content preference backup #452
+            - Fix low resolution casting #299
+            - Fix shorts player disable option #466
+            - Fix music playlist delete path #471
+            - Fix LazyColumn crash #479
+            - Fix player jitter #478
+            - Fix missing track duration
+            - Fix channel banner resolution #518
+
+            ENGINE
+            - Improve topic maturity detection for better recommendations #281
+            - Fix watch progress tracking accuracy
+            - Optimize learning signal weighting
+            - Improve discovery query filtering
+            - Improve feed history tracking
+            - Fix recommendation engine concurrency issue
+            - Improve brain state persistence
+            - Connect YouTube watch history to recommendations #389
+            - Add Interest Anchor Queries to improve recommendations
+
+            CORE:
+            - Add native channel content extraction via InnerTube API
+            - Bump NewPipeExtractor version to v0.26.2
+            - Add SABR stream decoders and native InnerTube API video stream extraction with NewPipeExtractor as fallback
+
+          generate_release_notes: true
           files: |
             dist/flow.apk
+            dist/flow-nightly.apk
             dist/flow-foss.apk
           draft: false
           prerelease: false

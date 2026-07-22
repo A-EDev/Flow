@@ -1,0 +1,82 @@
+FLOW CHANGE LOG
+VERSION: 2.2.0
+DATE: 2026-07-18
+STATUS: RELEASE
+
+NEW FEATURES
+- Add a local media library (play local on-device media)
+- Add new logo #605 by @AnharHussainMiah
+- Add new music recognizer feature (Based on Metrolist's implementation see https://github.com/MetrolistGroup/Metrolist)
+- Add custom mark as watched threshold settings
+- Add bottom navbar scroll events toggle
+- Add queue/playlist autoplay toggle
+- Add shorts search tab
+- Add new video ambient mode
+- Add shorts UI customizations
+- Add new native local cross-platform sync 
+- Add default codec selection for downloads #675
+- Add hide music artwork option #639
+- Add channel sorting options in subscriptions (default, name A–Z, recently updated) #498
+- Add new vetrical video fullscreen drag gesture
+- Add community posts support
+- Add playlist loop and shuffle actions
+
+IMPROVEMENTS
+- Improve media notification handling #577
+- Improve video player settings sheet positioning #572
+- Improve double tap seek gesture #520
+- Add remove button "X" on continue watching shelf's cards
+- Improve SABR implementation
+- Bump NewPipeExtractor to v0.26.3 and set it as primary source with native SABR fallback
+- Bump Media3/ExoPlayer to 1.6.1 for more reliable background playback notifications
+- Apply default quality settings to live streams #576
+- Add a full list of audio languages to the preferred audio language setting #580
+- List all available captions, including auto-translated tracks
+- Improve AV1 codec handling
+- Improve mark as watched percentage
+- Add new share context toggle 
+- Add toggle to show/hide overlay #604
+- Add a delay config for autoplay #620
+- Improve Emojis handling in live chat #617
+- Improve chapters container #588
+- Improve player Lock mode #619
+- Improve player overlays and icons symmetry #654 #634
+- Improve player drawer handling #659
+- Update download settings screen's dialog heights #648
+- Add support for all Youtube Music, piped and invidious Url formats
+- Add comment drawer in landscape #644
+- Video Quality selection menu redesign #660
+- Improve upcoming videos reminder #470
+- Improve volume gesture and rotation handling
+- Improve Theme color schemes and add Theme Variants (Light, Dark, AMOLED)
+- Refine the subscriptions feed cards to match the home layout #678
+- Onboarding screen redesign
+- Faster playback startup
+- Library screen redesign
+
+FIXES AND STABILITY
+- Fix Crashes from missing media notification provider #578
+- Fix missing metadata on come live streams #574
+- Fix video player stuck in a 403 retry loop #573
+- Fix music audio equilizer settings saving issues
+- Fix out-of-memory crashes when refreshing or importing large subscription lists #603
+- Fix lag when the bottom navigation bar hides or shows while scrolling
+- Fix playback crashes
+- Fix missing audio tracks
+- Fix "Failed to parse video data" errors 
+- Fix videos playing in the wrong (AI-dubbed) audio language on some networks by always preferring the original audio track
+- Fix missing Shorts metadata
+- Fix missing playlist videos metadata
+- Fix icon backup crashes
+- Fix low-quality thumbnails in the subscriptions feed #678
+- Fix custom player brightness leaking into PiP and the rest of the app #679
+
+ENGINE
+- Improve measurements foundation, add evaluation harness and deterministic scorers
+- Imrove correctness and clean dead interest profile
+- Improve Signal integrity, ranking and impressions
+- Introduce related-graph for improved feed quality
+- Improve feed quotas to 40/25/25/10 instead of previous 50/40/10
+- Fix scalar relevance dilution
+- Improve persona handling, and remove novilty cliff and filter bubble
+- Improve engine performace and avoid over-supression

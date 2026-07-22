@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.theme
 
-import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
@@ -248,8 +247,7 @@ fun ColorScheme.complete(isDark: Boolean, isOled: Boolean = false): ColorScheme 
 
 // --- Color Schemes ---
 
-// internal (not private): reused by FlowGlanceTheme as the pre-Android-12 widget fallback palette
-internal val LightColorScheme = lightColorScheme(
+private val LightColorScheme = lightColorScheme(
     primary = LightThemeColors.Primary,
     onPrimary = LightThemeColors.OnPrimary,
     secondary = LightThemeColors.Secondary,
@@ -262,8 +260,7 @@ internal val LightColorScheme = lightColorScheme(
     onError = Color.White
 )
 
-// internal (not private): reused by FlowGlanceTheme as the pre-Android-12 widget fallback palette
-internal val DarkColorScheme = darkColorScheme(
+private val DarkColorScheme = darkColorScheme(
     primary = DarkThemeColors.Primary,
     onPrimary = DarkThemeColors.OnPrimary,
     secondary = DarkThemeColors.Secondary,
@@ -680,55 +677,14 @@ fun FlowTheme(
 ) {
     val darkTheme = isSystemInDarkTheme()
     val context = LocalContext.current
-
-    val colorScheme = resolveFlowColorScheme(
-        context = context,
-        isSystemDark = darkTheme,
-        themeMode = themeMode,
-        themeVariant = themeVariant,
-        customThemePalettes = customThemePalettes,
-        systemLightThemeMode = systemLightThemeMode,
-        systemDarkThemeMode = systemDarkThemeMode,
-        systemDarkThemeVariant = systemDarkThemeVariant
-    )
-
-    val extendedColors = ExtendedColors(
-        textSecondary = colorScheme.onSurfaceVariant,
-        border = colorScheme.outlineVariant,
-        success = colorScheme.tertiary
-    )
-
-    CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
-        MaterialTheme(
-            colorScheme = colorScheme,
-            typography = Typography,
-            content = content
-        )
-    }
-}
-
-/**
- * Non-composable resolution of the app's active color scheme. Single source of truth
- * shared by [FlowTheme] and the home-screen widgets, so widgets always render in the
- * exact palette the user selected in-app (including custom and Material You themes).
- */
-fun resolveFlowColorScheme(
-    context: Context,
-    isSystemDark: Boolean,
-    themeMode: ThemeMode,
-    themeVariant: ThemeVariant,
-    customThemePalettes: CustomThemePalettes,
-    systemLightThemeMode: ThemeMode,
-    systemDarkThemeMode: ThemeMode,
-    systemDarkThemeVariant: ThemeVariant
-): ColorScheme {
+    
     val effectiveThemeMode = themeMode.resolveSystemDefault(
-        isSystemDark = isSystemDark,
+        isSystemDark = darkTheme,
         systemLightThemeMode = systemLightThemeMode,
         systemDarkThemeMode = systemDarkThemeMode
     )
     val effectiveVariant = if (themeMode == ThemeMode.SYSTEM) {
-        if (isSystemDark) systemDarkThemeVariant else ThemeVariant.LIGHT
+        if (darkTheme) systemDarkThemeVariant else ThemeVariant.LIGHT
     } else {
         themeVariant
     }
@@ -740,7 +696,7 @@ fun resolveFlowColorScheme(
             ThemeVariant.AMOLED -> OLEDColorScheme
         }
         ThemeMode.OLED -> OLEDColorScheme
-        ThemeMode.SYSTEM -> if (isSystemDark) DarkColorScheme else LightColorScheme
+        ThemeMode.SYSTEM -> if (darkTheme) DarkColorScheme else LightColorScheme
         ThemeMode.LAVENDER_MIST -> LavenderMistColorScheme
         ThemeMode.OCEAN_BLUE -> OceanBlueColorScheme
         ThemeMode.FOREST_GREEN -> ForestGreenColorScheme
@@ -772,7 +728,7 @@ fun resolveFlowColorScheme(
             }
         }
     }
-    return if (effectiveThemeMode == ThemeMode.CUSTOM) {
+    val colorScheme = if (effectiveThemeMode == ThemeMode.CUSTOM) {
         baseColorScheme
     } else {
         baseColorScheme.withVariant(
@@ -791,6 +747,20 @@ fun resolveFlowColorScheme(
                 ThemeMode.SKY_LIGHT,
                 ThemeMode.CREAM_LIGHT
             )
+        )
+    }
+
+    val extendedColors = ExtendedColors(
+        textSecondary = colorScheme.onSurfaceVariant,
+        border = colorScheme.outlineVariant,
+        success = colorScheme.tertiary
+    )
+
+    CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
         )
     }
 }

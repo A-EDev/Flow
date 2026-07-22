@@ -22,8 +22,8 @@
     <string name="shorts">Video ngắn</string>
     <string name="failed_to_load_channel">Tải kênh thất bại</string>
     <string name="subscribers">Người đăng kí</string>
-    <string name="collaborators">Những người cộng tác</string>
-    <string name="collaborator">Người cộng tác</string>
+    <string name="collaborators">Nhưng bên hợp tác</string>
+    <string name="collaborator">Bên hợp tác</string>
     <string name="stats">Thống kê</string>
     <string name="library">Thư viện</string>
     <string name="library_section_header">Nội dung của bạn</string>
