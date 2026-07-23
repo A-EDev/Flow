@@ -861,8 +861,8 @@ fun TopResultCard(
     }
 }
 
-// Helper to convert SongItem to MusicTrack
-private fun convertSongToMusicTrack(item: SongItem): MusicTrack {
+// Helper to convert SongItem to MusicTrack (shared with the TV search screen)
+internal fun convertSongToMusicTrack(item: SongItem): MusicTrack {
     return MusicTrack(
         videoId = item.id,
         title = item.title,

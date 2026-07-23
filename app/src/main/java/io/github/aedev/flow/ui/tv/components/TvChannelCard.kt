@@ -32,26 +32,26 @@ fun TvChannelCard(
 ) {
     TvCard(
         onClick = onClick,
-        modifier = modifier.width(180.dp),
+        modifier = modifier.width(148.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AsyncImage(
                 model = channel.thumbnailUrl,
                 contentDescription = channel.name,
                 modifier = Modifier
-                    .size(96.dp)
+                    .size(72.dp)
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop,
             )
             Text(
                 text = channel.name,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 minLines = 2,

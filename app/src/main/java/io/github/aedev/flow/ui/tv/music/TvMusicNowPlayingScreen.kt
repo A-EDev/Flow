@@ -43,6 +43,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -63,6 +64,7 @@ import io.github.aedev.flow.ui.screens.music.player.PlayerBackground
 import io.github.aedev.flow.ui.screens.music.player.PlayerProgressSlider
 import io.github.aedev.flow.ui.screens.music.player.rememberMusicPalette
 import io.github.aedev.flow.ui.tv.components.TvIconButton
+import io.github.aedev.flow.ui.tv.components.TvIconButtonColors
 import io.github.aedev.flow.ui.tv.input.TvPlayerAction
 import io.github.aedev.flow.ui.tv.input.TvPlayerKeyMapper
 import io.github.aedev.flow.ui.tv.player.state.TvScrubController
@@ -100,6 +102,18 @@ fun TvMusicNowPlayingScreen(
     )
     val artworkUrl = track?.highResThumbnailUrl ?: track?.thumbnailUrl
     val palette = rememberMusicPalette(artworkUrl)
+    // Translucent chips over the always-dark PlayerBackground; latched toggles
+    // (like, shuffle, repeat, panels) light up with the artwork accent.
+    val playerButtonColors = remember(palette.accent) {
+        TvIconButtonColors(
+            container = Color.White.copy(alpha = 0.12f),
+            content = Color.White,
+            focusedContainer = Color.White,
+            focusedContent = Color.Black,
+            activeContainer = palette.accent,
+            activeContent = if (palette.accent.luminance() > 0.5f) Color.Black else Color.White,
+        )
+    }
 
     var panel by rememberSaveable { mutableStateOf(TvMusicPanel.NONE) }
     val scrubController = remember { TvScrubController() }
@@ -247,6 +261,7 @@ fun TvMusicNowPlayingScreen(
                         contentDescription = stringResource(R.string.tv_library_likes),
                         onClick = viewModel::toggleLike,
                         active = isLiked,
+                        colors = playerButtonColors,
                     )
                 }
                 Text(
@@ -292,11 +307,13 @@ fun TvMusicNowPlayingScreen(
                         contentDescription = stringResource(R.string.shuffle),
                         onClick = manager::toggleShuffle,
                         active = shuffleEnabled,
+                        colors = playerButtonColors,
                     )
                     TvIconButton(
                         icon = Icons.Outlined.SkipPrevious,
                         contentDescription = stringResource(R.string.previous),
                         onClick = manager::playPrevious,
+                        colors = playerButtonColors,
                     )
                     TvIconButton(
                         icon = if (playerState.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
@@ -307,11 +324,13 @@ fun TvMusicNowPlayingScreen(
                         },
                         onClick = manager::togglePlayPause,
                         active = true,
+                        colors = playerButtonColors,
                     )
                     TvIconButton(
                         icon = Icons.Outlined.SkipNext,
                         contentDescription = stringResource(R.string.next),
                         onClick = manager::playNext,
+                        colors = playerButtonColors,
                     )
                     TvIconButton(
                         icon = if (repeatMode == RepeatMode.ONE) {
@@ -322,6 +341,7 @@ fun TvMusicNowPlayingScreen(
                         contentDescription = stringResource(R.string.loop_video),
                         onClick = manager::toggleRepeat,
                         active = repeatMode != RepeatMode.OFF,
+                        colors = playerButtonColors,
                     )
                     TvIconButton(
                         icon = Icons.Outlined.Lyrics,
@@ -330,6 +350,7 @@ fun TvMusicNowPlayingScreen(
                             panel = if (panel == TvMusicPanel.LYRICS) TvMusicPanel.NONE else TvMusicPanel.LYRICS
                         },
                         active = panel == TvMusicPanel.LYRICS,
+                        colors = playerButtonColors,
                     )
                     TvIconButton(
                         icon = Icons.AutoMirrored.Outlined.QueueMusic,
@@ -338,6 +359,7 @@ fun TvMusicNowPlayingScreen(
                             panel = if (panel == TvMusicPanel.QUEUE) TvMusicPanel.NONE else TvMusicPanel.QUEUE
                         },
                         active = panel == TvMusicPanel.QUEUE,
+                        colors = playerButtonColors,
                     )
                 }
             }

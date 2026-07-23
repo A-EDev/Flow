@@ -16,12 +16,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+
+/** Color set for [TvIconButton]; defaults come from the active theme. */
+@Immutable
+data class TvIconButtonColors(
+    val container: Color,
+    val content: Color,
+    val focusedContainer: Color,
+    val focusedContent: Color,
+    val activeContainer: Color,
+    val activeContent: Color,
+)
 
 /**
  * Round focusable icon button for TV transport rows and toolbars.
  * [active] marks a latched toggle (captions on, autoplay on, …).
+ * [colors] overrides the theme-token defaults for surfaces with their own
+ * color system (e.g. the palette-tinted music player).
  */
 @Composable
 fun TvIconButton(
@@ -32,8 +47,17 @@ fun TvIconButton(
     enabled: Boolean = true,
     active: Boolean = false,
     focusRequester: FocusRequester? = null,
+    colors: TvIconButtonColors? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val resolved = colors ?: TvIconButtonColors(
+        container = MaterialTheme.colorScheme.surfaceContainerHigh,
+        content = MaterialTheme.colorScheme.onSurface,
+        focusedContainer = MaterialTheme.colorScheme.inverseSurface,
+        focusedContent = MaterialTheme.colorScheme.inverseOnSurface,
+        activeContainer = MaterialTheme.colorScheme.secondaryContainer,
+        activeContent = MaterialTheme.colorScheme.onSecondaryContainer,
+    )
 
     Surface(
         onClick = onClick,
@@ -43,15 +67,15 @@ fun TvIconButton(
             .onFocusChanged { focused = it.isFocused },
         shape = CircleShape,
         color = when {
-            focused -> MaterialTheme.colorScheme.inverseSurface
-            active -> MaterialTheme.colorScheme.secondaryContainer
-            else -> MaterialTheme.colorScheme.surfaceContainerHigh
+            focused -> resolved.focusedContainer
+            active -> resolved.activeContainer
+            else -> resolved.container
         },
         contentColor = when {
-            !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-            focused -> MaterialTheme.colorScheme.inverseOnSurface
-            active -> MaterialTheme.colorScheme.onSecondaryContainer
-            else -> MaterialTheme.colorScheme.onSurface
+            !enabled -> resolved.content.copy(alpha = 0.38f)
+            focused -> resolved.focusedContent
+            active -> resolved.activeContent
+            else -> resolved.content
         },
     ) {
         Box(

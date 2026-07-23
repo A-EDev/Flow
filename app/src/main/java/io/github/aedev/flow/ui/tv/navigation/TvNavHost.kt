@@ -112,6 +112,9 @@ fun TvNavHost(
                 onVideoClick = onPlayVideo,
                 onChannelClick = openChannel,
                 onPlayPlaylist = onPlayPlaylist,
+                onPlayTrack = musicPlayerViewModel::loadAndPlayTrack,
+                onOpenMusicCollection = { navController.navigate(TvRoutes.musicCollection(it)) },
+                onOpenMusicArtist = { navController.navigate(TvRoutes.musicArtist(it)) },
                 modifier = Modifier.fillMaxSize(),
             )
         }

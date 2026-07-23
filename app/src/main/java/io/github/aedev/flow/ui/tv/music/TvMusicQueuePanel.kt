@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
-import io.github.aedev.flow.ui.tv.components.TvSelectionRow
+import io.github.aedev.flow.ui.tv.components.TvMusicTrackRow
 import io.github.aedev.flow.ui.tv.components.TvSidePanel
 
 /** Music queue side panel: current queue plus the automix (radio) continuation. */
@@ -45,9 +45,8 @@ fun BoxScope.TvMusicQueuePanel(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             itemsIndexed(queue, key = { index, item -> "queue:$index:${item.videoId}" }) { index, item ->
-                TvSelectionRow(
-                    label = item.title,
-                    supportingText = item.artist,
+                TvMusicTrackRow(
+                    track = item,
                     selected = index == currentIndex,
                     onClick = { manager.playFromQueue(index) },
                 )
@@ -61,10 +60,8 @@ fun BoxScope.TvMusicQueuePanel(
                     )
                 }
                 itemsIndexed(automix, key = { index, item -> "automix:$index:${item.videoId}" }) { _, item ->
-                    TvSelectionRow(
-                        label = item.title,
-                        supportingText = item.artist,
-                        selected = false,
+                    TvMusicTrackRow(
+                        track = item,
                         onClick = { manager.playNext(item) },
                     )
                 }

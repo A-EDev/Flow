@@ -175,16 +175,18 @@ fun TvArtistCard(
     }
 }
 
-/** Focusable track row for collection pages and other TV track lists. */
+/** Focusable track row for collection pages, queues, and other TV track lists. */
 @Composable
 fun TvMusicTrackRow(
     track: MusicTrack,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    selected: Boolean = false,
 ) {
     TvCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
+        selected = selected,
     ) {
         Row(
             modifier = Modifier
