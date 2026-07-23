@@ -15,7 +15,6 @@ import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
-import io.github.aedev.flow.ui.screens.sync.SyncScreen
 import io.github.aedev.flow.ui.tv.screens.TvArtistScreen
 import io.github.aedev.flow.ui.tv.screens.TvChannelScreen
 import io.github.aedev.flow.ui.tv.screens.TvHomeScreen
@@ -26,6 +25,7 @@ import io.github.aedev.flow.ui.tv.screens.TvPlaylistDetailScreen
 import io.github.aedev.flow.ui.tv.screens.TvSearchScreen
 import io.github.aedev.flow.ui.tv.screens.TvSettingsScreen
 import io.github.aedev.flow.ui.tv.screens.TvSubscriptionsScreen
+import io.github.aedev.flow.ui.tv.screens.TvSyncScreen
 
 /** Top-level TV navigation graph plus detail routes (channel, …). */
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -128,7 +128,7 @@ fun TvNavHost(
             )
         }
         composable(TvRoutes.SYNC) {
-            SyncScreen(onNavigateBack = { navController.popBackStack() })
+            TvSyncScreen(onNavigateBack = { navController.popBackStack() })
         }
         composable(
             route = TvRoutes.CHANNEL,

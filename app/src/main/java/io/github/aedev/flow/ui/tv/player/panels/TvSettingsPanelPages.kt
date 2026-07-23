@@ -13,6 +13,7 @@ import io.github.aedev.flow.player.state.SubtitleOption
 import io.github.aedev.flow.ui.tv.components.TvNavRow
 import io.github.aedev.flow.ui.tv.components.TvSelectionRow
 import io.github.aedev.flow.ui.tv.components.TvToggleRow
+import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.player.state.TvPlayerPanel
 import androidx.compose.ui.unit.dp
 
@@ -52,6 +53,7 @@ fun TvSettingsMainPage(
                 label = stringResource(R.string.quality),
                 value = currentQualityLabel,
                 onClick = { onOpen(TvPlayerPanel.QUALITY) },
+                modifier = Modifier.tvInitialFocus(),
             )
         }
         item(key = "speed") {
@@ -135,6 +137,7 @@ fun TvQualityPage(
                 label = quality.label,
                 selected = quality == selected,
                 onClick = { onSelect(quality) },
+                modifier = if (index == 0) Modifier.tvInitialFocus() else Modifier,
             )
         }
     }
@@ -156,6 +159,7 @@ fun TvSpeedPage(
                 label = formatSpeedLabel(speed),
                 selected = speed == currentSpeed,
                 onClick = { onSelect(speed) },
+                modifier = if (index == 0) Modifier.tvInitialFocus() else Modifier,
             )
         }
     }
@@ -179,6 +183,7 @@ fun TvAudioPage(
                 supportingText = track.language.takeIf { it.isNotBlank() },
                 selected = track.index == currentIndex,
                 onClick = { onSelect(track) },
+                modifier = if (i == 0) Modifier.tvInitialFocus() else Modifier,
             )
         }
     }
@@ -208,6 +213,7 @@ fun TvSubtitlesPage(
                 label = stringResource(R.string.off),
                 selected = !subtitlesEnabled,
                 onClick = onDisable,
+                modifier = Modifier.tvInitialFocus(),
             )
         }
         items(count = subtitles.size, key = { subtitles[it].url + it }) { index ->

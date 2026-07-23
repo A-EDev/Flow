@@ -339,7 +339,7 @@ fun TvPlayerScreen(
         }
 
         TvPlayerOverlay(
-            visible = overlayState.mode != TvOverlayMode.HIDDEN,
+            visible = overlayState.mode == TvOverlayMode.TRANSPORT,
             title = title,
             channelName = channelName,
             isLive = playerState.isLive,

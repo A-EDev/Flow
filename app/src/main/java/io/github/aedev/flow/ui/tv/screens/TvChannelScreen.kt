@@ -43,6 +43,7 @@ import io.github.aedev.flow.ui.tv.components.TvLoadingState
 import io.github.aedev.flow.ui.tv.components.TvMessageState
 import io.github.aedev.flow.ui.tv.components.TvPlaylistCard
 import io.github.aedev.flow.ui.tv.components.TvVideoCard
+import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.focus.tvRowFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import io.github.aedev.flow.utils.formatSubscriberCount
@@ -142,6 +143,11 @@ fun TvChannelScreen(
                     label = stringResource(tab.labelRes),
                     selected = tab == selectedTab,
                     onClick = { viewModel.selectTab(tab.vmIndex) },
+                    modifier = if (tab == TvChannelTab.VIDEOS) {
+                        Modifier.tvInitialFocus()
+                    } else {
+                        Modifier
+                    },
                 )
             }
         }

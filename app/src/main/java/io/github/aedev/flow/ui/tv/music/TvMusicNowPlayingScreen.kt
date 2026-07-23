@@ -120,6 +120,14 @@ fun TvMusicNowPlayingScreen(
     var scrubUiState by remember { mutableStateOf(TvScrubController.ScrubState()) }
     var seekBarFocused by remember { mutableStateOf(false) }
     val seekBarFocusRequester = remember { FocusRequester() }
+    val playPauseFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(panel) {
+        if (panel == TvMusicPanel.NONE) {
+            delay(80)
+            runCatching { playPauseFocusRequester.requestFocus() }
+        }
+    }
 
     // Slider position at 2 Hz while playing — the mobile slider is
     // position-driven, and this screen has no video pipeline to protect.
@@ -325,6 +333,7 @@ fun TvMusicNowPlayingScreen(
                         onClick = manager::togglePlayPause,
                         active = true,
                         colors = playerButtonColors,
+                        focusRequester = playPauseFocusRequester,
                     )
                     TvIconButton(
                         icon = Icons.Outlined.SkipNext,

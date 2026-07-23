@@ -23,19 +23,30 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Right-side modal panel — the TV replacement for bottom sheets and dropdowns.
- * Grabs focus on open; dismissed via Back or the header close button.
+ * While open it is a focus trap: D-pad can never move focus out of the panel,
+ * and if the focused row leaves composition (content swap, list reload) focus
+ * is re-grabbed automatically. Dismissed via Back or the header close button.
  * Placed inside a Box.
  */
 @Composable
@@ -48,6 +59,7 @@ fun BoxScope.TvSidePanel(
 ) {
     val dimens = LocalTvDimens.current
     val firstFocusRequester = remember { FocusRequester() }
+    var panelHasFocus by remember { mutableStateOf(false) }
 
     AnimatedVisibility(
         visible = visible,
@@ -65,6 +77,13 @@ fun BoxScope.TvSidePanel(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .onFocusChanged { panelHasFocus = it.hasFocus }
+                    // Trap: no D-pad direction may move focus out of the panel.
+                    .focusProperties {
+                        @OptIn(ExperimentalComposeUiApi::class)
+                        exit = { FocusRequester.Cancel }
+                    }
+                    .focusGroup()
                     .padding(
                         horizontal = 24.dp,
                         vertical = dimens.overscanVertical,
@@ -103,8 +122,14 @@ fun BoxScope.TvSidePanel(
     }
 
     LaunchedEffect(visible) {
-        if (visible) {
-            runCatching { firstFocusRequester.requestFocus() }
+        if (!visible) return@LaunchedEffect
+        snapshotFlow { panelHasFocus }.collectLatest { hasFocus ->
+            if (hasFocus) return@collectLatest
+            repeat(20) {
+                delay(120)
+                if (panelHasFocus) return@collectLatest
+                runCatching { firstFocusRequester.requestFocus() }
+            }
         }
     }
 }

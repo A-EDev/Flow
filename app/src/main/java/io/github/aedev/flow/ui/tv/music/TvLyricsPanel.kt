@@ -1,5 +1,7 @@
 package io.github.aedev.flow.ui.tv.music
 
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -12,6 +14,7 @@ import io.github.aedev.flow.ui.screens.music.MusicPlayerUiState
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.player.InlineLyricsPanel
 import io.github.aedev.flow.ui.tv.components.TvSidePanel
+import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 
 /**
  * Lyrics side panel hosting the mobile lyrics canvas ([InlineLyricsPanel]):
@@ -39,15 +42,22 @@ fun BoxScope.TvLyricsPanel(
         title = stringResource(R.string.tv_music_lyrics),
         onClose = onClose,
     ) {
-        InlineLyricsPanel(
-            lyrics = uiState.lyrics,
-            syncedLyrics = uiState.syncedLyrics,
-            currentPosition = positionProvider(),
-            isLoading = uiState.isLyricsLoading,
-            accentColor = MaterialTheme.colorScheme.primary,
-            onSeekTo = onSeekTo,
-            providerName = uiState.lyricsProviderName,
-            modifier = Modifier.fillMaxSize(),
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .tvInitialFocus()
+                .focusable(),
+        ) {
+            InlineLyricsPanel(
+                lyrics = uiState.lyrics,
+                syncedLyrics = uiState.syncedLyrics,
+                currentPosition = positionProvider(),
+                isLoading = uiState.isLyricsLoading,
+                accentColor = MaterialTheme.colorScheme.primary,
+                onSeekTo = onSeekTo,
+                providerName = uiState.lyricsProviderName,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }

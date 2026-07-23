@@ -35,6 +35,7 @@ import io.github.aedev.flow.ui.tv.components.TvLoadingState
 import io.github.aedev.flow.ui.tv.components.TvMessageState
 import io.github.aedev.flow.ui.tv.components.TvMusicTrackRow
 import io.github.aedev.flow.ui.tv.focus.ProvideTvColumnPivot
+import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 
 /**
@@ -128,6 +129,7 @@ fun TvMusicCollectionScreen(
                                                 onTrackClick(tracks.first(), tracks, details.title)
                                             },
                                             icon = Icons.Outlined.PlayArrow,
+                                            modifier = Modifier.tvInitialFocus(),
                                         )
                                         TvButton(
                                             text = stringResource(R.string.shuffle),

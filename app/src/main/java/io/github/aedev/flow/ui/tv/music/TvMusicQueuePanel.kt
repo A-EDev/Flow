@@ -17,6 +17,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.tv.components.TvMusicTrackRow
 import io.github.aedev.flow.ui.tv.components.TvSidePanel
+import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 
 /** Music queue side panel: current queue plus the automix (radio) continuation. */
 @Composable
@@ -51,6 +52,7 @@ fun BoxScope.TvMusicQueuePanel(
                     track = item,
                     selected = index == currentIndex,
                     onClick = { manager.playFromQueue(index) },
+                    modifier = if (index == 0) Modifier.tvInitialFocus() else Modifier,
                 )
             }
             if (automix.isNotEmpty()) {

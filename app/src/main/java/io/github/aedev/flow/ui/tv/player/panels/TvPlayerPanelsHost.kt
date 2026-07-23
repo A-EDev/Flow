@@ -63,6 +63,7 @@ import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.components.TvCard
 import io.github.aedev.flow.ui.tv.components.TvSelectionRow
 import io.github.aedev.flow.ui.tv.components.TvSidePanel
+import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.player.state.TvPlayerPanel
 import kotlinx.coroutines.launch
 
@@ -215,6 +216,7 @@ private fun TvQueuePanelContent(
                 video = item,
                 selected = index == currentIndex,
                 onClick = { onPlayVideo(item) },
+                modifier = if (index == 0) Modifier.tvInitialFocus() else Modifier,
             )
         }
     }
@@ -225,10 +227,11 @@ private fun TvQueueVideoRow(
     video: Video,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     TvCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         selected = selected,
     ) {
         Row(
@@ -281,7 +284,15 @@ private fun TvSavePanelContent(video: Video) {
     var membership by remember(video.id) { mutableStateOf(emptySet<String>()) }
     var creating by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
+    val nameFocusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(creating) {
+        if (creating) {
+            kotlinx.coroutines.delay(80)
+            runCatching { nameFocusRequester.requestFocus() }
+        }
+    }
 
     LaunchedEffect(video.id, visible.size) {
         membership = visible
@@ -315,7 +326,9 @@ private fun TvSavePanelContent(video: Video) {
                         onValueChange = { newName = it },
                         label = { Text(stringResource(R.string.playlist_name)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(nameFocusRequester),
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TvButton(
@@ -334,7 +347,9 @@ private fun TvSavePanelContent(video: Video) {
             } else {
                 TvCard(
                     onClick = { creating = true },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .tvInitialFocus(),
                 ) {
                     Row(
                         modifier = Modifier
@@ -417,6 +432,11 @@ private fun TvCommentsPanelContent(
                 TvCommentRow(
                     comment = comment,
                     repliesExpanded = expanded,
+                    modifier = if (comment.id == comments.first().id) {
+                        Modifier.tvInitialFocus(comments.first().id)
+                    } else {
+                        Modifier
+                    },
                     onClick = {
                         if (comment.replyCount > 0 || comment.replies.isNotEmpty()) {
                             if (expanded) {
@@ -497,10 +517,11 @@ private fun TvCommentRow(
     comment: Comment,
     repliesExpanded: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     TvCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         selected = repliesExpanded,
     ) {
         Row(
@@ -575,6 +596,21 @@ private fun TvLiveChatPanelContent(viewModel: VideoPlayerViewModel) {
         }
     }
 
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .tvInitialFocus()
+            .focusable(),
+    ) {
+        TvLiveChatMessages(uiState = uiState, listState = listState)
+    }
+}
+
+@Composable
+private fun TvLiveChatMessages(
+    uiState: io.github.aedev.flow.ui.screens.player.VideoPlayerUiState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+) {
     when {
         uiState.isLiveChatLoading && uiState.liveChatMessages.isEmpty() -> Text(
             text = stringResource(R.string.live_chat_connecting),
@@ -677,12 +713,13 @@ private fun TvDescriptionPanelContent(
                 style = MaterialTheme.typography.titleMedium,
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                uiState.chapters.forEach { chapter ->
+                uiState.chapters.forEachIndexed { index, chapter ->
                     TvSelectionRow(
                         label = chapter.title.orEmpty(),
                         supportingText = io.github.aedev.flow.utils.formatDuration(chapter.startTimeSeconds),
                         selected = false,
                         onClick = { onSeekTo(chapter.startTimeSeconds * 1_000L) },
+                        modifier = if (index == 0) Modifier.tvInitialFocus() else Modifier,
                     )
                 }
             }

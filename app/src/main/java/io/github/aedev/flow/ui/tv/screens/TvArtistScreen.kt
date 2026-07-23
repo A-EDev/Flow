@@ -41,6 +41,7 @@ import io.github.aedev.flow.ui.tv.components.TvMessageState
 import io.github.aedev.flow.ui.tv.components.TvMusicCard
 import io.github.aedev.flow.ui.tv.components.TvMusicCollectionCard
 import io.github.aedev.flow.ui.tv.focus.ProvideTvColumnPivot
+import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import io.github.aedev.flow.utils.formatSubscriberCount
 
@@ -146,6 +147,7 @@ fun TvArtistScreen(
                                                 onTrackClick(topTracks.first(), topTracks, details.name)
                                             },
                                             icon = Icons.Outlined.PlayArrow,
+                                            modifier = Modifier.tvInitialFocus(),
                                         )
                                         TvButton(
                                             text = stringResource(R.string.shuffle),

@@ -24,6 +24,7 @@ import io.github.aedev.flow.ui.tv.components.TvMediaGrid
 import io.github.aedev.flow.ui.tv.components.TvMessageState
 import io.github.aedev.flow.ui.tv.components.TvScreenScaffold
 import io.github.aedev.flow.ui.tv.components.TvVideoCard
+import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 
 /**
@@ -62,6 +63,7 @@ fun TvPlaylistDetailScreen(
                         text = stringResource(R.string.play_all),
                         onClick = { onPlayPlaylist(videos, state.playlistName) },
                         icon = Icons.Outlined.PlayArrow,
+                        modifier = Modifier.tvInitialFocus(videos.isNotEmpty()),
                     )
                     TvButton(
                         text = stringResource(R.string.shuffle),
