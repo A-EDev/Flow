@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,7 +61,9 @@ fun TvShell(
     var railHasFocus by remember { mutableStateOf(false) }
     val railFocusRequester = remember { FocusRequester() }
 
-    fun selectTab(destination: TvDestination) {
+    val tabHistory = remember { mutableStateListOf<TvDestination>() }
+
+    fun navigateToTab(destination: TvDestination) {
         navController.navigate(destination.route) {
             popUpTo(TvDestination.HOME.route) { saveState = true }
             launchSingleTop = true
@@ -68,16 +71,15 @@ fun TvShell(
         }
     }
 
-    // No auto-focus on entry: focus starts in the content so the rail stays
-    // collapsed until the user deliberately navigates to it (BACK or DPAD_LEFT).
-    val backAction = TvBackModel.resolve(isOnDetailRoute, currentTab, railHasFocus)
-    BackHandler(enabled = backAction != TvBackAction.EXIT) {
-        when (backAction) {
-            TvBackAction.POP_DETAIL -> navController.popBackStack()
-            TvBackAction.GO_HOME -> selectTab(TvDestination.HOME)
-            TvBackAction.FOCUS_RAIL -> runCatching { railFocusRequester.requestFocus() }
-            TvBackAction.EXIT -> Unit
+    fun selectTab(destination: TvDestination) {
+        if (destination != currentTab) {
+            tabHistory.remove(destination)
+            if (!isOnDetailRoute) {
+                tabHistory.remove(currentTab)
+                tabHistory.add(currentTab)
+            }
         }
+        navigateToTab(destination)
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -116,5 +118,21 @@ fun TvShell(
                 .align(Alignment.CenterStart)
                 .fillMaxHeight(),
         )
+
+        val backAction = TvBackModel.resolve(
+            isOnDetailRoute = isOnDetailRoute,
+            hasTabHistory = tabHistory.isNotEmpty(),
+            currentTab = currentTab,
+            railHasFocus = railHasFocus,
+        )
+        BackHandler(enabled = backAction != TvBackAction.EXIT) {
+            when (backAction) {
+                TvBackAction.POP_DETAIL -> navController.popBackStack()
+                TvBackAction.POP_TAB -> navigateToTab(tabHistory.removeAt(tabHistory.lastIndex))
+                TvBackAction.GO_HOME -> navigateToTab(TvDestination.HOME)
+                TvBackAction.FOCUS_RAIL -> runCatching { railFocusRequester.requestFocus() }
+                TvBackAction.EXIT -> Unit
+            }
+        }
     }
 }

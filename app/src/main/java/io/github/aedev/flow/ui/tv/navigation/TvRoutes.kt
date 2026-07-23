@@ -5,7 +5,7 @@ import android.net.Uri
 /** Detail routes layered over the top-level [TvDestination] tabs. */
 object TvRoutes {
     const val CHANNEL_ARG = "channelRef"
-    const val CHANNEL = "channel/{$CHANNEL_ARG}"
+    const val CHANNEL = "channel?ref={$CHANNEL_ARG}"
 
     const val PLAYLIST_ARG = "playlistId"
     const val PLAYLIST = "playlist/{$PLAYLIST_ARG}"
@@ -19,7 +19,7 @@ object TvRoutes {
     const val SYNC = "sync"
 
     /** [channelRef] is a full channel URL (preferred) or a bare channel id. */
-    fun channel(channelRef: String): String = "channel/${Uri.encode(channelRef)}"
+    fun channel(channelRef: String): String = "channel?ref=${Uri.encode(channelRef)}"
 
     fun playlist(playlistId: String): String = "playlist/${Uri.encode(playlistId)}"
 

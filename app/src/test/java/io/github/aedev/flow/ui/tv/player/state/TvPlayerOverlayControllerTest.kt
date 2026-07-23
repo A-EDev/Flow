@@ -100,7 +100,7 @@ class TvPlayerOverlayControllerTest {
             TvPlayerPanel.COMMENTS,
             TvPlayerPanel.LIVE_CHAT,
             TvPlayerPanel.DESCRIPTION,
-            TvPlayerPanel.SLEEP_TIMER,
+            TvPlayerPanel.SAVE,
         ).forEach { panel ->
             assertThat(panel.parent).isNull()
         }

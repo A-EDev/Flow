@@ -55,8 +55,8 @@ fun TvIconButton(
         content = MaterialTheme.colorScheme.onSurface,
         focusedContainer = MaterialTheme.colorScheme.inverseSurface,
         focusedContent = MaterialTheme.colorScheme.inverseOnSurface,
-        activeContainer = MaterialTheme.colorScheme.secondaryContainer,
-        activeContent = MaterialTheme.colorScheme.onSecondaryContainer,
+        activeContainer = MaterialTheme.colorScheme.primary,
+        activeContent = MaterialTheme.colorScheme.onPrimary,
     )
 
     Surface(

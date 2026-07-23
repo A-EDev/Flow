@@ -110,7 +110,7 @@ fun TvSearchScreen(
     onVideoClick: (Video) -> Unit,
     modifier: Modifier = Modifier,
     onChannelClick: (String) -> Unit = {},
-    onPlayPlaylist: (List<Video>, String) -> Unit = { _, _ -> },
+    onOpenPlaylist: (String) -> Unit = {},
     onPlayTrack: (MusicTrack, List<MusicTrack>, String) -> Unit = { _, _, _ -> },
     onOpenMusicCollection: (String) -> Unit = {},
     onOpenMusicArtist: (String) -> Unit = {},
@@ -355,11 +355,7 @@ fun TvSearchScreen(
                                 )
                                 is SearchResultItem.PlaylistResult -> TvPlaylistCard(
                                     playlist = item.playlist,
-                                    onClick = {
-                                        if (item.playlist.videos.isNotEmpty()) {
-                                            onPlayPlaylist(item.playlist.videos, item.playlist.name)
-                                        }
-                                    },
+                                    onClick = { onOpenPlaylist(item.playlist.id) },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
                                 is SearchResultItem.ShortsShelfResult -> item.shorts.firstOrNull()?.let { short ->

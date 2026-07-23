@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -81,11 +82,13 @@ fun TvSeekBar(
         }
     }
 
-    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.24f)
-    val bufferedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    // The bar floats directly over video (no scrim), so the neutral layers are
+    // white-based like the music player's over-artwork chips — theme-derived
+    // onSurface would vanish over video in light themes. Accent stays primary.
+    val trackColor = Color.White.copy(alpha = 0.28f)
+    val bufferedColor = Color.White.copy(alpha = 0.45f)
     val playedColor = MaterialTheme.colorScheme.primary
-    val ghostColor = MaterialTheme.colorScheme.inverseSurface
-    val chapterTickColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+    val ghostColor = Color.White
     val sponsorColor = MaterialTheme.colorScheme.tertiary
     val selfPromoColor = MaterialTheme.colorScheme.secondary
     val interactionColor = MaterialTheme.colorScheme.error
@@ -98,6 +101,26 @@ fun TvSeekBar(
                 else -> sponsorColor
             }
         }.orEmpty()
+    }
+    // YouTube-style chapter segmentation: the track splits into spans with a
+    // small gap at every chapter start (falls back to one full-width span).
+    val chapterSpans = remember(marks) {
+        val fractions = marks?.chapterFractions.orEmpty()
+            .filter { it > 0f && it < 1f }
+            .distinct()
+            .sorted()
+        if (fractions.isEmpty()) {
+            listOf(0f to 1f)
+        } else {
+            buildList {
+                var start = 0f
+                fractions.forEach { fraction ->
+                    add(start to fraction)
+                    start = fraction
+                }
+                add(start to 1f)
+            }
+        }
     }
 
     Column(
@@ -121,35 +144,46 @@ fun TvSeekBar(
                     val barHeight = (if (focused) 8.dp else 5.dp).toPx()
                     val centerY = size.height / 2f
                     val top = centerY - barHeight / 2f
-                    val corner = CornerRadius(barHeight / 2f)
+                    val corner = CornerRadius(2.dp.toPx())
+                    val gapHalf = 1.25.dp.toPx()
 
-                    drawRoundRect(
-                        color = trackColor,
-                        topLeft = Offset(0f, top),
-                        size = Size(size.width, barHeight),
-                        cornerRadius = corner,
-                    )
-                    val bufferedWidth = size.width * bufferedFractionProvider().coerceIn(0f, 1f)
-                    if (bufferedWidth > 0f) {
-                        drawRoundRect(
-                            color = bufferedColor,
-                            topLeft = Offset(0f, top),
-                            size = Size(bufferedWidth, barHeight),
-                            cornerRadius = corner,
-                        )
-                    }
+                    val bufferedFraction = bufferedFractionProvider().coerceIn(0f, 1f)
                     val playedFraction = if (duration > 0L) {
                         (position.toFloat() / duration).coerceIn(0f, 1f)
                     } else {
                         0f
                     }
-                    val playedWidth = size.width * playedFraction
-                    drawRoundRect(
-                        color = playedColor,
-                        topLeft = Offset(0f, top),
-                        size = Size(playedWidth, barHeight),
-                        cornerRadius = corner,
-                    )
+
+                    // Track, buffered, and played, clipped to each chapter span.
+                    chapterSpans.forEach { (startFraction, endFraction) ->
+                        val left = size.width * startFraction + if (startFraction > 0f) gapHalf else 0f
+                        val right = size.width * endFraction - if (endFraction < 1f) gapHalf else 0f
+                        if (right <= left) return@forEach
+                        drawRoundRect(
+                            color = trackColor,
+                            topLeft = Offset(left, top),
+                            size = Size(right - left, barHeight),
+                            cornerRadius = corner,
+                        )
+                        val bufferedRight = (size.width * bufferedFraction).coerceIn(left, right)
+                        if (bufferedRight > left) {
+                            drawRoundRect(
+                                color = bufferedColor,
+                                topLeft = Offset(left, top),
+                                size = Size(bufferedRight - left, barHeight),
+                                cornerRadius = corner,
+                            )
+                        }
+                        val playedRight = (size.width * playedFraction).coerceIn(left, right)
+                        if (playedRight > left) {
+                            drawRoundRect(
+                                color = playedColor,
+                                topLeft = Offset(left, top),
+                                size = Size(playedRight - left, barHeight),
+                                cornerRadius = corner,
+                            )
+                        }
+                    }
                     segmentColors.forEach { (segment, color) ->
                         val left = size.width * segment.startFraction
                         val right = size.width * segment.endFraction
@@ -160,16 +194,8 @@ fun TvSeekBar(
                             cornerRadius = corner,
                         )
                     }
-                    marks?.chapterFractions?.forEach { fraction ->
-                        val x = size.width * fraction
-                        drawRoundRect(
-                            color = chapterTickColor,
-                            topLeft = Offset(x - 1.dp.toPx(), top),
-                            size = Size(2.dp.toPx(), barHeight),
-                            cornerRadius = CornerRadius.Zero,
-                        )
-                    }
 
+                    val playedWidth = size.width * playedFraction
                     val knobRadius = (if (focused) 10.dp else 7.dp).toPx()
                     drawCircle(playedColor, knobRadius, center = Offset(playedWidth, centerY))
 
@@ -191,13 +217,13 @@ fun TvSeekBar(
                 color = if (scrubTargetMs != null) {
                     MaterialTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    Color.White.copy(alpha = 0.85f)
                 },
             )
             Text(
                 text = formatDuration(durationSeconds.coerceAtLeast(0L).toInt()),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color.White.copy(alpha = 0.85f),
             )
         }
     }

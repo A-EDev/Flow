@@ -27,6 +27,7 @@ fun BoxScope.TvLyricsPanel(
     positionProvider: () -> Long,
     onEnsureLyrics: (MusicTrack) -> Unit,
     onSeekTo: (Long) -> Unit,
+    onClose: () -> Unit,
 ) {
     LaunchedEffect(visible, track?.videoId) {
         if (!visible) return@LaunchedEffect
@@ -36,6 +37,7 @@ fun BoxScope.TvLyricsPanel(
     TvSidePanel(
         visible = visible,
         title = stringResource(R.string.tv_music_lyrics),
+        onClose = onClose,
     ) {
         InlineLyricsPanel(
             lyrics = uiState.lyrics,

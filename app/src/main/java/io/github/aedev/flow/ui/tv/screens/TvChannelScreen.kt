@@ -47,6 +47,8 @@ import io.github.aedev.flow.ui.tv.focus.tvRowFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import io.github.aedev.flow.utils.formatSubscriberCount
 
+private const val CHANNEL_GRID_COLUMNS = 3
+
 private enum class TvChannelTab(val vmIndex: Int, val labelRes: Int) {
     VIDEOS(0, R.string.tv_channel_videos),
     LIVE(2, R.string.tv_filter_live),
@@ -59,8 +61,8 @@ private enum class TvChannelTab(val vmIndex: Int, val labelRes: Int) {
 fun TvChannelScreen(
     channelUrl: String,
     onVideoClick: (Video) -> Unit,
-    onPlayPlaylist: (List<Video>, String) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenPlaylist: (String) -> Unit = {},
     viewModel: ChannelViewModel = hiltViewModel(),
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -169,7 +171,7 @@ fun TvChannelScreen(
                     TvLoadingState(Modifier.weight(1f))
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(dimens.videoCardWidth),
+                        columns = GridCells.Fixed(CHANNEL_GRID_COLUMNS),
                         modifier = Modifier
                             .weight(1f)
                             .tvRowFocus(),
@@ -188,11 +190,7 @@ fun TvChannelScreen(
                             playlists[index]?.let { playlist ->
                                 TvPlaylistCard(
                                     playlist = playlist,
-                                    onClick = {
-                                        if (playlist.videos.isNotEmpty()) {
-                                            onPlayPlaylist(playlist.videos, playlist.name)
-                                        }
-                                    },
+                                    onClick = { onOpenPlaylist(playlist.id) },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
                             }
@@ -204,17 +202,24 @@ fun TvChannelScreen(
                 }
             }
             else -> {
-                val flowState = when (selectedTab) {
-                    TvChannelTab.LIVE -> viewModel.livePagingFlow
-                    else -> viewModel.videosPagingFlow
-                }
-                val flow by flowState.collectAsStateWithLifecycle()
-                val videos = flow?.collectAsLazyPagingItems()
-                if (videos == null) {
-                    TvLoadingState(Modifier.weight(1f))
+                // The videos/live tabs are backed by the eagerly loaded full
+                // lists — the ViewModel never populates its paging flows for
+                // them (mobile reads these same lists for filtering support).
+                val videos by if (selectedTab == TvChannelTab.LIVE) {
+                    viewModel.liveAll.collectAsStateWithLifecycle()
                 } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(dimens.videoCardWidth),
+                    viewModel.videosAll.collectAsStateWithLifecycle()
+                }
+                val isLoadingAll by viewModel.isLoadingAllVideos.collectAsStateWithLifecycle()
+                when {
+                    videos.isEmpty() && (isLoadingAll || uiState.isLoadingVideos || uiState.isLoading) ->
+                        TvLoadingState(Modifier.weight(1f))
+                    videos.isEmpty() -> TvMessageState(
+                        title = stringResource(R.string.tv_library_empty),
+                        modifier = Modifier.weight(1f),
+                    )
+                    else -> LazyVerticalGrid(
+                        columns = GridCells.Fixed(CHANNEL_GRID_COLUMNS),
                         modifier = Modifier
                             .weight(1f)
                             .tvRowFocus(),
@@ -227,18 +232,17 @@ fun TvChannelScreen(
                         verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                     ) {
                         items(
-                            count = videos.itemCount,
-                            key = videos.itemKey { "video:${it.id}" },
+                            count = videos.size,
+                            key = { "video:$it:${videos[it].id}" },
                         ) { index ->
-                            videos[index]?.let { video ->
-                                TvVideoCard(
-                                    video = video,
-                                    onClick = { onVideoClick(video) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
+                            val video = videos[index]
+                            TvVideoCard(
+                                video = video,
+                                onClick = { onVideoClick(video) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         }
-                        if (videos.loadState.append is LoadState.Loading) {
+                        if (isLoadingAll) {
                             item(span = { GridItemSpan(maxLineSpan) }) { TvLoadingState() }
                         }
                     }

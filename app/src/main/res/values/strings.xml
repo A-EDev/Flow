@@ -2123,10 +2123,8 @@
     <string name="tv_player_queue">Queue</string>
     <string name="tv_player_play_now">Play now</string>
     <string name="tv_player_skip_segment">Skip %1$s</string>
-    <string name="tv_sleep_minutes">%1$d minutes</string>
-    <string name="tv_sleep_end_of_video">End of video</string>
-    <string name="tv_sleep_cancel_timer">Cancel timer</string>
     <string name="tv_player_chapters">Chapters</string>
+    <string name="tv_more_replies">More replies</string>
     <string name="tv_keyboard_space">Space</string>
     <string name="tv_keyboard_delete">Delete</string>
     <string name="tv_keyboard_clear">Clear</string>

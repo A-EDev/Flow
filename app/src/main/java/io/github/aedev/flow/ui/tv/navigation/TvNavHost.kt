@@ -105,7 +105,7 @@ fun TvNavHost(
                 viewModel = searchViewModel,
                 onVideoClick = onPlayVideo,
                 onChannelClick = openChannel,
-                onPlayPlaylist = onPlayPlaylist,
+                onOpenPlaylist = { navController.navigate(TvRoutes.playlist(it)) },
                 onPlayTrack = musicPlayerViewModel::loadAndPlayTrack,
                 onOpenMusicCollection = { navController.navigate(TvRoutes.musicCollection(it)) },
                 onOpenMusicArtist = { navController.navigate(TvRoutes.musicArtist(it)) },
@@ -132,23 +132,28 @@ fun TvNavHost(
         }
         composable(
             route = TvRoutes.CHANNEL,
-            arguments = listOf(navArgument(TvRoutes.CHANNEL_ARG) { type = NavType.StringType }),
+            arguments = listOf(
+                navArgument(TvRoutes.CHANNEL_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
         ) { entry ->
-            val channelRef = entry.arguments?.getString(TvRoutes.CHANNEL_ARG).orEmpty()
+            val channelRef = entry.arguments?.getString(TvRoutes.CHANNEL_ARG)
+                ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+                .orEmpty()
             TvChannelScreen(
                 channelUrl = channelRef,
                 onVideoClick = onPlayVideo,
-                onPlayPlaylist = onPlayPlaylist,
+                onOpenPlaylist = { navController.navigate(TvRoutes.playlist(it)) },
                 modifier = Modifier.fillMaxSize(),
             )
         }
         composable(
             route = TvRoutes.PLAYLIST,
             arguments = listOf(navArgument(TvRoutes.PLAYLIST_ARG) { type = NavType.StringType }),
-        ) { entry ->
-            val playlistId = entry.arguments?.getString(TvRoutes.PLAYLIST_ARG).orEmpty()
+        ) {
             TvPlaylistDetailScreen(
-                playlistId = playlistId,
                 onVideoClick = onPlayVideo,
                 onPlayPlaylist = onPlayPlaylist,
                 modifier = Modifier.fillMaxSize(),

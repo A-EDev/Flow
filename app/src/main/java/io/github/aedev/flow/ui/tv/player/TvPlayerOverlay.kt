@@ -27,9 +27,10 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 
 /**
- * Transport chrome for the TV player: top metadata band and bottom controls
- * stack, both on solid translucent surface fills (no gradient scrims).
- * Placed inside the player's root Box.
+ * Transport chrome for the TV player: only the top metadata band carries a
+ * translucent surface fill — the bottom controls float directly over the video
+ * (each control provides its own container surface). Placed inside the
+ * player's root Box.
  */
 @Composable
 fun BoxScope.TvPlayerOverlay(
@@ -106,7 +107,6 @@ fun BoxScope.TvPlayerOverlay(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(scrimColor)
                 .padding(
                     start = dimens.overscanHorizontal,
                     end = dimens.overscanHorizontal,

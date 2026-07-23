@@ -18,7 +18,7 @@ enum class TvPlayerPanel {
     COMMENTS,
     LIVE_CHAT,
     DESCRIPTION,
-    SLEEP_TIMER;
+    SAVE;
 
     /** Back from a sub-page returns to its parent panel instead of the transport. */
     val parent: TvPlayerPanel?

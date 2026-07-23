@@ -23,6 +23,7 @@ import io.github.aedev.flow.ui.tv.components.TvSidePanel
 fun BoxScope.TvMusicQueuePanel(
     visible: Boolean,
     manager: EnhancedMusicPlayerManager,
+    onClose: () -> Unit,
 ) {
     val queue by manager.queue.collectAsStateWithLifecycle()
     val automix by manager.automixItems.collectAsStateWithLifecycle()
@@ -31,6 +32,7 @@ fun BoxScope.TvMusicQueuePanel(
     TvSidePanel(
         visible = visible,
         title = stringResource(R.string.tv_player_queue),
+        onClose = onClose,
     ) {
         if (queue.isEmpty() && automix.isEmpty()) {
             Text(

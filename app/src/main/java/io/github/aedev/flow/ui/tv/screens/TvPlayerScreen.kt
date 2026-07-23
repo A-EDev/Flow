@@ -18,9 +18,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,10 +38,12 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.AspectRatioFrameLayout
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.components.Media3SubtitleOverlay
 import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
 import io.github.aedev.flow.ui.screens.player.effects.KeepScreenOnEffect
 import io.github.aedev.flow.ui.screens.player.effects.WatchProgressSaveEffect
@@ -59,6 +63,7 @@ import io.github.aedev.flow.ui.tv.player.state.TvScrubController
 import io.github.aedev.flow.ui.tv.player.state.TvSeekBarMarks
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private enum class TvPlayerFocusTarget { PLAY_PAUSE, SEEK_BAR, UP_NEXT }
 
@@ -77,8 +82,17 @@ fun TvPlayerScreen(
     val manager = remember { EnhancedPlayerManager.getInstance() }
     val playerState by manager.playerState.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val activity = LocalContext.current as? android.app.Activity
+    val context = LocalContext.current
+    val activity = context as? android.app.Activity
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+
+    val playerPreferences = remember { PlayerPreferences(context.applicationContext) }
+    val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
+
+    // Selected caption track, tracked by URL like mobile's screenState — the
+    // panel list and player text tracks are index-aligned availableSubtitles.
+    var selectedSubtitleUrl by remember(video.id) { mutableStateOf<String?>(null) }
 
     val overlayController = remember { TvPlayerOverlayController { SystemClock.uptimeMillis() } }
     val scrubController = remember { TvScrubController() }
@@ -142,20 +156,54 @@ fun TvPlayerScreen(
         }
     }
 
+    // Media-key play/pause with the overlay hidden reveals the transport so
+    // the state change is visible; it auto-hides again while playing.
+    fun revealTransportIfHidden() {
+        if (overlayController.state.value.mode == TvOverlayMode.HIDDEN) {
+            pendingFocusTarget = TvPlayerFocusTarget.PLAY_PAUSE
+            overlayController.showTransport()
+        }
+    }
+
     fun perform(action: TvPlayerAction, repeatCount: Int = 0) {
         when (action) {
-            TvPlayerAction.TOGGLE_PLAYBACK ->
+            TvPlayerAction.TOGGLE_PLAYBACK -> {
                 if (manager.playerState.value.isPlaying) manager.pause() else manager.play()
-            TvPlayerAction.PLAY -> manager.play()
-            TvPlayerAction.PAUSE -> manager.pause()
+                revealTransportIfHidden()
+            }
+            TvPlayerAction.PLAY -> {
+                manager.play()
+                revealTransportIfHidden()
+            }
+            TvPlayerAction.PAUSE -> {
+                manager.pause()
+                revealTransportIfHidden()
+            }
             TvPlayerAction.SEEK_BACK ->
                 manager.seekTo((manager.getCurrentPosition() - MEDIA_KEY_SEEK_MS).coerceAtLeast(0L))
             TvPlayerAction.SEEK_FORWARD ->
                 manager.seekTo(manager.getCurrentPosition() + MEDIA_KEY_SEEK_MS)
             TvPlayerAction.NEXT -> viewModel.playNext()
             TvPlayerAction.PREVIOUS -> viewModel.playPrevious()
-            TvPlayerAction.TOGGLE_CAPTIONS ->
-                viewModel.toggleSubtitles(!viewModel.uiState.value.subtitlesEnabled)
+            TvPlayerAction.TOGGLE_CAPTIONS -> {
+                // Mirrors mobile's CC button: enabling with no selection picks
+                // the first non-auto track and applies it to the player.
+                val subtitles = manager.playerState.value.availableSubtitles
+                if (viewModel.uiState.value.subtitlesEnabled) {
+                    manager.selectSubtitle(null)
+                    viewModel.toggleSubtitles(false)
+                } else if (subtitles.isNotEmpty()) {
+                    val rememberedIndex = selectedSubtitleUrl
+                        ?.let { url -> subtitles.indexOfFirst { it.url == url } }
+                        ?.takeIf { it >= 0 }
+                    val index = rememberedIndex
+                        ?: subtitles.indexOfFirst { !it.isAutoGenerated }.takeIf { it >= 0 }
+                        ?: 0
+                    selectedSubtitleUrl = subtitles[index].url
+                    manager.selectSubtitle(index)
+                    viewModel.toggleSubtitles(true)
+                }
+            }
             TvPlayerAction.SHOW_TRANSPORT -> {
                 pendingFocusTarget = TvPlayerFocusTarget.PLAY_PAUSE
                 overlayController.showTransport()
@@ -271,6 +319,15 @@ fun TvPlayerScreen(
             video = video,
             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
             modifier = Modifier.fillMaxSize(),
+            ambientMode = ambientModeEnabled,
+        )
+
+        Media3SubtitleOverlay(
+            enabled = uiState.subtitlesEnabled,
+            isAutoGenerated = playerState.availableSubtitles
+                .firstOrNull { it.url == selectedSubtitleUrl }
+                ?.isAutoGenerated == true,
+            modifier = Modifier.fillMaxSize(),
         )
 
         val seekBarMarks = remember(uiState.chapters, sponsorSegments, playerState.isPrepared, playerState.currentVideoId) {
@@ -313,16 +370,12 @@ fun TvPlayerScreen(
                 isPlaying = playerState.isPlaying,
                 hasPrevious = playerState.hasPrevious,
                 hasNext = playerState.hasNext,
-                subtitlesAvailable = uiState.subtitles.isNotEmpty(),
+                subtitlesAvailable = playerState.availableSubtitles.isNotEmpty(),
                 subtitlesEnabled = uiState.subtitlesEnabled,
-                autoplayEnabled = uiState.autoplayEnabled,
-                isLooping = playerState.isLooping,
                 onPrevious = { perform(TvPlayerAction.PREVIOUS) },
                 onTogglePlayback = { perform(TvPlayerAction.TOGGLE_PLAYBACK) },
                 onNext = { perform(TvPlayerAction.NEXT) },
                 onToggleCaptions = { perform(TvPlayerAction.TOGGLE_CAPTIONS) },
-                onToggleAutoplay = { viewModel.toggleAutoplay(!uiState.autoplayEnabled) },
-                onToggleLoop = { viewModel.toggleLoop(!playerState.isLooping) },
                 onClose = onClose,
                 onOpenPanel = { panel ->
                     overlayController.openPanel(panel)
@@ -344,8 +397,23 @@ fun TvPlayerScreen(
             video = video,
             viewModel = viewModel,
             manager = manager,
+            selectedSubtitleUrl = selectedSubtitleUrl,
+            onSelectSubtitle = { index, subtitle ->
+                selectedSubtitleUrl = subtitle.url
+                manager.selectSubtitle(index)
+                viewModel.toggleSubtitles(true)
+            },
+            onDisableSubtitles = {
+                manager.selectSubtitle(null)
+                viewModel.toggleSubtitles(false)
+            },
+            ambientModeEnabled = ambientModeEnabled,
+            onToggleAmbientMode = { enabled ->
+                scope.launch { playerPreferences.setVideoAmbientModeEnabled(enabled) }
+            },
             onOpenPanel = overlayController::openPanel,
             onClosePanel = overlayController::closePanel,
+            onDismissPanels = overlayController::showTransport,
             onPlayVideo = ::playFromPlayer,
             onSeekTo = manager::seekTo,
         )

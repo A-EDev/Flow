@@ -13,16 +13,20 @@ import io.github.aedev.flow.ui.tv.focus.ProvideTvColumnPivot
 import io.github.aedev.flow.ui.tv.focus.tvRowFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 
+/** Column count every TV video grid shares (home, subs, library, playlists). */
+const val TV_GRID_COLUMNS = 3
+
 /**
- * Standard TV content grid: adaptive columns, overscan padding, focus
- * restoration, pivot scrolling, and stable keys.
+ * Standard TV content grid: three fixed columns (matching every other video
+ * grid's card size), overscan padding, focus restoration, pivot scrolling,
+ * and stable keys.
  */
 @Composable
 fun <T> TvMediaGrid(
     items: List<T>,
     key: (T) -> Any,
     modifier: Modifier = Modifier,
-    columns: GridCells = GridCells.Adaptive(LocalTvDimens.current.videoCardWidth),
+    columns: GridCells = GridCells.Fixed(TV_GRID_COLUMNS),
     contentPadding: PaddingValues? = null,
     card: @Composable (T) -> Unit,
 ) {

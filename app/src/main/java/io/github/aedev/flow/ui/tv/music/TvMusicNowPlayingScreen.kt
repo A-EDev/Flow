@@ -368,6 +368,7 @@ fun TvMusicNowPlayingScreen(
         TvMusicQueuePanel(
             visible = panel == TvMusicPanel.QUEUE,
             manager = manager,
+            onClose = { panel = TvMusicPanel.NONE },
         )
         TvLyricsPanel(
             visible = panel == TvMusicPanel.LYRICS,
@@ -376,6 +377,7 @@ fun TvMusicNowPlayingScreen(
             positionProvider = { manager.getCurrentPosition().coerceAtLeast(0L) },
             onEnsureLyrics = viewModel::ensureLyricsLoaded,
             onSeekTo = manager::seekTo,
+            onClose = { panel = TvMusicPanel.NONE },
         )
     }
 }
