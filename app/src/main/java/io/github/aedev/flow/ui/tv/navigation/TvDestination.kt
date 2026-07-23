@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.tv.navigation
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subscriptions
@@ -17,12 +18,11 @@ enum class TvDestination(
     val icon: ImageVector,
 ) {
     HOME("home", R.string.nav_home, Icons.Outlined.Home),
+    MUSIC("music", R.string.nav_music, Icons.Outlined.MusicNote),
     SUBSCRIPTIONS("subscriptions", R.string.top_bar_subscriptions_title, Icons.Outlined.Subscriptions),
     SEARCH("search", R.string.search, Icons.Outlined.Search),
     LIBRARY("library", R.string.library, Icons.Outlined.VideoLibrary),
     SETTINGS("settings", R.string.settings, Icons.Outlined.Settings);
-
-    fun backDestination(): TvDestination? = if (this == HOME) null else HOME
 
     companion object {
         val primary: List<TvDestination> = entries.toList()

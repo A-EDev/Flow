@@ -482,7 +482,7 @@ fun GlobalPlayerOverlay(
         video = video,
         isPlaying = playerState.playWhenReady,
         currentPosition = { screenState.currentPosition },
-        duration = screenState.duration,
+        duration = { screenState.duration },
         uiState = playerUiState,
         viewModel = playerViewModel
     )

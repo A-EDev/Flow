@@ -1,65 +1,77 @@
 package io.github.aedev.flow.ui.tv.screens
 
+import android.os.SystemClock
+import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.FastForward
-import androidx.compose.material.icons.outlined.Pause
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Replay10
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.AspectRatioFrameLayout
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.components.Media3SubtitleOverlay
 import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
 import io.github.aedev.flow.ui.screens.player.effects.KeepScreenOnEffect
-import io.github.aedev.flow.ui.tv.components.TvFocusableCard
+import io.github.aedev.flow.ui.screens.player.effects.WatchProgressSaveEffect
+import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.input.TvPlayerAction
 import io.github.aedev.flow.ui.tv.input.TvPlayerKeyMapper
+import io.github.aedev.flow.ui.tv.player.TvAutoplayCountdownCard
+import io.github.aedev.flow.ui.tv.player.TvPlayerOverlay
+import io.github.aedev.flow.ui.tv.player.TvSeekBar
+import io.github.aedev.flow.ui.tv.player.TvSponsorSkipButton
+import io.github.aedev.flow.ui.tv.player.TvTransportRow
+import io.github.aedev.flow.ui.tv.player.TvUpNextRail
+import io.github.aedev.flow.ui.tv.player.panels.TvPlayerPanelsHost
+import io.github.aedev.flow.ui.tv.player.state.TvOverlayMode
+import io.github.aedev.flow.ui.tv.player.state.TvPlayerOverlayController
+import io.github.aedev.flow.ui.tv.player.state.TvScrubController
+import io.github.aedev.flow.ui.tv.player.state.TvSeekBarMarks
+import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
-private const val TV_SEEK_INCREMENT_MS = 10_000L
+private enum class TvPlayerFocusTarget { PLAY_PAUSE, SEEK_BAR, UP_NEXT }
 
-@OptIn(ExperimentalComposeUiApi::class)
+/**
+ * Full-screen TV player: video surface + overlay state machine.
+ * Key events are routed through [TvPlayerKeyMapper]'s pure tables; scrubbing is
+ * preview-then-commit via [TvScrubController]; auto-hide is one restartable delay.
+ */
 @Composable
 fun TvPlayerScreen(
     video: Video,
@@ -70,12 +82,39 @@ fun TvPlayerScreen(
     val manager = remember { EnhancedPlayerManager.getInstance() }
     val playerState by manager.playerState.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val playerFocusRequester = remember { FocusRequester() }
-    val activity = LocalContext.current as? android.app.Activity
+    val context = LocalContext.current
+    val activity = context as? android.app.Activity
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(video.id) {
-        playerFocusRequester.requestFocus()
+    val playerPreferences = remember { PlayerPreferences(context.applicationContext) }
+    val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
+
+    // Selected caption track, tracked by URL like mobile's screenState — the
+    // panel list and player text tracks are index-aligned availableSubtitles.
+    var selectedSubtitleUrl by remember(video.id) { mutableStateOf<String?>(null) }
+
+    val overlayController = remember { TvPlayerOverlayController { SystemClock.uptimeMillis() } }
+    val scrubController = remember { TvScrubController() }
+    val overlayState by overlayController.state.collectAsStateWithLifecycle()
+    var scrubUiState by remember { mutableStateOf(TvScrubController.ScrubState()) }
+
+    val rootFocusRequester = remember { FocusRequester() }
+    val seekBarFocusRequester = remember { FocusRequester() }
+    val playPauseFocusRequester = remember { FocusRequester() }
+    val upNextFocusRequester = remember { FocusRequester() }
+    var seekBarFocused by remember { mutableStateOf(false) }
+    var pendingFocusTarget by remember { mutableStateOf(TvPlayerFocusTarget.PLAY_PAUSE) }
+
+    val autoplayCountdown by manager.autoplayCountdown.collectAsStateWithLifecycle()
+    val sponsorSegments by manager.sponsorSegments.collectAsStateWithLifecycle()
+    val queueVideos by manager.queueVideos.collectAsStateWithLifecycle()
+    val currentQueueIndex by manager.currentQueueIndexState.collectAsStateWithLifecycle()
+
+    fun playFromPlayer(next: Video) {
+        GlobalPlayerState.setCurrentVideo(next)
+        viewModel.playVideo(next)
+        overlayController.hide()
     }
 
     KeepScreenOnEffect(
@@ -84,156 +123,347 @@ fun TvPlayerScreen(
         lifecycleOwner = lifecycleOwner,
     )
 
-    fun perform(action: TvPlayerAction) {
-        when (action) {
-            TvPlayerAction.TOGGLE_PLAYBACK -> if (playerState.isPlaying) manager.pause() else manager.play()
-            TvPlayerAction.PLAY -> manager.play()
-            TvPlayerAction.PAUSE -> manager.pause()
-            TvPlayerAction.SEEK_BACK -> manager.seekTo((manager.getCurrentPosition() - TV_SEEK_INCREMENT_MS).coerceAtLeast(0L))
-            TvPlayerAction.SEEK_FORWARD -> manager.seekTo(manager.getCurrentPosition() + TV_SEEK_INCREMENT_MS)
+    // Same history/progress saver the mobile overlay mounts — without it, TV
+    // sessions never reach ViewHistory and Continue Watching stays empty.
+    WatchProgressSaveEffect(
+        videoId = video.id,
+        video = video,
+        isPlaying = playerState.isPlaying,
+        currentPosition = { manager.getCurrentPosition().coerceAtLeast(0L) },
+        duration = { manager.getDuration().coerceAtLeast(0L) },
+        uiState = uiState,
+        viewModel = viewModel,
+    )
+
+    fun commitScrub() {
+        scrubController.commit()?.let(manager::seekTo)
+        scrubUiState = scrubController.current
+        overlayController.onUserInteraction()
+    }
+
+    fun stepScrub(direction: Int, repeatCount: Int) {
+        scrubUiState = scrubController.beginOrStep(
+            direction = direction,
+            repeatCount = repeatCount,
+            currentPositionMs = manager.getCurrentPosition().coerceAtLeast(0L),
+            durationMs = manager.getDuration().coerceAtLeast(0L),
+        )
+        if (overlayController.state.value.mode == TvOverlayMode.HIDDEN) {
+            pendingFocusTarget = TvPlayerFocusTarget.SEEK_BAR
+            overlayController.showTransport()
+        } else {
+            overlayController.onUserInteraction()
         }
     }
 
-    BackHandler(onBack = onClose)
+    // Media-key play/pause with the overlay hidden reveals the transport so
+    // the state change is visible; it auto-hides again while playing.
+    fun revealTransportIfHidden() {
+        if (overlayController.state.value.mode == TvOverlayMode.HIDDEN) {
+            pendingFocusTarget = TvPlayerFocusTarget.PLAY_PAUSE
+            overlayController.showTransport()
+        }
+    }
+
+    fun perform(action: TvPlayerAction, repeatCount: Int = 0) {
+        when (action) {
+            TvPlayerAction.TOGGLE_PLAYBACK -> {
+                if (manager.playerState.value.isPlaying) manager.pause() else manager.play()
+                revealTransportIfHidden()
+            }
+            TvPlayerAction.PLAY -> {
+                manager.play()
+                revealTransportIfHidden()
+            }
+            TvPlayerAction.PAUSE -> {
+                manager.pause()
+                revealTransportIfHidden()
+            }
+            TvPlayerAction.SEEK_BACK ->
+                manager.seekTo((manager.getCurrentPosition() - MEDIA_KEY_SEEK_MS).coerceAtLeast(0L))
+            TvPlayerAction.SEEK_FORWARD ->
+                manager.seekTo(manager.getCurrentPosition() + MEDIA_KEY_SEEK_MS)
+            TvPlayerAction.NEXT -> viewModel.playNext()
+            TvPlayerAction.PREVIOUS -> viewModel.playPrevious()
+            TvPlayerAction.TOGGLE_CAPTIONS -> {
+                // Mirrors mobile's CC button: enabling with no selection picks
+                // the first non-auto track and applies it to the player.
+                val subtitles = manager.playerState.value.availableSubtitles
+                if (viewModel.uiState.value.subtitlesEnabled) {
+                    manager.selectSubtitle(null)
+                    viewModel.toggleSubtitles(false)
+                } else if (subtitles.isNotEmpty()) {
+                    val rememberedIndex = selectedSubtitleUrl
+                        ?.let { url -> subtitles.indexOfFirst { it.url == url } }
+                        ?.takeIf { it >= 0 }
+                    val index = rememberedIndex
+                        ?: subtitles.indexOfFirst { !it.isAutoGenerated }.takeIf { it >= 0 }
+                        ?: 0
+                    selectedSubtitleUrl = subtitles[index].url
+                    manager.selectSubtitle(index)
+                    viewModel.toggleSubtitles(true)
+                }
+            }
+            TvPlayerAction.SHOW_TRANSPORT -> {
+                pendingFocusTarget = TvPlayerFocusTarget.PLAY_PAUSE
+                overlayController.showTransport()
+            }
+            TvPlayerAction.SHOW_UP_NEXT -> {
+                pendingFocusTarget = TvPlayerFocusTarget.UP_NEXT
+                overlayController.showTransport()
+            }
+            TvPlayerAction.SCRUB_BACK -> stepScrub(direction = -1, repeatCount = repeatCount)
+            TvPlayerAction.SCRUB_FORWARD -> stepScrub(direction = 1, repeatCount = repeatCount)
+            TvPlayerAction.COMMIT_SCRUB -> commitScrub()
+        }
+        overlayController.onUserInteraction()
+    }
+
+    fun handleKeyDown(keyCode: Int, repeatCount: Int): Boolean {
+        TvPlayerKeyMapper.map(keyCode)?.let {
+            perform(it, repeatCount)
+            return true
+        }
+        return when {
+            overlayController.state.value.mode == TvOverlayMode.HIDDEN ->
+                TvPlayerKeyMapper.mapDpadWhenControlsHidden(keyCode)?.let {
+                    perform(it, repeatCount)
+                    true
+                } ?: false
+            seekBarFocused ->
+                TvPlayerKeyMapper.mapDpadWhenSeekBarFocused(keyCode)?.let {
+                    perform(it, repeatCount)
+                    true
+                } ?: run {
+                    overlayController.onUserInteraction()
+                    false
+                }
+            else -> {
+                overlayController.onUserInteraction()
+                false
+            }
+        }
+    }
+
+    // Single restartable delay — replaces the old 1s polling loop.
+    LaunchedEffect(
+        overlayState.mode,
+        overlayState.lastInteractionAtMs,
+        playerState.isPlaying,
+        scrubUiState.isScrubbing,
+    ) {
+        val deadline = overlayController.autoHideDeadline(
+            isPlaying = playerState.isPlaying,
+            isScrubbing = scrubUiState.isScrubbing,
+        ) ?: return@LaunchedEffect
+        val waitMs = deadline - SystemClock.uptimeMillis()
+        if (waitMs > 0) delay(waitMs)
+        overlayController.hide()
+    }
+
+    // Route focus when the overlay mode changes.
+    LaunchedEffect(overlayState.mode) {
+        when (overlayState.mode) {
+            TvOverlayMode.HIDDEN -> runCatching { rootFocusRequester.requestFocus() }
+            TvOverlayMode.TRANSPORT -> runCatching {
+                when (pendingFocusTarget) {
+                    TvPlayerFocusTarget.SEEK_BAR -> seekBarFocusRequester.requestFocus()
+                    TvPlayerFocusTarget.PLAY_PAUSE -> playPauseFocusRequester.requestFocus()
+                    TvPlayerFocusTarget.UP_NEXT -> upNextFocusRequester.requestFocus()
+                }
+            }
+            TvOverlayMode.PANEL -> Unit
+        }
+    }
+
+    LaunchedEffect(video.id) {
+        runCatching { rootFocusRequester.requestFocus() }
+    }
+
+    BackHandler {
+        if (scrubController.current.isScrubbing) {
+            scrubController.cancel()
+            scrubUiState = scrubController.current
+        } else if (!overlayController.onBack()) {
+            onClose()
+        }
+    }
+
+    val title = uiState.streamInfo?.name?.takeIf { it.isNotBlank() } ?: video.title
+    val channelName = uiState.streamInfo?.uploaderName?.takeIf { it.isNotBlank() } ?: video.channelName
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
-            .focusRequester(playerFocusRequester)
-            .focusProperties { exit = { FocusRequester.Cancel } }
+            .focusRequester(rootFocusRequester)
             .focusable()
             .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                val action = TvPlayerKeyMapper.map(event.nativeKeyEvent.keyCode) ?: return@onPreviewKeyEvent false
-                perform(action)
-                true
+                val keyCode = event.nativeKeyEvent.keyCode
+                when (event.type) {
+                    KeyEventType.KeyUp ->
+                        if (scrubController.current.isScrubbing &&
+                            (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                        ) {
+                            commitScrub()
+                            true
+                        } else {
+                            false
+                        }
+                    KeyEventType.KeyDown -> handleKeyDown(keyCode, event.nativeKeyEvent.repeatCount)
+                    else -> false
+                }
             },
     ) {
         VideoPlayerSurface(
             video = video,
             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
             modifier = Modifier.fillMaxSize(),
+            ambientMode = ambientModeEnabled,
         )
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(horizontal = 48.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = video.title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = video.channelName,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            TvPlaybackProgress(videoId = video.id, manager = manager)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PlayerActionCard(
-                    label = stringResource(R.string.tv_player_rewind),
-                    icon = { Icon(Icons.Outlined.Replay10, contentDescription = null) },
-                    onClick = { perform(TvPlayerAction.SEEK_BACK) },
-                )
-                PlayerActionCard(
-                    label = if (playerState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
-                    icon = {
-                        Icon(
-                            imageVector = if (playerState.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                            contentDescription = null,
-                        )
-                    },
-                    onClick = { perform(TvPlayerAction.TOGGLE_PLAYBACK) },
-                )
-                PlayerActionCard(
-                    label = stringResource(R.string.tv_player_fast_forward),
-                    icon = { Icon(Icons.Outlined.FastForward, contentDescription = null) },
-                    onClick = { perform(TvPlayerAction.SEEK_FORWARD) },
-                )
-                PlayerActionCard(
-                    label = stringResource(R.string.tv_player_close),
-                    icon = { Icon(Icons.Outlined.Close, contentDescription = null) },
-                    onClick = onClose,
-                )
-            }
+        Media3SubtitleOverlay(
+            enabled = uiState.subtitlesEnabled,
+            isAutoGenerated = playerState.availableSubtitles
+                .firstOrNull { it.url == selectedSubtitleUrl }
+                ?.isAutoGenerated == true,
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        val seekBarMarks = remember(uiState.chapters, sponsorSegments, playerState.isPrepared, playerState.currentVideoId) {
+            TvSeekBarMarks.from(
+                chapterStartSeconds = uiState.chapters.map { it.startTimeSeconds },
+                sponsorSegments = sponsorSegments,
+                durationMs = manager.getDuration(),
+            ).takeIf { !it.isEmpty() }
         }
+
+        TvPlayerOverlay(
+            visible = overlayState.mode == TvOverlayMode.TRANSPORT,
+            title = title,
+            channelName = channelName,
+            isLive = playerState.isLive,
+        ) {
+            if (sponsorSegments.isNotEmpty()) {
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TvSponsorSkipButton(
+                        segments = sponsorSegments,
+                        positionProvider = { manager.getCurrentPosition().coerceAtLeast(0L) },
+                        onSkipTo = manager::seekTo,
+                    )
+                }
+            }
+            TvSeekBar(
+                positionProvider = { manager.getCurrentPosition().coerceAtLeast(0L) },
+                durationProvider = { manager.getDuration().coerceAtLeast(0L) },
+                bufferedFractionProvider = { manager.playerState.value.bufferedPercentage / 100f },
+                scrubTargetMs = scrubUiState.takeIf { it.isScrubbing }?.targetMs,
+                active = overlayState.mode != TvOverlayMode.HIDDEN,
+                focusRequester = seekBarFocusRequester,
+                onFocusChanged = { seekBarFocused = it },
+                marks = seekBarMarks,
+            )
+            TvTransportRow(
+                isPlaying = playerState.isPlaying,
+                hasPrevious = playerState.hasPrevious,
+                hasNext = playerState.hasNext,
+                subtitlesAvailable = playerState.availableSubtitles.isNotEmpty(),
+                subtitlesEnabled = uiState.subtitlesEnabled,
+                onPrevious = { perform(TvPlayerAction.PREVIOUS) },
+                onTogglePlayback = { perform(TvPlayerAction.TOGGLE_PLAYBACK) },
+                onNext = { perform(TvPlayerAction.NEXT) },
+                onToggleCaptions = { perform(TvPlayerAction.TOGGLE_CAPTIONS) },
+                onClose = onClose,
+                onOpenPanel = { panel ->
+                    overlayController.openPanel(panel)
+                },
+                isLive = playerState.isLive,
+                playPauseFocusRequester = playPauseFocusRequester,
+            )
+            TvUpNextRail(
+                queue = queueVideos,
+                currentQueueIndex = currentQueueIndex,
+                relatedVideos = uiState.relatedVideos,
+                onVideoClick = ::playFromPlayer,
+                firstItemFocusRequester = upNextFocusRequester,
+            )
+        }
+
+        TvPlayerPanelsHost(
+            activePanel = overlayState.activePanel.takeIf { overlayState.mode == TvOverlayMode.PANEL },
+            video = video,
+            viewModel = viewModel,
+            manager = manager,
+            selectedSubtitleUrl = selectedSubtitleUrl,
+            onSelectSubtitle = { index, subtitle ->
+                selectedSubtitleUrl = subtitle.url
+                manager.selectSubtitle(index)
+                viewModel.toggleSubtitles(true)
+            },
+            onDisableSubtitles = {
+                manager.selectSubtitle(null)
+                viewModel.toggleSubtitles(false)
+            },
+            ambientModeEnabled = ambientModeEnabled,
+            onToggleAmbientMode = { enabled ->
+                scope.launch { playerPreferences.setVideoAmbientModeEnabled(enabled) }
+            },
+            onOpenPanel = overlayController::openPanel,
+            onClosePanel = overlayController::closePanel,
+            onDismissPanels = overlayController::showTransport,
+            onPlayVideo = ::playFromPlayer,
+            onSeekTo = manager::seekTo,
+        )
+
+        TvAutoplayCountdownCard(
+            countdown = autoplayCountdown,
+            onPlayNow = manager::skipAutoplayCountdown,
+            onCancel = manager::cancelAutoplayCountdown,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(LocalTvDimens.current.overscanHorizontal),
+        )
 
         if (uiState.isLoading || playerState.isBuffering) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         }
+
         uiState.error?.let { error ->
-            Text(
-                text = error,
+            Surface(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .padding(24.dp),
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleLarge,
-            )
-        }
-    }
-}
-
-@Composable
-private fun TvPlaybackProgress(
-    videoId: String,
-    manager: EnhancedPlayerManager,
-) {
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var position by remember(videoId) { mutableLongStateOf(0L) }
-    var duration by remember(videoId) { mutableLongStateOf(0L) }
-
-    LaunchedEffect(videoId, lifecycleOwner) {
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (isActive) {
-                position = manager.getCurrentPosition().coerceAtLeast(0L)
-                duration = manager.getDuration().coerceAtLeast(0L)
-                delay(1_000L)
+                    .widthIn(max = 560.dp),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            ) {
+                Column(
+                    modifier = Modifier.padding(28.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    uiState.errorHint?.let { hint ->
+                        Text(
+                            text = hint,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TvButton(
+                        text = stringResource(R.string.retry),
+                        onClick = viewModel::retryLoadVideo,
+                    )
+                }
             }
         }
     }
-
-    LinearProgressIndicator(
-        progress = {
-            if (duration > 0L) {
-                (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-            } else {
-                0f
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-    )
 }
 
-@Composable
-private fun PlayerActionCard(
-    label: String,
-    icon: @Composable () -> Unit,
-    onClick: () -> Unit,
-) {
-    TvFocusableCard(
-        onClick = onClick,
-        modifier = Modifier.padding(horizontal = 8.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            icon()
-            Text(label)
-        }
-    }
-}
+private const val MEDIA_KEY_SEEK_MS = 10_000L

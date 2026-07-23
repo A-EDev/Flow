@@ -1,89 +1,159 @@
 package io.github.aedev.flow.ui.tv.screens
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.AppUiModePreferences
-import io.github.aedev.flow.platform.AppUiMode
-import io.github.aedev.flow.ui.tv.components.TvFocusableCard
-import kotlinx.coroutines.launch
+import io.github.aedev.flow.data.local.LocalDataManager
+import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.ui.tv.components.TvScreenScaffold
+import io.github.aedev.flow.ui.tv.screens.settings.TvAboutSettingsPane
+import io.github.aedev.flow.ui.tv.screens.settings.TvAppearanceSettingsPane
+import io.github.aedev.flow.ui.tv.screens.settings.TvContentSettingsPane
+import io.github.aedev.flow.ui.tv.screens.settings.TvFlowEngineSettingsPane
+import io.github.aedev.flow.ui.tv.screens.settings.TvInterfaceSettingsPane
+import io.github.aedev.flow.ui.tv.screens.settings.TvPlaybackSettingsPane
+import io.github.aedev.flow.ui.tv.screens.settings.TvQualitySettingsPane
+import io.github.aedev.flow.ui.tv.screens.settings.TvSettingsCategory
+import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 
+/**
+ * Two-pane TV settings: focusable category list on the left, the selected
+ * category's pane on the right. Sync opens the device-sync flow as a route.
+ */
 @Composable
-fun TvSettingsScreen(modifier: Modifier = Modifier) {
+fun TvSettingsScreen(
+    modifier: Modifier = Modifier,
+    onOpenSync: () -> Unit = {},
+    onOpenRemoteGuide: () -> Unit = {},
+) {
     val context = LocalContext.current
-    val preferences = remember { AppUiModePreferences(context.applicationContext) }
-    val selected by preferences.mode.collectAsStateWithLifecycle(initialValue = AppUiMode.AUTOMATIC)
-    val scope = rememberCoroutineScope()
+    val playerPreferences = remember { PlayerPreferences(context.applicationContext) }
+    val modePreferences = remember { AppUiModePreferences(context.applicationContext) }
+    val localDataManager = remember { LocalDataManager(context.applicationContext) }
+    var selectedCategory by rememberSaveable { mutableStateOf(TvSettingsCategory.PLAYBACK) }
+    val dimens = LocalTvDimens.current
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(36.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+    TvScreenScaffold(
+        title = stringResource(R.string.settings),
+        modifier = modifier,
     ) {
-        Text(
-            text = stringResource(R.string.settings),
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = stringResource(R.string.interface_mode_title),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-        )
-        AppUiMode.entries.forEach { mode ->
-            val title = when (mode) {
-                AppUiMode.AUTOMATIC -> stringResource(R.string.interface_mode_automatic)
-                AppUiMode.MOBILE -> stringResource(R.string.interface_mode_mobile)
-                AppUiMode.TV -> stringResource(R.string.interface_mode_tv)
-            }
-            val summary = when (mode) {
-                AppUiMode.AUTOMATIC -> stringResource(R.string.interface_mode_automatic_summary)
-                AppUiMode.MOBILE -> stringResource(R.string.interface_mode_mobile_summary)
-                AppUiMode.TV -> stringResource(R.string.interface_mode_tv_summary)
-            }
-            TvFocusableCard(
-                onClick = { scope.launch { preferences.setMode(mode) } },
-                modifier = Modifier.fillMaxWidth(),
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = dimens.overscanHorizontal),
+            horizontalArrangement = Arrangement.spacedBy(32.dp),
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(300.dp)
+                    .verticalScroll(rememberScrollState())
+                    .focusGroup(),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                androidx.compose.foundation.layout.Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    RadioButton(
-                        selected = selected == mode,
-                        onClick = null,
+                TvSettingsCategory.entries.forEach { category ->
+                    TvSettingsCategoryItem(
+                        category = category,
+                        selected = category == selectedCategory,
+                        onClick = {
+                            when (category) {
+                                TvSettingsCategory.SYNC -> onOpenSync()
+                                TvSettingsCategory.REMOTE_GUIDE -> onOpenRemoteGuide()
+                                else -> selectedCategory = category
+                            }
+                        },
+                        onFocused = {
+                            // Route categories need an explicit click; panes follow focus.
+                            if (category != TvSettingsCategory.SYNC &&
+                                category != TvSettingsCategory.REMOTE_GUIDE
+                            ) {
+                                selectedCategory = category
+                            }
+                        },
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(title, style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            text = summary,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
             }
+
+            androidx.compose.foundation.layout.Box(modifier = Modifier.weight(1f)) {
+                when (selectedCategory) {
+                    TvSettingsCategory.PLAYBACK -> TvPlaybackSettingsPane(playerPreferences)
+                    TvSettingsCategory.QUALITY -> TvQualitySettingsPane(playerPreferences)
+                    TvSettingsCategory.CONTENT -> TvContentSettingsPane(playerPreferences)
+                    TvSettingsCategory.APPEARANCE -> TvAppearanceSettingsPane(localDataManager)
+                    TvSettingsCategory.FLOW_ENGINE -> TvFlowEngineSettingsPane(playerPreferences)
+                    TvSettingsCategory.INTERFACE -> TvInterfaceSettingsPane(modePreferences)
+                    TvSettingsCategory.ABOUT -> TvAboutSettingsPane()
+                    TvSettingsCategory.REMOTE_GUIDE,
+                    TvSettingsCategory.SYNC,
+                    -> Unit
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvSettingsCategoryItem(
+    category: TvSettingsCategory,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onFocused: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.onFocusChanged { state ->
+            focused = state.isFocused
+            if (state.isFocused) onFocused()
+        },
+        shape = MaterialTheme.shapes.medium,
+        color = when {
+            focused -> MaterialTheme.colorScheme.inverseSurface
+            selected -> MaterialTheme.colorScheme.secondaryContainer
+            else -> MaterialTheme.colorScheme.surfaceContainer
+        },
+        contentColor = when {
+            focused -> MaterialTheme.colorScheme.inverseOnSurface
+            selected -> MaterialTheme.colorScheme.onSecondaryContainer
+            else -> MaterialTheme.colorScheme.onSurface
+        },
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(category.icon, contentDescription = null)
+            Text(
+                text = stringResource(category.labelRes),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

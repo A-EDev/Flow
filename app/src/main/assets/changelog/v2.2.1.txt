@@ -1,7 +1,11 @@
 FLOW CHANGE LOG
 VERSION: 2.2.1
-DATE: 2026-07-21
+DATE: 2026-07-23
 STATUS: PRE-RELEASE
+
+NEW FEATURES
+- Discord RPC support by @PastaHimself
+- TV UI support by @PastaHimself
 
 IMPROVEMENTS
 - Slimmer player seekbar segment gaps #786

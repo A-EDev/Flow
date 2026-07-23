@@ -564,7 +564,7 @@ class PlayerPreferences(context: Context) {
     // Slider Style preference
     val sliderStyle: Flow<SliderStyle> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            SliderStyle.valueOf(preferences[Keys.SLIDER_STYLE] ?: SliderStyle.DEFAULT.name)
+            SliderStyle.valueOf(preferences[Keys.SLIDER_STYLE] ?: SliderStyle.METROLIST_SLIM.name)
         }
 
     suspend fun setSliderStyle(style: SliderStyle) {

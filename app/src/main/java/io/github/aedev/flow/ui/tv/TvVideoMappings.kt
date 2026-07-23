@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.tv
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.screens.music.MusicTrack
 
 internal fun VideoHistoryEntry.toTvVideo(): Video = Video(
     id = videoId,
@@ -14,9 +15,50 @@ internal fun VideoHistoryEntry.toTvVideo(): Video = Video(
     viewCount = 0L,
     uploadDate = "",
     timestamp = timestamp,
+    isMusic = isMusic,
     isShort = isShort,
 )
 
+/**
+ * Resume-bar fraction using the same thresholds as the mobile cards:
+ * hidden below 3% progress, shown full from 90%.
+ */
+internal fun VideoHistoryEntry.tvWatchProgress(): Float? = when {
+    duration <= 0L -> null
+    progressPercentage < 3f -> null
+    progressPercentage >= 90f -> 1f
+    else -> progressPercentage / 100f
+}
+
+// Music mappings for library entries flagged isMusic (mirrors the mobile
+// screens' private toMusicTrack() converters).
+internal fun VideoHistoryEntry.toTvMusicTrack(): MusicTrack = MusicTrack(
+    videoId = videoId,
+    title = title,
+    artist = channelName,
+    thumbnailUrl = thumbnailUrl,
+    duration = (duration / 1_000L).toInt(),
+    channelId = channelId,
+)
+
+internal fun LikedVideoInfo.toTvMusicTrack(): MusicTrack = MusicTrack(
+    videoId = videoId,
+    title = title,
+    artist = channelName,
+    thumbnailUrl = thumbnail,
+    duration = 0,
+)
+
+internal fun Video.toTvMusicTrack(): MusicTrack = MusicTrack(
+    videoId = id,
+    title = title,
+    artist = channelName,
+    thumbnailUrl = thumbnailUrl,
+    duration = duration,
+    channelId = channelId,
+)
+
+// LikedVideoInfo carries no channelId or duration; those stay at their defaults.
 internal fun LikedVideoInfo.toTvVideo(): Video = Video(
     id = videoId,
     title = title,
