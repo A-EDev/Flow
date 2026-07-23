@@ -40,14 +40,14 @@ object TvPlayerKeyMapper {
     }
 
     /**
-     * D-pad handling while the controls overlay is hidden. Center reveals the
-     * transport (YouTube-TV behavior — no blind toggling), left/right start a
-     * scrub with the seek bar focused, up reveals with the up-next rail focused.
+     * D-pad handling while the controls overlay is hidden. Center follows the Android TV
+     * convention and toggles playback while revealing the transport, left/right start a scrub
+     * with the seek bar focused, and up reveals with the up-next rail focused.
      */
     fun mapDpadWhenControlsHidden(keyCode: Int): TvPlayerAction? = when (keyCode) {
         KeyEvent.KEYCODE_DPAD_CENTER,
         KeyEvent.KEYCODE_ENTER,
-        KeyEvent.KEYCODE_NUMPAD_ENTER -> TvPlayerAction.SHOW_TRANSPORT
+        KeyEvent.KEYCODE_NUMPAD_ENTER -> TvPlayerAction.TOGGLE_PLAYBACK
         KeyEvent.KEYCODE_DPAD_LEFT -> TvPlayerAction.SCRUB_BACK
         KeyEvent.KEYCODE_DPAD_RIGHT -> TvPlayerAction.SCRUB_FORWARD
         KeyEvent.KEYCODE_DPAD_UP -> TvPlayerAction.SHOW_UP_NEXT

@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.tv
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -13,8 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -86,7 +90,18 @@ fun TvShell(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = dimens.railCollapsedWidth),
+                .padding(start = dimens.railCollapsedWidth)
+                .focusProperties {
+                    @OptIn(ExperimentalComposeUiApi::class)
+                    exit = { direction ->
+                        if (direction == FocusDirection.Left) {
+                            railFocusRequester
+                        } else {
+                            FocusRequester.Default
+                        }
+                    }
+                }
+                .focusGroup(),
         ) {
             Box(modifier = Modifier.weight(1f)) {
                 TvNavHost(

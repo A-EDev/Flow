@@ -46,13 +46,17 @@ class TvPlayerKeyMapperTest {
     }
 
     @Test
-    fun `hidden controls reveal the transport instead of blind toggling`() {
+    fun `hidden controls center keys toggle playback`() {
         assertThat(TvPlayerKeyMapper.mapDpadWhenControlsHidden(KeyEvent.KEYCODE_DPAD_CENTER))
-            .isEqualTo(TvPlayerAction.SHOW_TRANSPORT)
+            .isEqualTo(TvPlayerAction.TOGGLE_PLAYBACK)
         assertThat(TvPlayerKeyMapper.mapDpadWhenControlsHidden(KeyEvent.KEYCODE_ENTER))
-            .isEqualTo(TvPlayerAction.SHOW_TRANSPORT)
+            .isEqualTo(TvPlayerAction.TOGGLE_PLAYBACK)
         assertThat(TvPlayerKeyMapper.mapDpadWhenControlsHidden(KeyEvent.KEYCODE_NUMPAD_ENTER))
-            .isEqualTo(TvPlayerAction.SHOW_TRANSPORT)
+            .isEqualTo(TvPlayerAction.TOGGLE_PLAYBACK)
+    }
+
+    @Test
+    fun `hidden controls down reveals transport`() {
         assertThat(TvPlayerKeyMapper.mapDpadWhenControlsHidden(KeyEvent.KEYCODE_DPAD_DOWN))
             .isEqualTo(TvPlayerAction.SHOW_TRANSPORT)
     }

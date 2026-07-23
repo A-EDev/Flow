@@ -22,6 +22,7 @@ import io.github.aedev.flow.ui.tv.screens.TvLibraryScreen
 import io.github.aedev.flow.ui.tv.screens.TvMusicCollectionScreen
 import io.github.aedev.flow.ui.tv.screens.TvMusicScreen
 import io.github.aedev.flow.ui.tv.screens.TvPlaylistDetailScreen
+import io.github.aedev.flow.ui.tv.screens.TvRemoteGuideScreen
 import io.github.aedev.flow.ui.tv.screens.TvSearchScreen
 import io.github.aedev.flow.ui.tv.screens.TvSettingsScreen
 import io.github.aedev.flow.ui.tv.screens.TvSubscriptionsScreen
@@ -124,11 +125,15 @@ fun TvNavHost(
         composable(TvDestination.SETTINGS.route) {
             TvSettingsScreen(
                 onOpenSync = { navController.navigate(TvRoutes.SYNC) },
+                onOpenRemoteGuide = { navController.navigate(TvRoutes.REMOTE_GUIDE) },
                 modifier = Modifier.fillMaxSize(),
             )
         }
         composable(TvRoutes.SYNC) {
             TvSyncScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable(TvRoutes.REMOTE_GUIDE) {
+            TvRemoteGuideScreen(onNavigateBack = { navController.popBackStack() })
         }
         composable(
             route = TvRoutes.CHANNEL,

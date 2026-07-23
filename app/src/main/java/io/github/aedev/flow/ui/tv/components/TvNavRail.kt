@@ -29,8 +29,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -79,6 +82,18 @@ fun TvNavRail(
     ) {
         Column(
             modifier = Modifier
+                .focusProperties {
+                    @OptIn(ExperimentalComposeUiApi::class)
+                    enter = { selectedFocusRequester ?: FocusRequester.Default }
+                    @OptIn(ExperimentalComposeUiApi::class)
+                    exit = { direction ->
+                        if (direction == FocusDirection.Left) {
+                            FocusRequester.Cancel
+                        } else {
+                            FocusRequester.Default
+                        }
+                    }
+                }
                 .focusGroup()
                 .padding(horizontal = 12.dp, vertical = dimens.overscanVertical),
             verticalArrangement = Arrangement.spacedBy(8.dp),

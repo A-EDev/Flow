@@ -1,6 +1,8 @@
 package io.github.aedev.flow.sync.qr
 
 import io.github.aedev.flow.sync.crypto.SyncBytes
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -8,8 +10,10 @@ import kotlinx.serialization.json.Json
 /**
  * Builds and parses the `FLOW-SYNC/1` QR payload.
  *
- * The QR carries the out-of-band session secret (`K_master`) plus the host's LAN address and a
- * short TTL. It contains **no IV/nonce** (nonces are per-frame and random) and is single-use.
+ * The QR carries the out-of-band session secret (`K_master`) plus the host's LAN address. Mobile
+ * hosts use a short wall-clock TTL; TV hosts use the lifetime of their live, single-use server
+ * session because emulator clocks frequently disagree with the scanning phone. It contains
+ * **no IV/nonce** (nonces are per-frame and random).
  */
 object QrCodec {
 
@@ -25,6 +29,7 @@ object QrCodec {
      */
     const val ROLE_SENDER = "sender"
     const val ROLE_RECEIVER = "receiver"
+    private const val LEASE_HOST_SESSION = "host"
 
     private val json = Json {
         encodeDefaults = true
@@ -41,6 +46,9 @@ object QrCodec {
         @SerialName("d") val deviceName: String,
         @SerialName("exp") val exp: Long,
         @SerialName("role") val role: String = ROLE_SENDER,
+        @OptIn(ExperimentalSerializationApi::class)
+        @EncodeDefault(EncodeDefault.Mode.NEVER)
+        @SerialName("lease") val lease: String? = null,
     )
 
     /** Decoded, validated QR contents. */
@@ -53,6 +61,8 @@ object QrCodec {
         val expEpochSeconds: Long,
         /** Role of the device that showed this QR ([ROLE_SENDER] or [ROLE_RECEIVER]). */
         val displayerRole: String,
+        /** True when the live host session, rather than wall-clock agreement, controls freshness. */
+        val isSessionBound: Boolean,
     ) {
         val wsUrl: String get() = "ws://$ip:$port$WS_PATH"
         val displayerIsSender: Boolean get() = displayerRole == ROLE_SENDER
@@ -74,6 +84,7 @@ object QrCodec {
         deviceName: String,
         expEpochSeconds: Long,
         role: String = ROLE_SENDER,
+        sessionBound: Boolean = false,
     ): String {
         require(sessionId.size == 16) { "session id must be 16 bytes" }
         require(masterKey.size == 32) { "master key must be 32 bytes" }
@@ -85,6 +96,7 @@ object QrCodec {
             deviceName = deviceName.take(64),
             exp = expEpochSeconds,
             role = if (role == ROLE_RECEIVER) ROLE_RECEIVER else ROLE_SENDER,
+            lease = LEASE_HOST_SESSION.takeIf { sessionBound },
         )
         return json.encodeToString(QrPayload.serializer(), payload)
     }
@@ -113,11 +125,21 @@ object QrCodec {
         if (key.size != 32) return Result.Err(QrError.BAD_KEY)
 
         if (payload.ip.isBlank() || payload.port !in 1..65535) return Result.Err(QrError.BAD_ADDRESS)
-        if (payload.exp <= nowEpochSeconds) return Result.Err(QrError.EXPIRED)
+        val isSessionBound = payload.lease == LEASE_HOST_SESSION
+        if (!isSessionBound && payload.exp <= nowEpochSeconds) return Result.Err(QrError.EXPIRED)
 
         val role = if (payload.role == ROLE_RECEIVER) ROLE_RECEIVER else ROLE_SENDER
         return Result.Ok(
-            ParsedQr(sid, key, payload.ip.trim(), payload.port, payload.deviceName, payload.exp, role)
+            ParsedQr(
+                sid,
+                key,
+                payload.ip.trim(),
+                payload.port,
+                payload.deviceName,
+                payload.exp,
+                role,
+                isSessionBound,
+            )
         )
     }
 }

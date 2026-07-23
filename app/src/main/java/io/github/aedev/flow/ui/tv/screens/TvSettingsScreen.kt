@@ -48,6 +48,7 @@ import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 fun TvSettingsScreen(
     modifier: Modifier = Modifier,
     onOpenSync: () -> Unit = {},
+    onOpenRemoteGuide: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context.applicationContext) }
@@ -78,15 +79,17 @@ fun TvSettingsScreen(
                         category = category,
                         selected = category == selectedCategory,
                         onClick = {
-                            if (category == TvSettingsCategory.SYNC) {
-                                onOpenSync()
-                            } else {
-                                selectedCategory = category
+                            when (category) {
+                                TvSettingsCategory.SYNC -> onOpenSync()
+                                TvSettingsCategory.REMOTE_GUIDE -> onOpenRemoteGuide()
+                                else -> selectedCategory = category
                             }
                         },
                         onFocused = {
-                            // Focus-follows-selection for panes; Sync needs an explicit click.
-                            if (category != TvSettingsCategory.SYNC) {
+                            // Route categories need an explicit click; panes follow focus.
+                            if (category != TvSettingsCategory.SYNC &&
+                                category != TvSettingsCategory.REMOTE_GUIDE
+                            ) {
                                 selectedCategory = category
                             }
                         },
@@ -103,7 +106,9 @@ fun TvSettingsScreen(
                     TvSettingsCategory.FLOW_ENGINE -> TvFlowEngineSettingsPane(playerPreferences)
                     TvSettingsCategory.INTERFACE -> TvInterfaceSettingsPane(modePreferences)
                     TvSettingsCategory.ABOUT -> TvAboutSettingsPane()
-                    TvSettingsCategory.SYNC -> Unit
+                    TvSettingsCategory.REMOTE_GUIDE,
+                    TvSettingsCategory.SYNC,
+                    -> Unit
                 }
             }
         }

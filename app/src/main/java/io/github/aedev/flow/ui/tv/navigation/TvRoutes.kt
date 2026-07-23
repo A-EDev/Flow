@@ -17,6 +17,7 @@ object TvRoutes {
     const val MUSIC_ARTIST = "musicArtist/{$MUSIC_ARTIST_ARG}"
 
     const val SYNC = "sync"
+    const val REMOTE_GUIDE = "remoteGuide"
 
     /** [channelRef] is a full channel URL (preferred) or a bare channel id. */
     fun channel(channelRef: String): String = "channel?ref=${Uri.encode(channelRef)}"

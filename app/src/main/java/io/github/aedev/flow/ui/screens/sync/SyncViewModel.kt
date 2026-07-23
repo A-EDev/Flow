@@ -17,6 +17,7 @@ class SyncViewModel @Inject constructor(
     val state: StateFlow<SyncState> = manager.state
 
     fun host(role: SyncRole, collections: List<String>) = manager.host(role, collections)
+    fun hostForTv(role: SyncRole, collections: List<String>) = manager.hostForTv(role, collections)
     fun join(role: SyncRole, qrText: String, collections: List<String>) = manager.join(role, qrText, collections)
     fun confirmSas(matches: Boolean) = manager.confirmSas(matches)
     fun confirmConsent(accepted: Boolean) = manager.confirmConsent(accepted)

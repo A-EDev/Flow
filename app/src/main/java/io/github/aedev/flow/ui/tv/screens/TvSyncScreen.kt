@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.tv.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,15 +17,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -43,7 +39,6 @@ import io.github.aedev.flow.ui.tv.components.TvScreenScaffold
 import io.github.aedev.flow.ui.tv.components.TvSelectionRow
 import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
-import kotlinx.coroutines.delay
 
 private val COLLECTION_KEYS = listOf(
     SyncCollection.PLAYLISTS,
@@ -82,15 +77,15 @@ fun TvSyncScreen(
     var step by remember { mutableStateOf(TvSyncStep.CHOOSER) }
     var selected by remember { mutableStateOf(COLLECTION_KEYS.toSet()) }
     val dimens = LocalTvDimens.current
+    val returnToChooser = {
+        viewModel.cancel()
+        step = TvSyncStep.CHOOSER
+    }
 
     // BACK steps out of the flow (cancelling any live session) before the
     // shell pops the route.
     val inFlow = step != TvSyncStep.CHOOSER || state !is SyncState.Idle
-    BackHandler(enabled = inFlow) {
-        viewModel.cancel()
-        viewModel.reset()
-        step = TvSyncStep.CHOOSER
-    }
+    BackHandler(enabled = inFlow, onBack = returnToChooser)
 
     TvScreenScaffold(
         title = stringResource(R.string.sync_devices_title),
@@ -107,19 +102,25 @@ fun TvSyncScreen(
                 is SyncState.Idle -> when (step) {
                     TvSyncStep.CHOOSER -> TvSyncChooser(
                         onSend = { step = TvSyncStep.SEND_SELECT },
-                        onReceive = { viewModel.host(SyncRole.RECEIVER, COLLECTION_KEYS) },
+                        onReceive = { viewModel.hostForTv(SyncRole.RECEIVER, COLLECTION_KEYS) },
                     )
                     TvSyncStep.SEND_SELECT -> TvSyncSelect(
                         selected = selected,
                         onToggle = { key ->
                             selected = if (key in selected) selected - key else selected + key
                         },
-                        onContinue = { viewModel.host(SyncRole.SENDER, selected.toList()) },
+                        onContinue = { viewModel.hostForTv(SyncRole.SENDER, selected.toList()) },
                     )
                 }
-                is SyncState.Preparing -> TvSyncBusy(stringResource(R.string.sync_preparing))
-                is SyncState.Connecting -> TvSyncBusy(stringResource(R.string.sync_connecting))
-                is SyncState.ShowingQr -> TvSyncQr(s)
+                is SyncState.Preparing -> TvSyncBusy(
+                    label = stringResource(R.string.sync_preparing),
+                    onCancel = returnToChooser,
+                )
+                is SyncState.Connecting -> TvSyncBusy(
+                    label = stringResource(R.string.sync_connecting),
+                    onCancel = returnToChooser,
+                )
+                is SyncState.ShowingQr -> TvSyncQr(s, onCancel = returnToChooser)
                 is SyncState.AwaitingSas -> TvSyncSas(
                     sas = s.sas,
                     onConfirm = viewModel::confirmSas,
@@ -142,6 +143,11 @@ fun TvSyncScreen(
                         text = stringResource(R.string.sync_progress_fraction, s.done, s.total),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TvButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = returnToChooser,
+                        modifier = Modifier.tvInitialFocus(),
                     )
                 }
                 is SyncState.Done -> {
@@ -172,6 +178,7 @@ fun TvSyncScreen(
                             step = TvSyncStep.CHOOSER
                             onNavigateBack()
                         },
+                        modifier = Modifier.tvInitialFocus(),
                     )
                 }
                 is SyncState.Failed -> {
@@ -190,6 +197,7 @@ fun TvSyncScreen(
                             viewModel.reset()
                             step = TvSyncStep.CHOOSER
                         },
+                        modifier = Modifier.tvInitialFocus(),
                     )
                 }
             }
@@ -240,11 +248,12 @@ private fun TvSyncSelect(
         modifier = Modifier.widthIn(max = 560.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        COLLECTION_KEYS.forEach { key ->
+        COLLECTION_KEYS.forEachIndexed { index, key ->
             TvSelectionRow(
                 label = collectionLabel(key),
                 selected = key in selected,
                 onClick = { onToggle(key) },
+                modifier = if (index == 0) Modifier.tvInitialFocus() else Modifier,
             )
         }
     }
@@ -262,19 +271,12 @@ private fun TvSyncSelect(
 }
 
 @Composable
-private fun TvSyncQr(s: SyncState.ShowingQr) {
-    var remaining by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(s.expiresAtEpochSeconds) {
-        while (true) {
-            remaining = (s.expiresAtEpochSeconds - System.currentTimeMillis() / 1000).coerceAtLeast(0)
-            delay(1000)
-        }
-    }
+private fun TvSyncQr(
+    s: SyncState.ShowingQr,
+    onCancel: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .tvInitialFocus()
-            .focusable(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(40.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -296,7 +298,7 @@ private fun TvSyncQr(s: SyncState.ShowingQr) {
                 fontFamily = FontFamily.Monospace,
             )
             Text(
-                text = stringResource(R.string.sync_expires_in, remaining),
+                text = stringResource(R.string.tv_sync_qr_session_active),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -305,10 +307,18 @@ private fun TvSyncQr(s: SyncState.ShowingQr) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            TvButton(
+                text = stringResource(R.string.cancel),
+                onClick = onCancel,
+                modifier = Modifier.tvInitialFocus(s.qrText),
+            )
         }
-        // Phone-camera sized: a fixed compact code on a white quiet zone —
-        // full-bleed QRs overflow the TV and can't be scanned.
-        Surface(color = Color.White, shape = MaterialTheme.shapes.large) {
+        // Phone-camera sized: the QR bitmap supplies its own white quiet zone;
+        // a full-bleed code would overflow the TV and be difficult to scan.
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLowest,
+            shape = MaterialTheme.shapes.large,
+        ) {
             QrCodeImage(
                 text = s.qrText,
                 modifier = Modifier
@@ -340,6 +350,7 @@ private fun TvSyncSas(sas: String, onConfirm: (Boolean) -> Unit) {
         TvButton(
             text = stringResource(R.string.sync_sas_match),
             onClick = { onConfirm(true) },
+            modifier = Modifier.tvInitialFocus(sas),
         )
         TvButton(
             text = stringResource(R.string.sync_sas_differ),
@@ -372,6 +383,7 @@ private fun TvSyncConsent(collections: List<String>, onDecision: (Boolean) -> Un
         TvButton(
             text = stringResource(R.string.sync_merge),
             onClick = { onDecision(true) },
+            modifier = Modifier.tvInitialFocus(collections),
         )
         TvButton(
             text = stringResource(R.string.sync_decline),
@@ -381,13 +393,25 @@ private fun TvSyncConsent(collections: List<String>, onDecision: (Boolean) -> Un
 }
 
 @Composable
-private fun TvSyncBusy(label: String) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun TvSyncBusy(
+    label: String,
+    onCancel: () -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(20.dp),
         modifier = Modifier.padding(top = 24.dp),
     ) {
-        CircularProgressIndicator()
-        Text(text = label, style = MaterialTheme.typography.bodyLarge)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator()
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+        }
+        TvButton(
+            text = stringResource(R.string.cancel),
+            onClick = onCancel,
+            modifier = Modifier.tvInitialFocus(label),
+        )
     }
 }
