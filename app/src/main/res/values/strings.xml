@@ -2135,6 +2135,7 @@
     <string name="tv_filter_videos">Videos</string>
     <string name="tv_filter_channels">Channels</string>
     <string name="tv_filter_playlists">Playlists</string>
+    <string name="tv_filter_artists">Artists</string>
     <string name="tv_filter_live">Live</string>
     <string name="tv_channel_videos">Videos</string>
     <string name="tv_subscriptions_all">All channels</string>
@@ -2142,11 +2143,6 @@
         <item quantity="one">%1$d video</item>
         <item quantity="other">%1$d videos</item>
     </plurals>
-    <string name="tv_library_downloads">Downloads</string>
-    <string name="tv_library_local">Local media</string>
-    <string name="tv_delete_download_confirm">Delete this download?</string>
-    <string name="tv_local_permission_needed">Allow media access on your device to browse local files</string>
-    <string name="tv_downloads_music">Music</string>
     <string name="tv_music_lyrics">Lyrics</string>
     <string name="tv_music_expand">Open full player</string>
     <string name="tv_music_no_lyrics">No lyrics found</string>

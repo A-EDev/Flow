@@ -71,12 +71,6 @@ fun FlowTvApp(
         playerViewModel.playPlaylist(videos, startIndex = 0, title = title)
     }
 
-    fun playLocal(video: Video, contentUri: String) {
-        EnhancedMusicPlayerManager.pause()
-        GlobalPlayerState.setCurrentVideo(video)
-        playerViewModel.playLocalVideo(video, contentUri)
-    }
-
     LaunchedEffect(deeplinkVideoId) {
         val videoId = deeplinkVideoId ?: return@LaunchedEffect
         // Metadata is resolved by playVideo -> loadVideoInfo; the stub only seeds the id.
@@ -119,8 +113,6 @@ fun FlowTvApp(
                     searchViewModel = searchViewModel,
                     onPlayVideo = ::play,
                     onPlayPlaylist = ::playPlaylist,
-                    onPlayLocal = ::playLocal,
-                    onPlayLocalTrack = musicPlayerViewModel::playLocalMusic,
                     activeMusicTrack = visibleMusicTrack,
                     onExpandMusic = { musicExpanded = true },
                     onDismissMusic = {

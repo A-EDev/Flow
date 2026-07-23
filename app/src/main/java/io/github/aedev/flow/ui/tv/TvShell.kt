@@ -13,7 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import android.net.Uri
 import androidx.compose.ui.focus.FocusRequester
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
@@ -48,8 +47,6 @@ fun TvShell(
     searchViewModel: SearchViewModel,
     onPlayVideo: (Video) -> Unit,
     onPlayPlaylist: (List<Video>, String) -> Unit,
-    onPlayLocal: (Video, String) -> Unit,
-    onPlayLocalTrack: (MusicTrack, List<MusicTrack>, Map<String, Uri>) -> Unit,
     activeMusicTrack: MusicTrack?,
     onExpandMusic: () -> Unit,
     onDismissMusic: () -> Unit,
@@ -99,8 +96,6 @@ fun TvShell(
                     searchViewModel = searchViewModel,
                     onPlayVideo = onPlayVideo,
                     onPlayPlaylist = onPlayPlaylist,
-                    onPlayLocal = onPlayLocal,
-                    onPlayLocalTrack = onPlayLocalTrack,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

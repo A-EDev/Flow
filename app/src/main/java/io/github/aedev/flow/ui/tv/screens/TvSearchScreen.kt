@@ -5,6 +5,7 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +46,7 @@ import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
+import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
@@ -71,19 +74,35 @@ import io.github.aedev.flow.ui.tv.focus.tvRowFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import kotlinx.coroutines.delay
 
-private val SEARCH_CONTENT_TYPES = listOf(
-    ContentType.ALL to R.string.tv_filter_all,
-    ContentType.VIDEOS to R.string.tv_filter_videos,
-    ContentType.CHANNELS to R.string.tv_filter_channels,
-    ContentType.PLAYLISTS to R.string.tv_filter_playlists,
-    ContentType.LIVE to R.string.tv_filter_live,
-)
+private enum class TvSearchTop(@StringRes val labelRes: Int) {
+    ALL(R.string.tv_filter_all),
+    VIDEOS(R.string.tv_filter_videos),
+    MUSIC(R.string.nav_music),
+}
+
+private enum class TvVideoSubFilter(val contentType: ContentType, @StringRes val labelRes: Int) {
+    CHANNELS(ContentType.CHANNELS, R.string.tv_filter_channels),
+    PLAYLISTS(ContentType.PLAYLISTS, R.string.tv_filter_playlists),
+    LIVE(ContentType.LIVE, R.string.tv_filter_live),
+}
+
+private enum class TvMusicSubFilter(@StringRes val labelRes: Int) {
+    SONGS(R.string.filter_songs),
+    ARTISTS(R.string.tv_filter_artists),
+    ALBUMS(R.string.filter_albums),
+}
+
+private fun TvMusicSubFilter.toYouTubeFilter(): YouTube.SearchFilter = when (this) {
+    TvMusicSubFilter.SONGS -> YouTube.SearchFilter.FILTER_SONG
+    TvMusicSubFilter.ARTISTS -> YouTube.SearchFilter.FILTER_ARTIST
+    TvMusicSubFilter.ALBUMS -> YouTube.SearchFilter.FILTER_ALBUM
+}
 
 /**
  * D-pad-first search: grid keyboard on the left, live results on the right.
- * A dedicated Music mode searches YouTube Music (songs, albums, artists,
- * playlists) via the shared [MusicSearchViewModel]; suggestion chips appear
- * while typing in both modes.
+ * Primary chips select All / Videos / Music; Videos exposes channel/playlist/
+ * live sub-filters and Music exposes song/artist/album sub-filters backed by
+ * the shared [MusicSearchViewModel]. Suggestion chips appear while typing.
  */
 @Composable
 fun TvSearchScreen(
@@ -100,8 +119,9 @@ fun TvSearchScreen(
     val context = LocalContext.current
     val dimens = LocalTvDimens.current
     var query by rememberSaveable { mutableStateOf("") }
-    var contentType by rememberSaveable { mutableStateOf(ContentType.ALL) }
-    var musicMode by rememberSaveable { mutableStateOf(false) }
+    var topFilter by rememberSaveable { mutableStateOf(TvSearchTop.ALL) }
+    var videoSubFilter by rememberSaveable { mutableStateOf<TvVideoSubFilter?>(null) }
+    var musicSubFilter by rememberSaveable { mutableStateOf<TvMusicSubFilter?>(null) }
     val results = viewModel.searchResults.collectAsLazyPagingItems()
     val musicState by musicSearchViewModel.uiState.collectAsStateWithLifecycle()
     var videoSuggestions by remember { mutableStateOf(emptyList<String>()) }
@@ -127,7 +147,7 @@ fun TvSearchScreen(
     }
 
     // Live search with a short debounce as the user types on the grid keyboard.
-    LaunchedEffect(query, contentType, musicMode) {
+    LaunchedEffect(query, topFilter, videoSubFilter, musicSubFilter) {
         val trimmed = query.trim()
         if (trimmed.isBlank()) {
             viewModel.clearSearch()
@@ -136,17 +156,29 @@ fun TvSearchScreen(
             return@LaunchedEffect
         }
         delay(350)
-        if (musicMode) {
-            musicSearchViewModel.onQueryChange(trimmed)
-            musicSearchViewModel.performSearch(trimmed)
-        } else {
-            videoSuggestions = runCatching { viewModel.getSearchSuggestions(trimmed) }
-                .getOrDefault(emptyList())
-            viewModel.search(trimmed, SearchFilter(contentType = contentType))
+        when (topFilter) {
+            TvSearchTop.MUSIC -> {
+                musicSearchViewModel.onQueryChange(trimmed)
+                val subFilter = musicSubFilter
+                if (subFilter == null) {
+                    musicSearchViewModel.performSearch(trimmed)
+                } else {
+                    musicSearchViewModel.applyFilter(subFilter.toYouTubeFilter())
+                }
+            }
+            else -> {
+                videoSuggestions = runCatching { viewModel.getSearchSuggestions(trimmed) }
+                    .getOrDefault(emptyList())
+                val contentType = when (topFilter) {
+                    TvSearchTop.ALL -> ContentType.ALL
+                    else -> videoSubFilter?.contentType ?: ContentType.VIDEOS
+                }
+                viewModel.search(trimmed, SearchFilter(contentType = contentType))
+            }
         }
     }
 
-    val suggestions = if (musicMode) musicState.suggestions else videoSuggestions
+    val suggestions = if (topFilter == TvSearchTop.MUSIC) musicState.suggestions else videoSuggestions
 
     Row(
         modifier = modifier
@@ -195,23 +227,53 @@ fun TvSearchScreen(
                     .tvRowFocus(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(SEARCH_CONTENT_TYPES, key = { it.first.name }) { (type, labelRes) ->
+                items(TvSearchTop.entries, key = TvSearchTop::name) { top ->
                     TvFilterChip(
-                        label = stringResource(labelRes),
-                        selected = !musicMode && contentType == type,
+                        label = stringResource(top.labelRes),
+                        selected = topFilter == top,
                         onClick = {
-                            musicMode = false
-                            contentType = type
+                            topFilter = top
+                            videoSubFilter = null
+                            musicSubFilter = null
                         },
                     )
                 }
-                item(key = "music") {
-                    TvFilterChip(
-                        label = stringResource(R.string.nav_music),
-                        selected = musicMode,
-                        onClick = { musicMode = true },
-                    )
+            }
+
+            when (topFilter) {
+                TvSearchTop.VIDEOS -> LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .tvRowFocus(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(TvVideoSubFilter.entries, key = TvVideoSubFilter::name) { sub ->
+                        TvFilterChip(
+                            label = stringResource(sub.labelRes),
+                            selected = videoSubFilter == sub,
+                            onClick = {
+                                videoSubFilter = if (videoSubFilter == sub) null else sub
+                            },
+                        )
+                    }
                 }
+                TvSearchTop.MUSIC -> LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .tvRowFocus(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(TvMusicSubFilter.entries, key = TvMusicSubFilter::name) { sub ->
+                        TvFilterChip(
+                            label = stringResource(sub.labelRes),
+                            selected = musicSubFilter == sub,
+                            onClick = {
+                                musicSubFilter = if (musicSubFilter == sub) null else sub
+                            },
+                        )
+                    }
+                }
+                TvSearchTop.ALL -> Unit
             }
 
             if (query.isNotBlank() && suggestions.isNotEmpty()) {
@@ -231,10 +293,11 @@ fun TvSearchScreen(
                 }
             }
 
-            if (musicMode) {
+            if (topFilter == TvSearchTop.MUSIC) {
                 TvMusicSearchResults(
                     query = query,
                     state = musicState,
+                    filtered = musicSubFilter != null,
                     onPlayTrack = onPlayTrack,
                     onOpenMusicCollection = onOpenMusicCollection,
                     onOpenMusicArtist = onOpenMusicArtist,
@@ -326,21 +389,59 @@ fun TvSearchScreen(
 private fun TvMusicSearchResults(
     query: String,
     state: MusicSearchUiState,
+    filtered: Boolean,
     onPlayTrack: (MusicTrack, List<MusicTrack>, String) -> Unit,
     onOpenMusicCollection: (String) -> Unit,
     onOpenMusicArtist: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val dimens = LocalTvDimens.current
     val searchSource = stringResource(R.string.search_source_template, query)
     val summaries = state.searchSummary?.summaries.orEmpty().filter { it.items.isNotEmpty() }
+    val loading = state.isSearching || state.isLoading
 
     when {
         query.isBlank() -> TvMessageState(
             title = stringResource(R.string.tv_search_empty),
             modifier = modifier,
         )
-        (state.isSearching || state.isLoading) && summaries.isEmpty() ->
-            TvLoadingState(modifier = modifier)
+
+        filtered -> when {
+            loading && state.filteredResults.isEmpty() -> TvLoadingState(modifier = modifier)
+            state.filteredResults.isEmpty() -> TvMessageState(
+                title = stringResource(R.string.tv_search_no_results),
+                modifier = modifier,
+            )
+            else -> {
+                val songs = remember(state.filteredResults) {
+                    state.filteredResults.filterIsInstance<SongItem>().map(::convertSongToMusicTrack)
+                }
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = dimens.musicCardWidth),
+                    modifier = modifier.tvRowFocus(),
+                    contentPadding = PaddingValues(bottom = dimens.overscanVertical, top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
+                ) {
+                    gridItemsIndexed(
+                        state.filteredResults,
+                        key = { index, item -> "$index:${item.id}" },
+                    ) { _, item ->
+                        TvMusicResultCard(
+                            item = item,
+                            sectionSongs = songs,
+                            searchSource = searchSource,
+                            onPlayTrack = onPlayTrack,
+                            onOpenMusicCollection = onOpenMusicCollection,
+                            onOpenMusicArtist = onOpenMusicArtist,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+
+        loading && summaries.isEmpty() -> TvLoadingState(modifier = modifier)
         summaries.isEmpty() -> TvMessageState(
             title = stringResource(R.string.tv_search_no_results),
             modifier = modifier,
@@ -351,7 +452,7 @@ private fun TvMusicSearchResults(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(
                     top = 8.dp,
-                    bottom = LocalTvDimens.current.overscanVertical,
+                    bottom = dimens.overscanVertical,
                 ),
             ) {
                 itemsIndexed(
@@ -368,7 +469,7 @@ private fun TvMusicSearchResults(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .tvRowFocus(),
-                                horizontalArrangement = Arrangement.spacedBy(LocalTvDimens.current.itemSpacing),
+                                horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                                 contentPadding = PaddingValues(vertical = 10.dp),
                             ) {
                                 itemsIndexed(
@@ -401,6 +502,7 @@ private fun TvMusicResultCard(
     onPlayTrack: (MusicTrack, List<MusicTrack>, String) -> Unit,
     onOpenMusicCollection: (String) -> Unit,
     onOpenMusicArtist: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     when (item) {
         is SongItem -> {
@@ -410,24 +512,30 @@ private fun TvMusicResultCard(
                 onClick = {
                     onPlayTrack(track, sectionSongs.ifEmpty { listOf(track) }, searchSource)
                 },
+                modifier = modifier,
             )
         }
+        // Albums open the collection page via browseId — same id mobile
+        // passes to its album page (AlbumItem.id == browseId).
         is AlbumItem -> TvMusicCollectionCard(
             title = item.title,
             subtitle = item.artists?.joinToString { it.name },
             thumbnailUrl = item.thumbnail,
-            onClick = { onOpenMusicCollection(item.playlistId) },
+            onClick = { onOpenMusicCollection(item.id) },
+            modifier = modifier,
         )
         is PlaylistItem -> TvMusicCollectionCard(
             title = item.title,
             subtitle = item.author?.name,
             thumbnailUrl = item.thumbnail.orEmpty(),
             onClick = { onOpenMusicCollection(item.id) },
+            modifier = modifier,
         )
         is ArtistItem -> TvArtistCard(
             name = item.title,
             thumbnailUrl = item.thumbnail.orEmpty(),
             onClick = { onOpenMusicArtist(item.id) },
+            modifier = modifier,
         )
     }
 }

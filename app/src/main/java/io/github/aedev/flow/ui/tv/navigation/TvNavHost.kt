@@ -9,21 +9,17 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import android.net.Uri
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
 import io.github.aedev.flow.ui.screens.sync.SyncScreen
 import io.github.aedev.flow.ui.tv.screens.TvArtistScreen
 import io.github.aedev.flow.ui.tv.screens.TvChannelScreen
-import io.github.aedev.flow.ui.tv.screens.TvDownloadsScreen
 import io.github.aedev.flow.ui.tv.screens.TvHomeScreen
 import io.github.aedev.flow.ui.tv.screens.TvLibraryScreen
-import io.github.aedev.flow.ui.tv.screens.TvLocalMediaScreen
 import io.github.aedev.flow.ui.tv.screens.TvMusicCollectionScreen
 import io.github.aedev.flow.ui.tv.screens.TvMusicScreen
 import io.github.aedev.flow.ui.tv.screens.TvPlaylistDetailScreen
@@ -43,8 +39,6 @@ fun TvNavHost(
     searchViewModel: SearchViewModel,
     onPlayVideo: (Video) -> Unit,
     onPlayPlaylist: (List<Video>, String) -> Unit,
-    onPlayLocal: (Video, String) -> Unit,
-    onPlayLocalTrack: (MusicTrack, List<MusicTrack>, Map<String, Uri>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val openChannel: (String) -> Unit = { channelRef ->
@@ -122,8 +116,8 @@ fun TvNavHost(
             TvLibraryScreen(
                 onVideoClick = onPlayVideo,
                 onOpenPlaylist = { navController.navigate(TvRoutes.playlist(it)) },
-                onOpenDownloads = { navController.navigate(TvRoutes.DOWNLOADS) },
-                onOpenLocalMedia = { navController.navigate(TvRoutes.LOCAL_MEDIA) },
+                onPlayTrack = musicPlayerViewModel::loadAndPlayTrack,
+                onOpenMusicCollection = { navController.navigate(TvRoutes.musicCollection(it)) },
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -157,19 +151,6 @@ fun TvNavHost(
                 playlistId = playlistId,
                 onVideoClick = onPlayVideo,
                 onPlayPlaylist = onPlayPlaylist,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        composable(TvRoutes.DOWNLOADS) {
-            TvDownloadsScreen(
-                onPlayLocal = onPlayLocal,
-                onPlayLocalTrack = onPlayLocalTrack,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        composable(TvRoutes.LOCAL_MEDIA) {
-            TvLocalMediaScreen(
-                onPlayLocal = onPlayLocal,
                 modifier = Modifier.fillMaxSize(),
             )
         }
