@@ -1,0 +1,134 @@
+name: Bug report
+description: Report a reproducible problem in Flow for Android.
+title: "[Bug]: "
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Flow. Include enough detail for someone else to reproduce the problem. Remove tokens, cookies, and other private information from logs before submitting them.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the open and closed issues for this problem.
+          required: true
+        - label: I can reproduce this on the latest available Flow release or a current development build.
+          required: true
+
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Flow version
+      description: Use the exact version from Settings > About or a commit SHA. Do not write only "latest."
+      placeholder: "2.2.0 or 1a2b3c4"
+    validations:
+      required: true
+
+  - type: input
+    id: android-version
+    attributes:
+      label: Android version
+      description: Include the Android release and API level when known.
+      placeholder: "Android 15 (API 35)"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Include the manufacturer and model. Mention a custom ROM or emulator when applicable.
+      placeholder: "Google Pixel 8; Samsung Galaxy S24; emulator with LineageOS 22"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation-source
+    attributes:
+      label: Installation source
+      options:
+        - GitHub release APK
+        - F-Droid or another FOSS repository
+        - Nightly build
+        - Development build from source
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      multiple: true
+      options:
+        - App startup or onboarding
+        - Video playback
+        - Music playback
+        - Shorts
+        - Local media
+        - Downloads or offline playback
+        - Search or browsing
+        - Subscriptions or playlists
+        - Recommendations
+        - Casting, Android Auto, or widgets
+        - Lyrics, subtitles, comments, or live chat
+        - Import, export, or device sync
+        - Notifications, background playback, or PiP
+        - Settings, appearance, or accessibility
+        - Performance, battery, or data usage
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Start from a fresh app launch and include the smallest reliable sequence.
+      placeholder: |
+        1. Launch Flow.
+        2. Open ...
+        3. Select ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include how often the problem occurs and whether restarting the app changes it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Relevant media or URL
+      description: For playback problems, include a public video, playlist, channel, or music URL that reproduces the issue. Do not share private links.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste the smallest relevant log section. Redact secrets and personal data.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add screenshots, recordings, network conditions, proxy or VPN details, and the last known working version when relevant.

@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.local.AppUiModePreferences
+import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.ui.FlowApp
@@ -58,6 +59,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.github.aedev.flow.utils.AppLanguageManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
 
 @AndroidEntryPoint
@@ -73,6 +75,9 @@ class MainActivity : ComponentActivity() {
 
     private val _openMusicPlayerRequest = mutableIntStateOf(0)
     val openMusicPlayerRequest: State<Int> = _openMusicPlayerRequest
+
+    private val _pendingWidgetRoute = mutableStateOf<String?>(null)
+    val pendingWidgetRoute: State<String?> = _pendingWidgetRoute
 
     // Cached auto-PiP preference
     private var cachedAutoPipEnabled = false
@@ -104,6 +109,7 @@ class MainActivity : ComponentActivity() {
         return "interactive=${powerManager?.isInteractive} lifecycle=${lifecycle.currentState} " +
             "pip=$isInPictureInPictureMode pendingAutoPip=$pendingAutoPip " +
             "bgPref=$cachedBackgroundPlayEnabled shortsBgPref=$cachedShortsBackgroundPlay " +
+            "explicitBg=${GlobalPlayerState.isExplicitBackgroundPlaybackActive.value} " +
             "video=${playerState.currentVideoId} exo=${videoPlaybackStateName(player?.playbackState)} " +
             "pwr=${player?.playWhenReady} playing=${player?.isPlaying} buffering=${playerState.isBuffering} " +
             "pos=${player?.currentPosition}/${player?.duration} idx=${player?.currentMediaItemIndex} count=${player?.mediaItemCount}"
@@ -172,6 +178,14 @@ class MainActivity : ComponentActivity() {
         }
 
         val dataManager = LocalDataManager(applicationContext)
+
+        lifecycleScope.launch {
+            io.github.aedev.flow.widget.core.widgetThemeSignatureFlow(applicationContext)
+                .drop(1)
+                .collect {
+                    io.github.aedev.flow.widget.core.FlowWidgets.updateAll(applicationContext)
+                }
+        }
 
         handleIntent(intent)
 
@@ -346,6 +360,7 @@ class MainActivity : ComponentActivity() {
                     val deeplinkVideoId by this@MainActivity.deeplinkVideoId
                     val isDeeplinkShort by this@MainActivity.isDeeplinkShort
                     val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
+                    val pendingWidgetRoute by this@MainActivity.pendingWidgetRoute
 
                     if (appUiRoot == AppUiRoot.TV) {
                         FlowTvApp(
@@ -402,6 +417,10 @@ class MainActivity : ComponentActivity() {
                             openMusicPlayerRequest = openMusicPlayerRequest,
                             onDeeplinkConsumed = {
                                 consumeDeeplink()
+                            },
+                            pendingWidgetRoute = pendingWidgetRoute,
+                            onWidgetRouteConsumed = {
+                                _pendingWidgetRoute.value = null
                             }
                         )
                     }
@@ -429,10 +448,14 @@ class MainActivity : ComponentActivity() {
         DiscordPresenceRuntime.detachActivity(this)
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
         val playerState = playerManager.playerState.value
-        val shouldKeepBackgroundPlayback =
-            cachedBackgroundPlayEnabled &&
-                playerState.currentVideoId != null &&
+        val hasActiveVideo =
+            playerState.currentVideoId != null &&
                 (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
+        val shouldKeepBackgroundPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
+            backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
+            explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
+            hasActiveVideo = hasActiveVideo
+        )
 
         if (shouldKeepBackgroundPlayback) {
             handOffVideoPlaybackToBackground()
@@ -451,6 +474,15 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent) {
         val data = intent.data
         val notificationVideoId = intent.getStringExtra("notification_video_id") ?: intent.getStringExtra("video_id")
+
+        val widgetRoute = intent.getStringExtra(
+            io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE
+        )
+        if (widgetRoute != null) {
+            intent.removeExtra(io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
+            _pendingWidgetRoute.value = widgetRoute
+            return
+        }
 
         if (intent.getBooleanExtra("open_music_player", false)) {
             _deeplinkVideoId.value = null
@@ -648,7 +680,12 @@ class MainActivity : ComponentActivity() {
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         if (cachedAppUiRoot == AppUiRoot.TV) return
-        FlowCrashHandler.recordPhase("activity", "onUserLeaveHint autoPip=$cachedAutoPipEnabled")
+        val explicitBackgroundPlaybackActive =
+            GlobalPlayerState.isExplicitBackgroundPlaybackActive.value
+        FlowCrashHandler.recordPhase(
+            "activity",
+            "onUserLeaveHint autoPip=$cachedAutoPipEnabled explicitBackground=$explicitBackgroundPlaybackActive"
+        )
         videoLifecycleLog("onUserLeaveHint")
         // Only enter PiP mode if video is playing and has progressed
         // We use the EnhancedPlayerManager directly to get the immediate state
@@ -662,7 +699,12 @@ class MainActivity : ComponentActivity() {
         val isMusicPlaying = musicManager.playerState.value.isPlaying
         
         // Only enter PiP for video, not for music (which uses background service)
-        if (isVideoPlaying && !isMusicPlaying && cachedAutoPipEnabled) {
+        val shouldEnterAutoPip = BackgroundPlaybackPolicy.shouldEnterAutoPip(
+            autoPipEnabled = cachedAutoPipEnabled,
+            isVideoPlaying = isVideoPlaying,
+            explicitBackgroundPlaybackActive = explicitBackgroundPlaybackActive
+        )
+        if (shouldEnterAutoPip && !isMusicPlaying) {
             enterPlayerPictureInPictureMode(
                 aspectRatio = PictureInPictureHelper.currentVideoAspectRatio,
                 isPlaying = true
@@ -737,7 +779,13 @@ class MainActivity : ComponentActivity() {
 
         if (!hasActiveVideo) return
 
-        if (cachedBackgroundPlayEnabled) {
+        val shouldKeepBackgroundPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
+            backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
+            explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
+            hasActiveVideo = hasActiveVideo
+        )
+
+        if (shouldKeepBackgroundPlayback) {
             videoLifecycleLog("handleBackgroundPlaybackOnStop handoff")
             handOffVideoPlaybackToBackground()
         } else {

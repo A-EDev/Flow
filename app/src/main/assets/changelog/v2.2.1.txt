@@ -15,3 +15,6 @@ IMPROVEMENTS
 
 FIXES AND STABILITY
 - Fix crash issues
+
+DEPENDENCY
+- Bump NewPipeExtractor to v0.26.4

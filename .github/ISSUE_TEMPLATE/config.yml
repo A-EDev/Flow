@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and troubleshooting
+    url: https://github.com/A-EDev/Flow/discussions
+    about: Ask for setup help or discuss topics that are not actionable bug reports.
+  - name: Security vulnerability
+    url: https://github.com/A-EDev/Flow/security/advisories/new
+    about: Privately report vulnerabilities. Do not disclose security issues in a public issue.
