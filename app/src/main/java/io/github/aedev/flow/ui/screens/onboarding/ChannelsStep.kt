@@ -79,89 +79,98 @@ internal fun ChannelsStep(
         focusRequester.requestFocus()
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .padding(top = 8.dp)
     ) {
-        item {
-            StepHeader(
-                title = stringResource(R.string.onboarding_channels_title),
-                subtitle = stringResource(R.string.onboarding_channels_subtitle)
-            )
-        }
+        StepHeader(
+            title = stringResource(R.string.onboarding_channels_title),
+            subtitle = stringResource(R.string.onboarding_channels_subtitle)
+        )
 
-        item {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onQueryChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester),
-                placeholder = {
-                    Text(
-                        stringResource(R.string.onboarding_channels_search_placeholder),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Outlined.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = if (isSearching) {
-                    { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) }
-                } else null,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                shape = RoundedCornerShape(28.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                )
-            )
-        }
+        Spacer(modifier = Modifier.height(10.dp))
 
-        if (searchQuery.isBlank()) {
-            item {
-                ChannelsPlaceholder(
-                    text = stringResource(R.string.onboarding_channels_empty_prompt),
-                    strong = false
-                )
-            }
-        } else if (searchResults.isEmpty() && !isSearching) {
-            item {
-                ChannelsPlaceholder(
-                    text = stringResource(R.string.onboarding_channels_no_results, searchQuery),
-                    strong = true
-                )
-            }
-        }
-
-        items(searchResults, key = { it.channelId }) { result ->
-            ChannelResultRow(
-                result = result,
-                isSubscribed = subscribedInSession.contains(result.channelId),
-                onToggle = { onSubscribeToggle(result) }
-            )
-        }
-
-        if (subscribedInSession.isNotEmpty()) {
-            item {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onQueryChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
+            placeholder = {
                 Text(
-                    text = stringResource(R.string.onboarding_channels_added_count, subscribedInSession.size),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp)
+                    stringResource(R.string.onboarding_channels_search_placeholder),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Outlined.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = if (isSearching) {
+                { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) }
+            } else null,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+            shape = RoundedCornerShape(28.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+            )
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(bottom = 8.dp)
+        ) {
+            if (searchQuery.isBlank()) {
+                item {
+                    ChannelsPlaceholder(
+                        text = stringResource(R.string.onboarding_channels_empty_prompt),
+                        strong = false
+                    )
+                }
+            } else if (searchResults.isEmpty() && !isSearching) {
+                item {
+                    ChannelsPlaceholder(
+                        text = stringResource(R.string.onboarding_channels_no_results, searchQuery),
+                        strong = true
+                    )
+                }
+            }
+
+            items(searchResults, key = { it.channelId }) { result ->
+                ChannelResultRow(
+                    result = result,
+                    isSubscribed = subscribedInSession.contains(result.channelId),
+                    onToggle = { onSubscribeToggle(result) }
                 )
             }
-        }
 
-        item { Spacer(Modifier.height(8.dp)) }
+            if (subscribedInSession.isNotEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.onboarding_channels_added_count, subscribedInSession.size),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+
+            item { Spacer(Modifier.height(8.dp)) }
+        }
     }
 }
 
