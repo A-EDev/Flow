@@ -4,9 +4,10 @@
          the compat ones so the OS-level splash honours our background color. -->
     <style name="Theme.Flow.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#0F0F0F</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_transparent</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.Flow</item>
-        <!-- Native Android 12 attribute for the splash background colour -->
+        <!-- Native Android 12 attributes so the OS-level splash matches -->
         <item name="android:windowSplashScreenBackground">#0F0F0F</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
     </style>
 </resources>

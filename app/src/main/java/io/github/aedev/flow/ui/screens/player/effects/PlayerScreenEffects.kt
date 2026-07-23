@@ -347,12 +347,12 @@ fun WatchProgressSaveEffect(
     video: Video,
     isPlaying: Boolean,
     currentPosition: () -> Long,
-    duration: Long,
+    duration: () -> Long,
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel
 ) {
     val currentPosProvider by rememberUpdatedState(currentPosition)
-    val currentDur by rememberUpdatedState(duration)
+    val currentDurProvider by rememberUpdatedState(duration)
     val currentUi by rememberUpdatedState(uiState)
 
     LaunchedEffect(videoId) {
@@ -365,11 +365,12 @@ fun WatchProgressSaveEffect(
             ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
             ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
         val title = streamInfo?.name ?: video.title
-        if (title.isNotEmpty() && currentDur > 0) {
+        val durationMs = currentDurProvider()
+        if (title.isNotEmpty() && durationMs > 0) {
             viewModel.savePlaybackPosition(
                 videoId = videoId,
                 position = currentPosProvider(),
-                duration = currentDur,
+                duration = durationMs,
                 title = title,
                 thumbnailUrl = thumbnailUrl,
                 channelName = channelName,
@@ -390,11 +391,12 @@ fun WatchProgressSaveEffect(
                 ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
                 ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
             val title = streamInfo?.name ?: video.title
-            if (currentDur > 0 && title.isNotEmpty()) {
+            val durationMs = currentDurProvider()
+            if (durationMs > 0 && title.isNotEmpty()) {
                 viewModel.savePlaybackPosition(
                     videoId = videoId,
                     position = currentPosProvider(),
-                    duration = currentDur,
+                    duration = durationMs,
                     title = title,
                     thumbnailUrl = thumbnailUrl,
                     channelName = channelName,

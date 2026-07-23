@@ -1,23 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV launcher banner: the Flow red play badge + white "F" from the
+     launcher icon, centered large on the launcher background color (no
+     wordmark). Badge stays inside the 5% overscan-safe area of the 320x180
+     canvas (x 90-230, y 37-143). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="160dp"
     android:height="90dp"
     android:viewportWidth="320"
     android:viewportHeight="180">
     <path
-        android:fillColor="@android:color/black"
+        android:fillColor="#0F0F0F"
         android:pathData="M0,0h320v180h-320z" />
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M66,52h50v14h-34v22h29v14h-29v30h-16z" />
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M124,52h16v80h-16z" />
-    <path
-        android:fillColor="@android:color/white"
-        android:fillType="evenOdd"
-        android:pathData="M178,73c-20,0 -32,12 -32,30s12,30 32,30 32,-12 32,-30 -12,-30 -32,-30zM178,87c10,0 16,6 16,16s-6,16 -16,16 -16,-6 -16,-16 6,-16 16,-16z" />
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M211,75h16l9,38 10,-29h14l10,29 9,-38h16l-17,57h-16l-9,-27 -9,27h-16z" />
+    <group
+        android:scaleX="7"
+        android:scaleY="7"
+        android:translateX="76"
+        android:translateY="3.4">
+        <path
+            android:fillColor="#FF0000"
+            android:pathData="M21.58 7.16C21.33 6.22 20.59 5.48 19.65 5.23C17.96 4.77 12 4.77 12 4.77C12 4.77 6.04 4.77 4.35 5.23C3.41 5.48 2.67 6.22 2.42 7.16C1.96 8.85 1.96 12.38 1.96 12.38C1.96 12.38 1.96 15.91 2.42 17.6C2.67 18.54 3.41 19.28 4.35 19.53C6.04 19.99 12 19.99 12 19.99C12 19.99 17.96 19.99 19.65 19.53C20.59 19.28 21.33 18.54 21.58 17.6C22.04 15.91 22.04 12.38 22.04 12.38C22.04 12.38 22.04 8.85 21.58 7.16Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M10 7L18 7L17.2 9.5H12.8L12.2 11.5H16L15.2 14H11.5L10.5 17H7.5L10 7Z" />
+    </group>
 </vector>

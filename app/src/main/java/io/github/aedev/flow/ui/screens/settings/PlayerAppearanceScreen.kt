@@ -74,7 +74,7 @@ fun PlayerAppearanceScreen(
     val coroutineScope = rememberCoroutineScope()
     val playerPreferences = remember { PlayerPreferences(context) }
     
-    val currentSliderStyle by playerPreferences.sliderStyle.collectAsState(initial = SliderStyle.DEFAULT)
+    val currentSliderStyle by playerPreferences.sliderStyle.collectAsState(initial = SliderStyle.METROLIST_SLIM)
     val currentMusicPlayerBackgroundStyle by playerPreferences.musicPlayerBackgroundStyle.collectAsState(
         initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT
     )

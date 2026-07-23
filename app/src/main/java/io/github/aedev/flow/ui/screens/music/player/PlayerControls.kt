@@ -399,7 +399,7 @@ fun PlayerProgressSlider(
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences = remember { PlayerPreferences(context) }
-    val sliderStyle by preferences.sliderStyle.collectAsState(initial = SliderStyle.DEFAULT)
+    val sliderStyle by preferences.sliderStyle.collectAsState(initial = SliderStyle.METROLIST_SLIM)
     val squigglyEnabled by preferences.squigglySliderEnabled.collectAsState(initial = false)
 
     Column(

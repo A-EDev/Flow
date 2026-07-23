@@ -14,9 +14,22 @@ internal fun VideoHistoryEntry.toTvVideo(): Video = Video(
     viewCount = 0L,
     uploadDate = "",
     timestamp = timestamp,
+    isMusic = isMusic,
     isShort = isShort,
 )
 
+/**
+ * Resume-bar fraction using the same thresholds as the mobile cards:
+ * hidden below 3% progress, shown full from 90%.
+ */
+internal fun VideoHistoryEntry.tvWatchProgress(): Float? = when {
+    duration <= 0L -> null
+    progressPercentage < 3f -> null
+    progressPercentage >= 90f -> 1f
+    else -> progressPercentage / 100f
+}
+
+// LikedVideoInfo carries no channelId or duration; those stay at their defaults.
 internal fun LikedVideoInfo.toTvVideo(): Video = Video(
     id = videoId,
     title = title,
