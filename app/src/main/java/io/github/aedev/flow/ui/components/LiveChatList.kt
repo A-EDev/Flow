@@ -38,6 +38,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.LiveChatMessage
 import io.github.aedev.flow.data.model.LiveChatMessageType
 import io.github.aedev.flow.data.model.LiveChatSegment
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -48,8 +49,11 @@ fun LiveChatList(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(vertical = 8.dp)
 ) {
+    val uniqueMessages = remember(messages) {
+        messages.distinctByNonBlankKey(LiveChatMessage::id)
+    }
     when {
-        isLoading && messages.isEmpty() -> {
+        isLoading && uniqueMessages.isEmpty() -> {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -62,7 +66,7 @@ fun LiveChatList(
                 }
             }
         }
-        messages.isEmpty() -> {
+        uniqueMessages.isEmpty() -> {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     stringResource(R.string.live_chat_empty),
@@ -96,9 +100,9 @@ fun LiveChatList(
                     }
             }
 
-            LaunchedEffect(messages.lastOrNull()?.id, followLive) {
-                if (followLive && messages.isNotEmpty()) {
-                    listState.scrollToItem(messages.lastIndex)
+            LaunchedEffect(uniqueMessages.lastOrNull()?.id, followLive) {
+                if (followLive && uniqueMessages.isNotEmpty()) {
+                    listState.scrollToItem(uniqueMessages.lastIndex)
                 }
             }
 
@@ -108,7 +112,7 @@ fun LiveChatList(
                     state = listState,
                     contentPadding = contentPadding
                 ) {
-                    items(messages, key = { it.id }) { message ->
+                    items(uniqueMessages, key = { it.id }) { message ->
                         when (message.type) {
                             LiveChatMessageType.SUPER_CHAT -> SuperChatRow(message)
                             LiveChatMessageType.MEMBERSHIP -> MembershipRow(message)
@@ -121,7 +125,9 @@ fun LiveChatList(
                     SmallFloatingActionButton(
                         onClick = {
                             followLive = true
-                            coroutineScope.launch { listState.animateScrollToItem(messages.lastIndex) }
+                            coroutineScope.launch {
+                                listState.animateScrollToItem(uniqueMessages.lastIndex)
+                            }
                         },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)

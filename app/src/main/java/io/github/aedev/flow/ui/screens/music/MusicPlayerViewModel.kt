@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import java.util.UUID
 import java.util.Locale
 import io.github.aedev.flow.data.music.YouTubeMusicService
@@ -404,7 +405,7 @@ class MusicPlayerViewModel @Inject constructor(
                             it.title.contains("mix", ignoreCase = true)
                     }.ifEmpty { freshRelated.shuffled() }.take(20)
                     else -> freshRelated
-                }
+                }.distinctByNonBlankKey(MusicTrack::videoId)
                 
                 _uiState.update { it.copy(
                     autoplaySuggestions = filteredList,

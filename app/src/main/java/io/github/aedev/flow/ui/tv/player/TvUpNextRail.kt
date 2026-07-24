@@ -57,7 +57,7 @@ fun TvUpNextRail(
                     .tvRowFocus(),
                 horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
             ) {
-                itemsIndexed(videos, key = { _, video -> video.id }) { index, video ->
+                itemsIndexed(videos, key = { index, video -> "${video.id}_$index" }) { index, video ->
                     TvVideoCard(
                         video = video,
                         onClick = { onVideoClick(video) },

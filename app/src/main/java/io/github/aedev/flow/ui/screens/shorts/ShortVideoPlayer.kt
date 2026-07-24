@@ -80,30 +80,28 @@ private val shortsOverlayTextShadow = Shadow(
 )
 
 @Composable
-fun ShortVideoPage(
+internal fun ShortVideoPage(
     video: Video,
     isActive: Boolean,
     pageIndex: Int,
     viewModel: ShortsViewModel,
     bottomNavOverlayPadding: androidx.compose.ui.unit.Dp = 0.dp,
-    onBack: () -> Unit,
-    onChannelClick: () -> Unit,
-    onCommentsClick: () -> Unit,
-    onDescriptionClick: () -> Unit,
-    onShareClick: () -> Unit,
-    onWantMore: () -> Unit = {},
-    onNotInterested: () -> Unit = {},
-    onVideoEnded: () -> Unit = {},
+    actions: ShortVideoPageActions,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val playerPreferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
-    val shortsPlaybackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
-    val shortsAutoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
-    val shortsPlayerUiMode by playerPreferences.shortsPlayerUiMode.collectAsState(initial = ShortsPlayerUiMode.DEFAULT)
-    val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
-    val isSimpleShortsUi = shortsPlayerUiMode == ShortsPlayerUiMode.SIMPLE
-    val isImpressiveShortsUi = shortsPlayerUiMode == ShortsPlayerUiMode.IMPRESSIVE
+    val settings = rememberShortVideoPlayerSettings(playerPreferences)
+    val isSimpleShortsUi = settings.uiMode == ShortsPlayerUiMode.SIMPLE
+    val isImpressiveShortsUi = settings.uiMode == ShortsPlayerUiMode.IMPRESSIVE
+    val pageState = remember(video.id) { ShortVideoPageState() }
+    val sessionState = remember(video.id, isActive) { ShortVideoSessionState() }
+    val autoAdvanceState = remember(
+        video.id,
+        isActive,
+        settings.playbackMode,
+        settings.autoScrollSeconds
+    ) { ShortVideoAutoAdvanceState() }
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val playerPool = remember { ShortsPlayerPool.getInstance() }
@@ -123,55 +121,15 @@ fun ShortVideoPage(
     val isSaved by isSavedState.collectAsState()
 
     // ── Local UI-only state ──
-    var isPlaying by remember { mutableStateOf(false) }
-    var currentPosition by remember { mutableLongStateOf(0L) }
-    var duration by remember { mutableLongStateOf(0L) }
-    var isBuffering by remember { mutableStateOf(false) }
-    var showPauseIndicator by remember { mutableStateOf(false) }
-    var showLikeAnimation by remember { mutableStateOf(false) }
-    var isFastForwarding by remember { mutableStateOf(false) }
-    var hasStartedPlaying by remember { mutableStateOf(false) }
-    var hasAutoAdvanced by remember(video.id, isActive, shortsPlaybackMode, shortsAutoScrollSeconds) { mutableStateOf(false) }
-    var hasRecordedWatched by remember(video.id, isActive) { mutableStateOf(false) }
-    var hasTouchedHistory by remember(video.id, isActive) { mutableStateOf(false) }
-    var lastProgressSavedAt by remember(video.id, isActive) { mutableStateOf(0L) }
-    var isDragging by remember { mutableStateOf(false) }
-    var dragProgress by remember { mutableStateOf(0f) }
-    var showImpressiveControls by remember(video.id, isActive) { mutableStateOf(false) }
-    val controlsVisible = !isImpressiveShortsUi || showImpressiveControls
+    val controlsVisible = !isImpressiveShortsUi || sessionState.showImpressiveControls
     val seekBarTouchHeight = 28.dp
     val seekBarBottomPadding = bottomNavOverlayPadding.coerceAtLeast(0.dp)
     val controlsBottomPadding = seekBarBottomPadding + 34.dp
     val seekBarInteractionSource = remember { MutableInteractionSource() }
 
-    // ── Audio Track & Quality Selection State ──
-    var showShortsOptionsSheet by remember { mutableStateOf(false) }
-    var showAudioTrackSheet by remember { mutableStateOf(false) }
-    var showQualitySheet by remember { mutableStateOf(false) }
-    var showSpeedSheet by remember { mutableStateOf(false) }
-    val shortsSpeed by playerPreferences.shortsPlaybackSpeed.collectAsState(initial = 1f)
-    val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
-    val customSpeedsEnabled by playerPreferences.customSpeedsEnabled.collectAsState(initial = false)
-    val customSpeedPresetsRaw by playerPreferences.customSpeedPresets.collectAsState(initial = "")
-    val speedSliderEnabled by playerPreferences.speedSliderEnabled.collectAsState(initial = false)
-
-    LaunchedEffect(isActive, shortsSpeed) {
-        if (isActive) playerPool.setBasePlaybackSpeed(shortsSpeed)
+    LaunchedEffect(isActive, settings.playbackSpeed) {
+        if (isActive) playerPool.setBasePlaybackSpeed(settings.playbackSpeed)
     }
-    var availableAudioStreams by remember { mutableStateOf<List<org.schabi.newpipe.extractor.stream.AudioStream>>(emptyList()) }
-    var availableQualities by remember { mutableStateOf<List<io.github.aedev.flow.data.shorts.ShortVideoQuality>>(emptyList()) }
-    var selectedAudioIndex by remember { mutableStateOf(0) }
-    var selectedQualityHeight by remember { mutableStateOf(-1) }
-    var selectedQualityUrl by remember { mutableStateOf<String?>(null) }
-    var isLoadingStreams by remember { mutableStateOf(false) }
-    
-    // ── Download State ──
-    var showDownloadDialog by remember { mutableStateOf(false) }
-    var currentStreamInfo by remember { mutableStateOf<org.schabi.newpipe.extractor.stream.StreamInfo?>(null) }
-    var currentStreamSizes by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
-    var currentInnerTubeVideoFormats by remember { mutableStateOf<List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format>>(emptyList()) }
-    var currentInnerTubeAudioFormats by remember { mutableStateOf<List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format>>(emptyList()) }
-    val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(initial = io.github.aedev.flow.data.local.DownloadDialogStyle.FULL)
 
     // ── PlayerView instance ──
     val playerView = remember {
@@ -187,7 +145,7 @@ fun ShortVideoPage(
             keepScreenOn = true
         }
     }
-    val ambientActive = isActive && ambientModeEnabled
+    val ambientActive = isActive && settings.ambientModeEnabled
     val ambientFrame = rememberAmbientFrame(playerView, ambientActive) {
         playerPool.getPlayerForIndex(pageIndex)?.isPlaying == true
     }
@@ -221,7 +179,7 @@ fun ShortVideoPage(
     // ── Initialize player pool and handle playback when visibility changes ──
     LaunchedEffect(isActive, video.id) {
         if (isActive) {
-            hasStartedPlaying = false
+            pageState.hasStartedPlaying = false
             playerPool.initialize(context)
             EnhancedMusicPlayerManager.pause()
 
@@ -229,7 +187,7 @@ fun ShortVideoPage(
             playerView.player = player
 
             if (player != null && player.isPlaying) {
-                hasStartedPlaying = true
+                pageState.hasStartedPlaying = true
             }
         } else {
             playerView.player = null
@@ -238,31 +196,37 @@ fun ShortVideoPage(
 
     // ── Add listener to detect when video ends (for auto-play-next) ──
     fun requestAutoAdvance() {
-        if (!hasAutoAdvanced) {
-            hasAutoAdvanced = true
-            onVideoEnded()
+        if (!autoAdvanceState.hasAutoAdvanced) {
+            autoAdvanceState.hasAutoAdvanced = true
+            actions.onVideoEnded()
         }
     }
 
-    fun recordShortWatched(positionMs: Long = currentPosition, durationMs: Long = duration) {
-        if (!hasRecordedWatched) {
-            hasRecordedWatched = true
+    fun recordShortWatched(
+        positionMs: Long = pageState.currentPosition,
+        durationMs: Long = pageState.duration
+    ) {
+        if (!sessionState.hasRecordedWatched) {
+            sessionState.hasRecordedWatched = true
             viewModel.recordShortWatched(video.toShortVideo(), positionMs, durationMs)
         }
     }
 
-    fun recordShortProgress(positionMs: Long = currentPosition, durationMs: Long = duration) {
-        if (!hasRecordedWatched) {
-            hasTouchedHistory = true
-            lastProgressSavedAt = positionMs
+    fun recordShortProgress(
+        positionMs: Long = pageState.currentPosition,
+        durationMs: Long = pageState.duration
+    ) {
+        if (!sessionState.hasRecordedWatched) {
+            sessionState.hasTouchedHistory = true
+            sessionState.lastProgressSavedAt = positionMs
             viewModel.recordShortProgress(video.toShortVideo(), positionMs, durationMs)
         }
     }
 
-    val latestPosition by rememberUpdatedState(currentPosition)
-    val latestDuration by rememberUpdatedState(duration)
-    val latestHasStartedPlaying by rememberUpdatedState(hasStartedPlaying)
-    val latestHasRecordedWatched by rememberUpdatedState(hasRecordedWatched)
+    val latestPosition by rememberUpdatedState(pageState.currentPosition)
+    val latestDuration by rememberUpdatedState(pageState.duration)
+    val latestHasStartedPlaying by rememberUpdatedState(pageState.hasStartedPlaying)
+    val latestHasRecordedWatched by rememberUpdatedState(sessionState.hasRecordedWatched)
 
     DisposableEffect(video.id, isActive) {
         onDispose {
@@ -276,17 +240,17 @@ fun ShortVideoPage(
         }
     }
 
-    DisposableEffect(isActive, pageIndex, shortsPlaybackMode, shortsAutoScrollSeconds) {
+    DisposableEffect(isActive, pageIndex, settings.playbackMode, settings.autoScrollSeconds) {
         val player = playerPool.getPlayerForIndex(pageIndex)
         val eventListener = object : androidx.media3.common.Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == androidx.media3.common.Player.STATE_ENDED) {
-                    val endedDuration = player?.duration?.coerceAtLeast(0L) ?: duration
+                    val endedDuration = player?.duration?.coerceAtLeast(0L) ?: pageState.duration
                     recordShortWatched(
-                        positionMs = endedDuration.takeIf { it > 0L } ?: currentPosition,
+                        positionMs = endedDuration.takeIf { it > 0L } ?: pageState.currentPosition,
                         durationMs = endedDuration
                     )
-                    if (shortsPlaybackMode == "auto_next" || shortsPlaybackMode == "auto_interval") {
+                    if (settings.playbackMode == "auto_next" || settings.playbackMode == "auto_interval") {
                         requestAutoAdvance()
                     }
                 }
@@ -303,7 +267,7 @@ fun ShortVideoPage(
     }
 
     // ── Efficient progress tracker: throttles Compose writes while active ──
-    LaunchedEffect(isActive, pageIndex, shortsPlaybackMode, shortsAutoScrollSeconds) {
+    LaunchedEffect(isActive, pageIndex, settings.playbackMode, settings.autoScrollSeconds) {
         if (isActive) {
             while (true) {
                 val p = playerPool.getPlayerForIndex(pageIndex)
@@ -312,42 +276,49 @@ fun ShortVideoPage(
                     val safeDuration = p.duration.coerceAtLeast(0L)
                     val newBuffering = p.playbackState == androidx.media3.common.Player.STATE_BUFFERING
 
-                    if (safeDuration != duration) {
-                        duration = safeDuration
+                    if (safeDuration != pageState.duration) {
+                        pageState.duration = safeDuration
                     }
                     if (
-                        currentPosition == 0L ||
-                        position < currentPosition ||
-                        kotlin.math.abs(position - currentPosition) >= 1_000L
+                        pageState.currentPosition == 0L ||
+                        position < pageState.currentPosition ||
+                        kotlin.math.abs(position - pageState.currentPosition) >= 1_000L
                     ) {
-                        currentPosition = position
+                        pageState.currentPosition = position
                     }
-                    if (isBuffering != newBuffering) {
-                        isBuffering = newBuffering
+                    if (pageState.isBuffering != newBuffering) {
+                        pageState.isBuffering = newBuffering
                     }
 
                     val playerIsPlaying = p.isPlaying
-                    if (isPlaying != playerIsPlaying) {
-                        isPlaying = playerIsPlaying
+                    if (pageState.isPlaying != playerIsPlaying) {
+                        pageState.isPlaying = playerIsPlaying
                     }
 
-                    if (playerIsPlaying && !hasStartedPlaying) {
-                        hasStartedPlaying = true
+                    if (playerIsPlaying && !pageState.hasStartedPlaying) {
+                        pageState.hasStartedPlaying = true
                     }
 
-                    if (!isDragging && !newBuffering && playerIsPlaying) {
-                        if (!hasTouchedHistory && position >= 1_500L) {
+                    if (!pageState.isDragging && !newBuffering && playerIsPlaying) {
+                        if (!sessionState.hasTouchedHistory && position >= 1_500L) {
                             recordShortProgress(position, safeDuration)
-                        } else if (hasTouchedHistory && position - lastProgressSavedAt >= 5_000L) {
+                        } else if (
+                            sessionState.hasTouchedHistory &&
+                            position - sessionState.lastProgressSavedAt >= 5_000L
+                        ) {
                             recordShortProgress(position, safeDuration)
                         }
 
-                        if (!hasRecordedWatched && safeDuration > 0L && position >= (safeDuration * 0.9f).toLong()) {
+                        if (
+                            !sessionState.hasRecordedWatched &&
+                            safeDuration > 0L &&
+                            position >= (safeDuration * 0.9f).toLong()
+                        ) {
                             recordShortWatched(position, safeDuration)
                         }
 
-                        if (shortsPlaybackMode == "auto_interval" && !hasAutoAdvanced) {
-                            val intervalMs = shortsAutoScrollSeconds.coerceIn(5, 20) * 1000L
+                        if (settings.playbackMode == "auto_interval" && !autoAdvanceState.hasAutoAdvanced) {
+                            val intervalMs = settings.autoScrollSeconds.coerceIn(5, 20) * 1000L
                             val shouldWaitForEnd = safeDuration in 1..intervalMs
                             if (!shouldWaitForEnd && position >= intervalMs) {
                                 recordShortWatched(
@@ -365,31 +336,31 @@ fun ShortVideoPage(
     }
 
     // ── Pause indicator auto-hide ──
-    LaunchedEffect(showPauseIndicator) {
-        if (showPauseIndicator) {
+    LaunchedEffect(pageState.showPauseIndicator) {
+        if (pageState.showPauseIndicator) {
             delay(600)
-            showPauseIndicator = false
+            pageState.showPauseIndicator = false
         }
     }
 
-    LaunchedEffect(isActive, shortsPlayerUiMode, video.id) {
+    LaunchedEffect(isActive, settings.uiMode, video.id) {
         if (!isActive || !isImpressiveShortsUi) {
-            showImpressiveControls = false
+            sessionState.showImpressiveControls = false
         }
     }
 
-    LaunchedEffect(showImpressiveControls, isImpressiveShortsUi) {
-        if (isImpressiveShortsUi && showImpressiveControls) {
+    LaunchedEffect(sessionState.showImpressiveControls, isImpressiveShortsUi) {
+        if (isImpressiveShortsUi && sessionState.showImpressiveControls) {
             delay(2000)
-            showImpressiveControls = false
+            sessionState.showImpressiveControls = false
         }
     }
 
     fun togglePlaybackWithFeedback() {
         playerPool.togglePlayPause()
         val player = playerPool.getPlayerForIndex(pageIndex)
-        if (player != null) isPlaying = player.isPlaying
-        showPauseIndicator = true
+        if (player != null) pageState.isPlaying = player.isPlaying
+        pageState.showPauseIndicator = true
         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
@@ -415,7 +386,7 @@ fun ShortVideoPage(
 
         // ── Thumbnail placeholder until video starts ──
         AnimatedVisibility(
-            visible = !hasStartedPlaying && !isBuffering,
+            visible = !pageState.hasStartedPlaying && !pageState.isBuffering,
             enter = fadeIn(),
             exit = fadeOut(animationSpec = tween(300))
         ) {
@@ -431,13 +402,17 @@ fun ShortVideoPage(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(shortsPlayerUiMode, isLiked, showImpressiveControls) {
+                .pointerInput(settings.uiMode, isLiked, sessionState.showImpressiveControls) {
                     detectTapGestures(
                         onTap = { offset ->
                             val isCenterTap = offset.x in (size.width * 0.25f)..(size.width * 0.75f) &&
                                 offset.y in (size.height * 0.25f)..(size.height * 0.75f)
-                            if (isImpressiveShortsUi && isCenterTap && !showImpressiveControls) {
-                                showImpressiveControls = true
+                            if (
+                                isImpressiveShortsUi &&
+                                isCenterTap &&
+                                !sessionState.showImpressiveControls
+                            ) {
+                                sessionState.showImpressiveControls = true
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             } else {
                                 togglePlaybackWithFeedback()
@@ -446,7 +421,7 @@ fun ShortVideoPage(
                         onDoubleTap = {
                             if (!isLiked) {
                                 scope.launch { viewModel.toggleLike(video.toShortVideo()) }
-                                showLikeAnimation = true
+                                pageState.showLikeAnimation = true
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             }
                         },
@@ -454,8 +429,8 @@ fun ShortVideoPage(
                             try {
                                 awaitRelease()
                             } finally {
-                                if (isFastForwarding) {
-                                    isFastForwarding = false
+                                if (pageState.isFastForwarding) {
+                                    pageState.isFastForwarding = false
                                     playerPool.resetPlaybackSpeed()
                                 }
                             }
@@ -464,10 +439,10 @@ fun ShortVideoPage(
                             val isCenterTap = offset.x in (size.width * 0.25f)..(size.width * 0.75f) &&
                                 offset.y in (size.height * 0.25f)..(size.height * 0.75f)
                             if (isImpressiveShortsUi && isCenterTap) {
-                                onCommentsClick()
+                                actions.onCommentsClick()
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             } else {
-                                isFastForwarding = true
+                                pageState.isFastForwarding = true
                                 playerPool.setPlaybackSpeed(2.0f)
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             }
@@ -477,7 +452,7 @@ fun ShortVideoPage(
         )
 
         AnimatedVisibility(
-            visible = isFastForwarding,
+            visible = pageState.isFastForwarding,
             enter = slideInVertically { -it } + fadeIn(),
             exit = slideOutVertically { -it } + fadeOut(),
             modifier = Modifier
@@ -509,7 +484,7 @@ fun ShortVideoPage(
 
         // ── Buffering Indicator ──
         AnimatedVisibility(
-            visible = controlsVisible && isActive && shortsPlaybackMode == "auto_interval",
+            visible = controlsVisible && isActive && settings.playbackMode == "auto_interval",
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
@@ -533,7 +508,10 @@ fun ShortVideoPage(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = stringResource(R.string.shorts_auto_scroll_active_template, shortsAutoScrollSeconds),
+                        text = stringResource(
+                            R.string.shorts_auto_scroll_active_template,
+                            settings.autoScrollSeconds
+                        ),
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold
@@ -542,7 +520,7 @@ fun ShortVideoPage(
             }
         }
 
-        if (isBuffering) {
+        if (pageState.isBuffering) {
             CircularProgressIndicator(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -553,7 +531,7 @@ fun ShortVideoPage(
         }
 
         AnimatedVisibility(
-            visible = showPauseIndicator && !isBuffering,
+            visible = pageState.showPauseIndicator && !pageState.isBuffering,
             enter = scaleIn(initialScale = 0.6f, animationSpec = tween(150)) + fadeIn(animationSpec = tween(100)),
             exit = scaleOut(targetScale = 1.2f, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300)),
             modifier = Modifier.align(Alignment.Center)
@@ -565,8 +543,12 @@ fun ShortVideoPage(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isPlaying) Icons.Default.PlayArrow else Icons.Default.Pause,
-                    contentDescription = if (isPlaying) stringResource(R.string.cd_play) else stringResource(R.string.cd_pause),
+                    imageVector = if (pageState.isPlaying) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = if (pageState.isPlaying) {
+                        stringResource(R.string.cd_play)
+                    } else {
+                        stringResource(R.string.cd_pause)
+                    },
                     tint = Color.White,
                     modifier = Modifier.size(40.dp)
                 )
@@ -575,7 +557,7 @@ fun ShortVideoPage(
 
         // ── Like Animation (double-tap heart) ──
         AnimatedVisibility(
-            visible = showLikeAnimation,
+            visible = pageState.showLikeAnimation,
             enter = scaleIn(
                 initialScale = 0.3f,
                 animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
@@ -591,7 +573,7 @@ fun ShortVideoPage(
             )
             LaunchedEffect(Unit) {
                 delay(800)
-                showLikeAnimation = false
+                pageState.showLikeAnimation = false
             }
         }
 
@@ -610,7 +592,7 @@ fun ShortVideoPage(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable(onClick = onChannelClick)
+                    modifier = Modifier.clickable(onClick = actions.onChannelClick)
                 ) {
                     ChannelAvatarImage(
                         url = video.channelThumbnailUrl,
@@ -758,7 +740,7 @@ fun ShortVideoPage(
                     color = Color.White,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable(onClick = onDescriptionClick)
+                    modifier = Modifier.clickable(onClick = actions.onDescriptionClick)
                 )
 
                 if (video.uploadDate.isNotBlank() || video.viewCount > 0) {
@@ -829,7 +811,7 @@ fun ShortVideoPage(
                         video.toShortVideo().commentCountText.takeIf { it.isNotBlank() } ?: stringResource(R.string.action_comments)
                     },
                     contentDescription = stringResource(R.string.action_comments),
-                    onClick = onCommentsClick
+                    onClick = actions.onCommentsClick
                 )
 
                 ShortsActionButton(
@@ -854,14 +836,14 @@ fun ShortVideoPage(
                     icon = Icons.Default.Share,
                     text = if (isSimpleShortsUi) "" else stringResource(R.string.action_share),
                     contentDescription = stringResource(R.string.action_share),
-                    onClick = onShareClick
+                    onClick = actions.onShareClick
                 )
 
                 ShortsActionButton(
                     icon = Icons.Default.MoreVert,
                     text = if (isSimpleShortsUi) "" else stringResource(R.string.cd_more_options),
                     contentDescription = stringResource(R.string.cd_more_options),
-                    onClick = { showShortsOptionsSheet = true }
+                    onClick = { pageState.showShortsOptionsSheet = true }
                 )
 
                 val infiniteTransition = rememberInfiniteTransition(label = "album_spin")
@@ -888,7 +870,9 @@ fun ShortVideoPage(
                             .fillMaxSize()
                             .clip(CircleShape)
                             .then(
-                                if (isActive && isPlaying) Modifier.graphicsLayer { rotationZ = albumRotation }
+                                if (isActive && pageState.isPlaying) {
+                                    Modifier.graphicsLayer { rotationZ = albumRotation }
+                                }
                                 else Modifier
                             )
                     )
@@ -898,21 +882,27 @@ fun ShortVideoPage(
 
         // ── Scrubbable Progress Bar ──
         }
-        if (duration > 0) {
-            val progress = if (isDragging) dragProgress else (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+        if (pageState.duration > 0) {
+            val progress = if (pageState.isDragging) {
+                pageState.dragProgress
+            } else {
+                (pageState.currentPosition.toFloat() / pageState.duration.toFloat()).coerceIn(0f, 1f)
+            }
 
             SeekbarWithPreview(
                 value = progress,
                 onValueChange = { newProgress ->
-                    isDragging = true
-                    dragProgress = newProgress.coerceIn(0f, 1f)
+                    pageState.isDragging = true
+                    pageState.dragProgress = newProgress.coerceIn(0f, 1f)
                 },
                 onValueChangeFinished = {
-                    playerPool.seekTo((dragProgress.coerceIn(0f, 1f) * duration).toLong())
-                    isDragging = false
+                    playerPool.seekTo(
+                        (pageState.dragProgress.coerceIn(0f, 1f) * pageState.duration).toLong()
+                    )
+                    pageState.isDragging = false
                 },
                 interactionSource = seekBarInteractionSource,
-                duration = duration,
+                duration = pageState.duration,
                 edgeAligned = true,
                 enabled = isActive,
                 modifier = Modifier
@@ -925,48 +915,48 @@ fun ShortVideoPage(
         }
     }
 
-    if (showShortsOptionsSheet) {
+    if (pageState.showShortsOptionsSheet) {
         ShortsOptionsSheet(
-            isLoadingStreams = isLoadingStreams,
+            isLoadingStreams = pageState.isLoadingStreams,
             onWantMore = {
-                showShortsOptionsSheet = false
-                onWantMore()
+                pageState.showShortsOptionsSheet = false
+                actions.onWantMore()
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             },
             onNotInterested = {
-                showShortsOptionsSheet = false
-                onNotInterested()
+                pageState.showShortsOptionsSheet = false
+                actions.onNotInterested()
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             },
-            ambientModeEnabled = ambientModeEnabled,
+            ambientModeEnabled = settings.ambientModeEnabled,
             onAmbientModeToggle = { enabled ->
                 scope.launch { playerPreferences.setVideoAmbientModeEnabled(enabled) }
             },
             onDownloadClick = {
-                showShortsOptionsSheet = false
-                if (!isLoadingStreams) {
-                    isLoadingStreams = true
+                pageState.showShortsOptionsSheet = false
+                if (!pageState.isLoadingStreams) {
+                    pageState.isLoadingStreams = true
                     scope.launch {
                         val streamInfo = viewModel.getVideoStreamInfo(video.id)
-                        currentStreamInfo = streamInfo
+                        pageState.currentStreamInfo = streamInfo
                         val (itVideo, itAudio) = viewModel.getInnerTubeDownloadFormats(video.id)
-                        currentInnerTubeVideoFormats = itVideo
-                        currentInnerTubeAudioFormats = itAudio
+                        pageState.currentInnerTubeVideoFormats = itVideo
+                        pageState.currentInnerTubeAudioFormats = itAudio
                         if (streamInfo != null || itVideo.isNotEmpty()) {
-                            currentStreamSizes = viewModel.fetchStreamSizes(video.id)
-                            showDownloadDialog = true
+                            pageState.currentStreamSizes = viewModel.fetchStreamSizes(video.id)
+                            pageState.showDownloadDialog = true
                         }
-                        isLoadingStreams = false
+                        pageState.isLoadingStreams = false
                     }
                 }
             },
             onAudioTrackClick = {
-                showShortsOptionsSheet = false
-                if (!isLoadingStreams) {
-                    isLoadingStreams = true
+                pageState.showShortsOptionsSheet = false
+                if (!pageState.isLoadingStreams) {
+                    pageState.isLoadingStreams = true
                     scope.launch {
                         val streamInfo = viewModel.getVideoStreamInfo(video.id)
-                        availableAudioStreams = streamInfo?.audioStreams
+                        pageState.availableAudioStreams = streamInfo?.audioStreams
                             ?.sortedByDescending { it.averageBitrate }
                             ?.groupBy { stream ->
                                 val trackIdLang = stream.audioTrackId
@@ -978,17 +968,19 @@ fun ShortVideoPage(
                             }
                             ?.map { (_, group) -> group.first() }
                             ?: emptyList()
-                        isLoadingStreams = false
-                        if (availableAudioStreams.isNotEmpty()) showAudioTrackSheet = true
+                        pageState.isLoadingStreams = false
+                        if (pageState.availableAudioStreams.isNotEmpty()) {
+                            pageState.showAudioTrackSheet = true
+                        }
                     }
                 }
             },
             onQualityClick = {
-                showShortsOptionsSheet = false
-                if (!isLoadingStreams) {
-                    isLoadingStreams = true
+                pageState.showShortsOptionsSheet = false
+                if (!pageState.isLoadingStreams) {
+                    pageState.isLoadingStreams = true
                     scope.launch {
-                        availableQualities = viewModel.getAvailableQualities(video.id)
+                        pageState.availableQualities = viewModel.getAvailableQualities(video.id)
                         val activeFormat = playerPool.getPlayerForIndex(pageIndex)?.videoFormat
                         val activeCodecKey = activeFormat?.let { format ->
                             VideoCodecUtils.codecKeyFromMimeType(
@@ -1003,96 +995,101 @@ fun ShortVideoPage(
                             )
                         }
                         val activeQuality = findActiveShortQuality(
-                            qualities = availableQualities,
+                            qualities = pageState.availableQualities,
                             currentVideoUrl = playerPool.getVideoUrlForIndex(pageIndex),
                             activeVideoWidth = activeFormat?.width ?: 0,
                             activeVideoHeight = activeFormat?.height ?: 0,
                             activeCodecKey = activeCodecKey
                         )
-                        selectedQualityHeight = activeQuality?.heightClass ?: -1
-                        selectedQualityUrl = activeQuality?.videoUrl
-                        isLoadingStreams = false
-                        if (availableQualities.isNotEmpty()) showQualitySheet = true
+                        pageState.selectedQualityHeight = activeQuality?.heightClass ?: -1
+                        pageState.selectedQualityUrl = activeQuality?.videoUrl
+                        pageState.isLoadingStreams = false
+                        if (pageState.availableQualities.isNotEmpty()) {
+                            pageState.showQualitySheet = true
+                        }
                     }
                 }
             },
-            currentSpeed = shortsSpeed,
+            currentSpeed = settings.playbackSpeed,
             onSpeedClick = {
-                showShortsOptionsSheet = false
-                showSpeedSheet = true
+                pageState.showShortsOptionsSheet = false
+                pageState.showSpeedSheet = true
             },
-            onDismiss = { showShortsOptionsSheet = false }
+            onDismiss = { pageState.showShortsOptionsSheet = false }
         )
     }
 
-    if (showSpeedSheet) {
+    if (pageState.showSpeedSheet) {
         ShortsSpeedSheet(
-            currentSpeed = shortsSpeed,
-            speedSliderEnabled = speedSliderEnabled,
-            customSpeedsEnabled = customSpeedsEnabled,
-            customSpeedPresetsRaw = customSpeedPresetsRaw,
+            currentSpeed = settings.playbackSpeed,
+            speedSliderEnabled = settings.speedSliderEnabled,
+            customSpeedsEnabled = settings.customSpeedsEnabled,
+            customSpeedPresetsRaw = settings.customSpeedPresetsRaw,
             onSpeedSelected = { speed ->
                 playerPool.setBasePlaybackSpeed(speed)
             },
             onSpeedSelectionFinished = { speed ->
                 scope.launch { playerPreferences.setShortsPlaybackSpeed(speed) }
             },
-            onDismiss = { showSpeedSheet = false }
+            onDismiss = { pageState.showSpeedSheet = false }
         )
     }
 
     // ── Audio Track Selection Sheet ──
-    if (showAudioTrackSheet && availableAudioStreams.isNotEmpty()) {
+    if (pageState.showAudioTrackSheet && pageState.availableAudioStreams.isNotEmpty()) {
         ShortsAudioTrackSheet(
-            audioStreams = availableAudioStreams,
-            selectedIndex = selectedAudioIndex,
+            audioStreams = pageState.availableAudioStreams,
+            selectedIndex = pageState.selectedAudioIndex,
             onTrackSelected = { index ->
-                val stream = availableAudioStreams[index]
+                val stream = pageState.availableAudioStreams[index]
                 val audioUrl = stream.content ?: stream.url
                 playerPool.reloadWithAudioUrl(pageIndex, video.id, audioUrl)
-                selectedAudioIndex = index
-                showAudioTrackSheet = false
+                pageState.selectedAudioIndex = index
+                pageState.showAudioTrackSheet = false
             },
-            onDismiss = { showAudioTrackSheet = false }
+            onDismiss = { pageState.showAudioTrackSheet = false }
         )
     }
 
     // ── Quality Selection Sheet ──
-    if (showQualitySheet && availableQualities.isNotEmpty()) {
+    if (pageState.showQualitySheet && pageState.availableQualities.isNotEmpty()) {
         ShortsQualitySheet(
-            qualities = availableQualities,
-            selectedHeight = selectedQualityHeight.takeIf { it >= 0 },
-            selectedVideoUrl = selectedQualityUrl,
+            qualities = pageState.availableQualities,
+            selectedHeight = pageState.selectedQualityHeight.takeIf { it >= 0 },
+            selectedVideoUrl = pageState.selectedQualityUrl,
             onQualitySelected = { quality ->
                 playerPool.reloadWithVideoUrl(pageIndex, video.id, quality.videoUrl)
-                selectedQualityHeight = quality.heightClass
-                selectedQualityUrl = quality.videoUrl
-                showQualitySheet = false
+                pageState.selectedQualityHeight = quality.heightClass
+                pageState.selectedQualityUrl = quality.videoUrl
+                pageState.showQualitySheet = false
             },
-            groupedByResolution = groupedQualitySelectorEnabled,
-            onDismiss = { showQualitySheet = false }
+            groupedByResolution = settings.groupedQualitySelectorEnabled,
+            onDismiss = { pageState.showQualitySheet = false }
         )
     }
 
     // ── Download Dialog ──
-    if (showDownloadDialog && (currentStreamInfo != null || currentInnerTubeVideoFormats.isNotEmpty())) {
-        if (downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT) {
+    if (
+        pageState.showDownloadDialog &&
+        (pageState.currentStreamInfo != null || pageState.currentInnerTubeVideoFormats.isNotEmpty())
+    ) {
+        if (settings.downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT) {
             io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialogCompact(
-                streamInfo = currentStreamInfo,
-                streamSizes = currentStreamSizes,
-                innerTubeVideoFormats = currentInnerTubeVideoFormats,
-                innerTubeAudioFormats = currentInnerTubeAudioFormats,
+                streamInfo = pageState.currentStreamInfo,
+                streamSizes = pageState.currentStreamSizes,
+                innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
+                innerTubeAudioFormats = pageState.currentInnerTubeAudioFormats,
                 video = video,
-                onDismiss = { showDownloadDialog = false }
+                onDismiss = { pageState.showDownloadDialog = false }
             )
         } else {
             io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialog(
-                streamInfo = currentStreamInfo,
-                streamSizes = currentStreamSizes,
-                innerTubeVideoFormats = currentInnerTubeVideoFormats,
-                innerTubeAudioFormats = currentInnerTubeAudioFormats,
+                streamInfo = pageState.currentStreamInfo,
+                streamSizes = pageState.currentStreamSizes,
+                innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
+                innerTubeAudioFormats = pageState.currentInnerTubeAudioFormats,
                 video = video,
-                onDismiss = { showDownloadDialog = false }
+                onDismiss = { pageState.showDownloadDialog = false }
             )
         }
     }
@@ -1606,35 +1603,6 @@ private fun ShortsQualitySheet(
             }
         }
     }
-}
-
-@Composable
-fun ShortVideoItem(
-    video: Video,
-    isVisible: Boolean,
-    pageIndex: Int = 0,
-    onBack: () -> Unit,
-    onChannelClick: (String) -> Unit,
-    onLikeClick: () -> Unit,
-    onSubscribeClick: () -> Unit,
-    onCommentsClick: () -> Unit,
-    onShareClick: () -> Unit,
-    onDescriptionClick: () -> Unit,
-    viewModel: ShortsViewModel,
-    modifier: Modifier = Modifier
-) {
-    ShortVideoPage(
-        video = video,
-        isActive = isVisible,
-        pageIndex = pageIndex,
-        viewModel = viewModel,
-        onBack = onBack,
-        onChannelClick = { onChannelClick(video.channelId) },
-        onCommentsClick = onCommentsClick,
-        onDescriptionClick = onDescriptionClick,
-        onShareClick = onShareClick,
-        modifier = modifier
-    )
 }
 
 @Composable

@@ -12,6 +12,8 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.data.model.mergeDistinctByNonBlankKey
 import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
 import io.github.aedev.flow.data.paging.ChannelPlaylistsPagingSource
 import io.github.aedev.flow.innertube.pages.CommunityPost
@@ -451,7 +453,7 @@ class ChannelViewModel : ViewModel() {
                     onSuccess = { page ->
                         _uiState.update {
                             it.copy(
-                                searchResults = page.videos,
+                                searchResults = page.videos.distinctByNonBlankKey(Video::id),
                                 searchContinuation = page.continuation,
                                 isSearching = false,
                                 searchErrorLog = null,
@@ -515,7 +517,10 @@ class ChannelViewModel : ViewModel() {
                     onSuccess = { page ->
                         _uiState.update {
                             it.copy(
-                                searchResults = it.searchResults + page.videos,
+                                searchResults = it.searchResults.mergeDistinctByNonBlankKey(
+                                    page.videos,
+                                    Video::id
+                                ),
                                 searchContinuation = page.continuation,
                                 isLoadingMoreSearch = false,
                             )

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.data.music.DownloadManager
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
 import io.github.aedev.flow.innertube.models.SearchSuggestions
@@ -71,8 +72,10 @@ class MusicSearchViewModel @Inject constructor(
             
             result?.onSuccess { suggestions ->
                 _uiState.update { it.copy(
-                    suggestions = suggestions.queries,
-                    recommendedItems = suggestions.recommendedItems
+                    suggestions = suggestions.queries.distinctByNonBlankKey { query ->
+                        query.trim().lowercase()
+                    },
+                    recommendedItems = suggestions.recommendedItems.distinctByStableIdentity()
                 ) }
             }?.onFailure { throwable ->
                 android.util.Log.w("MusicSearchViewModel", "Suggestions failed: ${throwable.message}")
@@ -97,7 +100,7 @@ class MusicSearchViewModel @Inject constructor(
             
             result?.onSuccess { summaryPage ->
                 _uiState.update { state -> state.copy(
-                    searchSummary = summaryPage,
+                    searchSummary = summaryPage.distinctItemsForLazyKeys(),
                     isLoading = false,
                     isSearching = true,
                     continuation = summaryPage.continuation
@@ -129,7 +132,7 @@ class MusicSearchViewModel @Inject constructor(
                 
                 result?.onSuccess { searchResult ->
                     _uiState.update { state -> state.copy(
-                        filteredResults = searchResult.items,
+                        filteredResults = searchResult.items.distinctByStableIdentity(),
                         isLoading = false,
                         continuation = searchResult.continuation
                     ) }
@@ -160,7 +163,7 @@ class MusicSearchViewModel @Inject constructor(
                 val songsSection = artistPage.sections.find { it.title.contains("Songs", ignoreCase = true) }
                 val items = songsSection?.items ?: artistPage.sections.firstOrNull()?.items ?: emptyList()
                 withContext(Dispatchers.Main) {
-                    callback(items)
+                    callback(items.distinctByStableIdentity())
                 }
             }
         }
@@ -178,19 +181,21 @@ class MusicSearchViewModel @Inject constructor(
                  _uiState.update { state ->
                      if (state.activeFilter == null) {
                          val newSummary = io.github.aedev.flow.innertube.pages.SearchSummary(
-                             title = "More results", 
-                             items = searchResult.items
+                             title = context.getString(R.string.fallback_more_results),
+                             items = searchResult.items.distinctByStableIdentity()
                          )
                          state.copy(
                              searchSummary = state.searchSummary?.copy(
                                  summaries = state.searchSummary.summaries + newSummary
-                             ),
+                             )?.distinctItemsForLazyKeys(),
                              continuation = searchResult.continuation,
                              isMoreLoading = false
                          )
                      } else {
                          state.copy(
-                             filteredResults = state.filteredResults + searchResult.items,
+                             filteredResults = (
+                                 state.filteredResults + searchResult.items
+                             ).distinctByStableIdentity(),
                              continuation = searchResult.continuation,
                              isMoreLoading = false
                          )

@@ -6,6 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.data.local.*
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.data.model.mergeDistinctByNonBlankKey
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
@@ -2980,7 +2983,7 @@ class VideoPlayerViewModel @Inject constructor(
                 if (_uiState.value.cachedVideo?.id != videoId) return@launch
                 val (comments, nextPage) = repository.getComments(videoId)
                 if (_uiState.value.cachedVideo?.id != videoId) return@launch
-                _commentsState.value = comments
+                _commentsState.value = comments.distinctByNonBlankKey(Comment::id)
                 commentsNextPage = nextPage
                 _hasMoreComments.value = nextPage != null
             } catch (e: Exception) {
@@ -2998,7 +3001,10 @@ class VideoPlayerViewModel @Inject constructor(
             _isLoadingMoreComments.value = true
             try {
                 val (newComments, newNextPage) = repository.getMoreComments(videoId, nextPage)
-                _commentsState.value = _commentsState.value + newComments
+                _commentsState.value = _commentsState.value.mergeDistinctByNonBlankKey(
+                    newComments,
+                    Comment::id
+                )
                 commentsNextPage = newNextPage
                 _hasMoreComments.value = newNextPage != null
             } catch (e: Exception) {
@@ -3022,7 +3028,7 @@ class VideoPlayerViewModel @Inject constructor(
                 _commentsState.value = _commentsState.value.map { c ->
                     if (c.id == comment.id) {
                         c.copy(
-                            replies = replies,
+                            replies = replies.distinctByNonBlankKey(Comment::id),
                             repliesPage = nextPage
                         )
                     } else c
@@ -3045,7 +3051,10 @@ class VideoPlayerViewModel @Inject constructor(
                 _commentsState.value = _commentsState.value.map { currentComment ->
                     if (currentComment.id == comment.id) {
                         currentComment.copy(
-                            replies = currentComment.replies + replies,
+                            replies = currentComment.replies.mergeDistinctByNonBlankKey(
+                                replies,
+                                Comment::id
+                            ),
                             repliesPage = nextPage
                         )
                     } else currentComment

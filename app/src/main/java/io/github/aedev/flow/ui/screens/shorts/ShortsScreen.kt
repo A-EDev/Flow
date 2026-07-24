@@ -277,36 +277,37 @@ fun ShortsScreen(
                         pageIndex = page,
                         viewModel = viewModel,
                         bottomNavOverlayPadding = bottomNavOverlayPadding,
-                        onBack = onBack,
-                        onChannelClick = { onChannelClick(short.channelId) },
-                        onCommentsClick = {
-                            viewModel.loadComments(short.id)
-                            showCommentsSheet = true
-                        },
-                        onDescriptionClick = {
-                            scope.launch { viewModel.loadShortDetails(short.id) }
-                            showDescriptionSheet = true
-                        },
-                        onShareClick = {
-                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    context.getString(R.string.share_short_template, short.id)
-                                )
-                                type = "text/plain"
-                            }
-                            context.startActivity(Intent.createChooser(sendIntent, null))
-                        },
-                        onWantMore = { viewModel.wantMoreLikeThis(short) },
-                        onNotInterested = { viewModel.notInterested(short) },
-                        onVideoEnded = {
-                            scope.launch {
-                                if (page < uiState.shorts.size - 1) {
-                                    pagerState.animateScrollToPage(page + 1)
+                        actions = ShortVideoPageActions(
+                            onChannelClick = { onChannelClick(short.channelId) },
+                            onCommentsClick = {
+                                viewModel.loadComments(short.id)
+                                showCommentsSheet = true
+                            },
+                            onDescriptionClick = {
+                                scope.launch { viewModel.loadShortDetails(short.id) }
+                                showDescriptionSheet = true
+                            },
+                            onShareClick = {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(
+                                        Intent.EXTRA_TEXT,
+                                        context.getString(R.string.share_short_template, short.id)
+                                    )
+                                    type = "text/plain"
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, null))
+                            },
+                            onWantMore = { viewModel.wantMoreLikeThis(short) },
+                            onNotInterested = { viewModel.notInterested(short) },
+                            onVideoEnded = {
+                                scope.launch {
+                                    if (page < pagerState.pageCount - 1) {
+                                        pagerState.animateScrollToPage(page + 1)
+                                    }
                                 }
                             }
-                        }
+                        )
                     )
                 }
 

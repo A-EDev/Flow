@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.UploadDate
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SortType
 import io.github.aedev.flow.data.model.Channel
+import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
@@ -56,6 +57,7 @@ class SearchPagingSource(
     }
 
     private val service = ServiceList.YouTube
+    private val loadedItemKeys = DistinctKeyTracker()
 
     override fun getRefreshKey(state: PagingState<Page, SearchResultItem>): Page? = null
 
@@ -67,7 +69,11 @@ class SearchPagingSource(
                 // Shorts tab: NewPipe search has no shorts, so serve them directly (single page).
                 if (searchFilter?.contentType == ContentType.SHORTS) {
                     val shorts = if (page == null) fetchShortVideos().map { SearchResultItem.VideoResult(it) } else emptyList()
-                    return@withContext LoadResult.Page(shorts, prevKey = null, nextKey = null)
+                    return@withContext LoadResult.Page(
+                        data = loadedItemKeys.filter(shorts) { it.contentIdentityKey() },
+                        prevKey = null,
+                        nextKey = null
+                    )
                 }
 
                 if (searchFilter?.sortType == SortType.VIEWS) {
@@ -186,8 +192,12 @@ class SearchPagingSource(
 
                 Log.d(TAG, "Loaded ${items.size} items | query='$query' | nextPage=${infoPage.nextPage != null}")
 
+                val sortedItems = sortVideoItemsLocally(
+                    searchFilter = searchFilter,
+                    items = enrichedCombined
+                )
                 LoadResult.Page(
-                    data = sortVideoItemsLocally(searchFilter = searchFilter, enrichedCombined),
+                    data = loadedItemKeys.filter(sortedItems) { it.contentIdentityKey() },
                     prevKey = null,
                     nextKey = infoPage.nextPage
                 )
@@ -215,7 +225,11 @@ class SearchPagingSource(
         }
 
         Log.d(TAG, "Loaded ${items.size} server-sorted items | query='$query' | nextPage=${nextPage != null}")
-        return LoadResult.Page(data = enrichedItems, prevKey = null, nextKey = nextPage)
+        return LoadResult.Page(
+            data = loadedItemKeys.filter(enrichedItems) { it.contentIdentityKey() },
+            prevKey = null,
+            nextKey = nextPage
+        )
     }
 
     private fun Video.matchesSearchFilters(): Boolean {
@@ -341,6 +355,16 @@ class SearchPagingSource(
     private fun extractPlaylistId(url: String): String =
         url.substringAfter("list=").substringBefore("&")
             .ifEmpty { url.substringAfterLast("/").substringBefore("?") }
+
+    private fun SearchResultItem.contentIdentityKey(): String = when (this) {
+        is SearchResultItem.VideoResult -> video.id.withTypePrefix("video")
+        is SearchResultItem.ChannelResult -> channel.id.withTypePrefix("channel")
+        is SearchResultItem.PlaylistResult -> playlist.id.withTypePrefix("playlist")
+        is SearchResultItem.ShortsShelfResult -> "shorts-shelf"
+    }
+
+    private fun String.withTypePrefix(type: String): String =
+        takeIf(String::isNotBlank)?.let { "$type:$it" }.orEmpty()
 
     private fun sortVideoItemsLocally(searchFilter: SearchFilter?, items: List<SearchResultItem>): List<SearchResultItem> =
         when (searchFilter?.sortType) {

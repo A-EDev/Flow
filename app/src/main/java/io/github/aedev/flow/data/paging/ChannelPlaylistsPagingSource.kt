@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.paging
 import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.model.Playlist
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -24,6 +25,8 @@ class ChannelPlaylistsPagingSource(
     companion object {
         private const val TAG = "ChannelPlaylistsPaging"
     }
+
+    private val loadedPlaylistKeys = DistinctKeyTracker()
     
     override fun getRefreshKey(state: PagingState<Page, Playlist>): Page? {
         return null
@@ -67,7 +70,7 @@ class ChannelPlaylistsPagingSource(
                 }
                 
                 LoadResult.Page(
-                    data = playlists,
+                    data = loadedPlaylistKeys.filter(playlists, Playlist::id),
                     prevKey = null,
                     nextKey = nextPage
                 )

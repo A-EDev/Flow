@@ -54,6 +54,7 @@ import io.github.aedev.flow.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatRichText
 import androidx.compose.ui.platform.LocalContext
@@ -349,6 +350,9 @@ fun FlowCommentsList(
     contentPadding: PaddingValues = PaddingValues(bottom = 32.dp)
 ) {
     val latestOnLoadMore by rememberUpdatedState(onLoadMore)
+    val uniqueComments = remember(comments) {
+        comments.distinctByNonBlankKey(Comment::id)
+    }
     LazyColumn(
         state = listState,
         modifier = modifier,
@@ -360,7 +364,7 @@ fun FlowCommentsList(
                     repeat(6) { CommentSkeleton() }
                 }
             }
-        } else if (comments.isEmpty()) {
+        } else if (uniqueComments.isEmpty()) {
             item(key = "empty") {
                 Box(
                     modifier = Modifier
@@ -376,7 +380,7 @@ fun FlowCommentsList(
             }
         } else {
             items(
-                items = comments,
+                items = uniqueComments,
                 key = { comment -> "${selectedFilter.name}_${comment.id}" }
             ) { comment ->
                 FlowCommentItem(

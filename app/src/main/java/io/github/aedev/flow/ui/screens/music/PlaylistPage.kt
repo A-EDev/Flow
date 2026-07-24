@@ -330,7 +330,10 @@ fun PlaylistPage(
                             }
                         }
                     } else if (searchResults.isNotEmpty()) {
-                        itemsIndexed(searchResults, key = { _, track -> track.videoId }) { _, track ->
+                        itemsIndexed(
+                            searchResults,
+                            key = { index, track -> "${track.videoId}_$index" }
+                        ) { _, track ->
                             SearchResultTrackRow(
                                 track = track,
                                 isAdded = addedTrackIds.contains(track.videoId),

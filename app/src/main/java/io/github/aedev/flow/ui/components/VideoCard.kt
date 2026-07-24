@@ -63,6 +63,7 @@ import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -1345,7 +1346,10 @@ fun ContinueWatchingShelf(
     onSeeAllClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    if (entries.isEmpty()) return
+    val uniqueEntries = remember(entries) {
+        entries.distinctByNonBlankKey(VideoHistoryEntry::videoId)
+    }
+    if (uniqueEntries.isEmpty()) return
     val context = LocalContext.current
     Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
@@ -1381,7 +1385,7 @@ fun ContinueWatchingShelf(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(entries, key = { it.videoId }) { entry ->
+            items(uniqueEntries, key = { it.videoId }) { entry ->
                 ContinueWatchingCard(
                     entry = entry,
                     onClick = { onVideoClick(entry.videoId) },
@@ -1548,6 +1552,10 @@ fun ShortsShelf(
     onShortClick: (Video) -> Unit,
     onSeeAllClick: (() -> Unit)? = null
 ) {
+    val uniqueShorts = remember(shorts) {
+        shorts.distinctByNonBlankKey(Video::id)
+    }
+    if (uniqueShorts.isEmpty()) return
     val context = LocalContext.current
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
@@ -1584,7 +1592,7 @@ fun ShortsShelf(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(shorts, key = { it.id }) { short ->
+            items(uniqueShorts, key = { it.id }) { short ->
                 ShortsCard(video = short, onClick = { onShortClick(short) })
             }
         }

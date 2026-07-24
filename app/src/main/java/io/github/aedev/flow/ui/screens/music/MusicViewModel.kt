@@ -17,9 +17,11 @@ import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import io.github.aedev.flow.innertube.pages.HomePage
@@ -47,7 +49,13 @@ class MusicViewModel @Inject constructor(
     private val downloadManager: DownloadManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicUiState())
-    val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<MusicUiState> = _uiState
+        .map(MusicUiState::withUniqueLazyContent)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = _uiState.value.withUniqueLazyContent()
+        )
 
     private fun MusicTrack.isAudioMusicCandidate(): Boolean {
         val usableDuration = duration == 0 || duration in 30..1200

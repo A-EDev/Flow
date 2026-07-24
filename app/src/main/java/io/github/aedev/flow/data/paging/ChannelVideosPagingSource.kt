@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.paging
 import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.innertube.YouTube
@@ -31,6 +32,8 @@ class ChannelVideosPagingSource(
     companion object {
         private const val TAG = "ChannelVideosPaging"
     }
+
+    private val loadedVideoKeys = DistinctKeyTracker()
     
     override fun getRefreshKey(state: PagingState<Page, Video>): Page? {
         // Return null to start from the beginning on refresh
@@ -81,7 +84,7 @@ class ChannelVideosPagingSource(
                 }
                 
                 LoadResult.Page(
-                    data = videos,
+                    data = loadedVideoKeys.filter(videos, Video::id),
                     prevKey = null, // Only forward pagination
                     nextKey = nextPage
                 )

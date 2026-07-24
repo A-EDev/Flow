@@ -46,7 +46,11 @@ class YouTubeBrowseViewModel @Inject constructor(
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             title = result.title,
-                            sections = result.items
+                            sections = result.items.mapNotNull { section ->
+                                section.copy(
+                                    items = section.items.distinctByStableIdentity()
+                                ).takeIf { it.items.isNotEmpty() }
+                            }
                         )
                     }
                     .onFailure { error ->

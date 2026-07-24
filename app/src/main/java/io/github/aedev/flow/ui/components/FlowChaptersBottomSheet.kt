@@ -249,7 +249,12 @@ fun FlowChaptersBottomSheet(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    itemsIndexed(chapters, key = { _, chapter -> chapter.title + chapter.startTimeSeconds }) { index, chapter ->
+                    itemsIndexed(
+                        chapters,
+                        key = { index, chapter ->
+                            "${chapter.title}_${chapter.startTimeSeconds}_$index"
+                        }
+                    ) { index, chapter ->
                         val startTimeMs = chapter.startTimeSeconds.toLong() * 1000L
                         val nextChapter = chapters.getOrNull(index + 1)
                         val endTimeMs = nextChapter?.startTimeSeconds?.let { it.toLong() * 1000L }
