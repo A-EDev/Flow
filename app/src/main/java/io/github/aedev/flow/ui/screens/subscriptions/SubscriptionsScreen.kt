@@ -156,6 +156,30 @@ fun SubscriptionsScreen(
     }
     val videos = uiState.recentVideos
 
+    LaunchedEffect(feedGridState, videos, isManagingSubs) {
+        if (isManagingSubs) {
+            viewModel.updateVisibleVideoIds(emptySet())
+            return@LaunchedEffect
+        }
+
+        val feedVideoIds = videos.mapTo(HashSet(videos.size)) { it.id }
+        snapshotFlow {
+            feedGridState.layoutInfo.visibleItemsInfo
+                .mapNotNull { item -> item.key as? String }
+                .toSet()
+        }.collectLatest { visibleKeys ->
+            viewModel.updateVisibleVideoIds(
+                visibleKeys.filterTo(HashSet()) { it in feedVideoIds }
+            )
+        }
+    }
+
+    DisposableEffect(viewModel) {
+        onDispose {
+            viewModel.updateVisibleVideoIds(emptySet())
+        }
+    }
+
     Scaffold(
         topBar = {
             if (isManagingSubs) {

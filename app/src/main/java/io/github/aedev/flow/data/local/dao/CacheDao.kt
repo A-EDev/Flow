@@ -26,8 +26,29 @@ interface CacheDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSubscriptionFeed(videos: List<SubscriptionFeedEntity>)
 
-    @Query("UPDATE subscription_feed_cache SET thumbnailUrl = :thumbnailUrl WHERE videoId = :videoId")
-    suspend fun updateSubscriptionFeedThumbnail(videoId: String, thumbnailUrl: String)
+    @Query(
+        """
+        UPDATE subscription_feed_cache
+        SET title = :title,
+            channelName = :channelName,
+            channelId = :channelId,
+            thumbnailUrl = :thumbnailUrl,
+            duration = :duration,
+            viewCount = :viewCount,
+            isLive = :isLive
+        WHERE videoId = :videoId
+        """
+    )
+    suspend fun updateSubscriptionFeedMetadata(
+        videoId: String,
+        title: String,
+        channelName: String,
+        channelId: String,
+        thumbnailUrl: String,
+        duration: Int,
+        viewCount: Long,
+        isLive: Boolean,
+    )
 
     @Query("DELETE FROM subscription_feed_cache WHERE channelId = :channelId")
     suspend fun deleteSubscriptionFeedForChannel(channelId: String)
