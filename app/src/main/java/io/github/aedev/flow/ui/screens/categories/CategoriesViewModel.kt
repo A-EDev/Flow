@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository.TrendingCategory
 import kotlinx.coroutines.Job
@@ -101,7 +102,8 @@ class CategoriesViewModel @Inject constructor(
             try {
                 val region = preferences.trendingRegion.first()
                 val rawVideos = repository.getTrendingByCategory(category, region)
-                
+                    .distinctByNonBlankKey(Video::id)
+
                 cache[category] = rawVideos
                 _uiState.update {
                     it.copy(
