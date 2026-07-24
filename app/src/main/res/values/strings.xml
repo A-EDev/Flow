@@ -2411,4 +2411,17 @@
     <string name="fallback_your_watch_later_list">Your watch later list</string>
     <string name="fallback_downloaded_locally">Downloaded locally</string>
     <string name="fallback_more_results">More results</string>
+
+    <!-- YouTube Login Settings -->
+    <string name="youtube_account_title">YouTube Account</string>
+    <string name="youtube_account_subtitle">Sign in to directly access your subscriptions, private playlists, and personalized feed</string>
+    <string name="youtube_account_sign_in">Sign In</string>
+    <string name="youtube_account_sign_out">Sign Out</string>
+    <string name="youtube_account_logged_in_as">Logged in as %s</string>
+    <string name="youtube_account_not_logged_in">Not logged in</string>
+    <string name="youtube_account_loading">Fetching account info...</string>
+    <string name="youtube_account_cookies_imported">YouTube login cookies saved</string>
+    <string name="youtube_account_sign_out_confirm">Are you sure you want to sign out from your YouTube/Google account?</string>
+    <string name="youtube_login_title">YouTube Login</string>
+    <string name="youtube_account_instructions">Sign in directly to your YouTube account. Your session cookie is stored locally on this device via secure preferences.</string>
 </resources>

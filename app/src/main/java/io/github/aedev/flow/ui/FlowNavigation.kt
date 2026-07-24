@@ -365,7 +365,8 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToSyncDevices = { navController.navigate("settings/sync_devices") },
             onNavigateToExport = { navController.navigate("settings/export") },
             onNavigateToSponsorBlockSettings = { navController.navigate("settings/sponsorblock") },
-            onNavigateToDiscordSettings = { navController.navigate("settings/discord") }
+            onNavigateToDiscordSettings = { navController.navigate("settings/discord") },
+            onNavigateToYouTubeAccount = { navController.navigate("settings/youtube_account") }
         )
     }
 
@@ -373,6 +374,14 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "settings/discord"
         showBottomNav.value = false
         io.github.aedev.flow.ui.screens.settings.DiscordSettingsScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    composable("settings/youtube_account") {
+        currentRoute.value = "settings/youtube_account"
+        showBottomNav.value = false
+        io.github.aedev.flow.ui.screens.settings.YouTubeAccountScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }

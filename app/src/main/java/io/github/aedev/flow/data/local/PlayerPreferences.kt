@@ -58,6 +58,7 @@ class PlayerPreferences(context: Context) {
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val SLEEP_TIMER_CLOSE_APP_ON_EXPIRY = booleanPreferencesKey("sleep_timer_close_app_on_expiry")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
+        val YOUTUBE_COOKIE = stringPreferencesKey("youtube_cookie")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")        
         val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")        
@@ -832,6 +833,21 @@ class PlayerPreferences(context: Context) {
     suspend fun setTrendingRegion(region: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.TRENDING_REGION] = region
+        }
+    }
+
+    val youtubeCookie: Flow<String?> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.YOUTUBE_COOKIE]
+        }
+
+    suspend fun setYoutubeCookie(cookie: String?) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            if (cookie != null) {
+                preferences[Keys.YOUTUBE_COOKIE] = cookie
+            } else {
+                preferences.remove(Keys.YOUTUBE_COOKIE)
+            }
         }
     }
 

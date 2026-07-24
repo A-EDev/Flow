@@ -141,6 +141,13 @@ class FlowApplication : Application(), ImageLoaderFactory {
         }
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            playerPreferences.youtubeCookie.collectLatest { cookie ->
+                YouTube.cookie = cookie
+                Log.d(TAG, "Dynamic YouTube Cookie updated: present=${cookie != null}")
+            }
+        }
+
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val prefs = getSharedPreferences("flow_prefs", MODE_PRIVATE)
                 val cached = prefs.getString(VISITOR_DATA_KEY, null)

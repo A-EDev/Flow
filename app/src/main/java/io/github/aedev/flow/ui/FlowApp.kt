@@ -57,6 +57,24 @@ import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.EnhancedMusicPlayerScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.theme.CustomThemePalettes
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import coil.compose.AsyncImage
+import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
+import io.github.aedev.flow.data.local.entity.NotificationEntity
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.theme.isEffectivelyDark
@@ -94,6 +112,27 @@ fun FlowApp(
     
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity!!)
     val playerUiStateResult = playerViewModel.uiState.collectAsStateWithLifecycle()
+
+    val notificationViewModel: NotificationViewModel = hiltViewModel()
+    val allNotifications by notificationViewModel.notifications.collectAsStateWithLifecycle()
+    val seenNotificationIds = remember { mutableSetOf<Int>() }
+    var activeInAppNotification by remember { mutableStateOf<NotificationEntity?>(null) }
+
+    LaunchedEffect(allNotifications) {
+        if (allNotifications.isNotEmpty()) {
+            if (seenNotificationIds.isEmpty()) {
+                seenNotificationIds.addAll(allNotifications.map { it.id })
+            } else {
+                val newNotif = allNotifications.firstOrNull { it.id !in seenNotificationIds }
+                if (newNotif != null) {
+                    seenNotificationIds.add(newNotif.id)
+                    if (!newNotif.isRead) {
+                        activeInAppNotification = newNotif
+                    }
+                }
+            }
+        }
+    }
     val playerUiState by playerUiStateResult
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
 
@@ -731,6 +770,94 @@ fun FlowApp(
         enabled = needsOnboarding == false && !isInPipMode && !playerVisible,
         onNavigateToDonations = { navController.navigate("donations") }
     )
+
+    val activeNotif = activeInAppNotification
+    AnimatedVisibility(
+        visible = activeNotif != null,
+        enter = slideInVertically(
+            initialOffsetY = { -it },
+            animationSpec = spring(stiffness = Spring.StiffnessLow)
+        ) + fadeIn(),
+        exit = slideOutVertically(
+            targetOffsetY = { -it },
+            animationSpec = spring(stiffness = Spring.StiffnessLow)
+        ) + fadeOut(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .align(Alignment.TopCenter)
+            .padding(16.dp)
+    ) {
+        if (activeNotif != null) {
+            LaunchedEffect(activeNotif) {
+                kotlinx.coroutines.delay(6000)
+                if (activeInAppNotification == activeNotif) {
+                    activeInAppNotification = null
+                }
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        val videoId = activeNotif.videoId
+                        activeInAppNotification = null
+                        navController.navigate("player/$videoId")
+                    },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!activeNotif.thumbnailUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = activeNotif.thumbnailUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = activeNotif.channelName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = activeNotif.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { activeInAppNotification = null },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.close),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
   }
 }
 
