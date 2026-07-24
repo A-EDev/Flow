@@ -97,6 +97,7 @@ fun SettingsScreen(
     onNavigateToExport: () -> Unit,
     onNavigateToSponsorBlockSettings: () -> Unit,
     onNavigateToDiscordSettings: () -> Unit,
+    onNavigateToYouTubeAccount: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -256,6 +257,7 @@ fun SettingsScreen(
         SettingSearchEntry(Icons.Outlined.Tune, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance_subtitle), secAppearance, onNavigateToPlayerAppearance),
         SettingSearchEntry(Icons.Outlined.GridView, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display_subtitle), secAppearance, onNavigateToContentSettings),
         SettingSearchEntry(Icons.Outlined.Schedule, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime_subtitle), secAppearance, onNavigateToDateTimeSettings),
+        SettingSearchEntry(Icons.Outlined.AccountCircle, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.youtube_account_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.youtube_account_subtitle), secContentPlayback, onNavigateToYouTubeAccount),
         SettingSearchEntry(Icons.Outlined.FilterAlt, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs_subtitle), secContentPlayback, onNavigateToUserPreferences),
         SettingSearchEntry(Icons.Outlined.PlayCircle, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_subtitle), secContentPlayback, onNavigateToPlayerSettings),
         SettingSearchEntry(Icons.Outlined.Share, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.discord_presence_title), discordSettingsSummary, secContentPlayback, onNavigateToDiscordSettings),
@@ -787,6 +789,13 @@ item {
             
             item {
                 SettingsGroup {
+                    SettingsItem(
+                        icon = Icons.Outlined.AccountCircle,
+                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.youtube_account_title),
+                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.youtube_account_subtitle),
+                        onClick = onNavigateToYouTubeAccount
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.FilterAlt,
                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs),
