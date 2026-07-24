@@ -44,6 +44,30 @@ class QrCodecTest {
     }
 
     @Test
+    fun tv_session_bound_qr_does_not_depend_on_scanner_wall_clock() {
+        val text = QrCodec.build(
+            sid,
+            key,
+            "10.0.0.5",
+            8080,
+            "Flow TV",
+            1_000L,
+            sessionBound = true,
+        )
+
+        val qr = (QrCodec.parse(text, nowEpochSeconds = 2_000L) as QrCodec.Result.Ok).qr
+
+        assertTrue(qr.isSessionBound)
+    }
+
+    @Test
+    fun regular_mobile_qr_does_not_include_session_bound_lease() {
+        val text = QrCodec.build(sid, key, "10.0.0.5", 8080, "Pixel", 2_000L)
+
+        assertTrue(!text.contains("\"lease\""))
+    }
+
+    @Test
     fun wrong_version_is_rejected() {
         val result = QrCodec.parse("""{"v":2,"sid":"AAAA","k":"AAAA","ip":"1.2.3.4","p":1,"d":"x","exp":9999999999}""")
         assertEquals(QrCodec.QrError.WRONG_VERSION, (result as QrCodec.Result.Err).error)

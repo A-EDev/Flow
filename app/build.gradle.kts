@@ -252,6 +252,11 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     // implementation(libs.androidx.datastore) // In TOML if needed
 
+    // --- Home-screen widgets (Jetpack Glance) ---
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+    implementation(libs.androidx.graphics.shapes)
+
     // --- Async & Utils ---
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.paging.runtime.ktx)

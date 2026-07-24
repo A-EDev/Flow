@@ -1,0 +1,78 @@
+name: Feature request
+description: Propose a focused improvement to Flow for Android.
+title: "[Feature]: "
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and discussions for this request.
+          required: true
+        - label: This request describes one focused feature or improvement.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the user problem or limitation, not only the proposed control or implementation.
+      placeholder: "When I ..., I cannot ..., which means ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain the expected workflow from the user's perspective.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Relevant area
+      multiple: true
+      options:
+        - Video playback
+        - Music playback
+        - Shorts
+        - Local media
+        - Downloads or offline playback
+        - Search or browsing
+        - Subscriptions or playlists
+        - Recommendations
+        - Casting, Android Auto, or widgets
+        - Lyrics, subtitles, comments, or live chat
+        - Import, export, or device sync
+        - Notifications, background playback, or PiP
+        - Settings, appearance, or accessibility
+        - Performance, battery, or data usage
+        - Privacy or security
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Mention current workarounds or simpler approaches you considered.
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Privacy, security, and resource impact
+      description: State whether this needs new permissions, network services, local storage, background work, or additional battery use. Write "None" if it has no impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add mockups, examples, related standards, or links that clarify the request.

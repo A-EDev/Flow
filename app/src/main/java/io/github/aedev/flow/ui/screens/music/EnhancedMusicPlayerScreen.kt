@@ -92,47 +92,12 @@ fun EnhancedMusicPlayerScreen(
     )
     val hideMusicPlayerArtwork by playerPreferences.hideMusicPlayerArtwork.collectAsState(initial = false)
     
-    val isVideoMode = false 
-    var sheetColor by remember { mutableStateOf<Color?>(null) }
-    var sheetAccentColor by remember { mutableStateOf<Color?>(null) }
-    
+    val isVideoMode = false
     val thumbnailUrl = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl
-    LaunchedEffect(thumbnailUrl) {
-        if (thumbnailUrl.isNotEmpty()) {
-            val request = ImageRequest.Builder(context)
-                .data(thumbnailUrl)
-                .allowHardware(false)
-                .size(128)
-                .build()
-            val result = context.imageLoader.execute(request)
-            if (result is SuccessResult) {
-                val bitmap = result.drawable.toBitmap()
-                val palette = Palette.from(bitmap).generate()
-                val bgSwatch = palette.darkMutedSwatch ?: palette.darkVibrantSwatch ?: palette.dominantSwatch
-                val accentSwatch = palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: palette.lightMutedSwatch
-                sheetColor = bgSwatch?.let { Color(it.rgb) }
-                sheetAccentColor = accentSwatch?.let { Color(it.rgb) }
-            } else {
-                sheetColor = null
-                sheetAccentColor = null
-            }
-        }
-    }
-    
-    val defaultSheetColor = MaterialTheme.colorScheme.surface
-    val animatedSheetColor by animateColorAsState(
-        targetValue = sheetColor ?: defaultSheetColor,
-        animationSpec = tween(1000),
-        label = "sheetColor"
-    )
-    val animatedAccentColor by animateColorAsState(
-        targetValue = sheetAccentColor ?: MaterialTheme.colorScheme.primary,
-        animationSpec = tween(1000),
-        label = "accentColor"
-    )
-    val adaptiveOnSheetColor = remember(animatedSheetColor) {
-        if (animatedSheetColor.luminance() < 0.45f) Color.White else Color(0xFF161616)
-    }
+    val musicPalette = rememberMusicPalette(thumbnailUrl)
+    val animatedSheetColor = musicPalette.base
+    val animatedAccentColor = musicPalette.accent
+    val adaptiveOnSheetColor = musicPalette.onBase
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }

@@ -83,7 +83,9 @@ fun FlowApp(
     deeplinkVideoId: String? = null,
     isShort: Boolean = false,
     openMusicPlayerRequest: Int = 0,
-    onDeeplinkConsumed: () -> Unit = {}
+    onDeeplinkConsumed: () -> Unit = {},
+    pendingWidgetRoute: String? = null,
+    onWidgetRouteConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
@@ -384,6 +386,14 @@ fun FlowApp(
     LaunchedEffect(showRestoredMusicMiniPlayer) {
         if (showRestoredMusicMiniPlayer == false && !musicPlayerSheetState.isExpanded) {
             musicPlayerSheetState.dismiss()
+        }
+    }
+
+    LaunchedEffect(pendingWidgetRoute) {
+        pendingWidgetRoute?.let { route ->
+            navController.currentBackStackEntryFlow.first()
+            navController.navigate(route)
+            onWidgetRouteConsumed()
         }
     }
 

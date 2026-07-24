@@ -75,7 +75,16 @@ class SyncManager @Inject constructor(
     /** Become the host (show a QR) in the given [role]. [collections] is only used when SENDER. */
     fun host(role: SyncRole, collections: List<String>) {
         if (job?.isActive == true) return
-        job = scope.launch { runHost(role, collections) }
+        job = scope.launch { runHost(role, collections, sessionBoundQr = false) }
+    }
+
+    /**
+     * Host a session for a TV QR. TV/emulator wall clocks are not guaranteed to agree with the
+     * phone scanner, so the live, single-use server session is the freshness boundary.
+     */
+    fun hostForTv(role: SyncRole, collections: List<String>) {
+        if (job?.isActive == true) return
+        job = scope.launch { runHost(role, collections, sessionBoundQr = true) }
     }
 
     /** Become the client (scan a QR) in the given [role]. [collections] is only used when SENDER. */
@@ -104,7 +113,11 @@ class SyncManager @Inject constructor(
 
     // --- host (show QR); role may be SENDER or RECEIVER ---
 
-    private suspend fun runHost(role: SyncRole, collections: List<String>) {
+    private suspend fun runHost(
+        role: SyncRole,
+        collections: List<String>,
+        sessionBoundQr: Boolean,
+    ) {
         try {
             _state.value = SyncState.Preparing
             val sessionId = SyncCrypto.randomSessionId()
@@ -123,7 +136,16 @@ class SyncManager @Inject constructor(
             val port = srv.start()
             val exp = System.currentTimeMillis() / 1000 + QrCodec.DEFAULT_TTL_SECONDS
             val qrRole = if (role == SyncRole.SENDER) QrCodec.ROLE_SENDER else QrCodec.ROLE_RECEIVER
-            val qrText = QrCodec.build(sessionId, master, ip, port, deviceIdentity.deviceName(), exp, qrRole)
+            val qrText = QrCodec.build(
+                sessionId = sessionId,
+                masterKey = master,
+                ip = ip,
+                port = port,
+                deviceName = deviceIdentity.deviceName(),
+                expEpochSeconds = exp,
+                role = qrRole,
+                sessionBound = sessionBoundQr,
+            )
             _state.value = SyncState.ShowingQr(qrText, sas, exp, sending = role == SyncRole.SENDER)
 
             val conn = srv.awaitConnection()
