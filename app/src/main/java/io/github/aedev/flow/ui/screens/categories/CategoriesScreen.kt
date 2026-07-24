@@ -322,7 +322,7 @@ private fun GridContent(
         verticalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
         modifier = Modifier.fillMaxSize()
     ) {
-        items(videos) { video ->
+        items(videos, key = { it.id }) { video ->
             VideoCardFullWidth(
                 video = video,
                 useInternalPadding = false,
@@ -377,7 +377,7 @@ private fun ListContent(
         contentPadding = PaddingValues(vertical = 8.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        items(videos) { video ->
+        items(videos, key = { it.id }) { video ->
             VideoCardHorizontal(
                 video = video,
                 modifier = Modifier.fillMaxWidth(),

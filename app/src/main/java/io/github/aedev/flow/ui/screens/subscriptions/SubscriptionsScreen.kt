@@ -350,7 +350,7 @@ fun SubscriptionsScreen(
                                 )
                             }
                 
-                            items(filteredChannels) { channel ->
+                            items(filteredChannels, key = { it.id }) { channel ->
                                 SubscriptionManagerItem(
                                     channel = channel,
                                     onClick = { openChannel(channel) },
@@ -533,7 +533,7 @@ fun SubscriptionsScreen(
                                     }
                                 }
     
-                                items(videos) { video ->
+                                items(videos, key = { it.id }) { video ->
                                     if (uiState.isFullWidthView) {
                                         VideoCardFullWidth(
                                             video = video,
@@ -661,7 +661,7 @@ private fun CompactSubscriptionsHeader(
             contentPadding = PaddingValues(start = 12.dp, end = 8.dp, top = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(channels) { channel ->
+            items(channels, key = { it.id }) { channel ->
                 ChannelAvatarItem(
                     channel = channel,
                     isSelected = false,
@@ -832,7 +832,7 @@ private fun CreateEditGroupDialog(
                     modifier = Modifier.heightIn(max = 280.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    items(filteredChannels) { channel ->
+                    items(filteredChannels, key = { it.id }) { channel ->
                         val isChecked = channel.id in selectedChannelIds.value
                         Row(
                             modifier = Modifier

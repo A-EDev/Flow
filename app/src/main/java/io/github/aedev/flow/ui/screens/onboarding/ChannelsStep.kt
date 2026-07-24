@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -290,7 +291,6 @@ internal suspend fun searchChannels(query: String): List<ChannelSearchResult> =
             extractor.fetchPage()
             extractor.initialPage.items
                 .filterIsInstance<ChannelInfoItem>()
-                .take(15)
                 .mapNotNull { item ->
                     val channelId = try {
                         val url = item.url
@@ -315,6 +315,8 @@ internal suspend fun searchChannels(query: String): List<ChannelSearchResult> =
                         subscriberCount = item.subscriberCount
                     )
                 }
+                .distinctByNonBlankKey(ChannelSearchResult::channelId)
+                .take(15)
         } catch (e: Exception) {
             emptyList()
         }

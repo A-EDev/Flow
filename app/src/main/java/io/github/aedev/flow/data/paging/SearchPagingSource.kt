@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.local.SortType
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -303,20 +304,22 @@ class SearchPagingSource(
 
     /** Shorts from the web-client search shelf, as [Video]s flagged [Video.isShort]. */
     private suspend fun fetchShortVideos(): List<Video> =
-        YouTube.searchShorts(query).getOrNull().orEmpty().map { s ->
-            Video(
-                id = s.id,
-                title = s.title,
-                channelName = "",
-                channelId = "",
-                thumbnailUrl = "https://i.ytimg.com/vi/${s.id}/oar2.jpg",
-                duration = 0,
-                viewCount = s.viewCount,
-                uploadDate = "",
-                timestamp = System.currentTimeMillis(),
-                isShort = true
-            )
-        }
+        YouTube.searchShorts(query).getOrNull().orEmpty()
+            .map { short ->
+                Video(
+                    id = short.id,
+                    title = short.title,
+                    channelName = "",
+                    channelId = "",
+                    thumbnailUrl = "https://i.ytimg.com/vi/${short.id}/oar2.jpg",
+                    duration = 0,
+                    viewCount = short.viewCount,
+                    uploadDate = "",
+                    timestamp = System.currentTimeMillis(),
+                    isShort = true
+                )
+            }
+            .distinctByNonBlankKey(Video::id)
 
     private fun extractVideoId(url: String): String {
         val patterns = listOf(

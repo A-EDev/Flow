@@ -1381,7 +1381,7 @@ fun ContinueWatchingShelf(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(entries) { entry ->
+            items(entries, key = { it.videoId }) { entry ->
                 ContinueWatchingCard(
                     entry = entry,
                     onClick = { onVideoClick(entry.videoId) },
@@ -1584,7 +1584,7 @@ fun ShortsShelf(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(shorts) { short ->
+            items(shorts, key = { it.id }) { short ->
                 ShortsCard(video = short, onClick = { onShortClick(short) })
             }
         }
