@@ -691,4 +691,24 @@
     <string name="notif_type_reminders_subtitle">Lembretes de hora de dormir e de pausas do recurso de Gerenciamento de Tempo</string>
     <string name="notif_master_toggle_subtitle">Permitir que o Fluxo desperte em segundo plano para verificar notificações e alertas</string>
     <string name="notif_check_interval_disabled">As verificações de notificação em segundo plano estão desativadas</string>
+    <string name="settings_item_app_icon_subtitle">Personalize o ícone do seu launcher</string>
+    <string name="settings_item_player_subtitle">Reprodução automática, Reprodução em segundo plano, SponsorBlock</string>
+    <string name="settings_item_proxy">Configurações do Proxy</string>
+    <string name="settings_item_proxy_subtitle">Encaminhar o tráfego remoto por HTTP ou SOCKS5</string>
+    <string name="settings_item_content_display_subtitle">Tamanho da grade, miniaturas, layout</string>
+    <string name="settings_item_buffer_subtitle">Configurar o comportamento do buffer de vídeo</string>
+    <string name="settings_item_downloads_subtitle">Desempenho, Armazenamento, Threads</string>
+    <string name="settings_item_time_management_subtitle">Estatísticas de uso, lembretes para a hora de dormir</string>
+    <string name="appearance_title">Aparência</string>
+    <string name="appearance_subtitle">Personalize sua experiência no Flow</string>
+    <string name="appearance_customizer_variant_title">Tema personalizado %1$s</string>
+    <string name="appearance_customizer_subtitle">Ajuste cada função de cor do Material 3 e visualize as alterações instantaneamente</string>
+    <string name="appearance_customizer_format_hint">Formato hexadecimal: #RRGGBB ou #AARRGGBB</string>
+    <string name="appearance_customizer_reset">Redefinir</string>
+    <string name="appearance_role_on_primary">Sobre o principal</string>
+    <string name="appearance_role_primary_container">Container principal</string>
+    <string name="appearance_role_on_primary_container">Sobre o contêiner principal</string>
+    <string name="appearance_role_inverse_primary">Principal invertida</string>
+    <string name="appearance_role_on_secondary">Sobre o secundário</string>
+    <string name="appearance_role_secondary_container">Contêiner secundário</string>
 </resources>
