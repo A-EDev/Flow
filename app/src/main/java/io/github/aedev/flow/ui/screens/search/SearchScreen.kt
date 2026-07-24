@@ -1229,7 +1229,7 @@ private fun DiscoverScreen(
                     }
                 }
             }
-            items(searchHistory.take(8), key = { it.id }) { item ->
+            items(searchHistory.take(8)) { item ->
                 HistoryRow(
                     item = item,
                     onClick = { onHistoryClick(item.query) },
@@ -1345,7 +1345,7 @@ private fun SuggestionsCard(
                     }
                 }
             }
-            items(suggestions, key = { it }) { s ->
+            items(suggestions) { s ->
                 SuggestionRow(
                     s, query,
                     { onSuggestionClick(s) },

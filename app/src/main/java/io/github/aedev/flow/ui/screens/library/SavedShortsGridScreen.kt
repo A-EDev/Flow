@@ -109,7 +109,7 @@ fun SavedShortsGridScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(padding)
             ) {
-                items(savedShorts, key = { it.id }) { video ->
+                items(savedShorts) { video ->
                     SavedShortCard(video = video, onClick = { onVideoClick(video.id) })
                 }
             }

@@ -337,7 +337,6 @@ fun HomeScreen(
                             val videosBeforeShorts = videos.take(insertShortsAfter)
                             items(
                                 items = videosBeforeShorts,
-                                key = { it.id }
                             ) { video ->
                                 LaunchedEffect(
                                     video.id,
@@ -413,7 +412,6 @@ fun HomeScreen(
                             val videosAfterShorts = videos.drop(insertShortsAfter)
                             items(
                                 items = videosAfterShorts,
-                                key = { it.id }
                             ) { video ->
                                 LaunchedEffect(
                                     video.id,
