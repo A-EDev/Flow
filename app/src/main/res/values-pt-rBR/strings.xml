@@ -711,4 +711,22 @@
     <string name="appearance_role_inverse_primary">Principal invertida</string>
     <string name="appearance_role_on_secondary">Sobre o secundário</string>
     <string name="appearance_role_secondary_container">Contêiner secundário</string>
+    <string name="appearance_role_on_secondary_container">No Contêiner Secundário</string>
+    <string name="appearance_role_on_tertiary">Sobre o Terciário</string>
+    <string name="appearance_role_tertiary_container">Contêiner Terciário</string>
+    <string name="appearance_role_on_tertiary_container">Em um Contêiner Terciário</string>
+    <string name="appearance_role_on_background">Em Segundo Plano</string>
+    <string name="appearance_role_on_surface">Em Primeiro Plano</string>
+    <string name="appearance_role_surface_variant">Variante Primeiro Plano</string>
+    <string name="appearance_role_on_surface_variant">Variante em Primeiro Plano</string>
+    <string name="appearance_role_surface_tint">Cor do Primeiro Plano</string>
+    <string name="appearance_role_inverse_surface">Inverter Primeiro Plano</string>
+    <string name="appearance_role_inverse_on_surface">Inverter em Primeiro Plano</string>
+    <string name="appearance_role_on_error">Em Erro</string>
+    <string name="appearance_role_error_container">Erro em Contêiner</string>
+    <string name="appearance_role_on_error_container">Erro no Contêiner</string>
+    <string name="fallback_more_results">Mais resultados</string>
+    <string name="appearance_role_outline_variant">Variante de Contorno</string>
+    <string name="appearance_role_scrim">Scrim</string>
+    <string name="appearance_role_surface_bright">Brilho do Primeiro Plano</string>
 </resources>
