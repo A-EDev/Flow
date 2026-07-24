@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.innertube.YouTube
@@ -306,15 +307,7 @@ class SearchPagingSource(
     private fun Video.needsCollabAvatarStack(): Boolean =
         id.isNotBlank() &&
             channelThumbnailUrls.size < 2 &&
-            channelName.isLikelyCollaborationByline()
-
-    private fun String.isLikelyCollaborationByline(): Boolean {
-        val normalized = " ${trim().lowercase()} "
-        return normalized.contains(" and ") ||
-            normalized.contains(" & ") ||
-            normalized.contains(" x ") ||
-            normalized.contains(" with ")
-    }
+            channelName.hasLikelyCollaborationByline()
 
     /** Shorts from the web-client search shelf, as [Video]s flagged [Video.isShort]. */
     private suspend fun fetchShortVideos(): List<Video> =

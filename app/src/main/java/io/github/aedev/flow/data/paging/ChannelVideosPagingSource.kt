@@ -6,6 +6,7 @@ import androidx.paging.PagingState
 import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -131,7 +132,7 @@ class ChannelVideosPagingSource(
 
     private suspend fun Video.withCollabAvatarStack(): Video {
         if (collaborators.size > 1) return this
-        if (channelThumbnailUrls.size < 2 && !channelName.isLikelyCollaborationByline()) return this
+        if (channelThumbnailUrls.size < 2 && !channelName.hasLikelyCollaborationByline()) return this
         val collaborators = withTimeoutOrNull(4_000L) {
             YouTube.videoCollaborators(id).getOrNull()
         }.orEmpty()
@@ -167,14 +168,6 @@ class ChannelVideosPagingSource(
         }
     }
 
-    private fun String.isLikelyCollaborationByline(): Boolean {
-        val normalized = " ${trim().lowercase()} "
-        return normalized.contains(" and ") ||
-            normalized.contains(" & ") ||
-            normalized.contains(" x ") ||
-            normalized.contains(" with ")
-    }
-    
     private fun extractVideoId(url: String): String {
         return when {
             url.contains("v=") -> url.substringAfter("v=").substringBefore("&")

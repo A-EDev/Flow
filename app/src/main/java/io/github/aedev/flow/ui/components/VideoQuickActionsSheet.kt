@@ -65,6 +65,7 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,15 +83,17 @@ fun VideoQuickActionsBottomSheet(
     viewModel: QuickActionsViewModel = hiltViewModel()
 ) {
     var showCollaborators by remember { mutableStateOf(false) }
+    val needsCollaboratorResolution = video.needsCollaboratorResolution()
     val resolvedCollaborators by produceState<List<VideoCollaborator>>(
         initialValue = emptyList(),
         key1 = video.id,
-        key2 = video.collaborators
+        key2 = video.collaborators,
+        key3 = needsCollaboratorResolution,
     ) {
-        value = if (video.collaborators.size > 1) {
-            emptyList()
-        } else {
+        value = if (needsCollaboratorResolution) {
             VideoCollaboratorResolver.resolve(video.id)
+        } else {
+            emptyList()
         }
     }
     val collaboratorItems = remember(video, resolvedCollaborators) {

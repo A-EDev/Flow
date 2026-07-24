@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.repository
 
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import android.util.Log
 import android.util.LruCache
@@ -392,7 +393,7 @@ class YouTubeRepository @Inject constructor(
         limit: Int = 10,
     ): List<Video> = supervisorScope {
         val candidates = videos
-            .filter { it.needsCollabAvatarStack() }
+            .filter { it.needsCollaboratorResolution() }
             .take(limit)
 
         if (candidates.isEmpty()) return@supervisorScope videos
@@ -459,19 +460,6 @@ class YouTubeRepository @Inject constructor(
         }
     }
 
-    private fun Video.needsCollabAvatarStack(): Boolean =
-        id.isNotBlank() &&
-            collaborators.size < 2 &&
-            (channelThumbnailUrls.size > 1 || channelName.isLikelyCollaborationByline())
-
-    private fun String.isLikelyCollaborationByline(): Boolean {
-        val normalized = " ${trim().lowercase(Locale.US)} "
-        return normalized.contains(" and ") ||
-            normalized.contains(" & ") ||
-            normalized.contains(" x ") ||
-            normalized.contains(" with ")
-    }
-    
     /**
      * Get search suggestions from YouTube
      */

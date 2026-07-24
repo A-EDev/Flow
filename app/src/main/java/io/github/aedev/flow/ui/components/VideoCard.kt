@@ -64,6 +64,8 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
+import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -136,15 +138,17 @@ internal fun rememberCollaboratorChannelDisplayName(
 
 @Composable
 internal fun rememberCollaboratorItems(video: Video): List<VideoCollaborator> {
+    val needsResolution = video.needsCollaboratorResolution()
     val fetchedCollaborators by produceState<List<VideoCollaborator>>(
         initialValue = emptyList(),
         key1 = video.id,
-        key2 = video.collaborators
+        key2 = video.collaborators,
+        key3 = needsResolution,
     ) {
-        value = if (video.collaborators.size > 1) {
-            emptyList()
-        } else {
+        value = if (needsResolution) {
             VideoCollaboratorResolver.resolve(video.id)
+        } else {
+            emptyList()
         }
     }
     return remember(video, fetchedCollaborators) {
@@ -1404,9 +1408,14 @@ private fun ContinueWatchingCard(
 ) {
     val resolvedCollaborators by produceState<List<VideoCollaborator>>(
         initialValue = emptyList(),
-        key1 = entry.videoId
+        key1 = entry.videoId,
+        key2 = entry.channelName,
     ) {
-        value = VideoCollaboratorResolver.resolve(entry.videoId)
+        value = if (entry.channelName.hasLikelyCollaborationByline()) {
+            VideoCollaboratorResolver.resolve(entry.videoId)
+        } else {
+            emptyList()
+        }
     }
     val displayChannelName = rememberCollaboratorChannelDisplayName(entry.channelName, resolvedCollaborators)
 
