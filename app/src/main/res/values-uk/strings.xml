@@ -210,9 +210,9 @@
     <string name="player_appearance_header">Налаштування керування програвачем</string>
     <string name="player_appearance_style_subtitle">Виберіть візуальний стиль панелі пошуку</string>
     <string name="settings_item_player_appearance">Зовнішній вигляд програвача</string>
-    <string name="style_default">Стандартна (Flow)</string>
-    <string name="style_metrolist">Metrolist (Thick)</string>
-    <string name="style_metrolist_slim">Metrolist (Slim)</string>
+    <string name="style_default">Стандартна</string>
+    <string name="style_metrolist">Товстий</string>
+    <string name="style_metrolist_slim">Стандартний</string>
     <string name="style_squiggly">Хвилястий</string>
     <string name="style_slim">Ультратонкий</string>
     <string name="delete">Видалити</string>
