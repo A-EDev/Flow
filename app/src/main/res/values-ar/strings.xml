@@ -255,7 +255,7 @@
     <string name="player_appearance_style_subtitle">حدد النمط لشريط التقديم</string>
     <string name="settings_item_player_appearance">مظهر المشغل</string>
     <string name="settings_item_player_appearance_subtitle">خصص نمط شريط التقدم</string>
-    <string name="style_default">إفتراضي</string>
+    <string name="style_default">عادي</string>
     <string name="style_squiggly">متعرج</string>
     <string name="style_slim">نحيف جدا</string>
     <string name="style_metrolist">عريض</string>
@@ -419,7 +419,7 @@
     <string name="player_settings_custom_speeds_input_error">أدخل سرعة تشغيل بين 0.1 و 10.0</string>
     <string name="player_settings_custom_speeds_empty">لم تتم إضافة أي إعدادات مسبقة. أضف إعدادًا مسبقًا أدناه.</string>
     <string name="player_settings_custom_speeds_add">إضافة إعداد مسبق</string>
-    <string name="player_settings_custom_speeds_remove">حذف</string>
+    <string name="player_settings_custom_speeds_remove">إزالة</string>
     <string name="player_settings_speed_slider_title">وضع شريط التمرير السريع</string>
     <string name="player_settings_speed_slider_subtitle">استخدم شريط تمرير مستمر لضبط سرعة التشغيل</string>
     <string name="speed_slider_decrease">تقليل السرعة</string>
@@ -2187,7 +2187,7 @@
     <string name="discord_error_connection_in_progress">‎تم بالفعل إنشاء اتصال عبر ديسكورد.</string>
     <string name="discord_error_login_timeout">انتهت مهلة تسجيل الدخول إلى Discord.</string>
     <string name="discord_error_login_cancelled">تم إلغاء اتصال Discord.</string>
-    <string name="discord_error_connection_incomplete">لم يكتمل الاتصال بــ Discord.</string>
+    <string name="discord_error_connection_incomplete">لم يكتمل الاتصال بـ Discord.</string>
     <string name="discord_error_empty_token">أعاد Discord رمز جلسة فارغاً.</string>
     <string name="discord_error_missing_application_id">معرف تطبيق Discord مفقود من هذه النسخة.</string>
     <string name="discord_error_gateway_timeout">انقطع الاتصال ببوابة Discord.</string>
