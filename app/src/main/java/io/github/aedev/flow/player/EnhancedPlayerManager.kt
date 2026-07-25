@@ -56,6 +56,7 @@ import io.github.aedev.flow.player.service.BackgroundServiceManager
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
+import io.github.aedev.flow.player.state.queuePresence
 import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
@@ -72,6 +73,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -122,6 +124,7 @@ class EnhancedPlayerManager private constructor() {
     // State management
     private val _playerState = MutableStateFlow(EnhancedPlayerState())
     val playerState: StateFlow<EnhancedPlayerState> = _playerState.asStateFlow()
+    val hasQueue: Flow<Boolean> = playerState.queuePresence()
     
     // Stream data
     private var currentVideoId: String? = null
