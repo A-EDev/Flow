@@ -7,6 +7,7 @@ plugins {
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("androidx.baselineprofile")
 }
 
 android {
@@ -137,6 +138,23 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+
+        if (project.findProperty("composeStrongSkipping") != "false") {
+            freeCompilerArgs += listOf(
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true",
+            )
+        }
+
+        if (project.findProperty("composeCompilerReports") == "true") {
+            val reportsDir = layout.buildDirectory.dir("compose_compiler").get().asFile.absolutePath
+            freeCompilerArgs += listOf(
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=$reportsDir",
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=$reportsDir",
+            )
+        }
     }
 
     buildFeatures {
@@ -178,7 +196,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.material) 
     implementation(libs.androidx.material.icons.extended)
 
     // --- Navigation ---
@@ -195,7 +212,6 @@ dependencies {
     // --- Image Loading ---
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
-    implementation(libs.picasso)
     implementation("androidx.palette:palette-ktx:1.0.0")
 
     // --- Dependency Injection ---
@@ -270,8 +286,15 @@ dependencies {
     "githubImplementation"(libs.apkupdater)
     implementation(libs.androidx.multidex)
 
-    implementation(libs.brotli) 
+    implementation(libs.brotli)
     implementation(libs.re2j)
+
+    // --- Baseline profiles ---
+    // Runtime installer for the merged baseline profile. AGP merges profiles shipped inside
+    // library AARs (Compose, RecyclerView, ...) at build time; this applies them at runtime,
+    // which matters for sideloaded/F-Droid installs that bypass Play's cloud profiles.
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
 
     // Desugaring for older Android versions
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")

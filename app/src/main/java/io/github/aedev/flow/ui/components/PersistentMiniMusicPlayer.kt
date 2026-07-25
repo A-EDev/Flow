@@ -123,7 +123,7 @@ fun PersistentMiniMusicPlayer(
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AsyncImage(
-                            model = track.highResThumbnailUrl,
+                            model = track.listThumbnailUrl,
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
@@ -179,7 +179,7 @@ fun PersistentMiniMusicPlayer(
                                         .clip(RoundedCornerShape(12.dp))
                                 ) {
                                     AsyncImage(
-                                        model = track.highResThumbnailUrl,
+                                        model = track.listThumbnailUrl,
                                         contentDescription = stringResource(R.string.album_art),
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -380,7 +380,7 @@ fun CompactMiniMusicPlayer(
                         ) {
                             Box {
                                 AsyncImage(
-                                    model = track.highResThumbnailUrl,
+                                    model = track.listThumbnailUrl,
                                     contentDescription = null,
                                     modifier = Modifier
                                         .fillMaxSize()
