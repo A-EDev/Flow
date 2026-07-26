@@ -53,7 +53,15 @@ object GlobalPlayerState {
     fun initialize(context: Context) {
         EnhancedPlayerManager.getInstance().initialize(context)
     }
-    
+
+    /**
+     * Cold-start initialization that keeps the disk-bound half of player setup off the main thread.
+     */
+    suspend fun initializeAsync(context: Context) {
+        EnhancedPlayerManager.getInstance().initializeAsync(context)
+    }
+
+
     /**
      * Set PiP mode state.
      */

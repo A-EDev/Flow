@@ -558,7 +558,8 @@ class HomeViewModel @Inject constructor(
     private var currentQueryIndex = 0
     private val discoveryQueries = mutableListOf<String>()
     private var wave2Job: Job? = null
-    
+    private var savedInterestJob: Job? = null
+
     private var viewHistory: ViewHistory? = null
     
     private val sessionWatchedTopics = mutableListOf<String>()
@@ -709,6 +710,9 @@ class HomeViewModel @Inject constructor(
         synchronized(homePrefetchWorkerLock) {
             homePrefetchJob?.cancel()
         }
+
+        wave2Job?.cancel()
+        savedInterestJob?.cancel()
         _uiState.update { it.copy(isLoadingMore = false) }
     }
 
@@ -725,12 +729,6 @@ class HomeViewModel @Inject constructor(
 
     private fun HomeUiState.isReadyForPrefetch(): Boolean =
         videos.isNotEmpty() && !isLoading && isFlowFeed && hasMorePages
-
-    private fun requestOptimisticHomePrefetch() {
-        val state = _uiState.value
-        if (!state.isReadyForPrefetch()) return
-        startHomePrefetch(homePrefetchQueue.onFeedReady(state.videos.size))
-    }
 
     private fun startHomePrefetch(request: HomePrefetchRequest?) {
         request ?: return
@@ -1175,8 +1173,7 @@ class HomeViewModel @Inject constructor(
                         }
                     }
                 }
-                requestOptimisticHomePrefetch()
-                
+
             } catch (e: Exception) {
                  _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = appContext.getString(R.string.error_failed_to_load_feed)) }
                  loadTrendingFallback() 
@@ -1653,7 +1650,8 @@ class HomeViewModel @Inject constructor(
      * lane quotas. Runs after first paint so it never delays load; chosen seeds enter a cooldown.
      */
     private fun enrichFeedWithSavedInterest(userSubs: Set<String>, taste: FeedTasteProfile) {
-        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+        savedInterestJob?.cancel()
+        savedInterestJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 val now = System.currentTimeMillis()
                 val seedInputs = savedInterestSeedInputs(gatherSavedSeedSources(), activeSavedSeedCooldown(now))

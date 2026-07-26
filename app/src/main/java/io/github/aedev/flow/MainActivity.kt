@@ -148,30 +148,29 @@ class MainActivity : ComponentActivity() {
             window.isStatusBarContrastEnforced = false
         }
         
-        // Initialize global player state
-        GlobalPlayerState.initialize(applicationContext)
+        // Player setup reads DataStore and opens the media cache index, so it runs off the main
+        // thread and settles after the first frame instead of blocking onCreate.
+        lifecycleScope.launch { GlobalPlayerState.initializeAsync(applicationContext) }
 
-        // Keep auto-PiP preference cached so onUserLeaveHint can read it synchronously
+        // One collector for the preferences that lifecycle callbacks (onUserLeaveHint, onStop)
+        // must be able to read synchronously. They share a DataStore, so collecting them
+        // separately mapped the same emission three times on the startup path.
         lifecycleScope.launch {
-            io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
-                .autoPipEnabled
-                .collect { enabled -> cachedAutoPipEnabled = enabled }
+            val playerPreferences =
+                io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
+            combine(
+                playerPreferences.autoPipEnabled,
+                playerPreferences.backgroundPlayEnabled,
+                playerPreferences.shortsBackgroundPlay
+            ) { autoPip, backgroundPlay, shortsBackgroundPlay ->
+                Triple(autoPip, backgroundPlay, shortsBackgroundPlay)
+            }.collect { (autoPip, backgroundPlay, shortsBackgroundPlay) ->
+                cachedAutoPipEnabled = autoPip
+                cachedBackgroundPlayEnabled = backgroundPlay
+                cachedShortsBackgroundPlay = shortsBackgroundPlay
+            }
         }
 
-        // Keep background-play preference cached so lifecycle callbacks can read it synchronously
-        lifecycleScope.launch {
-            io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
-                .backgroundPlayEnabled
-                .collect { enabled -> cachedBackgroundPlayEnabled = enabled }
-        }
-
-        // Keep shorts background-play preference cached so onStop can read it synchronously
-        lifecycleScope.launch {
-            io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
-                .shortsBackgroundPlay
-                .collect { enabled -> cachedShortsBackgroundPlay = enabled }
-        }
-        
         // Initialize Neuro Engine (Recommendation System)
         lifecycleScope.launch(Dispatchers.IO) {
             FlowNeuroEngine.initialize(applicationContext)

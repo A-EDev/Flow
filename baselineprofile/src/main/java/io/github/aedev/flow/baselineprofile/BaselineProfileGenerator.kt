@@ -35,14 +35,16 @@ class BaselineProfileGenerator {
      * Startup only, so `startup-prof.txt` stays a tight subset of `baseline-prof.txt`.
      *
      * The startup profile drives DEX layout optimization by grouping startup-critical classes
-     * together. Folding the scroll journey in here would mark essentially the whole app as
-     * startup-critical and leave that optimization no signal to act on.
+     * together, so anything recorded here is asserted to be startup-critical. Deliberately no
+     * settle after [startActivityAndWait], which already returns at first frame: an earlier
+     * `waitForIdle(1500)` here swept in the whole feed load and the post-first-frame player
+     * setup, pushing the startup profile to 94% of the baseline profile and leaving R8 unable
+     * to fit the "startup" set into the primary dex.
      */
     @Test
     fun startup() = collectProfile(includeInStartupProfile = true) {
         pressHome()
         startActivityAndWait()
-        device.waitForIdle(UI_SETTLE_MS)
     }
 
     /** The feed scroll journey, captured for the baseline profile only. */

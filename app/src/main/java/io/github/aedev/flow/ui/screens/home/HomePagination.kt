@@ -1,7 +1,22 @@
 package io.github.aedev.flow.ui.screens.home
 
 internal const val HOME_PREFETCH_AHEAD_VIDEO_COUNT = 24
-internal const val HOME_PREFETCH_MAX_PAGES_PER_RUN = 3
+
+/**
+ * Prefetch only starts once fewer than this many loaded videos remain below the viewport.
+ *
+ * The feed used to queue a full prefetch target the moment it first painted, so a cold start
+ * spent radio, parsing and ranking work on pages the user had not scrolled toward — and often
+ * never would. Roughly two screenfuls of runway is enough to keep scrolling seamless.
+ */
+internal const val HOME_PREFETCH_TRIGGER_REMAINING_VIDEOS = 8
+
+/**
+ * One page per run. The drain loop re-arms itself from the viewport, so a user who keeps
+ * scrolling still gets continuous content — just fetched in step with them rather than in a
+ * burst of up to three pages.
+ */
+internal const val HOME_PREFETCH_MAX_PAGES_PER_RUN = 1
 
 internal data class HomePrefetchRequest(
     val generation: Int,
@@ -9,17 +24,21 @@ internal data class HomePrefetchRequest(
 )
 
 internal class HomePrefetchQueue(
-    private val prefetchAheadVideoCount: Int = HOME_PREFETCH_AHEAD_VIDEO_COUNT
+    private val prefetchAheadVideoCount: Int = HOME_PREFETCH_AHEAD_VIDEO_COUNT,
+    private val triggerRemainingVideos: Int = HOME_PREFETCH_TRIGGER_REMAINING_VIDEOS
 ) {
     private var generation = 0
     private var isVisible = false
-    private var initialTargetVideoCount = 0
     private var targetVideoCount = 0
 
+    /**
+     * Returning to Home resumes a target the user already scrolled into, but never creates one:
+     * a feed that has just loaded has nothing to prefetch until it is actually consumed.
+     */
     @Synchronized
     fun onVisible(currentVideoCount: Int, feedReady: Boolean): HomePrefetchRequest? {
         isVisible = true
-        return if (feedReady) onFeedReadyLocked(currentVideoCount) else null
+        return if (feedReady) currentRequestLocked(currentVideoCount) else null
     }
 
     @Synchronized
@@ -29,21 +48,17 @@ internal class HomePrefetchQueue(
     }
 
     @Synchronized
-    fun onFeedReady(currentVideoCount: Int): HomePrefetchRequest? =
-        onFeedReadyLocked(currentVideoCount)
-
-    @Synchronized
     fun onViewportChanged(
         currentVideoCount: Int,
         lastVisibleVideoIndex: Int
     ): HomePrefetchRequest? {
         if (!isVisible || currentVideoCount <= 0) return null
-        if (initialTargetVideoCount == 0) {
-            initialTargetVideoCount = currentVideoCount + prefetchAheadVideoCount
-        }
-        val viewportTarget = (lastVisibleVideoIndex + 1 + prefetchAheadVideoCount)
-            .coerceAtMost(currentVideoCount + prefetchAheadVideoCount)
-        targetVideoCount = maxOf(targetVideoCount, initialTargetVideoCount, viewportTarget)
+        val remainingBelowViewport = currentVideoCount - (lastVisibleVideoIndex + 1)
+        if (remainingBelowViewport > triggerRemainingVideos) return null
+        targetVideoCount = maxOf(
+            targetVideoCount,
+            lastVisibleVideoIndex + 1 + prefetchAheadVideoCount
+        )
         return currentRequestLocked(currentVideoCount)
     }
 
@@ -54,22 +69,12 @@ internal class HomePrefetchQueue(
     @Synchronized
     fun reset() {
         generation++
-        initialTargetVideoCount = 0
         targetVideoCount = 0
     }
 
     @Synchronized
     fun isCurrent(requestGeneration: Int): Boolean =
         isVisible && generation == requestGeneration
-
-    private fun onFeedReadyLocked(currentVideoCount: Int): HomePrefetchRequest? {
-        if (!isVisible || currentVideoCount <= 0) return null
-        if (initialTargetVideoCount == 0) {
-            initialTargetVideoCount = currentVideoCount + prefetchAheadVideoCount
-        }
-        targetVideoCount = maxOf(targetVideoCount, initialTargetVideoCount)
-        return currentRequestLocked(currentVideoCount)
-    }
 
     private fun currentRequestLocked(currentVideoCount: Int): HomePrefetchRequest? =
         if (isVisible && currentVideoCount < targetVideoCount) {

@@ -409,7 +409,28 @@ class EnhancedPlayerManager private constructor() {
             Log.d(TAG, "Player initialized")
         }
     }
-    
+
+    /**
+     * Cold-start entry point: does the disk-bound preparation off the main thread, then finishes
+     * construction on it.
+     *
+     * [initialize] must run on the main thread because ExoPlayer binds to the calling Looper, but
+     * the expensive part is not the object graph — it is the DataStore reads and the SimpleCache
+     * index scan underneath it. Preloading those leaves the main thread paying only for
+     * construction. [appContext] is assigned up front so a playback request arriving mid-flight
+     * can still fall back to a synchronous [initialize].
+     */
+    suspend fun initializeAsync(context: Context) {
+        if (player != null) return
+        val applicationContext = context.applicationContext
+        appContext = applicationContext
+        withContext(Dispatchers.IO) {
+            playerFactory.preloadPreferences(applicationContext)
+            PlayerCacheManager.preload(applicationContext)
+        }
+        withContext(Dispatchers.Main) { initialize(applicationContext) }
+    }
+
     private fun initializeComponents(context: Context) {
         // Initialize cache manager
         cacheManager = PlayerCacheManager(context).also { it.initialize() }
@@ -845,6 +866,9 @@ class EnhancedPlayerManager private constructor() {
             }
             return
         }
+        // Cold start builds the player asynchronously, so a video opened before that lands must
+        // finish initialization here rather than have its streams silently dropped.
+        if (player == null) appContext?.let { initialize(it) }
         Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)}, sabr=${sabrInfo != null}, preferSabr=$preferSabr, itVideo=${itVideoFormats.size}, itAudio=${itAudioFormats.size}, keepAudioOnly=$keepAudioOnly)")
         resetPlaybackStateForNewVideo(videoId)
         currentLocalFilePath = localFilePath
