@@ -72,12 +72,12 @@ android {
     signingConfigs {
         create("release") {
             val localProperties = Properties()
-            val localPropertiesFile = rootProject.file("local.properties")
+            val localPropertiesFile = rootDir.resolve("local.properties")
             if (localPropertiesFile.exists()) {
                 localPropertiesFile.inputStream().use { localProperties.load(it) }
             }
 
-            storeFile = rootProject.file("release.keystore")
+            storeFile = rootDir.resolve("release.keystore")
             storePassword = (project.findProperty("storePassword") as? String)
                 ?: localProperties.getProperty("storePassword") 
                 ?: System.getenv("STORE_PASSWORD") 
