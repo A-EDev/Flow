@@ -51,6 +51,7 @@ import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.platform.AppUiRoot
 import io.github.aedev.flow.platform.DeviceFormFactorDetector
+import io.github.aedev.flow.ui.components.ProvideVideoCardState
 import io.github.aedev.flow.ui.components.UpdateDialog
 import io.github.aedev.flow.ui.tv.FlowTvApp
 import io.github.aedev.flow.BuildConfig
@@ -352,8 +353,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Card preferences and watch progress are collected once here. Cards used to
+                // collect them individually, so a feed of ten opened ten Room observers and
+                // fifty DataStore collectors.
+                ProvideVideoCardState {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // 1. YOUR MAIN APP (Home/NavHost)
+                    // 1. MAIN APP (Home/NavHost)
                     // This loads *behind* the splash screen immediately.
                     // By the time splash fades, this is ready.
                     val deeplinkVideoId by this@MainActivity.deeplinkVideoId
@@ -432,6 +437,7 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
+                }
                 }
             }
         }
