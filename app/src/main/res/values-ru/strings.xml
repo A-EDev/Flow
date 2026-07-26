@@ -2213,4 +2213,6 @@
     <string name="notification_channel_music_playback">Воспроизведение музыки</string>
     <string name="notification_channel_general">Общие</string>
     <string name="notification_channel_reminders">Напоминания</string>
+    <string name="tv_guide_key_edit">Редактировать ключи</string>
+    <string name="tv_guide_key_voice">Микрофон</string>
 </resources>
