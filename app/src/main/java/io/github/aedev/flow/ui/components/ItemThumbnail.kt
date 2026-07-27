@@ -120,34 +120,7 @@ fun PlayingWaveAnimation(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "waveform")
-    
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-    ) {
-        repeat(4) { index ->
-            val delay = index * 100
-            val height by infiniteTransition.animateFloat(
-                initialValue = 6f,
-                targetValue = 16f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(350, delayMillis = delay, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "bar$index"
-            )
-            
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(height.dp)
-                    .clip(RoundedCornerShape(1.5.dp))
-                    .background(color)
-            )
-        }
-    }
+    PlayingWaveform(modifier = modifier, color = color)
 }
 
 @Composable

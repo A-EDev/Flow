@@ -573,10 +573,12 @@ fun FlowApp(
                             onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
                             disableShortsPlayer = disableShortsPlayer,
                             defaultStartRoute = defaultStartRoute,
-                            bottomNavOverlayPadding = if (showBottomNav.value && isNavScrolledVisible) {
-                                bottomNavContentHeightDp
-                            } else {
-                                0.dp
+                            bottomNavOverlayPadding = {
+                                if (showBottomNav.value && isNavScrolledVisible) {
+                                    bottomNavContentHeightDp
+                                } else {
+                                    0.dp
+                                }
                             }
                         )
                     }

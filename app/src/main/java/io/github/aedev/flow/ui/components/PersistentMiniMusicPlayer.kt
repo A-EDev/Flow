@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -139,24 +141,21 @@ fun PersistentMiniMusicPlayer(
                         )
 
                         // Progress 
+                        val progressTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        val progressFillColor = MaterialTheme.colorScheme.primary
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(3.dp)
                                 .align(Alignment.BottomCenter)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(animatedProgress)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.primary)
-                            )
-                        }
+                                .drawBehind {
+                                    drawRect(color = progressTrackColor)
+                                    drawRect(
+                                        color = progressFillColor,
+                                        size = Size(size.width * animatedProgress, size.height)
+                                    )
+                                }
+                        )
 
                         // Content row
                         Row(
@@ -297,38 +296,16 @@ fun PersistentMiniMusicPlayer(
     }
 }
 
-/**
- * Minimal waveform bars for mini player
- */
+/** Narrower, three-bar variant of [PlayingWaveform] that fits over the 48 dp album art. */
 @Composable
 private fun MiniWaveform() {
-    val infiniteTransition = rememberInfiniteTransition(label = "waveform")
-
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(1.5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(3) { index ->
-            val delayMs = index * 120
-            val height by infiniteTransition.animateFloat(
-                initialValue = 6f,
-                targetValue = 16f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(350, delayMillis = delayMs, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "bar$index"
-            )
-
-            Box(
-                modifier = Modifier
-                    .width(2.5.dp)
-                    .height(height.dp)
-                    .clip(RoundedCornerShape(1.25.dp))
-                    .background(Color.White.copy(alpha = 0.9f))
-            )
-        }
-    }
+    PlayingWaveform(
+        color = Color.White.copy(alpha = 0.9f),
+        barCount = 3,
+        barWidth = 2.5.dp,
+        barSpacing = 1.5.dp,
+        staggerMillis = 120
+    )
 }
 
 /**
