@@ -358,12 +358,13 @@ fun ControlButton(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerProgressSlider(
-    currentPosition: Long,
+    positionProvider: () -> Long,
     duration: Long,
     onSeekTo: (Long) -> Unit,
     isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val currentPosition = positionProvider()
     val interactionSource = remember { MutableInteractionSource() }
     val isDragged by interactionSource.collectIsDraggedAsState()
     val isPressed by interactionSource.collectIsPressedAsState()

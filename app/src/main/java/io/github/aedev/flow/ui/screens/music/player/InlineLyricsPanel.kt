@@ -149,7 +149,7 @@ private data class HyphenGroupWord(
 fun InlineLyricsPanel(
     lyrics: String?,
     syncedLyrics: List<LyricsEntry>,
-    currentPosition: Long,
+    positionProvider: () -> Long,
     isLoading: Boolean,
     accentColor: Color,
     onSeekTo: (Long) -> Unit,
@@ -158,7 +158,9 @@ fun InlineLyricsPanel(
 ) {
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
-    val latestCurrentPosition by rememberUpdatedState(currentPosition)
+    // A provider, not a value: the panel drives itself from the 80 ms interpolation loop below and
+    // only needs the hosted position as a seed, so it must not recompose on every tick.
+    val latestPositionProvider by rememberUpdatedState(positionProvider)
     val expressiveAccent = remember(accentColor) {
         if (accentColor.luminance() < 0.48f) Color(0xFFEDEFC1) else accentColor
     }
@@ -176,7 +178,7 @@ fun InlineLyricsPanel(
     var activeLineIndices by remember { mutableStateOf(emptySet<Int>()) }
     var scrollTargetIndex by remember { mutableIntStateOf(-1) }
     var previousScrollActiveIndices by remember { mutableStateOf(emptySet<Int>()) }
-    var currentPositionState by remember { mutableLongStateOf(currentPosition) }
+    var currentPositionState by remember { mutableLongStateOf(positionProvider()) }
     var deferredCurrentLineIndex by remember { mutableIntStateOf(0) }
     var lastPreviewTime by remember { mutableLongStateOf(0L) }
     var isAutoScrollEnabled by remember { mutableStateOf(true) }
@@ -196,7 +198,8 @@ fun InlineLyricsPanel(
     LaunchedEffect(lines) {
         if (lines.isEmpty()) return@LaunchedEffect
 
-        var lastPlayerPos = EnhancedMusicPlayerManager.getCurrentPosition().takeIf { it > 0 } ?: latestCurrentPosition
+        var lastPlayerPos = EnhancedMusicPlayerManager.getCurrentPosition().takeIf { it > 0 }
+            ?: latestPositionProvider()
         var lastUpdateTime = System.currentTimeMillis()
         var previousPosition = lastPlayerPos
 

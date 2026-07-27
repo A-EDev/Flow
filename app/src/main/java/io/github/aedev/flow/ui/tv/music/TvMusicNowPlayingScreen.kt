@@ -292,7 +292,7 @@ fun TvMusicNowPlayingScreen(
                     color = if (seekBarFocused) Color.White.copy(alpha = 0.12f) else Color.Transparent,
                 ) {
                     PlayerProgressSlider(
-                        currentPosition = scrubUiState.takeIf { it.isScrubbing }?.targetMs ?: positionMs,
+                        positionProvider = { scrubUiState.takeIf { it.isScrubbing }?.targetMs ?: positionMs },
                         duration = durationMs,
                         onSeekTo = { target ->
                             manager.seekTo(target)

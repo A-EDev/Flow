@@ -51,7 +51,7 @@ fun BoxScope.TvLyricsPanel(
             InlineLyricsPanel(
                 lyrics = uiState.lyrics,
                 syncedLyrics = uiState.syncedLyrics,
-                currentPosition = positionProvider(),
+                positionProvider = positionProvider,
                 isLoading = uiState.isLyricsLoading,
                 accentColor = MaterialTheme.colorScheme.primary,
                 onSeekTo = onSeekTo,
