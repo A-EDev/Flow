@@ -585,7 +585,7 @@
     <string name="sleep_timer_unit">دقيقة</string>
     <string name="sleep_timer_input_error">أدخل قيمة بين 1 و 1440</string>
     <string name="sleep_timer_end_of_song">نهاية الأغنية / الفيديو</string>
-    <string name="sleep_timer_start">البداية</string>
+    <string name="sleep_timer_start">ابدأ</string>
     <string name="sleep_timer_stops_in">يتوقف عند</string>
     <string name="sleep_timer_end_of_media">نهاية الأغنية الحالية</string>
     <string name="sleep_timer_reset">إعادة الضبط</string>
