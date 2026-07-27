@@ -38,7 +38,7 @@
     <string name="liked_videos">Likes</string>
     <string name="share_song">Song teilen</string>
     <string name="empty_liked">Keine Likes</string>
-    <string name="empty_liked_body">Videos, die Sie mögen, werden hier erscheinen</string>
+    <string name="empty_liked_body">Deine gelikte Inhalte werden hier angezeigt</string>
     <string name="song">Song</string>
     <string name="video">Video</string>
     <string name="share">Teilen</string>
@@ -1449,4 +1449,8 @@
     <string name="import_freetube_history_desc">Importieren Sie Ihren Wiedergabeverlauf aus einer JSON-Exportdatei von FreeTube.</string>
     <string name="import_newpipe_history_desc">Importieren Sie Ihren Verlauf aus einer NewPipe-Sicherungs-ZIP-Datei oder einer „newpipe.db“-Datei.</string>
     <string name="import_yt_data_section_title">YouTube-Daten</string>
+    <string name="fallback_downloaded_locally">Lokal heruntergeladen</string>
+    <string name="fallback_more_results">Weitere Ergebnisse</string>
+    <string name="playlist_creation_menu_open">Playlist erstellen</string>
+    <string name="playlist_creation_menu_close">Menü zur Erstellung von Playlisten schließen</string>
 </resources>
