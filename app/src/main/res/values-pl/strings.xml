@@ -393,7 +393,7 @@
     <string name="notif_check_interval_dialog_body">Jak często aplikacja Flow szuka nowych filmów z Twoich zasubskrybowanych kanałów.</string>
     <string name="notif_interval_15m">15 minut</string>
     <string name="notif_interval_30m">30 minut</string>
-    <string name="notif_interval_1h">1 godzina</string>
+    <string name="notif_interval_1h">1 godzinę</string>
     <string name="notif_interval_2h">2 godziny</string>
     <string name="notif_interval_3h">3 godziny</string>
     <string name="notif_interval_6h">6 godzin (domyślnie)</string>
@@ -472,8 +472,8 @@
     <string name="appearance_system_defaults_subtitle">Wybierz który motyw jest używany kiedy Twoje urządzenie przełącza się między motywem jasnym a ciemnym.</string>
     <string name="appearance_system_light_theme">Motyw trybu jasnego</string>
     <string name="appearance_system_dark_theme">Motyw trybu ciemnego</string>
-    <string name="app_icon_picker_subtitle">Wybierz styl ikony aplikacji. Ta zmiana zostanie zastosowana natychmiast i aplikacja się włączy ponownie.</string>
-    <string name="app_icon_picker_warning">Głowa do góry: zmienianie ikony używa mechanizmu systemu Android który może tymczasowo usunąć skrót aplikacji z ekranu głównego. W razie potrzeby naciśnij i przytrzymaj ikonę programu uruchamiającego, aby ponownie go dodać.</string>
+    <string name="app_icon_picker_subtitle">Wybierz styl ikony aplikacji. Po zmianie aplikacja uruchomi się ponownie.</string>
+    <string name="app_icon_picker_warning">Uwaga: Zmiana ikony wykorzystuje mechanizm systemu Android, który może tymczasowo usunąć skrót z ekranu głównego. Jeśli tak się stanie, wystarczy dodać go ponownie z listy aplikacji.</string>
     <string name="app_icon_apply_toast">Ikona zaktualizowana - aplikacja się włączy ponownie</string>
     <string name="icon_name_flow_red">Flow Czerwony</string>
     <string name="icon_name_flow_light">Flow Jasny</string>
@@ -698,7 +698,7 @@
     <string name="download_settings_title">Ustawienia Pobierania</string>
     <string name="permissions_header">Uprawnienia</string>
     <string name="files_access_title">Dostęp do plików</string>
-    <string name="files_access_granted_subtitle">Przyznano — pobrane pojawią się od razu</string>
+    <string name="files_access_granted_subtitle">Przyznano — pobrania pojawią się od razu</string>
     <string name="media_access_title">Dostęp do obrazów i filmów</string>
     <string name="media_access_granted_subtitle">Przyznano</string>
     <string name="media_access_denied_subtitle">Nie przyznano — kliknij, aby przyznać</string>
@@ -1345,7 +1345,7 @@
     <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
     <string name="shorts_quality_settings_title">Jakość Shorts</string>
     <string name="shorts_quality_settings_subtitle">Ustaw domyślna rozdzielczość dla Shorts</string>
-    <string name="sb_user_id_not_set">Dotknij, aby ustawić lub wygenerować identyfikator użytkownika</string>
+    <string name="sb_user_id_not_set">Dotknij, aby ustawić lub wygenerować ID użytkownika</string>
     <string name="sb_user_id_dialog_body">Podaj własny identyfikator użytkownika lub pozostaw puste pole – system wygeneruje go automatycznie. Identyfikator pozwala śledzić przesłane segmenty.</string>
     <string name="sb_user_id_hint">Identyfikator użytkownika (UUID)</string>
     <string name="error_age_restricted_hint">Film jest dostępny tylko dla zalogowanych użytkowników z potwierdzonym wiekiem.</string>
@@ -1433,4 +1433,17 @@
     <string name="local_media_title">Pliki lokalne</string>
     <string name="local_media_rescan">Przeskanuj ponownie</string>
     <string name="local_media_scanning">Skanowanie urządzenia…</string>
+    <string name="ui_clear_and_continue">Wyczyść i Pomiń</string>
+    <string name="ui_copy_log">Skopiuj Raport</string>
+    <string name="ui_copy_log_description">Skopiuj raport i dodaj go do zgłoszenia na GitHubie, aby pomóc w rozwiązaniu problemu.</string>
+    <string name="copy_logs">Skopiuj raporty</string>
+    <string name="logs_copy_failed">Nie udało się skopiować raportów</string>
+    <string name="ui_crashed_last_session">Awaria aplikacji Flow</string>
+    <string name="ui_custom_interest_title">Dodaj Własne Zainteresowania</string>
+    <string name="ui_custom_interest_subtitle">Wpisz dowolny temat, który chcesz obserwować</string>
+    <string name="ui_custom_interest_hint">Własne zainteresowania (np. Jazz, Astrofizyka)</string>
+    <string name="btn_save">Zapisz</string>
+    <string name="default_download_codec_label">Domyślny Kodek Pobierania</string>
+    <string name="auto_backup_pick_folder">Wybierz Folder</string>
+    <string name="auto_backup_never_run">Brak kopii zapasowej</string>
 </resources>
