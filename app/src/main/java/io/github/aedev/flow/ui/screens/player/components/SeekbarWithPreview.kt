@@ -53,7 +53,12 @@ import kotlin.math.roundToInt
 // Custom seekbar drawing buffer, SponsorBlock segments and chapter gaps over the progress track.
 @Composable
 fun SeekbarWithPreview(
-    value: Float,
+    /**
+     * Progress provider rather than a value: the playhead is written several times a second, and
+     * reading it at the call site subscribed the whole player-controls overlay to that tick.
+     * Invoking it here confines the recomposition to this component.
+     */
+    value: () -> Float,
     onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -79,13 +84,15 @@ fun SeekbarWithPreview(
     val isDragged by interactionSource.collectIsDraggedAsState()
     val isInteracting = isPressed || isDragged || edgePointerActive
 
+    val progress = value()
+
     // Internal value to keep the thumb following the finger smoothly
-    var internalValue by remember { mutableFloatStateOf(value) }
+    var internalValue by remember { mutableFloatStateOf(progress) }
 
     // Sync internal value with external value when not interacting
-    LaunchedEffect(value) {
+    LaunchedEffect(progress) {
         if (!isInteracting) {
-            internalValue = value
+            internalValue = progress
         }
     }
 

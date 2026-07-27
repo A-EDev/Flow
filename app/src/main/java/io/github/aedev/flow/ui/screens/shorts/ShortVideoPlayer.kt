@@ -883,14 +883,15 @@ internal fun ShortVideoPage(
         // ── Scrubbable Progress Bar ──
         }
         if (pageState.duration > 0) {
-            val progress = if (pageState.isDragging) {
-                pageState.dragProgress
-            } else {
-                (pageState.currentPosition.toFloat() / pageState.duration.toFloat()).coerceIn(0f, 1f)
-            }
-
             SeekbarWithPreview(
-                value = progress,
+                value = {
+                    if (pageState.isDragging) {
+                        pageState.dragProgress
+                    } else {
+                        (pageState.currentPosition.toFloat() / pageState.duration.toFloat())
+                            .coerceIn(0f, 1f)
+                    }
+                },
                 onValueChange = { newProgress ->
                     pageState.isDragging = true
                     pageState.dragProgress = newProgress.coerceIn(0f, 1f)

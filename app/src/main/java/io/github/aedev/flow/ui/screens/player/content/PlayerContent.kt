@@ -196,7 +196,7 @@ fun PlayerContent(
             isPlaying = playerState.isPlaying,
             hasEnded = playerState.hasEnded,
             isBuffering = playerState.isBuffering,
-            currentPosition = screenState.currentPosition,
+            currentPosition = { screenState.currentPosition },
             duration = screenState.duration,
             qualityLabel = resolvePlayerQualityLabel(
                 currentQuality = playerState.currentQuality,
