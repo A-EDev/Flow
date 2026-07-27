@@ -2263,4 +2263,18 @@
     <string name="tv_guide_search_results">Muévete desde el teclado hacia los filtros y resultados; usa Arriba y Abajo entre secciones.</string>
     <string name="tv_guide_player_toggle">Reproduce o pausa y muestra los controles de reproducción.</string>
     <string name="tv_guide_player_seek">Retrocede o avanza; la barra de progreso muestra la posición pendiente.</string>
+    <string name="tv_guide_player_hold">"Mantén Izquierda o  Derecha para acelerar el desplazamiento, después, suelta para confirmar."</string>
+    <string name="tv_guide_player_up">Muestra los controles y sitúa el foco en la fila \"A continuación\".</string>
+    <string name="tv_guide_player_down">Muestra los controles de reproducción y sitúa el foco en Reproducir/Pausar.</string>
+    <string name="tv_guide_player_media">Las teclas Reproducir, Pausar, Anterior, Siguiente, Rebobinar, Avance rápido y Subtítulos funcionan directamente.</string>
+    <string name="tv_guide_player_back">Cierra primero un panel o los controles; vuelve a pulsar para salir del reproductor.</string>
+    <string name="tv_settings_wifi_quality">Calidad por defecto (Wi-Fi)</string>
+    <string name="tv_settings_cellular_quality">Calidad por defecto (datos móviles)</string>
+    <string name="tv_settings_codec">Códec preferido</string>
+    <string name="tv_theme_mode_title">Tema</string>
+    <string name="tv_theme_variant_title">Estilo</string>
+    <string name="tv_theme_variant_light">Claro</string>
+    <string name="tv_theme_variant_dark">Oscuro</string>
+    <string name="tv_theme_variant_amoled">AMOLED</string>
+    <string name="tv_about_version">Versión %1$s</string>
 </resources>
