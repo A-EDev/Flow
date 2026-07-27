@@ -664,7 +664,7 @@
     <string name="content_preferences_title">Параметры контента</string>
     <string name="content_preferences_subtitle">Настройте видимое</string>
     <string name="interests_tab">Предпочтения</string>
-    <string name="blocked_tab">Заблокированное</string>
+    <string name="blocked_tab">Заблокировано</string>
     <string name="topics_count_template">%1$d тем</string>
     <string name="hidden_count_template">%1$d скрыто</string>
     <string name="your_interests_title">Ваши предпочтения</string>
@@ -674,7 +674,7 @@
     <string name="browse_by_category">Просмотр по категориям</string>
     <string name="hidden_content_title">Скрытый контент</string>
     <string name="hidden_content_desc">Видео на эти темы не будут появляться в ваших рекомендациях. Вы также можете использовать кнопку «Не интересно» на видео.</string>
-    <string name="block_topic_title">Блокировать тему</string>
+    <string name="block_topic_title">Заблокировать тему</string>
     <string name="enter_keywords_to_hide">Введите ключевые слова для скрытия</string>
     <string name="block_topic_placeholder">например: макияж, фортнайт, асмр</string>
     <string name="desc_add_topic">Добавить тему</string>
