@@ -1426,4 +1426,27 @@
     <string name="total_space_template">Gesamt: %1$s</string>
     <string name="video_download_location_label">Speicherort für Videodownloads</string>
     <string name="music_download_location_label">Speicherort für Musikdownloads</string>
+    <string name="content_settings_restored_music_mini_player_subtitle">Die letzte Musiksitzung nach der Wiederherstellung automatisch anzeigen</string>
+    <string name="content_settings_hide_watched_home_title">Gesehene Videos auf der Startseite ausblenden</string>
+    <string name="content_settings_hide_watched_home_subtitle">Filtere bereits angesehene Videos aus deinem Startfeed heraus</string>
+    <string name="content_settings_hide_watched_subscriptions_title">Gesehene Videos aus Abonnements ausblenden</string>
+    <string name="content_settings_hide_watched_subscriptions_subtitle">Filtere bereits angesehene Videos aus deinen Abonnements heraus</string>
+    <string name="content_settings_hide_unplayable_subscriptions_title">Nicht abspielbare Videos aus Abonnements ausblenden</string>
+    <string name="content_settings_hide_unplayable_subscriptions_subtitle">Videos mit Altersbeschränkung, private Videos, Videos nur für Mitglieder und gelöschte Videos herausfiltern, nachdem sie nicht abgespielt werden konnten</string>
+    <string name="deselect_all">Alle abwählen</string>
+    <string name="delete_selected">Ausgewählte löschen</string>
+    <string name="import_playlists_section_subtitle">Videowiedergabelisten aus anderen Apps importieren</string>
+    <string name="import_newpipe_playlists">NewPipe-Wiedergabelisten importieren</string>
+    <string name="import_newpipe_playlists_desc">Importiere deine lokalen NewPipe-Playlists aus einer ZIP-Sicherungsdatei.</string>
+    <string name="import_libretube_playlists">LibreTube-Wiedergabelisten importieren</string>
+    <string name="import_libretube_playlists_desc">Importieren Sie Ihre lokalen LibreTube-Wiedergabelisten aus einer JSON-Sicherungsdatei.</string>
+    <string name="import_yt_takeout_all">Aus Google Takeout importieren</string>
+    <string name="import_yt_takeout_all_desc">Importieren Sie Ihre YouTube-Abonnements, Ihren Videoverlauf und Ihre Wiedergabelisten auf einmal aus einer ZIP-Datei von Google Takeout.</string>
+    <string name="import_music_apps_section_subtitle">Importieren Sie Ihre Musikbibliothek von anderen Musik-Apps</string>
+    <string name="import_from_metrolist_desc">Importieren Sie Musik-Playlists aus einer Metrolist-Sicherungsdatei (.zip). Die Playlists werden in Ihrer Musikbibliothek angezeigt.</string>
+    <string name="import_from_youtube">Von YouTube importieren</string>
+    <string name="import_from_youtube_desc">Abonnements aus YouTube Takeout (CSV) importieren.</string>
+    <string name="import_freetube_history_desc">Importieren Sie Ihren Wiedergabeverlauf aus einer JSON-Exportdatei von FreeTube.</string>
+    <string name="import_newpipe_history_desc">Importieren Sie Ihren Verlauf aus einer NewPipe-Sicherungs-ZIP-Datei oder einer „newpipe.db“-Datei.</string>
+    <string name="import_yt_data_section_title">YouTube-Daten</string>
 </resources>
