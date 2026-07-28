@@ -829,6 +829,25 @@ private fun SearchFiltersBar(
     }
 }
 
+private fun searchItemKey(item: SearchResultItem?, index: Int): Any = when (item) {
+    is SearchResultItem.VideoResult -> "v_${item.video.id}"
+    is SearchResultItem.ChannelResult -> "c_${item.channel.id}"
+    is SearchResultItem.PlaylistResult -> "p_${item.playlist.id}"
+    is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
+    null -> "placeholder_$index"
+}
+
+/** Lets the grid reuse an item's composition when a slot is filled by another item of the same kind. */
+private fun searchItemContentType(item: SearchResultItem?): Any = when (item) {
+    is SearchResultItem.VideoResult -> "video"
+    is SearchResultItem.ChannelResult -> "channel"
+    is SearchResultItem.PlaylistResult -> "playlist"
+    is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
+    null -> "placeholder"
+}
+
+private const val SHORTS_SHELF_KEY = "shortsShelf"
+
 @Composable
 private fun SearchResultList(
     pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
@@ -871,63 +890,49 @@ private fun SearchResultList(
     ) {
         items(
             count = pagingItems.itemCount,
-            key = { i ->
-                val prefix = when (val it = pagingItems.peek(i)) {
-                    is SearchResultItem.VideoResult -> "v_${it.video.id}"
-                    is SearchResultItem.ChannelResult -> "c_${it.channel.id}"
-                    is SearchResultItem.PlaylistResult -> "p_${it.playlist.id}"
-                    is SearchResultItem.ShortsShelfResult -> "shelf"
-                    null -> "null"
-                }
-                "${prefix}_$i"
-            },
+            key = { i -> searchItemKey(pagingItems.peek(i), i) },
+            contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
             span = { i ->
                 if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult)
                     GridItemSpan(maxLineSpan) else GridItemSpan(1)
             }
         ) { i ->
-            val item = pagingItems[i] ?: return@items
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn(tween(250, (i % 10) * 30)) +
-                        slideInVertically(initialOffsetY = { it / 4 })
-            ) {
-                when (item) {
-                    is SearchResultItem.VideoResult ->
-                        VideoCardFullWidth(
-                            video = item.video,
-                            modifier = Modifier.padding(vertical = 4.dp),
-                            onClick = { onVideoClick(item.video) },
-                            onChannelClick = { channelId ->
-                                onChannelClick(
-                                    Channel(
-                                        id = channelId,
-                                        name = item.video.channelName,
-                                        thumbnailUrl = item.video.channelThumbnailUrl
-                                            ?: "",
-                                        subscriberCount = 0,
-                                        url = "https://www.youtube.com/channel/$channelId"
-                                    )
+            when (val item = pagingItems[i]) {
+                is SearchResultItem.VideoResult ->
+                    VideoCardFullWidth(
+                        video = item.video,
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        onClick = { onVideoClick(item.video) },
+                        onChannelClick = { channelId ->
+                            onChannelClick(
+                                Channel(
+                                    id = channelId,
+                                    name = item.video.channelName,
+                                    thumbnailUrl = item.video.channelThumbnailUrl
+                                        ?: "",
+                                    subscriberCount = 0,
+                                    url = "https://www.youtube.com/channel/$channelId"
                                 )
-                            }
-                        )
-                    is SearchResultItem.ChannelResult ->
-                        SearchChannelCard(
-                            item.channel,
-                            onClick = {
-                                onChannelClick(item.channel)
-                            }
-                        )
-                    is SearchResultItem.PlaylistResult ->
-                        PlaylistCard(
-                            item.playlist,
-                            onClick = {
-                                onPlaylistClick(item.playlist)
-                            }
-                        )
-                    is SearchResultItem.ShortsShelfResult ->
-                        ShortsShelf(shorts = item.shorts, onShortClick = onVideoClick)
-                }
+                            )
+                        }
+                    )
+                is SearchResultItem.ChannelResult ->
+                    SearchChannelCard(
+                        item.channel,
+                        onClick = {
+                            onChannelClick(item.channel)
+                        }
+                    )
+                is SearchResultItem.PlaylistResult ->
+                    PlaylistCard(
+                        item.playlist,
+                        onClick = {
+                            onPlaylistClick(item.playlist)
+                        }
+                    )
+                is SearchResultItem.ShortsShelfResult ->
+                    ShortsShelf(shorts = item.shorts, onShortClick = onVideoClick)
+                null -> Unit
             }
         }
 
@@ -974,16 +979,8 @@ private fun SearchResultGrid(
     ) {
         items(
             count = pagingItems.itemCount,
-            key = { i ->
-                val prefix = when (val it = pagingItems.peek(i)) {
-                    is SearchResultItem.VideoResult -> "v_${it.video.id}"
-                    is SearchResultItem.ChannelResult -> "c_${it.channel.id}"
-                    is SearchResultItem.PlaylistResult -> "p_${it.playlist.id}"
-                    is SearchResultItem.ShortsShelfResult -> "shelf"
-                    null -> "null"
-                }
-                "${prefix}_$i"
-            },
+            key = { i -> searchItemKey(pagingItems.peek(i), i) },
+            contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
             span = { i ->
                 if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult)
                     GridItemSpan(maxLineSpan) else GridItemSpan(1)
@@ -1071,7 +1068,8 @@ private fun SearchShortsGrid(
     ) {
         items(
             count = pagingItems.itemCount,
-            key = { i -> (pagingItems.peek(i) as? SearchResultItem.VideoResult)?.video?.id ?: "null_$i" }
+            key = { i -> searchItemKey(pagingItems.peek(i), i) },
+            contentType = { i -> searchItemContentType(pagingItems.peek(i)) }
         ) { i ->
             (pagingItems[i] as? SearchResultItem.VideoResult)?.let {
                 ShortsCard(
@@ -1168,7 +1166,7 @@ private fun ShimmerResultsScreen(isGrid: Boolean, columns: Int) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(8) { ShimmerGridVideoCard() }
+            items(8, key = { "shimmer_$it" }, contentType = { "shimmer" }) { ShimmerGridVideoCard() }
         }
     } else {
         LazyVerticalGrid(
@@ -1187,7 +1185,7 @@ private fun ShimmerResultsScreen(isGrid: Boolean, columns: Int) {
                 if (columns == 1) 0.dp else 12.dp
             )
         ) {
-            items(8) {
+            items(8, key = { "shimmer_$it" }, contentType = { "shimmer" }) {
                 if (columns == 1) ShimmerVideoCardFullWidth()
                 else ShimmerGridVideoCard()
             }

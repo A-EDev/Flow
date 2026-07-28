@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.ViewHistory
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -73,6 +74,21 @@ fun rememberWatchProgress(videoId: String): Float? {
     val progress = remember(store, videoId) { derivedStateOf { store.progressFor(videoId) } }
     return progress.value
 }
+
+@Composable
+fun rememberIsWatched(
+    videoId: String,
+    watchedVideoIds: StateFlow<Set<String>>,
+    watchProgress: Float?
+): Boolean {
+    val watchedIds = watchedVideoIds.collectAsStateWithLifecycle()
+    val isMarkedWatched by remember(watchedIds, videoId) {
+        derivedStateOf { videoId in watchedIds.value }
+    }
+    return isMarkedWatched || (watchProgress ?: 0f) >= WATCHED_PROGRESS_THRESHOLD
+}
+
+private const val WATCHED_PROGRESS_THRESHOLD = 0.90f
 
 /**
  * Installs the shared card state. Must wrap any tree that renders video cards; without it cards
