@@ -13,8 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -26,13 +25,19 @@ import androidx.compose.ui.graphics.graphicsLayer
  *
  * Usage: Modifier.pressScale(interactionSource)
  * The interactionSource should be the same one passed to clickable/combinedClickable.
+ *
+ * Composable rather than `composed {}`: the latter is opaque to Modifier equality, so every card
+ * in a list re-materialised its whole chain on each recomposition. The spring is read inside the
+ * [graphicsLayer] block instead of the composition, which keeps its per-frame updates off the
+ * composition and layout phases entirely — only the layer block re-runs.
  */
+@Composable
 fun Modifier.pressScale(
     interactionSource: MutableInteractionSource,
     pressedScale: Float = 0.97f
-): Modifier = composed {
+): Modifier {
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         targetValue = if (isPressed) pressedScale else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -40,28 +45,35 @@ fun Modifier.pressScale(
         ),
         label = "pressScale"
     )
-    this.graphicsLayer {
-        scaleX = scale
-        scaleY = scale
+    return this.graphicsLayer {
+        scaleX = scale.value
+        scaleY = scale.value
     }
 }
 
+/**
+ * Scrim over the bottom of a thumbnail so the duration pill stays legible on light frames.
+ *
+ * Built in [drawWithCache] because the brush depends only on the layout size: created per draw it
+ * allocated a Brush and its colour list for every visible card on every frame of a scroll.
+ */
 fun Modifier.thumbnailGradientOverlay(
     color: Color = Color.Black,
     alpha: Float = 0.25f,
     startFraction: Float = 0.6f
-): Modifier = this.drawWithContent {
-    drawContent()
-    drawRect(
-        brush = Brush.verticalGradient(
-            colors = listOf(
-                Color.Transparent,
-                color.copy(alpha = alpha)
-            ),
-            startY = size.height * startFraction,
-            endY = size.height
-        )
+): Modifier = this.drawWithCache {
+    val brush = Brush.verticalGradient(
+        colors = listOf(
+            Color.Transparent,
+            color.copy(alpha = alpha)
+        ),
+        startY = size.height * startFraction,
+        endY = size.height
     )
+    onDrawWithContent {
+        drawContent()
+        drawRect(brush = brush)
+    }
 }
 
 /**
