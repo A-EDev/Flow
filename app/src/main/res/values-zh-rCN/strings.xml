@@ -1957,4 +1957,7 @@
     <string name="widget_open_history">打开历史记录</string>
     <string name="widget_no_recent">您观看的视频将出现在此处</string>
     <string name="widget_no_downloads">您的下载将显示在此处</string>
+    <string name="content_settings_hide_unplayable_subscriptions_title">将无法播放视频从订阅中隐藏</string>
+    <string name="discord_presence_connect_action">连接</string>
+    <string name="discord_presence_risk_accept">我理解，连接</string>
 </resources>
