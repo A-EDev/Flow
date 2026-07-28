@@ -48,7 +48,7 @@ fun DiscoverTab(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
-                    items(trendingSongs.take(5)) { track ->
+                    items(trendingSongs.take(5), key = { it.videoId }) { track ->
                         FeaturedTrackCard(
                             track = track,
                             isDownloaded = downloadedTrackIds.contains(track.videoId),

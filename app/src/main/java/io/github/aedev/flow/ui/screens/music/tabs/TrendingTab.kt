@@ -40,7 +40,7 @@ fun TrendingTab(
         contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 80.dp), // Space for mini player
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(songs.size) { index ->
+        items(songs.size, key = { songs[it].videoId }) { index ->
             TrendingTrackCard(
                 track = songs[index],
                 rank = index + 1,

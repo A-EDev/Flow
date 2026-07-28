@@ -72,7 +72,7 @@ internal fun DlnaDevicePickerDialog(
                     )
                 } else {
                     LazyColumn {
-                        items(devices) { device ->
+                        items(devices, key = { it.usn }) { device ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
