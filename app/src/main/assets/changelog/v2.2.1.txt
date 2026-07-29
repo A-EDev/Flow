@@ -26,6 +26,7 @@ PERFORMANCE
 - Draw waveform and mini-player progress instead of laying them out
 
 BUILD AND CI
+- Add automated Kotlin formatting checks with ktlint and Spotless
 - Reduce APK size with ABI-specific releases, resource shrinking, and dependency cleanup
 - Improve ABI-aware app updates and GitHub/FOSS release packaging
 - Speed up builds with KSP, Gradle caching, improved parallelism, and CI daemon reuse

@@ -76,6 +76,36 @@ All user-facing strings MUST be declared in `app/src/main/res/values/strings.xml
 5. If a task is ambiguous, ask rather than guessing at requirements or implementation details.
 6. Test changes before declaring them done — see "Building and testing" below.
 
+## Kotlin formatting and linting
+
+Spotless enforces ktlint formatting using the rules in `.editorconfig`. It checks Kotlin sources in
+`app/src/` and `baselineprofile/src/`, plus the selected project Gradle Kotlin scripts. Build output,
+generated sources, and ignored reference projects are outside the target set.
+
+1. Before committing or pushing Kotlin or Gradle Kotlin script changes, run:
+
+```bash
+./gradlew ktlintCheck
+```
+
+On Windows PowerShell, use `.\gradlew.bat ktlintCheck`.
+
+2. To automatically format targeted files changed since the lint ratchet revision, run:
+
+```bash
+./gradlew ktlintFormat
+```
+
+On Windows PowerShell, use `.\gradlew.bat ktlintFormat`. Review the resulting diff before committing.
+
+3. Do not bypass, disable, or weaken the formatter to make a change pass. Fix the reported file or
+update `.editorconfig` only when the project convention itself is intentionally changing.
+4. The repository adopts formatting incrementally with Spotless `ratchetFrom`, so legacy untouched
+files are not reformatted. A newly added file or an existing targeted file changed after the ratchet
+revision must pass the configured ktlint rules.
+5. GitHub Actions runs `spotlessCheck` before tests and builds. A formatting violation fails the
+`Build APK` job. Add any future first-party Kotlin module to the Spotless target list explicitly.
+
 ## Building and testing your changes
 
 1. After making changes, build the relevant flavor to check for compilation errors, e.g.:
@@ -86,3 +116,39 @@ All user-facing strings MUST be declared in `app/src/main/res/values/strings.xml
 
 2. If the build fails, fix the reported errors and rebuild before proceeding.
 3. For UI changes, actually run the app (emulator or device) and exercise the golden path plus edge cases — passing a build does not mean the feature works correctly.
+
+## Baseline profile — when to regenerate
+
+The app ships a generated baseline profile at `app/src/githubRelease/generated/baselineProfiles/`
+(`baseline-prof.txt` drives ART's AOT compilation; `startup-prof.txt` drives dex layout). It is
+generated on a real device by `baselineprofile/`, and the generated files **are committed**.
+
+```bash
+./gradlew :app:generateGithubReleaseBaselineProfile
+```
+
+**Regenerate when:**
+
+1. Before tagging a release, if the profile has not been regenerated since the last one.
+2. After changing the cold-start path — `MainActivity.onCreate`, `FlowApp`, app-level DI graph,
+   theme resolution, or player/cache initialization.
+3. After changing a journey the generator exercises (app launch, Home feed scroll), or after
+   editing `BaselineProfileGenerator` itself.
+4. After a Compose, Media3, or AGP/Kotlin upgrade that shifts which framework classes run.
+
+**Do not regenerate** for routine feature or UI work that does not touch the above. It is a ~20 min
+run that occupies a physical device, and the resulting diff is thousands of lines of churn.
+
+**Requirements and gotchas:**
+
+- Needs a connected physical device (`useConnectedDevices = true`). On MIUI/HyperOS, Developer
+  options must have **both** "USB debugging (Security settings)" (grants `INJECT_EVENTS`) and
+  "Install via USB". Pass `-PbaselineProfileEmulator=true` to use the managed Pixel 6 instead.
+- Keep the device awake and connected for the whole run; a disconnect fails the task outright.
+- `startup()` must **not** settle past first frame. `startActivityAndWait()` already returns
+  there, and adding a `waitForIdle` sweeps the feed load into `startup-prof.txt`, which then
+  asserts nearly the whole app is startup-critical and leaves R8 unable to fit the set into
+  `classes.dex`. Keep `startup-prof.txt` a genuinely small subset of `baseline-prof.txt`.
+- Profile size is **not** a measure of startup work: it records everything executed during the
+  journey on any thread, so moving work to a background thread keeps it in the profile. Use
+  `StartupBenchmarks` (`:baselineprofile:connectedBenchmarkReleaseAndroidTest`) to measure.

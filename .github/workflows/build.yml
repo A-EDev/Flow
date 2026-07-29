@@ -21,6 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -33,6 +34,11 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
+      - name: Check Kotlin formatting
+        run: >
+          ./gradlew spotlessCheck
+          --build-cache --stacktrace
 
       - name: Decode Keystore
         env:
