@@ -24,13 +24,10 @@ import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -91,7 +88,7 @@ class ShortsPlayerPool private constructor() {
     private var shortsPlaybackMode: String = "loop"
     private var basePlaybackSpeed: Float = 1f
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val preferenceObservers = ShortsPreferenceObservers()
 
     private val _currentVideoId = MutableStateFlow<String?>(null)
     val currentVideoId: StateFlow<String?> = _currentVideoId.asStateFlow()
@@ -113,39 +110,39 @@ class ShortsPlayerPool private constructor() {
     fun initialize(context: Context) {
         if (isInitialized) return
 
+        val appContext = context.applicationContext
         Log.d(TAG, "Initializing 3-player pool for Shorts")
-        dataSourceFactory = DefaultDataSource.Factory(context, YouTubeHttpDataSource.Factory())
-
-        // Observe audio language preference
-        scope.launch {
-            PlayerPreferences(context).preferredAudioLanguage.collect { language ->
+        dataSourceFactory = DefaultDataSource.Factory(appContext, YouTubeHttpDataSource.Factory())
+        val preferences = PlayerPreferences(appContext)
+        preferenceObservers.start(
+            preferredAudioLanguage = preferences.preferredAudioLanguage,
+            playbackMode = preferences.shortsPlaybackMode,
+            playbackSpeed = preferences.shortsPlaybackSpeed,
+            onPreferredAudioLanguage = { language ->
                 preferredAudioLanguage = language
                 updateTrackSelectors(language)
-            }
-        }
-
-        // Observe shorts playback mode preference
-        scope.launch {
-            PlayerPreferences(context).shortsPlaybackMode.collect { mode ->
+            },
+            onPlaybackMode = { mode ->
                 shortsPlaybackMode = mode
                 Log.d(TAG, "Shorts playback mode changed to: $mode")
-            }
-        }
-
-        scope.launch {
-            PlayerPreferences(context).shortsPlaybackSpeed.collect { speed ->
+            },
+            onPlaybackSpeed = { speed ->
                 setBasePlaybackSpeed(speed)
+            },
+        )
+
+        try {
+            for (i in 0 until POOL_SIZE) {
+                players[i] = createShortsPlayer(appContext)
+                playerOwnerIndices[i] = null
+                playerVideoIds[i] = null
             }
+            isInitialized = true
+            Log.d(TAG, "Player pool initialized with $POOL_SIZE players")
+        } catch (error: Throwable) {
+            release()
+            throw error
         }
-
-        for (i in 0 until POOL_SIZE) {
-            players[i] = createShortsPlayer(context)
-            playerOwnerIndices[i] = null
-            playerVideoIds[i] = null
-        }
-
-        isInitialized = true
-        Log.d(TAG, "Player pool initialized with $POOL_SIZE players")
     }
 
     private fun updateTrackSelectors(language: String) {
@@ -501,6 +498,7 @@ class ShortsPlayerPool private constructor() {
      */
     fun release() {
         Log.d(TAG, "Releasing player pool")
+        preferenceObservers.stop()
         for (i in 0 until POOL_SIZE) {
             players[i]?.stop()
             players[i]?.release()
@@ -510,6 +508,7 @@ class ShortsPlayerPool private constructor() {
             playerVideoUrls[i] = null
             playerAudioUrls[i] = null
         }
+        dataSourceFactory = null
         isInitialized = false
         _currentVideoId.value = null
         _currentVideo.value = null

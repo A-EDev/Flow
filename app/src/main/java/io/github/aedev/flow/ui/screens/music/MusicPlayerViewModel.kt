@@ -51,7 +51,16 @@ class MusicPlayerViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicPlayerUiState())
     val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
-    
+
+    /**
+     * Playback position is kept out of [MusicPlayerUiState] on purpose. It changes several times a
+     * second, and folding it into the screen state made every position tick emit a fresh copy of a
+     * 25-field object — invalidating the whole player screen to move a seek bar.
+     */
+    private val _currentPositionMs = MutableStateFlow(0L)
+    val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
+
+
     private val playerPreferences = PlayerPreferences(context)
     private val lyricsHelper = LyricsHelper(context)
     
@@ -84,20 +93,18 @@ class MusicPlayerViewModel @Inject constructor(
         
         viewModelScope.launch {
             EnhancedMusicPlayerManager.playerState.collect { playerState ->
-                val acceptedPosition = acceptedPlaybackPosition(playerState.position)
                 _uiState.update { it.copy(
                     isPlaying = playerState.isPlaying,
                     isBuffering = playerState.isBuffering,
-                    duration = playerState.duration,
-                    currentPosition = acceptedPosition ?: it.currentPosition
+                    duration = playerState.duration
                 ) }
             }
         }
-        
+
         viewModelScope.launch {
             EnhancedMusicPlayerManager.currentPosition.collect { position ->
                 acceptedPlaybackPosition(position)?.let { acceptedPosition ->
-                    _uiState.update { it.copy(currentPosition = acceptedPosition) }
+                    _currentPositionMs.value = acceptedPosition
                 }
             }
         }
@@ -109,9 +116,9 @@ class MusicPlayerViewModel @Inject constructor(
                     lyrics = null,
                     syncedLyrics = emptyList(),
                     // Fix: Reset duration and position to prevent showing previous track's info
-                    duration = if (track != null) track.duration * 1000L else 0L,
-                    currentPosition = 0L
+                    duration = if (track != null) track.duration * 1000L else 0L
                 ) }
+                _currentPositionMs.value = 0L
                 track?.let {
                     if (!isLocalMediaId(it.videoId)) {
                         checkIfFavorite(it.videoId)
@@ -430,7 +437,7 @@ class MusicPlayerViewModel @Inject constructor(
         pendingSeekPosition = target
         pendingSeekStartedAtMs = SystemClock.elapsedRealtime()
         EnhancedMusicPlayerManager.seekTo(target)
-        _uiState.update { it.copy(currentPosition = target) }
+        _currentPositionMs.value = target
     }
 
     private fun acceptedPlaybackPosition(position: Long): Long? {
@@ -709,17 +716,6 @@ class MusicPlayerViewModel @Inject constructor(
         }
     }
 
-    fun updateProgress() {
-        val position = EnhancedMusicPlayerManager.getCurrentPosition()
-        val duration = EnhancedMusicPlayerManager.getDuration()
-        val acceptedPosition = acceptedPlaybackPosition(position)
-        
-        _uiState.update { it.copy(
-            currentPosition = acceptedPosition ?: it.currentPosition,
-            duration = if (duration > 0) duration else it.duration
-        ) }
-    }
-
     override fun onCleared() {
         super.onCleared()
     }
@@ -729,7 +725,6 @@ data class MusicPlayerUiState(
     val currentTrack: MusicTrack? = null,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
-    val currentPosition: Long = 0,
     val duration: Long = 0,
     val queue: List<MusicTrack> = emptyList(),
     val autoplaySuggestions: List<MusicTrack> = emptyList(),

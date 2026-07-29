@@ -21,25 +21,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      # Explicit Gradle cache on top of setup-java's built-in cache.
-      # Caches the build-cache directory so incremental tasks are skipped.
-      - name: Cache Gradle build cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.gradle/caches/build-cache-*
-          key: gradle-build-cache-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-build-cache-${{ runner.os }}-
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
+      - name: Check Kotlin formatting
+        run: >
+          ./gradlew spotlessCheck
+          --build-cache --stacktrace
 
       - name: Decode Keystore
         env:
@@ -54,22 +53,21 @@ jobs:
       - name: Run unit tests
         run: >
           ./gradlew :app:testGithubNightlyUnitTest :app:testFossReleaseUnitTest
-          --parallel --build-cache --no-daemon --stacktrace
+          --parallel --build-cache --stacktrace
 
       - name: Lint GitHub nightly
         run: >
           ./gradlew :app:lintGithubNightly
-          --build-cache --no-daemon --stacktrace
+          --build-cache --stacktrace
 
       # Build all variants in a single Gradle invocation so tasks share the
       # configuration phase, classpath resolution and incremental build cache.
-      # --parallel  — lets Gradle run independent subproject tasks concurrently.
-      # --build-cache — reuses outputs from previous runs stored above.
-      # --no-daemon  — avoids daemon startup overhead inside the ephemeral runner.
+      # --parallel lets Gradle run independent subproject tasks concurrently.
+      # --build-cache reuses outputs restored by setup-gradle.
       - name: Build all APKs
         run: >
           ./gradlew assembleGithubRelease assembleGithubNightly assembleFossRelease
-          --parallel --build-cache --no-daemon --stacktrace
+          --parallel --build-cache --stacktrace
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -77,14 +75,16 @@ jobs:
 
       - name: Verify Discord nightly APK
         run: |
-          test -f app/build/outputs/apk/github/nightly/app-github-nightly.apk
-          sha256sum app/build/outputs/apk/github/nightly/app-github-nightly.apk | tee app/build/outputs/apk/github/nightly/app-github-nightly.apk.sha256
+          test -f app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk
+          sha256sum app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk | tee app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk.sha256
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-release-apk
-          path: app/build/outputs/apk/github/release/*.apk
+          path: |
+            app/build/outputs/apk/github/release/app-github-arm64-v8a-release.apk
+            app/build/outputs/apk/github/release/app-github-armeabi-v7a-release.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -93,8 +93,8 @@ jobs:
         with:
           name: flow-nightly-apk
           path: |
-            app/build/outputs/apk/github/nightly/app-github-nightly.apk
-            app/build/outputs/apk/github/nightly/app-github-nightly.apk.sha256
+            app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk
+            app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk.sha256
           if-no-files-found: error
           retention-days: 14
 
@@ -102,7 +102,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flow-foss-release-apk
-          path: app/build/outputs/apk/foss/release/*.apk
+          path: |
+            app/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
+            app/build/outputs/apk/foss/release/app-foss-armeabi-v7a-release.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -132,8 +134,10 @@ jobs:
 
       - name: Rename APKs for release
         run: |
-          mv dist/app-github-release.apk dist/flow.apk
-          mv dist/app-foss-release.apk dist/flow-foss.apk
+          mv dist/app-github-arm64-v8a-release.apk dist/flow-arm64-v8a.apk
+          mv dist/app-github-armeabi-v7a-release.apk dist/flow-armeabi-v7a.apk
+          mv dist/app-foss-arm64-v8a-release.apk dist/flow-foss-arm64-v8a.apk
+          mv dist/app-foss-armeabi-v7a-release.apk dist/flow-foss-armeabi-v7a.apk
 
       - name: Get version from tag
         id: get_version
@@ -154,8 +158,10 @@ jobs:
           body_path: release-notes.md
           generate_release_notes: false
           files: |
-            dist/flow.apk
-            dist/flow-foss.apk
+            dist/flow-arm64-v8a.apk
+            dist/flow-armeabi-v7a.apk
+            dist/flow-foss-arm64-v8a.apk
+            dist/flow-foss-armeabi-v7a.apk
           draft: false
           prerelease: false
         env:

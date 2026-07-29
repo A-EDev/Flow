@@ -80,6 +80,24 @@ object EnhancedMusicPlayerManager {
     private val _currentPosition = MutableStateFlow(0L)
     val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
 
+    /**
+     * Number of consumers that need sub-second progress — in practice only the expanded music
+     * sheet's seek bar. Everything else (mini player, notification, saved position, elapsed-time
+     * label) renders whole seconds, so [playerState] stays on a 1 Hz cadence regardless.
+     *
+     * Only ever touched from the main thread: the position loop runs on [scope] (Main) and the
+     * callers are Compose effects.
+     */
+    private var preciseProgressConsumers = 0
+
+    fun acquirePreciseProgress() {
+        preciseProgressConsumers++
+    }
+
+    fun releasePreciseProgress() {
+        preciseProgressConsumers = (preciseProgressConsumers - 1).coerceAtLeast(0)
+    }
+
     // Events
     sealed class PlayerEvent {
         data class RequestPlayTrack(val track: MusicTrack) : PlayerEvent()
@@ -437,9 +455,22 @@ object EnhancedMusicPlayerManager {
             while (true) {
                 val p = player
                 if (p != null && p.isPlaying) {
-                    _currentPosition.value = p.currentPosition
-                    _playerState.value = _playerState.value.copy(position = p.currentPosition)
-                    kotlinx.coroutines.delay(1000)
+                    val position = p.currentPosition
+                    _currentPosition.value = position
+
+                    // Coarsened deliberately. Every consumer of playerState renders seconds, but a
+                    // copy here emits a whole new MusicPlayerState to the mini player and the
+                    // playback service, so it must not follow the fast tick.
+                    val state = _playerState.value
+                    val duration = if (p.duration > 0) p.duration else state.duration
+                    if (position / 1000L != state.position / 1000L || duration != state.duration) {
+                        _playerState.value = state.copy(position = position, duration = duration)
+                    }
+
+                    kotlinx.coroutines.delay(
+                        if (preciseProgressConsumers > 0) PRECISE_POSITION_INTERVAL_MS
+                        else COARSE_POSITION_INTERVAL_MS
+                    )
                 } else {
                     withTimeoutOrNull(5000) { _playerState.first { it.isPlaying } }
                 }
@@ -987,6 +1018,9 @@ data class MusicPlayerState(
     val duration: Long = 0,
     val position: Long = 0
 )
+
+private const val PRECISE_POSITION_INTERVAL_MS = 250L
+private const val COARSE_POSITION_INTERVAL_MS = 1_000L
 
 enum class RepeatMode {
     OFF,    

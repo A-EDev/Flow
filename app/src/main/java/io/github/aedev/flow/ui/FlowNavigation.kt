@@ -80,7 +80,12 @@ fun NavGraphBuilder.flowAppGraph(
     onSystemDarkThemeVariantChange: (ThemeVariant) -> Unit,
     disableShortsPlayer: Boolean = false,
     defaultStartRoute: String = "home",
-    bottomNavOverlayPadding: Dp = 0.dp
+    /**
+     * Read lazily inside the destination that needs it. Destination lambdas are captured once
+     * when NavHost remembers the graph, so a by-value Dp here is frozen at graph-construction
+     * time and never reflects the bar showing or hiding.
+     */
+    bottomNavOverlayPadding: () -> Dp = { 0.dp }
 ) {
     // =============================================
     // ONBOARDING (First-time user experience)
@@ -181,7 +186,7 @@ fun NavGraphBuilder.flowAppGraph(
         val startVideoId = backStackEntry.arguments?.getString("startVideoId")
         ShortsScreen(
             startVideoId = startVideoId,
-            bottomNavOverlayPadding = bottomNavOverlayPadding,
+            bottomNavOverlayPadding = bottomNavOverlayPadding(),
             onBack = {
                 navController.popBackStack()
             },

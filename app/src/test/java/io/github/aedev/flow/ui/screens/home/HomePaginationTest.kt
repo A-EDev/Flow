@@ -5,69 +5,108 @@ import org.junit.Test
 
 class HomePaginationTest {
 
+    private fun queue() = HomePrefetchQueue(
+        prefetchAheadVideoCount = 24,
+        triggerRemainingVideos = 8
+    )
+
     @Test
-    fun `entering a ready feed queues several pages before scrolling`() {
-        val queue = HomePrefetchQueue(prefetchAheadVideoCount = 24)
+    fun `a freshly loaded feed does not prefetch before it is scrolled`() {
+        val queue = queue()
 
-        val request = queue.onVisible(currentVideoCount = 40, feedReady = true)
-
-        assertThat(request?.targetVideoCount).isEqualTo(64)
+        assertThat(queue.onVisible(currentVideoCount = 40, feedReady = true)).isNull()
     }
 
     @Test
-    fun `viewport consumption extends the target while keeping requests bounded`() {
-        val queue = HomePrefetchQueue(prefetchAheadVideoCount = 24)
+    fun `scrolling well short of the tail does not prefetch`() {
+        val queue = queue()
         queue.onVisible(currentVideoCount = 40, feedReady = true)
 
         val request = queue.onViewportChanged(
-            currentVideoCount = 64,
-            lastVisibleVideoIndex = 60
+            currentVideoCount = 40,
+            lastVisibleVideoIndex = 10
         )
 
-        assertThat(request?.targetVideoCount).isEqualTo(85)
-        assertThat(request!!.targetVideoCount).isAtMost(64 + 24)
+        assertThat(request).isNull()
+    }
+
+    @Test
+    fun `prefetch starts once the viewport approaches the end of the loaded feed`() {
+        val queue = queue()
+        queue.onVisible(currentVideoCount = 40, feedReady = true)
+
+        val request = queue.onViewportChanged(
+            currentVideoCount = 40,
+            lastVisibleVideoIndex = 35
+        )
+
+        assertThat(request?.targetVideoCount).isEqualTo(60)
+    }
+
+    @Test
+    fun `a feed shorter than the trigger distance prefetches as soon as it is seen`() {
+        val queue = queue()
+        queue.onVisible(currentVideoCount = 6, feedReady = true)
+
+        val request = queue.onViewportChanged(
+            currentVideoCount = 6,
+            lastVisibleVideoIndex = 3
+        )
+
+        assertThat(request?.targetVideoCount).isEqualTo(28)
     }
 
     @Test
     fun `requests are coalesced against the largest target`() {
-        val queue = HomePrefetchQueue(prefetchAheadVideoCount = 24)
+        val queue = queue()
         queue.onVisible(currentVideoCount = 40, feedReady = true)
+        queue.onViewportChanged(currentVideoCount = 40, lastVisibleVideoIndex = 35)
 
-        queue.onViewportChanged(currentVideoCount = 48, lastVisibleVideoIndex = 10)
-        val request = queue.currentRequest(currentVideoCount = 48)
+        // Scrolling back up must not shrink the target the deeper position already earned.
+        queue.onViewportChanged(currentVideoCount = 40, lastVisibleVideoIndex = 32)
 
-        assertThat(request?.targetVideoCount).isEqualTo(64)
+        assertThat(queue.currentRequest(currentVideoCount = 40)?.targetVideoCount).isEqualTo(60)
     }
 
     @Test
-    fun `feed readiness does not start work while home is hidden`() {
-        val queue = HomePrefetchQueue(prefetchAheadVideoCount = 24)
+    fun `prefetch stops once the target is satisfied`() {
+        val queue = queue()
+        queue.onVisible(currentVideoCount = 40, feedReady = true)
+        queue.onViewportChanged(currentVideoCount = 40, lastVisibleVideoIndex = 35)
 
-        assertThat(queue.onFeedReady(currentVideoCount = 40)).isNull()
+        assertThat(queue.currentRequest(currentVideoCount = 60)).isNull()
     }
 
     @Test
     fun `hiding invalidates queued work and showing resumes the remaining target`() {
-        val queue = HomePrefetchQueue(prefetchAheadVideoCount = 24)
-        val original = queue.onVisible(currentVideoCount = 40, feedReady = true)!!
+        val queue = queue()
+        queue.onVisible(currentVideoCount = 40, feedReady = true)
+        val original = queue.onViewportChanged(
+            currentVideoCount = 40,
+            lastVisibleVideoIndex = 35
+        )!!
 
         queue.onHidden()
 
         assertThat(queue.isCurrent(original.generation)).isFalse()
         assertThat(queue.currentRequest(currentVideoCount = 40)).isNull()
+
         val resumed = queue.onVisible(currentVideoCount = 48, feedReady = true)
-        assertThat(resumed?.targetVideoCount).isEqualTo(64)
+        assertThat(resumed?.targetVideoCount).isEqualTo(60)
     }
 
     @Test
-    fun `refresh resets the optimistic floor for the replacement feed`() {
-        val queue = HomePrefetchQueue(prefetchAheadVideoCount = 24)
-        val original = queue.onVisible(currentVideoCount = 40, feedReady = true)!!
+    fun `refresh drops the pending target for the replacement feed`() {
+        val queue = queue()
+        queue.onVisible(currentVideoCount = 40, feedReady = true)
+        val original = queue.onViewportChanged(
+            currentVideoCount = 40,
+            lastVisibleVideoIndex = 35
+        )!!
 
         queue.reset()
-        val replacement = queue.onFeedReady(currentVideoCount = 30)
 
         assertThat(queue.isCurrent(original.generation)).isFalse()
-        assertThat(replacement?.targetVideoCount).isEqualTo(54)
+        assertThat(queue.currentRequest(currentVideoCount = 30)).isNull()
     }
 }

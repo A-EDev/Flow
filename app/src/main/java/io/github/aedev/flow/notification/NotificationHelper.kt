@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -16,7 +17,11 @@ import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.entity.NotificationEntity
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
-import com.squareup.picasso.Picasso
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import coil.size.Precision
+import coil.size.Scale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -342,7 +347,7 @@ object NotificationHelper {
 
         // Load thumbnail if provided
         if (!thumbnailUrl.isNullOrEmpty()) {
-            val bitmap = getBitmapFromUrl(thumbnailUrl)
+            val bitmap = getBitmapFromUrl(context, thumbnailUrl)
             if (bitmap != null) {
                 builder.setLargeIcon(bitmap)
             }
@@ -454,7 +459,7 @@ object NotificationHelper {
                 .setCategory(NotificationCompat.CATEGORY_SOCIAL)
                 .setGroup(GROUP_NEW_VIDEOS)
             v.thumbnailUrl?.let { url ->
-                getBitmapFromUrl(url)?.let { bm ->
+                getBitmapFromUrl(context, url)?.let { bm ->
                     builder.setLargeIcon(bm)
                     builder.setStyle(
                         NotificationCompat.BigPictureStyle().bigPicture(bm).bigLargeIcon(null as Bitmap?)
@@ -557,7 +562,7 @@ object NotificationHelper {
         
         // Try to load thumbnail
         thumbnailUrl?.let { url ->
-            val bitmap = getBitmapFromUrl(url)
+            val bitmap = getBitmapFromUrl(context, url)
             bitmap?.let {
                 builder.setLargeIcon(it)
                 builder.setStyle(NotificationCompat.BigPictureStyle()
@@ -781,7 +786,7 @@ object NotificationHelper {
             .setAutoCancel(true)
 
         runBlocking {
-            val bitmap = thumbnailUrl?.let { getBitmapFromUrl(it) }
+            val bitmap = thumbnailUrl?.let { getBitmapFromUrl(context, it) }
             if (bitmap != null) {
                 builder.setLargeIcon(bitmap)
             }
@@ -804,18 +809,28 @@ object NotificationHelper {
     }
     
     /**
-     * Load bitmap from URL for notification large icon/picture
-     * Uses Picasso on IO thread
+     * Load bitmap from URL for notification large icon/picture.
+     *
+     * Uses the app's shared Coil ImageLoader so notification artwork reuses the memory/disk
+     * cache the feed already populated instead of refetching through a second image stack.
+     * Hardware bitmaps are disabled because notification bitmaps must be parcelable to
+     * SystemUI, and INEXACT precision keeps the "never upscale" behaviour of the previous
+     * centerInside/onlyScaleDown request.
      */
-    suspend fun getBitmapFromUrl(url: String): Bitmap? = withContext(Dispatchers.IO) {
+    suspend fun getBitmapFromUrl(context: Context, url: String): Bitmap? = withContext(Dispatchers.IO) {
         try {
             if (url.isEmpty()) return@withContext null
-            Picasso.get()
-                .load(url)
-                .resize(NOTIFICATION_BITMAP_MAX_PX, NOTIFICATION_BITMAP_MAX_PX)
-                .centerInside()
-                .onlyScaleDown()
-                .get()
+            val request = ImageRequest.Builder(context)
+                .data(url)
+                .size(NOTIFICATION_BITMAP_MAX_PX)
+                .scale(Scale.FIT)
+                .precision(Precision.INEXACT)
+                .allowHardware(false)
+                .build()
+            (context.imageLoader.execute(request) as? SuccessResult)
+                ?.drawable
+                ?.let { it as? BitmapDrawable }
+                ?.bitmap
         } catch (e: Exception) {
             e.printStackTrace()
             null

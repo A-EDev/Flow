@@ -95,7 +95,10 @@ fun FlowApp(
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity!!)
     val playerUiStateResult = playerViewModel.uiState.collectAsStateWithLifecycle()
     val playerUiState by playerUiStateResult
-    val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
+    val enhancedPlayerManager = remember { EnhancedPlayerManager.getInstance() }
+    val hasVideoQueue by enhancedPlayerManager.hasQueue.collectAsStateWithLifecycle(
+        initialValue = enhancedPlayerManager.playerState.value.queueTitle != null
+    )
 
     val preferences = remember { PlayerPreferences(context) }
     val isHomeNavigationEnabled by preferences.homeNavigationEnabled.collectAsState(initial = true)
@@ -307,7 +310,7 @@ fun FlowApp(
     }
 
     LaunchedEffect(Unit) {
-        EnhancedPlayerManager.getInstance().queueAutoAdvanceEvent.collect {
+        enhancedPlayerManager.queueAutoAdvanceEvent.collect {
             keepMiniOnQueueAutoAdvance = playerSheetState.currentValue == PlayerSheetValue.Collapsed
         }
     }
@@ -332,7 +335,7 @@ fun FlowApp(
             playerVisible = true
             val isQueueAutoAdvanceInMiniPlayer =
                 keepMiniOnQueueAutoAdvance &&
-                playerState.queueTitle != null &&
+                hasVideoQueue &&
                 playerSheetState.currentValue == PlayerSheetValue.Collapsed
 
             if (
@@ -570,10 +573,12 @@ fun FlowApp(
                             onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
                             disableShortsPlayer = disableShortsPlayer,
                             defaultStartRoute = defaultStartRoute,
-                            bottomNavOverlayPadding = if (showBottomNav.value && isNavScrolledVisible) {
-                                bottomNavContentHeightDp
-                            } else {
-                                0.dp
+                            bottomNavOverlayPadding = {
+                                if (showBottomNav.value && isNavScrolledVisible) {
+                                    bottomNavContentHeightDp
+                                } else {
+                                    0.dp
+                                }
                             }
                         )
                     }

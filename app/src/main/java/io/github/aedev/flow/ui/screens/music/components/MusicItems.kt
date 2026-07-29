@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.music.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import io.github.aedev.flow.ui.components.PlayingWaveform
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -241,34 +242,13 @@ fun MusicWaveAnimation(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "waveform")
-    
-    Row(
+    PlayingWaveform(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(4) { index ->
-            val delay = index * 100
-            val height by infiniteTransition.animateFloat(
-                initialValue = 8f,
-                targetValue = 20f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(400, delayMillis = delay, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "bar$index"
-            )
-            
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(height.dp)
-                    .clip(RoundedCornerShape(1.5.dp))
-                    .background(color)
-            )
-        }
-    }
+        color = color,
+        minBarHeight = 8.dp,
+        maxBarHeight = 20.dp,
+        cycleMillis = 400
+    )
 }
 
 @Composable

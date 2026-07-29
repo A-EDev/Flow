@@ -35,7 +35,6 @@
 -keep class io.github.aedev.flow.FlowApplication { *; }
 
 ## Rules for Jetpack Compose
--keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
 
 ## Rules for Gson serialization

@@ -3,13 +3,11 @@ package io.github.aedev.flow.ui.screens.music.player
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlaylistAdd
@@ -17,10 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -30,14 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.ui.screens.music.MusicTrack
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.SpanStyle
-import io.github.aedev.flow.player.EnhancedMusicPlayerManager
-import kotlinx.coroutines.delay
-import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -209,221 +197,6 @@ fun UpNextContent(
             }
         }
     }
-}
-
-@Composable
-fun LyricsContent(
-    lyrics: String?,
-    syncedLyrics: List<LyricsEntry>,
-    currentPosition: Long,
-    isLoading: Boolean,
-    onSeekTo: (Long) -> Unit
-) {
-    val listState = rememberLazyListState()
-    val textColor = MaterialTheme.colorScheme.onSurface
-    val accentColor = LocalPlayerAccentColor.current ?: MaterialTheme.colorScheme.primary
-    val primaryColor = accentColor
-    val dimmedTextColor = textColor.copy(alpha = 0.4f)
-    val loaderColor = accentColor
-
-    var activePosition by remember { mutableLongStateOf(currentPosition) }
-
-    LaunchedEffect(currentPosition) {
-        if (kotlin.math.abs(currentPosition - activePosition) > 500L) {
-            activePosition = currentPosition
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(100)
-            activePosition = EnhancedMusicPlayerManager.getCurrentPosition()
-        }
-    }
-
-    val currentLineIndex = remember(activePosition, syncedLyrics) {
-        if (syncedLyrics.isEmpty()) 0
-        else {
-            val idx = syncedLyrics.indexOfLast { it.time <= activePosition + 100L }
-            if (idx == -1) 0 else idx
-        }
-    }
-    val activeLineIndices = remember(activePosition, syncedLyrics) {
-        findActiveLyricLineIndices(syncedLyrics, activePosition)
-    }
-    LaunchedEffect(currentLineIndex) {
-        if (syncedLyrics.isNotEmpty() && currentLineIndex >= 0) {
-            listState.animateScrollToItem(
-                index = currentLineIndex,
-                scrollOffset = -300
-            )
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = loaderColor)
-            }
-        } else if (syncedLyrics.isNotEmpty()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(32.dp),
-                contentPadding = PaddingValues(top = 24.dp, bottom = 200.dp, start = 24.dp, end = 24.dp)
-            ) {
-                itemsIndexed(syncedLyrics, key = { index, entry -> "${entry.time}_${entry.text}_$index" }) { index, entry ->
-                    val isCurrent = index == currentLineIndex || index in activeLineIndices
-                    val isPast = index < currentLineIndex
-                    
-                    val alpha by animateFloatAsState(
-                        targetValue = if (isCurrent) 1f else if (isPast) 0.5f else 0.25f,
-                        animationSpec = tween(durationMillis = 400),
-                        label = "lyric_alpha"
-                    )
-                    val scale by animateFloatAsState(
-                        targetValue = if (isCurrent) 1.05f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy),
-                        label = "lyric_scale"
-                    )
-                    
-                    if (entry.words != null && entry.words.isNotEmpty()) {
-                        val annotatedString = buildAnnotatedString {
-                            entry.words.forEachIndexed { wordIndex, word ->
-                                val wordDuration = (word.endTime - word.startTime).coerceAtLeast(1)
-                                val isWordActive = activePosition >= word.startTime && activePosition <= word.endTime
-                                val hasWordPassed = activePosition > word.endTime
-
-                                val transitionProgress = when {
-                                    hasWordPassed -> 1f
-                                    isWordActive -> {
-                                        val elapsed = activePosition - word.startTime
-                                        val linear = (elapsed.toFloat() / wordDuration).coerceIn(0f, 1f)
-                                        linear * linear * (3f - 2f * linear)
-                                    }
-                                    else -> 0f
-                                }
-
-                                val wordAlpha = when {
-                                    hasWordPassed -> 1f
-                                    isWordActive -> 0.4f + (0.6f * transitionProgress)
-                                    else -> 0.3f
-                                }
-
-                                val wordColor = textColor.copy(alpha = wordAlpha)
-                                val wordWeight = when {
-                                    !isCurrent -> FontWeight.Bold
-                                    hasWordPassed -> FontWeight.Bold
-                                    isWordActive -> FontWeight.ExtraBold
-                                    else -> FontWeight.Medium
-                                }
-
-                                withStyle(style = SpanStyle(color = wordColor, fontWeight = wordWeight)) {
-                                    append(word.text)
-                                }
-                                if (wordIndex < entry.words.size - 1) {
-                                    append(" ")
-                                }
-                            }
-                        }
-
-                        Text(
-                            text = annotatedString,
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
-                                fontSize = 28.sp,
-                                lineHeight = 38.sp,
-                                letterSpacing = 0.sp
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer {
-                                    this.alpha = alpha
-                                    this.scaleX = scale
-                                    this.scaleY = scale
-                                }
-                                .clickable { onSeekTo(entry.time) },
-                            textAlign = TextAlign.Start
-                        )
-                    } else {
-                        Text(
-                            text = entry.text,
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
-                                fontSize = 28.sp,
-                                lineHeight = 38.sp,
-                                letterSpacing = 0.sp
-                            ),
-                            color = textColor,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer {
-                                    this.alpha = alpha
-                                    this.scaleX = scale
-                                    this.scaleY = scale
-                                }
-                                .clickable { onSeekTo(entry.time) },
-                            textAlign = TextAlign.Start
-                        )
-                    }
-                }
-            }
-        } else if (lyrics != null) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(24.dp)
-            ) {
-                item {
-                    Text(
-                        text = lyrics,
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            lineHeight = 36.sp,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = textColor.copy(alpha = 0.9f),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        } else {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.lyrics_not_available), color = dimmedTextColor)
-            }
-        }
-    }
-}
-
-private fun findActiveLyricLineIndices(
-    lines: List<LyricsEntry>,
-    position: Long
-): Set<Int> {
-    val active = mutableSetOf<Int>()
-    val hasWordTimings = lines.any { !it.words.isNullOrEmpty() }
-
-    for (index in lines.indices) {
-        val line = lines[index]
-        if (line.time > position) break
-
-        val lineEndMs = if (!line.words.isNullOrEmpty()) {
-            line.words.last().endTime
-        } else {
-            lines.getOrNull(index + 1)?.time ?: Long.MAX_VALUE
-        }
-
-        if (position <= lineEndMs) {
-            active += index
-        }
-    }
-
-    if (!hasWordTimings && active.size > 1) {
-        val mainActive = active.filter { !lines[it].isBackground }
-        if (mainActive.size > 1) {
-            val latestStart = mainActive.maxOf { lines[it].time }
-            active.removeAll { it in mainActive && lines[it].time < latestStart }
-        }
-    }
-
-    return active
 }
 
 @Composable

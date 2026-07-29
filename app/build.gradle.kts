@@ -3,10 +3,10 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.kapt")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("androidx.baselineprofile")
 }
 
 android {
@@ -38,6 +38,15 @@ android {
             includeInApk = false
             // Disables dependency metadata when building Android App Bundles (for Google Play)
             includeInBundle = false
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true
         }
     }
 
@@ -109,9 +118,8 @@ android {
         }
         release {
             isDebuggable = false
-            // Follow NewPipe approach: minify but don't shrink resources
             isMinifyEnabled = true
-            isShrinkResources = false // disabled for reproducible builds
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android.txt"),
                 "proguard-rules.pro"
@@ -137,10 +145,23 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
-    }
 
-    buildFeatures {
-        compose = true
+        if (project.findProperty("composeStrongSkipping") != "false") {
+            freeCompilerArgs += listOf(
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true",
+            )
+        }
+
+        if (project.findProperty("composeCompilerReports") == "true") {
+            val reportsDir = layout.buildDirectory.dir("compose_compiler").get().asFile.absolutePath
+            freeCompilerArgs += listOf(
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=$reportsDir",
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=$reportsDir",
+            )
+        }
     }
 
     composeOptions {
@@ -178,7 +199,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.material) 
     implementation(libs.androidx.material.icons.extended)
 
     // --- Navigation ---
@@ -195,12 +215,11 @@ dependencies {
     // --- Image Loading ---
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
-    implementation(libs.picasso)
     implementation("androidx.palette:palette-ktx:1.0.0")
 
     // --- Dependency Injection ---
     implementation(libs.hilt.android)
-    kapt(libs.hilt.android.compiler)
+    ksp(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
 
     // --- Data & Network ---
@@ -217,7 +236,9 @@ dependencies {
     implementation(libs.ktor.client.encoding)
 
     // --- Device Sync (FLOW-SYNC/1) ---
-    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.core) {
+        exclude(group = "org.fusesource.jansi", module = "jansi")
+    }
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.websockets)
     implementation(libs.zxing.core)
@@ -270,8 +291,15 @@ dependencies {
     "githubImplementation"(libs.apkupdater)
     implementation(libs.androidx.multidex)
 
-    implementation(libs.brotli) 
+    implementation(libs.brotli)
     implementation(libs.re2j)
+
+    // --- Baseline profiles ---
+    // Runtime installer for the merged baseline profile. AGP merges profiles shipped inside
+    // library AARs (Compose, RecyclerView, ...) at build time; this applies them at runtime,
+    // which matters for sideloaded/F-Droid installs that bypass Play's cloud profiles.
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
 
     // Desugaring for older Android versions
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
@@ -284,7 +312,7 @@ dependencies {
     testImplementation("com.google.truth:truth:1.1.5")
     testImplementation("app.cash.turbine:turbine:1.1.0")
     testImplementation("com.google.dagger:hilt-android-testing:2.51.1")
-    kaptTest(libs.hilt.android.compiler)
+    kspTest(libs.hilt.android.compiler)
 
     // Room migration tests (device-sync schema 20→23)
     androidTestImplementation(libs.androidx.room.testing)
@@ -293,7 +321,7 @@ dependencies {
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
-    kaptAndroidTest(libs.hilt.android.compiler)
+    kspAndroidTest(libs.hilt.android.compiler)
     
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
@@ -304,11 +332,6 @@ ksp {
     arg("dagger.fastInit", "enabled")
 }
 
-kapt {
-    correctErrorTypes = true
-}
-
 hilt {
     enableAggregatingTask = true
-    enableTransformForLocalTests = false
 }

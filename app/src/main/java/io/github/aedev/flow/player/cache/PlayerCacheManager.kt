@@ -7,17 +7,48 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 @UnstableApi
 class PlayerCacheManager(private val context: Context) {
-    
+
     companion object {
         private const val TAG = "PlayerCacheManager"
+
+        /**
+         * Cache size resolved by the last [preload], or null if preload has not run.
+         *
+         * This is what keeps [initialize] off DataStore on the cold-start path: the preference
+         * has already been read on a background thread by the time the player is built.
+         */
+        @Volatile
+        private var preloadedCacheSizeBytes: Long? = null
+
+        /**
+         * Warms the cache-size preference and the shared [SimpleCache] on [Dispatchers.IO].
+         *
+         * Both are disk-bound — DataStore reads and parses its backing file, and SimpleCache
+         * opens a SQLite index and scans the cache directory — so neither belongs on the
+         * main thread during startup. Call this before [initialize] on any latency-sensitive
+         * path; [initialize] stays correct without it, just blocking.
+         */
+        suspend fun preload(context: Context): Unit = withContext(Dispatchers.IO) {
+            val appContext = context.applicationContext
+            val configured = runCatching {
+                PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(appContext).mediaCacheSizeMb.first())
+            }.getOrDefault(0L)
+            val resolved = if (configured <= 0) PlayerConfig.CACHE_SIZE_BYTES else configured
+            preloadedCacheSizeBytes = resolved
+            runCatching { SharedPlayerCacheProvider.getOrCreate(appContext, maxCacheSizeBytes = resolved) }
+                .onFailure { Log.w(TAG, "Cache preload failed; initialize() will retry", it) }
+        }
     }
-    
+
     private var cache: SimpleCache? = null
     
     // Data source factories
@@ -48,10 +79,11 @@ class PlayerCacheManager(private val context: Context) {
         val upstream = DefaultDataSource.Factory(context, legacyHttpFactory)
 
         try {
-            val cacheSizeMb = kotlinx.coroutines.runBlocking {
-                io.github.aedev.flow.data.local.PlayerPreferences(context).mediaCacheSizeMb.first()
+            // Falls back to a blocking read only when preload() has not run — the media service
+            // can build a player without going through the cold-start path.
+            val cacheSizeBytes = preloadedCacheSizeBytes ?: kotlinx.coroutines.runBlocking {
+                PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(context).mediaCacheSizeMb.first())
             }
-            val cacheSizeBytes = PlayerConfig.cacheSizeMbToBytes(cacheSizeMb)
             cache = SharedPlayerCacheProvider.getOrCreate(
                 context,
                 maxCacheSizeBytes = if (cacheSizeBytes <= 0) PlayerConfig.CACHE_SIZE_BYTES else cacheSizeBytes

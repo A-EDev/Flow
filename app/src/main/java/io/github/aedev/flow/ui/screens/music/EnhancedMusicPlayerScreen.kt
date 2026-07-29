@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.min
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.compose.animation.animateColorAsState
@@ -58,7 +57,6 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import androidx.core.graphics.drawable.toBitmap
-import kotlinx.coroutines.isActive
 
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
@@ -83,6 +81,7 @@ fun EnhancedMusicPlayerScreen(
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val positionState = viewModel.currentPositionMs.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -204,12 +203,10 @@ fun EnhancedMusicPlayerScreen(
         }
     }
     
-    LaunchedEffect(isPlayerSheetExpanded, uiState.isPlaying) {
-        if (!isPlayerSheetExpanded) return@LaunchedEffect
-
-        while (isActive) {
-            viewModel.updateProgress()
-            delay(if (uiState.isPlaying) 250 else 1_000)
+    if (isPlayerSheetExpanded) {
+        DisposableEffect(Unit) {
+            EnhancedMusicPlayerManager.acquirePreciseProgress()
+            onDispose { EnhancedMusicPlayerManager.releasePreciseProgress() }
         }
     }
 
@@ -351,7 +348,7 @@ fun EnhancedMusicPlayerScreen(
                             InlineLyricsPanel(
                                 lyrics = uiState.lyrics,
                                 syncedLyrics = uiState.syncedLyrics,
-                                currentPosition = uiState.currentPosition,
+                                positionProvider = { positionState.value },
                                 isLoading = uiState.isLyricsLoading,
                                 accentColor = animatedAccentColor,
                                 onSeekTo = { viewModel.seekTo(it) },
@@ -511,7 +508,7 @@ fun EnhancedMusicPlayerScreen(
 
             // ── Progress Slider ──
             PlayerProgressSlider(
-                currentPosition = uiState.currentPosition,
+                positionProvider = { positionState.value },
                 duration = uiState.duration,
                 onSeekTo = { viewModel.seekTo(it) },
                 isPlaying = uiState.isPlaying,

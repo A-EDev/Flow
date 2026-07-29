@@ -71,7 +71,7 @@ fun PremiumControlsOverlay(
     isPlaying: Boolean,
     hasEnded: Boolean,
     isBuffering: Boolean,
-    currentPosition: Long,
+    currentPosition: () -> Long,
     duration: Long,
     qualityLabel: String?,
     videoTitle: String?,
@@ -124,6 +124,8 @@ fun PremiumControlsOverlay(
     isPortraitFullscreen: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val livePosition by rememberUpdatedState(currentPosition)
+
     val primaryColor = MaterialTheme.colorScheme.primary
     val resizeModes = listOf(
         stringResource(R.string.resize_fit),
@@ -137,7 +139,8 @@ fun PremiumControlsOverlay(
     var lastScrubSeekAt by remember { mutableLongStateOf(0L) }
     var lastScrubSeekPosition by remember { mutableLongStateOf(Long.MIN_VALUE) }
     var pendingScrubSeekJob by remember { mutableStateOf<Job?>(null) }
-    val displayedPosition = scrubPosition ?: currentPosition
+
+    val displayedPosition: () -> Long = { scrubPosition ?: livePosition() }
 
     // Lock-mode unlock affordance auto-hide (issue #619). While touch-locked, the
     // unlock button hides itself after a short delay so the locked view is clean,
@@ -175,20 +178,21 @@ fun PremiumControlsOverlay(
         }
     }
 
-    LaunchedEffect(currentPosition, scrubPosition, isScrubbing) {
-        if (isScrubbing) {
-            return@LaunchedEffect
-        }
-        val targetPosition = scrubPosition ?: return@LaunchedEffect
-        if (abs(currentPosition - targetPosition) <= 1_000L) {
-            scrubPosition = null
+    val pendingScrubTarget = scrubPosition
+    if (pendingScrubTarget != null && !isScrubbing) {
+        val settledPosition = livePosition()
+        LaunchedEffect(settledPosition, pendingScrubTarget) {
+            if (abs(settledPosition - pendingScrubTarget) <= 1_000L) {
+                scrubPosition = null
+            }
         }
     }
 
-    // Find current chapter
-    val currentChapter = remember(displayedPosition, chapters) {
-        val positionSeconds = displayedPosition / 1000
-        chapters.lastOrNull { it.startTimeSeconds <= positionSeconds }
+    val currentChapter by remember(chapters) {
+        derivedStateOf {
+            val positionSeconds = displayedPosition() / 1000
+            chapters.lastOrNull { it.startTimeSeconds <= positionSeconds }
+        }
     }
     
     val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsState()
@@ -234,7 +238,9 @@ fun PremiumControlsOverlay(
 
 
     val showControlsWhileLoading by playerPreferences.showControlsWhileLoading.collectAsState(initial = false)
-    val isInitialLoading = isBuffering && duration <= 0L && currentPosition <= 0L
+    val isInitialLoading by remember(isBuffering, duration) {
+        derivedStateOf { isBuffering && duration <= 0L && displayedPosition() <= 0L }
+    }
     // When the user opts in, keep the controls visible during the initial load so volume/brightness/
     // back/etc. can be used before the first frame arrives.
     val hideControlsForLoading = isInitialLoading && !showControlsWhileLoading
@@ -317,7 +323,7 @@ fun PremiumControlsOverlay(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         PlayerTimePill(
-                            currentPosition = displayedPosition,
+                            positionProvider = displayedPosition,
                             duration = duration,
                             isLive = isLive,
                             showRemainingTime = showRemainingTime,
@@ -327,7 +333,7 @@ fun PremiumControlsOverlay(
                                 .align(Alignment.Start)
                         )
                         LockedSeekbar(
-                            currentPosition = displayedPosition,
+                            positionProvider = displayedPosition,
                             duration = duration,
                             isLive = isLive,
                             isFullscreen = isFullscreen,
@@ -721,7 +727,7 @@ fun PremiumControlsOverlay(
                         }
 
                         PlayerTimePill(
-                            currentPosition = displayedPosition,
+                            positionProvider = displayedPosition,
                             duration = duration,
                             isLive = isLive,
                             showRemainingTime = showRemainingTime,
@@ -730,7 +736,8 @@ fun PremiumControlsOverlay(
                         )
 
                         // Chapter Display Pill
-                        if (currentChapter != null) {
+                        val chapter = currentChapter
+                        if (chapter != null) {
                             Surface(
                                 color = Color.Black.copy(alpha = 0.4f),
                                 shape = CircleShape,
@@ -745,7 +752,7 @@ fun PremiumControlsOverlay(
                                         .padding(horizontal = 12.dp)
                                 ) {
                                     Text(
-                                        text = currentChapter.title,
+                                        text = chapter.title,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = Color.White,
                                         fontWeight = FontWeight.Medium,
@@ -821,12 +828,14 @@ fun PremiumControlsOverlay(
                             .background(Color.Red)
                     )
                 } else {
-                    val seekDuration = if (isLive) duration.coerceAtLeast(displayedPosition) else duration
+                    val seekDuration = if (isLive) duration.coerceAtLeast(displayedPosition()) else duration
                     SeekbarWithPreview(
-                        value = if (seekDuration > 0) {
-                            (displayedPosition.toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
-                        } else {
-                            0f
+                        value = {
+                            if (seekDuration > 0) {
+                                (displayedPosition().toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
+                            } else {
+                                0f
+                            }
                         },
                         onValueChange = { progress ->
                             val newPosition = (progress * seekDuration).toLong()
@@ -909,12 +918,14 @@ fun PremiumControlsOverlay(
                             .background(Color.Red)
                     )
                 } else {
-                    val seekDuration = if (isLive) duration.coerceAtLeast(displayedPosition) else duration
+                    val seekDuration = if (isLive) duration.coerceAtLeast(displayedPosition()) else duration
                     SeekbarWithPreview(
-                        value = if (seekDuration > 0) {
-                            (displayedPosition.toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
-                        } else {
-                            0f
+                        value = {
+                            if (seekDuration > 0) {
+                                (displayedPosition().toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
+                            } else {
+                                0f
+                            }
                         },
                         onValueChange = { progress ->
                             val newPosition = (progress * seekDuration).toLong()
@@ -992,7 +1003,7 @@ fun SleekLoadingAnimation(modifier: Modifier = Modifier) {
 
 @Composable
 private fun LockedSeekbar(
-    currentPosition: Long,
+    positionProvider: () -> Long,
     duration: Long,
     isLive: Boolean,
     isFullscreen: Boolean,
@@ -1002,7 +1013,7 @@ private fun LockedSeekbar(
     modifier: Modifier = Modifier
 ) {
     val seekDuration = if (isLive) {
-        duration.coerceAtLeast(currentPosition)
+        duration.coerceAtLeast(positionProvider())
     } else {
         duration
     }
@@ -1018,10 +1029,12 @@ private fun LockedSeekbar(
     }
 
     SeekbarWithPreview(
-        value = if (seekDuration > 0) {
-            (currentPosition.toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
-        } else {
-            0f
+        value = {
+            if (seekDuration > 0) {
+                (positionProvider().toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
         },
         onValueChange = {},
         enabled = false,

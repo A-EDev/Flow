@@ -3,13 +3,16 @@ package io.github.aedev.flow.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
+import io.github.aedev.flow.R
+import io.github.aedev.flow.utils.NetworkConnectivityObserver
 import kotlinx.coroutines.delay
 
 @Composable
@@ -57,6 +60,8 @@ fun HandleDeepLinks(
     }
 }
 
+private const val OFFLINE_NOTICE_DELAY_MS = 3_000L
+
 @Composable
 fun OfflineMonitor(
     context: Context,
@@ -64,34 +69,31 @@ fun OfflineMonitor(
     snackbarHostState: SnackbarHostState,
     currentRoute: State<String>
 ) {
-    LaunchedEffect(Unit) {
-        while (true) {
-            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = connectivityManager.activeNetwork
-            val capabilities = connectivityManager.getNetworkCapabilities(network)
-            val hasInternet = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-            
-            if (!hasInternet) {
-                val route = currentRoute.value
-                val isSafeRoute = route == "downloads" || 
-                                  route.startsWith("player") || 
-                                  route.startsWith("musicPlayer") ||
-                                  route == "settings"
-                
-                if (!isSafeRoute) {
-                    val result = snackbarHostState.showSnackbar(
-                        message = "No internet connection found",
-                        actionLabel = "Downloads",
-                        duration = SnackbarDuration.Short
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                         navController.navigate("downloads") {
-                            launchSingleTop = true
-                        }
-                    }
-                }
+    val connectivity = remember(context) { NetworkConnectivityObserver(context) }
+    val isConnected by remember(connectivity) { connectivity.observeConnectivity() }
+        .collectAsStateWithLifecycle(initialValue = true)
+    val route = currentRoute.value
+
+    LaunchedEffect(isConnected, route) {
+        if (isConnected) return@LaunchedEffect
+
+        val isSafeRoute = route == "downloads" ||
+                          route.startsWith("player") ||
+                          route.startsWith("musicPlayer") ||
+                          route == "settings"
+        if (isSafeRoute) return@LaunchedEffect
+
+        delay(OFFLINE_NOTICE_DELAY_MS)
+
+        val result = snackbarHostState.showSnackbar(
+            message = context.getString(R.string.error_no_internet_found),
+            actionLabel = context.getString(R.string.downloads_title),
+            duration = SnackbarDuration.Short
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            navController.navigate("downloads") {
+                launchSingleTop = true
             }
-            delay(10000) // Check every 10 seconds
         }
     }
 }

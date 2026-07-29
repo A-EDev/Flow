@@ -58,12 +58,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import coil.compose.AsyncImage
-import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoHistoryEntry
-import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
+import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -72,7 +72,6 @@ import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatPremiereDate
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatViewCount
-import kotlinx.coroutines.flow.collectLatest
 
 private const val AVATAR_TAG = "ChannelAvatarImage"
 
@@ -136,15 +135,17 @@ internal fun rememberCollaboratorChannelDisplayName(
 
 @Composable
 internal fun rememberCollaboratorItems(video: Video): List<VideoCollaborator> {
+    val needsResolution = video.needsCollaboratorResolution()
     val fetchedCollaborators by produceState<List<VideoCollaborator>>(
         initialValue = emptyList(),
         key1 = video.id,
-        key2 = video.collaborators
+        key2 = video.collaborators,
+        key3 = needsResolution,
     ) {
-        value = if (video.collaborators.size > 1) {
-            emptyList()
-        } else {
+        value = if (needsResolution) {
             VideoCollaboratorResolver.resolve(video.id)
+        } else {
+            emptyList()
         }
     }
     return remember(video, fetchedCollaborators) {
@@ -189,24 +190,16 @@ fun VideoCard(
             onChannelClick?.invoke(video.channelId)
         }
     }
-    val context = LocalContext.current
     val dateSettings = rememberDateDisplaySettings()
-    val watchProgress by produceState<Float?>(initialValue = null, video.id) {
-        ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
-            value = if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
-                if (entry.progressPercentage >= 90f) 1.0f else entry.progressPercentage / 100f
-            } else null
-        }
-    }
+    val watchProgress = rememberWatchProgress(video.id)
 
-    val playerPrefs = remember { PlayerPreferences(context) }
-    val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
-    val deArrowBadgeEnabled by playerPrefs.deArrowBadgeEnabled.collectAsState(initial = false)
-    val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled)
+    val cardPreferences = LocalVideoCardPreferences.current
+    val deArrowBadgeEnabled = cardPreferences.deArrowBadgeEnabled
+    val deArrowResult = rememberDeArrowResult(video.id, cardPreferences.deArrowEnabled)
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
-    val videoCardActionsEnabled by playerPrefs.videoCardActionsEnabled.collectAsState(initial = false)
-    val upcomingReminderIds by playerPrefs.upcomingVideoReminderIds.collectAsState(initial = emptySet())
+    val videoCardActionsEnabled = cardPreferences.actionsEnabled
+    val upcomingReminderIds = cardPreferences.upcomingReminderIds
     val quickActionsVm: QuickActionsViewModel = hiltViewModel()
     val interactionSource = remember { MutableInteractionSource() }
     Column(
@@ -477,21 +470,13 @@ fun VideoCardHorizontal(
     onChannelClick: ((String) -> Unit)? = null,
     onClick: () -> Unit
 ) {
-    val context = LocalContext.current
     val dateSettings = rememberDateDisplaySettings()
-    val playerPrefs = remember { PlayerPreferences(context) }
-    val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
-    val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled)
+    val cardPreferences = LocalVideoCardPreferences.current
+    val deArrowResult = rememberDeArrowResult(video.id, cardPreferences.deArrowEnabled)
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
-    val upcomingReminderIds by playerPrefs.upcomingVideoReminderIds.collectAsState(initial = emptySet())
-    val watchProgress by produceState<Float?>(initialValue = null, video.id) {
-        ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
-            value = if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
-                if (entry.progressPercentage >= 90f) 1.0f else entry.progressPercentage / 100f
-            } else null
-        }
-    }
+    val upcomingReminderIds = cardPreferences.upcomingReminderIds
+    val watchProgress = rememberWatchProgress(video.id)
 
     var showQuickActions by remember { mutableStateOf(false) }
     var showCollaborators by remember { mutableStateOf(false) }
@@ -672,31 +657,20 @@ fun VideoCardFullWidth(
             onChannelClick?.invoke(video.channelId)
         }
     }
-    val context = LocalContext.current
     val dateSettings = rememberDateDisplaySettings()
-    val watchProgress by produceState<Float?>(initialValue = null, video.id) {
-        ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
-            value = if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
-                if (entry.progressPercentage >= 90f) 1.0f else entry.progressPercentage / 100f
-            } else null
-        }
-    }
+    val watchProgress = rememberWatchProgress(video.id)
 
     // DeArrow: replace clickbait titles and thumbnails if enabled
-    val playerPrefsFullWidth = remember { PlayerPreferences(context) }
-    val deArrowEnabledFullWidth by playerPrefsFullWidth.deArrowEnabled.collectAsState(initial = false)
-    val deArrowBadgeEnabledFullWidth by playerPrefsFullWidth.deArrowBadgeEnabled.collectAsState(initial = false)
-    val deArrowResultFullWidth = rememberDeArrowResult(video.id, deArrowEnabledFullWidth)
+    val cardPreferences = LocalVideoCardPreferences.current
+    val deArrowBadgeEnabledFullWidth = cardPreferences.deArrowBadgeEnabled
+    val deArrowResultFullWidth = rememberDeArrowResult(video.id, cardPreferences.deArrowEnabled)
     val displayTitle = deArrowResultFullWidth?.title ?: video.title
     val displayThumbnailUrl = deArrowResultFullWidth?.thumbnailUrl ?: video.thumbnailUrl
-    val videoCardActionsEnabledFW by playerPrefsFullWidth.videoCardActionsEnabled.collectAsState(initial = false)
-    val videoCardMarkWatchedEnabledFW by playerPrefsFullWidth.videoCardMarkWatchedEnabled.collectAsState(initial = false)
-    val upcomingReminderIds by playerPrefsFullWidth.upcomingVideoReminderIds.collectAsState(initial = emptySet())
+    val videoCardActionsEnabledFW = cardPreferences.actionsEnabled
+    val videoCardMarkWatchedEnabledFW = cardPreferences.markWatchedEnabled
+    val upcomingReminderIds = cardPreferences.upcomingReminderIds
     val quickActionsVmFW: QuickActionsViewModel = hiltViewModel()
-    val watchedVideoIdsFW by quickActionsVmFW.watchedVideoIds.collectAsState()
-    val isWatchedFW = remember(watchedVideoIdsFW, watchProgress, video.id) {
-        watchedVideoIdsFW.contains(video.id) || (watchProgress ?: 0f) >= 0.90f
-    }
+    val isWatchedFW = rememberIsWatched(video.id, quickActionsVmFW.watchedVideoIds, watchProgress)
 
     val interactionSource = remember { MutableInteractionSource() }
     Column(
@@ -1013,27 +987,16 @@ fun CompactVideoCard(
             onChannelClick?.invoke(video.channelId)
         }
     }
-    val context = LocalContext.current
     val dateSettings = rememberDateDisplaySettings()
-    val watchProgress by produceState<Float?>(initialValue = null, video.id) {
-        ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
-            value = if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
-                if (entry.progressPercentage >= 90f) 1.0f else entry.progressPercentage / 100f
-            } else null
-        }
-    }
+    val watchProgress = rememberWatchProgress(video.id)
 
     // DeArrow: replace clickbait titles and thumbnails if enabled
-    val playerPrefsCompact = remember { PlayerPreferences(context) }
-    val deArrowEnabledCompact by playerPrefsCompact.deArrowEnabled.collectAsState(initial = false)
-    val deArrowBadgeEnabledCompact by playerPrefsCompact.deArrowBadgeEnabled.collectAsState(initial = false)
-    val deArrowResultCompact = rememberDeArrowResult(video.id, deArrowEnabledCompact)
-    val videoCardMarkWatchedEnabledCompact by playerPrefsCompact.videoCardMarkWatchedEnabled.collectAsState(initial = false)
+    val cardPreferences = LocalVideoCardPreferences.current
+    val deArrowBadgeEnabledCompact = cardPreferences.deArrowBadgeEnabled
+    val deArrowResultCompact = rememberDeArrowResult(video.id, cardPreferences.deArrowEnabled)
+    val videoCardMarkWatchedEnabledCompact = cardPreferences.markWatchedEnabled
     val quickActionsVmCompact: QuickActionsViewModel = hiltViewModel()
-    val watchedVideoIdsCompact by quickActionsVmCompact.watchedVideoIds.collectAsState()
-    val isWatchedCompact = remember(watchedVideoIdsCompact, watchProgress, video.id) {
-        watchedVideoIdsCompact.contains(video.id) || (watchProgress ?: 0f) >= 0.90f
-    }
+    val isWatchedCompact = rememberIsWatched(video.id, quickActionsVmCompact.watchedVideoIds, watchProgress)
     val displayTitle = deArrowResultCompact?.title ?: video.title
     val displayThumbnailUrl = deArrowResultCompact?.thumbnailUrl ?: video.thumbnailUrl
 
@@ -1404,9 +1367,14 @@ private fun ContinueWatchingCard(
 ) {
     val resolvedCollaborators by produceState<List<VideoCollaborator>>(
         initialValue = emptyList(),
-        key1 = entry.videoId
+        key1 = entry.videoId,
+        key2 = entry.channelName,
     ) {
-        value = VideoCollaboratorResolver.resolve(entry.videoId)
+        value = if (entry.channelName.hasLikelyCollaborationByline()) {
+            VideoCollaboratorResolver.resolve(entry.videoId)
+        } else {
+            emptyList()
+        }
     }
     val displayChannelName = rememberCollaboratorChannelDisplayName(entry.channelName, resolvedCollaborators)
 

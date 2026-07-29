@@ -21,11 +21,18 @@ object ThumbnailUrlResolver {
         return if (id.isEmpty()) "" else "https://i.ytimg.com/vi/$id/maxresdefault.jpg"
     }
 
+    /**
+     * Candidate tiers for a feed/list/grid card, best first.
+     *
+     * maxresdefault is deliberately excluded: YouTube only generates it for a subset of videos,
+     * so requesting it from a card costs a failed round trip before the fallback on every video
+     * that lacks it, and when it does exist it is 1920x1080 for a surface that never shows more
+     * than roughly a third of those pixels. hq720 is already >= the widest phone card.
+     */
     fun youtubeThumbnailCandidates(videoId: String): List<String> {
         val id = videoId.trim()
         if (id.isEmpty()) return emptyList()
         return listOf(
-            "https://i.ytimg.com/vi/$id/maxresdefault.jpg",
             "https://i.ytimg.com/vi/$id/hq720.jpg",
             "https://i.ytimg.com/vi/$id/hqdefault.jpg"
         )
@@ -107,7 +114,14 @@ object ThumbnailUrlResolver {
         }
     }
 
-    fun resolveChannelAvatar(rawUrl: String?, size: Int = 512): String {
+    /**
+     * Edge length for channel avatars on list/card surfaces, where they render at roughly
+     * 24-48 dp. 176 px stays sharp past 4x density while requesting ~8x fewer pixels than the
+     * previous 512 px default. Pass an explicit [size] for genuinely large avatar surfaces.
+     */
+    const val AVATAR_SIZE_LIST = 176
+
+    fun resolveChannelAvatar(rawUrl: String?, size: Int = AVATAR_SIZE_LIST): String {
         val raw = rawUrl?.trim().orEmpty()
         if (raw.isEmpty()) return ""
 

@@ -431,9 +431,15 @@ fun GlobalPlayerOverlay(
         screenState.onInteraction()
     }
     
+    val isMinimized by remember(playerSheetState) {
+        derivedStateOf { playerSheetState.fraction > 0.5f }
+    }
+
     PositionTrackingEffect(
         isPlaying = playerState.playWhenReady,
-        screenState = screenState
+        screenState = screenState,
+        showsPreciseProgress = !isMinimized && !localIsInPipMode &&
+            (screenState.showControls || !screenState.isFullscreen)
     )
 
     PlaybackRefocusEffect(
@@ -627,9 +633,6 @@ fun GlobalPlayerOverlay(
     }
     
     // ===== UI =====
-    val isMinimized by remember(playerSheetState) {
-        derivedStateOf { playerSheetState.fraction > 0.5f }
-    }
     val density = LocalDensity.current
     val floatingSponsorSkipBottomPadding = if (screenState.isFullscreen) {
         maxOf(sponsorSkipBottomInset + 128.dp, 136.dp)
@@ -1065,7 +1068,7 @@ fun GlobalPlayerOverlay(
                                 isPlaying = playerState.playWhenReady,
                                 hasEnded = playerState.hasEnded,
                                 isBuffering = playerState.isBuffering,
-                                currentPosition = screenState.currentPosition,
+                                currentPosition = { screenState.currentPosition },
                                 duration = screenState.duration,
                                 qualityLabel = resolvePlayerQualityLabel(
                                     currentQuality = playerState.currentQuality,

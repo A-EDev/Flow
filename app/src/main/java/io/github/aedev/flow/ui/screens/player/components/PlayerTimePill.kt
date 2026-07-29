@@ -34,13 +34,19 @@ import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 
 @Composable
 fun PlayerTimePill(
-    currentPosition: Long,
+    /**
+     * Position provider rather than a value, so the playhead tick recomposes this pill instead of
+     * the whole player-controls overlay that hosts it.
+     */
+    positionProvider: () -> Long,
     duration: Long,
     isLive: Boolean,
     showRemainingTime: Boolean,
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
+    val currentPosition = positionProvider()
+
     Surface(
         color = Color.Black.copy(alpha = 0.4f),
         shape = CircleShape,

@@ -13,6 +13,25 @@ IMPROVEMENTS
 - Improve EQ and add it for video player #781
 - Improve playback speed 
 
+PERFORMANCE
+- Faster cold start and smoother scrolling
+- Lower idle CPU and battery drain
+- Ship a baseline profile and enable strong skipping
+- Rebuild ambient mode on a lighter render path
+- Move player setup off the startup path
+- Share card settings and watch progress across feeds
+- Consolidate playback position onto one tick
+- Add stable list keys across feeds and search
+- Load thumbnails at display size
+- Draw waveform and mini-player progress instead of laying them out
+
+BUILD AND CI
+- Add automated Kotlin formatting checks with ktlint and Spotless
+- Reduce APK size with ABI-specific releases, resource shrinking, and dependency cleanup
+- Improve ABI-aware app updates and GitHub/FOSS release packaging
+- Speed up builds with KSP, Gradle caching, improved parallelism, and CI daemon reuse
+- Remove obsolete playback and download code
+
 FIXES AND STABILITY
 - Fix crash issues
 

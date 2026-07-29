@@ -16,12 +16,14 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
-import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -30,9 +32,6 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.room.withTransaction
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.util.concurrent.TimeUnit
 
 class SubscriptionsViewModel : ViewModel() {
     companion object {
@@ -46,12 +45,9 @@ class SubscriptionsViewModel : ViewModel() {
         private const val SUBSCRIPTION_FEED_LOOKBACK_DAYS = 60L
         private const val SUBSCRIPTION_CACHE_WINDOW_MS = SUBSCRIPTION_FEED_LOOKBACK_DAYS * 24L * 60L * 60L * 1000L
         private const val MAX_SUBSCRIPTION_CACHE_ITEMS = 1500
-        private const val MISSING_DURATION_ENRICHMENT_LIMIT = 96
-        private const val DURATION_ENRICHMENT_BATCH_SIZE = 8
+        private const val DURATION_ENRICHMENT_BATCH_SIZE = 3
         private const val DURATION_METADATA_TIMEOUT_MS = 4_000L
-        private const val THUMBNAIL_PROMOTION_LIMIT = 96
-        private const val THUMBNAIL_PROMOTION_BATCH_SIZE = 8
-        private const val THUMBNAIL_PROMOTION_TIMEOUT_MS = 3_000L
+        private const val DURATION_RETRY_AFTER_MS = 30 * 60 * 1_000L
         private const val SUSPICIOUS_FRESH_TIMESTAMP_MS = 5L * 60L * 1000L
         private const val RELATIVE_TIME_TICK_MS = 60L * 1000L
     }
@@ -74,15 +70,10 @@ class SubscriptionsViewModel : ViewModel() {
     private var unplayableVideoIds: Set<String> = emptySet()
     private var excludedShortsChannelIds: Set<String> = emptySet()
     private var observedChannelIds: List<String>? = null
-    private var isDurationEnrichmentRunning = false
-    private val durationEnrichmentAttemptedIds = mutableSetOf<String>()
-    private val thumbnailPromotionAttemptedIds = mutableSetOf<String>()
-    private val thumbnailProbeClient: OkHttpClient by lazy {
-        AppProxyManager.applyTo(OkHttpClient.Builder())
-            .followRedirects(true)
-            .callTimeout(THUMBNAIL_PROMOTION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            .build()
-    }
+    private val durationEnrichmentAttemptedAt = mutableMapOf<String, Long>()
+    private var durationEnrichmentJob: Job? = null
+    private var visibleVideoIds: Set<String> = emptySet()
+    private var hasPendingVisibleEnrichment = false
 
     fun initialize(context: Context) {
         if (isInitialized) return
@@ -241,7 +232,6 @@ class SubscriptionsViewModel : ViewModel() {
                 Log.d(TAG, "Cache observer: calling updateVideos with ${videos.size} videos")
                 latestFeedVideos = videos
                 updateVideos(videos)
-                scheduleMissingDurationEnrichment(videos)
                 
             }
         }
@@ -400,7 +390,6 @@ class SubscriptionsViewModel : ViewModel() {
                 }
                 latestFeedVideos = mergedVideos
                 updateVideos(mergedVideos)
-                scheduleMissingDurationEnrichment(mergedVideos)
             } else if (cachedBeforeFetch.isNotEmpty()) {
                 withContext(PerformanceDispatcher.diskIO) {
                     playerPreferences.setSubscriptionLastRefresh(refreshTime, cachedBeforeFetch.size)
@@ -570,93 +559,6 @@ class SubscriptionsViewModel : ViewModel() {
                 shorts = groupFilteredShorts.withRelativeUploadDates(sortNow)
             )
         }
-        scheduleThumbnailQualityPromotion(groupFilteredRegular + groupFilteredShorts)
-    }
-
-    private fun scheduleThumbnailQualityPromotion(videos: List<Video>) {
-        val candidates = videos
-            .asSequence()
-            .filter { it.id.isNotBlank() }
-            .distinctBy { it.id }
-            .filter { it.id !in thumbnailPromotionAttemptedIds }
-            .take(THUMBNAIL_PROMOTION_LIMIT)
-            .toList()
-
-        if (candidates.isEmpty()) return
-        thumbnailPromotionAttemptedIds += candidates.map { it.id }
-
-        viewModelScope.launch(PerformanceDispatcher.networkIO) {
-            val promotions = mutableListOf<ThumbnailPromotion>()
-            candidates.chunked(THUMBNAIL_PROMOTION_BATCH_SIZE).forEach { batch ->
-                val promotedBatch = supervisorScope {
-                    batch.map { video ->
-                        async { promoteThumbnailQuality(video) }
-                    }.awaitAll()
-                }.filterNotNull()
-                promotions += promotedBatch
-            }
-            val distinctPromotions = promotions.distinctBy { it.videoId }
-
-            if (distinctPromotions.isEmpty()) return@launch
-
-            withContext(PerformanceDispatcher.diskIO) {
-                distinctPromotions.forEach { promotion ->
-                    cacheDao.updateSubscriptionFeedThumbnail(promotion.videoId, promotion.thumbnailUrl)
-                }
-            }
-
-            val promotedById = distinctPromotions.associate { it.videoId to it.thumbnailUrl }
-            val updatedVideos = latestFeedVideos.map { video ->
-                promotedById[video.id]?.let { thumbnailUrl ->
-                    if (video.thumbnailUrl == thumbnailUrl) video else video.copy(thumbnailUrl = thumbnailUrl)
-                } ?: video
-            }
-
-            if (updatedVideos != latestFeedVideos) {
-                latestFeedVideos = updatedVideos
-                updateVideos(updatedVideos)
-            }
-        }
-    }
-
-    private suspend fun promoteThumbnailQuality(video: Video): ThumbnailPromotion? {
-        val bestThumbnail = ThumbnailUrlResolver.resolveVideoThumbnailCandidates(video.id, video.thumbnailUrl)
-            .firstOrNull { candidate -> canLoadThumbnail(candidate) }
-            ?: return null
-
-        return ThumbnailPromotion(video.id, bestThumbnail)
-    }
-
-    private suspend fun canLoadThumbnail(url: String): Boolean {
-        return withTimeoutOrNull(THUMBNAIL_PROMOTION_TIMEOUT_MS) {
-            runCatching {
-                val headRequest = thumbnailProbeRequest(url, useHead = true)
-                if (executeThumbnailProbe(headRequest)) return@withTimeoutOrNull true
-
-                val rangeRequest = thumbnailProbeRequest(url, useHead = false)
-                executeThumbnailProbe(rangeRequest)
-            }.getOrDefault(false)
-        } ?: false
-    }
-
-    private fun thumbnailProbeRequest(url: String, useHead: Boolean): Request {
-        val builder = Request.Builder()
-            .url(url)
-            .header("User-Agent", "Mozilla/5.0")
-
-        return if (useHead) {
-            builder.head().build()
-        } else {
-            builder.header("Range", "bytes=0-0").build()
-        }
-    }
-
-    private fun executeThumbnailProbe(request: Request): Boolean {
-        thumbnailProbeClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return false
-            val contentType = response.header("Content-Type").orEmpty()
-            return contentType.isBlank() || contentType.startsWith("image/", ignoreCase = true)
-        }
     }
 
     private fun List<Video>.withHighQualityThumbnails(): List<Video> =
@@ -690,37 +592,62 @@ class SubscriptionsViewModel : ViewModel() {
         }
     }
 
-    private fun scheduleMissingDurationEnrichment(videos: List<Video>) {
-        if (videos.isEmpty() || isDurationEnrichmentRunning) return
+    fun updateVisibleVideoIds(videoIds: Set<String>) {
+        visibleVideoIds = videoIds
+        if (videoIds.isEmpty()) {
+            hasPendingVisibleEnrichment = false
+            durationEnrichmentJob?.cancel()
+            durationEnrichmentJob = null
+            return
+        }
+        scheduleVisibleDurationEnrichment()
+    }
 
-        val candidates = videos
-            .withHighQualityThumbnails()
-            .withSubscriptionAvatars()
-            .withStableUploadSortKeys(System.currentTimeMillis())
-            .filter { video ->
-                video.id.isNotBlank() &&
-                    video.duration <= 0 &&
-                    !video.isLive &&
-                    !video.isUpcoming &&
-                    video.id !in durationEnrichmentAttemptedIds
-            }
-            .take(MISSING_DURATION_ENRICHMENT_LIMIT)
+    private fun scheduleVisibleDurationEnrichment() {
+        if (durationEnrichmentJob?.isActive == true) {
+            hasPendingVisibleEnrichment = true
+            return
+        }
 
+        val nowMillis = System.currentTimeMillis()
+        val visibleWindow = visibleSubscriptionEnrichmentWindow(
+            videos = _uiState.value.recentVideos,
+            visibleVideoIds = visibleVideoIds,
+        )
+        val candidates = missingDurationCandidates(
+            videos = visibleWindow,
+            attemptedAtMillis = durationEnrichmentAttemptedAt,
+            nowMillis = nowMillis,
+            retryAfterMillis = DURATION_RETRY_AFTER_MS,
+        )
         if (candidates.isEmpty()) return
 
-        durationEnrichmentAttemptedIds += candidates.map { it.id }
-        isDurationEnrichmentRunning = true
-
-        viewModelScope.launch(PerformanceDispatcher.networkIO) {
-            var appliedCount = 0
+        hasPendingVisibleEnrichment = false
+        durationEnrichmentJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val runningJob = coroutineContext[Job]
             try {
-                Log.d(TAG, "Enriching ${candidates.size} subscription durations via player() metadata")
-                val enrichedById = enrichMissingDurations(candidates)
-                    .associateBy { it.id }
-                if (enrichedById.isEmpty()) return@launch
-                appliedCount = enrichedById.size
+                Log.d(TAG, "Enriching ${candidates.size} visible subscription durations")
+                val enrichedById = mutableMapOf<String, Video>()
+                candidates.chunked(DURATION_ENRICHMENT_BATCH_SIZE).forEach { batch ->
+                    val enrichedBatch = supervisorScope {
+                        batch.map { video ->
+                            async(PerformanceDispatcher.networkIO) {
+                                fetchDurationFromPlayerMetadata(video)
+                            }
+                        }.awaitAll()
+                    }
+                    withContext(Dispatchers.Main.immediate) {
+                        val attemptedAt = System.currentTimeMillis()
+                        batch.forEach { video ->
+                            durationEnrichmentAttemptedAt[video.id] = attemptedAt
+                        }
+                    }
+                    enrichedBatch.filterNotNull().associateByTo(enrichedById) { it.id }
+                }
 
-                val currentVideos = latestFeedVideos.ifEmpty { videos }
+                if (enrichedById.isEmpty()) return@launch
+
+                val currentVideos = latestFeedVideos
                 val mergedVideos = currentVideos.map { video ->
                     enrichedById[video.id]?.let { enriched ->
                         video.copy(
@@ -740,35 +667,34 @@ class SubscriptionsViewModel : ViewModel() {
                 latestFeedVideos = mergedVideos
                 updateVideos(mergedVideos)
 
-                val refreshTime = System.currentTimeMillis()
-                val entities = mergedVideos.map { it.toSubscriptionFeedEntity(refreshTime) }
                 withContext(PerformanceDispatcher.diskIO) {
                     database.withTransaction {
-                        cacheDao.clearSubscriptionFeed()
-                        cacheDao.insertSubscriptionFeed(entities)
+                        enrichedById.values.forEach { enriched ->
+                            cacheDao.updateSubscriptionFeedMetadata(
+                                videoId = enriched.id,
+                                title = enriched.title,
+                                channelName = enriched.channelName,
+                                channelId = enriched.channelId,
+                                thumbnailUrl = enriched.thumbnailUrl,
+                                duration = enriched.duration,
+                                viewCount = enriched.viewCount,
+                                isLive = enriched.isLive,
+                            )
+                        }
                     }
-                    playerPreferences.setSubscriptionLastRefresh(refreshTime, mergedVideos.size)
                 }
                 Log.d(TAG, "Duration enrichment applied to ${enrichedById.size} subscription videos")
             } finally {
-                isDurationEnrichmentRunning = false
-                if (appliedCount > 0) {
-                    latestFeedVideos.takeIf { it.isNotEmpty() }?.let(::scheduleMissingDurationEnrichment)
+                withContext(NonCancellable + Dispatchers.Main.immediate) {
+                    if (durationEnrichmentJob === runningJob) {
+                        durationEnrichmentJob = null
+                        if (hasPendingVisibleEnrichment && visibleVideoIds.isNotEmpty()) {
+                            scheduleVisibleDurationEnrichment()
+                        }
+                    }
                 }
             }
         }
-    }
-
-    private suspend fun enrichMissingDurations(videos: List<Video>): List<Video> = supervisorScope {
-        val enriched = mutableListOf<Video>()
-        videos.chunked(DURATION_ENRICHMENT_BATCH_SIZE).forEach { batch ->
-            enriched += batch.map { video ->
-                async(PerformanceDispatcher.networkIO) {
-                    fetchDurationFromPlayerMetadata(video)
-                }
-            }.awaitAll().filterNotNull()
-        }
-        enriched
     }
 
     private suspend fun fetchDurationFromPlayerMetadata(video: Video): Video? {
@@ -1167,11 +1093,6 @@ data class SubscriptionsUiState(
     val showSubscriptionShorts: Boolean = true,
     val showSubscriptionLive: Boolean = true,
     val excludedShortsChannelIds: Set<String> = emptySet()
-)
-
-private data class ThumbnailPromotion(
-    val videoId: String,
-    val thumbnailUrl: String
 )
 
 data class SubscriptionGroup(

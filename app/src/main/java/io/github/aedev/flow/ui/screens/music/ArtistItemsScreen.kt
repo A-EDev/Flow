@@ -138,7 +138,7 @@ fun ArtistItemsScreen(
                         state = lazyListState,
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
-                        items(artistItemsPage.items) { item ->
+                        items(artistItemsPage.items, key = { it.id }) { item ->
                             if (item is SongItem) {
                                 val track = item.toMusicTrack()
                                 TrackListItem(
@@ -166,7 +166,7 @@ fun ArtistItemsScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(artistItemsPage.items) { item ->
+                        items(artistItemsPage.items, key = { it.id }) { item ->
                             ArtistGridItem(
                                 item = item,
                                 onActionClick = when (item) {

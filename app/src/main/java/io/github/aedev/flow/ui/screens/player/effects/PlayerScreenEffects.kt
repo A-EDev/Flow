@@ -215,19 +215,37 @@ private fun resolveLiveTimelineDuration(player: Player): Long? {
     return liveDuration.takeIf { it > 0L }
 }
 
+/**
+ * Polls the player position into [screenState].
+ *
+ * [showsPreciseProgress] must be true only while a surface renders a moving playhead — in practice
+ * the expanded controls' seek bar. The mini-player's progress bar, the chapter list and the
+ * comment timestamps all resolve to whole seconds, so outside that case the slow interval is
+ * indistinguishable on screen while costing a quarter of the wakeups and recompositions.
+ *
+ * SponsorBlock skipping and watch-history writes deliberately do not depend on this: they run off
+ * `PlaybackTracker` inside the player, so lowering the UI refresh rate cannot make a skip late.
+ */
 @Composable
 fun PositionTrackingEffect(
     isPlaying: Boolean,
-    screenState: PlayerScreenState
+    screenState: PlayerScreenState,
+    showsPreciseProgress: Boolean
 ) {
-    LaunchedEffect(isPlaying) {
+    LaunchedEffect(isPlaying, showsPreciseProgress) {
         while (true) {
             EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
                 if (player.playbackState != Player.STATE_IDLE) {
                     updateScreenPositionFromPlayer(player, screenState)
                 }
             }
-            delay(if (isPlaying) ACTIVE_POSITION_TRACKING_INTERVAL_MS else IDLE_POSITION_TRACKING_INTERVAL_MS)
+            delay(
+                if (isPlaying && showsPreciseProgress) {
+                    ACTIVE_POSITION_TRACKING_INTERVAL_MS
+                } else {
+                    IDLE_POSITION_TRACKING_INTERVAL_MS
+                }
+            )
         }
     }
 }

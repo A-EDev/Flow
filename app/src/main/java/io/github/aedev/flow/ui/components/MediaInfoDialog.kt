@@ -189,7 +189,7 @@ fun MediaInfoDialog(
                         details.add(durationLabel to formatDuration(it))
                     }
 
-                    items(details.filter { it.second != null }) { (label, value) ->
+                    items(details.filter { it.second != null }, key = { it.first }) { (label, value) ->
                         InfoItem(label, value!!)
                     }
                     

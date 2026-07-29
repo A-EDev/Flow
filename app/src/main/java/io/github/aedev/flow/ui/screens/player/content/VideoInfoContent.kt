@@ -34,6 +34,7 @@ import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
@@ -70,15 +71,17 @@ fun VideoInfoContent(
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
     val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled)
     val resolvedVideoTitle = deArrowResult?.title ?: uiState.streamInfo?.name ?: video.title
+    val needsCollaboratorResolution = video.needsCollaboratorResolution()
     val resolvedCollaborators by produceState(
         initialValue = video.collaborators,
         key1 = video.id,
-        key2 = video.collaborators
+        key2 = video.collaborators,
+        key3 = needsCollaboratorResolution,
     ) {
-        value = if (video.collaborators.size > 1) {
-            video.collaborators
-        } else {
+        value = if (needsCollaboratorResolution) {
             VideoCollaboratorResolver.resolve(video.id)
+        } else {
+            video.collaborators
         }
     }
     val resolvedChannelName = remember(video.channelName, uiState.streamInfo?.uploaderName, resolvedCollaborators) {

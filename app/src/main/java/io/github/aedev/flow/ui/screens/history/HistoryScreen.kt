@@ -71,6 +71,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.components.ShortsCard
 import io.github.aedev.flow.ui.screens.music.MusicTrack
@@ -598,9 +599,14 @@ private fun HistoryVideoCard(
 ) {
     val resolvedCollaborators by produceState<List<VideoCollaborator>>(
         initialValue = emptyList(),
-        key1 = entry.videoId
+        key1 = entry.videoId,
+        key2 = entry.channelName,
     ) {
-        value = VideoCollaboratorResolver.resolve(entry.videoId)
+        value = if (entry.channelName.hasLikelyCollaborationByline()) {
+            VideoCollaboratorResolver.resolve(entry.videoId)
+        } else {
+            emptyList()
+        }
     }
     val displayChannelName = remember(entry.channelName, resolvedCollaborators) {
         resolvedCollaborators

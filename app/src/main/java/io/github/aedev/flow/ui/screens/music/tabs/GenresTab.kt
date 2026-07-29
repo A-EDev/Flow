@@ -22,7 +22,7 @@ fun GenresTab(
         contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 80.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(genres) { genre ->
+        items(genres, key = { it }) { genre ->
             GenreCard(
                 genre = genre,
                 trackCount = genreTracks[genre]?.size ?: 0,

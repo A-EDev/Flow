@@ -167,14 +167,6 @@
             </intent-filter>
         </activity>
         
-        <!-- Music Playback Service for notifications and media controls (Legacy) -->
-        <!-- <service
-            android:name=".service.MusicPlaybackService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback">
-        </service> -->
-
         <!-- Media3 Music Service -->
         <service
             android:name=".service.Media3MusicService"
