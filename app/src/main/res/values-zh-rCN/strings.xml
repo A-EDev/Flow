@@ -1960,7 +1960,6 @@
     <string name="content_settings_hide_unplayable_subscriptions_title">将无法播放视频从订阅中隐藏</string>
     <string name="discord_presence_connect_action">连接</string>
     <string name="discord_presence_risk_accept">我理解，连接</string>
-    <string name="cannot_delete_the_current_video">无法删除当前播放的视频</string>
     <string name="remove_from_queue">从队列中移除</string>
     <string name="remove_from_queue_confirmation">您确定要从队列中移除此视频吗？</string>
 </resources>

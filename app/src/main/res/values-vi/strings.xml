@@ -599,7 +599,6 @@
     <string name="style_metrolist_slim">Mặc định</string>
     <string name="style_squiggly">Lượn sóng</string>
     <string name="style_slim">Siêu mảnh</string>
-    <string name="cannot_delete_the_current_video">Không thể xóa video đang phát</string>
     <string name="remove_from_queue">Xóa khỏi danh sách chờ</string>
     <string name="remove_from_queue_confirmation">Bạn có chắc chắn muốn xóa video này khỏi danh sách chờ không?</string>
     <string name="player_appearance_gestures_header">Cử chỉ</string>

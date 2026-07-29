@@ -788,7 +788,6 @@
     <string name="fallback_unknown_artist">Artista desconhecido</string>
     <string name="fallback_unknown_playlist">Lista de reprodução desconhecida</string>
     <string name="fallback_unknown_channel">canal desconhecido</string>
-    <string name="cannot_delete_the_current_video">O vídeo que está sendo reproduzido no momento não pode ser removido</string>
     <string name="remove_from_queue">Remover da fila</string>
     <string name="remove_from_queue_confirmation">Tem certeza de que deseja remover este vídeo da fila?</string>
     <string name="appearance_role_surface_container_lowest">Container de superfície mais baixo</string>

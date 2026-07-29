@@ -1192,7 +1192,6 @@
     <string name="playlist_video_added_template">%1$s जोड़ा गया</string>
     <string name="upcoming_label">आगामी</string>
     <string name="upcoming_waiting_count">%1$s का इंतजार</string>
-    <string name="cannot_delete_the_current_video">अभी चल रहे वीडियो को हटाया नहीं जा सकता</string>
     <string name="remove_from_queue">कतार से हटाएँ</string>
     <string name="remove_from_queue_confirmation">क्या आप वाकई इस वीडियो को कतार से हटाना चाहते हैं?</string>
 </resources>

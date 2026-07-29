@@ -243,11 +243,7 @@ fun PlayerBottomSheetsContainer(
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
             onDeleteVideoAtIndex = { index ->
-            val deleted = EnhancedPlayerManager.getInstance().deleteVideoAtIndex(index)
-                if (!deleted){
-                    Toast.makeText(context,
-                        context.getString(R.string.cannot_delete_the_current_video), Toast.LENGTH_SHORT).show()
-                }
+                EnhancedPlayerManager.getInstance().deleteVideoAtIndex(index)
             },
         )
     }

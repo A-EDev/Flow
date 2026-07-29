@@ -2134,7 +2134,6 @@
     <string name="fallback_your_watch_later_list">Daha Sonra İzle listen</string>
     <string name="fallback_downloaded_locally">Cihaza indirildi</string>
     <string name="fallback_more_results">Daha fazla sonuç</string>
-    <string name="cannot_delete_the_current_video">Şu anda oynatılan video kaldırılamaz</string>
     <string name="remove_from_queue">Sıradan kaldır</string>
     <string name="remove_from_queue_confirmation">Bu videoyu sıradan kaldırmak istediğinizden emin misiniz?</string>
 </resources>

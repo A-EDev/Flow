@@ -144,7 +144,6 @@
     <string name="unsubscribe">Přestat sledovat</string>
     <string name="check_out_video_template">Podívejte se na toto video: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
-    <string name="cannot_delete_the_current_video">Právě přehrávané video nelze odstranit</string>
     <string name="remove_from_queue">Odstranit z fronty</string>
     <string name="remove_from_queue_confirmation">Opravdu chcete toto video odstranit z fronty?</string>
 </resources>

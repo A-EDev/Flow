@@ -78,7 +78,6 @@
     <string name="btn_close">Mdel</string>
     <string name="action_comments">Iwenniten</string>
     <string name="action_save">Sekles</string>
-    <string name="cannot_delete_the_current_video">Ur tezmired ara ad tekkseḍ uvidyu i iteddun tura</string>
     <string name="remove_from_queue">Kkes seg umazrar</string>
     <string name="remove_from_queue_confirmation">Tebɣid ad tekkseḍ uvidyu-agi seg umazrar?</string>
 </resources>

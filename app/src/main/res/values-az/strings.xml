@@ -2132,7 +2132,6 @@
     <string name="fallback_your_watch_later_list">“Sonra bax” siyahınız</string>
     <string name="fallback_downloaded_locally">Cihaza endirilib</string>
     <string name="fallback_more_results">Daha çox nəticə</string>
-    <string name="cannot_delete_the_current_video">Hazırda oxudulan videonu silmək olmaz</string>
     <string name="remove_from_queue">Növbədən sil</string>
     <string name="remove_from_queue_confirmation">Bu videonu növbədən silmək istədiyinizə əminsiniz?</string>
 </resources>

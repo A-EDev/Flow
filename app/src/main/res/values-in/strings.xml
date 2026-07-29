@@ -1882,7 +1882,6 @@
     <string name="appearance_selected">Dipilih</string>
     <string name="content_settings_shorts_player_prompt_title">Saran pemutar Shorts</string>
     <string name="content_settings_shorts_player_prompt_subtitle">Tanyakan sebelum mengalihkan video berdurasi kurang dari 2 menit ke pemutar Shorts</string>
-    <string name="cannot_delete_the_current_video">Video yang sedang diputar tidak dapat dihapus</string>
     <string name="remove_from_queue">Hapus dari antrean</string>
     <string name="remove_from_queue_confirmation">Apakah Anda yakin ingin menghapus video ini dari antrean?</string>
 </resources>

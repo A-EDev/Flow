@@ -472,7 +472,6 @@
     <string name="empty_liked_music">Nema omiljene muzike</string>
     <string name="empty_liked_music_body">Pjesme koje volite će se ovdje pojaviti</string>
     <string name="download_all">Preuzmi sve</string>
-    <string name="cannot_delete_the_current_video">Trenutno reproducirani video se ne može ukloniti</string>
     <string name="remove_from_queue">Ukloni iz reda čekanja</string>
     <string name="remove_from_queue_confirmation">Jeste li sigurni da želite ukloniti ovaj video iz reda čekanja?</string>
 </resources>

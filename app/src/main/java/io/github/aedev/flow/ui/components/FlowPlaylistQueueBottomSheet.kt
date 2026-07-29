@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.DeleteOutline
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
@@ -272,6 +273,7 @@ fun PlaylistQueueItem(
     onDelete: () -> Unit,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -352,7 +354,34 @@ fun PlaylistQueueItem(
                 overflow = TextOverflow.Ellipsis
             )
         }
+
+        if (!isPlaying) {
+            Box {
+                IconButton(
+                    onClick = { expanded = true }
+                ) {
+                    Icon(Icons.Default.MoreVert, contentDescription = null)
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.remove)) },
+                        onClick = {
+                            expanded = false
+                            showDeleteDialog = true
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Delete, contentDescription = null)
+                        }
+                    )
+                }
+            }
+        }
     }
+
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = {

@@ -2303,7 +2303,6 @@
     <string name="fallback_your_watch_later_list">Tu lista de \"Ver más tarde\"</string>
     <string name="fallback_downloaded_locally">Descargado localmente</string>
     <string name="fallback_more_results">Más resultados</string>
-    <string name="cannot_delete_the_current_video">No se puede eliminar el video que se está reproduciendo actualmente</string>
     <string name="remove_from_queue">Eliminar de la cola</string>
     <string name="remove_from_queue_confirmation">¿Estás seguro de que quieres eliminar este video de la cola?</string>
 </resources>

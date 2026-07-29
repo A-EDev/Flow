@@ -2411,7 +2411,6 @@
     <string name="fallback_your_watch_later_list">Your watch later list</string>
     <string name="fallback_downloaded_locally">Downloaded locally</string>
     <string name="fallback_more_results">More results</string>
-    <string name="cannot_delete_the_current_video">The currently playing video can\'t be removed</string>
     <string name="remove_from_queue">Remove from queue</string>
     <string name="remove_from_queue_confirmation">Are you sure you want to remove this video from the queue?</string>
 </resources>
