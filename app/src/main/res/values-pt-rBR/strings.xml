@@ -813,4 +813,15 @@
     <string name="theme_name_material_you">Material You</string>
     <string name="theme_desc_material_you">Cores de fundo no Android 12 e versões posteriores</string>
     <string name="theme_name_pure_light">Luz Pura</string>
+    <string name="theme_name_mint_fresh">Menta Fresca</string>
+    <string name="theme_desc_mint_fresh">Refrescante e agradável</string>
+    <string name="theme_name_rose_petal">Pétala de rosa</string>
+    <string name="theme_desc_rose_petal">Acolhedor e gentil</string>
+    <string name="theme_desc_sky_blue">Aberto e arejado</string>
+    <string name="theme_name_cream_paper">Papel creme</string>
+    <string name="theme_name_true_black">Preto puro</string>
+    <string name="theme_desc_true_black">OLED Puro</string>
+    <string name="theme_name_monochrome">Monocromático</string>
+    <string name="theme_desc_monochrome">Branco puro e preto e branco</string>
+    <string name="theme_desc_midnight">Profundo e focado</string>
 </resources>
