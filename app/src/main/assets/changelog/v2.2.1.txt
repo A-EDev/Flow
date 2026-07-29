@@ -13,6 +13,12 @@ IMPROVEMENTS
 - Improve EQ and add it for video player #781
 - Improve playback speed 
 
+BUILD AND CI
+- Reduce APK size with ABI-specific releases, resource shrinking, and dependency cleanup
+- Improve ABI-aware app updates and GitHub/FOSS release packaging
+- Speed up builds with KSP, Gradle caching, improved parallelism, and CI daemon reuse
+- Remove obsolete playback and download code
+
 FIXES AND STABILITY
 - Fix crash issues
 

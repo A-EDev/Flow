@@ -3,6 +3,7 @@ package io.github.aedev.flow.utils
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +17,11 @@ data class UpdateInfo(
     val changelog: String,    // The release notes
     val downloadUrl: String,  // Link to the .apk or the release page
     val isNewer: Boolean
+)
+
+internal data class ReleaseAsset(
+    val name: String,
+    val downloadUrl: String
 )
 
 object UpdateManager {
@@ -43,19 +49,25 @@ object UpdateManager {
             val remoteTag = json.optString("tag_name", "").removePrefix("v").split("-").first()
             val currentTag = currentVersionName.removePrefix("v").split("-").first()
 
-            // 2. Get Download URL (Prioritize APK asset, fallback to browser link)
+            // 2. Get the APK matching this device, or fall back to the release page.
             val assets = json.optJSONArray("assets")
-            var downloadUrl = json.optString("html_url") // Default to GitHub page
-            
+            val releaseAssets = mutableListOf<ReleaseAsset>()
             if (assets != null && assets.length() > 0) {
                 for (i in 0 until assets.length()) {
                     val asset = assets.getJSONObject(i)
-                    if (asset.getString("name").endsWith(".apk")) {
-                        downloadUrl = asset.getString("browser_download_url")
-                        break
+                    val name = asset.optString("name")
+                    if (name.endsWith(".apk", ignoreCase = true)) {
+                        releaseAssets += ReleaseAsset(
+                            name = name,
+                            downloadUrl = asset.optString("browser_download_url")
+                        )
                     }
                 }
             }
+            val downloadUrl = selectApkDownloadUrl(
+                assets = releaseAssets,
+                supportedAbis = Build.SUPPORTED_ABIS.asList()
+            ) ?: json.optString("html_url")
 
             // 3. Compare Versions
             if (isNewer(remoteTag, currentTag)) {
@@ -93,6 +105,38 @@ object UpdateManager {
             if (r < c) return false
         }
         return false
+    }
+
+    internal fun selectApkDownloadUrl(
+        assets: List<ReleaseAsset>,
+        supportedAbis: List<String>
+    ): String? {
+        val githubAssets = assets.filterNot {
+            it.name.startsWith("flow-foss-", ignoreCase = true)
+        }
+        val splitAssets = githubAssets.filter {
+            it.name.equals("flow-arm64-v8a.apk", ignoreCase = true) ||
+                it.name.equals("flow-armeabi-v7a.apk", ignoreCase = true)
+        }
+
+        if (splitAssets.isNotEmpty()) {
+            val preferredNames = supportedAbis.mapNotNull { abi ->
+                when (abi) {
+                    "arm64-v8a" -> "flow-arm64-v8a.apk"
+                    "armeabi-v7a" -> "flow-armeabi-v7a.apk"
+                    else -> null
+                }
+            }
+            return preferredNames.firstNotNullOfOrNull { preferredName ->
+                splitAssets.firstOrNull {
+                    it.name.equals(preferredName, ignoreCase = true)
+                }?.downloadUrl
+            }
+        }
+
+        return githubAssets.firstOrNull {
+            it.name.equals("flow.apk", ignoreCase = true)
+        }?.downloadUrl ?: githubAssets.firstOrNull()?.downloadUrl
     }
 
     // Helper to open browser
