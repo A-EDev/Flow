@@ -2131,4 +2131,7 @@
     <string name="fallback_your_watch_later_list">나중에 볼 동영상 목록</string>
     <string name="fallback_downloaded_locally">로컬에 다운로드됨</string>
     <string name="fallback_more_results">결과 더보기</string>
+    <string name="cannot_delete_the_current_video">현재 재생 중인 동영상은 삭제할 수 없습니다</string>
+    <string name="remove_from_queue">재생 대기열에서 제거</string>
+    <string name="remove_from_queue_confirmation">이 동영상을 재생 대기열에서 제거하시겠습니까?</string>
 </resources>

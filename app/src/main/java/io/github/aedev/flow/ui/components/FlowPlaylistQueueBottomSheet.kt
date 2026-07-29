@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.DeleteOutline
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
@@ -63,7 +65,8 @@ fun FlowPlaylistQueueBottomSheet(
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onDeleteVideoAtIndex: (Int) -> Unit
 ) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -112,7 +115,7 @@ fun FlowPlaylistQueueBottomSheet(
             latestOnDismiss()
         }
     }
-    
+
     LaunchedEffect(expandedHeightPx, collapsedHeightPx) {
         isAnimatingOut = false
         sheetHeightPx.updateBounds(lowerBound = collapsedHeightPx, upperBound = expandedHeightPx)
@@ -248,6 +251,9 @@ fun FlowPlaylistQueueBottomSheet(
                             isPlaying = index == currentQueueIndex,
                             onClick = {
                                 onPlayVideoAtIndex(index)
+                            },
+                            onDelete = {
+                                onDeleteVideoAtIndex(index)
                             }
                         )
                     }
@@ -262,8 +268,10 @@ fun PlaylistQueueItem(
     video: Video,
     index: Int,
     isPlaying: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -286,7 +294,7 @@ fun PlaylistQueueItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            
+
             if (isPlaying) {
                 Box(
                     modifier = Modifier
@@ -313,7 +321,7 @@ fun PlaylistQueueItem(
                     } else {
                         String.format("%d:%02d", video.duration / 60, video.duration % 60)
                     }
-                    
+
                     Text(
                         text = durationStr,
                         style = MaterialTheme.typography.labelSmall,
@@ -323,9 +331,9 @@ fun PlaylistQueueItem(
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.width(12.dp))
-        
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = video.title,
@@ -344,5 +352,37 @@ fun PlaylistQueueItem(
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+            },
+            title = {
+                Text(text = stringResource(R.string.remove_from_queue))
+            },
+            text = {
+                Text(text = stringResource(R.string.remove_from_queue_confirmation))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDelete()
+                    }
+                ) {
+                    Text(stringResource(R.string.remove))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 }

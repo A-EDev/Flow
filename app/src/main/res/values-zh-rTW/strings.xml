@@ -161,4 +161,7 @@
     <string name="go_to_channel">前往頻道</string>
     <string name="track_info">曲目詳情</string>
     <string name="track_info_subtitle">詳細的技術和社交指標</string>
+    <string name="cannot_delete_the_current_video">無法刪除目前播放的影片</string>
+    <string name="remove_from_queue">從播放佇列中移除</string>
+    <string name="remove_from_queue_confirmation">你確定要從播放佇列中移除這段影片嗎？</string>
 </resources>

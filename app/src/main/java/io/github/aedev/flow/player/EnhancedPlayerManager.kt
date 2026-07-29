@@ -103,29 +103,29 @@ class EnhancedPlayerManager private constructor() {
         private const val MAX_PRELOAD_RETRIES = 3
         private const val AUTO_NEXT_TAG = "FlowVideoAutoNext"
         private val QUALITY_HEIGHT_REGEX = Regex("""(\d+)p""")
-        
+
         @Volatile
         private var instance: EnhancedPlayerManager? = null
-        
+
         fun getInstance(): EnhancedPlayerManager {
             return instance ?: synchronized(this) {
                 instance ?: EnhancedPlayerManager().also { instance = it }
             }
         }
     }
-    
+
     // Core player components
     private var player: ExoPlayer? = null
     private var trackSelector: DefaultTrackSelector? = null
     private var bandwidthMeter: DefaultBandwidthMeter? = null
     private var videoEqualizer: CustomEqualizerAudioProcessor? = null
     private var eqObserverStarted = false
-    
+
     // State management
     private val _playerState = MutableStateFlow(EnhancedPlayerState())
     val playerState: StateFlow<EnhancedPlayerState> = _playerState.asStateFlow()
     val hasQueue: Flow<Boolean> = playerState.queuePresence()
-    
+
     // Stream data
     private var currentVideoId: String? = null
     private var availableVideoStreams: List<VideoStream> = emptyList()
@@ -136,7 +136,7 @@ class EnhancedPlayerManager private constructor() {
     private var selectedSubtitleIndex: Int? = null
     private var innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
     private var innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
-    
+
     // Duration and manifest info
     private var currentDurationSeconds: Long = -1
     private var currentDashManifestUrl: String? = null
@@ -150,7 +150,7 @@ class EnhancedPlayerManager private constructor() {
     private var pendingLiveDisplaySeekPositionMs: Long? = null
     private var pendingLiveDisplaySeekAtMs: Long = 0L
     private var pendingInitialLiveEdgeSeek = false
-    
+
     private var currentSabrInfo: SabrStreamInfo? = null
     private var sabrPreferred = false
 
@@ -181,10 +181,10 @@ class EnhancedPlayerManager private constructor() {
     private var autoplayCountdownJob: Job? = null
     private val _autoplayCountdown = MutableStateFlow(AutoplayCountdownState())
     val autoplayCountdown: StateFlow<AutoplayCountdownState> = _autoplayCountdown.asStateFlow()
-    
+
     // Application context
     private var appContext: Context? = null
-    
+
     // Coroutine scope
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -360,7 +360,7 @@ class EnhancedPlayerManager private constructor() {
     fun endBackgroundRecovery() {
         isRecoveringFromBackground = false
     }
-    
+
     // Modular components
     private val playerFactory = PlayerFactory()
     private val backgroundServiceManager = BackgroundServiceManager()
@@ -382,11 +382,11 @@ class EnhancedPlayerManager private constructor() {
 
     private var audioFeaturesManager: AudioFeaturesManager? = null
     private var mediaLoader: MediaLoader? = null
-    
+
     // Public Queue State
     private val _queueVideos = MutableStateFlow<List<Video>>(emptyList())
     val queueVideos: StateFlow<List<Video>> = _queueVideos.asStateFlow()
-    
+
     private val _currentQueueIndex = MutableStateFlow<Int>(-1)
     val currentQueueIndexState: StateFlow<Int> = _currentQueueIndex.asStateFlow()
 
@@ -395,10 +395,10 @@ class EnhancedPlayerManager private constructor() {
         get() = surfaceManager?.isSurfaceReady ?: false
 
     // ===== Initialization =====
-    
+
     fun initialize(context: Context) {
         appContext = context.applicationContext
-        
+
         if (player == null) {
             initializeComponents(context)
             initializePlayer(context)
@@ -434,20 +434,20 @@ class EnhancedPlayerManager private constructor() {
     private fun initializeComponents(context: Context) {
         // Initialize cache manager
         cacheManager = PlayerCacheManager(context).also { it.initialize() }
-        
+
         // Initialize surface manager
         surfaceManager = SurfaceManager(context)
-        
+
         // Initialize sponsor block handler
         sponsorBlockHandler = SponsorBlockHandler(scope)
-        
+
         // Initialize audio features manager
         audioFeaturesManager = AudioFeaturesManager(scope, _playerState)
-        
+
         // Initialize bandwidth meter and track selector via factory
         bandwidthMeter = playerFactory.createBandwidthMeter(context)
         trackSelector = playerFactory.createTrackSelector(context)
-        
+
         // Initialize media loader
         mediaLoader = MediaLoader(context.applicationContext, _playerState, cacheManager, surfaceManager).also { loader ->
             loader.onSabrFallbackNeeded = {
@@ -461,7 +461,7 @@ class EnhancedPlayerManager private constructor() {
                 }
             }
         }
-        
+
         // Initialize quality manager
         qualityManager = QualityManager(
             bandwidthMeter = bandwidthMeter,
@@ -472,7 +472,7 @@ class EnhancedPlayerManager private constructor() {
                 loadMediaInternal(stream, currentAudioStream, position)
             }
         )
-        
+
         // Initialize error handler
         errorHandler = PlayerErrorHandler(
             appContext = context.applicationContext,
@@ -498,7 +498,7 @@ class EnhancedPlayerManager private constructor() {
             setRecoveryState = { errorHandler?.setRecovery() },
             reloadPlaybackManager = { reloadPlaybackManager() }
         )
-        
+
         // Initialize playback tracker
         playbackTracker = PlaybackTracker(
             scope = scope,
@@ -534,7 +534,7 @@ class EnhancedPlayerManager private constructor() {
             }
         )
     }
-    
+
     private fun initializePlayer(context: Context) {
         AudioEffectsController.initialize(context)
         val loadControl = playerFactory.createLoadControl(context)
@@ -561,9 +561,9 @@ class EnhancedPlayerManager private constructor() {
             dataSourceFactory = cacheManager?.getDataSourceFactory()
         )
         player?.addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { currentVideoId })
-        
+
         audioFeaturesManager?.setPlayer(player!!)
-        
+
         // Apply initial loop preference + restore remembered playback speed
         scope.launch {
             val prefs = PlayerPreferences(context)
@@ -574,18 +574,18 @@ class EnhancedPlayerManager private constructor() {
                 if (savedSpeed != 1.0f) setPlaybackSpeed(savedSpeed)
             }
         }
-        
+
         surfaceManager?.reattachSurfaceIfValid(player)
     }
 
     fun setVolumeBoost(volume: Float) {
         audioFeaturesManager?.setVolumeBoost(player, volume)
     }
-    
+
     private fun observePreferences(context: Context) {
         audioFeaturesManager?.observeSkipSilencePreference(context)
         audioFeaturesManager?.observeStableVolumePreference(context)
-        
+
         val prefs = PlayerPreferences(context)
         scope.launch {
             prefs.sponsorBlockEnabled.collect { isEnabled ->
@@ -639,7 +639,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     // ===== Player Listener =====
-    
+
     private fun setupPlayerListener() {
         player?.addListener(object : Player.Listener {
             override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -689,7 +689,7 @@ class EnhancedPlayerManager private constructor() {
                         maybeStartAutoplayCountdownOrAdvance()
                     }
                 }
-                
+
                 if (playbackState == Player.STATE_BUFFERING) {
                     logBandwidthInfo()
                 }
@@ -718,7 +718,7 @@ class EnhancedPlayerManager private constructor() {
                     }
                 }
             }
-            
+
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
                 autoNextLog("onMediaItemTransition reason=$reason mediaId=${mediaItem?.mediaId}")
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
@@ -771,7 +771,7 @@ class EnhancedPlayerManager private constructor() {
             }
         })
     }
-    
+
     private fun startPlaybackTracker() {
         player?.let { playbackTracker?.start(it) }
     }
@@ -817,7 +817,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     // ===== Stream Management =====
-    
+
     suspend fun setStreams(
         videoId: String,
         videoStream: VideoStream?,
@@ -883,7 +883,7 @@ class EnhancedPlayerManager private constructor() {
         // Reset and load SponsorBlock
         sponsorBlockHandler?.reset()
         sponsorBlockHandler?.loadSegments(videoId)
-        
+
         this.currentDurationSeconds = durationSeconds
         this.currentDashManifestUrl = dashManifestUrl
         val useLiveManifest = streamType == StreamType.LIVE_STREAM ||
@@ -900,7 +900,7 @@ class EnhancedPlayerManager private constructor() {
         updateLivePlaybackMode(isLive = isLiveStream, forceLiveSpeedReset = true)
         pendingInitialLiveEdgeSeek = streamType == StreamType.LIVE_STREAM
         currentVideoId = videoId
-        
+
         // Process streams using StreamProcessor
         availableVideoStreams = StreamProcessor.processVideoStreams(videoStreams)
         availableAudioStreams = StreamProcessor.processAudioStreams(audioStreams)
@@ -908,10 +908,10 @@ class EnhancedPlayerManager private constructor() {
         if (audioStream == null && availableAudioStreams.isEmpty()) {
             Log.w(TAG, "setStreams: no separate audio stream for $videoId; attempting video-only/muxed playback")
         }
-        
+
         // Ensure playback tracker is running
         startPlaybackTracker()
-        
+
         // Update quality manager with available streams
         qualityManager?.setAvailableStreams(availableVideoStreams)
         qualityManager?.preferredCodecKey = preferredVideoCodec
@@ -928,9 +928,9 @@ class EnhancedPlayerManager private constructor() {
             qualityManager?.setCurrentStream(currentVideoStream)
         }
         currentAudioStream = audioStream
-        
+
         val isAutoMode = (videoStream == null)
-        
+
         // Update state with available options
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId,
@@ -980,9 +980,9 @@ class EnhancedPlayerManager private constructor() {
         pendingLiveDisplaySeekPositionMs = null
         pendingLiveDisplaySeekAtMs = 0L
         pendingInitialLiveEdgeSeek = false
-        
+
         player?.let { it.stop(); it.clearMediaItems() }
-        
+
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId, isBuffering = true, error = null,
             hasEnded = false, isPrepared = false, recoveryAttempted = false, currentQuality = 0,
@@ -1158,12 +1158,12 @@ class EnhancedPlayerManager private constructor() {
         currentQueueIndex = if (videos.isEmpty()) -1 else orderedQueue.currentIndex
         queueTitle = title
         autoNextLog("setQueue size=${videos.size} start=$currentQueueIndex title=$title")
-        
+
         _queueVideos.value = videos
         _currentQueueIndex.value = currentQueueIndex
-        
+
         updateQueueState()
-        
+
         if (videos.isNotEmpty()) {
             val video = videos[currentQueueIndex]
             startPlaybackFromQueue(video, loadStreamsInPlayer = false)
@@ -1308,7 +1308,7 @@ class EnhancedPlayerManager private constructor() {
         updateQueueState()
         requestPreloadNext("queue-add")
     }
-    
+
     fun playVideoAtIndex(index: Int, loadStreamsInPlayer: Boolean = true) {
         if (index in playbackQueue.indices && index != currentQueueIndex) {
             currentQueueIndex = index
@@ -1321,14 +1321,14 @@ class EnhancedPlayerManager private constructor() {
     private fun startPlaybackFromQueue(video: Video, loadStreamsInPlayer: Boolean) {
         // Reset player state for new video
         resetPlaybackStateForNewVideo(video.id)
-        
+
         _playerState.value = _playerState.value.copy(
             currentVideoId = video.id,
             isPlaying = true,
             playWhenReady = true,
             isBuffering = true
         )
-        
+
         GlobalPlayerState.setCurrentVideo(video)
         startBackgroundService(
             videoId = video.id,
@@ -2253,7 +2253,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     // ===== Playback Controls =====
-    
+
     fun play() {
         if (isAudioOnlyMode || videoSurfaceRestorePending) {
             restoreVideoOutput()
@@ -2427,7 +2427,7 @@ class EnhancedPlayerManager private constructor() {
             exoPlayer.play()
         }
     }
-    
+
     fun toggleLoop(enabled: Boolean) {
         manualLoopEnabled = enabled
         updateEffectiveLoopState()
@@ -2436,7 +2436,7 @@ class EnhancedPlayerManager private constructor() {
     private fun updateEffectiveLoopState() {
         _playerState.value = _playerState.value.copy(isLooping = manualLoopEnabled || globalLoopEnabled)
     }
-    
+
     fun stop() {
         autoplayJob?.cancel()
         autoplayJob = null
@@ -2583,7 +2583,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     // ===== Quality & Audio Management =====
-    
+
     fun switchQualityByHeight(height: Int) =
         if (currentIsLiveStream) switchLiveQuality(height)
         else qualityManager?.switchQualityByHeight(height, player?.currentPosition ?: 0L)
@@ -2655,7 +2655,7 @@ class EnhancedPlayerManager private constructor() {
         )
         return true
     }
-    
+
     fun switchAudioTrack(index: Int) {
         if (index in availableAudioStreams.indices) {
             currentAudioStream = availableAudioStreams[index]
@@ -2738,19 +2738,19 @@ class EnhancedPlayerManager private constructor() {
     }
 
     // ===== Audio Features =====
-    
+
     fun setPlaybackSpeed(speed: Float) = audioFeaturesManager?.setPlaybackSpeed(player, speed)
     fun toggleSkipSilence(isEnabled: Boolean) = audioFeaturesManager?.toggleSkipSilence(isEnabled, appContext)
 
     fun toggleStableVolume(isEnabled: Boolean) = audioFeaturesManager?.toggleStableVolume(isEnabled, appContext)
-    
+
     fun toggleSponsorBlock(isEnabled: Boolean) {
         sponsorBlockHandler?.setEnabled(isEnabled)
         appContext?.let { ctx ->
             scope.launch { PlayerPreferences(ctx).setSponsorBlockEnabled(isEnabled) }
         }
     }
-    
+
     val sponsorSegments: StateFlow<List<SponsorBlockSegment>>
         get() = sponsorBlockHandler?.sponsorSegments ?: MutableStateFlow(emptyList())
 
@@ -2825,7 +2825,7 @@ class EnhancedPlayerManager private constructor() {
     }
     suspend fun awaitSurfaceReady(timeoutMillis: Long = 1000) = surfaceManager?.awaitSurfaceReady(timeoutMillis) ?: false
 
-    
+
     fun continueVideoPlaybackInBackground() {
         autoNextLog("continueVideoPlaybackInBackground")
         switchToAudioOnly()
@@ -2866,7 +2866,7 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
-    
+
     fun switchToAudioOnly() {
         val p = player ?: return
         autoNextLog("switchToAudioOnly")
@@ -2908,7 +2908,7 @@ class EnhancedPlayerManager private constructor() {
     fun isInAudioOnlyMode(): Boolean = isAudioOnlyMode
 
     fun isVideoSurfaceRestorePending(): Boolean = videoSurfaceRestorePending
-    
+
     fun setSurfaceReady(ready: Boolean) {
         surfaceManager?.setSurfaceReady(ready)
         if (ready) {
@@ -2928,30 +2928,30 @@ class EnhancedPlayerManager private constructor() {
             }
         }
     }
-    
+
     // ===== Cache & Background Service =====
-    
+
     fun getCacheSize(): Long = cacheManager?.getCacheSize() ?: 0L
     fun clearCache() = cacheManager?.clearCache()
     fun clearCacheForCurrentVideo() {
         Log.d(TAG, "Clearing media cache due to persistent stream errors")
         cacheManager?.clearCache()
     }
-    
+
     fun startBackgroundService(videoId: String, title: String, channel: String, thumbnail: String) =
         backgroundServiceManager.startService(appContext, videoId, title, channel, thumbnail)
-    
+
     fun stopBackgroundService() = backgroundServiceManager.stopService(appContext)
 
     // ===== Bandwidth & Renderer Info =====
-    
+
     fun getBandwidthEstimate(): Long = bandwidthMeter?.bitrateEstimate ?: 0L
-    
+
     fun logBandwidthInfo() {
         val mbps = getBandwidthEstimate() / 1_000_000.0
         Log.d(TAG, "Bandwidth: ${"%.2f".format(mbps)} Mbps")
     }
-    
+
     fun isVideoRendererAvailable(): Boolean {
         player?.let { p ->
             if (p.playbackState == Player.STATE_IDLE || p.playbackState == Player.STATE_BUFFERING) return true
@@ -3070,7 +3070,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     // ===== Error Recovery =====
-    
+
     private fun reloadCurrentStream(preservePosition: Long?, reason: String) {
         val video = currentVideoStream ?: return
         val audio = currentAudioStream ?: availableAudioStreams.firstOrNull()
@@ -3080,7 +3080,7 @@ class EnhancedPlayerManager private constructor() {
         player?.clearMediaItems()
         loadMediaInternal(video, audio, pos)
     }
-    
+
     private fun reloadPlaybackManager() {
         pendingReloadJob?.cancel()
         pendingReloadJob = scope.launch {
@@ -3120,7 +3120,7 @@ class EnhancedPlayerManager private constructor() {
             }
         }
     }
-    
+
     private fun attemptQualityDowngrade() {
         val newStream = qualityManager?.attemptQualityDowngrade()
         if (newStream != null) {
@@ -3133,7 +3133,7 @@ class EnhancedPlayerManager private constructor() {
             onPlaybackShutdown()
         }
     }
-    
+
     private fun onPlaybackShutdown() {
         clearAutoplayCountdownInternal()
         clearPreload()
@@ -3152,8 +3152,32 @@ class EnhancedPlayerManager private constructor() {
         }
         errorHandler?.handleRefocusStuck(p, videoId)
     }
-}
 
+    /**
+     * Delete video from queue
+     */
+    fun deleteVideoAtIndex(index: Int) : Boolean{
+        if (index !in playbackQueue.indices) return false
+        if (index == currentQueueIndex) return false
+
+        val mutableQueue = playbackQueue.toMutableList()
+        mutableQueue.removeAt(index)
+        playbackQueue = mutableQueue
+
+        originalPlaybackQueue = originalPlaybackQueue
+            .toMutableList()
+            .apply { removeAt(index.coerceAtMost(lastIndex)) }
+
+        if (index < currentQueueIndex) {
+            currentQueueIndex--
+        }
+
+        _queueVideos.value = playbackQueue
+        _currentQueueIndex.value = currentQueueIndex
+        updateQueueState()
+        return true
+    }
+}
 // Backward compatibility type aliases
 typealias EnhancedPlayerState = io.github.aedev.flow.player.state.EnhancedPlayerState
 typealias QualityOption = io.github.aedev.flow.player.state.QualityOption

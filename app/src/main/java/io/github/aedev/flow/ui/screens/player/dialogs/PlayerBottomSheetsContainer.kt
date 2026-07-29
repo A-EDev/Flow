@@ -1,7 +1,9 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SmartDisplay
@@ -27,6 +29,7 @@ import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 
@@ -56,7 +59,7 @@ fun PlayerBottomSheetsContainer(
     renderSleepTimerSheet: Boolean = true,
     onMediaSheetProgressChange: (Float) -> Unit = {}
 ) {
-    val shareWithoutText by remember { io.github.aedev.flow.data.local.PlayerPreferences(context).shareWithoutText }
+    val shareWithoutText by remember { PlayerPreferences(context).shareWithoutText }
         .collectAsStateWithLifecycle(initialValue = false)
 
     val sortedComments = remember(comments, screenState.commentSortFilter) {
@@ -68,7 +71,7 @@ fun PlayerBottomSheetsContainer(
             EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(timestamp))
         }
     }
-    
+
     LaunchedEffect(Unit) {
         SleepTimerManager.attachToPlayer(
             player = EnhancedPlayerManager.getInstance().getPlayer()
@@ -170,7 +173,7 @@ fun PlayerBottomSheetsContainer(
                     duration = streamInfo.duration.toInt(),
                     viewCount = streamInfo.viewCount,
                     likeCount = streamInfo.likeCount,
-                    uploadDate = streamInfo.textualUploadDate ?: streamInfo.uploadDate?.run { 
+                    uploadDate = streamInfo.textualUploadDate ?: streamInfo.uploadDate?.run {
                         try {
                             val date = java.util.Date.from(offsetDateTime().toInstant())
                             val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
@@ -235,10 +238,17 @@ fun PlayerBottomSheetsContainer(
             onPlayVideoAtIndex = { index ->
                 EnhancedPlayerManager.getInstance().playVideoAtIndex(index, loadStreamsInPlayer = false)
             },
+            onDismiss = { screenState.showPlaylistQueueSheet = false },
             expandedHeight = mediaSheetExpandedHeight,
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
-            onDismiss = { screenState.showPlaylistQueueSheet = false }
+            onDeleteVideoAtIndex = { index ->
+            val deleted = EnhancedPlayerManager.getInstance().deleteVideoAtIndex(index)
+                if (!deleted){
+                    Toast.makeText(context,
+                        context.getString(R.string.cannot_delete_the_current_video), Toast.LENGTH_SHORT).show()
+                }
+            },
         )
     }
 
@@ -254,8 +264,8 @@ fun PlayerBottomSheetsContainer(
     // Shorts/Music Suggestion Dialog
     if (screenState.showShortsPrompt && !disableShortsPlayer && showShortsPlayerPrompt) {
         ShortsSuggestionDialog(
-            isMusic = completeVideo.isMusic || 
-                     completeVideo.title.contains("Official Audio", true) || 
+            isMusic = completeVideo.isMusic ||
+                     completeVideo.title.contains("Official Audio", true) ||
                      completeVideo.title.contains("Lyrics", true),
             onPlayAsShort = {
                 screenState.showShortsPrompt = false
@@ -285,7 +295,7 @@ fun ShortsSuggestionDialog(
         icon = { Icon(Icons.Outlined.SmartDisplay, null) },
         title = {
             Text(
-                text = stringResource(R.string.play_mode_suggestion_title), 
+                text = stringResource(R.string.play_mode_suggestion_title),
                 style = MaterialTheme.typography.titleLarge
             )
         },

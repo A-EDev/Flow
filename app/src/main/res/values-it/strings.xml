@@ -1994,4 +1994,7 @@
     <string name="discord_error_gateway_timeout">Connessione al gateway di Discord scaduta.</string>
     <string name="discord_error_gateway_reconnect">Discord ha richiesto una riconnessione.</string>
     <string name="discord_error_session_rejected">Discord ha rifiutato la sessione. Riconnetti il tuo account.</string>
+    <string name="cannot_delete_the_current_video">Non è possibile rimuovere il video in riproduzione</string>
+    <string name="remove_from_queue">Rimuovi dalla coda</string>
+    <string name="remove_from_queue_confirmation">Sei sicuro di voler rimuovere questo video dalla coda?</string>
 </resources>
