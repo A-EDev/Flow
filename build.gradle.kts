@@ -14,8 +14,8 @@ plugins {
 }
 
 spotless {
-    // Adopt formatting incrementally from the last pre-lint revision.
-    ratchetFrom("628a7332219f24631d0cbfd5181df224a99e31ed")
+    // Adopt formatting incrementally from the main commit that introduced linting.
+    ratchetFrom("52c4928e5af05141080f46f6c1e41cbf9c457023")
     lineEndings = LineEnding.UNIX
 
     kotlin {
