@@ -59,6 +59,7 @@ import io.github.aedev.flow.data.model.Video
 import kotlinx.coroutines.launch
 
 private class QueueDisplayItem(
+    val key: String,
     val video: Video,
 )
 
@@ -104,7 +105,13 @@ fun FlowPlaylistQueueBottomSheet(
     val listState = rememberLazyListState()
     val displayItems =
         remember(queueVideos) {
-            queueVideos.map(::QueueDisplayItem).toMutableStateList()
+            queueVideos
+                .mapIndexed { index, video ->
+                    QueueDisplayItem(
+                        key = "$index:${video.id}",
+                        video = video,
+                    )
+                }.toMutableStateList()
         }
     val currentDisplayItem =
         remember(queueVideos, currentQueueIndex) {
@@ -297,7 +304,7 @@ fun FlowPlaylistQueueBottomSheet(
                             .weight(1f),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
                 ) {
-                    itemsIndexed(displayItems, key = { _, item -> item }) { index, item ->
+                    itemsIndexed(displayItems, key = { _, item -> item.key }) { index, item ->
                         val isPlaying = item === currentDisplayItem
                         PlaylistQueueItem(
                             video = item.video,
