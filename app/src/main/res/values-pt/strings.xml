@@ -316,7 +316,4 @@
     <string name="refresh_lyrics">Atualizar letras</string>
     <string name="playing">Reproduzindo</string>
     <string name="content_settings_share_without_text_title">Compartilhar links sem texto</string>
-    <string name="cannot_delete_the_current_video">O vídeo em reprodução não pode ser removido</string>
-    <string name="remove_from_queue">Remover da fila</string>
-    <string name="remove_from_queue_confirmation">Tem a certeza de que deseja remover este vídeo da fila?</string>
 </resources>

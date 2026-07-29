@@ -2311,7 +2311,4 @@
     <string name="tv_theme_variant_dark">داكن</string>
     <string name="tv_theme_variant_amoled">AMOLED</string>
     <string name="tv_about_version">الإصدار %1$s</string>
-    <string name="cannot_delete_the_current_video">لا يمكن إزالة الفيديو الذي يتم تشغيله حاليًا</string>
-    <string name="remove_from_queue">إزالة من قائمة الإنتظار</string>
-    <string name="remove_from_queue_confirmation">هل أنت متأكد من أنك تريد إزالة هذا الفيديو من قائمة الإنتظار؟</string>
 </resources>

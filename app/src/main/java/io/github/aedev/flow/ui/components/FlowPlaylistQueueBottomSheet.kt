@@ -5,35 +5,48 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.*
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -41,14 +54,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.outlined.DeleteOutline
-import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import kotlinx.coroutines.launch
+
+private class QueueDisplayItem(
+    val video: Video,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,12 +73,13 @@ fun FlowPlaylistQueueBottomSheet(
     onLoopToggle: (Boolean) -> Unit,
     onShuffleToggle: (Boolean) -> Unit,
     onPlayVideoAtIndex: (Int) -> Unit,
+    onRemoveVideoAtIndex: (Int) -> Unit,
+    onMoveVideoAtIndex: (Int, Int) -> Unit,
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
-    onDeleteVideoAtIndex: (Int) -> Unit
 ) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -79,24 +92,56 @@ fun FlowPlaylistQueueBottomSheet(
     val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
-    val sheetProgress = if (expandedHeightPx > 0f) {
-        ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
+    val sheetProgress =
+        if (expandedHeightPx > 0f) {
+            ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
     SideEffect {
         onSheetProgressChange(sheetProgress)
     }
     val listState = rememberLazyListState()
+    val displayItems =
+        remember(queueVideos) {
+            queueVideos.map(::QueueDisplayItem).toMutableStateList()
+        }
+    val currentDisplayItem =
+        remember(queueVideos, currentQueueIndex) {
+            displayItems.getOrNull(currentQueueIndex)
+        }
+    var pendingMoveFrom by remember(queueVideos) { mutableStateOf<Int?>(null) }
+    var pendingMoveTo by remember(queueVideos) { mutableStateOf<Int?>(null) }
+    val reorderState =
+        rememberReorderableLazyListState(
+            listState = listState,
+            onMove = { fromIndex, toIndex ->
+                if (pendingMoveFrom == null) {
+                    pendingMoveFrom = fromIndex
+                }
+                pendingMoveTo = toIndex
+                displayItems.add(toIndex, displayItems.removeAt(fromIndex))
+            },
+            onDragStopped = {
+                val fromIndex = pendingMoveFrom
+                val toIndex = pendingMoveTo
+                pendingMoveFrom = null
+                pendingMoveTo = null
+                if (fromIndex != null && toIndex != null) {
+                    onMoveVideoAtIndex(fromIndex, toIndex)
+                }
+            },
+        )
 
     fun animateToExpanded() {
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = expandedHeightPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
             )
         }
     }
@@ -107,10 +152,11 @@ fun FlowPlaylistQueueBottomSheet(
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = collapsedHeightPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
             )
             latestOnDismiss()
         }
@@ -124,10 +170,11 @@ fun FlowPlaylistQueueBottomSheet(
         }
         sheetHeightPx.animateTo(
             targetValue = expandedHeightPx,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessLow
-            )
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessLow,
+                ),
         )
     }
 
@@ -139,66 +186,71 @@ fun FlowPlaylistQueueBottomSheet(
 
     BackHandler(onBack = ::animateToDismiss)
 
-    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
-        val velocityTracker = VelocityTracker()
-        detectVerticalDragGestures(
-            onVerticalDrag = { change, dragAmount ->
-                if (isAnimatingOut) return@detectVerticalDragGestures
-                velocityTracker.addPointerInputChange(change)
-                coroutineScope.launch {
-                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
-                    sheetHeightPx.snapTo(nextValue)
-                }
-            },
-            onDragCancel = {
-                velocityTracker.resetTracking()
-                if (!isAnimatingOut) animateToExpanded()
-            },
-            onDragEnd = {
-                val velocityY = velocityTracker.calculateVelocity().y
-                velocityTracker.resetTracking()
-                when {
-                    velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
-                    else -> animateToExpanded()
-                }
-            }
-        )
-    }
+    val headerDragModifier =
+        Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
+            val velocityTracker = VelocityTracker()
+            detectVerticalDragGestures(
+                onVerticalDrag = { change, dragAmount ->
+                    if (isAnimatingOut) return@detectVerticalDragGestures
+                    velocityTracker.addPointerInputChange(change)
+                    coroutineScope.launch {
+                        val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
+                        sheetHeightPx.snapTo(nextValue)
+                    }
+                },
+                onDragCancel = {
+                    velocityTracker.resetTracking()
+                    if (!isAnimatingOut) animateToExpanded()
+                },
+                onDragEnd = {
+                    val velocityY = velocityTracker.calculateVelocity().y
+                    velocityTracker.resetTracking()
+                    when {
+                        velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
+                        else -> animateToExpanded()
+                    }
+                },
+            )
+        }
 
     Box(
         modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
+        contentAlignment = Alignment.BottomCenter,
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(with(density) { sheetHeightPx.value.toDp() }),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(with(density) { sheetHeightPx.value.toDp() }),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp
+            tonalElevation = 0.dp,
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp)
-                        .then(headerDragModifier),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                            .then(headerDragModifier),
+                    contentAlignment = Alignment.Center,
                 ) {
                     BottomSheetDefaults.DragHandle()
                 }
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(headerDragModifier)
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 10.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .then(headerDragModifier)
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -207,12 +259,12 @@ fun FlowPlaylistQueueBottomSheet(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = "${currentQueueIndex + 1} / ${queueVideos.size}",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     QueueModeIconButton(
@@ -229,7 +281,7 @@ fun FlowPlaylistQueueBottomSheet(
                     )
                     IconButton(
                         onClick = ::animateToDismiss,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(40.dp),
                     ) {
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
@@ -239,150 +291,42 @@ fun FlowPlaylistQueueBottomSheet(
 
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
                 ) {
-                    itemsIndexed(queueVideos, key = { index, video -> "${video.id}_$index" }) { index, video ->
+                    itemsIndexed(displayItems, key = { _, item -> item }) { index, item ->
+                        val isPlaying = item === currentDisplayItem
                         PlaylistQueueItem(
-                            video = video,
-                            index = index,
-                            isPlaying = index == currentQueueIndex,
-                            onClick = {
-                                onPlayVideoAtIndex(index)
-                            },
-                            onDelete = {
-                                onDeleteVideoAtIndex(index)
-                            }
+                            video = item.video,
+                            isPlaying = isPlaying,
+                            reorderModifier = reorderState.itemModifier(index),
+                            dragHandleModifier = reorderState.handleModifier(index),
+                            onClick = { onPlayVideoAtIndex(index) },
+                            onRemove =
+                                if (isPlaying) {
+                                    null
+                                } else {
+                                    { onRemoveVideoAtIndex(index) }
+                                },
+                            onMoveUp =
+                                if (index > 0) {
+                                    { onMoveVideoAtIndex(index, index - 1) }
+                                } else {
+                                    null
+                                },
+                            onMoveDown =
+                                if (index < displayItems.lastIndex) {
+                                    { onMoveVideoAtIndex(index, index + 1) }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun PlaylistQueueItem(
-    video: Video,
-    index: Int,
-    isPlaying: Boolean,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .width(120.dp)
-                .aspectRatio(16f/9f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            if (isPlaying) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.GraphicEq,
-                        contentDescription = stringResource(R.string.now_playing),
-                        tint = Color.White
-                    )
-                }
-            } else if (video.duration > 0) {
-                 Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                ) {
-                    val durationStr = if (video.duration >= 3600) {
-                        String.format("%d:%02d:%02d", video.duration / 3600, (video.duration % 3600) / 60, video.duration % 60)
-                    } else {
-                        String.format("%d:%02d", video.duration / 60, video.duration % 60)
-                    }
-
-                    Text(
-                        text = durationStr,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = video.title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Normal,
-                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = video.channelName,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showDeleteDialog = false
-            },
-            title = {
-                Text(text = stringResource(R.string.remove_from_queue))
-            },
-            text = {
-                Text(text = stringResource(R.string.remove_from_queue_confirmation))
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        onDelete()
-                    }
-                ) {
-                    Text(stringResource(R.string.remove))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
     }
 }

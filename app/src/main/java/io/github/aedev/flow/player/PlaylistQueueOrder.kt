@@ -7,12 +7,22 @@ internal data class ReorderedQueue<T>(
     val currentIndex: Int,
 )
 
+internal data class QueueRemoval<T>(
+    val queue: ReorderedQueue<T>,
+    val removedItem: T,
+)
+
 internal object PlaylistQueueOrder {
-    fun nextIndex(itemCount: Int, currentIndex: Int, loopEnabled: Boolean): Int? = when {
-        currentIndex < itemCount - 1 -> currentIndex + 1
-        loopEnabled && itemCount > 0 -> 0
-        else -> null
-    }
+    fun nextIndex(
+        itemCount: Int,
+        currentIndex: Int,
+        loopEnabled: Boolean,
+    ): Int? =
+        when {
+            currentIndex < itemCount - 1 -> currentIndex + 1
+            loopEnabled && itemCount > 0 -> 0
+            else -> null
+        }
 
     fun <T> shuffleFromCurrent(
         items: List<T>,
@@ -33,5 +43,53 @@ internal object PlaylistQueueOrder {
         val currentKey = keySelector(currentItem)
         val restoredIndex = original.indexOfFirst { keySelector(it) == currentKey }.coerceAtLeast(0)
         return ReorderedQueue(original, restoredIndex)
+    }
+
+    fun <T> removeAt(
+        items: List<T>,
+        currentIndex: Int,
+        index: Int,
+    ): QueueRemoval<T>? {
+        if (index !in items.indices || index == currentIndex) return null
+
+        val updatedItems = items.toMutableList()
+        val removedItem = updatedItems.removeAt(index)
+        val updatedCurrentIndex = if (index < currentIndex) currentIndex - 1 else currentIndex
+        return QueueRemoval(
+            queue = ReorderedQueue(updatedItems, updatedCurrentIndex),
+            removedItem = removedItem,
+        )
+    }
+
+    fun <T> move(
+        items: List<T>,
+        currentIndex: Int,
+        fromIndex: Int,
+        toIndex: Int,
+    ): ReorderedQueue<T>? {
+        if (fromIndex !in items.indices || toIndex !in items.indices || fromIndex == toIndex) return null
+
+        val updatedItems = items.toMutableList()
+        updatedItems.add(toIndex, updatedItems.removeAt(fromIndex))
+        val updatedCurrentIndex =
+            when {
+                fromIndex == currentIndex -> toIndex
+                fromIndex < currentIndex && toIndex >= currentIndex -> currentIndex - 1
+                fromIndex > currentIndex && toIndex <= currentIndex -> currentIndex + 1
+                else -> currentIndex
+            }
+        return ReorderedQueue(updatedItems, updatedCurrentIndex)
+    }
+
+    fun <T, K> removeMatching(
+        items: List<T>,
+        target: T,
+        keySelector: (T) -> K,
+    ): List<T> {
+        val matchingIndex =
+            items.indexOf(target).takeIf { it >= 0 }
+                ?: items.indexOfFirst { keySelector(it) == keySelector(target) }
+        if (matchingIndex < 0) return items
+        return items.toMutableList().apply { removeAt(matchingIndex) }
     }
 }

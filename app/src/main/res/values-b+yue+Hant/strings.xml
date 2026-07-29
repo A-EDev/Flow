@@ -1,6 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="cannot_delete_the_current_video">無法刪除目前播放的影片</string>
-    <string name="remove_from_queue">從播放佇列中移除</string>
-    <string name="remove_from_queue_confirmation">你確定要從播放佇列中移除這段影片嗎？</string>
 </resources>

@@ -1446,7 +1446,4 @@
     <string name="default_download_codec_label">Domyślny Kodek Pobierania</string>
     <string name="auto_backup_pick_folder">Wybierz Folder</string>
     <string name="auto_backup_never_run">Brak kopii zapasowej</string>
-    <string name="cannot_delete_the_current_video">Nie można usunąć obecnie odtwarzanego wideo</string>
-    <string name="remove_from_queue">Usuń z kolejki</string>
-    <string name="remove_from_queue_confirmation">Czy na pewno chcesz usunąć to wideo z kolejki?</string>
 </resources>

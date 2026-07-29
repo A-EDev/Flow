@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="cannot_delete_the_current_video">The currently playing video can\'t be removed</string>
-    <string name="remove_from_queue">Remove from queue</string>
-    <string name="remove_from_queue_confirmation">Are you sure you want to remove this video from the queue?</string>
-</resources>

@@ -2308,7 +2308,4 @@
     <string name="fallback_your_watch_later_list">Ваш список «Переглянути пізніше»</string>
     <string name="fallback_downloaded_locally">Завантажено локально</string>
     <string name="fallback_more_results">Більше результатів</string>
-    <string name="cannot_delete_the_current_video">Неможливо видалити відео, яке зараз відтворюється</string>
-    <string name="remove_from_queue">Вилучити з черги</string>
-    <string name="remove_from_queue_confirmation">Ви впевнені, що хочете вилучити це відео з черги?</string>
 </resources>

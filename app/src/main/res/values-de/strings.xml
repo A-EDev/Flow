@@ -1453,7 +1453,4 @@
     <string name="fallback_more_results">Weitere Ergebnisse</string>
     <string name="playlist_creation_menu_open">Playlist erstellen</string>
     <string name="playlist_creation_menu_close">Menü zur Erstellung von Playlisten schließen</string>
-    <string name="cannot_delete_the_current_video">Das aktuell abgespielte Video kann nicht entfernt werden</string>
-    <string name="remove_from_queue">Aus Warteschlange entfernen</string>
-    <string name="remove_from_queue_confirmation">Möchten Sie dieses Video wirklich aus der Warteschlange entfernen?</string>
 </resources>

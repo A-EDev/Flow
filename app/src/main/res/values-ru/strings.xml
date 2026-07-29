@@ -2305,7 +2305,4 @@
     <string name="ui_show_less">Показать меньше</string>
     <string name="fallback_more_results">Показать еще</string>
     <string name="ui_instrumental">И Н С Т Р У М Е Н Т А Л</string>
-    <string name="cannot_delete_the_current_video">Невозможно удалить воспроизводимое в данный момент видео</string>
-    <string name="remove_from_queue">Удалить из очереди</string>
-    <string name="remove_from_queue_confirmation">Вы уверены, что хотите удалить это видео из очереди?</string>
 </resources>

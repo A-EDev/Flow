@@ -153,7 +153,4 @@
     <string name="subscriptions_music_badge_cd">Претплате музике</string>
     <string name="no_subscriptions_found">Нису нађене претплате</string>
     <string name="live_chat">Ћаскање уживо</string>
-    <string name="cannot_delete_the_current_video">Тренутно репродуковани видео се не може уклонити</string>
-    <string name="remove_from_queue">Уклони из реда чекања</string>
-    <string name="remove_from_queue_confirmation">Да ли сте сигурни да желите да уклоните овај видео из реда чекања?</string>
 </resources>

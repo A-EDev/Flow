@@ -1,8 +1,8 @@
 package io.github.aedev.flow.player
 
-import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import kotlin.random.Random
 
 class PlaylistQueueOrderTest {
     @Test
@@ -27,13 +27,91 @@ class PlaylistQueueOrderTest {
     fun `restore returns original order and current item position`() {
         val original = listOf("a", "b", "c", "d")
 
-        val result = PlaylistQueueOrder.restoreOriginal(
-            original = original,
-            currentItem = "c",
-            keySelector = { it },
-        )
+        val result =
+            PlaylistQueueOrder.restoreOriginal(
+                original = original,
+                currentItem = "c",
+                keySelector = { it },
+            )
 
         assertEquals(original, result.items)
         assertEquals(2, result.currentIndex)
+    }
+
+    @Test
+    fun `remove before current keeps the same item current`() {
+        val result =
+            requireNotNull(
+                PlaylistQueueOrder.removeAt(
+                    items = listOf("a", "b", "c", "d"),
+                    currentIndex = 2,
+                    index = 0,
+                ),
+            )
+
+        assertEquals("a", result.removedItem)
+        assertEquals(listOf("b", "c", "d"), result.queue.items)
+        assertEquals(1, result.queue.currentIndex)
+        assertEquals("c", result.queue.items[result.queue.currentIndex])
+    }
+
+    @Test
+    fun `remove rejects the current item`() {
+        val result =
+            PlaylistQueueOrder.removeAt(
+                items = listOf("a", "b", "c"),
+                currentIndex = 1,
+                index = 1,
+            )
+
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun `remove matching deletes the selected item from original order`() {
+        val original = listOf("a", "b", "c")
+
+        val result =
+            PlaylistQueueOrder.removeMatching(
+                items = original,
+                target = "a",
+                keySelector = { it },
+            )
+
+        assertEquals(listOf("b", "c"), result)
+    }
+
+    @Test
+    fun `move current item updates its index`() {
+        val result =
+            requireNotNull(
+                PlaylistQueueOrder.move(
+                    items = listOf("a", "b", "c", "d"),
+                    currentIndex = 1,
+                    fromIndex = 1,
+                    toIndex = 3,
+                ),
+            )
+
+        assertEquals(listOf("a", "c", "d", "b"), result.items)
+        assertEquals(3, result.currentIndex)
+        assertEquals("b", result.items[result.currentIndex])
+    }
+
+    @Test
+    fun `move across current keeps the same item current`() {
+        val result =
+            requireNotNull(
+                PlaylistQueueOrder.move(
+                    items = listOf("a", "b", "c", "d"),
+                    currentIndex = 2,
+                    fromIndex = 0,
+                    toIndex = 3,
+                ),
+            )
+
+        assertEquals(listOf("b", "c", "d", "a"), result.items)
+        assertEquals(1, result.currentIndex)
+        assertEquals("c", result.items[result.currentIndex])
     }
 }
