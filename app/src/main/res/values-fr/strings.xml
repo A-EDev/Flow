@@ -2346,4 +2346,7 @@
     <string name="tv_theme_variant_dark">Sombre</string>
     <string name="tv_theme_variant_amoled">AMOLED</string>
     <string name="tv_about_version">Version %1$s</string>
+    <string name="remove_from_queue">Retirer de la file d\'attente</string>
+    <string name="remove_from_queue_confirmation">Êtes-vous sûr de vouloir supprimer cette vidéo de la file d\'attente ?</string>
+    <string name="reorder_queue_item">Réorganiser un élément de la file d\'attente</string>
 </resources>
