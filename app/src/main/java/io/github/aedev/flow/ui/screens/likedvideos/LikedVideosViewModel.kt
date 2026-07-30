@@ -1,23 +1,23 @@
 package io.github.aedev.flow.ui.screens.likedvideos
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class LikedVideosViewModel : ViewModel() {
-    
-    private lateinit var likedVideosRepository: LikedVideosRepository
-    
+@HiltViewModel
+class LikedVideosViewModel @Inject constructor(
+    private val likedVideosRepository: LikedVideosRepository,
+) : ViewModel() {
+
     private val _uiState = MutableStateFlow(LikedVideosUiState())
     val uiState: StateFlow<LikedVideosUiState> = _uiState.asStateFlow()
-    
-    fun initialize(context: Context) {
-        likedVideosRepository = LikedVideosRepository.getInstance(context)
-        
+
+    init {
         // Load all likes so the screen can switch between videos and music locally.
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -31,7 +31,7 @@ class LikedVideosViewModel : ViewModel() {
             }
         }
     }
-    
+
     fun removeLike(videoId: String) {
         viewModelScope.launch {
             likedVideosRepository.removeLikeState(videoId)

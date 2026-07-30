@@ -11,8 +11,10 @@ import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.paging.SearchPagingSource
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import javax.inject.Inject
 
 // ── UI state ─────────────────────────────────────────────────────────────────
 
@@ -23,9 +25,10 @@ data class SearchUiState(
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
 
+@HiltViewModel
 @OptIn(ExperimentalCoroutinesApi::class)
-class SearchViewModel(
-    private val repository: YouTubeRepository = YouTubeRepository.getInstance()
+class SearchViewModel @Inject constructor(
+    private val repository: YouTubeRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())

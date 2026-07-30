@@ -46,13 +46,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideoInfo
@@ -66,15 +65,10 @@ fun LikesScreen(
     onBackClick: () -> Unit,
     onMusicClick: (MusicTrack, List<MusicTrack>) -> Unit = { track, _ -> onVideoClick(track) },
     modifier: Modifier = Modifier,
-    viewModel: LikedVideosViewModel = viewModel()
+    viewModel: LikedVideosViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var selectedFilter by rememberSaveable { mutableStateOf(LikesFilter.Videos) }
-
-    LaunchedEffect(Unit) {
-        viewModel.initialize(context)
-    }
 
     val displayLikes = remember(uiState.likedVideos, selectedFilter) {
         uiState.likedVideos.filter { selectedFilter.matches(it) }

@@ -1,14 +1,15 @@
 package io.github.aedev.flow.ui.screens.history
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.aedev.flow.data.local.AppDatabase
+import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.local.entity.VideoEntity
+import io.github.aedev.flow.data.local.dao.VideoDao
+import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -17,21 +18,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.inject.Inject
 
-class HistoryViewModel : ViewModel() {
+@HiltViewModel
+class HistoryViewModel @Inject constructor(
+    private val viewHistory: ViewHistory,
+    private val youTubeRepository: YouTubeRepository,
+    private val videoDao: VideoDao,
+    private val watchHistoryDao: WatchHistoryDao,
+) : ViewModel() {
 
-    private lateinit var viewHistory: ViewHistory
-    private val youTubeRepository = YouTubeRepository.getInstance()
     private val isEnriching = AtomicBoolean(false)
 
     private val _uiState = MutableStateFlow(HistoryUiState())
     val uiState: StateFlow<HistoryUiState> = _uiState.asStateFlow()
 
-    fun initialize(context: Context) {
-        viewHistory = ViewHistory.getInstance(context)
-        val videoDao = AppDatabase.getDatabase(context).videoDao()
-        val watchHistoryDao = AppDatabase.getDatabase(context).watchHistoryDao()
-
+    init {
         // Load history and enrich any entries that are missing metadata
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -96,7 +98,7 @@ class HistoryViewModel : ViewModel() {
                     .distinctBy { it.videoId }
                     .take(30)
                 if (stubs.isNotEmpty()) {
-                    enrichFromApi(stubs, videoDao, watchHistoryDao)
+                    enrichFromApi(stubs)
                 }
             }
         }
@@ -104,8 +106,6 @@ class HistoryViewModel : ViewModel() {
 
     private fun enrichFromApi(
         stubs: List<VideoHistoryEntry>,
-        videoDao: io.github.aedev.flow.data.local.dao.VideoDao,
-        watchHistoryDao: io.github.aedev.flow.data.local.dao.WatchHistoryDao
     ) {
         if (!isEnriching.compareAndSet(false, true)) return
         viewModelScope.launch(Dispatchers.IO) {

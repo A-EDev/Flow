@@ -37,7 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
@@ -64,7 +64,7 @@ fun SearchScreen(
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SearchViewModel = viewModel()
+    viewModel: SearchViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val searchHistoryRepo = remember { SearchHistoryRepository(context) }

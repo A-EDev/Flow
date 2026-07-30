@@ -65,7 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.VideoHistoryEntry
@@ -88,9 +88,8 @@ fun HistoryScreen(
     onShortClick: (String) -> Unit = {},
     onMusicClick: (MusicTrack, List<MusicTrack>) -> Unit = { track, _ -> onVideoClick(track) },
     modifier: Modifier = Modifier,
-    viewModel: HistoryViewModel = viewModel()
+    viewModel: HistoryViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val searchFocusRequester = remember { FocusRequester() }
 
@@ -101,10 +100,6 @@ fun HistoryScreen(
     var selectedFilter by rememberSaveable { mutableStateOf(HistoryContentFilter.All) }
     var selectedSort by rememberSaveable { mutableStateOf(HistorySort.Newest) }
     var selectedYear by rememberSaveable { mutableStateOf<Int?>(null) }
-
-    LaunchedEffect(Unit) {
-        viewModel.initialize(context)
-    }
 
     val availableYears = remember(uiState.historyEntries) {
         uiState.historyEntries
