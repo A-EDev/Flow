@@ -63,7 +63,10 @@ fun FlowTvApp(
         playerViewModel.playVideo(video)
     }
 
-    fun playPlaylist(videos: List<Video>, title: String) {
+    fun playPlaylist(
+        videos: List<Video>,
+        title: String,
+    ) {
         val first = videos.firstOrNull() ?: return
         EnhancedMusicPlayerManager.pause()
         GlobalPlayerState.setCurrentVideo(first)
@@ -84,7 +87,7 @@ fun FlowTvApp(
                 viewCount = 0L,
                 uploadDate = "",
                 isShort = isShort,
-            )
+            ),
         )
         onDeeplinkConsumed()
     }

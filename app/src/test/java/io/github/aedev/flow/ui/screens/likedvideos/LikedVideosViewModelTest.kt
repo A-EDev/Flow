@@ -20,7 +20,6 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LikedVideosViewModelTest {
-
     private val testDispatcher = StandardTestDispatcher()
     private val repository: LikedVideosRepository = mockk(relaxed = true)
 
@@ -36,36 +35,39 @@ class LikedVideosViewModelTest {
     }
 
     @Test
-    fun `initial state loads liked videos from repository`() = runTest {
-        val sampleLikes = listOf(
-            LikedVideoInfo(
-                videoId = "vid_1",
-                title = "Sample Video",
-                thumbnail = "https://example.com/thumb.jpg",
-                channelName = "Sample Channel",
-                likedAt = 1000L,
-                isMusic = false
-            )
-        )
-        coEvery { repository.getAllLikedVideos() } returns flowOf(sampleLikes)
+    fun `initial state loads liked videos from repository`() =
+        runTest {
+            val sampleLikes =
+                listOf(
+                    LikedVideoInfo(
+                        videoId = "vid_1",
+                        title = "Sample Video",
+                        thumbnail = "https://example.com/thumb.jpg",
+                        channelName = "Sample Channel",
+                        likedAt = 1000L,
+                        isMusic = false,
+                    ),
+                )
+            coEvery { repository.getAllLikedVideos() } returns flowOf(sampleLikes)
 
-        val viewModel = LikedVideosViewModel(repository)
-        testDispatcher.scheduler.advanceUntilIdle()
+            val viewModel = LikedVideosViewModel(repository)
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        val uiState = viewModel.uiState.value
-        assertThat(uiState.isLoading).isFalse()
-        assertThat(uiState.likedVideos).isEqualTo(sampleLikes)
-    }
+            val uiState = viewModel.uiState.value
+            assertThat(uiState.isLoading).isFalse()
+            assertThat(uiState.likedVideos).isEqualTo(sampleLikes)
+        }
 
     @Test
-    fun `removeLike delegates to repository to remove video`() = runTest {
-        coEvery { repository.getAllLikedVideos() } returns flowOf(emptyList())
-        coEvery { repository.removeLikeState("vid_1") } returns Unit
+    fun `removeLike delegates to repository to remove video`() =
+        runTest {
+            coEvery { repository.getAllLikedVideos() } returns flowOf(emptyList())
+            coEvery { repository.removeLikeState("vid_1") } returns Unit
 
-        val viewModel = LikedVideosViewModel(repository)
-        viewModel.removeLike("vid_1")
-        testDispatcher.scheduler.advanceUntilIdle()
+            val viewModel = LikedVideosViewModel(repository)
+            viewModel.removeLike("vid_1")
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 1) { repository.removeLikeState("vid_1") }
-    }
+            coVerify(exactly = 1) { repository.removeLikeState("vid_1") }
+        }
 }

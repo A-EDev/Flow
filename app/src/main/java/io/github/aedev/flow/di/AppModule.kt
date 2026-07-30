@@ -1,54 +1,51 @@
 package io.github.aedev.flow.di
 
 import android.content.Context
-import io.github.aedev.flow.BuildConfig
-import io.github.aedev.flow.innertube.YouTube
 import coil.ImageLoader
 import coil.decode.VideoFrameDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.util.DebugLogger
-import okhttp3.OkHttpClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.github.aedev.flow.BuildConfig
+import io.github.aedev.flow.innertube.YouTube
+import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-
     @Provides
     @Singleton
-    fun provideYouTube(): YouTube {
-        return YouTube
-    }
+    fun provideYouTube(): YouTube = YouTube
 
     @Provides
     @Singleton
     fun provideImageLoader(
         @ApplicationContext context: Context,
-        okHttpClient: OkHttpClient
-    ): ImageLoader {
-        return ImageLoader.Builder(context)
+        okHttpClient: OkHttpClient,
+    ): ImageLoader =
+        ImageLoader
+            .Builder(context)
             .okHttpClient(okHttpClient)
             .components { add(VideoFrameDecoder.Factory()) }
             .memoryCache {
-                MemoryCache.Builder(context)
+                MemoryCache
+                    .Builder(context)
                     .maxSizePercent(0.10)
                     .build()
-            }
-            .diskCache {
-                DiskCache.Builder()
+            }.diskCache {
+                DiskCache
+                    .Builder()
                     .directory(context.cacheDir.resolve("image_cache"))
                     .maxSizePercent(0.02)
                     .build()
-            }
-            .crossfade(true)
+            }.crossfade(true)
             .respectCacheHeaders(false) // Cache images even if headers say otherwise (YouTube thumbnails)
             .apply { if (BuildConfig.DEBUG) logger(DebugLogger()) }
             .build()
-    }
 }

@@ -20,7 +20,6 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
-
     private val testDispatcher = StandardTestDispatcher()
     private val repository: YouTubeRepository = mockk(relaxed = true)
 
@@ -85,14 +84,15 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `getSearchSuggestions calls YouTubeRepository for valid query`() = runTest {
-        val suggestions = listOf("kotlin tutorial", "kotlin android")
-        coEvery { repository.getSearchSuggestions("kotlin") } returns suggestions
+    fun `getSearchSuggestions calls YouTubeRepository for valid query`() =
+        runTest {
+            val suggestions = listOf("kotlin tutorial", "kotlin android")
+            coEvery { repository.getSearchSuggestions("kotlin") } returns suggestions
 
-        val viewModel = SearchViewModel(repository)
-        val result = viewModel.getSearchSuggestions("kotlin")
+            val viewModel = SearchViewModel(repository)
+            val result = viewModel.getSearchSuggestions("kotlin")
 
-        assertThat(result).isEqualTo(suggestions)
-        coVerify(exactly = 1) { repository.getSearchSuggestions("kotlin") }
-    }
+            assertThat(result).isEqualTo(suggestions)
+            coVerify(exactly = 1) { repository.getSearchSuggestions("kotlin") }
+        }
 }
