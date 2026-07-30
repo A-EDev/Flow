@@ -2308,4 +2308,7 @@
     <string name="fallback_your_watch_later_list">Ваш список «Переглянути пізніше»</string>
     <string name="fallback_downloaded_locally">Завантажено локально</string>
     <string name="fallback_more_results">Більше результатів</string>
+    <string name="remove_from_queue">Видалити з черги</string>
+    <string name="remove_from_queue_confirmation">Упевнені, що хочете видалити це відео з черги?</string>
+    <string name="reorder_queue_item">Змінити порядок елемента в черзі</string>
 </resources>
