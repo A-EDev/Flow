@@ -2200,10 +2200,10 @@
     <string name="discord_presence_playing_fallback">يلعب علي Flow</string>
     <string name="discord_presence_by_creator">بواسطة %1$s</string>
     <string name="settings_item_interface_mode">وضع الواجهة</string>
-    <string name="settings_item_interface_mode_subtitle">‎إختر تخطيطاً تلقائيًا أو للهاتف أو للتلفزيون</string>
+    <string name="settings_item_interface_mode_subtitle">‎اختر تخطيط الهاتف، التلفاز أو تلقائياً</string>
     <string name="interface_mode_title">وضع الواجهة</string>
     <string name="interface_mode_automatic">‎تلقائي</string>
-    <string name="interface_mode_automatic_summary">‎إستخدم تخطيط التلفزيون على أجهزة التلفزيون و تخطيط الهاتف المحمول في أي مكان آخر</string>
+    <string name="interface_mode_automatic_summary">‎استخدم تخطيط التلفاز على أجهزة التلفاز و تخطيط الهاتف المحمول في أي مكان آخر</string>
     <string name="interface_mode_mobile">‎الهاتف</string>
     <string name="interface_mode_mobile_summary">إستخدم دائمًا واجهة الهاتف و الجهاز اللوحي</string>
     <string name="interface_mode_tv">التلفاز</string>
@@ -2311,4 +2311,7 @@
     <string name="tv_theme_variant_dark">داكن</string>
     <string name="tv_theme_variant_amoled">AMOLED</string>
     <string name="tv_about_version">الإصدار %1$s</string>
+    <string name="remove_from_queue">إزالة من قائمة الانتظار</string>
+    <string name="remove_from_queue_confirmation">هل أنت متأكد من رغبتك في إزالة هذا الفيديو من قائمة الانتظار؟</string>
+    <string name="reorder_queue_item">إعادة ترتيب عنصر قائمة الانتظار</string>
 </resources>
