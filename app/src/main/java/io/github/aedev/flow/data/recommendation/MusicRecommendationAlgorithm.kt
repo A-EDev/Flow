@@ -2,8 +2,8 @@ package io.github.aedev.flow.data.recommendation
 
 import android.content.Context
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.LikedVideosRepository
-import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
@@ -12,7 +12,6 @@ import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.innertube.pages.HomePage
-import io.github.aedev.flow.data.local.entity.MusicHomeChipEntity
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicItemType
 import kotlinx.coroutines.Dispatchers
@@ -45,11 +44,9 @@ data class MusicSection(
  */
 @Singleton
 class MusicRecommendationAlgorithm @Inject constructor(
-    private val context: Context,
+    @ApplicationContext private val context: Context,
     private val playlistRepository: PlaylistRepository,
     private val likedVideosRepository: LikedVideosRepository,
-    private val subscriptionRepository: io.github.aedev.flow.data.local.SubscriptionRepository,
-    private val viewHistory: ViewHistory,
     private val youTube: YouTube,
     private val cacheDao: io.github.aedev.flow.data.local.dao.CacheDao
 ) {
