@@ -33,14 +33,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.room.withTransaction
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.local.dao.CacheDao
 import javax.inject.Inject
 
 @HiltViewModel
 class SubscriptionsViewModel @Inject constructor(
     private val subscriptionRepository: SubscriptionRepository,
     private val viewHistory: ViewHistory,
-    private val ytRepository: YouTubeRepository,
-    private val cacheDao: io.github.aedev.flow.data.local.dao.CacheDao,
+    private val cacheDao: CacheDao,
     private val database: AppDatabase,
     private val playerPreferences: PlayerPreferences,
     private val subscriptionGroupDao: SubscriptionGroupDao,
