@@ -56,13 +56,8 @@ fun TvSubscriptionsScreen(
     modifier: Modifier = Modifier,
     onChannelClick: (String) -> Unit = {},
 ) {
-    val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val dimens = LocalTvDimens.current
-
-    LaunchedEffect(viewModel) {
-        viewModel.initialize(context.applicationContext)
-    }
 
     fun channelRef(channel: Channel): String =
         channel.url.ifBlank { "https://www.youtube.com/channel/${channel.id}" }

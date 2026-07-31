@@ -35,9 +35,15 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
 import java.util.Locale
 import io.github.aedev.flow.R
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 
-class ChannelViewModel : ViewModel() {
-    private lateinit var appContext: Context
+@HiltViewModel
+class ChannelViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
+    private val subscriptionRepository: SubscriptionRepository,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(ChannelUiState())
     val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
     private val communityController = ChannelCommunityController(viewModelScope)
@@ -72,7 +78,6 @@ class ChannelViewModel : ViewModel() {
         listScrollOffset = offset
     }
 
-    private var subscriptionRepository: SubscriptionRepository? = null
     private var currentVideosTab: ListLinkHandler? = null
     private var currentShortsTab: ListLinkHandler? = null
     private var currentLiveTab: ListLinkHandler? = null
@@ -85,13 +90,6 @@ class ChannelViewModel : ViewModel() {
         /** Safety cap: stops loading beyond this many pages (~1500 videos) */
         private const val MAX_PAGES = 50
         private const val POSTS_TAB_INDEX = 4
-    }
-    
-    fun initialize(context: android.content.Context) {
-        appContext = context.applicationContext
-        if (subscriptionRepository == null) {
-            subscriptionRepository = SubscriptionRepository.getInstance(context)
-        }
     }
     
     /**
@@ -330,7 +328,7 @@ class ChannelViewModel : ViewModel() {
     
     private fun loadSubscriptionState(channelId: String) {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
-            subscriptionRepository?.getSubscription(channelId)?.collect { subscription ->
+            subscriptionRepository.getSubscription(channelId).collect { subscription ->
                 _uiState.update { 
                     it.copy(
                         isSubscribed = subscription != null,
@@ -355,7 +353,7 @@ class ChannelViewModel : ViewModel() {
             
             if (state.isSubscribed) {
                 // Unsubscribe
-                subscriptionRepository?.unsubscribe(channelId)
+                subscriptionRepository.unsubscribe(channelId)
             } else {
                 // Subscribe
                 val subscription = ChannelSubscription(
@@ -364,7 +362,7 @@ class ChannelViewModel : ViewModel() {
                     channelThumbnail = channelThumbnail,
                     subscribedAt = System.currentTimeMillis()
                 )
-                subscriptionRepository?.subscribe(subscription)
+                subscriptionRepository.subscribe(subscription)
             }
         }
     }
@@ -373,7 +371,7 @@ class ChannelViewModel : ViewModel() {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             val state = _uiState.value
             val channelId = state.channelId ?: return@launch
-            subscriptionRepository?.unsubscribe(channelId)
+            subscriptionRepository.unsubscribe(channelId)
         }
     }
 
@@ -381,7 +379,7 @@ class ChannelViewModel : ViewModel() {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             val state = _uiState.value
             val channelId = state.channelId ?: return@launch
-            subscriptionRepository?.updateNotificationState(channelId, enabled)
+            subscriptionRepository.updateNotificationState(channelId, enabled)
         }
     }
     
