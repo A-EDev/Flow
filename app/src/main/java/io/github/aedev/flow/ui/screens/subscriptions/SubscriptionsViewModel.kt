@@ -32,8 +32,19 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.room.withTransaction
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class SubscriptionsViewModel : ViewModel() {
+@HiltViewModel
+class SubscriptionsViewModel @Inject constructor(
+    private val subscriptionRepository: SubscriptionRepository,
+    private val viewHistory: ViewHistory,
+    private val ytRepository: YouTubeRepository,
+    private val cacheDao: io.github.aedev.flow.data.local.dao.CacheDao,
+    private val database: AppDatabase,
+    private val playerPreferences: PlayerPreferences,
+    private val subscriptionGroupDao: SubscriptionGroupDao,
+) : ViewModel() {
     companion object {
         private const val TAG = "SubsViewModel"
         /**
@@ -52,18 +63,9 @@ class SubscriptionsViewModel : ViewModel() {
         private const val RELATIVE_TIME_TICK_MS = 60L * 1000L
     }
 
-    private lateinit var subscriptionRepository: SubscriptionRepository
-    private lateinit var viewHistory: ViewHistory
-    
     private val _uiState = MutableStateFlow(SubscriptionsUiState())
     val uiState: StateFlow<SubscriptionsUiState> = _uiState.asStateFlow()
 
-    private val ytRepository: YouTubeRepository = YouTubeRepository.getInstance()
-    private lateinit var cacheDao: io.github.aedev.flow.data.local.dao.CacheDao
-    private lateinit var database: AppDatabase
-    private lateinit var playerPreferences: PlayerPreferences
-    private lateinit var subscriptionGroupDao: SubscriptionGroupDao
-    private var isInitialized = false
     private var isNetworkFetchRunning = false
     private var latestFeedVideos: List<Video> = emptyList()
     private var watchedVideoIds: Set<String> = emptySet()
@@ -75,17 +77,7 @@ class SubscriptionsViewModel : ViewModel() {
     private var visibleVideoIds: Set<String> = emptySet()
     private var hasPendingVisibleEnrichment = false
 
-    fun initialize(context: Context) {
-        if (isInitialized) return
-        isInitialized = true
-
-        subscriptionRepository = SubscriptionRepository.getInstance(context)
-        playerPreferences = PlayerPreferences(context)
-        viewHistory = ViewHistory.getInstance(context)
-        database = AppDatabase.getDatabase(context)
-        cacheDao = database.cacheDao()
-        subscriptionGroupDao = database.subscriptionGroupDao()
-        
+    init {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             subscriptionGroupDao.getAllGroups().collect { entities ->
                 val groups = entities.map { it.toUiModel() }

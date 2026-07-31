@@ -47,7 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
@@ -67,7 +67,7 @@ fun SubscriptionsScreen(
     onShortClick: (String) -> Unit = {},
     onChannelClick: (Channel) -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: SubscriptionsViewModel = viewModel(),
+    viewModel: SubscriptionsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -98,7 +98,6 @@ fun SubscriptionsScreen(
 
     // Initialize view model
     LaunchedEffect(Unit) {
-        viewModel.initialize(context)
         viewModel.refreshIfStaleOrMissedUploads()
     }
 

@@ -74,7 +74,6 @@ fun TvChannelScreen(
     val dimens = LocalTvDimens.current
 
     LaunchedEffect(channelUrl) {
-        viewModel.initialize(context.applicationContext)
         viewModel.loadChannel(channelUrl)
     }
 

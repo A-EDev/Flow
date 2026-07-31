@@ -58,7 +58,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -94,7 +94,7 @@ fun ChannelScreen(
     onPlaylistClick: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ChannelViewModel = viewModel(),
+    viewModel: ChannelViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -108,7 +108,6 @@ fun ChannelScreen(
     val shortsLazyPagingItems = shortsPagingFlow?.collectAsLazyPagingItems()
     val playlistsLazyPagingItems = playlistsPagingFlow?.collectAsLazyPagingItems()
 
-    LaunchedEffect(Unit) { viewModel.initialize(context) }
     LaunchedEffect(channelUrl) { viewModel.loadChannel(channelUrl) }
 
     var showCollapsedChannelTitle by remember(channelUrl) { mutableStateOf(false) }
