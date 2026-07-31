@@ -472,4 +472,5 @@
     <string name="empty_liked_music">Nema omiljene muzike</string>
     <string name="empty_liked_music_body">Pjesme koje volite će se ovdje pojaviti</string>
     <string name="download_all">Preuzmi sve</string>
+    <string name="subscriptions_sort_default">zadano</string>
 </resources>
