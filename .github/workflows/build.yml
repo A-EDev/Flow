@@ -50,23 +50,44 @@ jobs:
             echo "Release keystore secret is not available. Skipping decoding."
           fi
 
-      - name: Run unit tests
+      - name: Run CI unit tests
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: >
           ./gradlew :app:testGithubNightlyUnitTest :app:testFossReleaseUnitTest
           --parallel --build-cache --stacktrace
 
+      - name: Run release unit tests
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: >
+          ./gradlew :app:testGithubReleaseUnitTest :app:testFossReleaseUnitTest
+          --parallel --build-cache --stacktrace
+
       - name: Lint GitHub nightly
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: >
           ./gradlew :app:lintGithubNightly
           --build-cache --stacktrace
 
-      # Build all variants in a single Gradle invocation so tasks share the
-      # configuration phase, classpath resolution and incremental build cache.
-      # --parallel lets Gradle run independent subproject tasks concurrently.
-      # --build-cache reuses outputs restored by setup-gradle.
-      - name: Build all APKs
+      - name: Lint GitHub release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: >
-          ./gradlew assembleGithubRelease assembleGithubNightly assembleFossRelease
+          ./gradlew :app:lintGithubRelease
+          --build-cache --stacktrace
+
+      - name: Build CI APKs
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: >
+          ./gradlew :app:assembleGithubRelease :app:assembleGithubNightly :app:assembleFossRelease
+          --parallel --build-cache --stacktrace
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Build release APKs
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: >
+          ./gradlew :app:assembleGithubRelease :app:assembleFossRelease
           --parallel --build-cache --stacktrace
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
@@ -74,21 +95,62 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Verify Discord nightly APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: |
           test -f app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk
           sha256sum app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk | tee app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk.sha256
 
-      - name: Upload Release APK
+      - name: Report individual APK sizes
+        shell: bash
+        run: |
+          shopt -s nullglob
+          apks=(
+            app/build/outputs/apk/github/release/app-github-arm64-v8a-release*.apk
+            app/build/outputs/apk/github/release/app-github-armeabi-v7a-release*.apk
+            app/build/outputs/apk/foss/release/app-foss-arm64-v8a-release*.apk
+            app/build/outputs/apk/foss/release/app-foss-armeabi-v7a-release*.apk
+          )
+          expected=4
+
+          if (( ${#apks[@]} != expected )); then
+            printf 'Expected %d published APKs, found %d.\n' "$expected" "${#apks[@]}" >&2
+            exit 1
+          fi
+
+          {
+            echo '## Individual APK sizes'
+            echo
+            echo '| APK | Size | Exact bytes |'
+            echo '|---|---:|---:|'
+            for apk in "${apks[@]}"; do
+              bytes=$(stat --format='%s' "$apk")
+              size=$(awk -v bytes="$bytes" 'BEGIN { printf "%.2f MiB", bytes / 1048576 }')
+              printf '| `%s` | %s | %s |\n' "$(basename "$apk")" "$size" "$bytes"
+            done
+            echo
+            echo '> GitHub and FOSS APKs are uploaded individually without compression. Nightly remains a compressed artifact on regular CI runs.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload GitHub ARM64 APK
         uses: actions/upload-artifact@v4
         with:
-          name: flow-release-apk
-          path: |
-            app/build/outputs/apk/github/release/app-github-arm64-v8a-release.apk
-            app/build/outputs/apk/github/release/app-github-armeabi-v7a-release.apk
+          name: flow-github-arm64-release-apk
+          path: app/build/outputs/apk/github/release/app-github-arm64-v8a-release*.apk
           if-no-files-found: error
           retention-days: 14
+          compression-level: 0
+
+      - name: Upload GitHub ARMv7 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-github-armeabi-v7a-release-apk
+          path: app/build/outputs/apk/github/release/app-github-armeabi-v7a-release*.apk
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
 
       - name: Upload Nightly APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v4
         with:
           name: flow-nightly-apk
@@ -98,15 +160,23 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload FOSS Release APK
+      - name: Upload FOSS ARM64 APK
         uses: actions/upload-artifact@v4
         with:
-          name: flow-foss-release-apk
-          path: |
-            app/build/outputs/apk/foss/release/app-foss-arm64-v8a-release.apk
-            app/build/outputs/apk/foss/release/app-foss-armeabi-v7a-release.apk
+          name: flow-foss-arm64-release-apk
+          path: app/build/outputs/apk/foss/release/app-foss-arm64-v8a-release*.apk
           if-no-files-found: error
           retention-days: 14
+          compression-level: 0
+
+      - name: Upload FOSS ARMv7 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-foss-armeabi-v7a-release-apk
+          path: app/build/outputs/apk/foss/release/app-foss-armeabi-v7a-release*.apk
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
 
   release:
     name: Create Release
@@ -120,17 +190,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download Release APK
+      - name: Download release APKs
         uses: actions/download-artifact@v4
         with:
-          name: flow-release-apk
+          pattern: flow-*-release-apk
           path: dist/
-
-      - name: Download FOSS Release APK
-        uses: actions/download-artifact@v4
-        with:
-          name: flow-foss-release-apk
-          path: dist/
+          merge-multiple: true
 
       - name: Rename APKs for release
         run: |
