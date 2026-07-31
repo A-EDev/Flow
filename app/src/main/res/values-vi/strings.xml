@@ -6,7 +6,7 @@
     <string name="subscriptions_sort_default">Mặc định</string>
     <string name="subscriptions_sort_name">Theo tên (A-Z)</string>
     <string name="subscriptions_sort_recent">Mới cập nhật gần đây</string>
-    <string name="top_bar_subscriptions_title">Kênh đăng kí</string>
+    <string name="top_bar_subscriptions_title">Đăng kí</string>
     <string name="view_all_button_label">Tất cả</string>
     <string name="subscribed">Đã đăng kí</string>
     <string name="no_subscriptions_yet">Chưa có kênh đăng kí nào</string>
@@ -252,7 +252,7 @@
     <string name="nav_home">Trang chủ</string>
     <string name="nav_shorts">Shorts</string>
     <string name="nav_music">Nhạc</string>
-    <string name="nav_subs">Phụ đề</string>
+    <string name="nav_subs">Kênh</string>
     <string name="nav_library">Thư viện</string>
     <string name="notifications">Thông báo</string>
     <string name="search">Tìm kiếm</string>
@@ -1822,4 +1822,6 @@
     <string name="metric_feed_memory_detail">đã hiển thị gần đây</string>
     <string name="metric_filters">Bộ lọc</string>
     <string name="metric_filters_detail">mục đã chặn</string>
+    <string name="profile_maturity_label">Độ hoàn thiện</string>
+    <string name="profile_maturity_detail">Độ trưởng thành càng cao, hồ sơ càng có đủ tín hiệu để được đánh giá ổn định và đáng tin cậy</string>
 </resources>
