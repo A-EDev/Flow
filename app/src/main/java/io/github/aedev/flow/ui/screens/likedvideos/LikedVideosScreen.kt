@@ -46,13 +46,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideoInfo
@@ -66,39 +65,37 @@ fun LikesScreen(
     onBackClick: () -> Unit,
     onMusicClick: (MusicTrack, List<MusicTrack>) -> Unit = { track, _ -> onVideoClick(track) },
     modifier: Modifier = Modifier,
-    viewModel: LikedVideosViewModel = viewModel()
+    viewModel: LikedVideosViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var selectedFilter by rememberSaveable { mutableStateOf(LikesFilter.Videos) }
 
-    LaunchedEffect(Unit) {
-        viewModel.initialize(context)
-    }
-
-    val displayLikes = remember(uiState.likedVideos, selectedFilter) {
-        uiState.likedVideos.filter { selectedFilter.matches(it) }
-    }
-    val musicQueue = remember(uiState.likedVideos) {
-        uiState.likedVideos.filter { it.isMusic }.map { it.toMusicTrack() }
-    }
+    val displayLikes =
+        remember(uiState.likedVideos, selectedFilter) {
+            uiState.likedVideos.filter { selectedFilter.matches(it) }
+        }
+    val musicQueue =
+        remember(uiState.likedVideos) {
+            uiState.likedVideos.filter { it.isMusic }.map { it.toMusicTrack() }
+        }
 
     Scaffold(
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.background,
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back)
+                            contentDescription = stringResource(R.string.btn_back),
                         )
                     }
                     Text(
@@ -106,29 +103,30 @@ fun LikesScreen(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { paddingValues ->
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(paddingValues),
         ) {
             LikesFilterRow(
                 selectedFilter = selectedFilter,
-                onFilterSelected = { selectedFilter = it }
+                onFilterSelected = { selectedFilter = it },
             )
 
             when {
                 uiState.isLoading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator()
                     }
@@ -142,7 +140,7 @@ fun LikesScreen(
                     EmptyLikesState(
                         modifier = Modifier.fillMaxSize(),
                         title = selectedFilter.emptyTitle(),
-                        body = selectedFilter.emptyBody()
+                        body = selectedFilter.emptyBody(),
                     )
                 }
 
@@ -150,11 +148,11 @@ fun LikesScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 80.dp),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
                         items(
                             items = displayLikes,
-                            key = { it.videoId }
+                            key = { it.videoId },
                         ) { like ->
                             if (like.isMusic) {
                                 val track = like.toMusicTrack()
@@ -166,16 +164,16 @@ fun LikesScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Favorite,
                                                 contentDescription = stringResource(R.string.unlike),
-                                                tint = MaterialTheme.colorScheme.primary
+                                                tint = MaterialTheme.colorScheme.primary,
                                             )
                                         }
-                                    }
+                                    },
                                 )
                             } else {
                                 LikedVideoCard(
                                     video = like,
                                     onClick = { onVideoClick(like.toMusicTrack()) },
-                                    onUnlikeClick = { viewModel.removeLike(like.videoId) }
+                                    onUnlikeClick = { viewModel.removeLike(like.videoId) },
                                 )
                             }
                         }
@@ -189,18 +187,18 @@ fun LikesScreen(
 @Composable
 private fun LikesFilterRow(
     selectedFilter: LikesFilter,
-    onFilterSelected: (LikesFilter) -> Unit
+    onFilterSelected: (LikesFilter) -> Unit,
 ) {
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(LikesFilter.values().toList()) { filter ->
             FilterChip(
                 selected = selectedFilter == filter,
                 onClick = { onFilterSelected(filter) },
-                label = { Text(filter.label()) }
+                label = { Text(filter.label()) },
             )
         }
     }
@@ -211,27 +209,29 @@ private fun LikedVideoCard(
     video: LikedVideoInfo,
     onClick: () -> Unit,
     onUnlikeClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 8.dp, horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
-            modifier = Modifier
-                .width(156.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .width(156.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
                 model = video.thumbnail,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         }
 
@@ -239,7 +239,7 @@ private fun LikedVideoCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.Top,
             ) {
                 Text(
                     text = video.title,
@@ -247,20 +247,21 @@ private fun LikedVideoCard(
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 4.dp)
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(end = 4.dp),
                 )
 
                 IconButton(
                     onClick = onUnlikeClick,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(32.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.ThumbUp,
                         contentDescription = stringResource(R.string.unlike),
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -272,7 +273,7 @@ private fun LikedVideoCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -283,69 +284,75 @@ private fun LikedVideoCard(
 private fun EmptyLikesState(
     modifier: Modifier = Modifier,
     title: String = stringResource(R.string.empty_liked),
-    body: String = stringResource(R.string.empty_liked_body)
+    body: String = stringResource(R.string.empty_liked_body),
 ) {
     Column(
         modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
         Icon(
             imageVector = Icons.Outlined.ThumbUp,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = body,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
 }
 
 private enum class LikesFilter {
     Videos,
-    Music;
+    Music,
+    ;
 
-    fun matches(like: LikedVideoInfo): Boolean = when (this) {
-        Videos -> !like.isMusic
-        Music -> like.isMusic
+    fun matches(like: LikedVideoInfo): Boolean =
+        when (this) {
+            Videos -> !like.isMusic
+            Music -> like.isMusic
+        }
+}
+
+@Composable
+private fun LikesFilter.label(): String =
+    when (this) {
+        LikesFilter.Videos -> stringResource(R.string.history_tab_videos)
+        LikesFilter.Music -> stringResource(R.string.nav_music)
     }
-}
 
 @Composable
-private fun LikesFilter.label(): String = when (this) {
-    LikesFilter.Videos -> stringResource(R.string.history_tab_videos)
-    LikesFilter.Music -> stringResource(R.string.nav_music)
-}
+private fun LikesFilter.emptyTitle(): String =
+    when (this) {
+        LikesFilter.Videos -> stringResource(R.string.empty_liked_videos)
+        LikesFilter.Music -> stringResource(R.string.empty_liked_music)
+    }
 
 @Composable
-private fun LikesFilter.emptyTitle(): String = when (this) {
-    LikesFilter.Videos -> stringResource(R.string.empty_liked_videos)
-    LikesFilter.Music -> stringResource(R.string.empty_liked_music)
-}
+private fun LikesFilter.emptyBody(): String =
+    when (this) {
+        LikesFilter.Videos -> stringResource(R.string.empty_liked_body)
+        LikesFilter.Music -> stringResource(R.string.empty_liked_music_body)
+    }
 
-@Composable
-private fun LikesFilter.emptyBody(): String = when (this) {
-    LikesFilter.Videos -> stringResource(R.string.empty_liked_body)
-    LikesFilter.Music -> stringResource(R.string.empty_liked_music_body)
-}
-
-private fun LikedVideoInfo.toMusicTrack(): MusicTrack = MusicTrack(
-    videoId = videoId,
-    title = title,
-    artist = channelName,
-    thumbnailUrl = thumbnail,
-    duration = 0,
-    channelId = ""
-)
+private fun LikedVideoInfo.toMusicTrack(): MusicTrack =
+    MusicTrack(
+        videoId = videoId,
+        title = title,
+        artist = channelName,
+        thumbnailUrl = thumbnail,
+        duration = 0,
+        channelId = "",
+    )

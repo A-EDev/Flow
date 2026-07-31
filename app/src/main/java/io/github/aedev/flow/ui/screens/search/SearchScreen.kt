@@ -1,10 +1,14 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package io.github.aedev.flow.ui.screens.search
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.lazy.grid.*
@@ -25,27 +29,25 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.text.*
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.*
+import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SearchHistoryItem
-import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.model.*
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.search.SearchSuggestionsService
@@ -56,7 +58,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-
 @OptIn(FlowPreview::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -64,19 +65,23 @@ fun SearchScreen(
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SearchViewModel = viewModel()
+    viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val searchHistoryRepo = remember { SearchHistoryRepository(context) }
-    val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
+    val preferences =
+        remember {
+            io.github.aedev.flow.data.local
+                .PlayerPreferences(context)
+        }
     val uiState by viewModel.uiState.collectAsState()
 
     var searchQuery by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(
             TextFieldValue(
                 text = viewModel.uiState.value.query,
-                selection = TextRange(viewModel.uiState.value.query.length)
-            )
+                selection = TextRange(viewModel.uiState.value.query.length),
+            ),
         )
     }
     var isSearchFocused by remember { mutableStateOf(false) }
@@ -85,9 +90,11 @@ fun SearchScreen(
     var hasPerformedSearch by rememberSaveable { mutableStateOf(false) }
     var isNavigatingAway by remember { mutableStateOf(false) }
 
-    val searchHistory by searchHistoryRepo.getSearchHistoryFlow()
+    val searchHistory by searchHistoryRepo
+        .getSearchHistoryFlow()
         .collectAsState(initial = emptyList())
-    val suggestionsEnabled by searchHistoryRepo.isSearchSuggestionsEnabledFlow()
+    val suggestionsEnabled by searchHistoryRepo
+        .isSearchSuggestionsEnabledFlow()
         .collectAsState(initial = true)
     val pagingItems = viewModel.searchResults.collectAsLazyPagingItems()
 
@@ -100,96 +107,108 @@ fun SearchScreen(
 
     var liveSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoadingSuggestions by remember { mutableStateOf(false) }
-    val matchingHistorySuggestions = remember(searchHistory, searchQuery.text) {
-        val queryText = searchQuery.text.trim()
-        if (queryText.isBlank()) {
-            emptyList()
-        } else {
-            val normalizedQuery = queryText.lowercase()
-            val matchingQueries = searchHistory
-                .asSequence()
-                .map { it.query.trim() }
-                .filter { it.isNotBlank() && it.contains(queryText, ignoreCase = true) }
-                .distinctBy { it.lowercase() }
-                .toList()
-            val prefixMatches = matchingQueries.filter { it.lowercase().startsWith(normalizedQuery) }
-            val containsMatches = matchingQueries.filterNot { it.lowercase().startsWith(normalizedQuery) }
-            (prefixMatches + containsMatches).take(5)
-        }
-    }
-    val orderedSuggestions = remember(matchingHistorySuggestions, liveSuggestions) {
-        (matchingHistorySuggestions + liveSuggestions)
-            .distinctBy { it.trim().lowercase() }
-            .take(10)
-    }
-
-    val dismissKeyboard: () -> Unit = remember(focusManager, keyboardController) {
-        {
-            focusManager.clearFocus(force = true)
-            keyboardController?.hide()
-            isSearchFocused = false
-        }
-    }
-
-    val setSearchQueryToEnd: (String) -> Unit = remember {
-        { value ->
-            searchQuery = TextFieldValue(value, selection = TextRange(value.length))
-        }
-    }
-
-    val voiceSearchLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val spokenText = result.data
-                ?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
-                ?.firstOrNull()
-            if (!spokenText.isNullOrBlank()) {
-                setSearchQueryToEnd(spokenText)
-                dismissKeyboard()
-                viewModel.search(spokenText)
+    val matchingHistorySuggestions =
+        remember(searchHistory, searchQuery.text) {
+            val queryText = searchQuery.text.trim()
+            if (queryText.isBlank()) {
+                emptyList()
+            } else {
+                val normalizedQuery = queryText.lowercase()
+                val matchingQueries =
+                    searchHistory
+                        .asSequence()
+                        .map { it.query.trim() }
+                        .filter { it.isNotBlank() && it.contains(queryText, ignoreCase = true) }
+                        .distinctBy { it.lowercase() }
+                        .toList()
+                val prefixMatches = matchingQueries.filter { it.lowercase().startsWith(normalizedQuery) }
+                val containsMatches = matchingQueries.filterNot { it.lowercase().startsWith(normalizedQuery) }
+                (prefixMatches + containsMatches).take(5)
             }
         }
-    }
-    val launchVoiceSearch: () -> Unit = {
-        val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(
-                android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-            )
-            putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Speak to search…")
+    val orderedSuggestions =
+        remember(matchingHistorySuggestions, liveSuggestions) {
+            (matchingHistorySuggestions + liveSuggestions)
+                .distinctBy { it.trim().lowercase() }
+                .take(10)
         }
+
+    val dismissKeyboard: () -> Unit =
+        remember(focusManager, keyboardController) {
+            {
+                focusManager.clearFocus(force = true)
+                keyboardController?.hide()
+                isSearchFocused = false
+            }
+        }
+
+    val setSearchQueryToEnd: (String) -> Unit =
+        remember {
+            { value ->
+                searchQuery = TextFieldValue(value, selection = TextRange(value.length))
+            }
+        }
+
+    val voiceSearchLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                val spokenText =
+                    result.data
+                        ?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
+                        ?.firstOrNull()
+                if (!spokenText.isNullOrBlank()) {
+                    setSearchQueryToEnd(spokenText)
+                    dismissKeyboard()
+                    viewModel.search(spokenText)
+                }
+            }
+        }
+    val launchVoiceSearch: () -> Unit = {
+        val intent =
+            android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(
+                    android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+                )
+                putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Speak to search…")
+            }
         try {
             voiceSearchLauncher.launch(intent)
-        } catch (_: android.content.ActivityNotFoundException) { }
-    }
-
-    val navigateToVideo: (Video) -> Unit = remember(dismissKeyboard, onVideoClick) {
-        { video ->
-            isNavigatingAway = true
-            hasPerformedSearch = true
-            dismissKeyboard()
-            onVideoClick(video)
+        } catch (_: android.content.ActivityNotFoundException) {
         }
     }
 
-    val navigateToChannel: (Channel) -> Unit = remember(dismissKeyboard, onChannelClick) {
-        { channel ->
-            isNavigatingAway = true
-            hasPerformedSearch = true
-            dismissKeyboard()
-            onChannelClick(channel)
+    val navigateToVideo: (Video) -> Unit =
+        remember(dismissKeyboard, onVideoClick) {
+            { video ->
+                isNavigatingAway = true
+                hasPerformedSearch = true
+                dismissKeyboard()
+                onVideoClick(video)
+            }
         }
-    }
 
-    val navigateToPlaylist: (Playlist) -> Unit = remember(dismissKeyboard, onPlaylistClick) {
-        { playlist ->
-            isNavigatingAway = true
-            hasPerformedSearch = true
-            dismissKeyboard()
-            onPlaylistClick(playlist)
+    val navigateToChannel: (Channel) -> Unit =
+        remember(dismissKeyboard, onChannelClick) {
+            { channel ->
+                isNavigatingAway = true
+                hasPerformedSearch = true
+                dismissKeyboard()
+                onChannelClick(channel)
+            }
         }
-    }
+
+    val navigateToPlaylist: (Playlist) -> Unit =
+        remember(dismissKeyboard, onPlaylistClick) {
+            { playlist ->
+                isNavigatingAway = true
+                hasPerformedSearch = true
+                dismissKeyboard()
+                onPlaylistClick(playlist)
+            }
+        }
 
     LaunchedEffect(Unit) {
         if (!hasPerformedSearch) {
@@ -197,7 +216,8 @@ fun SearchScreen(
             try {
                 focusRequester.requestFocus()
                 keyboardController?.show()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -245,15 +265,19 @@ fun SearchScreen(
         }
     }
 
-    val sortByTypes = listOf(
-        SortType.RELEVANCE, SortType.RATING, SortType.VIEWS
-    )
+    val sortByTypes =
+        listOf(
+            SortType.RELEVANCE,
+            SortType.RATING,
+            SortType.VIEWS,
+        )
     val selectedContentType = uiState.filters?.contentType ?: ContentType.ALL
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
     ) {
         SearchBarRow(
             query = searchQuery,
@@ -280,8 +304,8 @@ fun SearchScreen(
                                 duration = 0,
                                 viewCount = 0L,
                                 uploadDate = "",
-                                channelThumbnailUrl = ""
-                            )
+                                channelThumbnailUrl = "",
+                            ),
                         )
                         return@SearchBarRow
                     }
@@ -301,14 +325,15 @@ fun SearchScreen(
                 isSearchFocused = focused
             },
             focusRequester = focusRequester,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         )
 
         AnimatedVisibility(
-            visible = isSearchFocused && searchQuery.text.isNotEmpty() &&
+            visible =
+                isSearchFocused && searchQuery.text.isNotEmpty() &&
                     (orderedSuggestions.isNotEmpty() || isLoadingSuggestions),
             enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
+            exit = shrinkVertically() + fadeOut(),
         ) {
             SuggestionsCard(
                 query = searchQuery.text,
@@ -331,15 +356,15 @@ fun SearchScreen(
                                 duration = 0,
                                 viewCount = 0L,
                                 uploadDate = "",
-                                channelThumbnailUrl = ""
-                            )
+                                channelThumbnailUrl = "",
+                            ),
                         )
                     } else {
                         viewModel.search(s)
                     }
                 },
                 onFillClick = { setSearchQueryToEnd(it) },
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
 
@@ -358,7 +383,7 @@ fun SearchScreen(
                 },
                 onClearHistory = {
                     scope.launch { searchHistoryRepo.clearSearchHistory() }
-                }
+                },
             )
         } else {
             SearchFiltersBar(
@@ -383,7 +408,7 @@ fun SearchScreen(
                 onSelectedSortType = {
                     val base = uiState.filters ?: SearchFilter()
                     viewModel.updateFilters(base.copy(sortType = it))
-                }
+                },
             )
 
             val isInitialLoading =
@@ -392,50 +417,68 @@ fun SearchScreen(
                 pagingItems.loadState.refresh is LoadState.Error && pagingItems.itemCount == 0
 
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                val responsiveColumns = when {
-                    maxWidth < 700.dp -> 1
-                    maxWidth < 900.dp -> 2
-                    maxWidth < 1200.dp -> 3
-                    else -> 4
-                }
+                val responsiveColumns =
+                    when {
+                        maxWidth < 700.dp -> 1
+                        maxWidth < 900.dp -> 2
+                        maxWidth < 1200.dp -> 3
+                        else -> 4
+                    }
 
-                val responsiveGridColumns = when {
-                    maxWidth < 600.dp -> 1
-                    maxWidth < 900.dp -> 2
-                    maxWidth < 1200.dp -> 3
-                    else -> 4
-                }
+                val responsiveGridColumns =
+                    when {
+                        maxWidth < 600.dp -> 1
+                        maxWidth < 900.dp -> 2
+                        maxWidth < 1200.dp -> 3
+                        else -> 4
+                    }
 
                 val columns = if (isGridMode) responsiveGridColumns else responsiveColumns
 
                 when {
-                    isInitialLoading -> ShimmerResultsScreen(isGridMode, columns)
+                    isInitialLoading -> {
+                        ShimmerResultsScreen(isGridMode, columns)
+                    }
+
                     isInitialError -> {
                         val err =
                             (pagingItems.loadState.refresh as LoadState.Error).error
                         SearchErrorState(
                             message = err.localizedMessage ?: "Search failed",
-                            onRetry = pagingItems::retry
+                            onRetry = pagingItems::retry,
                         )
                     }
+
                     selectedContentType == ContentType.SHORTS -> {
                         SearchShortsGrid(
-                            pagingItems, gridState, maxOf(columns, 2),
-                            navigateToVideo, dismissKeyboard
+                            pagingItems,
+                            gridState,
+                            maxOf(columns, 2),
+                            navigateToVideo,
+                            dismissKeyboard,
                         )
                     }
+
                     else -> {
                         if (isGridMode) {
                             SearchResultGrid(
-                                pagingItems, gridState, columns,
-                                navigateToVideo, navigateToChannel, navigateToPlaylist,
-                                dismissKeyboard
+                                pagingItems,
+                                gridState,
+                                columns,
+                                navigateToVideo,
+                                navigateToChannel,
+                                navigateToPlaylist,
+                                dismissKeyboard,
                             )
                         } else {
                             SearchResultList(
-                                pagingItems, gridState, columns,
-                                navigateToVideo, navigateToChannel, navigateToPlaylist,
-                                dismissKeyboard
+                                pagingItems,
+                                gridState,
+                                columns,
+                                navigateToVideo,
+                                navigateToChannel,
+                                navigateToPlaylist,
+                                dismissKeyboard,
                             )
                         }
                     }
@@ -447,13 +490,14 @@ fun SearchScreen(
 
 private fun extractVideoId(url: String): String? {
     if (!isSupportedVideoUrl(url)) return null
-    val patterns = listOf(
-        Regex("v=([^&]+)"),
-        Regex("shorts/([^/?]+)"),
-        Regex("youtu.be/([^/?]+)"),
-        Regex("embed/([^/?]+)"),
-        Regex("v/([^/?]+)")
-    )
+    val patterns =
+        listOf(
+            Regex("v=([^&]+)"),
+            Regex("shorts/([^/?]+)"),
+            Regex("youtu.be/([^/?]+)"),
+            Regex("embed/([^/?]+)"),
+            Regex("v/([^/?]+)"),
+        )
     for (pattern in patterns) {
         val match = pattern.find(url)
         if (match != null) return match.groupValues[1]
@@ -481,123 +525,138 @@ private fun SearchBarRow(
     isSearchFocused: Boolean,
     onFocusChange: (Boolean) -> Unit,
     focusRequester: FocusRequester,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val focusAnim by animateFloatAsState(
         targetValue = if (isSearchFocused) 1f else 0f,
         animationSpec = tween(300),
-        label = "focus"
+        label = "focus",
     )
     val primary = MaterialTheme.colorScheme.primary
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .clip(RoundedCornerShape(23.dp))
-            .drawBehind {
-                if (focusAnim > 0f) {
-                    drawRoundRect(
-                        brush = Brush.sweepGradient(
-                            listOf(
-                                primary.copy(alpha = focusAnim * 0.9f),
-                                primary.copy(alpha = focusAnim * 0.3f),
-                                primary.copy(alpha = focusAnim * 0.9f)
-                            )
-                        ),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(
-                            23.dp.toPx()
-                        ),
-                        style = Stroke(width = (2.5f * focusAnim).dp.toPx())
-                    )
-                }
-            }
-            .background(
-                color = if (isSearchFocused)
-                    MaterialTheme.colorScheme.surface
-                else
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                shape = RoundedCornerShape(23.dp)
-            )
-            .clickable(
-                indication = null,
-                interactionSource = remember { 
-                    androidx.compose.foundation.interaction.MutableInteractionSource() 
-                }
-            ) {
-                focusRequester.requestFocus()
-                keyboardController?.show()
-            }
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clip(RoundedCornerShape(23.dp))
+                .drawBehind {
+                    if (focusAnim > 0f) {
+                        drawRoundRect(
+                            brush =
+                                Brush.sweepGradient(
+                                    listOf(
+                                        primary.copy(alpha = focusAnim * 0.9f),
+                                        primary.copy(alpha = focusAnim * 0.3f),
+                                        primary.copy(alpha = focusAnim * 0.9f),
+                                    ),
+                                ),
+                            cornerRadius =
+                                androidx.compose.ui.geometry.CornerRadius(
+                                    23.dp.toPx(),
+                                ),
+                            style = Stroke(width = (2.5f * focusAnim).dp.toPx()),
+                        )
+                    }
+                }.background(
+                    color =
+                        if (isSearchFocused) {
+                            MaterialTheme.colorScheme.surface
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        },
+                    shape = RoundedCornerShape(23.dp),
+                ).clickable(
+                    indication = null,
+                    interactionSource =
+                        remember {
+                            androidx.compose.foundation.interaction
+                                .MutableInteractionSource()
+                        },
+                ) {
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                },
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(start = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Outlined.Search,
                 contentDescription = null,
-                tint = if (isSearchFocused) primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                tint =
+                    if (isSearchFocused) {
+                        primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                modifier = Modifier.size(20.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
 
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { state ->
-                        onFocusChange(state.isFocused)
-                    },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp
-                ),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { state ->
+                            onFocusChange(state.isFocused)
+                        },
+                textStyle =
+                    MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 16.sp,
+                    ),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(
-                    onSearch = { if (query.text.isNotBlank()) onSearch() }
-                ),
+                keyboardActions =
+                    KeyboardActions(
+                        onSearch = { if (query.text.isNotBlank()) onSearch() },
+                    ),
                 cursorBrush = SolidColor(primary),
                 decorationBox = { innerTextField ->
                     Box(
                         modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterStart
+                        contentAlignment = Alignment.CenterStart,
                     ) {
                         if (query.text.isEmpty()) {
                             Text(
                                 stringResource(R.string.search_videos_channels_placeholder),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                    alpha = 0.55f
-                                ),
-                                fontSize = 16.sp
+                                color =
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        alpha = 0.55f,
+                                    ),
+                                fontSize = 16.sp,
                             )
                         }
                         innerTextField()
                     }
-                }
+                },
             )
 
             if (query.text.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .padding(end = 2.dp)
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onVoiceSearch),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .padding(end = 2.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onVoiceSearch),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         Icons.Outlined.Mic,
                         contentDescription = stringResource(R.string.voice_search_cd),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             } else {
@@ -606,7 +665,7 @@ private fun SearchBarRow(
                         Icons.Filled.Close,
                         contentDescription = stringResource(R.string.clear),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -627,47 +686,56 @@ private fun SearchFiltersBar(
     isGridMode: Boolean,
     onToggleGridMode: () -> Unit,
 ) {
-    val showVideoFilters = selectedContentType in listOf(
-        ContentType.ALL, ContentType.VIDEOS, ContentType.LIVE
-    )
-    val typeLabels = listOf(
-        ContentType.ALL to R.string.search_filter_all,
-        ContentType.VIDEOS to R.string.videos_header,
-        ContentType.SHORTS to R.string.tab_shorts,
-        ContentType.CHANNELS to R.string.channels_header,
-        ContentType.PLAYLISTS to R.string.tab_playlists,
-        ContentType.LIVE to R.string.tab_live
-    )
-    val durationLabels = listOf(
-        Duration.ANY to R.string.duration_any,
-        Duration.UNDER_4_MINUTES to R.string.duration_under_4,
-        Duration.FROM_4_TO_20_MINUTES to R.string.duration_4_20,
-        Duration.OVER_20_MINUTES to R.string.duration_over_20
-    )
-    val uploadDateLabels = listOf(
-        UploadDate.ANY to R.string.date_any,
-        UploadDate.TODAY to R.string.date_today,
-        UploadDate.THIS_WEEK to R.string.date_this_week,
-        UploadDate.THIS_MONTH to R.string.date_this_month,
-        UploadDate.THIS_YEAR to R.string.date_this_year
-    )
-    val sortTypeLabels = listOf(
-        SortType.RELEVANCE to R.string.sort_relevance,
-        SortType.RATING to R.string.sort_rating,
-        SortType.VIEWS to R.string.views
-    )
+    val showVideoFilters =
+        selectedContentType in
+            listOf(
+                ContentType.ALL,
+                ContentType.VIDEOS,
+                ContentType.LIVE,
+            )
+    val typeLabels =
+        listOf(
+            ContentType.ALL to R.string.search_filter_all,
+            ContentType.VIDEOS to R.string.videos_header,
+            ContentType.SHORTS to R.string.tab_shorts,
+            ContentType.CHANNELS to R.string.channels_header,
+            ContentType.PLAYLISTS to R.string.tab_playlists,
+            ContentType.LIVE to R.string.tab_live,
+        )
+    val durationLabels =
+        listOf(
+            Duration.ANY to R.string.duration_any,
+            Duration.UNDER_4_MINUTES to R.string.duration_under_4,
+            Duration.FROM_4_TO_20_MINUTES to R.string.duration_4_20,
+            Duration.OVER_20_MINUTES to R.string.duration_over_20,
+        )
+    val uploadDateLabels =
+        listOf(
+            UploadDate.ANY to R.string.date_any,
+            UploadDate.TODAY to R.string.date_today,
+            UploadDate.THIS_WEEK to R.string.date_this_week,
+            UploadDate.THIS_MONTH to R.string.date_this_month,
+            UploadDate.THIS_YEAR to R.string.date_this_year,
+        )
+    val sortTypeLabels =
+        listOf(
+            SortType.RELEVANCE to R.string.sort_relevance,
+            SortType.RATING to R.string.sort_rating,
+            SortType.VIEWS to R.string.views,
+        )
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         LazyRow(
             modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             item {
                 var typeExpanded by remember { mutableStateOf(false) }
@@ -683,22 +751,25 @@ private fun SearchFiltersBar(
                         },
                         trailingIcon = {
                             Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
-                        }
+                        },
                     )
                     DropdownMenu(
                         expanded = typeExpanded,
-                        onDismissRequest = { typeExpanded = false }
+                        onDismissRequest = { typeExpanded = false },
                     ) {
                         typeLabels.forEach { (type, labelRes) ->
                             DropdownMenuItem(
                                 text = { Text(stringResource(labelRes)) },
-                                leadingIcon = if (type == selectedContentType) {
-                                    { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                                } else null,
+                                leadingIcon =
+                                    if (type == selectedContentType) {
+                                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                    } else {
+                                        null
+                                    },
                                 onClick = {
                                     onContentTypeSelected(type)
                                     typeExpanded = false
-                                }
+                                },
                             )
                         }
                     }
@@ -717,22 +788,25 @@ private fun SearchFiltersBar(
                             },
                             trailingIcon = {
                                 Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
-                            }
+                            },
                         )
                         DropdownMenu(
                             expanded = durationExpanded,
-                            onDismissRequest = { durationExpanded = false }
+                            onDismissRequest = { durationExpanded = false },
                         ) {
                             durationLabels.forEach { (dur, labelRes) ->
                                 DropdownMenuItem(
                                     text = { Text(stringResource(labelRes)) },
-                                    leadingIcon = if (dur == selectedDuration) {
-                                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                                    } else null,
+                                    leadingIcon =
+                                        if (dur == selectedDuration) {
+                                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                        } else {
+                                            null
+                                        },
                                     onClick = {
                                         onDurationSelected(dur)
                                         durationExpanded = false
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -750,22 +824,25 @@ private fun SearchFiltersBar(
                             },
                             trailingIcon = {
                                 Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
-                            }
+                            },
                         )
                         DropdownMenu(
                             expanded = dateExpanded,
-                            onDismissRequest = { dateExpanded = false }
+                            onDismissRequest = { dateExpanded = false },
                         ) {
                             uploadDateLabels.forEach { (date, labelRes) ->
                                 DropdownMenuItem(
                                     text = { Text(stringResource(labelRes)) },
-                                    leadingIcon = if (date == selectedUploadDate) {
-                                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                                    } else null,
+                                    leadingIcon =
+                                        if (date == selectedUploadDate) {
+                                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                        } else {
+                                            null
+                                        },
                                     onClick = {
                                         onUploadDateSelected(date)
                                         dateExpanded = false
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -782,22 +859,25 @@ private fun SearchFiltersBar(
                             },
                             trailingIcon = {
                                 Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
-                            }
+                            },
                         )
                         DropdownMenu(
                             expanded = sortExpanded,
-                            onDismissRequest = { sortExpanded = false }
+                            onDismissRequest = { sortExpanded = false },
                         ) {
                             sortTypeLabels.forEach { (sort, labelRes) ->
                                 DropdownMenuItem(
                                     text = { Text(stringResource(labelRes)) },
-                                    leadingIcon = if (sort == selectedSortType) {
-                                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                                    } else null,
+                                    leadingIcon =
+                                        if (sort == selectedSortType) {
+                                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                        } else {
+                                            null
+                                        },
                                     onClick = {
                                         onSelectedSortType(sort)
                                         sortExpanded = false
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -807,44 +887,56 @@ private fun SearchFiltersBar(
         }
 
         Box(
-            modifier = Modifier
-                .padding(start = 2.dp, end = 6.dp)
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(
-                    if (isGridMode) MaterialTheme.colorScheme.primary
-                    else Color.Transparent
-                )
-                .clickable(onClick = onToggleGridMode),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .padding(start = 2.dp, end = 6.dp)
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isGridMode) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            Color.Transparent
+                        },
+                    ).clickable(onClick = onToggleGridMode),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 if (isGridMode) Icons.Outlined.ViewList else Icons.Outlined.GridView,
                 contentDescription = stringResource(R.string.search_toggle_view_mode),
-                tint = if (isGridMode) MaterialTheme.colorScheme.onPrimary
-                       else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                tint =
+                    if (isGridMode) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                modifier = Modifier.size(20.dp),
             )
         }
     }
 }
 
-private fun searchItemKey(item: SearchResultItem?, index: Int): Any = when (item) {
-    is SearchResultItem.VideoResult -> "v_${item.video.id}"
-    is SearchResultItem.ChannelResult -> "c_${item.channel.id}"
-    is SearchResultItem.PlaylistResult -> "p_${item.playlist.id}"
-    is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
-    null -> "placeholder_$index"
-}
+private fun searchItemKey(
+    item: SearchResultItem?,
+    index: Int,
+): Any =
+    when (item) {
+        is SearchResultItem.VideoResult -> "v_${item.video.id}"
+        is SearchResultItem.ChannelResult -> "c_${item.channel.id}"
+        is SearchResultItem.PlaylistResult -> "p_${item.playlist.id}"
+        is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
+        null -> "placeholder_$index"
+    }
 
 /** Lets the grid reuse an item's composition when a slot is filled by another item of the same kind. */
-private fun searchItemContentType(item: SearchResultItem?): Any = when (item) {
-    is SearchResultItem.VideoResult -> "video"
-    is SearchResultItem.ChannelResult -> "channel"
-    is SearchResultItem.PlaylistResult -> "playlist"
-    is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
-    null -> "placeholder"
-}
+private fun searchItemContentType(item: SearchResultItem?): Any =
+    when (item) {
+        is SearchResultItem.VideoResult -> "video"
+        is SearchResultItem.ChannelResult -> "channel"
+        is SearchResultItem.PlaylistResult -> "playlist"
+        is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
+        null -> "placeholder"
+    }
 
 private const val SHORTS_SHELF_KEY = "shortsShelf"
 
@@ -856,49 +948,57 @@ private fun SearchResultList(
     onVideoClick: (Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
-    dismissKeyboard: () -> Unit
+    dismissKeyboard: () -> Unit,
 ) {
     LazyVerticalGrid(
         state = gridState,
         columns = GridCells.Fixed(columns),
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent(
-                            pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial
-                        )
-                        if (event.changes.any { it.pressed }) {
-                            dismissKeyboard()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event =
+                                awaitPointerEvent(
+                                    pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial,
+                                )
+                            if (event.changes.any { it.pressed }) {
+                                dismissKeyboard()
+                            }
                         }
                     }
-                }
-            },
-        contentPadding = PaddingValues(
-            start = if (columns == 1) 0.dp else 16.dp,
-            end = if (columns == 1) 0.dp else 16.dp,
-            top = 8.dp,
-            bottom = 90.dp
-        ),
-        horizontalArrangement = Arrangement.spacedBy(
-            if (columns == 1) 0.dp else 12.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(
-            if (columns == 1) 0.dp else 12.dp
-        )
+                },
+        contentPadding =
+            PaddingValues(
+                start = if (columns == 1) 0.dp else 16.dp,
+                end = if (columns == 1) 0.dp else 16.dp,
+                top = 8.dp,
+                bottom = 90.dp,
+            ),
+        horizontalArrangement =
+            Arrangement.spacedBy(
+                if (columns == 1) 0.dp else 12.dp,
+            ),
+        verticalArrangement =
+            Arrangement.spacedBy(
+                if (columns == 1) 0.dp else 12.dp,
+            ),
     ) {
         items(
             count = pagingItems.itemCount,
             key = { i -> searchItemKey(pagingItems.peek(i), i) },
             contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
             span = { i ->
-                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult)
-                    GridItemSpan(maxLineSpan) else GridItemSpan(1)
-            }
+                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult) {
+                    GridItemSpan(maxLineSpan)
+                } else {
+                    GridItemSpan(1)
+                }
+            },
         ) { i ->
             when (val item = pagingItems[i]) {
-                is SearchResultItem.VideoResult ->
+                is SearchResultItem.VideoResult -> {
                     VideoCardFullWidth(
                         video = item.video,
                         modifier = Modifier.padding(vertical = 4.dp),
@@ -908,31 +1008,42 @@ private fun SearchResultList(
                                 Channel(
                                     id = channelId,
                                     name = item.video.channelName,
-                                    thumbnailUrl = item.video.channelThumbnailUrl
-                                        ?: "",
+                                    thumbnailUrl =
+                                        item.video.channelThumbnailUrl
+                                            ?: "",
                                     subscriberCount = 0,
-                                    url = "https://www.youtube.com/channel/$channelId"
-                                )
+                                    url = "https://www.youtube.com/channel/$channelId",
+                                ),
                             )
-                        }
+                        },
                     )
-                is SearchResultItem.ChannelResult ->
+                }
+
+                is SearchResultItem.ChannelResult -> {
                     SearchChannelCard(
                         item.channel,
                         onClick = {
                             onChannelClick(item.channel)
-                        }
+                        },
                     )
-                is SearchResultItem.PlaylistResult ->
+                }
+
+                is SearchResultItem.PlaylistResult -> {
                     PlaylistCard(
                         item.playlist,
                         onClick = {
                             onPlaylistClick(item.playlist)
-                        }
+                        },
                     )
-                is SearchResultItem.ShortsShelfResult ->
+                }
+
+                is SearchResultItem.ShortsShelfResult -> {
                     ShortsShelf(shorts = item.shorts, onShortClick = onVideoClick)
-                null -> Unit
+                }
+
+                null -> {
+                    Unit
+                }
             }
         }
 
@@ -940,7 +1051,7 @@ private fun SearchResultList(
             PagingFooter(
                 pagingItems.loadState.append,
                 pagingItems::retry,
-                pagingItems.itemCount
+                pagingItems.itemCount,
             )
         }
     }
@@ -954,41 +1065,46 @@ private fun SearchResultGrid(
     onVideoClick: (Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
-    dismissKeyboard: () -> Unit
+    dismissKeyboard: () -> Unit,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = gridState,
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent(
-                            pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial
-                        )
-                        if (event.changes.any { it.pressed }) {
-                            dismissKeyboard()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event =
+                                awaitPointerEvent(
+                                    pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial,
+                                )
+                            if (event.changes.any { it.pressed }) {
+                                dismissKeyboard()
+                            }
                         }
                     }
-                }
-            },
+                },
         contentPadding = PaddingValues(12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         items(
             count = pagingItems.itemCount,
             key = { i -> searchItemKey(pagingItems.peek(i), i) },
             contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
             span = { i ->
-                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult)
-                    GridItemSpan(maxLineSpan) else GridItemSpan(1)
-            }
+                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult) {
+                    GridItemSpan(maxLineSpan)
+                } else {
+                    GridItemSpan(1)
+                }
+            },
         ) { i ->
             val item = pagingItems[i] ?: return@items
             when (item) {
-                is SearchResultItem.VideoResult ->
+                is SearchResultItem.VideoResult -> {
                     CompactVideoCard(
                         video = item.video,
                         onClick = {
@@ -999,30 +1115,38 @@ private fun SearchResultGrid(
                                 Channel(
                                     id = channelId,
                                     name = item.video.channelName,
-                                    thumbnailUrl = item.video.channelThumbnailUrl
-                                        ?: "",
+                                    thumbnailUrl =
+                                        item.video.channelThumbnailUrl
+                                            ?: "",
                                     subscriberCount = 0,
-                                    url = "https://www.youtube.com/channel/$channelId"
-                                )
+                                    url = "https://www.youtube.com/channel/$channelId",
+                                ),
                             )
-                        }
+                        },
                     )
-                is SearchResultItem.ChannelResult ->
+                }
+
+                is SearchResultItem.ChannelResult -> {
                     SearchChannelCardCompact(
                         item.channel,
                         onClick = {
                             onChannelClick(item.channel)
-                        }
+                        },
                     )
-                is SearchResultItem.PlaylistResult ->
+                }
+
+                is SearchResultItem.PlaylistResult -> {
                     SearchPlaylistCardCompact(
                         item.playlist,
                         onClick = {
                             onPlaylistClick(item.playlist)
-                        }
+                        },
                     )
-                is SearchResultItem.ShortsShelfResult ->
+                }
+
+                is SearchResultItem.ShortsShelfResult -> {
                     ShortsShelf(shorts = item.shorts, onShortClick = onVideoClick)
+                }
             }
         }
 
@@ -1030,7 +1154,7 @@ private fun SearchResultGrid(
             PagingFooter(
                 pagingItems.loadState.append,
                 pagingItems::retry,
-                pagingItems.itemCount
+                pagingItems.itemCount,
             )
         }
     }
@@ -1043,39 +1167,41 @@ private fun SearchShortsGrid(
     gridState: LazyGridState,
     columns: Int,
     onVideoClick: (Video) -> Unit,
-    dismissKeyboard: () -> Unit
+    dismissKeyboard: () -> Unit,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = gridState,
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent(
-                            pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial
-                        )
-                        if (event.changes.any { it.pressed }) {
-                            dismissKeyboard()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event =
+                                awaitPointerEvent(
+                                    pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial,
+                                )
+                            if (event.changes.any { it.pressed }) {
+                                dismissKeyboard()
+                            }
                         }
                     }
-                }
-            },
+                },
         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 90.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         items(
             count = pagingItems.itemCount,
             key = { i -> searchItemKey(pagingItems.peek(i), i) },
-            contentType = { i -> searchItemContentType(pagingItems.peek(i)) }
+            contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
         ) { i ->
             (pagingItems[i] as? SearchResultItem.VideoResult)?.let {
                 ShortsCard(
                     video = it.video,
                     onClick = { onVideoClick(it.video) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
@@ -1084,7 +1210,7 @@ private fun SearchShortsGrid(
             PagingFooter(
                 pagingItems.loadState.append,
                 pagingItems::retry,
-                pagingItems.itemCount
+                pagingItems.itemCount,
             )
         }
     }
@@ -1094,39 +1220,40 @@ private fun SearchShortsGrid(
 private fun PagingFooter(
     appendState: LoadState,
     onRetry: () -> Unit,
-    itemCount: Int
+    itemCount: Int,
 ) {
     when {
         appendState is LoadState.Loading -> {
             Box(Modifier.fillMaxWidth().padding(20.dp), Alignment.Center) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
                         "Loading more\u2026",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
+
         appendState is LoadState.Error -> {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
                     appendState.error.localizedMessage ?: "Load failed",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
-                    maxLines = 2
+                    maxLines = 2,
                 )
                 OutlinedButton(onClick = onRetry) {
                     Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
@@ -1135,19 +1262,21 @@ private fun PagingFooter(
                 }
             }
         }
+
         appendState.endOfPaginationReached && itemCount > 0 -> {
             Box(Modifier.fillMaxWidth().padding(20.dp), Alignment.Center) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     HorizontalDivider(Modifier.weight(1f))
                     Text(
                         "End of results",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                            alpha = 0.5f
-                        )
+                        color =
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = 0.5f,
+                            ),
                     )
                     HorizontalDivider(Modifier.weight(1f))
                 }
@@ -1157,14 +1286,17 @@ private fun PagingFooter(
 }
 
 @Composable
-private fun ShimmerResultsScreen(isGrid: Boolean, columns: Int) {
+private fun ShimmerResultsScreen(
+    isGrid: Boolean,
+    columns: Int,
+) {
     if (isGrid) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             contentPadding = PaddingValues(12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             items(8, key = { "shimmer_$it" }, contentType = { "shimmer" }) { ShimmerGridVideoCard() }
         }
@@ -1172,22 +1304,28 @@ private fun ShimmerResultsScreen(isGrid: Boolean, columns: Int) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = if (columns == 1) 0.dp else 16.dp,
-                end = if (columns == 1) 0.dp else 16.dp,
-                top = 8.dp,
-                bottom = 80.dp
-            ),
-            horizontalArrangement = Arrangement.spacedBy(
-                if (columns == 1) 0.dp else 12.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(
-                if (columns == 1) 0.dp else 12.dp
-            )
+            contentPadding =
+                PaddingValues(
+                    start = if (columns == 1) 0.dp else 16.dp,
+                    end = if (columns == 1) 0.dp else 16.dp,
+                    top = 8.dp,
+                    bottom = 80.dp,
+                ),
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    if (columns == 1) 0.dp else 12.dp,
+                ),
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    if (columns == 1) 0.dp else 12.dp,
+                ),
         ) {
             items(8, key = { "shimmer_$it" }, contentType = { "shimmer" }) {
-                if (columns == 1) ShimmerVideoCardFullWidth()
-                else ShimmerGridVideoCard()
+                if (columns == 1) {
+                    ShimmerVideoCardFullWidth()
+                } else {
+                    ShimmerGridVideoCard()
+                }
             }
         }
     }
@@ -1198,31 +1336,32 @@ private fun DiscoverScreen(
     searchHistory: List<SearchHistoryItem>,
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (SearchHistoryItem) -> Unit,
-    onClearHistory: () -> Unit
+    onClearHistory: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 90.dp)
+        contentPadding = PaddingValues(bottom = 90.dp),
     ) {
         if (searchHistory.isNotEmpty()) {
             item {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         stringResource(R.string.recent_searches),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                     TextButton(onClick = onClearHistory) {
                         Text(
                             stringResource(R.string.clear_search_history),
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelMedium,
                         )
                     }
                 }
@@ -1231,12 +1370,12 @@ private fun DiscoverScreen(
                 HistoryRow(
                     item = item,
                     onClick = { onHistoryClick(item.query) },
-                    onDelete = { onHistoryDelete(item) }
+                    onDelete = { onHistoryDelete(item) },
                 )
             }
             item {
                 HorizontalDivider(
-                    Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                    Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 )
             }
         }
@@ -1244,27 +1383,30 @@ private fun DiscoverScreen(
         if (searchHistory.isEmpty()) {
             item {
                 Box(
-                    modifier = Modifier
-                        .fillParentMaxSize()
-                        .padding(bottom = 100.dp),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillParentMaxSize()
+                            .padding(bottom = 100.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             Icons.Outlined.Search,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                alpha = 0.2f
-                            )
+                            tint =
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.2f,
+                                ),
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
                             stringResource(R.string.search_empty_prompt),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                alpha = 0.6f
-                            )
+                            color =
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.6f,
+                                ),
                         )
                     }
                 }
@@ -1273,28 +1415,31 @@ private fun DiscoverScreen(
     }
 }
 
-
 @Composable
 private fun HistoryRow(
     item: SearchHistoryItem,
     onClick: () -> Unit,
     onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            if (item.type == SearchType.VOICE) Icons.Filled.Mic
-            else Icons.Filled.History,
+            if (item.type == SearchType.VOICE) {
+                Icons.Filled.Mic
+            } else {
+                Icons.Filled.History
+            },
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(20.dp),
         )
         Text(
             item.query,
@@ -1302,13 +1447,14 @@ private fun HistoryRow(
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
             Icon(
-                Icons.Filled.Close, "Remove",
+                Icons.Filled.Close,
+                "Remove",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
         }
     }
@@ -1321,33 +1467,34 @@ private fun SuggestionsCard(
     isLoading: Boolean,
     onSuggestionClick: (String) -> Unit,
     onFillClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(10.dp),
         colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(18.dp)
+        shape = RoundedCornerShape(18.dp),
     ) {
         LazyColumn(Modifier.heightIn(max = 300.dp)) {
             if (isLoading && suggestions.isEmpty()) {
                 item {
                     Box(
                         Modifier.fillMaxWidth().padding(16.dp),
-                        Alignment.Center
+                        Alignment.Center,
                     ) {
                         CircularProgressIndicator(
                             Modifier.size(20.dp),
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
                         )
                     }
                 }
             }
             items(suggestions, key = { it }) { s ->
                 SuggestionRow(
-                    s, query,
+                    s,
+                    query,
                     { onSuggestionClick(s) },
-                    { onFillClick(s) }
+                    { onFillClick(s) },
                 )
             }
         }
@@ -1360,20 +1507,22 @@ private fun SuggestionRow(
     query: String,
     onClick: () -> Unit,
     onFill: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 13.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 13.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            Icons.Outlined.Search, null,
+            Icons.Outlined.Search,
+            null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(20.dp),
         )
         Text(
             buildAnnotatedString {
@@ -1385,67 +1534,74 @@ private fun SuggestionRow(
                     withStyle(
                         SpanStyle(
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                            color = MaterialTheme.colorScheme.onSurface,
+                        ),
                     ) {
                         append(
-                            suggestion.substring(idx, idx + query.length)
+                            suggestion.substring(idx, idx + query.length),
                         )
                     }
                     append(suggestion.substring(idx + query.length))
-                } else append(suggestion)
+                } else {
+                    append(suggestion)
+                }
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         IconButton(onClick = onFill, modifier = Modifier.size(32.dp)) {
             Icon(
-                Icons.Outlined.NorthWest, "Fill",
+                Icons.Outlined.NorthWest,
+                "Fill",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
         }
     }
 }
 
-
 @Composable
 private fun SearchVideoCard(
     video: Video,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val interactionSource =
-        remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        remember {
+            androidx.compose.foundation.interaction
+                .MutableInteractionSource()
+        }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         if (isPressed) 0.98f else 1f,
         spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessHigh),
-        label = "sc"
+        label = "sc",
     )
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(interactionSource, null, onClick = onClick)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .scale(scale)
+                .clickable(interactionSource, null, onClick = onClick),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             VideoThumbnailImage(
                 videoId = video.id,
                 model = video.thumbnailUrl,
                 contentDescription = video.title,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
 
             Box(
@@ -1457,119 +1613,132 @@ private fun SearchVideoCard(
                         Brush.verticalGradient(
                             listOf(
                                 Color.Transparent,
-                                Color.Black.copy(0.55f)
-                            )
-                        )
-                    )
+                                Color.Black.copy(0.55f),
+                            ),
+                        ),
+                    ),
             )
 
             Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp),
                 shape = RoundedCornerShape(6.dp),
-                color = Color.Black.copy(0.78f)
+                color = Color.Black.copy(0.78f),
             ) {
                 Text(
                     formatDuration(video.duration),
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.White, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(
-                        horizontal = 6.dp,
-                        vertical = 3.dp
-                    )
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = 6.dp,
+                            vertical = 3.dp,
+                        ),
                 )
             }
 
             if (video.isShort) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
                     shape = RoundedCornerShape(6.dp),
-                    color = Color(0xFF1565C0)
+                    color = Color(0xFF1565C0),
                 ) {
                     Text(
                         "SHORT",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(
-                            horizontal = 6.dp,
-                            vertical = 3.dp
-                        )
+                        modifier =
+                            Modifier.padding(
+                                horizontal = 6.dp,
+                                vertical = 3.dp,
+                            ),
                     )
                 }
             }
             if (video.isLive) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
                     shape = RoundedCornerShape(6.dp),
-                    color = Color(0xFFD32F2F)
+                    color = Color(0xFFD32F2F),
                 ) {
                     Text(
                         "\u25CF LIVE",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(
-                            horizontal = 6.dp,
-                            vertical = 3.dp
-                        )
+                        modifier =
+                            Modifier.padding(
+                                horizontal = 6.dp,
+                                vertical = 3.dp,
+                            ),
                     )
                 }
             }
         }
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = 4.dp,
-                    end = 4.dp,
-                    top = 10.dp,
-                    bottom = 6.dp
-                ),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = 4.dp,
+                        end = 4.dp,
+                        top = 10.dp,
+                        bottom = 6.dp,
+                    ),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             AsyncImage(
-                model = video.channelThumbnailUrl.takeIf { it.isNotEmpty() }
-                    ?: Icons.Default.AccountCircle,
+                model =
+                    video.channelThumbnailUrl.takeIf { it.isNotEmpty() }
+                        ?: Icons.Default.AccountCircle,
                 contentDescription = video.channelName,
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentScale = ContentScale.Crop,
             )
             Column(Modifier.weight(1f)) {
                 Text(
                     video.title,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold, maxLines = 2,
-                    overflow = TextOverflow.Ellipsis, lineHeight = 18.sp,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.height(3.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         video.channelName,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     Dot()
                     Text(
                         formatViewCount(video.viewCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
+                        maxLines = 1,
                     )
                     if (video.uploadDate.isNotBlank()) {
                         Dot()
@@ -1578,7 +1747,7 @@ private fun SearchVideoCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -1591,42 +1760,46 @@ private fun SearchVideoCard(
 private fun SearchVideoCardCompact(
     video: Video,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick),
     ) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             VideoThumbnailImage(
                 videoId = video.id,
                 model = video.thumbnailUrl,
                 contentDescription = video.title,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
             Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(6.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
                 shape = RoundedCornerShape(5.dp),
-                color = Color.Black.copy(0.78f)
+                color = Color.Black.copy(0.78f),
             ) {
                 Text(
                     formatDuration(video.duration),
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.White, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(
-                        horizontal = 5.dp,
-                        vertical = 2.dp
-                    )
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = 5.dp,
+                            vertical = 2.dp,
+                        ),
                 )
             }
         }
@@ -1637,14 +1810,14 @@ private fun SearchVideoCardCompact(
             fontWeight = FontWeight.SemiBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
             video.channelName,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -1653,23 +1826,25 @@ private fun SearchVideoCardCompact(
 private fun SearchChannelCard(
     channel: Channel,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val primary = MaterialTheme.colorScheme.primary
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 5.dp)
-            .clickable(onClick = onClick),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 5.dp)
+                .clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        tonalElevation = 1.dp
+        tonalElevation = 1.dp,
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            Arrangement.spacedBy(14.dp), Alignment.CenterVertically
+            Arrangement.spacedBy(14.dp),
+            Alignment.CenterVertically,
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Box(
@@ -1680,18 +1855,20 @@ private fun SearchChannelCard(
                                 listOf(
                                     primary,
                                     primary.copy(0.3f),
-                                    primary
-                                )
-                            ), CircleShape
-                        )
+                                    primary,
+                                ),
+                            ),
+                            CircleShape,
+                        ),
                 )
                 AsyncImage(
-                    channel.thumbnailUrl, channel.name,
+                    channel.thumbnailUrl,
+                    channel.name,
                     Modifier
                         .size(66.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             }
             Column(Modifier.weight(1f)) {
@@ -1701,14 +1878,14 @@ private fun SearchChannelCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (channel.subscriberCount > 0) {
                     Spacer(Modifier.height(3.dp))
                     Text(
                         formatSubs(channel.subscriberCount),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (channel.description.isNotBlank()) {
@@ -1717,14 +1894,16 @@ private fun SearchChannelCard(
                         channel.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
             Icon(
-                Icons.Default.ChevronRight, null,
+                Icons.Default.ChevronRight,
+                null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(22.dp),
             )
         }
     }
@@ -1734,33 +1913,35 @@ private fun SearchChannelCard(
 private fun SearchChannelCardCompact(
     channel: Channel,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(0.35f)
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(0.35f),
+                ).clickable(onClick = onClick)
+                .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         AsyncImage(
-            channel.thumbnailUrl, channel.name,
+            channel.thumbnailUrl,
+            channel.name,
             Modifier
                 .size(60.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
         )
         Text(
             channel.name,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1, overflow = TextOverflow.Ellipsis
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -1769,24 +1950,26 @@ private fun SearchChannelCardCompact(
 private fun SearchPlaylistCardCompact(
     playlist: Playlist,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick),
     ) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
-                playlist.thumbnailUrl, playlist.name,
+                playlist.thumbnailUrl,
+                playlist.name,
                 Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         }
         Spacer(Modifier.height(6.dp))
@@ -1794,41 +1977,46 @@ private fun SearchPlaylistCardCompact(
             playlist.name,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurface
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
             "${playlist.videoCount} videos",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 @Composable
-private fun SearchErrorState(message: String, onRetry: () -> Unit) {
+private fun SearchErrorState(
+    message: String,
+    onRetry: () -> Unit,
+) {
     Box(Modifier.fillMaxSize(), Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
-                Icons.Outlined.WifiOff, null,
+                Icons.Outlined.WifiOff,
+                null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(48.dp),
             )
             Text(
                 "Search Failed",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
                 message,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Button(onClick = onRetry) {
                 Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
@@ -1844,13 +2032,14 @@ private fun Dot() {
     Text(
         "\u00B7",
         style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
     )
 }
 
-private fun formatSubs(count: Long): String = when {
-    count >= 1_000_000 -> "${"%.1f".format(count / 1_000_000.0)}M subscribers"
-    count >= 1_000 -> "${"%.1f".format(count / 1_000.0)}K subscribers"
-    count > 0 -> "$count subscribers"
-    else -> ""
-}
+private fun formatSubs(count: Long): String =
+    when {
+        count >= 1_000_000 -> "${"%.1f".format(count / 1_000_000.0)}M subscribers"
+        count >= 1_000 -> "${"%.1f".format(count / 1_000.0)}K subscribers"
+        count > 0 -> "$count subscribers"
+        else -> ""
+    }

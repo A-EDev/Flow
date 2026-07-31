@@ -14,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.compose.rememberNavController
 import io.github.aedev.flow.data.model.Video
@@ -41,8 +40,8 @@ fun FlowTvApp(
     val activity = context as ComponentActivity
     val homeViewModel: HomeViewModel = hiltViewModel(activity)
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity)
-    val subscriptionsViewModel: SubscriptionsViewModel = viewModel(viewModelStoreOwner = activity)
-    val searchViewModel: SearchViewModel = viewModel(viewModelStoreOwner = activity)
+    val subscriptionsViewModel: SubscriptionsViewModel = hiltViewModel(activity)
+    val searchViewModel: SearchViewModel = hiltViewModel(activity)
     val musicViewModel: MusicViewModel = hiltViewModel(activity)
     val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel(activity)
     val navController = rememberNavController()
@@ -64,7 +63,10 @@ fun FlowTvApp(
         playerViewModel.playVideo(video)
     }
 
-    fun playPlaylist(videos: List<Video>, title: String) {
+    fun playPlaylist(
+        videos: List<Video>,
+        title: String,
+    ) {
         val first = videos.firstOrNull() ?: return
         EnhancedMusicPlayerManager.pause()
         GlobalPlayerState.setCurrentVideo(first)
@@ -85,7 +87,7 @@ fun FlowTvApp(
                 viewCount = 0L,
                 uploadDate = "",
                 isShort = isShort,
-            )
+            ),
         )
         onDeeplinkConsumed()
     }
