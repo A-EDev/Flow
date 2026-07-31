@@ -24,12 +24,12 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        
+
         // Support all architectures for maximum device compatibility
         ndk {
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
         }
-        
+
         // Enable multidex for older devices
         multiDexEnabled = true
 
@@ -72,23 +72,23 @@ android {
     signingConfigs {
         create("release") {
             val localProperties = Properties()
-            val localPropertiesFile = rootProject.file("local.properties")
+            val localPropertiesFile = rootDir.resolve("local.properties")
             if (localPropertiesFile.exists()) {
                 localPropertiesFile.inputStream().use { localProperties.load(it) }
             }
 
-            storeFile = rootProject.file("release.keystore")
+            storeFile = rootDir.resolve("release.keystore")
             storePassword = (project.findProperty("storePassword") as? String)
-                ?: localProperties.getProperty("storePassword") 
-                ?: System.getenv("STORE_PASSWORD") 
+                ?: localProperties.getProperty("storePassword")
+                ?: System.getenv("STORE_PASSWORD")
                 ?: ""
             keyAlias = (project.findProperty("keyAlias") as? String)
-                ?: localProperties.getProperty("keyAlias") 
-                ?: System.getenv("KEY_ALIAS") 
+                ?: localProperties.getProperty("keyAlias")
+                ?: System.getenv("KEY_ALIAS")
                 ?: ""
             keyPassword = (project.findProperty("keyPassword") as? String)
-                ?: localProperties.getProperty("keyPassword") 
-                ?: System.getenv("KEY_PASSWORD") 
+                ?: localProperties.getProperty("keyPassword")
+                ?: System.getenv("KEY_PASSWORD")
                 ?: ""
         }
     }
@@ -112,7 +112,7 @@ android {
             isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             signingConfig = signingConfigs.getByName("debug")
         }
@@ -122,10 +122,15 @@ android {
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             // Use release signing if configured, otherwise fallback to debug
-            val releaseKeystore = try { signingConfigs.getByName("release").storeFile } catch (e: Exception) { null }
+            val releaseKeystore =
+                try {
+                    signingConfigs.getByName("release").storeFile
+                } catch (e: Exception) {
+                    null
+                }
             if (releaseKeystore?.exists() == true) {
                 signingConfig = signingConfigs.getByName("release")
                 println("Using RELEASE signing config with keystore: ${releaseKeystore.absolutePath}")
@@ -139,28 +144,33 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true  // Enable desugaring
-
+        isCoreLibraryDesugaringEnabled = true // Enable desugaring
     }
 
     kotlinOptions {
         jvmTarget = "17"
 
         if (project.findProperty("composeStrongSkipping") != "false") {
-            freeCompilerArgs += listOf(
-                "-P",
-                "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true",
-            )
+            freeCompilerArgs +=
+                listOf(
+                    "-P",
+                    "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true",
+                )
         }
 
         if (project.findProperty("composeCompilerReports") == "true") {
-            val reportsDir = layout.buildDirectory.dir("compose_compiler").get().asFile.absolutePath
-            freeCompilerArgs += listOf(
-                "-P",
-                "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=$reportsDir",
-                "-P",
-                "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=$reportsDir",
-            )
+            val reportsDir =
+                layout.buildDirectory
+                    .dir("compose_compiler")
+                    .get()
+                    .asFile.absolutePath
+            freeCompilerArgs +=
+                listOf(
+                    "-P",
+                    "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=$reportsDir",
+                    "-P",
+                    "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=$reportsDir",
+                )
         }
     }
 
@@ -184,7 +194,6 @@ android {
             isReturnDefaultValues = true
         }
     }
-
 }
 
 dependencies {
@@ -192,9 +201,9 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.activity.compose)
-    
+
     // --- Compose (Using BOM is best practice) ---
-    implementation(platform(libs.androidx.compose.bom)) 
+    implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
@@ -202,7 +211,7 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
 
     // --- Navigation ---
-    implementation(libs.androidx.navigation.compose) 
+    implementation(libs.androidx.navigation.compose)
 
     // --- Lifecycle & Architecture ---
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -223,11 +232,11 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     // --- Data & Network ---
-    implementation(libs.newpipe.extractor) 
-    
+    implementation(libs.newpipe.extractor)
+
     // Networking
     implementation(libs.okhttp)
-    
+
     // Ktor (Managed in libs.versions.toml)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
@@ -251,7 +260,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.gson)
 
-    //conscrypt for OkHttp TLS support on older Android versions
+    // conscrypt for OkHttp TLS support on older Android versions
     implementation(libs.conscrypt.android)
 
     // --- Media Playback ---
@@ -269,7 +278,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
-    
+
     implementation(libs.androidx.datastore.preferences)
     // implementation(libs.androidx.datastore) // In TOML if needed
 
@@ -282,7 +291,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.paging.runtime.ktx)
     implementation(libs.androidx.paging.compose)
-    
+
     // RxJava (Required for NewPipeExtractor)
     implementation(libs.rxjava)
     implementation(libs.rxandroid)
@@ -322,7 +331,7 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
     kspAndroidTest(libs.hilt.android.compiler)
-    
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
