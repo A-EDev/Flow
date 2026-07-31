@@ -2,7 +2,7 @@
 *.iml
 .gradle
 .idea
-build
+build/
 /captures
 .externalNativeBuild
 .cxx
