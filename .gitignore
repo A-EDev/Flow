@@ -1,5 +1,4 @@
 
-local.properties
 *.iml
 .gradle
 .idea
@@ -24,6 +23,7 @@ release.bat
 releasenote.ps1
 build_result.md
 LibreTube-master
+
 # Secrets and Local configuration
 local.properties
 *.keystore
