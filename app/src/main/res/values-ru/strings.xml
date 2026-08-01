@@ -35,7 +35,7 @@
     <string name="cancel">Отмена</string>
     <string name="empty_watch_history">История просмотра пуста</string>
     <string name="empty_watch_history_body">Здесь появятся просмотренные видео</string>
-    <string name="liked">Понравилось</string>
+    <string name="liked">Нравится</string>
     <string name="liked_music">Понравившаяся музыка</string>
     <string name="liked_videos">Нравится</string>
     <string name="share_song">Поделиться треком</string>
@@ -134,7 +134,7 @@
     <string name="mark_as_watched">Отметить как просмотренное</string>
     <string name="mark_as_watched_toast">Отмечено как просмотренное – ваши рекомендации станут лучше!</string>
     <string name="i_like_this">Я хочу больше такого контента</string>
-    <string name="i_like_this_toast">Принято! Вы будете видеть больше подобного контента.</string>
+    <string name="i_like_this_toast">Принято! Вы будете видеть больше такого контента.</string>
     <string name="go_to_channel">Перейти на канал</string>
     <string name="track_info">Информация о медиа</string>
     <string name="track_info_subtitle">Подробные технические и социальные метрики</string>
@@ -210,7 +210,7 @@
     <string name="search_subscriptions">Поиск в подписках</string>
     <string name="toggle_view_mode">Переключить режим просмотра</string>
     <string name="unsubscribed_from_template">Вы отписались от %1$s</string>
-    <string name="videos_count_template">Видео: %1$d</string>
+    <string name="videos_count_template">%1$d видео</string>
     <string name="playlists_count_template">Плейлистов: %1$d</string>
     <string name="shorts_count_template">Shorts: %1$d</string>
     <string name="songs_count_template">Треков: %1$d</string>
@@ -354,13 +354,13 @@
     <string name="appearance_category_light">Светлые</string>
     <string name="appearance_category_dark">Темные</string>
     <string name="appearance_category_special">Особые</string>
-    <string name="appearance_themes_count_all">%1$d тем</string>
-    <string name="appearance_themes_count_filtered">%1$d %2$s тем</string>
+    <string name="appearance_themes_count_all">Тем: %1$d</string>
+    <string name="appearance_themes_count_filtered">Тем (%2$s): %1$d</string>
     <string name="appearance_applied_toast">Применено: %1$s</string>
     <string name="app_icon_picker_subtitle">Выберите стиль значка панели запуска. Изменения вступят в силу сразу, и панель запуска ненадолго обновится.</string>
     <string name="app_icon_picker_warning">Внимание: при смене значков используется системный механизм Android, в результате чего ярлык приложения может на короткое время исчезнуть с главного экрана. При необходимости нажмите и удерживайте значок на рабочем столе, чтобы вернуть его.</string>
     <string name="app_icon_apply_toast">Иконка обновлена - рабочий стол обновится</string>
-    <string name="icon_name_flow_red">Flow Красный</string>
+    <string name="icon_name_flow_red">Flow Red</string>
     <string name="icon_name_amoled">AMOLED Dark</string>
     <string name="icon_name_monochrome">Монохром</string>
     <string name="icon_name_ghost">Призрак</string>
@@ -589,7 +589,7 @@
     <string name="quality_1080p_full_hd">1080p Full HD</string>
     <string name="quality_1440p_qhd">1440p QHD</string>
     <string name="quality_2160p_4k">2160p 4K</string>
-    <string name="buffer_settings_title">Настройки буфера</string>
+    <string name="buffer_settings_title">Настройки буферизации</string>
     <string name="buffer_settings_desc">Настройте параметры буферизации видео для оптимизации под ваше сетевое соединение.</string>
     <string name="buffer_settings_header_profile">Профиль производительности</string>
     <string name="buffer_settings_header_custom">Ручная настройка</string>
@@ -614,7 +614,7 @@
     <string name="error_short_load">Произошла ошибка</string>
     <string name="share_short_template">Посмотрите этот Short: https://youtu.be/%1$s</string>
     <string name="speed_2x">Скорость 2x</string>
-    <string name="cd_liked">Понравилось</string>
+    <string name="cd_liked">Нравится</string>
     <string name="player_settings_remember_speed">Запоминать скорость воспроизведения</string>
     <string name="player_settings_remember_speed_subtitle">Применять последнюю использованную скорость к видео</string>
     <string name="player_settings_custom_speeds_title">Пользовательские скорости воспроизведения</string>
@@ -666,7 +666,7 @@
     <string name="interests_tab">Предпочтения</string>
     <string name="blocked_tab">Заблокировано</string>
     <string name="topics_count_template">Тем: %1$d</string>
-    <string name="hidden_count_template">%1$d скрыто</string>
+    <string name="hidden_count_template">Скрыто: %1$d</string>
     <string name="your_interests_title">Ваши предпочтения</string>
     <string name="your_interests_desc">Выбранные темы помогают Flow лучше рекомендовать контент. Нажмите на темы ниже, чтобы добавить или удалить их.</string>
     <string name="tap_to_remove">Нажмите для удаления</string>
@@ -697,7 +697,7 @@
     <string name="no_groups_yet">Пока нет групп. Создайте группу, чтобы настроить фильтр ленты.</string>
     <string name="search_channels_hint">Поиск каналов…</string>
     <string name="download_all">Скачать все</string>
-    <string name="download_all_confirmation">Скачать все %1$d видео? Это может занять много места на устройстве.</string>
+    <string name="download_all_confirmation">Скачать %1$d видео? Это может занять много места на устройстве.</string>
     <string name="saved">Сохранено</string>
     <string name="resume">Возобновить</string>
     <string name="filter_oldest">Старые</string>
@@ -769,7 +769,7 @@
     <string name="import_engine_data">Импорт данных движка Flow</string>
     <string name="import_engine_data_desc">Восстановите свой профиль личности ИИ из файла резервной копии</string>
     <string name="error_age_restricted">Контент с возрастными ограничениями</string>
-    <string name="subscriptions_refresh_progress_template">Обновление %1$d из %2$d каналов</string>
+    <string name="subscriptions_refresh_progress_template">Обновление каналов: %1$d из %2$d</string>
     <string name="subscriptions_last_refreshed_template">Последнее обновление: %1$s - %2$d видео проверено</string>
     <string name="appearance_role_error">Ошибка</string>
     <string name="appearance_role_on_error">На ошибке</string>
@@ -778,7 +778,7 @@
     <string name="appearance_system_defaults_subtitle">Выберите, какая тема будет использоваться при переключении устройства между светлым и темным режимами.</string>
     <string name="appearance_system_light_theme">Тема в светлом режиме</string>
     <string name="appearance_system_dark_theme">Тема в темном режиме</string>
-    <string name="icon_name_flow_light">Flow Светлый</string>
+    <string name="icon_name_flow_light">Flow Light</string>
     <string name="icon_name_material_sky">Material Sky</string>
     <string name="icon_name_material_mint">Material Mint</string>
     <string name="player_appearance_brightness_gesture_title">Жест яркости</string>
@@ -807,7 +807,7 @@
     <string name="empty_liked_music_body">Здесь появятся понравившиеся вам треки</string>
     <string name="hide_channel_shorts">Скрывать Shorts с этого канала</string>
     <string name="show_channel_shorts">Показывать Shorts с этого канала</string>
-    <string name="likes_count_template">Понравилось: %1$d</string>
+    <string name="likes_count_template">Нравится: %1$d</string>
     <string name="appearance_role_on_primary">На первичном</string>
     <string name="appearance_role_on_secondary">На вторичном</string>
     <string name="appearance_role_on_tertiary">На третичном</string>
@@ -988,7 +988,7 @@
     <string name="player_settings">Настройки плеера</string>
     <string name="download_video">Скачать видео</string>
     <string name="action_want_more">Хочу больше такого контента</string>
-    <string name="not_interested_toast">Принято! Вы будете видеть меньше подобного контента.</string>
+    <string name="not_interested_toast">Принято! Вы будете видеть меньше такого контента.</string>
     <string name="select_quality">Выберите желаемое качество</string>
     <string name="on">Включить</string>
     <string name="off">Выключить</string>
@@ -1509,7 +1509,7 @@
     <string name="max_history_size_title">Максимальный размер истории</string>
     <string name="currently_searches_template">Сейчас: %1$d поисковых запросов</string>
     <string name="auto_delete_history_title">Автоматическое удаление истории</string>
-    <string name="delete_after_days_template">Удалить через %1$d дней</string>
+    <string name="delete_after_days_template">Удалять через %1$d дней</string>
     <string name="never_delete_automatically">Не удалять автоматически</string>
     <string name="export_data_screen_title">Экспорт данных</string>
     <string name="export_data_section_header">Выберите тип экспорта</string>
@@ -2276,7 +2276,7 @@
     <string name="fallback_unknown_video">Неизвестное видео</string>
     <string name="fallback_local_video">Видео на устройстве</string>
     <string name="fallback_local_audio">Аудио на устройстве</string>
-    <string name="fallback_your_saved_shorts">Сохраненные Shorts</string>
+    <string name="fallback_your_saved_shorts">Ваши сохраненные Shorts</string>
     <string name="fallback_your_watch_later_list">Список для отложенного просмотра</string>
     <string name="fallback_downloaded_locally">Скачано на устройство</string>
     <string name="notification_channel_downloads">Загрузки</string>
