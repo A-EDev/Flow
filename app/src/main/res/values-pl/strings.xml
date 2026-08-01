@@ -1466,7 +1466,6 @@
     <string name="content_settings_related_card_style_title">Wygląd Polecanych Filmów</string>
     <string name="nav_search">Wyszukaj</string>
     <string name="tv_search_no_results">Nie znaleziono filmów</string>
-    <string name="tv_no_subscriptions"></string>
     <string name="logs_copied">Skopiowano raport</string>
     <string name="collaborators">Współtwórcy</string>
     <string name="collaborator">Współtwórca</string>
