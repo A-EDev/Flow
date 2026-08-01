@@ -47,6 +47,73 @@ Flow is a media player; jank, dropped frames, or playback stutter are critical b
 5. Battery and background behavior matter as much as raw speed — avoid busy-loops, excessive wakelocks, or high-frequency polling; prefer event-driven/Flow-based updates.
 6. When in doubt about whether an approach is fast enough, check the official Compose performance docs and Media3 best practices before shipping a change.
 
+## Dependency injection and service-locator migration
+
+Flow uses Hilt, but some legacy app-owned classes are still reached through static/companion
+`getInstance()` calls. Treat those calls as migration debt, not as the pattern for new code. The
+goal is explicit, testable dependencies while preserving object identity, lifecycle, startup cost,
+and playback behavior.
+
+1. Use constructor injection by default for new or migrated app-owned ViewModels, repositories,
+   use cases, workers, services, and managers. A Hilt-managed `@Singleton` is valid when the object
+   truly has application-wide identity; the problem is hidden global access, not singleton scope
+   itself.
+2. Do not add new app-owned `getInstance()` calls. This rule does not apply to normal platform or
+   library factory APIs such as `Calendar.getInstance()`, `MessageDigest.getInstance()`,
+   `WorkManager.getInstance()`, or `ProcessCameraProvider.getInstance()`.
+3. Migrate incrementally when a class is already in scope. Do not perform a repository-wide DI
+   rewrite as incidental cleanup. Keep each migration small, reviewable, independently testable,
+   and easy to revert.
+4. Before changing construction, use `graphify query`/`graphify path` and code search to enumerate
+   every caller, Hilt binding, lifecycle owner, entry point, and flavor-specific implementation.
+   Record whether the current instance is lazy or eager, when it is initialized/released, and
+   whether callers rely on reference identity or shared mutable state.
+5. Preserve lifecycle and cardinality exactly. A migration must not create a second database,
+   repository, cache, coroutine scope, network client, player, media session, or background
+   service. Match the narrowest correct Hilt scope (`@Singleton`, `@ActivityRetainedScoped`,
+   `@ViewModelScoped`, or unscoped) and use `@ApplicationContext`/`@ActivityContext` explicitly.
+6. Keep constructors and Hilt provider methods free of blocking I/O, network/database work,
+   player preparation, and unrelated side effects. Start lifecycle work in the existing structured
+   coroutine/lifecycle boundary. If moving work from an explicit `initialize()` method to `init`,
+   verify that creation timing, cancellation, retry behavior, and error handling remain equivalent.
+7. Prefer `@Inject` constructors for classes the app owns. Use `@Binds` for meaningful interface
+   mappings and `@Provides` for third-party types, private constructors, configuration-dependent
+   factories, or temporary adapters around legacy singletons. Do not create an interface for every
+   class solely to claim SOLID compliance; introduce an abstraction when it represents a real
+   boundary or enables a useful fake/alternate implementation.
+8. ViewModels use `@HiltViewModel` plus constructor injection and are obtained from Compose with
+   `hiltViewModel()` using the intended `ViewModelStoreOwner`. Composables should receive state and
+   callbacks or a ViewModel; do not turn composables into service locators. Use supported Hilt
+   integrations for workers/services, and keep any Hilt entry point confined to an Android boundary
+   that Hilt cannot construct directly.
+9. Remove a legacy `getInstance()` API only after all app-owned callers have migrated and tests
+   prove the replacement preserves the same instance semantics. Transitional Hilt providers may
+   delegate to the legacy singleton, but consumers must inject the dependency so the global access
+   is isolated and can later be removed.
+10. Player-path migration is high risk. Do not migrate `EnhancedPlayerManager`,
+    `EnhancedMusicPlayerManager`, `ShortsPlayerPool`, player services/media sessions, surfaces,
+    caches, or their app-start initialization as opportunistic cleanup. It requires an explicit
+    task, a dedicated architecture plan, and end-to-end verification of audio/video playback,
+    background playback, queue continuity, configuration changes, process recreation, PiP,
+    casting, local media, error recovery, and release behavior. Preserve exactly one intended
+    player/media-session owner and do not add startup latency or surface flicker.
+11. DI and SOLID are maintainability/testability tools, not automatic performance improvements.
+    Do not claim a performance benefit without measurement. Watch for eager graph creation,
+    expanded singleton lifetimes, retained `Context`/Activity references, duplicate Flow
+    collectors, and work that has moved onto the main thread.
+12. Add focused unit tests before or with each migration, using constructor-provided fakes/mocks to
+    cover success, failure, cancellation, and delegation as applicable. When the Hilt graph or
+    Android entry points change, also add or run an integration test that constructs the affected
+    path; unit tests that instantiate the class directly do not validate Hilt wiring.
+13. Minimum validation for a non-player DI migration is `ktlintCheck`,
+    `:app:testGithubDebugUnitTest`, `:app:compileGithubDebugKotlin`, and
+    `:app:compileFossDebugKotlin`, followed by the relevant flavor build. Exercise the affected UI
+    or background flow on a device/emulator, including configuration change and an error path. A
+    player/startup migration additionally requires the player golden paths above and relevant
+    startup/playback measurements. Do not describe a migration as safe, risk-free, or behaviorally
+    identical based only on compilation or unit tests; state exactly what was verified and what was
+    not.
+
 ## Strings — no hardcoded strings
 
 All user-facing strings MUST be declared in `app/src/main/res/values/strings.xml` and referenced via `stringResource(R.string.xxx)` (or `context.getString(...)` outside Compose) — never inline string literals in UI code. When adding a string, add it to `strings.xml` first, then reference it. Do not touch other locales' `strings.xml` files — only the default (English) resource file.

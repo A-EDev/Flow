@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -301,15 +300,7 @@ class EnhancedPlayerManager private constructor() {
                 object : ForwardingPlayer(realPlayer) {
                     override fun getMediaMetadata(): MediaMetadata {
                         val v = GlobalPlayerState.currentVideo.value ?: return super.getMediaMetadata()
-                        return MediaMetadata
-                            .Builder()
-                            .setTitle(v.title)
-                            .setArtist(v.channelName)
-                            .also { b ->
-                                v.thumbnailUrl
-                                    .takeIf { it.isNotEmpty() }
-                                    ?.let { b.setArtworkUri(Uri.parse(it)) }
-                            }.build()
+                        return v.toVideoSessionMetadata().toMedia3Metadata()
                     }
 
                     override fun getAvailableCommands(): Player.Commands =
@@ -1128,6 +1119,8 @@ class EnhancedPlayerManager private constructor() {
             setVideoTracksDisabled(false)
         }
 
+        val sessionMetadata = GlobalPlayerState.currentVideo.value?.toVideoSessionMetadata()
+
         if (localFilePath != null) {
             Log.d(TAG, "loadMediaInternal: Playing local file: $localFilePath")
             return mediaLoader?.loadMedia(
@@ -1147,6 +1140,8 @@ class EnhancedPlayerManager private constructor() {
                 audioOnly = false,
                 playWhenReady = playWhenReady,
                 subtitleStreams = availableSubtitles,
+                mediaId = sessionMetadata?.mediaId.orEmpty(),
+                mediaMetadata = sessionMetadata?.toMedia3Metadata() ?: MediaMetadata.EMPTY,
             ) ?: false
         }
 
@@ -1188,6 +1183,8 @@ class EnhancedPlayerManager private constructor() {
                 sabrPreferred = sabrPreferred,
                 innerTubeVideoFormats = innerTubeVideoFormats,
                 innerTubeAudioFormats = innerTubeAudioFormats,
+                mediaId = sessionMetadata?.mediaId.orEmpty(),
+                mediaMetadata = sessionMetadata?.toMedia3Metadata() ?: MediaMetadata.EMPTY,
             ) ?: false
         if (result) {
             qualityManager?.isDashSource = !currentDashManifestUrl.isNullOrEmpty()
@@ -2154,6 +2151,11 @@ class EnhancedPlayerManager private constructor() {
                             dashManifestUrl = resolved.dashManifestUrl,
                             durationSeconds = resolved.durationSeconds,
                             subtitleStreams = StreamProcessor.processSubtitleStreams(resolved.subtitles),
+                            mediaId = resolved.enrichedVideo.id,
+                            mediaMetadata =
+                                resolved.enrichedVideo
+                                    .toVideoSessionMetadata()
+                                    .toMedia3Metadata(),
                         ) ?: run {
                             shouldRetry = true
                             autoNextLog("schedulePreloadNext mediaSource failed next=${nextVideo.id}")

@@ -8,19 +8,34 @@ import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PushPin
@@ -29,44 +44,60 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.*
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import io.github.aedev.flow.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatRichText
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.material3.ripple
 import kotlinx.coroutines.launch
 
 enum class CommentSortFilter {
     TOP,
     NEWEST,
-    OLDEST
+    OLDEST,
 }
 
 private fun relativeTimeToSeconds(timeStr: String): Long {
@@ -85,25 +116,30 @@ private fun relativeTimeToSeconds(timeStr: String): Long {
 }
 
 /** Sorts comments for the given filter, keeping pinned comments first. */
-fun sortCommentsByFilter(comments: List<Comment>, filter: CommentSortFilter): List<Comment> {
+fun sortCommentsByFilter(
+    comments: List<Comment>,
+    filter: CommentSortFilter,
+): List<Comment> {
     val pinned = comments.filter { it.isPinned }
     val unpinned = comments.filterNot { it.isPinned }
-    val sortedUnpinned = when (filter) {
-        CommentSortFilter.TOP -> unpinned.sortedByDescending { it.likeCount }
-        CommentSortFilter.NEWEST -> unpinned.sortedBy { relativeTimeToSeconds(it.publishedTime) }
-        CommentSortFilter.OLDEST -> unpinned.sortedByDescending { relativeTimeToSeconds(it.publishedTime) }
-    }
+    val sortedUnpinned =
+        when (filter) {
+            CommentSortFilter.TOP -> unpinned.sortedByDescending { it.likeCount }
+            CommentSortFilter.NEWEST -> unpinned.sortedBy { relativeTimeToSeconds(it.publishedTime) }
+            CommentSortFilter.OLDEST -> unpinned.sortedByDescending { relativeTimeToSeconds(it.publishedTime) }
+        }
     return pinned + sortedUnpinned
 }
 
 /** Converts a "H:MM:SS" / "MM:SS" comment timestamp into milliseconds. */
 fun commentTimestampToMs(timestamp: String): Long {
     val parts = timestamp.split(":").map { it.toLongOrNull() ?: 0L }
-    val seconds = when (parts.size) {
-        3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
-        2 -> parts[0] * 60 + parts[1]
-        else -> 0L
-    }
+    val seconds =
+        when (parts.size) {
+            3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
+            2 -> parts[0] * 60 + parts[1]
+            else -> 0L
+        }
     return seconds * 1000L
 }
 
@@ -126,7 +162,7 @@ fun FlowCommentsBottomSheet(
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val density = LocalDensity.current
@@ -139,11 +175,12 @@ fun FlowCommentsBottomSheet(
     val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
-    val sheetProgress = if (expandedHeightPx > 0f) {
-        ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
+    val sheetProgress =
+        if (expandedHeightPx > 0f) {
+            ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
     SideEffect {
         onSheetProgressChange(sheetProgress)
     }
@@ -154,10 +191,11 @@ fun FlowCommentsBottomSheet(
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = expandedHeightPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
             )
         }
     }
@@ -168,10 +206,11 @@ fun FlowCommentsBottomSheet(
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = collapsedHeightPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
             )
             latestOnDismiss()
         }
@@ -185,10 +224,11 @@ fun FlowCommentsBottomSheet(
         }
         sheetHeightPx.animateTo(
             targetValue = expandedHeightPx,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessLow
-            )
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessLow,
+                ),
         )
     }
 
@@ -198,78 +238,83 @@ fun FlowCommentsBottomSheet(
 
     BackHandler(onBack = ::animateToDismiss)
 
-    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
-        val velocityTracker = VelocityTracker()
-        detectVerticalDragGestures(
-            onVerticalDrag = { change, dragAmount ->
-                if (isAnimatingOut) return@detectVerticalDragGestures
-                velocityTracker.addPointerInputChange(change)
-                coroutineScope.launch {
-                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
-                    sheetHeightPx.snapTo(nextValue)
-                }
-            },
-            onDragCancel = {
-                velocityTracker.resetTracking()
-                if (!isAnimatingOut) animateToExpanded()
-            },
-            onDragEnd = {
-                val velocityY = velocityTracker.calculateVelocity().y
-                velocityTracker.resetTracking()
-                when {
-                    velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
-                    else -> animateToExpanded()
-                }
-            }
-        )
-    }
+    val headerDragModifier =
+        Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
+            val velocityTracker = VelocityTracker()
+            detectVerticalDragGestures(
+                onVerticalDrag = { change, dragAmount ->
+                    if (isAnimatingOut) return@detectVerticalDragGestures
+                    velocityTracker.addPointerInputChange(change)
+                    coroutineScope.launch {
+                        val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
+                        sheetHeightPx.snapTo(nextValue)
+                    }
+                },
+                onDragCancel = {
+                    velocityTracker.resetTracking()
+                    if (!isAnimatingOut) animateToExpanded()
+                },
+                onDragEnd = {
+                    val velocityY = velocityTracker.calculateVelocity().y
+                    velocityTracker.resetTracking()
+                    when {
+                        velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
+                        else -> animateToExpanded()
+                    }
+                },
+            )
+        }
 
     Box(
         modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
+        contentAlignment = Alignment.BottomCenter,
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(with(density) { sheetHeightPx.value.toDp() }),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(with(density) { sheetHeightPx.value.toDp() }),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp
+            tonalElevation = 0.dp,
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp)
-                        .then(headerDragModifier),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                            .then(headerDragModifier),
+                    contentAlignment = Alignment.Center,
                 ) {
                     BottomSheetDefaults.DragHandle()
                 }
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(headerDragModifier)
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 6.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .then(headerDragModifier)
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 6.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = stringResource(R.string.comments),
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         IconButton(
                             onClick = ::animateToDismiss,
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(40.dp),
                         ) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                         }
@@ -277,7 +322,7 @@ fun FlowCommentsBottomSheet(
                     CommentSortFilterChips(
                         selectedFilter = selectedFilter,
                         onFilterChanged = onFilterChanged,
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
@@ -295,9 +340,10 @@ fun FlowCommentsBottomSheet(
                     isLoadingMore = isLoadingMore,
                     onLoadMore = onLoadMore,
                     hasMore = hasMore,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                 )
             }
         }
@@ -308,26 +354,26 @@ fun FlowCommentsBottomSheet(
 fun CommentSortFilterChips(
     selectedFilter: CommentSortFilter,
     onFilterChanged: (CommentSortFilter) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         FilterChip(
             selected = selectedFilter == CommentSortFilter.TOP,
             onClick = { onFilterChanged(CommentSortFilter.TOP) },
-            label = { Text(stringResource(R.string.filter_top)) }
+            label = { Text(stringResource(R.string.filter_top)) },
         )
         FilterChip(
             selected = selectedFilter == CommentSortFilter.NEWEST,
             onClick = { onFilterChanged(CommentSortFilter.NEWEST) },
-            label = { Text(stringResource(R.string.filter_newest)) }
+            label = { Text(stringResource(R.string.filter_newest)) },
         )
         FilterChip(
             selected = selectedFilter == CommentSortFilter.OLDEST,
             onClick = { onFilterChanged(CommentSortFilter.OLDEST) },
-            label = { Text(stringResource(R.string.filter_oldest)) }
+            label = { Text(stringResource(R.string.filter_oldest)) },
         )
     }
 }
@@ -347,16 +393,17 @@ fun FlowCommentsList(
     onLoadMore: () -> Unit,
     hasMore: Boolean,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(bottom = 32.dp)
+    contentPadding: PaddingValues = PaddingValues(bottom = 32.dp),
 ) {
     val latestOnLoadMore by rememberUpdatedState(onLoadMore)
-    val uniqueComments = remember(comments) {
-        comments.distinctByNonBlankKey(Comment::id)
-    }
+    val uniqueComments =
+        remember(comments) {
+            comments.distinctByNonBlankKey(Comment::id)
+        }
     LazyColumn(
         state = listState,
         modifier = modifier,
-        contentPadding = contentPadding
+        contentPadding = contentPadding,
     ) {
         if (isLoading) {
             item(key = "loading") {
@@ -367,21 +414,22 @@ fun FlowCommentsList(
         } else if (uniqueComments.isEmpty()) {
             item(key = "empty") {
                 Box(
-                    modifier = Modifier
-                        .fillParentMaxWidth()
-                        .height(120.dp),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillParentMaxWidth()
+                            .height(120.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         stringResource(R.string.no_comments_yet),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         } else {
             items(
                 items = uniqueComments,
-                key = { comment -> "${selectedFilter.name}_${comment.id}" }
+                key = { comment -> "${selectedFilter.name}_${comment.id}" },
             ) { comment ->
                 FlowCommentItem(
                     comment = comment,
@@ -389,7 +437,7 @@ fun FlowCommentsList(
                     onLoadReplies = onLoadReplies,
                     onLoadMoreReplies = onLoadMoreReplies,
                     onAuthorClick = onAuthorClick,
-                    onAvatarClick = onAvatarClick
+                    onAvatarClick = onAvatarClick,
                 )
             }
             if (hasMore) {
@@ -398,10 +446,11 @@ fun FlowCommentsList(
                         latestOnLoadMore()
                     }
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         if (isLoadingMore) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -420,7 +469,7 @@ fun FlowCommentItem(
     onLoadReplies: (Comment) -> Unit,
     onLoadMoreReplies: (Comment) -> Unit,
     onAuthorClick: (String) -> Unit = {},
-    onAvatarClick: (String) -> Unit = {}
+    onAvatarClick: (String) -> Unit = {},
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     var isRepliesVisible by remember { mutableStateOf(false) }
@@ -438,68 +487,64 @@ fun FlowCommentItem(
     // Process text — cached so it isn't rebuilt on every recomposition.
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurface = MaterialTheme.colorScheme.onSurface
-    val annotatedText = remember(comment.text, primaryColor) {
-        formatRichText(
-            text = comment.text,
-            primaryColor = primaryColor,
-            textColor = onSurface
-        )
-    }
+    val annotatedText =
+        remember(comment.text, primaryColor) {
+            formatRichText(
+                text = comment.text,
+                primaryColor = primaryColor,
+                textColor = onSurface,
+            )
+        }
 
     // Full-size image viewer
     if (showFullSizeImage) {
         FullSizeImageDialog(
             imageUrl = toHighQualityAvatarUrl(comment.authorThumbnail),
-            onDismiss = { showFullSizeImage = false }
+            onDismiss = { showFullSizeImage = false },
         )
     }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp, horizontal = 16.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 16.dp),
     ) {
-        val context = LocalContext.current
-        // Avatar
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(comment.authorThumbnail)
-                .crossfade(true)
-                .build(),
+        ChannelAvatarImage(
+            url = comment.authorThumbnail,
             contentDescription = null,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .clickable {
-                    onAvatarClick(comment.authorThumbnail)
-                    showFullSizeImage = true
-                },
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable {
+                        onAvatarClick(comment.authorThumbnail)
+                        showFullSizeImage = true
+                    },
         )
 
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            
             // Pinned indicator
             if (comment.isPinned) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 4.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.PushPin,
                         contentDescription = stringResource(R.string.pinned_comment),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(12.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = stringResource(R.string.pinned_by_creator),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
@@ -513,23 +558,24 @@ fun FlowCommentItem(
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(),
-                            onClick = {
-                                onAuthorClick(
-                                    comment.authorChannelId.ifBlank { getAuthorHandle(comment.author) }
-                                )
-                            }
-                        )
+                    modifier =
+                        Modifier
+                            .weight(1f, fill = false)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(),
+                                onClick = {
+                                    onAuthorClick(
+                                        comment.authorChannelId.ifBlank { getAuthorHandle(comment.author) },
+                                    )
+                                },
+                            ),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = comment.publishedTime,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -540,38 +586,46 @@ fun FlowCommentItem(
                 SelectionContainer {
                     BasicText(
                         text = annotatedText,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 20.sp
-                        ),
+                        style =
+                            MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = 20.sp,
+                            ),
                         maxLines = if (isExpanded) Int.MAX_VALUE else 4,
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = { result ->
                             commentTextLayoutResult = result
                             if (result.hasVisualOverflow) isOverflowing = true
                         },
-                        modifier = Modifier.pointerInput(annotatedText) {
-                            detectTapGestures(
-                                onTap = { tapOffset ->
-                                    commentTextLayoutResult?.let { result ->
-                                        val offset = result.getOffsetForPosition(tapOffset)
-                                        val ts = annotatedText
-                                            .getStringAnnotations("TIMESTAMP", offset, offset)
-                                            .firstOrNull()
-                                        val url = annotatedText
-                                            .getStringAnnotations("URL", offset, offset)
-                                            .firstOrNull()
-                                        if (ts != null) {
-                                            onTimestampClick(ts.item)
-                                        } else if (url != null) {
-                                            try { uriHandler.openUri(url.item) } catch (e: Exception) { e.printStackTrace() }
-                                        } else {
-                                            if (!isExpanded && isOverflowing) isExpanded = true
+                        modifier =
+                            Modifier.pointerInput(annotatedText) {
+                                detectTapGestures(
+                                    onTap = { tapOffset ->
+                                        commentTextLayoutResult?.let { result ->
+                                            val offset = result.getOffsetForPosition(tapOffset)
+                                            val ts =
+                                                annotatedText
+                                                    .getStringAnnotations("TIMESTAMP", offset, offset)
+                                                    .firstOrNull()
+                                            val url =
+                                                annotatedText
+                                                    .getStringAnnotations("URL", offset, offset)
+                                                    .firstOrNull()
+                                            if (ts != null) {
+                                                onTimestampClick(ts.item)
+                                            } else if (url != null) {
+                                                try {
+                                                    uriHandler.openUri(url.item)
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
+                                            } else {
+                                                if (!isExpanded && isOverflowing) isExpanded = true
+                                            }
                                         }
-                                    }
-                                }
-                            )
-                        }
+                                    },
+                                )
+                            },
                     )
                 }
             }
@@ -582,9 +636,10 @@ fun FlowCommentItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .clickable { isExpanded = true }
+                    modifier =
+                        Modifier
+                            .padding(top = 4.dp)
+                            .clickable { isExpanded = true },
                 )
             }
 
@@ -597,27 +652,27 @@ fun FlowCommentItem(
                     imageVector = Icons.Outlined.ThumbUp,
                     contentDescription = stringResource(R.string.like),
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 if (comment.likeCount > 0) {
                     Text(
                         text = formatLikeCount(comment.likeCount),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.width(24.dp))
-                
+
                 // Dislike (Visual only usually)
                 Icon(
                     imageVector = Icons.Outlined.ThumbDown,
                     contentDescription = stringResource(R.string.dislikes),
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
-                
+
                 Spacer(modifier = Modifier.width(24.dp))
 
                 // Replies
@@ -625,7 +680,7 @@ fun FlowCommentItem(
                     imageVector = Icons.Outlined.ChatBubbleOutline,
                     contentDescription = stringResource(R.string.reply),
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
             }
 
@@ -634,35 +689,43 @@ fun FlowCommentItem(
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .clickable { 
-                            if (!isRepliesVisible && comment.replies.isEmpty()) {
-                                isLoadingReplies = true
-                                onLoadReplies(comment)
-                            }
-                            isRepliesVisible = !isRepliesVisible 
-                        }
-                        .padding(vertical = 4.dp)
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable {
+                                if (!isRepliesVisible && comment.replies.isEmpty()) {
+                                    isLoadingReplies = true
+                                    onLoadReplies(comment)
+                                }
+                                isRepliesVisible = !isRepliesVisible
+                            }.padding(vertical = 4.dp),
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(24.dp, 1.dp)
-                            .background(MaterialTheme.colorScheme.primary)
+                        modifier =
+                            Modifier
+                                .size(24.dp, 1.dp)
+                                .background(MaterialTheme.colorScheme.primary),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = if (isRepliesVisible) stringResource(R.string.hide_replies) else stringResource(R.string.view_replies_template, comment.replyCount),
+                        text =
+                            if (isRepliesVisible) {
+                                stringResource(
+                                    R.string.hide_replies,
+                                )
+                            } else {
+                                stringResource(R.string.view_replies_template, comment.replyCount)
+                            },
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     if (isLoadingReplies) {
                         Spacer(modifier = Modifier.width(8.dp))
                         CircularProgressIndicator(
                             modifier = Modifier.size(12.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -671,16 +734,17 @@ fun FlowCommentItem(
             // Display Replies
             if (isRepliesVisible && comment.replies.isNotEmpty()) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
                 ) {
                     comment.replies.forEach { reply ->
                         FlowReplyItem(
                             reply = reply,
                             onTimestampClick = onTimestampClick,
                             onAuthorClick = onAuthorClick,
-                            onAvatarClick = onAvatarClick
+                            onAvatarClick = onAvatarClick,
                         )
                     }
 
@@ -690,12 +754,13 @@ fun FlowCommentItem(
                             color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .padding(top = 8.dp)
-                                .clickable {
-                                    isLoadingReplies = true
-                                    onLoadMoreReplies(comment)
-                                }
+                            modifier =
+                                Modifier
+                                    .padding(top = 8.dp)
+                                    .clickable {
+                                        isLoadingReplies = true
+                                        onLoadMoreReplies(comment)
+                                    },
                         )
                     }
                 }
@@ -709,50 +774,47 @@ fun FlowReplyItem(
     reply: Comment,
     onTimestampClick: (String) -> Unit,
     onAuthorClick: (String) -> Unit = {},
-    onAvatarClick: (String) -> Unit = {}
+    onAvatarClick: (String) -> Unit = {},
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurface = MaterialTheme.colorScheme.onSurface
     val uriHandler = LocalUriHandler.current
-    val annotatedText = remember(reply.text, primaryColor) {
-        formatRichText(
-            text = reply.text,
-            primaryColor = primaryColor,
-            textColor = onSurface
-        )
-    }
+    val annotatedText =
+        remember(reply.text, primaryColor) {
+            formatRichText(
+                text = reply.text,
+                primaryColor = primaryColor,
+                textColor = onSurface,
+            )
+        }
     var replyTextLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     var showFullSizeImage by remember { mutableStateOf(false) }
 
     if (showFullSizeImage) {
         FullSizeImageDialog(
             imageUrl = toHighQualityAvatarUrl(reply.authorThumbnail),
-            onDismiss = { showFullSizeImage = false }
+            onDismiss = { showFullSizeImage = false },
         )
     }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
     ) {
-        val context = LocalContext.current
-        // Avatar (Small for replies)
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(reply.authorThumbnail)
-                .crossfade(true)
-                .build(),
+        ChannelAvatarImage(
+            url = reply.authorThumbnail,
             contentDescription = null,
-            modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .clickable {
-                    onAvatarClick(reply.authorThumbnail)
-                    showFullSizeImage = true
-                },
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable {
+                        onAvatarClick(reply.authorThumbnail)
+                        showFullSizeImage = true
+                    },
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -767,23 +829,24 @@ fun FlowReplyItem(
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(),
-                            onClick = {
-                                onAuthorClick(
-                                    reply.authorChannelId.ifBlank { getAuthorHandle(reply.author) }
-                                )
-                            }
-                        )
+                    modifier =
+                        Modifier
+                            .weight(1f, fill = false)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(),
+                                onClick = {
+                                    onAuthorClick(
+                                        reply.authorChannelId.ifBlank { getAuthorHandle(reply.author) },
+                                    )
+                                },
+                            ),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = reply.publishedTime,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -793,31 +856,39 @@ fun FlowReplyItem(
             SelectionContainer {
                 BasicText(
                     text = annotatedText,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        lineHeight = 16.sp
-                    ),
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 16.sp,
+                        ),
                     onTextLayout = { replyTextLayoutResult = it },
-                    modifier = Modifier.pointerInput(annotatedText) {
-                        detectTapGestures(
-                            onTap = { tapOffset ->
-                                replyTextLayoutResult?.let { result ->
-                                    val offset = result.getOffsetForPosition(tapOffset)
-                                    val ts = annotatedText
-                                        .getStringAnnotations("TIMESTAMP", offset, offset)
-                                        .firstOrNull()
-                                    if (ts != null) {
-                                        onTimestampClick(ts.item)
-                                    } else {
-                                        annotatedText
-                                            .getStringAnnotations("URL", offset, offset)
-                                            .firstOrNull()
-                                            ?.let { try { uriHandler.openUri(it.item) } catch (_: Exception) {} }
+                    modifier =
+                        Modifier.pointerInput(annotatedText) {
+                            detectTapGestures(
+                                onTap = { tapOffset ->
+                                    replyTextLayoutResult?.let { result ->
+                                        val offset = result.getOffsetForPosition(tapOffset)
+                                        val ts =
+                                            annotatedText
+                                                .getStringAnnotations("TIMESTAMP", offset, offset)
+                                                .firstOrNull()
+                                        if (ts != null) {
+                                            onTimestampClick(ts.item)
+                                        } else {
+                                            annotatedText
+                                                .getStringAnnotations("URL", offset, offset)
+                                                .firstOrNull()
+                                                ?.let {
+                                                    try {
+                                                        uriHandler.openUri(it.item)
+                                                    } catch (_: Exception) {
+                                                    }
+                                                }
+                                        }
                                     }
-                                }
-                            }
-                        )
-                    }
+                                },
+                            )
+                        },
                 )
             }
 
@@ -829,19 +900,19 @@ fun FlowReplyItem(
                     imageVector = Icons.Outlined.ThumbUp,
                     contentDescription = stringResource(R.string.like),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(12.dp)
+                    modifier = Modifier.size(12.dp),
                 )
                 if (reply.likeCount > 0) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = formatLikeCount(reply.likeCount),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
             }
         }
     }
-}
 }
 
 // ==========================================
@@ -867,55 +938,59 @@ fun CommentSkeleton() {
 @Composable
 fun FullSizeImageDialog(
     imageUrl: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    
+
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.95f))
-                .clickable { onDismiss() },
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.95f))
+                    .clickable { onDismiss() },
+            contentAlignment = Alignment.Center,
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(toHighQualityAvatarUrl(imageUrl))
-                        .crossfade(true)
-                        .size(1600, 1600)
-                        .scale(coil.size.Scale.FIT)
-                        .allowHardware(false)
-                        .build(),
+                    model =
+                        ImageRequest
+                            .Builder(context)
+                            .data(toHighQualityAvatarUrl(imageUrl))
+                            .crossfade(true)
+                            .size(1600, 1600)
+                            .scale(coil.size.Scale.FIT)
+                            .allowHardware(false)
+                            .build(),
                     contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp)),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(0.9f)
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Fit,
-                    filterQuality = FilterQuality.High
+                    filterQuality = FilterQuality.High,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = stringResource(R.string.tap_to_close),
                     color = Color.White,
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMedium,
                 )
             }
         }
     }
 }
-
 
 fun formatAuthorName(author: String): String {
     val trimmed = author.trim()
@@ -926,9 +1001,7 @@ fun formatAuthorName(author: String): String {
     }
 }
 
-fun getAuthorHandle(author: String): String {
-    return author.trim().removePrefix("@")
-}
+fun getAuthorHandle(author: String): String = author.trim().removePrefix("@")
 
 private fun toHighQualityAvatarUrl(url: String): String {
     if (url.isBlank()) return url

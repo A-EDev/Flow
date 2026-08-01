@@ -33,6 +33,9 @@ BUILD AND CI
 - Remove obsolete playback and download code
 
 FIXES AND STABILITY
+- Fix playback media-session notifications missing metadata, artwork, controls, and seek state
+- Fix background subscription and update notifications not being delivered until the app is opened
+- Fix missing channel avatars in comments and replies with cached channel-avatar fallback
 - Fix crash issues
 
 DEPENDENCY

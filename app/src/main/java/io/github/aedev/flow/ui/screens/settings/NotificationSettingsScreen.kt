@@ -4,13 +4,45 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Subscriptions
+import androidx.compose.material.icons.outlined.Update
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -26,9 +58,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationSettingsScreen(
-    onNavigateBack: () -> Unit
-) {
+fun NotificationSettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val prefs = remember { PlayerPreferences(context) }
@@ -42,50 +72,54 @@ fun NotificationSettingsScreen(
     val subCheckInterval by prefs.subscriptionCheckIntervalMinutes.collectAsState(initial = 360)
     var showIntervalDialog by remember { mutableStateOf(false) }
 
-    val intervalOptions = listOf(
-        15 to stringResource(R.string.notif_interval_15m),
-        30 to stringResource(R.string.notif_interval_30m),
-        60 to stringResource(R.string.notif_interval_1h),
-        120 to stringResource(R.string.notif_interval_2h),
-        180 to stringResource(R.string.notif_interval_3h),
-        360 to stringResource(R.string.notif_interval_6h),
-        720 to stringResource(R.string.notif_interval_12h),
-        1440 to stringResource(R.string.notif_interval_24h),
-    )
-    val currentIntervalLabel = intervalOptions.firstOrNull { it.first == subCheckInterval }?.second
-        ?: "${subCheckInterval}min"
+    val intervalOptions =
+        listOf(
+            15 to stringResource(R.string.notif_interval_15m),
+            30 to stringResource(R.string.notif_interval_30m),
+            60 to stringResource(R.string.notif_interval_1h),
+            120 to stringResource(R.string.notif_interval_2h),
+            180 to stringResource(R.string.notif_interval_3h),
+            360 to stringResource(R.string.notif_interval_6h),
+            720 to stringResource(R.string.notif_interval_12h),
+            1440 to stringResource(R.string.notif_interval_24h),
+        )
+    val currentIntervalLabel =
+        intervalOptions.firstOrNull { it.first == subCheckInterval }?.second
+            ?: "${subCheckInterval}min"
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.background,
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                     }
                     Text(
                         text = stringResource(R.string.notif_settings_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     )
                 }
             }
-        }
+        },
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
                 SectionHeader(text = stringResource(R.string.notif_check_interval_section_header))
@@ -104,35 +138,37 @@ fun NotificationSettingsScreen(
                                 if (enabled) {
                                     SubscriptionCheckWorker.schedulePeriodicCheck(
                                         context,
-                                        intervalMinutes = subCheckInterval.toLong()
+                                        intervalMinutes = subCheckInterval.toLong(),
+                                        reschedule = true,
                                     )
                                     if (BuildConfig.UPDATER_ENABLED) {
-                                        UpdateCheckWorker.schedulePeriodicCheck(context)
+                                        UpdateCheckWorker.schedulePeriodicCheck(context, reschedule = true)
                                     }
                                 } else {
                                     SubscriptionCheckWorker.cancelScheduledChecks(context)
                                     UpdateCheckWorker.cancelScheduledChecks(context)
                                 }
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(
                         Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
                     SettingsItem(
                         icon = Icons.Outlined.Schedule,
                         title = stringResource(R.string.notif_check_interval),
-                        subtitle = if (notificationsEnabled) {
-                            stringResource(R.string.notif_check_interval_subtitle_template, currentIntervalLabel)
-                        } else {
-                            stringResource(R.string.notif_check_interval_disabled)
-                        },
+                        subtitle =
+                            if (notificationsEnabled) {
+                                stringResource(R.string.notif_check_interval_subtitle_template, currentIntervalLabel)
+                            } else {
+                                stringResource(R.string.notif_check_interval_disabled)
+                            },
                         onClick = {
                             if (notificationsEnabled) {
                                 showIntervalDialog = true
                             }
-                        }
+                        },
                     )
                 }
             }
@@ -145,11 +181,11 @@ fun NotificationSettingsScreen(
                         subtitle = stringResource(R.string.notif_type_new_videos_subtitle),
                         checked = notifNewVideos,
                         enabled = notificationsEnabled,
-                        onCheckedChange = { coroutineScope.launch { prefs.setNotifNewVideosEnabled(it) } }
+                        onCheckedChange = { coroutineScope.launch { prefs.setNotifNewVideosEnabled(it) } },
                     )
                     HorizontalDivider(
                         Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Download,
@@ -157,11 +193,11 @@ fun NotificationSettingsScreen(
                         subtitle = stringResource(R.string.notif_type_downloads_subtitle),
                         checked = notifDownloads,
                         enabled = notificationsEnabled,
-                        onCheckedChange = { coroutineScope.launch { prefs.setNotifDownloadsEnabled(it) } }
+                        onCheckedChange = { coroutineScope.launch { prefs.setNotifDownloadsEnabled(it) } },
                     )
                     HorizontalDivider(
                         Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Bedtime,
@@ -169,12 +205,12 @@ fun NotificationSettingsScreen(
                         subtitle = stringResource(R.string.notif_type_reminders_subtitle),
                         checked = notifReminders,
                         enabled = notificationsEnabled,
-                        onCheckedChange = { coroutineScope.launch { prefs.setNotifRemindersEnabled(it) } }
+                        onCheckedChange = { coroutineScope.launch { prefs.setNotifRemindersEnabled(it) } },
                     )
                     if (BuildConfig.UPDATER_ENABLED) {
                         HorizontalDivider(
                             Modifier.padding(start = 56.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         )
                         SettingsSwitchItem(
                             icon = Icons.Outlined.Update,
@@ -182,12 +218,12 @@ fun NotificationSettingsScreen(
                             subtitle = stringResource(R.string.notif_type_updates_subtitle),
                             checked = notifUpdates,
                             enabled = notificationsEnabled,
-                            onCheckedChange = { coroutineScope.launch { prefs.setNotifUpdatesEnabled(it) } }
+                            onCheckedChange = { coroutineScope.launch { prefs.setNotifUpdatesEnabled(it) } },
                         )
                     }
                     HorizontalDivider(
                         Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Notifications,
@@ -195,7 +231,7 @@ fun NotificationSettingsScreen(
                         subtitle = stringResource(R.string.notif_type_general_subtitle),
                         checked = notifGeneral,
                         enabled = notificationsEnabled,
-                        onCheckedChange = { coroutineScope.launch { prefs.setNotifGeneralEnabled(it) } }
+                        onCheckedChange = { coroutineScope.launch { prefs.setNotifGeneralEnabled(it) } },
                     )
                 }
             }
@@ -207,11 +243,12 @@ fun NotificationSettingsScreen(
                         title = stringResource(R.string.notif_system_settings),
                         subtitle = stringResource(R.string.notif_system_settings_subtitle),
                         onClick = {
-                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                            }
+                            val intent =
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                }
                             context.startActivity(intent)
-                        }
+                        },
                     )
                 }
             }
@@ -224,7 +261,7 @@ fun NotificationSettingsScreen(
             title = {
                 Text(
                     stringResource(R.string.notif_check_interval_dialog_title),
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleLarge,
                 )
             },
             text = {
@@ -233,25 +270,29 @@ fun NotificationSettingsScreen(
                         stringResource(R.string.notif_check_interval_dialog_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        modifier = Modifier.padding(bottom = 12.dp),
                     )
                     intervalOptions.forEach { (minutes, label) ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    coroutineScope.launch {
-                                        prefs.setSubscriptionCheckIntervalMinutes(minutes)
-                                        SubscriptionCheckWorker.schedulePeriodicCheck(context, intervalMinutes = minutes.toLong())
-                                    }
-                                    showIntervalDialog = false
-                                }
-                                .padding(vertical = 10.dp, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch {
+                                            prefs.setSubscriptionCheckIntervalMinutes(minutes)
+                                            SubscriptionCheckWorker.schedulePeriodicCheck(
+                                                context,
+                                                intervalMinutes = minutes.toLong(),
+                                                reschedule = true,
+                                            )
+                                        }
+                                        showIntervalDialog = false
+                                    }.padding(vertical = 10.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(
                                 selected = subCheckInterval == minutes,
-                                onClick = null
+                                onClick = null,
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(text = label, style = MaterialTheme.typography.bodyLarge)
@@ -263,7 +304,7 @@ fun NotificationSettingsScreen(
                 TextButton(onClick = { showIntervalDialog = false }) {
                     Text(stringResource(R.string.btn_close))
                 }
-            }
+            },
         )
     }
 }

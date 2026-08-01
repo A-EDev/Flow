@@ -1,22 +1,18 @@
 package io.github.aedev.flow.service
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import androidx.core.app.ServiceCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import io.github.aedev.flow.R
+import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.PopupPlayerWindow
@@ -33,14 +29,9 @@ import kotlinx.coroutines.launch
 
 @UnstableApi
 class VideoPlayerService : MediaSessionService() {
-
     companion object {
         private const val TAG = "VideoPlayerService"
         private const val LOCK_RELEASE_DELAY_MS = 30_000L
-        private const val FALLBACK_CHANNEL_ID = "video_playback_fallback"
-        private const val MEDIA_CHANNEL_ID = "video_playback_media"
-        private const val FALLBACK_NOTIFICATION_ID = 7892
-
         const val ACTION_SHOW_POPUP = "io.github.aedev.flow.action.SHOW_POPUP_PLAYER"
         const val ACTION_HIDE_POPUP = "io.github.aedev.flow.action.HIDE_POPUP_PLAYER"
 
@@ -60,14 +51,15 @@ class VideoPlayerService : MediaSessionService() {
 
     private fun serviceSnapshot(): String {
         val player = EnhancedPlayerManager.getInstance().getPlayer()
-        val state = when (player?.playbackState) {
-            Player.STATE_IDLE -> "IDLE"
-            Player.STATE_BUFFERING -> "BUFFERING"
-            Player.STATE_READY -> "READY"
-            Player.STATE_ENDED -> "ENDED"
-            null -> "NO_PLAYER"
-            else -> "UNKNOWN(${player.playbackState})"
-        }
+        val state =
+            when (player?.playbackState) {
+                Player.STATE_IDLE -> "IDLE"
+                Player.STATE_BUFFERING -> "BUFFERING"
+                Player.STATE_READY -> "READY"
+                Player.STATE_ENDED -> "ENDED"
+                null -> "NO_PLAYER"
+                else -> "UNKNOWN(${player.playbackState})"
+            }
         return "exo=$state pwr=${player?.playWhenReady} playing=${player?.isPlaying} " +
             "pos=${player?.currentPosition}/${player?.duration} " +
             "idx=${player?.currentMediaItemIndex} count=${player?.mediaItemCount} " +
@@ -84,16 +76,17 @@ class VideoPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        // Android starts this service with startForegroundService when a Media3 controller connects.
-        // Promote before any player/session initialization so Android 16 cannot hit its FGS deadline.
-        promoteToForeground()
-        FlowCrashHandler.recordPhase("video-service", "onCreate")
-        val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
-            .setChannelId(MEDIA_CHANNEL_ID)
-            .setChannelName(R.string.app_name)
-            .build()
-            .apply { setSmallIcon(R.drawable.ic_notification_logo) }
+        val notificationProvider =
+            DefaultMediaNotificationProvider
+                .Builder(this)
+                .setChannelId(NotificationHelper.CHANNEL_PLAYBACK)
+                .setChannelName(R.string.notification_channel_video_playback)
+                .setNotificationId(NotificationHelper.NOTIFICATION_PLAYBACK)
+                .build()
+                .apply { setSmallIcon(R.drawable.ic_notification_logo) }
         setMediaNotificationProvider(notificationProvider)
+
+        FlowCrashHandler.recordPhase("video-service", "onCreate")
         serviceLog("onCreate")
 
         try {
@@ -125,11 +118,15 @@ class VideoPlayerService : MediaSessionService() {
         return EnhancedPlayerManager.getInstance().getVideoMediaSession()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        super.onStartCommand(intent, flags, startId)
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
+        val startResult = super.onStartCommand(intent, flags, startId)
         FlowCrashHandler.recordPhase(
             "video-service",
-            "onStartCommand action=${intent?.action} startId=$startId"
+            "onStartCommand action=${intent?.action} startId=$startId",
         )
         serviceLog("onStartCommand action=${intent?.action}")
 
@@ -138,62 +135,8 @@ class VideoPlayerService : MediaSessionService() {
             ACTION_HIDE_POPUP -> popupPlayerWindow?.dismiss()
         }
 
-        val startPlan = videoServiceForegroundStartupPlan(
-            hasMediaSession = EnhancedPlayerManager.getInstance().getVideoMediaSession() != null,
-        )
-        if (startPlan.promoteImmediately && !promoteToForeground()) {
-            serviceLog("Foreground promotion failed — stopping before system deadline")
-            stopSelf(startId)
-            return START_NOT_STICKY
-        }
-
-        if (startPlan.stopAfterPromotion) {
-            serviceLog("No media session available — placeholder then stop")
-            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-            stopSelf(startId)
-            return START_NOT_STICKY
-        }
-
         updateLocks(isPlaybackActiveForLocks())
-        return START_STICKY
-    }
-
-    private fun promoteToForeground(): Boolean {
-        try {
-            ensureFallbackNotificationChannel()
-            val notification = NotificationCompat.Builder(this, FALLBACK_CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_notification_logo)
-                .setContentTitle("Flow")
-                .setSilent(true)
-                .build()
-            ServiceCompat.startForeground(
-                this, FALLBACK_NOTIFICATION_ID, notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            )
-            FlowCrashHandler.recordPhase("video-service", "foreground-started")
-            return true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to promote service to foreground", e)
-            FlowCrashHandler.recordPhase(
-                "video-service",
-                "foreground-start-failed ${e.javaClass.simpleName}",
-            )
-            return false
-        }
-    }
-
-    private fun ensureFallbackNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NotificationManager::class.java)
-            if (nm.getNotificationChannel(FALLBACK_CHANNEL_ID) == null) {
-                nm.createNotificationChannel(
-                    NotificationChannel(
-                        FALLBACK_CHANNEL_ID, "Video Playback",
-                        NotificationManager.IMPORTANCE_LOW
-                    )
-                )
-            }
-        }
+        return startResult
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -212,6 +155,7 @@ class VideoPlayerService : MediaSessionService() {
         releaseLocks()
         stopSelf()
     }
+
     override fun onDestroy() {
         serviceLog("onDestroy")
         popupPlayerWindow?.dismiss()
@@ -227,14 +171,16 @@ class VideoPlayerService : MediaSessionService() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !android.provider.Settings.canDrawOverlays(this)) return
         val player = EnhancedPlayerManager.getInstance().getPlayer() ?: return
         if (popupPlayerWindow == null) {
-            popupPlayerWindow = PopupPlayerWindow(this) {
-                popupPlayerWindow?.dismiss()
-                EnhancedPlayerManager.getInstance().stop()
-                stopSelf()
-            }
+            popupPlayerWindow =
+                PopupPlayerWindow(this) {
+                    popupPlayerWindow?.dismiss()
+                    EnhancedPlayerManager.getInstance().stop()
+                    stopSelf()
+                }
         }
         popupPlayerWindow?.show(player)
     }
+
     private fun acquireLocks() {
         serviceLog("acquireLocks")
         if (wakeLock?.isHeld != true) wakeLock?.acquire()
@@ -251,18 +197,21 @@ class VideoPlayerService : MediaSessionService() {
             return
         }
 
-        lockReleaseJob = serviceScope.launch {
-            delay(LOCK_RELEASE_DELAY_MS)
-            releaseLocks()
-        }
+        lockReleaseJob =
+            serviceScope.launch {
+                delay(LOCK_RELEASE_DELAY_MS)
+                releaseLocks()
+            }
     }
 
     private fun isPlaybackActiveForLocks(): Boolean {
         val player = EnhancedPlayerManager.getInstance().getPlayer() ?: return false
         return player.isPlaying ||
-            (player.playWhenReady &&
-                player.playbackState != Player.STATE_IDLE &&
-                player.playbackState != Player.STATE_ENDED)
+            (
+                player.playWhenReady &&
+                    player.playbackState != Player.STATE_IDLE &&
+                    player.playbackState != Player.STATE_ENDED
+            )
     }
 
     private fun releaseLocks() {
@@ -277,5 +226,4 @@ class VideoPlayerService : MediaSessionService() {
             Log.w(TAG, "Failed to release wifi lock", e)
         }
     }
-
 }
