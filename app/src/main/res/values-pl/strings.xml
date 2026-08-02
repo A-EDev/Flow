@@ -20,7 +20,7 @@
     <string name="library_liked_videos_label">Polubione treści</string>
     <string name="library_saved_shorts_label">Zapisane Shorts</string>
     <string name="library_watch_later_label">Obejrzyj później</string>
-    <string name="library_downloads_label">Pobrane</string>
+    <string name="library_downloads_label">Pobrania</string>
     <string name="cancel">Anuluj</string>
     <string name="share_song">Udostępnij piosenkę</string>
     <string name="share">Udostępnij</string>
@@ -38,7 +38,7 @@
     <string name="library_settings_data_header"><![CDATA[Ustawienia i Dane]]></string>
     <string name="library_manage_data_label">Zarządzaj Danymi</string>
     <string name="library_manage_data_subtitle">Wyczyść cache i historię</string>
-    <string name="about">O aplikacji</string>
+    <string name="about">Informacje</string>
     <string name="empty_description">Brak opisu</string>
     <string name="clear_all">Wyczyść wszystko</string>
     <string name="clear_watch_history_alert_title">Wyczyścić historię oglądania?</string>
@@ -427,7 +427,7 @@
     <string name="settings_item_import_data">Importuj Dane</string>
     <string name="settings_item_import_data_subtitle">Załaduj z kopii zapasowej lub importuj z innych aplikacji</string>
     <string name="settings_item_about_flow">O aplikacji Flow</string>
-    <string name="settings_item_about_flow_subtitle">Wersja, Licencja, Kontrybutorzy</string>
+    <string name="settings_item_about_flow_subtitle">Wersja, Licencja, Współtwórcy</string>
     <string name="settings_item_support">Wsparcie i Wpłaty</string>
     <string name="settings_item_support_subtitle">Pomóż w rozwoju Flow</string>
     <string name="settings_region_dialog_title">Wybierz Region</string>
@@ -448,7 +448,7 @@
     <string name="appearance_applied_toast">Zastosowano: %1$s</string>
     <string name="appearance_customize_theme">Dostosuj Motyw</string>
     <string name="appearance_customizer_title">Niestandardowy Edytor Motywów</string>
-    <string name="appearance_customizer_subtitle">Dostosuj ustawienia każdej roli Material 3 i natychmiast wyświetl podgląd zmian</string>
+    <string name="appearance_customizer_subtitle">Dostosuj każdą rolę koloru w Material 3 i podglądaj zmiany na żywo</string>
     <string name="appearance_customizer_format_hint">Format Hex: #RRGGBB lub #AARRGGBB</string>
     <string name="appearance_customizer_reset">Zresetuj</string>
     <string name="appearance_customizer_save">Zapisz Motyw</string>
@@ -494,9 +494,9 @@
     <string name="player_background_style_default">Domyślna Powierzchnia</string>
     <string name="settings_item_player_appearance">Wygląd Odtwarzacza</string>
     <string name="settings_item_player_appearance_subtitle">Dostosuj styl paska postępu</string>
-    <string name="style_default">Standardowy</string>
-    <string name="style_metrolist">Gruby</string>
-    <string name="style_metrolist_slim">Domyślny</string>
+    <string name="style_default">Domyślny (Flow)</string>
+    <string name="style_metrolist">Metrolist (Gruby)</string>
+    <string name="style_metrolist_slim">Metrolist (Cienki)</string>
     <string name="style_squiggly">Falisty</string>
     <string name="style_slim">Ultra Cienki</string>
     <string name="player_appearance_gestures_header">Gesty</string>
@@ -594,7 +594,7 @@
     <string name="content_settings_header_display">Wyświetlanie</string>
     <string name="content_settings_header_home_layout">Układ ekranu głównego</string>
     <string name="view_count_thousand_suffix">tys.</string>
-    <string name="view_count_million_suffix">M</string>
+    <string name="view_count_million_suffix">mln.</string>
     <string name="action_like">Lubię to</string>
     <string name="action_dislike">Nie lubię tego</string>
     <string name="action_comments">Komentarze</string>
@@ -1556,14 +1556,14 @@
     <string name="upcoming_label">Nadchodzące</string>
     <string name="upcoming_video_starts_in">Zaczyna się za</string>
     <string name="subscriptions_compact_header_with_music">Kanały muzyczne są oznaczone bezpośrednio w tekście, dzięki czemu strumień treści pozostaje kompaktowy.</string>
-    <string name="filter_top">Góra</string>
+    <string name="filter_top">Top</string>
     <string name="already_downloaded_toast">Już pobrane</string>
     <string name="playlist_visibility_metadata">%1$s • %2$s</string>
     <string name="no_groups_yet">Nie utworzono grup. Stwórz jedną aby filtrować swój strumień treści.</string>
     <string name="toggle_view_mode">Przełącz tryb podglądu</string>
     <string name="search_toggle_view_mode">Przełącz widok wyników wyszukiwania</string>
     <string name="channel_sort_latest">Najnowsze</string>
-    <string name="channel_search_failed">Nie udało się przeszukać kanału</string>
+    <string name="channel_search_failed">Nie udało się przeszukać tego kanału</string>
     <string name="share_community_post">Udostępnij wpis społeczności</string>
     <string name="music_history">Historia muzyki</string>
     <string name="appearance_customizer_variant_title">%1$s niestandardowy motyw</string>
@@ -1608,8 +1608,8 @@
     <string name="channel_metadata_unavailable">Informacje o kanale są niedostępne</string>
     <string name="channel_blocked_toast">%1$s nie będzie się pojawiał w Twoim strumieniu</string>
     <string name="btn_cancel">Anuluj</string>
-    <string name="player_settings_show_pip">Pokaż Przycisk PiP</string>
-    <string name="player_settings_show_pip_subtitle">Pokaż ręczny przycisk PiP w kontroli odtwarzacza</string>
+    <string name="player_settings_show_pip">Pokaż Przycisk Obraz w Obrazie</string>
+    <string name="player_settings_show_pip_subtitle">Pokaż ręczny przycisk Obraz w Obrazie na nakładce odtwarzacza</string>
     <string name="player_settings_header_video">Wideo</string>
     <string name="btn_back">Powrót</string>
     <string name="back">Powrót</string>
@@ -1619,7 +1619,7 @@
     <string name="speed_2x">Prędkość 2x</string>
     <string name="cd_liked">Polubione</string>
     <string name="shorts_original_sound">Dźwięk Oryginalny - %1$s</string>
-    <string name="view_count_billion_suffix">mld</string>
+    <string name="view_count_billion_suffix">bln.</string>
     <string name="hidden_count_template">%1$d ukryte</string>
     <string name="tap_to_remove">Dotknij by usunąć</string>
     <string name="desc_add_topic">Dodaj temat</string>
@@ -1693,7 +1693,7 @@
     <string name="persona_audiophile_title">Audiofil</string>
     <string name="persona_audiophile_description">Korzystasz z Flow głównie do słuchania muzyki. Klimat i pozytywne wibracje są najważniejsze.</string>
     <string name="persona_night_owl_title">Nocny marek</string>
-    <string name="persona_night_owl_description">W ciemności czujesz się najlepiej — większość czasu oglądania spędzasz po północy. Pamiętaj by zadbać czasem o swoje oczy!</string>
+    <string name="persona_night_owl_description">Twój żywioł to ciemność — większość filmów oglądasz po północy. Pamiętaj, by czasem dać odpocząć swoim oczom.</string>
     <string name="persona_binger_title">Maratończyk</string>
     <string name="persona_binger_description">Jak już zaczniesz, nie możesz się oderwać. Filmy oglądasz długimi seriami, jeden po drugim.</string>
     <string name="persona_scholar_title">Jajogłowy</string>
@@ -1701,9 +1701,9 @@
     <string name="persona_deep_diver_title">Nurek głębinowy</string>
     <string name="persona_deep_diver_description">Długometrażowe eseje wideo i filmy dokumentalne to Twoja działka.</string>
     <string name="persona_livewire_title">Wulkan energii</string>
-    <string name="persona_livewire_description">Żyjesz surową energią z premier i transmisji na żywo. Poggers in chat!</string>
-    <string name="persona_skimmer_title">Klątwa ADHD</string>
-    <string name="persona_skimmer_description">Szybkie, krótkie treści. Dopamina na żądanie, cyfrowa kokaina na zawołanie!</string>
+    <string name="persona_livewire_description">Uwielbiasz emocje transmisji na żywo i premier.</string>
+    <string name="persona_skimmer_title">Przeglądacz</string>
+    <string name="persona_skimmer_description">Szybkie, krótkie treści. Dopamina na zawołanie.</string>
     <string name="persona_specialist_title">Autysta</string>
     <string name="persona_specialist_description">Pełna koncentracja na kilku niszach. Doskonale wiesz, czego chcesz.</string>
     <string name="channel_memory_empty">Brak kanałów w pamięci.</string>
@@ -1733,7 +1733,7 @@
     <string name="empty_moods_genres">Brak dostępnych nastrojów i gatunków</string>
     <string name="title_browse">Przeglądaj</string>
     <string name="empty_browse_content">Brak dostępnej zawartości</string>
-    <string name="label_featured">POLECANE</string>
+    <string name="label_featured">WYRÓŻNIONE</string>
     <string name="year_artist_template">%1$s • %2$s</string>
     <string name="status_playing">Odtwarzane</string>
     <string name="label_explicit">Wulgarne</string>
@@ -1876,4 +1876,8 @@
     <string name="discovery_rejections">Odmowy</string>
     <string name="discovery_rejections_detail">wzorce tematów</string>
     <string name="discovery_shorts_seen">Obejrzane Shorty</string>
+    <string name="download_url_expired">Link wygasł (błąd 403). Pobierz dane ponownie.</string>
+    <string name="playlist_filter_owned">Utworzone</string>
+    <string name="playlist_creation_menu_close">Zamknij kreator playlisty</string>
+    <string name="sync_qr_network_note">Oba urządzenia muszą być w tej samej sieci Wi-Fi (lub hotspocie). Może być wymagane odblokowanie aplikacji Flow w zaporze sieciowej.</string>
 </resources>
