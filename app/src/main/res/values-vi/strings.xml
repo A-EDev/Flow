@@ -1858,7 +1858,7 @@
     <string name="time_bucket_weekend_night">Đêm cuối tuần</string>
     <string name="time_window_morning">6 AM - 12 PM</string>
     <string name="time_window_afternoon">12 PM - 6 PM</string>
-    <string name="time_bucket_weekend_afternoon">Chiều cuối tuần</string>
+    <string name="time_bucket_weekend_afternoon">Chiều ngày thường</string>
     <string name="time_window_evening">6 PM - 12 AM</string>
     <string name="time_window_night">12 AM - 6 AM</string>
     <string name="channel_affinity_strong">Mạnh</string>
