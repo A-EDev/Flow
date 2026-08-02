@@ -341,14 +341,14 @@
     <string name="settings_item_import_data">Импорт данных</string>
     <string name="settings_item_import_data_subtitle">Восстановление из копии или импорт из других приложений</string>
     <string name="settings_item_about_flow">О Flow</string>
-    <string name="settings_item_about_flow_subtitle">Версия, лицензия, участники</string>
+    <string name="settings_item_about_flow_subtitle">Версия, лицензия, авторы</string>
     <string name="settings_item_support">Поддержка и донаты</string>
     <string name="settings_item_support_subtitle">Поддержите разработку Flow</string>
     <string name="settings_region_dialog_title">Выберите регион</string>
     <string name="settings_export_success">Данные успешно экспортированы</string>
     <string name="settings_export_failed">Ошибка экспорта: %1$s</string>
     <string name="appearance_title">Внешний вид</string>
-    <string name="appearance_subtitle">Персонализируйте свой опыт использования Flow</string>
+    <string name="appearance_subtitle">Персонализация интерфейса Flow</string>
     <string name="appearance_current_theme">ТЕКУЩАЯ ТЕМА</string>
     <string name="appearance_category_all">Все</string>
     <string name="appearance_category_light">Светлые</string>
@@ -357,8 +357,8 @@
     <string name="appearance_themes_count_all">Тем: %1$d</string>
     <string name="appearance_themes_count_filtered">Тем (%2$s): %1$d</string>
     <string name="appearance_applied_toast">Применено: %1$s</string>
-    <string name="app_icon_picker_subtitle">Выберите стиль значка панели запуска. Изменения вступят в силу сразу, и панель запуска ненадолго обновится.</string>
-    <string name="app_icon_picker_warning">Внимание: при смене значков используется системный механизм Android, в результате чего ярлык приложения может на короткое время исчезнуть с главного экрана. При необходимости нажмите и удерживайте значок на рабочем столе, чтобы вернуть его.</string>
+    <string name="app_icon_picker_subtitle">Выберите стиль значка. Изменения вступят в силу сразу, а рабочий стол перезапустится.</string>
+    <string name="app_icon_picker_warning">Внимание: смена значка использует системный механизм Android, который может временно удалить ярлык приложения с главного экрана. Зажмите свободное место на рабочем столе, чтобы добавить его снова при необходимости.</string>
     <string name="app_icon_apply_toast">Иконка обновлена - рабочий стол обновится</string>
     <string name="icon_name_flow_red">Flow Red</string>
     <string name="icon_name_amoled">AMOLED Dark</string>
@@ -394,7 +394,7 @@
     <string name="lyrics_provider_better_lyrics">Лучшие тексты песен</string>
     <string name="lyrics_provider_simpmusic">Простая музыка (SimpMusic)</string>
     <string name="theme_name_system_default">Системная тема</string>
-    <string name="theme_desc_system_default">Синхронизировать с темой устройства</string>
+    <string name="theme_desc_system_default">Синхронизация с темой устройства</string>
     <string name="theme_name_pure_light">Чистый светлый</string>
     <string name="theme_desc_pure_light">Чистый и минималистичный</string>
     <string name="theme_name_mint_fresh">Мятная свежесть</string>
@@ -718,7 +718,7 @@
     <string name="deep_flow_expire_duration_title">Автоматическое отключение</string>
     <string name="deep_flow_expire_duration_subtitle">Обучение возобновится автоматически через: %s</string>
     <string name="deep_flow_dialog_title">Продолжительность паузы</string>
-    <string name="deep_flow_dialog_body">На какой срок следует приостанавливать обучение?</string>
+    <string name="deep_flow_dialog_body">На какое время приостановить обучение?</string>
     <string name="deep_flow_enabled_message">Включена функция Deep Flow</string>
     <string name="deep_flow_disabled_message">Функция Deep Flow отключена</string>
     <string name="deep_flow_expired_message">Истекло время таймера Deep Flow</string>
@@ -744,7 +744,7 @@
     <string name="appearance_customize_theme">Настроить тему</string>
     <string name="appearance_customizer_title">Редактор пользовательских тем</string>
     <string name="appearance_customizer_subtitle">Настройте цветовые параметры «Material 3» и сразу посмотрите результат</string>
-    <string name="appearance_customizer_format_hint">Формат HEX: #RRGGBB or #AARRGGBB</string>
+    <string name="appearance_customizer_format_hint">Формат HEX: #RRGGBB или #AARRGGBB</string>
     <string name="appearance_customizer_reset">Сбросить</string>
     <string name="appearance_customizer_save">Сохранить тему</string>
     <string name="appearance_role_primary">Первичный</string>
@@ -791,7 +791,7 @@
     <string name="player_show_title_title">Показать название видео</string>
     <string name="player_show_title_subtitle">Отображать название видео под верхней панелью в полноэкранном режиме</string>
     <string name="theme_name_material_you">Material You</string>
-    <string name="theme_desc_material_you">Цвета обоев в Android 12 и выше</string>
+    <string name="theme_desc_material_you">Цвета обоев для Android 12+</string>
     <string name="theme_name_monochrome">Монохром</string>
     <string name="error_age_restricted_hint">Это видео доступно только авторизованным пользователям, подтвердившим свой возраст.</string>
     <string name="search_watch_history">Поиск в истории просмотра</string>
@@ -1826,7 +1826,7 @@
     <string name="algorithm_insights_subtitle">Внутреннее устройство</string>
     <string name="label_featured">РЕКОМЕНДУЕМОЕ</string>
     <string name="profile_maturity_label">Зрелость профиля</string>
-    <string name="profile_maturity_detail">Высокий уровень зрелости означает, что профиль накопил достаточно сигналов для стабильной работы</string>
+    <string name="profile_maturity_detail">Выше зрелость профиля – стабильнее рекомендации</string>
     <string name="taste_shape_title">Карта предпочтений</string>
     <string name="taste_shape_subtitle">Сопоставление общих интересов с предпочтениями в текущее время</string>
     <string name="taste_pacing">Динамика темпа</string>
