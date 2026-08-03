@@ -31,10 +31,11 @@ class ChannelViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         coEvery { subscriptionRepository.getSubscription(any()) } returns flowOf(null)
-        viewModel = ChannelViewModel(
-            appContext = context,
-            subscriptionRepository = subscriptionRepository,
-        )
+        viewModel =
+            ChannelViewModel(
+                appContext = context,
+                subscriptionRepository = subscriptionRepository,
+            )
     }
 
     @After
@@ -44,43 +45,47 @@ class ChannelViewModelTest {
     }
 
     @Test
-    fun `initial ui state has default values`() = runTest {
-        val state = viewModel.uiState.value
-        assertThat(state.channelId).isNull()
-        assertThat(state.isLoading).isFalse()
-        assertThat(state.isSubscribed).isFalse()
-        assertThat(state.selectedTab).isEqualTo(0)
-    }
+    fun `initial ui state has default values`() =
+        runTest {
+            val state = viewModel.uiState.value
+            assertThat(state.channelId).isNull()
+            assertThat(state.isLoading).isFalse()
+            assertThat(state.isSubscribed).isFalse()
+            assertThat(state.selectedTab).isEqualTo(0)
+        }
 
     @Test
-    fun `selectTab updates selectedTab in uiState`() = runTest {
-        viewModel.selectTab(2)
-        testDispatcher.scheduler.advanceUntilIdle()
+    fun `selectTab updates selectedTab in uiState`() =
+        runTest {
+            viewModel.selectTab(2)
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        assertThat(viewModel.uiState.value.selectedTab).isEqualTo(2)
-    }
-
-    @Test
-    fun `unsubscribe delegates to subscription repository`() = runTest {
-        val channelId = "UC_test_channel_123"
-        coEvery { subscriptionRepository.unsubscribe(channelId) } returns Unit
-
-        viewModel.unsubscribe()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Without a channelId in state, unsubscribe returns early
-        coVerify(exactly = 0) { subscriptionRepository.unsubscribe(channelId) }
-    }
+            assertThat(viewModel.uiState.value.selectedTab).isEqualTo(2)
+        }
 
     @Test
-    fun `setNotificationState delegates to subscription repository when channelId present`() = runTest {
-        val channelId = "UC_test_channel"
-        coEvery { subscriptionRepository.updateNotificationState(channelId, true) } returns Unit
+    fun `unsubscribe delegates to subscription repository`() =
+        runTest {
+            val channelId = "UC_test_channel_123"
+            coEvery { subscriptionRepository.unsubscribe(channelId) } returns Unit
 
-        viewModel.setNotificationState(true)
-        testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.unsubscribe()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Verify guarded execution when channelId is null
-        coVerify(exactly = 0) { subscriptionRepository.updateNotificationState(any(), any()) }
-    }
+            // Without a channelId in state, unsubscribe returns early
+            coVerify(exactly = 0) { subscriptionRepository.unsubscribe(channelId) }
+        }
+
+    @Test
+    fun `setNotificationState delegates to subscription repository when channelId present`() =
+        runTest {
+            val channelId = "UC_test_channel"
+            coEvery { subscriptionRepository.updateNotificationState(channelId, true) } returns Unit
+
+            viewModel.setNotificationState(true)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Verify guarded execution when channelId is null
+            coVerify(exactly = 0) { subscriptionRepository.updateNotificationState(any(), any()) }
+        }
 }

@@ -59,8 +59,7 @@ fun TvSubscriptionsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val dimens = LocalTvDimens.current
 
-    fun channelRef(channel: Channel): String =
-        channel.url.ifBlank { "https://www.youtube.com/channel/${channel.id}" }
+    fun channelRef(channel: Channel): String = channel.url.ifBlank { "https://www.youtube.com/channel/${channel.id}" }
 
     TvScreenScaffold(
         title = stringResource(R.string.tv_subscriptions_title),
@@ -76,8 +75,11 @@ fun TvSubscriptionsScreen(
     ) {
         ProvideTvColumnPivot {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val cardWidth = (maxWidth - dimens.overscanHorizontal * 2 -
-                    dimens.itemSpacing * (SUBS_GRID_COLUMNS - 1)) / SUBS_GRID_COLUMNS
+                val cardWidth =
+                    (
+                        maxWidth - dimens.overscanHorizontal * 2 -
+                            dimens.itemSpacing * (SUBS_GRID_COLUMNS - 1)
+                    ) / SUBS_GRID_COLUMNS
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -86,24 +88,27 @@ fun TvSubscriptionsScreen(
                     if (state.isLoading && state.refreshTotalChannels > 0) {
                         item(key = "refresh-progress") {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = dimens.overscanHorizontal),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = dimens.overscanHorizontal),
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                val progress = state.refreshProcessedChannels.toFloat() /
-                                    state.refreshTotalChannels.toFloat().coerceAtLeast(1f)
+                                val progress =
+                                    state.refreshProcessedChannels.toFloat() /
+                                        state.refreshTotalChannels.toFloat().coerceAtLeast(1f)
                                 LinearProgressIndicator(
                                     progress = { progress.coerceIn(0f, 1f) },
                                     modifier = Modifier.fillMaxWidth(),
                                     trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                                 )
                                 Text(
-                                    text = stringResource(
-                                        R.string.subscriptions_refresh_progress_template,
-                                        state.refreshProcessedChannels,
-                                        state.refreshTotalChannels,
-                                    ),
+                                    text =
+                                        stringResource(
+                                            R.string.subscriptions_refresh_progress_template,
+                                            state.refreshProcessedChannels,
+                                            state.refreshTotalChannels,
+                                        ),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -114,9 +119,10 @@ fun TvSubscriptionsScreen(
                     if (state.groups.isNotEmpty()) {
                         item(key = "groups") {
                             LazyRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .tvRowFocus(),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .tvRowFocus(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 contentPadding = PaddingValues(horizontal = dimens.overscanHorizontal),
                             ) {
@@ -153,15 +159,21 @@ fun TvSubscriptionsScreen(
                     }
 
                     when {
-                        state.isLoading && state.recentVideos.isEmpty() -> item(key = "loading") {
-                            TvShimmerRow()
+                        state.isLoading && state.recentVideos.isEmpty() -> {
+                            item(key = "loading") {
+                                TvShimmerRow()
+                            }
                         }
-                        state.recentVideos.isEmpty() && state.subscribedChannels.isEmpty() -> item(key = "empty") {
-                            TvMessageState(
-                                title = stringResource(R.string.tv_no_subscriptions),
-                                modifier = Modifier.padding(horizontal = dimens.overscanHorizontal),
-                            )
+
+                        state.recentVideos.isEmpty() && state.subscribedChannels.isEmpty() -> {
+                            item(key = "empty") {
+                                TvMessageState(
+                                    title = stringResource(R.string.tv_no_subscriptions),
+                                    modifier = Modifier.padding(horizontal = dimens.overscanHorizontal),
+                                )
+                            }
                         }
+
                         state.recentVideos.isNotEmpty() -> {
                             item(key = "recent-header") {
                                 TvSectionHeader(
@@ -174,9 +186,10 @@ fun TvSubscriptionsScreen(
                                 key = { rowVideos -> rowVideos.first().id },
                             ) { rowVideos ->
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = dimens.overscanHorizontal),
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = dimens.overscanHorizontal),
                                     horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                                 ) {
                                     rowVideos.forEach { video ->

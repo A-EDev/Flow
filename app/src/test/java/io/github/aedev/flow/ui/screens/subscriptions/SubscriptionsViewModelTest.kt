@@ -59,14 +59,15 @@ class SubscriptionsViewModelTest {
         coEvery { subscriptionRepository.getAllSubscriptions() } returns flowOf(emptyList())
         coEvery { cacheDao.getSubscriptionFeed() } returns flowOf(emptyList())
 
-        viewModel = SubscriptionsViewModel(
-            subscriptionRepository = subscriptionRepository,
-            viewHistory = viewHistory,
-            cacheDao = cacheDao,
-            database = database,
-            playerPreferences = playerPreferences,
-            subscriptionGroupDao = subscriptionGroupDao,
-        )
+        viewModel =
+            SubscriptionsViewModel(
+                subscriptionRepository = subscriptionRepository,
+                viewHistory = viewHistory,
+                cacheDao = cacheDao,
+                database = database,
+                playerPreferences = playerPreferences,
+                subscriptionGroupDao = subscriptionGroupDao,
+            )
     }
 
     @After
@@ -76,50 +77,55 @@ class SubscriptionsViewModelTest {
     }
 
     @Test
-    fun `initial ui state has default properties`() = runTest {
-        testDispatcher.scheduler.advanceUntilIdle()
+    fun `initial ui state has default properties`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertThat(state.isLoading).isFalse()
-        assertThat(state.selectedGroupName).isNull()
-        assertThat(state.sortMode).isEqualTo(SubscriptionSortMode.DEFAULT)
-    }
-
-    @Test
-    fun `selectGroup updates selectedGroupName in state`() = runTest {
-        viewModel.selectGroup("Tech")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        assertThat(viewModel.uiState.value.selectedGroupName).isEqualTo("Tech")
-    }
+            val state = viewModel.uiState.value
+            assertThat(state.isLoading).isFalse()
+            assertThat(state.selectedGroupName).isNull()
+            assertThat(state.sortMode).isEqualTo(SubscriptionSortMode.DEFAULT)
+        }
 
     @Test
-    fun `selectChannel updates selectedChannelId in state`() = runTest {
-        viewModel.selectChannel("channel_123")
-        testDispatcher.scheduler.advanceUntilIdle()
+    fun `selectGroup updates selectedGroupName in state`() =
+        runTest {
+            viewModel.selectGroup("Tech")
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        assertThat(viewModel.uiState.value.selectedChannelId).isEqualTo("channel_123")
-    }
-
-    @Test
-    fun `unsubscribe calls subscription repository`() = runTest {
-        val channelId = "channel_abc"
-        coEvery { subscriptionRepository.unsubscribe(channelId) } returns Unit
-
-        viewModel.unsubscribe(channelId)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 1) { subscriptionRepository.unsubscribe(channelId) }
-    }
+            assertThat(viewModel.uiState.value.selectedGroupName).isEqualTo("Tech")
+        }
 
     @Test
-    fun `updateNotificationState calls subscription repository`() = runTest {
-        val channelId = "channel_xyz"
-        coEvery { subscriptionRepository.updateNotificationState(channelId, true) } returns Unit
+    fun `selectChannel updates selectedChannelId in state`() =
+        runTest {
+            viewModel.selectChannel("channel_123")
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.updateNotificationState(channelId, true)
-        testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.uiState.value.selectedChannelId).isEqualTo("channel_123")
+        }
 
-        coVerify(exactly = 1) { subscriptionRepository.updateNotificationState(channelId, true) }
-    }
+    @Test
+    fun `unsubscribe calls subscription repository`() =
+        runTest {
+            val channelId = "channel_abc"
+            coEvery { subscriptionRepository.unsubscribe(channelId) } returns Unit
+
+            viewModel.unsubscribe(channelId)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { subscriptionRepository.unsubscribe(channelId) }
+        }
+
+    @Test
+    fun `updateNotificationState calls subscription repository`() =
+        runTest {
+            val channelId = "channel_xyz"
+            coEvery { subscriptionRepository.updateNotificationState(channelId, true) } returns Unit
+
+            viewModel.updateNotificationState(channelId, true)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { subscriptionRepository.updateNotificationState(channelId, true) }
+        }
 }
