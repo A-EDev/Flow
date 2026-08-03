@@ -53,7 +53,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -104,16 +104,17 @@ fun TvMusicNowPlayingScreen(
     val palette = rememberMusicPalette(artworkUrl)
     // Translucent chips over the always-dark PlayerBackground; latched toggles
     // (like, shuffle, repeat, panels) light up with the artwork accent.
-    val playerButtonColors = remember(palette.accent) {
-        TvIconButtonColors(
-            container = Color.White.copy(alpha = 0.12f),
-            content = Color.White,
-            focusedContainer = Color.White,
-            focusedContent = Color.Black,
-            activeContainer = palette.accent,
-            activeContent = if (palette.accent.luminance() > 0.5f) Color.Black else Color.White,
-        )
-    }
+    val playerButtonColors =
+        remember(palette.accent) {
+            TvIconButtonColors(
+                container = Color.White.copy(alpha = 0.12f),
+                content = Color.White,
+                focusedContainer = Color.White,
+                focusedContent = Color.Black,
+                activeContainer = palette.accent,
+                activeContent = if (palette.accent.luminance() > 0.5f) Color.Black else Color.White,
+            )
+        }
 
     var panel by rememberSaveable { mutableStateOf(TvMusicPanel.NONE) }
     val scrubController = remember { TvScrubController() }
@@ -156,56 +157,94 @@ fun TvMusicNowPlayingScreen(
                 scrubController.cancel()
                 scrubUiState = scrubController.current
             }
-            panel != TvMusicPanel.NONE -> panel = TvMusicPanel.NONE
-            else -> onCollapse()
+
+            panel != TvMusicPanel.NONE -> {
+                panel = TvMusicPanel.NONE
+            }
+
+            else -> {
+                onCollapse()
+            }
         }
     }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .onPreviewKeyEvent { event ->
-                val keyCode = event.nativeKeyEvent.keyCode
-                when (event.type) {
-                    KeyEventType.KeyUp ->
-                        if (scrubController.current.isScrubbing &&
-                            (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
-                        ) {
-                            commitScrub()
+        modifier =
+            modifier
+                .fillMaxSize()
+                .onPreviewKeyEvent { event ->
+                    val keyCode = event.nativeKeyEvent.keyCode
+                    when (event.type) {
+                        KeyEventType.KeyUp -> {
+                            if (scrubController.current.isScrubbing &&
+                                (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                            ) {
+                                commitScrub()
+                                true
+                            } else {
+                                false
+                            }
+                        }
+
+                        KeyEventType.KeyDown -> {
+                            val action =
+                                TvPlayerKeyMapper.map(keyCode)
+                                    ?: if (seekBarFocused) TvPlayerKeyMapper.mapDpadWhenSeekBarFocused(keyCode) else null
+                            when (action) {
+                                TvPlayerAction.TOGGLE_PLAYBACK -> {
+                                    manager.togglePlayPause()
+                                }
+
+                                TvPlayerAction.PLAY, TvPlayerAction.PAUSE -> {
+                                    manager.togglePlayPause()
+                                }
+
+                                TvPlayerAction.NEXT -> {
+                                    manager.playNext()
+                                }
+
+                                TvPlayerAction.PREVIOUS -> {
+                                    manager.playPrevious()
+                                }
+
+                                TvPlayerAction.SEEK_BACK -> {
+                                    manager.seekTo(
+                                        (manager.getCurrentPosition() - 10_000L).coerceAtLeast(0L),
+                                    )
+                                }
+
+                                TvPlayerAction.SEEK_FORWARD -> {
+                                    manager.seekTo(
+                                        manager.getCurrentPosition() + 10_000L,
+                                    )
+                                }
+
+                                TvPlayerAction.SCRUB_BACK, TvPlayerAction.SCRUB_FORWARD -> {
+                                    scrubUiState =
+                                        scrubController.beginOrStep(
+                                            direction = if (action == TvPlayerAction.SCRUB_FORWARD) 1 else -1,
+                                            repeatCount = event.nativeKeyEvent.repeatCount,
+                                            currentPositionMs = manager.getCurrentPosition(),
+                                            durationMs = manager.getDuration(),
+                                        )
+                                }
+
+                                TvPlayerAction.COMMIT_SCRUB -> {
+                                    commitScrub()
+                                }
+
+                                else -> {
+                                    return@onPreviewKeyEvent false
+                                }
+                            }
                             true
-                        } else {
+                        }
+
+                        else -> {
                             false
                         }
-                    KeyEventType.KeyDown -> {
-                        val action = TvPlayerKeyMapper.map(keyCode)
-                            ?: if (seekBarFocused) TvPlayerKeyMapper.mapDpadWhenSeekBarFocused(keyCode) else null
-                        when (action) {
-                            TvPlayerAction.TOGGLE_PLAYBACK -> manager.togglePlayPause()
-                            TvPlayerAction.PLAY, TvPlayerAction.PAUSE -> manager.togglePlayPause()
-                            TvPlayerAction.NEXT -> manager.playNext()
-                            TvPlayerAction.PREVIOUS -> manager.playPrevious()
-                            TvPlayerAction.SEEK_BACK -> manager.seekTo(
-                                (manager.getCurrentPosition() - 10_000L).coerceAtLeast(0L),
-                            )
-                            TvPlayerAction.SEEK_FORWARD -> manager.seekTo(
-                                manager.getCurrentPosition() + 10_000L,
-                            )
-                            TvPlayerAction.SCRUB_BACK, TvPlayerAction.SCRUB_FORWARD -> {
-                                scrubUiState = scrubController.beginOrStep(
-                                    direction = if (action == TvPlayerAction.SCRUB_FORWARD) 1 else -1,
-                                    repeatCount = event.nativeKeyEvent.repeatCount,
-                                    currentPositionMs = manager.getCurrentPosition(),
-                                    durationMs = manager.getDuration(),
-                                )
-                            }
-                            TvPlayerAction.COMMIT_SCRUB -> commitScrub()
-                            else -> return@onPreviewKeyEvent false
-                        }
-                        true
                     }
-                    else -> false
-                }
-            },
+                },
     ) {
         PlayerBackground(
             thumbnailUrl = artworkUrl,
@@ -216,12 +255,13 @@ fun TvMusicNowPlayingScreen(
         )
 
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    horizontal = dimens.overscanHorizontal,
-                    vertical = dimens.overscanVertical,
-                ),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        horizontal = dimens.overscanHorizontal,
+                        vertical = dimens.overscanVertical,
+                    ),
             horizontalArrangement = Arrangement.spacedBy(48.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -233,9 +273,10 @@ fun TvMusicNowPlayingScreen(
                 AsyncImage(
                     model = artworkUrl,
                     contentDescription = track?.title,
-                    modifier = Modifier
-                        .size(300.dp)
-                        .clip(MaterialTheme.shapes.extraLarge),
+                    modifier =
+                        Modifier
+                            .size(300.dp)
+                            .clip(MaterialTheme.shapes.extraLarge),
                     contentScale = ContentScale.Crop,
                 )
             }
@@ -283,11 +324,12 @@ fun TvMusicNowPlayingScreen(
                 // Mobile progress slider (style-preference aware) inside a
                 // focusable shell: D-pad LEFT/RIGHT scrubs via TvScrubController.
                 Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(seekBarFocusRequester)
-                        .onFocusChanged { seekBarFocused = it.isFocused }
-                        .focusable(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .focusRequester(seekBarFocusRequester)
+                            .onFocusChanged { seekBarFocused = it.isFocused }
+                            .focusable(),
                     shape = MaterialTheme.shapes.large,
                     color = if (seekBarFocused) Color.White.copy(alpha = 0.12f) else Color.Transparent,
                 ) {
@@ -299,9 +341,10 @@ fun TvMusicNowPlayingScreen(
                             positionMs = target
                         },
                         isPlaying = playerState.isPlaying,
-                        modifier = Modifier
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                            .focusProperties { canFocus = false },
+                        modifier =
+                            Modifier
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .focusProperties { canFocus = false },
                     )
                 }
 
@@ -325,11 +368,12 @@ fun TvMusicNowPlayingScreen(
                     )
                     TvIconButton(
                         icon = if (playerState.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                        contentDescription = if (playerState.isPlaying) {
-                            stringResource(R.string.pause)
-                        } else {
-                            stringResource(R.string.play)
-                        },
+                        contentDescription =
+                            if (playerState.isPlaying) {
+                                stringResource(R.string.pause)
+                            } else {
+                                stringResource(R.string.play)
+                            },
                         onClick = manager::togglePlayPause,
                         active = true,
                         colors = playerButtonColors,
@@ -342,11 +386,12 @@ fun TvMusicNowPlayingScreen(
                         colors = playerButtonColors,
                     )
                     TvIconButton(
-                        icon = if (repeatMode == RepeatMode.ONE) {
-                            Icons.Outlined.RepeatOne
-                        } else {
-                            Icons.Outlined.Repeat
-                        },
+                        icon =
+                            if (repeatMode == RepeatMode.ONE) {
+                                Icons.Outlined.RepeatOne
+                            } else {
+                                Icons.Outlined.Repeat
+                            },
                         contentDescription = stringResource(R.string.loop_video),
                         onClick = manager::toggleRepeat,
                         active = repeatMode != RepeatMode.OFF,

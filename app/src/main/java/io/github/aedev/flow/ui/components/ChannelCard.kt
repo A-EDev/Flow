@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -9,15 +10,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -27,24 +27,26 @@ import io.github.aedev.flow.utils.formatSubscriberCount
 fun ChannelCard(
     channel: Channel,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
             model = channel.thumbnailUrl,
             contentDescription = channel.name,
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface),
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface),
+            contentScale = ContentScale.Crop,
         )
 
         Column(modifier = Modifier.weight(1f)) {
@@ -53,7 +55,7 @@ fun ChannelCard(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -61,7 +63,7 @@ fun ChannelCard(
             Text(
                 text = formatSubscriberCount(channel.subscriberCount),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.extendedColors.textSecondary
+                color = MaterialTheme.extendedColors.textSecondary,
             )
 
             if (channel.description.isNotEmpty()) {
@@ -71,7 +73,7 @@ fun ChannelCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.extendedColors.textSecondary,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -82,24 +84,26 @@ fun ChannelCard(
 fun ChannelCardHorizontal(
     channel: Channel,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
             model = channel.thumbnailUrl,
             contentDescription = channel.name,
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface),
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface),
+            contentScale = ContentScale.Crop,
         )
 
         Column(modifier = Modifier.weight(1f)) {
@@ -108,13 +112,13 @@ fun ChannelCardHorizontal(
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             Text(
                 text = formatSubscriberCount(channel.subscriberCount),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.extendedColors.textSecondary
+                color = MaterialTheme.extendedColors.textSecondary,
             )
         }
     }
@@ -127,34 +131,43 @@ fun ChannelChip(
     isSelected: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
 ) {
     Row(
-        modifier = modifier
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .background(
-                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                else MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(20.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier =
+            modifier
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .background(
+                    color =
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        },
+                    shape = RoundedCornerShape(20.dp),
+                ).padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
             model = channel.thumbnailUrl,
             contentDescription = channel.name,
-            modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(24.dp)
+                    .clip(CircleShape),
+            contentScale = ContentScale.Crop,
         )
 
         Text(
             text = channel.name,
             style = MaterialTheme.typography.labelLarge,
-            color = if (isSelected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurface
+            color =
+                if (isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
         )
     }
 }

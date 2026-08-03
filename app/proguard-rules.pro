@@ -61,8 +61,8 @@
 -dontwarn androidx.datastore.**
 
 ## Rules for Coil image loading
--keep class coil.** { *; }
--dontwarn coil.**
+-keep class coil3.** { *; }
+-dontwarn coil3.**
 
 ## Rules for Navigation
 -keep class androidx.navigation.** { *; }

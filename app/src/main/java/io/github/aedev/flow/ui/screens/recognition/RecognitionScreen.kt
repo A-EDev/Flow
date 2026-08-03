@@ -73,7 +73,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.recognition.RecognitionResult
 import io.github.aedev.flow.data.recognition.RecognitionStatus
@@ -85,21 +85,25 @@ fun RecognitionScreen(
     onPlay: (RecognitionResult) -> Unit,
     onSearch: (RecognitionResult) -> Unit,
     autoStart: Boolean = false,
-    viewModel: RecognitionViewModel = hiltViewModel()
+    viewModel: RecognitionViewModel = hiltViewModel(),
 ) {
     val status by viewModel.status.collectAsStateWithLifecycle()
 
     var hasPermission by remember { mutableStateOf(viewModel.hasRecordPermission()) }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasPermission = granted
-        if (granted) viewModel.startRecognition()
-    }
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            hasPermission = granted
+            if (granted) viewModel.startRecognition()
+        }
 
     fun start() {
-        if (hasPermission) viewModel.startRecognition()
-        else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        if (hasPermission) {
+            viewModel.startRecognition()
+        } else {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -108,13 +112,14 @@ fun RecognitionScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
     ) {
         RecognitionHeader(
             title = stringResource(R.string.recognize_music),
-            onBackClick = onBackClick
+            onBackClick = onBackClick,
         ) {
             IconButton(onClick = onHistoryClick) {
                 Icon(Icons.Filled.History, stringResource(R.string.recognition_history))
@@ -122,42 +127,60 @@ fun RecognitionScreen(
         }
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
         ) {
             AnimatedContent(
                 targetState = status,
                 transitionSpec = { (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut()) },
-                label = "recognition_content"
+                label = "recognition_content",
             ) { state ->
                 when (state) {
-                    is RecognitionStatus.Ready -> ReadyState(onStart = ::start)
-                    is RecognitionStatus.Listening -> ListeningState(onCancel = viewModel::cancel)
-                    is RecognitionStatus.Processing -> ProcessingState()
-                    is RecognitionStatus.Success -> SuccessState(
-                        result = state.result,
-                        onPlay = onPlay,
-                        onSearch = onSearch,
-                        onTryAgain = ::start,
-                        onClose = viewModel::cancel,
-                        onSave = viewModel::saveToHistory
-                    )
-                    is RecognitionStatus.NoMatch -> MessageState(
-                        icon = Icons.Filled.Close,
-                        title = stringResource(R.string.no_match_found),
-                        message = state.message,
-                        onTryAgain = ::start
-                    )
-                    is RecognitionStatus.Error -> MessageState(
-                        icon = Icons.Filled.ErrorOutline,
-                        title = stringResource(R.string.recognition_error),
-                        message = state.message,
-                        onTryAgain = ::start
-                    )
+                    is RecognitionStatus.Ready -> {
+                        ReadyState(onStart = ::start)
+                    }
+
+                    is RecognitionStatus.Listening -> {
+                        ListeningState(onCancel = viewModel::cancel)
+                    }
+
+                    is RecognitionStatus.Processing -> {
+                        ProcessingState()
+                    }
+
+                    is RecognitionStatus.Success -> {
+                        SuccessState(
+                            result = state.result,
+                            onPlay = onPlay,
+                            onSearch = onSearch,
+                            onTryAgain = ::start,
+                            onClose = viewModel::cancel,
+                            onSave = viewModel::saveToHistory,
+                        )
+                    }
+
+                    is RecognitionStatus.NoMatch -> {
+                        MessageState(
+                            icon = Icons.Filled.Close,
+                            title = stringResource(R.string.no_match_found),
+                            message = state.message,
+                            onTryAgain = ::start,
+                        )
+                    }
+
+                    is RecognitionStatus.Error -> {
+                        MessageState(
+                            icon = Icons.Filled.ErrorOutline,
+                            title = stringResource(R.string.recognition_error),
+                            message = state.message,
+                            onTryAgain = ::start,
+                        )
+                    }
                 }
             }
         }
@@ -169,13 +192,14 @@ fun RecognitionScreen(
 internal fun RecognitionHeader(
     title: String,
     onBackClick: () -> Unit,
-    actions: @Composable RowScope.() -> Unit = {}
+    actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBackClick) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
@@ -184,9 +208,10 @@ internal fun RecognitionHeader(
             text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 4.dp)
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(start = 4.dp),
         )
         actions()
     }
@@ -196,36 +221,37 @@ internal fun RecognitionHeader(
 private fun ReadyState(onStart: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         Box(
-            modifier = Modifier
-                .size(200.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            Color.Transparent
-                        )
-                    )
-                )
-                .clickable { onStart() },
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .size(200.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                Color.Transparent,
+                            ),
+                        ),
+                    ).clickable { onStart() },
+            contentAlignment = Alignment.Center,
         ) {
             Box(
-                modifier = Modifier
-                    .size(160.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(160.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Filled.Mic,
                     contentDescription = null,
                     modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
+                    tint = MaterialTheme.colorScheme.onPrimary,
                 )
             }
         }
@@ -240,38 +266,48 @@ private fun ListeningState(onCancel: () -> Unit) {
         initialValue = 1f,
         targetValue = 1.2f,
         animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "scale"
+        label = "scale",
     )
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         Box(modifier = Modifier.size(260.dp), contentAlignment = Alignment.Center) {
             Box(
-                Modifier.size(200.dp).scale(scale).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                Modifier
+                    .size(200.dp)
+                    .scale(scale)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
             )
             Box(
-                Modifier.size(180.dp).scale(scale * 0.9f).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                Modifier
+                    .size(180.dp)
+                    .scale(scale * 0.9f)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
             )
             Box(
-                modifier = Modifier.size(160.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary).clickable { onCancel() },
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(160.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable { onCancel() },
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Filled.Mic,
                     contentDescription = null,
                     modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
+                    tint = MaterialTheme.colorScheme.onPrimary,
                 )
             }
         }
         Text(
             stringResource(R.string.listening),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
         )
         OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
     }
@@ -284,33 +320,34 @@ private fun ProcessingState() {
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
-        label = "rotation"
+        label = "rotation",
     )
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         Box(modifier = Modifier.size(160.dp), contentAlignment = Alignment.Center) {
             Box(
                 Modifier.size(160.dp).clip(CircleShape).rotate(rotation).border(
                     width = 4.dp,
-                    brush = Brush.sweepGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                            Color.Transparent,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                            MaterialTheme.colorScheme.primary
-                        )
-                    ),
-                    shape = CircleShape
-                )
+                    brush =
+                        Brush.sweepGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                MaterialTheme.colorScheme.primary,
+                            ),
+                        ),
+                    shape = CircleShape,
+                ),
             )
             Icon(
                 Icons.Filled.MusicNote,
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
         Text(stringResource(R.string.processing), style = MaterialTheme.typography.titleMedium)
@@ -324,25 +361,25 @@ private fun SuccessState(
     onSearch: (RecognitionResult) -> Unit,
     onTryAgain: () -> Unit,
     onClose: () -> Unit,
-    onSave: (RecognitionResult) -> Unit
+    onSave: (RecognitionResult) -> Unit,
 ) {
     LaunchedEffect(result) { onSave(result) }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.padding(horizontal = 16.dp)
+        modifier = Modifier.padding(horizontal = 16.dp),
     ) {
         Card(
             modifier = Modifier.size(200.dp).aspectRatio(1f),
             shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         ) {
             AsyncImage(
                 model = result.coverArtHqUrl ?: result.coverArtUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         }
 
@@ -352,7 +389,7 @@ private fun SuccessState(
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = result.artist,
@@ -360,7 +397,7 @@ private fun SuccessState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         result.album?.takeIf { it.isNotBlank() }?.let {
             Text(
@@ -369,7 +406,7 @@ private fun SuccessState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
@@ -377,7 +414,7 @@ private fun SuccessState(
 
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             if (!result.youtubeVideoId.isNullOrBlank()) {
                 Button(onClick = { onPlay(result) }, modifier = Modifier.fillMaxWidth()) {
@@ -410,22 +447,25 @@ private fun MessageState(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     message: String,
-    onTryAgain: () -> Unit
+    onTryAgain: () -> Unit,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         Box(
-            modifier = Modifier.size(120.dp).clip(CircleShape)
-                .background(MaterialTheme.colorScheme.errorContainer),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.errorContainer),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 icon,
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onErrorContainer
+                tint = MaterialTheme.colorScheme.onErrorContainer,
             )
         }
         Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -434,7 +474,7 @@ private fun MessageState(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp)
+            modifier = Modifier.padding(horizontal = 32.dp),
         )
         Button(onClick = onTryAgain) {
             Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(18.dp))

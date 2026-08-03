@@ -85,8 +85,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
@@ -969,7 +971,7 @@ fun FullSizeImageDialog(
                             .data(toHighQualityAvatarUrl(imageUrl))
                             .crossfade(true)
                             .size(1600, 1600)
-                            .scale(coil.size.Scale.FIT)
+                            .scale(coil3.size.Scale.FIT)
                             .allowHardware(false)
                             .build(),
                     contentDescription = null,

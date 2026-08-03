@@ -2,8 +2,6 @@ package io.github.aedev.flow.ui.screens.music
 
 import android.app.Activity
 import android.content.Intent
-import androidx.compose.ui.res.stringResource
-import io.github.aedev.flow.R
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,29 +25,31 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
+import io.github.aedev.flow.innertube.models.*
+import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
-import io.github.aedev.flow.ui.components.AddToPlaylistDialog
-import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.innertube.models.*
 import io.github.aedev.flow.ui.screens.music.components.TrackListItem
 import kotlinx.coroutines.FlowPreview
 
@@ -62,7 +62,7 @@ fun MusicSearchScreen(
     onArtistClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     initialQuery: String? = null,
-    viewModel: MusicSearchViewModel = hiltViewModel()
+    viewModel: MusicSearchViewModel = hiltViewModel(),
 ) {
     val query by viewModel.query.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
@@ -83,7 +83,7 @@ fun MusicSearchScreen(
             keyboardController?.show()
         }
     }
-    
+
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
     var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
@@ -102,34 +102,43 @@ fun MusicSearchScreen(
         item.toCollectionActionItem()?.let { selectedCollection = it }
     }
 
-    fun menuActionFor(item: YTItem): (() -> Unit)? = when (item) {
-        is SongItem -> ({ showTrackActions(convertSongToMusicTrack(item)) })
-        is AlbumItem, is PlaylistItem -> ({ showCollectionActions(item) })
-        else -> null
-    }
+    fun menuActionFor(item: YTItem): (() -> Unit)? =
+        when (item) {
+            is SongItem -> ({ showTrackActions(convertSongToMusicTrack(item)) })
+            is AlbumItem, is PlaylistItem -> ({ showCollectionActions(item) })
+            else -> null
+        }
 
-    fun isDownloaded(item: YTItem): Boolean =
-        (item as? SongItem)?.let { uiState.downloadedTrackIds.contains(it.id) } ?: false
+    fun isDownloaded(item: YTItem): Boolean = (item as? SongItem)?.let { uiState.downloadedTrackIds.contains(it.id) } ?: false
 
     if (showBottomSheet && selectedTrack != null) {
         val context = LocalContext.current
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onViewArtist = { 
+            onViewArtist = {
                 if (selectedTrack!!.channelId.isNotEmpty()) {
                     onArtistClick(selectedTrack!!.channelId)
                 }
             },
             onViewAlbum = { /* TODO: Implement view album */ },
-            onShare = { 
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, selectedTrack!!.title, selectedTrack!!.artist, selectedTrack!!.videoId))
-                }
+            onShare = {
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            context.getString(
+                                R.string.share_message_template,
+                                selectedTrack!!.title,
+                                selectedTrack!!.artist,
+                                selectedTrack!!.videoId,
+                            ),
+                        )
+                    }
                 context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            }
+            },
         )
     }
 
@@ -144,25 +153,30 @@ fun MusicSearchScreen(
                 } else {
                     onPlaylistClick(collection.id)
                 }
-            }
+            },
         )
     }
-    
-    val voiceSearchLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data
-            val results = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val spokenText = results?.get(0)
-            if (!spokenText.isNullOrBlank()) {
-                viewModel.onQueryChange(spokenText)
-                viewModel.performSearch(spokenText)
+
+    val voiceSearchLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val data = result.data
+                val results = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                val spokenText = results?.get(0)
+                if (!spokenText.isNullOrBlank()) {
+                    viewModel.onQueryChange(spokenText)
+                    viewModel.performSearch(spokenText)
+                }
             }
         }
-    }
 
-    fun playSearchTrack(track: MusicTrack, queue: List<MusicTrack>, source: String?) {
+    fun playSearchTrack(
+        track: MusicTrack,
+        queue: List<MusicTrack>,
+        source: String?,
+    ) {
         dismissSearchInput()
         onTrackClick(track, queue, source)
     }
@@ -179,21 +193,23 @@ fun MusicSearchScreen(
                 onBackClick = onBackClick,
                 onClearClick = viewModel::clearSearch,
                 onVoiceSearchClick = {
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_search_prompt))
-                    }
+                    val intent =
+                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_search_prompt))
+                        }
                     voiceSearchLauncher.launch(intent)
                 },
-                focusRequester = focusRequester
+                focusRequester = focusRequester,
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
         ) {
             if (!uiState.isSearching) {
                 // Show suggestions
@@ -207,14 +223,17 @@ fun MusicSearchScreen(
                                         val track = convertSongToMusicTrack(item)
                                         playSearchTrack(track, listOf(track), "Recommended")
                                     }
+
                                     is ArtistItem -> {
                                         dismissSearchInput()
                                         onArtistClick(item.id)
                                     }
+
                                     is AlbumItem -> {
                                         dismissSearchInput()
                                         onAlbumClick(item.id)
                                     }
+
                                     is PlaylistItem -> {
                                         dismissSearchInput()
                                         onPlaylistClick(item.id)
@@ -223,7 +242,7 @@ fun MusicSearchScreen(
                             },
                             onMenuClick = menuActionFor(item),
                             onLongClick = menuActionFor(item),
-                            isDownloaded = isDownloaded(item)
+                            isDownloaded = isDownloaded(item),
                         )
                     }
                     items(uiState.suggestions, key = { it }) { suggestion ->
@@ -232,7 +251,7 @@ fun MusicSearchScreen(
                             onClick = {
                                 viewModel.performSearch(suggestion)
                                 keyboardController?.hide()
-                            }
+                            },
                         )
                     }
                 }
@@ -241,7 +260,7 @@ fun MusicSearchScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     SearchFilterChips(
                         activeFilter = uiState.activeFilter,
-                        onFilterClick = viewModel::applyFilter
+                        onFilterClick = viewModel::applyFilter,
                     )
 
                     val topResultTarget = stringResource(R.string.section_top_result)
@@ -255,7 +274,7 @@ fun MusicSearchScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 80.dp)
+                            contentPadding = PaddingValues(bottom = 80.dp),
                         ) {
                             if (uiState.activeFilter == null && uiState.searchSummary != null) {
                                 // Summary view (Top Result + Sections)
@@ -265,10 +284,10 @@ fun MusicSearchScreen(
                                             text = summary.title,
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                            color = MaterialTheme.colorScheme.onBackground
+                                            color = MaterialTheme.colorScheme.onBackground,
                                         )
                                     }
-                                    
+
                                     if (summary.title == topResultTarget) {
                                         item {
                                             TopResultCard(
@@ -276,15 +295,28 @@ fun MusicSearchScreen(
                                                 onClick = {
                                                     val item = summary.items.first()
                                                     when (item) {
-                                                        is SongItem -> playSearchTrack(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
+                                                        is SongItem -> {
+                                                            playSearchTrack(
+                                                                convertSongToMusicTrack(
+                                                                    item,
+                                                                ),
+                                                                summary.items.filterIsInstance<SongItem>().map {
+                                                                    convertSongToMusicTrack(it)
+                                                                },
+                                                                searchSourceTemplate.format(query),
+                                                            )
+                                                        }
+
                                                         is ArtistItem -> {
                                                             dismissSearchInput()
                                                             onArtistClick(item.id)
                                                         }
+
                                                         is AlbumItem -> {
                                                             dismissSearchInput()
                                                             onAlbumClick(item.id)
                                                         }
+
                                                         is PlaylistItem -> {
                                                             dismissSearchInput()
                                                             onPlaylistClick(item.id)
@@ -295,10 +327,19 @@ fun MusicSearchScreen(
                                                     val item = summary.items.first()
                                                     if (item is ArtistItem) {
                                                         viewModel.getArtistTracks(item.id) { tracks ->
-                                                            val musicTracks = tracks.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }
+                                                            val musicTracks =
+                                                                tracks.filterIsInstance<SongItem>().map {
+                                                                    convertSongToMusicTrack(
+                                                                        it,
+                                                                    )
+                                                                }
                                                             if (musicTracks.isNotEmpty()) {
                                                                 val shuffled = musicTracks.shuffled()
-                                                                playSearchTrack(shuffled.first(), shuffled, artistSourceTemplate.format(item.title))
+                                                                playSearchTrack(
+                                                                    shuffled.first(),
+                                                                    shuffled,
+                                                                    artistSourceTemplate.format(item.title),
+                                                                )
                                                             }
                                                         }
                                                     }
@@ -308,35 +349,57 @@ fun MusicSearchScreen(
                                                     if (item is ArtistItem) {
                                                         // Start radio based on artist
                                                         viewModel.getArtistTracks(item.id) { tracks ->
-                                                            val musicTracks = tracks.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }
+                                                            val musicTracks =
+                                                                tracks.filterIsInstance<SongItem>().map {
+                                                                    convertSongToMusicTrack(
+                                                                        it,
+                                                                    )
+                                                                }
                                                             if (musicTracks.isNotEmpty()) {
-                                                                playSearchTrack(musicTracks.first(), musicTracks, artistSourceTemplate.format(item.title))
+                                                                playSearchTrack(
+                                                                    musicTracks.first(),
+                                                                    musicTracks,
+                                                                    artistSourceTemplate.format(item.title),
+                                                                )
                                                             }
                                                         }
                                                     }
                                                 },
                                                 onLongClick = menuActionFor(summary.items.first()),
-                                                onMenuClick = menuActionFor(summary.items.first())
+                                                onMenuClick = menuActionFor(summary.items.first()),
                                             )
                                         }
                                         // Skip the first item as it's in the TopResultCard
                                         items(
                                             items = summary.items.drop(1),
-                                            key = { it.stableLazyKey("summary_${summary.title}") }
+                                            key = { it.stableLazyKey("summary_${summary.title}") },
                                         ) { item ->
                                             YTItemRow(
                                                 item = item,
                                                 onClick = {
                                                     when (item) {
-                                                        is SongItem -> playSearchTrack(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
+                                                        is SongItem -> {
+                                                            playSearchTrack(
+                                                                convertSongToMusicTrack(
+                                                                    item,
+                                                                ),
+                                                                summary.items.filterIsInstance<SongItem>().map {
+                                                                    convertSongToMusicTrack(it)
+                                                                },
+                                                                searchSourceTemplate.format(query),
+                                                            )
+                                                        }
+
                                                         is ArtistItem -> {
                                                             dismissSearchInput()
                                                             onArtistClick(item.id)
                                                         }
+
                                                         is AlbumItem -> {
                                                             dismissSearchInput()
                                                             onAlbumClick(item.id)
                                                         }
+
                                                         is PlaylistItem -> {
                                                             dismissSearchInput()
                                                             onPlaylistClick(item.id)
@@ -345,27 +408,40 @@ fun MusicSearchScreen(
                                                 },
                                                 onMenuClick = menuActionFor(item),
                                                 onLongClick = menuActionFor(item),
-                                                isDownloaded = isDownloaded(item)
+                                                isDownloaded = isDownloaded(item),
                                             )
                                         }
                                     } else {
                                         items(
                                             items = summary.items,
-                                            key = { it.stableLazyKey("summary_${summary.title}") }
+                                            key = { it.stableLazyKey("summary_${summary.title}") },
                                         ) { item ->
                                             YTItemRow(
                                                 item = item,
                                                 onClick = {
                                                     when (item) {
-                                                        is SongItem -> playSearchTrack(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
+                                                        is SongItem -> {
+                                                            playSearchTrack(
+                                                                convertSongToMusicTrack(
+                                                                    item,
+                                                                ),
+                                                                summary.items.filterIsInstance<SongItem>().map {
+                                                                    convertSongToMusicTrack(it)
+                                                                },
+                                                                searchSourceTemplate.format(query),
+                                                            )
+                                                        }
+
                                                         is ArtistItem -> {
                                                             dismissSearchInput()
                                                             onArtistClick(item.id)
                                                         }
+
                                                         is AlbumItem -> {
                                                             dismissSearchInput()
                                                             onAlbumClick(item.id)
                                                         }
+
                                                         is PlaylistItem -> {
                                                             dismissSearchInput()
                                                             onPlaylistClick(item.id)
@@ -374,7 +450,7 @@ fun MusicSearchScreen(
                                                 },
                                                 onMenuClick = menuActionFor(item),
                                                 onLongClick = menuActionFor(item),
-                                                isDownloaded = isDownloaded(item)
+                                                isDownloaded = isDownloaded(item),
                                             )
                                         }
                                     }
@@ -386,15 +462,28 @@ fun MusicSearchScreen(
                                         item = item,
                                         onClick = {
                                             when (item) {
-                                                is SongItem -> playSearchTrack(convertSongToMusicTrack(item), uiState.filteredResults.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
+                                                is SongItem -> {
+                                                    playSearchTrack(
+                                                        convertSongToMusicTrack(
+                                                            item,
+                                                        ),
+                                                        uiState.filteredResults.filterIsInstance<SongItem>().map {
+                                                            convertSongToMusicTrack(it)
+                                                        },
+                                                        searchSourceTemplate.format(query),
+                                                    )
+                                                }
+
                                                 is ArtistItem -> {
                                                     dismissSearchInput()
                                                     onArtistClick(item.id)
                                                 }
+
                                                 is AlbumItem -> {
                                                     dismissSearchInput()
                                                     onAlbumClick(item.id)
                                                 }
+
                                                 is PlaylistItem -> {
                                                     dismissSearchInput()
                                                     onPlaylistClick(item.id)
@@ -403,11 +492,11 @@ fun MusicSearchScreen(
                                         },
                                         onMenuClick = menuActionFor(item),
                                         onLongClick = menuActionFor(item),
-                                        isDownloaded = isDownloaded(item)
+                                        isDownloaded = isDownloaded(item),
                                     )
                                 }
                             }
-                            
+
                             // Continuation Logic
                             if (uiState.continuation != null) {
                                 item {
@@ -415,16 +504,17 @@ fun MusicSearchScreen(
                                         viewModel.loadMore()
                                     }
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                        contentAlignment = Alignment.Center,
                                     ) {
                                         if (uiState.isMoreLoading) {
                                             CircularProgressIndicator(
                                                 modifier = Modifier.size(24.dp),
                                                 strokeWidth = 2.dp,
-                                                color = MaterialTheme.colorScheme.primary
+                                                color = MaterialTheme.colorScheme.primary,
                                             )
                                         }
                                     }
@@ -446,81 +536,95 @@ fun MusicSearchBar(
     onBackClick: () -> Unit,
     onClearClick: () -> Unit,
     onVoiceSearchClick: () -> Unit,
-    focusRequester: androidx.compose.ui.focus.FocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    focusRequester: androidx.compose.ui.focus.FocusRequester =
+        remember {
+            androidx.compose.ui.focus
+                .FocusRequester()
+        },
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBackClick) {
             Icon(
                 imageVector = Icons.Default.ArrowBack,
                 contentDescription = stringResource(R.string.btn_back),
-                tint = MaterialTheme.colorScheme.onBackground
+                tint = MaterialTheme.colorScheme.onBackground,
             )
         }
 
         Row(
-            modifier = Modifier
-                .weight(1f)
-                .height(46.dp)
-                .clip(RoundedCornerShape(23.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .padding(start = 16.dp, end = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(46.dp)
+                    .clip(RoundedCornerShape(23.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .padding(start = 16.dp, end = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp
-                ),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
+                textStyle =
+                    androidx.compose.ui.text.TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 16.sp,
+                    ),
+                cursorBrush =
+                    androidx.compose.ui.graphics
+                        .SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { onSearch() }),
                 singleLine = true,
                 decorationBox = { innerTextField ->
                     Box(
                         modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterStart
+                        contentAlignment = Alignment.CenterStart,
                     ) {
                         if (query.isEmpty()) {
-                            Text(stringResource(R.string.search_music_placeholder), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
+                            Text(
+                                stringResource(R.string.search_music_placeholder),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 16.sp,
+                            )
                         }
                         innerTextField()
                     }
-                }
+                },
             )
 
             if (query.isNotEmpty()) {
                 IconButton(
                     onClick = onClearClick,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         Icons.Default.Close,
                         contentDescription = stringResource(R.string.clear),
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
 
             IconButton(
                 onClick = onVoiceSearchClick,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     Icons.Default.Mic,
                     contentDescription = stringResource(R.string.voice_search_cd),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -530,33 +634,42 @@ fun MusicSearchBar(
 @Composable
 fun SearchFilterChips(
     activeFilter: SearchFilter?,
-    onFilterClick: (SearchFilter?) -> Unit
+    onFilterClick: (SearchFilter?) -> Unit,
 ) {
-    val filters = listOf(
-        stringResource(R.string.filter_albums) to SearchFilter.FILTER_ALBUM,
-        stringResource(R.string.tab_videos) to SearchFilter.FILTER_VIDEO,
-        stringResource(R.string.filter_songs) to SearchFilter.FILTER_SONG,
-        stringResource(R.string.filter_community_playlists) to SearchFilter.FILTER_COMMUNITY_PLAYLIST
-    )
+    val filters =
+        listOf(
+            stringResource(R.string.filter_albums) to SearchFilter.FILTER_ALBUM,
+            stringResource(R.string.tab_videos) to SearchFilter.FILTER_VIDEO,
+            stringResource(R.string.filter_songs) to SearchFilter.FILTER_SONG,
+            stringResource(R.string.filter_community_playlists) to SearchFilter.FILTER_COMMUNITY_PLAYLIST,
+        )
 
     LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
         contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(filters) { (label, filter) ->
             Surface(
                 modifier = Modifier.clickable { onFilterClick(if (activeFilter == filter) null else filter) },
                 shape = RoundedCornerShape(8.dp),
                 color = if (activeFilter == filter) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = if (activeFilter == filter) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                contentColor =
+                    if (activeFilter ==
+                        filter
+                    ) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
             ) {
                 Text(
                     text = label,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 )
             }
         }
@@ -566,33 +679,34 @@ fun SearchFilterChips(
 @Composable
 fun SearchSuggestionRow(
     suggestion: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Default.Search,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(24.dp),
         )
         Spacer(modifier = Modifier.width(24.dp))
         Text(
             text = suggestion,
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         Icon(
             imageVector = Icons.Default.ArrowOutward,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(24.dp),
         )
     }
 }
@@ -604,7 +718,7 @@ fun RecommendedItemRow(
     onClick: () -> Unit,
     isDownloaded: Boolean = false,
     onLongClick: (() -> Unit)? = null,
-    onMenuClick: (() -> Unit)? = null
+    onMenuClick: (() -> Unit)? = null,
 ) {
     if (item is SongItem) {
         TrackListItem(
@@ -613,28 +727,29 @@ fun RecommendedItemRow(
             showMenu = onMenuClick != null,
             onClick = onClick,
             onLongClick = onLongClick,
-            onMenuClick = { onMenuClick?.invoke() }
+            onMenuClick = { onMenuClick?.invoke() },
         )
         return
     }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
             model = item.thumbnail,
             contentDescription = null,
-            modifier = Modifier
-                .size(56.dp)
-                .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(4.dp)),
+            contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -643,20 +758,21 @@ fun RecommendedItemRow(
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
-            val subtitle = when (item) {
-                is SongItem -> stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name })
-                is ArtistItem -> stringResource(R.string.subtitle_artist)
-                is AlbumItem -> stringResource(R.string.subtitle_album_template, item.artists?.joinToString { it.name } ?: "")
-                is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
-            }
+            val subtitle =
+                when (item) {
+                    is SongItem -> stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name })
+                    is ArtistItem -> stringResource(R.string.subtitle_artist)
+                    is AlbumItem -> stringResource(R.string.subtitle_album_template, item.artists?.joinToString { it.name } ?: "")
+                    is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
+                }
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
         if (onMenuClick != null) {
@@ -664,7 +780,7 @@ fun RecommendedItemRow(
                 Icon(
                     Icons.Default.MoreVert,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 )
             }
         }
@@ -678,7 +794,7 @@ fun YTItemRow(
     onClick: () -> Unit,
     isDownloaded: Boolean = false,
     onLongClick: (() -> Unit)? = null,
-    onMenuClick: (() -> Unit)? = null
+    onMenuClick: (() -> Unit)? = null,
 ) {
     if (item is SongItem) {
         TrackListItem(
@@ -687,28 +803,29 @@ fun YTItemRow(
             showMenu = onMenuClick != null,
             onClick = onClick,
             onLongClick = onLongClick,
-            onMenuClick = { onMenuClick?.invoke() }
+            onMenuClick = { onMenuClick?.invoke() },
         )
         return
     }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
             model = item.thumbnail,
             contentDescription = null,
-            modifier = Modifier
-                .size(56.dp)
-                .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(4.dp)),
+            contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -717,23 +834,33 @@ fun YTItemRow(
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
-            val subtitle = when (item) {
-                is SongItem -> {
-                    val plays = item.viewCountText?.let { stringResource(R.string.plays_count_template, it) } ?: ""
-                    stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name }) + plays
+            val subtitle =
+                when (item) {
+                    is SongItem -> {
+                        val plays = item.viewCountText?.let { stringResource(R.string.plays_count_template, it) } ?: ""
+                        stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name }) + plays
+                    }
+
+                    is ArtistItem -> {
+                        stringResource(R.string.subtitle_artist)
+                    }
+
+                    is AlbumItem -> {
+                        stringResource(R.string.album_year_template, item.artists?.joinToString { it.name } ?: "", item.year ?: "")
+                    }
+
+                    is PlaylistItem -> {
+                        stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
+                    }
                 }
-                is ArtistItem -> stringResource(R.string.subtitle_artist)
-                is AlbumItem -> stringResource(R.string.album_year_template, item.artists?.joinToString { it.name } ?: "", item.year ?: "")
-                is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
-            }
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
         if (onMenuClick != null) {
@@ -741,7 +868,7 @@ fun YTItemRow(
                 Icon(
                     Icons.Default.MoreVert,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 )
             }
         }
@@ -756,52 +883,56 @@ fun TopResultCard(
     onShuffleClick: () -> Unit,
     onRadioClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-    onMenuClick: (() -> Unit)? = null
+    onMenuClick: (() -> Unit)? = null,
 ) {
     val cardBackground = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-    
+
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBackground)
+        colors = CardDefaults.cardColors(containerColor = cardBackground),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = item.thumbnail,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
+                    modifier =
+                        Modifier
+                            .size(100.dp)
+                            .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop,
                 )
                 Spacer(modifier = Modifier.width(20.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
-                    val subtitle = when (item) {
-                        is ArtistItem -> stringResource(R.string.subtitle_artist)
-                        is SongItem -> stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name })
-                        is AlbumItem -> stringResource(R.string.subtitle_album_template, item.artists?.joinToString { it.name } ?: "")
-                        is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
-                    }
+                    val subtitle =
+                        when (item) {
+                            is ArtistItem -> stringResource(R.string.subtitle_artist)
+                            is SongItem -> stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name })
+                            is AlbumItem -> stringResource(R.string.subtitle_album_template, item.artists?.joinToString { it.name } ?: "")
+                            is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
+                        }
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (onMenuClick != null) {
@@ -809,14 +940,14 @@ fun TopResultCard(
                         Icon(
                             Icons.Default.MoreVert,
                             contentDescription = stringResource(R.string.more_options),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 } else {
                     Icon(
                         Icons.Default.KeyboardArrowRight,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -825,17 +956,18 @@ fun TopResultCard(
                 Spacer(modifier = Modifier.height(20.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Button(
                         onClick = onShuffleClick,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
                         shape = RoundedCornerShape(28.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp)
+                        contentPadding = PaddingValues(vertical = 12.dp),
                     ) {
                         Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
@@ -844,12 +976,13 @@ fun TopResultCard(
                     Button(
                         onClick = onRadioClick,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            ),
                         shape = RoundedCornerShape(28.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp)
+                        contentPadding = PaddingValues(vertical = 12.dp),
                     ) {
                         Icon(Icons.Default.Radio, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
@@ -862,8 +995,8 @@ fun TopResultCard(
 }
 
 // Helper to convert SongItem to MusicTrack (shared with the TV search screen)
-internal fun convertSongToMusicTrack(item: SongItem): MusicTrack {
-    return MusicTrack(
+internal fun convertSongToMusicTrack(item: SongItem): MusicTrack =
+    MusicTrack(
         videoId = item.id,
         title = item.title,
         artist = item.artists.joinToString { it.name },
@@ -874,26 +1007,34 @@ internal fun convertSongToMusicTrack(item: SongItem): MusicTrack {
         album = item.album?.name ?: "Unknown Album",
         channelId = item.artists.firstOrNull()?.id ?: "",
         isExplicit = item.explicit,
-        isVideoSong = item.isVideoSong
+        isVideoSong = item.isVideoSong,
     )
-}
 
-private fun YTItem.toCollectionActionItem(): MusicCollectionActionItem? = when (this) {
-    is AlbumItem -> MusicCollectionActionItem(
-        id = id,
-        title = title,
-        subtitle = artists?.joinToString { it.name }.orEmpty(),
-        thumbnailUrl = thumbnail,
-        description = year?.toString().orEmpty(),
-        isAlbum = true
-    )
-    is PlaylistItem -> MusicCollectionActionItem(
-        id = id,
-        title = title,
-        subtitle = author?.name.orEmpty(),
-        thumbnailUrl = thumbnail,
-        description = author?.name.orEmpty(),
-        isAlbum = false
-    )
-    else -> null
-}
+private fun YTItem.toCollectionActionItem(): MusicCollectionActionItem? =
+    when (this) {
+        is AlbumItem -> {
+            MusicCollectionActionItem(
+                id = id,
+                title = title,
+                subtitle = artists?.joinToString { it.name }.orEmpty(),
+                thumbnailUrl = thumbnail,
+                description = year?.toString().orEmpty(),
+                isAlbum = true,
+            )
+        }
+
+        is PlaylistItem -> {
+            MusicCollectionActionItem(
+                id = id,
+                title = title,
+                subtitle = author?.name.orEmpty(),
+                thumbnailUrl = thumbnail,
+                description = author?.name.orEmpty(),
+                isAlbum = false,
+            )
+        }
+
+        else -> {
+            null
+        }
+    }

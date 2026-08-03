@@ -33,7 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.screens.channel.ChannelViewModel
@@ -50,7 +50,10 @@ import io.github.aedev.flow.utils.formatSubscriberCount
 
 private const val CHANNEL_GRID_COLUMNS = 3
 
-private enum class TvChannelTab(val vmIndex: Int, val labelRes: Int) {
+private enum class TvChannelTab(
+    val vmIndex: Int,
+    val labelRes: Int,
+) {
     VIDEOS(0, R.string.tv_channel_videos),
     LIVE(2, R.string.tv_filter_live),
     PLAYLISTS(3, R.string.tv_filter_playlists),
@@ -75,31 +78,36 @@ fun TvChannelScreen(
         viewModel.loadChannel(channelUrl)
     }
 
-    val selectedTab = TvChannelTab.entries.firstOrNull { it.vmIndex == uiState.selectedTab }
-        ?: TvChannelTab.VIDEOS
+    val selectedTab =
+        TvChannelTab.entries.firstOrNull { it.vmIndex == uiState.selectedTab }
+            ?: TvChannelTab.VIDEOS
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(top = dimens.overscanVertical),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(top = dimens.overscanVertical),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         val info = uiState.channelInfo
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = dimens.overscanHorizontal),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = dimens.overscanHorizontal),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val avatarUrl = info?.avatars?.maxByOrNull { it.height }?.url
-                ?: info?.avatars?.firstOrNull()?.url
+            val avatarUrl =
+                info?.avatars?.maxByOrNull { it.height }?.url
+                    ?: info?.avatars?.firstOrNull()?.url
             AsyncImage(
                 model = avatarUrl,
                 contentDescription = null,
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape),
+                modifier =
+                    Modifier
+                        .size(88.dp)
+                        .clip(CircleShape),
                 contentScale = ContentScale.Crop,
             )
             Column(
@@ -122,19 +130,21 @@ fun TvChannelScreen(
                 }
             }
             TvButton(
-                text = if (uiState.isSubscribed) {
-                    stringResource(R.string.subscribed)
-                } else {
-                    stringResource(R.string.subscribe)
-                },
+                text =
+                    if (uiState.isSubscribed) {
+                        stringResource(R.string.subscribed)
+                    } else {
+                        stringResource(R.string.subscribe)
+                    },
                 onClick = viewModel::toggleSubscription,
             )
         }
 
         LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .tvRowFocus(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .tvRowFocus(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(horizontal = dimens.overscanHorizontal),
         ) {
@@ -143,33 +153,44 @@ fun TvChannelScreen(
                     label = stringResource(tab.labelRes),
                     selected = tab == selectedTab,
                     onClick = { viewModel.selectTab(tab.vmIndex) },
-                    modifier = if (tab == TvChannelTab.VIDEOS) {
-                        Modifier.tvInitialFocus()
-                    } else {
-                        Modifier
-                    },
+                    modifier =
+                        if (tab == TvChannelTab.VIDEOS) {
+                            Modifier.tvInitialFocus()
+                        } else {
+                            Modifier
+                        },
                 )
             }
         }
 
         when {
-            uiState.isLoading && info == null -> TvLoadingState(Modifier.weight(1f))
-            uiState.error != null && info == null -> TvMessageState(
-                title = stringResource(R.string.tv_error_loading),
-                message = uiState.error,
-                modifier = Modifier.weight(1f),
-            )
-            selectedTab == TvChannelTab.ABOUT -> Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = dimens.overscanHorizontal),
-            ) {
-                Text(
-                    text = info?.description.orEmpty(),
-                    style = MaterialTheme.typography.bodyLarge,
+            uiState.isLoading && info == null -> {
+                TvLoadingState(Modifier.weight(1f))
+            }
+
+            uiState.error != null && info == null -> {
+                TvMessageState(
+                    title = stringResource(R.string.tv_error_loading),
+                    message = uiState.error,
+                    modifier = Modifier.weight(1f),
                 )
             }
+
+            selectedTab == TvChannelTab.ABOUT -> {
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = dimens.overscanHorizontal),
+                ) {
+                    Text(
+                        text = info?.description.orEmpty(),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+
             selectedTab == TvChannelTab.PLAYLISTS -> {
                 val flow by viewModel.playlistsPagingFlow.collectAsStateWithLifecycle()
                 val playlists = flow?.collectAsLazyPagingItems()
@@ -178,14 +199,16 @@ fun TvChannelScreen(
                 } else {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(CHANNEL_GRID_COLUMNS),
-                        modifier = Modifier
-                            .weight(1f)
-                            .tvRowFocus(),
-                        contentPadding = PaddingValues(
-                            start = dimens.overscanHorizontal,
-                            end = dimens.overscanHorizontal,
-                            bottom = dimens.overscanVertical,
-                        ),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .tvRowFocus(),
+                        contentPadding =
+                            PaddingValues(
+                                start = dimens.overscanHorizontal,
+                                end = dimens.overscanHorizontal,
+                                bottom = dimens.overscanVertical,
+                            ),
                         horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                         verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                     ) {
@@ -207,6 +230,7 @@ fun TvChannelScreen(
                     }
                 }
             }
+
             else -> {
                 // The videos/live tabs are backed by the eagerly loaded full
                 // lists — the ViewModel never populates its paging flows for
@@ -218,38 +242,47 @@ fun TvChannelScreen(
                 }
                 val isLoadingAll by viewModel.isLoadingAllVideos.collectAsStateWithLifecycle()
                 when {
-                    videos.isEmpty() && (isLoadingAll || uiState.isLoadingVideos || uiState.isLoading) ->
+                    videos.isEmpty() && (isLoadingAll || uiState.isLoadingVideos || uiState.isLoading) -> {
                         TvLoadingState(Modifier.weight(1f))
-                    videos.isEmpty() -> TvMessageState(
-                        title = stringResource(R.string.tv_library_empty),
-                        modifier = Modifier.weight(1f),
-                    )
-                    else -> LazyVerticalGrid(
-                        columns = GridCells.Fixed(CHANNEL_GRID_COLUMNS),
-                        modifier = Modifier
-                            .weight(1f)
-                            .tvRowFocus(),
-                        contentPadding = PaddingValues(
-                            start = dimens.overscanHorizontal,
-                            end = dimens.overscanHorizontal,
-                            bottom = dimens.overscanVertical,
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
-                        verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
-                    ) {
-                        items(
-                            count = videos.size,
-                            key = { "video:$it:${videos[it].id}" },
-                        ) { index ->
-                            val video = videos[index]
-                            TvVideoCard(
-                                video = video,
-                                onClick = { onVideoClick(video) },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        if (isLoadingAll) {
-                            item(span = { GridItemSpan(maxLineSpan) }) { TvLoadingState() }
+                    }
+
+                    videos.isEmpty() -> {
+                        TvMessageState(
+                            title = stringResource(R.string.tv_library_empty),
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    else -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(CHANNEL_GRID_COLUMNS),
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .tvRowFocus(),
+                            contentPadding =
+                                PaddingValues(
+                                    start = dimens.overscanHorizontal,
+                                    end = dimens.overscanHorizontal,
+                                    bottom = dimens.overscanVertical,
+                                ),
+                            horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
+                            verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
+                        ) {
+                            items(
+                                count = videos.size,
+                                key = { "video:$it:${videos[it].id}" },
+                            ) { index ->
+                                val video = videos[index]
+                                TvVideoCard(
+                                    video = video,
+                                    onClick = { onVideoClick(video) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                            if (isLoadingAll) {
+                                item(span = { GridItemSpan(maxLineSpan) }) { TvLoadingState() }
+                            }
                         }
                     }
                 }

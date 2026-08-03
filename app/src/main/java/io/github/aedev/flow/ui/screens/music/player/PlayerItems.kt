@@ -20,7 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 
@@ -30,28 +30,30 @@ fun UpNextTrackItem(
     isCurrentlyPlaying: Boolean,
     onClick: () -> Unit,
     onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit
+    onMoveDown: () -> Unit,
 ) {
     val accentColor = LocalPlayerAccentColor.current ?: MaterialTheme.colorScheme.primary
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // Thumbnail
         AsyncImage(
             model = track.thumbnailUrl,
             contentDescription = null,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+            contentScale = ContentScale.Crop,
         )
-        
+
         Spacer(modifier = Modifier.width(12.dp))
-        
+
         // Info
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -60,37 +62,37 @@ fun UpNextTrackItem(
                 color = if (isCurrentlyPlaying) accentColor else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (isCurrentlyPlaying) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = stringResource(R.string.year_artist_template, track.artist, track.duration),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        
+
         // Reorder Controls
         Column {
             IconButton(
                 onClick = onMoveUp,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowUp,
                     contentDescription = stringResource(R.string.move_up),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                 )
             }
             IconButton(
                 onClick = onMoveDown,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = stringResource(R.string.move_down),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                 )
             }
         }
@@ -102,35 +104,38 @@ fun QueueTrackItem(
     track: MusicTrack,
     isCurrentlyPlaying: Boolean,
     onClick: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = if (isCurrentlyPlaying)
-            MaterialTheme.colorScheme.primary
-        else
-            MaterialTheme.colorScheme.surface,
+        color =
+            if (isCurrentlyPlaying) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
         shape = RoundedCornerShape(12.dp),
-        onClick = onClick
+        onClick = onClick,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // Thumbnail
             Surface(
                 modifier = Modifier.size(48.dp),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
             ) {
                 AsyncImage(
                     model = track.thumbnailUrl,
-                    contentDescription = null
+                    contentDescription = null,
                 )
             }
-            
+
             // Track info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -139,35 +144,39 @@ fun QueueTrackItem(
                     fontWeight = if (isCurrentlyPlaying) FontWeight.Bold else FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = if (isCurrentlyPlaying)
-                        MaterialTheme.colorScheme.onPrimary
-                    else
-                        MaterialTheme.colorScheme.onSurface
+                    color =
+                        if (isCurrentlyPlaying) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                 )
                 Text(
                     text = track.artist,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isCurrentlyPlaying)
-                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    color =
+                        if (isCurrentlyPlaying) {
+                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-            
+
             if (isCurrentlyPlaying) {
                 Icon(
                     imageVector = Icons.Filled.Equalizer,
                     contentDescription = stringResource(R.string.playing),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             } else {
                 IconButton(onClick = onRemove) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.remove),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -178,62 +187,63 @@ fun QueueTrackItem(
 @Composable
 fun RelatedTrackItem(
     track: MusicTrack,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     var showMoreOptions by remember { mutableStateOf(false) }
     val onSheetColor = LocalPlayerOnSheetColor.current ?: MaterialTheme.colorScheme.onSurface
-    
+
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Card(
             shape = RoundedCornerShape(4.dp),
-            modifier = Modifier.size(56.dp)
+            modifier = Modifier.size(56.dp),
         ) {
             AsyncImage(
                 model = track.thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         }
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = onSheetColor,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.artist,
                 style = MaterialTheme.typography.bodyMedium,
                 color = onSheetColor.copy(alpha = 0.62f),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        
+
         IconButton(onClick = { showMoreOptions = true }) {
             Icon(
                 Icons.Outlined.MoreVert,
                 contentDescription = stringResource(R.string.more_options),
-                tint = onSheetColor.copy(alpha = 0.62f)
+                tint = onSheetColor.copy(alpha = 0.62f),
             )
         }
     }
-    
+
     if (showMoreOptions) {
         io.github.aedev.flow.ui.components.MusicQuickActionsSheet(
             track = track,
-            onDismiss = { showMoreOptions = false }
+            onDismiss = { showMoreOptions = false },
         )
     }
 }

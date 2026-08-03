@@ -24,6 +24,11 @@ spotless {
     ratchetFrom("52c4928e5af05141080f46f6c1e41cbf9c457023")
     lineEndings = LineEnding.UNIX
 
+    val ktlintConfig =
+        mapOf(
+            "ij_kotlin_packages_to_use_import_on_demand" to "**",
+        )
+
     kotlin {
         target(
             "app/src/**/*.kt",
@@ -33,7 +38,7 @@ spotless {
             "**/build/**",
             "**/generated/**",
         )
-        ktlint("1.8.0")
+        ktlint("1.8.0").editorConfigOverride(ktlintConfig)
     }
 
     kotlinGradle {
@@ -45,7 +50,7 @@ spotless {
         targetExclude(
             "**/build/**",
         )
-        ktlint("1.8.0")
+        ktlint("1.8.0").editorConfigOverride(ktlintConfig)
     }
 }
 

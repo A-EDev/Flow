@@ -17,7 +17,7 @@ android {
     defaultConfig {
         applicationId = "io.github.aedev.flow"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 17
         versionName = "2.2.0"
 
@@ -205,6 +205,7 @@ dependencies {
     // --- Image Loading ---
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+    implementation(libs.coil.network.okhttp)
     implementation("androidx.palette:palette-ktx:1.0.0")
 
     // --- Dependency Injection ---

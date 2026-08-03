@@ -38,7 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.SectionTitle
 import io.github.aedev.flow.ui.screens.music.CommunityMusicPlaylist
@@ -52,14 +52,14 @@ fun CommunityPlaylistsSection(
     onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit = {},
     downloadedTrackIds: Set<String> = emptySet(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         SectionTitle(title = stringResource(R.string.section_from_the_community))
         LazyRow(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 12.dp),
         ) {
             items(playlists, key = { it.playlist.id }) { item ->
                 CommunityPlaylistCard(
@@ -68,7 +68,7 @@ fun CommunityPlaylistsSection(
                     onPlaylistAction = { onPlaylistAction(item) },
                     onTrackClick = { track -> onTrackClick(track, item.tracks) },
                     onTrackMenu = onTrackMenu,
-                    downloadedTrackIds = downloadedTrackIds
+                    downloadedTrackIds = downloadedTrackIds,
                 )
             }
         }
@@ -84,98 +84,104 @@ fun CommunityPlaylistCard(
     onTrackClick: (MusicTrack) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit = {},
     downloadedTrackIds: Set<String> = emptySet(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .width(328.dp)
-            .height(420.dp)
-            .combinedClickable(
-                onClick = onPlaylistClick,
-                onLongClick = onPlaylistAction
-            ),
+        modifier =
+            modifier
+                .width(328.dp)
+                .height(420.dp)
+                .combinedClickable(
+                    onClick = onPlaylistClick,
+                    onLongClick = onPlaylistAction,
+                ),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 MosaicThumbnail(
                     tracks = item.tracks,
-                    modifier = Modifier.size(104.dp)
+                    modifier = Modifier.size(104.dp),
                 )
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.Center,
                 ) {
                     Text(
                         text = item.playlist.title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = item.playlist.author.ifBlank {
-                            item.playlist.trackCount.takeIf { it > 0 }?.let { "$it tracks" } ?: ""
-                        },
+                        text =
+                            item.playlist.author.ifBlank {
+                                item.playlist.trackCount
+                                    .takeIf { it > 0 }
+                                    ?.let { "$it tracks" } ?: ""
+                            },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 IconButton(onClick = onPlaylistAction) {
                     Icon(
                         Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.more_options)
+                        contentDescription = stringResource(R.string.more_options),
                     )
                 }
             }
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
             ) {
                 item.tracks.take(3).forEach { track ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.medium)
-                            .combinedClickable(
-                                onClick = { onTrackClick(track) },
-                                onLongClick = { onTrackMenu(track) }
-                            )
-                            .padding(vertical = 8.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.medium)
+                                .combinedClickable(
+                                    onClick = { onTrackClick(track) },
+                                    onLongClick = { onTrackMenu(track) },
+                                ).padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         AsyncImage(
                             model = track.thumbnailUrl,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(MaterialTheme.shapes.medium)
+                            modifier =
+                                Modifier
+                                    .size(56.dp)
+                                    .clip(MaterialTheme.shapes.medium),
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = track.title,
                                 style = MaterialTheme.typography.bodyLarge,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = track.artist,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                         if (downloadedTrackIds.contains(track.videoId)) {
@@ -183,7 +189,7 @@ fun CommunityPlaylistCard(
                                 imageVector = Icons.Rounded.OfflinePin,
                                 contentDescription = stringResource(R.string.status_downloaded),
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
                             )
                         }
                     }
@@ -192,7 +198,7 @@ fun CommunityPlaylistCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
             ) {
                 FilledTonalIconButton(onClick = { item.tracks.firstOrNull()?.let(onTrackClick) }) {
                     Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.play_all))
@@ -211,7 +217,7 @@ fun CommunityPlaylistCard(
 @Composable
 fun MosaicThumbnail(
     tracks: List<MusicTrack>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.clip(MaterialTheme.shapes.medium)) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -223,9 +229,10 @@ fun MosaicThumbnail(
                             model = track?.thumbnailUrl,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxSize()
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxSize(),
                         )
                     }
                 }

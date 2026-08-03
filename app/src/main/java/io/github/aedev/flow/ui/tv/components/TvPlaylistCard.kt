@@ -23,7 +23,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
@@ -40,9 +40,10 @@ fun TvPlaylistCard(
         modifier = modifier.width(LocalTvDimens.current.videoCardWidth),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f),
         ) {
             AsyncImage(
                 model = playlist.thumbnailUrl,
@@ -51,9 +52,10 @@ fun TvPlaylistCard(
                 contentScale = ContentScale.Crop,
             )
             Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp),
                 shape = MaterialTheme.shapes.extraSmall,
                 color = Color.Black.copy(alpha = 0.7f),
                 contentColor = Color.White,
@@ -69,11 +71,12 @@ fun TvPlaylistCard(
                         modifier = Modifier.size(16.dp),
                     )
                     Text(
-                        text = pluralStringResource(
-                            R.plurals.tv_playlist_video_count,
-                            playlist.videoCount,
-                            playlist.videoCount,
-                        ),
+                        text =
+                            pluralStringResource(
+                                R.plurals.tv_playlist_video_count,
+                                playlist.videoCount,
+                                playlist.videoCount,
+                            ),
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }

@@ -13,11 +13,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.graphics.drawable.toBitmap
 import androidx.palette.graphics.Palette
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.toBitmap
 
 /** Artwork-derived colors shared by the mobile and TV music players. */
 @Immutable
@@ -30,7 +31,6 @@ data class MusicPaletteColors(
 
 private val PALETTE_INK_DARK = Color(0xFF161616)
 
-
 @Composable
 fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
     val context = LocalContext.current
@@ -39,20 +39,24 @@ fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
 
     LaunchedEffect(thumbnailUrl) {
         if (thumbnailUrl.isNullOrEmpty()) return@LaunchedEffect
-        val request = ImageRequest.Builder(context)
-            .data(thumbnailUrl)
-            .allowHardware(false)
-            .size(128)
-            .build()
-        val result = context.imageLoader.execute(request)
+        val request =
+            ImageRequest
+                .Builder(context)
+                .data(thumbnailUrl)
+                .allowHardware(false)
+                .size(128)
+                .build()
+        val result = SingletonImageLoader.get(context).execute(request)
         if (result is SuccessResult) {
-            val palette = Palette.from(result.drawable.toBitmap()).generate()
-            val bgSwatch = palette.darkMutedSwatch
-                ?: palette.darkVibrantSwatch
-                ?: palette.dominantSwatch
-            val accent = palette.vibrantSwatch
-                ?: palette.lightVibrantSwatch
-                ?: palette.lightMutedSwatch
+            val palette = Palette.from(result.image.toBitmap()).generate()
+            val bgSwatch =
+                palette.darkMutedSwatch
+                    ?: palette.darkVibrantSwatch
+                    ?: palette.dominantSwatch
+            val accent =
+                palette.vibrantSwatch
+                    ?: palette.lightVibrantSwatch
+                    ?: palette.lightMutedSwatch
             baseSwatch = bgSwatch?.let { Color(it.rgb) }
             accentSwatch = accent?.let { Color(it.rgb) }
         } else {
@@ -71,8 +75,9 @@ fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
         animationSpec = tween(1000),
         label = "musicPaletteAccent",
     )
-    val onBase = remember(base) {
-        if (base.luminance() < 0.45f) Color.White else PALETTE_INK_DARK
-    }
+    val onBase =
+        remember(base) {
+            if (base.luminance() < 0.45f) Color.White else PALETTE_INK_DARK
+        }
     return MusicPaletteColors(base = base, accent = accent, onBase = onBase)
 }

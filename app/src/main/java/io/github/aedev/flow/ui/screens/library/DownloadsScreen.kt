@@ -11,13 +11,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
@@ -49,7 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
@@ -65,7 +65,7 @@ fun DownloadsScreen(
     onMusicClick: (List<DownloadedTrack>, Int) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: DownloadsViewModel = hiltViewModel()
+    viewModel: DownloadsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -74,21 +74,25 @@ fun DownloadsScreen(
 
     val context = LocalContext.current
 
-    val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-        arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
-    else
-        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    val permissionsToRequest =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        if (results.values.any { it }) viewModel.rescan()
-    }
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) { results ->
+            if (results.values.any { it }) viewModel.rescan()
+        }
 
     LaunchedEffect(Unit) {
-        val anyMissing = permissionsToRequest.any { perm ->
-            ContextCompat.checkSelfPermission(context, perm) != PackageManager.PERMISSION_GRANTED
-        }
+        val anyMissing =
+            permissionsToRequest.any { perm ->
+                ContextCompat.checkSelfPermission(context, perm) != PackageManager.PERMISSION_GRANTED
+            }
         if (anyMissing) {
             permissionLauncher.launch(permissionsToRequest)
         } else {
@@ -96,7 +100,10 @@ fun DownloadsScreen(
         }
     }
 
-    fun requestDelete(id: String, type: DeletionType) {
+    fun requestDelete(
+        id: String,
+        type: DeletionType,
+    ) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         when (type) {
             DeletionType.VIDEO -> viewModel.deleteVideoDownload(id)
@@ -110,18 +117,19 @@ fun DownloadsScreen(
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.background,
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.close)
+                            contentDescription = stringResource(R.string.close),
                         )
                     }
                     Text(
@@ -129,36 +137,37 @@ fun DownloadsScreen(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     if (uiState.incompleteDownloadCount > 0) {
                         IconButton(onClick = { showRemoveIncompleteDialog = true }) {
                             Icon(
                                 imageVector = Icons.Outlined.Delete,
-                                contentDescription = stringResource(R.string.remove_incomplete_downloads)
+                                contentDescription = stringResource(R.string.remove_incomplete_downloads),
                             )
                         }
                     }
                 }
             }
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
         ) {
             DownloadsTabSelector(
                 selectedTabIndex = selectedTabIndex,
                 onTabSelected = {
                     if (it != selectedTabIndex) {
                         haptic.performHapticFeedback(
-                            HapticFeedbackType.TextHandleMove
+                            HapticFeedbackType.TextHandleMove,
                         )
                         selectedTabIndex = it
                     }
-                }
+                },
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -167,36 +176,42 @@ fun DownloadsScreen(
                 targetState = selectedTabIndex,
                 animationSpec = tween(250, easing = EaseOutCubic),
                 label = "tab_crossfade",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .weight(1f),
             ) { targetIndex ->
                 when (targetIndex) {
-                    0 -> VideosDownloadsList(
-                        videos = uiState.downloadedVideos,
-                        incompleteDownloads = uiState.incompleteVideoDownloads,
-                        progressMap = uiState.downloadProgressMap,
-                        mergingVideoIds = uiState.mergingVideoIds,
-                        isRefreshing = uiState.isScanning,
-                        onRefresh = { viewModel.rescan() },
-                        onVideoClick = { videos, index -> onVideoClick(videos, index) },
-                        onDeleteClick = { id ->
-                            requestDelete(id, DeletionType.VIDEO)
-                        },
-                        onPauseClick = { id -> viewModel.pauseVideoDownload(id) },
-                        onResumeClick = { id -> viewModel.resumeVideoDownload(id) },
-                        onHomeClick = onHomeClick
-                    )
-                    1 -> MusicDownloadsList(
-                        tracks = uiState.downloadedMusic,
-                        isRefreshing = uiState.isScanning,
-                        onRefresh = { viewModel.rescan() },
-                        onMusicClick = onMusicClick,
-                        onDeleteClick = { id ->
-                            requestDelete(id, DeletionType.MUSIC)
-                        },
-                        onHomeClick = onHomeClick
-                    )
+                    0 -> {
+                        VideosDownloadsList(
+                            videos = uiState.downloadedVideos,
+                            incompleteDownloads = uiState.incompleteVideoDownloads,
+                            progressMap = uiState.downloadProgressMap,
+                            mergingVideoIds = uiState.mergingVideoIds,
+                            isRefreshing = uiState.isScanning,
+                            onRefresh = { viewModel.rescan() },
+                            onVideoClick = { videos, index -> onVideoClick(videos, index) },
+                            onDeleteClick = { id ->
+                                requestDelete(id, DeletionType.VIDEO)
+                            },
+                            onPauseClick = { id -> viewModel.pauseVideoDownload(id) },
+                            onResumeClick = { id -> viewModel.resumeVideoDownload(id) },
+                            onHomeClick = onHomeClick,
+                        )
+                    }
+
+                    1 -> {
+                        MusicDownloadsList(
+                            tracks = uiState.downloadedMusic,
+                            isRefreshing = uiState.isScanning,
+                            onRefresh = { viewModel.rescan() },
+                            onMusicClick = onMusicClick,
+                            onDeleteClick = { id ->
+                                requestDelete(id, DeletionType.MUSIC)
+                            },
+                            onHomeClick = onHomeClick,
+                        )
+                    }
                 }
             }
         }
@@ -210,8 +225,8 @@ fun DownloadsScreen(
                 Text(
                     stringResource(
                         R.string.remove_incomplete_downloads_message,
-                        uiState.incompleteDownloadCount
-                    )
+                        uiState.incompleteDownloadCount,
+                    ),
                 )
             },
             confirmButton = {
@@ -219,7 +234,7 @@ fun DownloadsScreen(
                     onClick = {
                         showRemoveIncompleteDialog = false
                         viewModel.removeIncompleteDownloads()
-                    }
+                    },
                 ) {
                     Text(stringResource(R.string.remove))
                 }
@@ -228,7 +243,7 @@ fun DownloadsScreen(
                 TextButton(onClick = { showRemoveIncompleteDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
-            }
+            },
         )
     }
 }
@@ -246,50 +261,53 @@ private enum class DeletionType { VIDEO, MUSIC }
 @Composable
 private fun DownloadsTabSelector(
     selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
 ) {
-    val tabs = listOf(
-        TabInfo(
-            title = stringResource(R.string.tab_videos),
-            icon = Icons.Outlined.VideoLibrary
-        ),
-        TabInfo(
-            title = stringResource(R.string.tab_music),
-            icon = Icons.Outlined.MusicNote
+    val tabs =
+        listOf(
+            TabInfo(
+                title = stringResource(R.string.tab_videos),
+                icon = Icons.Outlined.VideoLibrary,
+            ),
+            TabInfo(
+                title = stringResource(R.string.tab_music),
+                icon = Icons.Outlined.MusicNote,
+            ),
         )
-    )
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .height(52.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                MaterialTheme.colorScheme.surfaceContainerHighest
-                    .copy(alpha = 0.5f)
-            )
-            .padding(4.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .height(52.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                        .copy(alpha = 0.5f),
+                ).padding(4.dp),
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val tabWidth = maxWidth / tabs.size
 
             val indicatorOffset by animateDpAsState(
                 targetValue = tabWidth * selectedTabIndex,
-                animationSpec = spring(
-                    dampingRatio = 0.75f,
-                    stiffness = 400f
-                ),
-                label = "indicator_offset"
+                animationSpec =
+                    spring(
+                        dampingRatio = 0.75f,
+                        stiffness = 400f,
+                    ),
+                label = "indicator_offset",
             )
 
             Box(
-                modifier = Modifier
-                    .width(tabWidth)
-                    .fillMaxHeight()
-                    .offset(x = indicatorOffset)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+                modifier =
+                    Modifier
+                        .width(tabWidth)
+                        .fillMaxHeight()
+                        .offset(x = indicatorOffset)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surface),
             )
         }
 
@@ -298,46 +316,53 @@ private fun DownloadsTabSelector(
                 val isSelected = selectedTabIndex == index
 
                 val contentColor by animateColorAsState(
-                    targetValue = if (isSelected)
-                        MaterialTheme.colorScheme.onSurface
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                            .copy(alpha = 0.7f),
+                    targetValue =
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                                .copy(alpha = 0.7f)
+                        },
                     animationSpec = tween(250),
-                    label = "tab_color_$index"
+                    label = "tab_color_$index",
                 )
 
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable(
-                            interactionSource = remember {
-                                MutableInteractionSource()
-                            },
-                            indication = null,
-                            role = Role.Tab
-                        ) { onTabSelected(index) },
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable(
+                                interactionSource =
+                                    remember {
+                                        MutableInteractionSource()
+                                    },
+                                indication = null,
+                                role = Role.Tab,
+                            ) { onTabSelected(index) },
+                    contentAlignment = Alignment.Center,
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Icon(
                             imageVector = tab.icon,
                             contentDescription = null,
                             tint = contentColor,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(19.dp),
                         )
                         Text(
                             text = tab.title,
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (isSelected)
-                                FontWeight.SemiBold
-                            else FontWeight.Normal,
-                            color = contentColor
+                            fontWeight =
+                                if (isSelected) {
+                                    FontWeight.SemiBold
+                                } else {
+                                    FontWeight.Normal
+                                },
+                            color = contentColor,
                         )
                     }
                 }
@@ -348,7 +373,7 @@ private fun DownloadsTabSelector(
 
 private data class TabInfo(
     val title: String,
-    val icon: ImageVector
+    val icon: ImageVector,
 )
 
 // ═══════════════════════════════════════════════════════
@@ -369,7 +394,7 @@ private fun VideosDownloadsList(
     onPauseClick: (String) -> Unit,
     onResumeClick: (String) -> Unit,
     onHomeClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     if (videos.isEmpty() && incompleteDownloads.isEmpty()) {
         val pullState = rememberPullToRefreshState()
@@ -377,17 +402,18 @@ private fun VideosDownloadsList(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
             state = pullState,
-            modifier = modifier.fillMaxSize()
+            modifier = modifier.fillMaxSize(),
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
             ) {
                 EmptyDownloadsState(
                     type = stringResource(R.string.tab_videos),
                     icon = Icons.Outlined.VideoLibrary,
-                    onHomeClick = onHomeClick
+                    onHomeClick = onHomeClick,
                 )
             }
         }
@@ -397,12 +423,12 @@ private fun VideosDownloadsList(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
             state = pullState,
-            modifier = modifier.fillMaxSize()
+            modifier = modifier.fillMaxSize(),
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 if (incompleteDownloads.isNotEmpty()) {
                     item(key = "section_active") {
@@ -411,14 +437,16 @@ private fun VideosDownloadsList(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(
-                                horizontal = 16.dp, vertical = 6.dp
-                            )
+                            modifier =
+                                Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = 6.dp,
+                                ),
                         )
                     }
                     items(
                         items = incompleteDownloads,
-                        key = { "active_${it.download.videoId}" }
+                        key = { "active_${it.download.videoId}" },
                     ) { dl ->
                         ActiveVideoDownloadCard(
                             download = dl,
@@ -427,14 +455,16 @@ private fun VideosDownloadsList(
                             onPauseClick = { onPauseClick(dl.download.videoId) },
                             onResumeClick = { onResumeClick(dl.download.videoId) },
                             onDeleteClick = { onDeleteClick(dl.download.videoId) },
-                            modifier = Modifier.animateItem(
-                                fadeInSpec = tween(300, easing = EaseOutCubic),
-                                fadeOutSpec = tween(200, easing = EaseInCubic),
-                                placementSpec = spring(
-                                    dampingRatio = 0.8f,
-                                    stiffness = Spring.StiffnessLow
-                                )
-                            )
+                            modifier =
+                                Modifier.animateItem(
+                                    fadeInSpec = tween(300, easing = EaseOutCubic),
+                                    fadeOutSpec = tween(200, easing = EaseInCubic),
+                                    placementSpec =
+                                        spring(
+                                            dampingRatio = 0.8f,
+                                            stiffness = Spring.StiffnessLow,
+                                        ),
+                                ),
                         )
                     }
                     if (videos.isNotEmpty()) {
@@ -444,29 +474,33 @@ private fun VideosDownloadsList(
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(
-                                    horizontal = 16.dp, vertical = 6.dp
-                                )
+                                modifier =
+                                    Modifier.padding(
+                                        horizontal = 16.dp,
+                                        vertical = 6.dp,
+                                    ),
                             )
                         }
                     }
                 }
                 itemsIndexed(
                     items = videos,
-                    key = { _, video -> video.video.id }
+                    key = { _, video -> video.video.id },
                 ) { index, video ->
                     VideoDownloadCard(
                         video = video,
                         onClick = { onVideoClick(videos, index) },
                         onDeleteClick = { onDeleteClick(video.video.id) },
-                        modifier = Modifier.animateItem(
-                            fadeInSpec = tween(300, easing = EaseOutCubic),
-                            fadeOutSpec = tween(200, easing = EaseInCubic),
-                            placementSpec = spring(
-                                dampingRatio = 0.8f,
-                                stiffness = Spring.StiffnessLow
-                            )
-                        )
+                        modifier =
+                            Modifier.animateItem(
+                                fadeInSpec = tween(300, easing = EaseOutCubic),
+                                fadeOutSpec = tween(200, easing = EaseInCubic),
+                                placementSpec =
+                                    spring(
+                                        dampingRatio = 0.8f,
+                                        stiffness = Spring.StiffnessLow,
+                                    ),
+                            ),
                     )
                 }
             }
@@ -483,54 +517,61 @@ private fun VideoDownloadCard(
     video: DownloadedVideo,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val deleteDesc = stringResource(
-        R.string.cd_delete_download,
-        video.video.title
-    )
+    val deleteDesc =
+        stringResource(
+            R.string.cd_delete_download,
+            video.video.title,
+        )
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick, role = Role.Button)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick, role = Role.Button)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .width(152.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            modifier =
+                Modifier
+                    .width(152.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {
             AsyncImage(
                 model = video.video.thumbnailUrl,
-                contentDescription = stringResource(
-                    R.string.cd_video_thumbnail,
-                    video.video.title
-                ),
+                contentDescription =
+                    stringResource(
+                        R.string.cd_video_thumbnail,
+                        video.video.title,
+                    ),
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
 
             Surface(
-                color = MaterialTheme.colorScheme.inverseSurface
-                    .copy(alpha = 0.85f),
+                color =
+                    MaterialTheme.colorScheme.inverseSurface
+                        .copy(alpha = 0.85f),
                 shape = RoundedCornerShape(4.dp),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(6.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
             ) {
                 Text(
                     text = formatDuration(video.video.duration),
                     color = MaterialTheme.colorScheme.inverseOnSurface,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(
-                        horizontal = 4.dp,
-                        vertical = 2.dp
-                    )
+                    modifier =
+                        Modifier.padding(
+                            horizontal = 4.dp,
+                            vertical = 2.dp,
+                        ),
                 )
             }
         }
@@ -545,7 +586,7 @@ private fun VideoDownloadCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 20.sp
+                lineHeight = 20.sp,
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -555,22 +596,24 @@ private fun VideoDownloadCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
         IconButton(
             onClick = onDeleteClick,
-            modifier = Modifier.semantics {
-                contentDescription = deleteDesc
-            }
+            modifier =
+                Modifier.semantics {
+                    contentDescription = deleteDesc
+                },
         ) {
             Icon(
                 imageVector = Icons.Outlined.Delete,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    .copy(alpha = 0.6f),
-                modifier = Modifier.size(20.dp)
+                tint =
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                        .copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp),
             )
         }
     }
@@ -588,46 +631,51 @@ private fun ActiveVideoDownloadCard(
     onPauseClick: () -> Unit,
     onResumeClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val progress = (progressMap[download.download.videoId] ?: download.progress).coerceIn(0f, 1f)
     val pct = (progress * 100).toInt()
-    val deleteDesc = stringResource(
-        R.string.cd_delete_download,
-        download.download.title
-    )
+    val deleteDesc =
+        stringResource(
+            R.string.cd_delete_download,
+            download.download.title,
+        )
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .width(152.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            modifier =
+                Modifier
+                    .width(152.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {
             AsyncImage(
                 model = download.download.thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
             // Dimming overlay
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.50f))
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.50f)),
             )
             // Red progress fill from left
             Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(progress)
-                    .background(Color(0xFFCD2027).copy(alpha = 0.35f))
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progress)
+                        .background(Color(0xFFCD2027).copy(alpha = 0.35f)),
             )
             // Percentage label centered
             Text(
@@ -635,17 +683,18 @@ private fun ActiveVideoDownloadCard(
                 color = Color.White,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
             )
             // Thin progress bar at the bottom edge
             LinearProgressIndicator(
                 progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .align(Alignment.BottomCenter),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .align(Alignment.BottomCenter),
                 color = MaterialTheme.colorScheme.primary,
-                trackColor = Color.White.copy(alpha = 0.25f)
+                trackColor = Color.White.copy(alpha = 0.25f),
             )
         }
 
@@ -659,7 +708,7 @@ private fun ActiveVideoDownloadCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 20.sp
+                lineHeight = 20.sp,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -667,53 +716,62 @@ private fun ActiveVideoDownloadCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.height(6.dp))
-            val statusText = when {
-                isMerging -> "Merging audio & video…"
-                else -> when (download.overallStatus) {
-                    DownloadItemStatus.PENDING  -> stringResource(R.string.download_status_queued)
-                    DownloadItemStatus.PAUSED   -> "$pct% \u00b7 ${stringResource(R.string.download_status_paused)}"
-                    DownloadItemStatus.FAILED   -> stringResource(R.string.download_status_failed)
-                    DownloadItemStatus.CANCELLED -> stringResource(R.string.download_status_cancelled)
-                    else                        -> "$pct%"
+            val statusText =
+                when {
+                    isMerging -> {
+                        "Merging audio & video…"
+                    }
+
+                    else -> {
+                        when (download.overallStatus) {
+                            DownloadItemStatus.PENDING -> stringResource(R.string.download_status_queued)
+                            DownloadItemStatus.PAUSED -> "$pct% \u00b7 ${stringResource(R.string.download_status_paused)}"
+                            DownloadItemStatus.FAILED -> stringResource(R.string.download_status_failed)
+                            DownloadItemStatus.CANCELLED -> stringResource(R.string.download_status_cancelled)
+                            else -> "$pct%"
+                        }
+                    }
                 }
-            }
             Text(
                 text = statusText,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
         }
 
         if (!isMerging && download.overallStatus != DownloadItemStatus.FAILED && download.overallStatus != DownloadItemStatus.CANCELLED) {
             val isPaused = download.overallStatus == DownloadItemStatus.PAUSED
             IconButton(
-                onClick = if (isPaused) onResumeClick else onPauseClick
+                onClick = if (isPaused) onResumeClick else onPauseClick,
             ) {
                 Icon(
                     imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                    contentDescription = if (isPaused)
-                        stringResource(R.string.resume)
-                    else
-                        stringResource(R.string.pause),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    contentDescription =
+                        if (isPaused) {
+                            stringResource(R.string.resume)
+                        } else {
+                            stringResource(R.string.pause)
+                        },
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
         IconButton(
             onClick = onDeleteClick,
-            modifier = Modifier.semantics {
-                contentDescription = deleteDesc
-            }
+            modifier =
+                Modifier.semantics {
+                    contentDescription = deleteDesc
+                },
         ) {
             Icon(
                 imageVector = Icons.Outlined.Delete,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
         }
     }
@@ -732,7 +790,7 @@ private fun MusicDownloadsList(
     onMusicClick: (List<DownloadedTrack>, Int) -> Unit,
     onDeleteClick: (String) -> Unit,
     onHomeClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     if (tracks.isEmpty()) {
         val pullState = rememberPullToRefreshState()
@@ -740,17 +798,18 @@ private fun MusicDownloadsList(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
             state = pullState,
-            modifier = modifier.fillMaxSize()
+            modifier = modifier.fillMaxSize(),
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
             ) {
                 EmptyDownloadsState(
                     type = stringResource(R.string.tab_music),
                     icon = Icons.Outlined.MusicNote,
-                    onHomeClick = onHomeClick
+                    onHomeClick = onHomeClick,
                 )
             }
         }
@@ -760,16 +819,16 @@ private fun MusicDownloadsList(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
             state = pullState,
-            modifier = modifier.fillMaxSize()
+            modifier = modifier.fillMaxSize(),
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 itemsIndexed(
                     items = tracks,
-                    key = { _, track -> track.track.videoId }
+                    key = { _, track -> track.track.videoId },
                 ) { index, downloadedTrack ->
                     MusicTrackCard(
                         downloadedTrack = downloadedTrack,
@@ -777,14 +836,16 @@ private fun MusicDownloadsList(
                         onDeleteClick = {
                             onDeleteClick(downloadedTrack.track.videoId)
                         },
-                        modifier = Modifier.animateItem(
-                            fadeInSpec = tween(300, easing = EaseOutCubic),
-                            fadeOutSpec = tween(200, easing = EaseInCubic),
-                            placementSpec = spring(
-                                dampingRatio = 0.8f,
-                                stiffness = Spring.StiffnessLow
-                            )
-                        )
+                        modifier =
+                            Modifier.animateItem(
+                                fadeInSpec = tween(300, easing = EaseOutCubic),
+                                fadeOutSpec = tween(200, easing = EaseInCubic),
+                                placementSpec =
+                                    spring(
+                                        dampingRatio = 0.8f,
+                                        stiffness = Spring.StiffnessLow,
+                                    ),
+                            ),
                     )
                 }
             }
@@ -801,36 +862,40 @@ private fun MusicTrackCard(
     downloadedTrack: DownloadedTrack,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val deleteDesc = stringResource(
-        R.string.cd_delete_download,
-        downloadedTrack.track.title
-    )
+    val deleteDesc =
+        stringResource(
+            R.string.cd_delete_download,
+            downloadedTrack.track.title,
+        )
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick, role = Role.Button)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick, role = Role.Button)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                )
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        MaterialTheme.colorScheme.surfaceContainerHighest,
+                    ),
         ) {
             AsyncImage(
                 model = downloadedTrack.track.thumbnailUrl,
-                contentDescription = stringResource(
-                    R.string.cd_track_artwork,
-                    downloadedTrack.track.title
-                ),
+                contentDescription =
+                    stringResource(
+                        R.string.cd_track_artwork,
+                        downloadedTrack.track.title,
+                    ),
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         }
 
@@ -843,7 +908,7 @@ private fun MusicTrackCard(
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             Spacer(modifier = Modifier.height(2.dp))
@@ -851,21 +916,24 @@ private fun MusicTrackCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (downloadedTrack.track.isExplicit == true) {
                     Surface(
-                        color = MaterialTheme.colorScheme
-                            .surfaceContainerHighest,
+                        color =
+                            MaterialTheme.colorScheme
+                                .surfaceContainerHighest,
                         shape = RoundedCornerShape(3.dp),
-                        modifier = Modifier.padding(end = 6.dp)
+                        modifier = Modifier.padding(end = 6.dp),
                     ) {
                         Text(
                             text = stringResource(R.string.explicit),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(
-                                horizontal = 4.dp,
-                                vertical = 1.dp
-                            ),
-                            color = MaterialTheme.colorScheme
-                                .onSurfaceVariant
+                            modifier =
+                                Modifier.padding(
+                                    horizontal = 4.dp,
+                                    vertical = 1.dp,
+                                ),
+                            color =
+                                MaterialTheme.colorScheme
+                                    .onSurfaceVariant,
                         )
                     }
                 }
@@ -875,30 +943,32 @@ private fun MusicTrackCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
 
         IconButton(
             onClick = onDeleteClick,
-            modifier = Modifier.semantics {
-                contentDescription = deleteDesc
-            }
+            modifier =
+                Modifier.semantics {
+                    contentDescription = deleteDesc
+                },
         ) {
             Icon(
                 imageVector = Icons.Outlined.Delete,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    .copy(alpha = 0.6f),
-                modifier = Modifier.size(20.dp)
+                tint =
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                        .copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp),
             )
         }
     }
 }
 
 // ═══════════════════════════════════════════════════════
-// EMPTY STATE 
+// EMPTY STATE
 // ═══════════════════════════════════════════════════════
 
 @Composable
@@ -906,7 +976,7 @@ private fun EmptyDownloadsState(
     type: String,
     icon: ImageVector,
     onHomeClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
@@ -914,28 +984,31 @@ private fun EmptyDownloadsState(
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(tween(400, easing = EaseOutCubic)),
-        modifier = modifier
+        modifier = modifier,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
         ) {
             Surface(
                 modifier = Modifier.size(100.dp),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest
-                    .copy(alpha = 0.6f)
+                color =
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                        .copy(alpha = 0.6f),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            .copy(alpha = 0.4f)
+                        tint =
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                                .copy(alpha = 0.4f),
                     )
                 }
             }
@@ -943,25 +1016,29 @@ private fun EmptyDownloadsState(
             Spacer(modifier = Modifier.height(28.dp))
 
             Text(
-                text = stringResource(
-                    R.string.empty_offline_title, type
-                ),
+                text =
+                    stringResource(
+                        R.string.empty_offline_title,
+                        type,
+                    ),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = stringResource(
-                    R.string.empty_offline_body, type
-                ),
+                text =
+                    stringResource(
+                        R.string.empty_offline_body,
+                        type,
+                    ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                lineHeight = 22.sp
+                lineHeight = 22.sp,
             )
 
             Spacer(modifier = Modifier.height(36.dp))
@@ -969,20 +1046,24 @@ private fun EmptyDownloadsState(
             FilledTonalButton(
                 onClick = onHomeClick,
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth(0.55f)
-                    .height(48.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme
-                        .primary,
-                    contentColor = MaterialTheme.colorScheme
-                        .onPrimary
-                )
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.55f)
+                        .height(48.dp),
+                colors =
+                    ButtonDefaults.filledTonalButtonColors(
+                        containerColor =
+                            MaterialTheme.colorScheme
+                                .primary,
+                        contentColor =
+                            MaterialTheme.colorScheme
+                                .onPrimary,
+                    ),
             ) {
                 Text(
                     text = stringResource(R.string.action_go_to_home),
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }

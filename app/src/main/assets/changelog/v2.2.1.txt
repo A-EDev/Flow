@@ -31,6 +31,7 @@ BUILD AND CI
 - Improve ABI-aware app updates and GitHub/FOSS release packaging
 - Speed up builds with KSP, Gradle caching, improved parallelism, and CI daemon reuse
 - Remove obsolete playback and download code
+- Fix ktlint rules not being applied by Spotless
 
 FIXES AND STABILITY
 - Fix playback media-session notifications missing metadata, artwork, controls, and seek state
@@ -50,3 +51,6 @@ DEPENDENCY
 - Update Navigation, Lifecycle, Activity, Core, WorkManager, Paging and CameraX
 - Update Gson to 2.14.0, Conscrypt to 2.5.3 and core library desugaring to 2.1.5
 - Remove unused RxJava and multidex dependencies
+- Raise targetSdk to 36 for Android 16 platform behaviour
+- Update OkHttp to 5.4.0 and Media3 to 1.9.0
+- Update Coil image loading to 3.5.0

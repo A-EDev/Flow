@@ -4,8 +4,9 @@ import android.app.Application
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.util.Log
-import coil.ImageLoader
-import coil.ImageLoaderFactory
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
 import dagger.hilt.android.HiltAndroidApp
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
@@ -44,14 +45,14 @@ import javax.inject.Inject
 @HiltAndroidApp
 class FlowApplication :
     Application(),
-    ImageLoaderFactory {
+    SingletonImageLoader.Factory {
     @Inject
     lateinit var imageLoader: ImageLoader
 
     @Inject
     lateinit var okHttpClient: OkHttpClient
 
-    override fun newImageLoader(): ImageLoader = imageLoader
+    override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
     companion object {
         private const val TAG = "FlowApplication"

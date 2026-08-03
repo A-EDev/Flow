@@ -38,7 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.CommunityPost
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -58,13 +58,14 @@ fun CommunityPostCard(
     val resolvedImageUrl = ThumbnailUrlResolver.resolveCommunityPostImage(post.imageUrl)
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val formattedText = remember(post.text, primaryColor, onSurfaceColor) {
-        formatRichText(
-            text = post.text,
-            primaryColor = primaryColor,
-            textColor = onSurfaceColor,
-        )
-    }
+    val formattedText =
+        remember(post.text, primaryColor, onSurfaceColor) {
+            formatRichText(
+                text = post.text,
+                primaryColor = primaryColor,
+                textColor = onSurfaceColor,
+            )
+        }
 
     if (showFullSizeImage && resolvedImageUrl.isNotBlank()) {
         FullSizeImageDialog(
@@ -74,9 +75,10 @@ fun CommunityPostCard(
     }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -86,18 +88,20 @@ fun CommunityPostCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onAuthorClick),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onAuthorClick),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 AsyncImage(
                     model = ThumbnailUrlResolver.resolveChannelAvatar(post.authorAvatarUrl),
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    modifier =
+                        Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentScale = ContentScale.Crop,
                 )
                 Spacer(Modifier.width(12.dp))
@@ -140,12 +144,13 @@ fun CommunityPostCard(
                 AsyncImage(
                     model = resolvedImageUrl,
                     contentDescription = stringResource(R.string.community_post_image_content_description),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 120.dp, max = 520.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { showFullSizeImage = true },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp, max = 520.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { showFullSizeImage = true },
                     contentScale = ContentScale.Fit,
                 )
             }

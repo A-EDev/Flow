@@ -31,14 +31,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
-import io.github.aedev.flow.R
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
+import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.Dimensions
 
 @Composable
@@ -51,64 +51,68 @@ fun ItemThumbnail(
     isPlaying: Boolean = false,
     isSelected: Boolean = false,
     albumIndex: Int? = null,
-    thumbnailRatio: Float = 1f
+    thumbnailRatio: Float = 1f,
 ) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(size)
-            .aspectRatio(thumbnailRatio)
-            .clip(shape)
+        modifier =
+            modifier
+                .size(size)
+                .aspectRatio(thumbnailRatio)
+                .clip(shape),
     ) {
         AsyncImage(
             model = thumbnailUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         )
-        
+
         if (isActive || isPlaying) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
             ) {
                 if (isPlaying) {
                     PlayingWaveAnimation()
                 }
             }
         }
-        
+
         if (isSelected) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.ui_selected),
                     tint = Color.White,
-                    modifier = Modifier.size(size / 2)
+                    modifier = Modifier.size(size / 2),
                 )
             }
         }
-        
+
         if (albumIndex != null && !isActive && !isPlaying && !isSelected) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f)),
             ) {
                 Text(
                     text = albumIndex.toString(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
             }
         }
@@ -118,7 +122,7 @@ fun ItemThumbnail(
 @Composable
 fun PlayingWaveAnimation(
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary
+    color: Color = MaterialTheme.colorScheme.primary,
 ) {
     PlayingWaveform(modifier = modifier, color = color)
 }
@@ -127,13 +131,13 @@ fun PlayingWaveAnimation(
 fun ArtistThumbnail(
     thumbnailUrl: String?,
     modifier: Modifier = Modifier,
-    size: Dp = Dimensions.ListThumbnailSize
+    size: Dp = Dimensions.ListThumbnailSize,
 ) {
     ItemThumbnail(
         thumbnailUrl = thumbnailUrl,
         size = size,
         shape = CircleShape,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -142,43 +146,47 @@ fun PlaylistThumbnail(
     thumbnails: List<String>,
     size: Dp,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(Dimensions.ThumbnailCornerRadius)
+    shape: Shape = RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
 ) {
     Surface(
         shape = shape,
-        modifier = modifier.size(size)
+        modifier = modifier.size(size),
     ) {
         when {
             thumbnails.isEmpty() -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
                 )
             }
+
             thumbnails.size == 1 -> {
                 AsyncImage(
                     model = thumbnails.first(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
+
             else -> {
                 Box(modifier = Modifier.fillMaxSize()) {
                     val gridThumbs = thumbnails.take(4)
                     val halfSize = size / 2
-                    
+
                     gridThumbs.forEachIndexed { index, url ->
                         val xOffset = if (index % 2 == 0) 0.dp else halfSize
                         val yOffset = if (index < 2) 0.dp else halfSize
-                        
+
                         AsyncImage(
                             model = url,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(halfSize)
+                            modifier =
+                                Modifier
+                                    .size(halfSize),
                         )
                     }
                 }

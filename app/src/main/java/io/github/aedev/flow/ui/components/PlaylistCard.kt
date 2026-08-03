@@ -40,14 +40,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
 
 enum class PlaylistCardLayout {
     LIST,
-    SHELF
+    SHELF,
 }
 
 @Composable
@@ -56,20 +56,21 @@ fun PlaylistCard(
     onClick: () -> Unit,
     onDeleteClick: (() -> Unit)? = null,
     layout: PlaylistCardLayout = PlaylistCardLayout.LIST,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     PlaylistCardContent(
         title = playlist.name,
         description = playlist.description,
         thumbnailUrl = playlist.thumbnailUrl,
         videoCount = playlist.videoCount,
-        visibilityLabel = stringResource(
-            if (playlist.isPrivate) R.string.playlist_private else R.string.playlist_public
-        ),
+        visibilityLabel =
+            stringResource(
+                if (playlist.isPrivate) R.string.playlist_private else R.string.playlist_public,
+            ),
         onClick = onClick,
         onDeleteClick = onDeleteClick,
         layout = layout,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -78,7 +79,7 @@ fun PlaylistCard(
     playlist: Playlist,
     onClick: () -> Unit,
     layout: PlaylistCardLayout = PlaylistCardLayout.LIST,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     PlaylistCardContent(
         title = playlist.name,
@@ -89,7 +90,7 @@ fun PlaylistCard(
         onClick = onClick,
         onDeleteClick = null,
         layout = layout,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -103,36 +104,39 @@ private fun PlaylistCardContent(
     onClick: () -> Unit,
     onDeleteClick: (() -> Unit)?,
     layout: PlaylistCardLayout,
-    modifier: Modifier
+    modifier: Modifier,
 ) {
-    val metadata = visibilityLabel?.let {
-        stringResource(
-            R.string.playlist_visibility_metadata,
-            it,
-            stringResource(R.string.playlist)
-        )
-    } ?: stringResource(R.string.videos_count_template, videoCount)
+    val metadata =
+        visibilityLabel?.let {
+            stringResource(
+                R.string.playlist_visibility_metadata,
+                it,
+                stringResource(R.string.playlist),
+            )
+        } ?: stringResource(R.string.videos_count_template, videoCount)
 
     if (layout == PlaylistCardLayout.SHELF) {
         Column(
-            modifier = Modifier
-                .then(modifier)
-                .clickable(onClick = onClick)
-                .padding(vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier =
+                Modifier
+                    .then(modifier)
+                    .clickable(onClick = onClick)
+                    .padding(vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             LayeredPlaylistArtwork(
                 thumbnailUrl = thumbnailUrl,
                 videoCount = videoCount,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f),
             )
             PlaylistCardText(
                 title = title,
                 metadata = metadata,
                 description = "",
-                compact = true
+                compact = true,
             )
         }
         return
@@ -140,19 +144,21 @@ private fun PlaylistCardContent(
 
     var showMenu by remember { mutableStateOf(false) }
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         LayeredPlaylistArtwork(
             thumbnailUrl = thumbnailUrl,
             videoCount = videoCount,
-            modifier = Modifier
-                .width(142.dp)
-                .aspectRatio(16f / 9f)
+            modifier =
+                Modifier
+                    .width(142.dp)
+                    .aspectRatio(16f / 9f),
         )
 
         PlaylistCardText(
@@ -160,7 +166,7 @@ private fun PlaylistCardContent(
             metadata = metadata,
             description = description,
             compact = false,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
 
         if (onDeleteClick != null) {
@@ -169,12 +175,12 @@ private fun PlaylistCardContent(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.more_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 DropdownMenu(
                     expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+                    onDismissRequest = { showMenu = false },
                 ) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.open)) },
@@ -182,7 +188,7 @@ private fun PlaylistCardContent(
                             showMenu = false
                             onClick()
                         },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) }
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_delete)) },
@@ -194,9 +200,9 @@ private fun PlaylistCardContent(
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
+                                tint = MaterialTheme.colorScheme.error,
                             )
-                        }
+                        },
                     )
                 }
             }
@@ -208,79 +214,85 @@ private fun PlaylistCardContent(
 private fun LayeredPlaylistArtwork(
     thumbnailUrl: String,
     videoCount: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .offset(x = (-3).dp, y = (-3).dp)
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .offset(x = (-3).dp, y = (-3).dp)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             if (thumbnailUrl.isNotBlank()) {
                 AsyncImage(
                     model = thumbnailUrl,
                     contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .blur(10.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .blur(10.dp),
                     contentScale = ContentScale.Crop,
-                    alpha = 0.7f
+                    alpha = 0.7f,
                 )
             }
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.18f))
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.18f)),
             )
         }
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             if (thumbnailUrl.isNotBlank()) {
                 AsyncImage(
                     model = thumbnailUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(30.dp)
-                        .align(Alignment.Center),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    modifier =
+                        Modifier
+                            .size(30.dp)
+                            .align(Alignment.Center),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp),
                 shape = MaterialTheme.shapes.small,
                 color = MaterialTheme.colorScheme.inverseSurface,
-                contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
                         contentDescription = null,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(13.dp),
                     )
                     Text(
                         text = videoCount.toString(),
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
@@ -294,34 +306,36 @@ private fun PlaylistCardText(
     metadata: String,
     description: String,
     compact: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
             text = title,
-            style = if (compact) {
-                MaterialTheme.typography.bodyMedium
-            } else {
-                MaterialTheme.typography.bodyLarge
-            },
+            style =
+                if (compact) {
+                    MaterialTheme.typography.bodyMedium
+                } else {
+                    MaterialTheme.typography.bodyLarge
+                },
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = if (compact) 1 else 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = metadata,
-            style = if (compact) {
-                MaterialTheme.typography.bodySmall
-            } else {
-                MaterialTheme.typography.bodyMedium
-            },
+            style =
+                if (compact) {
+                    MaterialTheme.typography.bodySmall
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         if (description.isNotBlank()) {
             Text(
@@ -329,7 +343,7 @@ private fun PlaylistCardText(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

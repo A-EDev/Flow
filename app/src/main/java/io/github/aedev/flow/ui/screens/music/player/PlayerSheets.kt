@@ -23,7 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 
@@ -38,27 +38,28 @@ fun UpNextContent(
     onTrackClick: (Int) -> Unit,
     onToggleAutoplay: () -> Unit,
     onFilterSelect: (String) -> Unit,
-    onMoveTrack: (Int, Int) -> Unit
+    onMoveTrack: (Int, Int) -> Unit,
 ) {
     val accentColor = LocalPlayerAccentColor.current ?: MaterialTheme.colorScheme.primary
     val onAccentColor = LocalPlayerOnAccentColor.current ?: MaterialTheme.colorScheme.onPrimary
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
     ) {
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.playing_from),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
                 Text(
                     text = playingFrom,
@@ -66,95 +67,99 @@ fun UpNextContent(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-            
+
             Button(
                 onClick = { /* Save to playlist */ },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                ),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
                 shape = RoundedCornerShape(20.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                modifier = Modifier.height(32.dp)
+                modifier = Modifier.height(32.dp),
             ) {
                 Icon(
                     imageVector = Icons.Outlined.PlaylistAdd,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.save), style = MaterialTheme.typography.labelLarge)
             }
         }
-        
+
         Spacer(modifier = Modifier.height(20.dp))
-        
+
         // Autoplay Toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(R.string.autoplay),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             Switch(
                 checked = autoplayEnabled,
                 onCheckedChange = { onToggleAutoplay() },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = onAccentColor,
-                    checkedTrackColor = accentColor,
-                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+                colors =
+                    SwitchDefaults.colors(
+                        checkedThumbColor = onAccentColor,
+                        checkedTrackColor = accentColor,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
             )
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Filter Chips
-        val filters = listOf(
-            stringResource(R.string.view_all_button_label),
-            stringResource(R.string.filter_discover),
-            stringResource(R.string.filter_popular),
-            stringResource(R.string.filter_deep_cuts),
-            stringResource(R.string.filter_workout)
-        )
-        
+        val filters =
+            listOf(
+                stringResource(R.string.view_all_button_label),
+                stringResource(R.string.filter_discover),
+                stringResource(R.string.filter_popular),
+                stringResource(R.string.filter_deep_cuts),
+                stringResource(R.string.filter_workout),
+            )
+
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             items(filters, key = { it }) { filter ->
                 FilterChip(
                     selected = selectedFilter == filter,
                     onClick = { onFilterSelect(filter) },
                     label = { Text(filter) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        selectedContainerColor = accentColor,
-                        selectedLabelColor = onAccentColor
-                    ),
+                    colors =
+                        FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            selectedContainerColor = accentColor,
+                            selectedLabelColor = onAccentColor,
+                        ),
                     border = null,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Queue List
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxHeight(),
-            contentPadding = PaddingValues(bottom = 100.dp)
+            contentPadding = PaddingValues(bottom = 100.dp),
         ) {
             itemsIndexed(queue, key = { index, track -> "${track.videoId}_$index" }) { index, track ->
                 UpNextTrackItem(
@@ -162,35 +167,37 @@ fun UpNextContent(
                     isCurrentlyPlaying = index == currentIndex,
                     onClick = { onTrackClick(index) },
                     onMoveUp = { if (index > 0) onMoveTrack(index, index - 1) },
-                    onMoveDown = { if (index < queue.size - 1) onMoveTrack(index, index + 1) }
+                    onMoveDown = { if (index < queue.size - 1) onMoveTrack(index, index + 1) },
                 )
             }
-            
+
             item {
                 if (autoplayEnabled) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
                         )
                     }
                 } else {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = stringResource(R.string.end_of_queue),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         )
                     }
                 }
@@ -203,16 +210,17 @@ fun UpNextContent(
 fun RelatedContent(
     relatedTracks: List<MusicTrack>,
     isLoading: Boolean,
-    onTrackClick: (MusicTrack) -> Unit
+    onTrackClick: (MusicTrack) -> Unit,
 ) {
     val dimmedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
     val accentColor = LocalPlayerAccentColor.current ?: MaterialTheme.colorScheme.primary
-    
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
-            .padding(horizontal = 20.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 20.dp),
     ) {
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -225,12 +233,12 @@ fun RelatedContent(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 100.dp, top = 16.dp)
+                contentPadding = PaddingValues(bottom = 100.dp, top = 16.dp),
             ) {
                 items(relatedTracks, key = { it.videoId }) { track ->
                     RelatedTrackItem(
                         track = track,
-                        onClick = { onTrackClick(track) }
+                        onClick = { onTrackClick(track) },
                     )
                 }
             }

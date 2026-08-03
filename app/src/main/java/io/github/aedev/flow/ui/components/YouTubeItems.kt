@@ -25,11 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
@@ -54,52 +54,62 @@ fun YouTubeListItem(
         }
     },
     trailingContent: @Composable RowScope.() -> Unit = {},
-    onMenuClick: (() -> Unit)? = null
+    onMenuClick: (() -> Unit)? = null,
 ) {
-    val (title, subtitle, thumbnailUrl, shape) = when (item) {
-        is SongItem -> {
-            val artistNames = item.artists.joinToString { it.name }
-            val duration = item.duration?.let { formatDuration(it) } ?: ""
-            val subtitleText = buildString {
-                append(artistNames)
-                if (duration.isNotEmpty()) {
-                    append(" • ")
-                    append(duration)
-                }
+    val (title, subtitle, thumbnailUrl, shape) =
+        when (item) {
+            is SongItem -> {
+                val artistNames = item.artists.joinToString { it.name }
+                val duration = item.duration?.let { formatDuration(it) } ?: ""
+                val subtitleText =
+                    buildString {
+                        append(artistNames)
+                        if (duration.isNotEmpty()) {
+                            append(" • ")
+                            append(duration)
+                        }
+                    }
+                Quadruple(
+                    item.title,
+                    subtitleText,
+                    item.thumbnail,
+                    RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
+                )
             }
-            Quadruple(
-                item.title,
-                subtitleText,
-                item.thumbnail,
-                RoundedCornerShape(Dimensions.ThumbnailCornerRadius)
-            )
+
+            is AlbumItem -> {
+                val artistNames = item.artists?.joinToString { it.name } ?: ""
+                val year = item.year?.toString() ?: ""
+                val subtitleText =
+                    listOfNotNull(artistNames.takeIf { it.isNotEmpty() }, year.takeIf { it.isNotEmpty() })
+                        .joinToString(" • ")
+                Quadruple(
+                    item.title,
+                    subtitleText,
+                    item.thumbnail,
+                    RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
+                )
+            }
+
+            is ArtistItem -> {
+                Quadruple(
+                    item.title,
+                    stringResource(R.string.artist),
+                    item.thumbnail,
+                    CircleShape,
+                )
+            }
+
+            is PlaylistItem -> {
+                Quadruple(
+                    item.title,
+                    item.author?.name ?: item.songCountText ?: stringResource(R.string.playlist),
+                    item.thumbnail,
+                    RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
+                )
+            }
         }
-        is AlbumItem -> {
-            val artistNames = item.artists?.joinToString { it.name } ?: ""
-            val year = item.year?.toString() ?: ""
-            val subtitleText = listOfNotNull(artistNames.takeIf { it.isNotEmpty() }, year.takeIf { it.isNotEmpty() })
-                .joinToString(" • ")
-            Quadruple(
-                item.title,
-                subtitleText,
-                item.thumbnail,
-                RoundedCornerShape(Dimensions.ThumbnailCornerRadius)
-            )
-        }
-        is ArtistItem -> Quadruple(
-            item.title,
-            stringResource(R.string.artist),
-            item.thumbnail,
-            CircleShape
-        )
-        is PlaylistItem -> Quadruple(
-            item.title,
-            item.author?.name ?: item.songCountText ?: stringResource(R.string.playlist),
-            item.thumbnail,
-            RoundedCornerShape(Dimensions.ThumbnailCornerRadius)
-        )
-    }
-    
+
     ListItem(
         title = title,
         subtitle = subtitle,
@@ -111,7 +121,7 @@ fun YouTubeListItem(
                 isActive = isActive,
                 isPlaying = isPlaying,
                 isSelected = isSelected,
-                modifier = Modifier.size(Dimensions.ListThumbnailSize)
+                modifier = Modifier.size(Dimensions.ListThumbnailSize),
             )
         },
         trailingContent = {
@@ -121,14 +131,14 @@ fun YouTubeListItem(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.more_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         },
         isSelected = isSelected,
         isActive = isActive,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -147,44 +157,53 @@ fun YouTubeGridItem(
         if (item is AlbumItem && item.explicit) {
             BadgeIcon.Explicit()
         }
-    }
+    },
 ) {
-    val (title, subtitle, thumbnailUrl, shape) = when (item) {
-        is SongItem -> {
-            val artistNames = item.artists.joinToString { it.name }
-            Quadruple(
-                item.title,
-                artistNames,
-                item.thumbnail,
-                RoundedCornerShape(Dimensions.ThumbnailCornerRadius)
-            )
+    val (title, subtitle, thumbnailUrl, shape) =
+        when (item) {
+            is SongItem -> {
+                val artistNames = item.artists.joinToString { it.name }
+                Quadruple(
+                    item.title,
+                    artistNames,
+                    item.thumbnail,
+                    RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
+                )
+            }
+
+            is AlbumItem -> {
+                val artistNames = item.artists?.joinToString { it.name } ?: ""
+                val year = item.year?.toString() ?: ""
+                val subtitleText =
+                    listOfNotNull(artistNames.takeIf { it.isNotEmpty() }, year.takeIf { it.isNotEmpty() })
+                        .joinToString(" • ")
+                Quadruple(
+                    item.title,
+                    subtitleText,
+                    item.thumbnail,
+                    RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
+                )
+            }
+
+            is ArtistItem -> {
+                Quadruple(
+                    item.title,
+                    stringResource(R.string.artist),
+                    item.thumbnail,
+                    CircleShape,
+                )
+            }
+
+            is PlaylistItem -> {
+                Quadruple(
+                    item.title,
+                    item.author?.name ?: item.songCountText ?: stringResource(R.string.playlist),
+                    item.thumbnail,
+                    RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
+                )
+            }
         }
-        is AlbumItem -> {
-            val artistNames = item.artists?.joinToString { it.name } ?: ""
-            val year = item.year?.toString() ?: ""
-            val subtitleText = listOfNotNull(artistNames.takeIf { it.isNotEmpty() }, year.takeIf { it.isNotEmpty() })
-                .joinToString(" • ")
-            Quadruple(
-                item.title,
-                subtitleText,
-                item.thumbnail,
-                RoundedCornerShape(Dimensions.ThumbnailCornerRadius)
-            )
-        }
-        is ArtistItem -> Quadruple(
-            item.title,
-            stringResource(R.string.artist),
-            item.thumbnail,
-            CircleShape
-        )
-        is PlaylistItem -> Quadruple(
-            item.title,
-            item.author?.name ?: item.songCountText ?: stringResource(R.string.playlist),
-            item.thumbnail,
-            RoundedCornerShape(Dimensions.ThumbnailCornerRadius)
-        )
-    }
-    
+
     GridItem(
         title = title,
         subtitle = subtitle,
@@ -194,24 +213,25 @@ fun YouTubeGridItem(
                 model = thumbnailUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(shape)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .clip(shape),
             )
-            
+
             if (isActive || isPlaying) {
                 ItemThumbnail(
                     thumbnailUrl = thumbnailUrl,
                     shape = shape,
                     isActive = isActive,
                     isPlaying = isPlaying,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         },
         thumbnailRatio = thumbnailRatio,
         fillMaxWidth = fillMaxWidth,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -225,7 +245,7 @@ private data class Quadruple<A, B, C, D>(
     val first: A,
     val second: B,
     val third: C,
-    val fourth: D
+    val fourth: D,
 )
 
 @Composable
@@ -234,14 +254,14 @@ fun QuickPickTrackItem(
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
-    onMenuClick: (() -> Unit)? = null
+    onMenuClick: (() -> Unit)? = null,
 ) {
     YouTubeListItem(
         item = item,
         isActive = isActive,
         isPlaying = isPlaying,
         onMenuClick = onMenuClick,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -252,7 +272,7 @@ fun ChartTrackItem(
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
-    onMenuClick: (() -> Unit)? = null
+    onMenuClick: (() -> Unit)? = null,
 ) {
     ListItem(
         title = item.title,
@@ -269,7 +289,7 @@ fun ChartTrackItem(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         },
         thumbnailContent = {
@@ -277,7 +297,7 @@ fun ChartTrackItem(
                 thumbnailUrl = item.thumbnail,
                 isActive = isActive,
                 isPlaying = isPlaying,
-                modifier = Modifier.size(Dimensions.ListThumbnailSize)
+                modifier = Modifier.size(Dimensions.ListThumbnailSize),
             )
         },
         trailingContent = {
@@ -286,13 +306,13 @@ fun ChartTrackItem(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.more_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         },
         isActive = isActive,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -307,34 +327,36 @@ fun ChartTrackItem(
     isPlaying: Boolean = false,
     isDownloaded: Boolean = false,
     onClick: () -> Unit = {},
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .height(Dimensions.ListItemHeight)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-            .padding(horizontal = 12.dp)
+        modifier =
+            modifier
+                .height(Dimensions.ListItemHeight)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ).padding(horizontal = 12.dp),
     ) {
         BadgeIcon.ChartPosition(rank)
         Spacer(modifier = Modifier.width(8.dp))
-        
+
         AsyncImage(
             model = thumbnailUrl,
             contentDescription = title,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(Dimensions.ListThumbnailSize)
-                .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius))
+            modifier =
+                Modifier
+                    .size(Dimensions.ListThumbnailSize)
+                    .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius)),
         )
-        
+
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 12.dp)
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
         ) {
             Text(
                 text = title,
@@ -342,16 +364,20 @@ fun ChartTrackItem(
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = if (isPlaying) MaterialTheme.colorScheme.primary 
-                       else MaterialTheme.colorScheme.onBackground
+                color =
+                    if (isPlaying) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onBackground
+                    },
             )
-            
+
             Text(
                 text = artist,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
         if (isDownloaded) {
@@ -359,7 +385,7 @@ fun ChartTrackItem(
                 imageVector = Icons.Rounded.OfflinePin,
                 contentDescription = stringResource(R.string.status_downloaded),
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(18.dp),
             )
         }
     }

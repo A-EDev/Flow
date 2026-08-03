@@ -26,7 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.VideoThumbnailImage
@@ -39,44 +39,47 @@ internal val LibraryShelfArtworkHeight = LibraryShelfCardWidth * 9f / 16f
 internal fun LibraryVideoCard(
     video: Video,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .width(LibraryShelfCardWidth)
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier =
+            modifier
+                .width(LibraryShelfCardWidth)
+                .clickable(onClick = onClick)
+                .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             VideoThumbnailImage(
                 videoId = video.id,
                 model = video.thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
 
             if (video.duration > 0) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
                     shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                 ) {
                     Text(
                         text = formatDuration(video.duration),
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
@@ -89,14 +92,14 @@ internal fun LibraryVideoCard(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = video.channelName,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -109,44 +112,47 @@ internal fun LibraryAlbumCard(
     thumbnailUrl: String?,
     onClick: () -> Unit,
     isDownloaded: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .width(LibraryShelfArtworkHeight)
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier =
+            modifier
+                .width(LibraryShelfArtworkHeight)
+                .clickable(onClick = onClick)
+                .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Surface(
             modifier = Modifier.size(LibraryShelfArtworkHeight),
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surfaceVariant,
-            tonalElevation = 2.dp
+            tonalElevation = 2.dp,
         ) {
             Box {
                 AsyncImage(
                     model = thumbnailUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
 
                 if (isDownloaded) {
                     Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp),
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp),
                         shape = MaterialTheme.shapes.small,
                         color = MaterialTheme.colorScheme.inverseSurface,
-                        contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.OfflinePin,
                             contentDescription = stringResource(R.string.status_downloaded),
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .size(14.dp)
+                            modifier =
+                                Modifier
+                                    .padding(4.dp)
+                                    .size(14.dp),
                         )
                     }
                 }
@@ -160,14 +166,14 @@ internal fun LibraryAlbumCard(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

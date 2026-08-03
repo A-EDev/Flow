@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
 
@@ -48,7 +48,7 @@ import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
 fun RecognitionHistoryScreen(
     onBackClick: () -> Unit,
     onItemClick: (RecognitionHistoryEntity) -> Unit,
-    viewModel: RecognitionViewModel = hiltViewModel()
+    viewModel: RecognitionViewModel = hiltViewModel(),
 ) {
     val history by viewModel.history.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -69,18 +69,19 @@ fun RecognitionHistoryScreen(
                 TextButton(onClick = { showClearDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
-            }
+            },
         )
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
     ) {
         RecognitionHeader(
             title = stringResource(R.string.recognition_history),
-            onBackClick = onBackClick
+            onBackClick = onBackClick,
         ) {
             if (history.isNotEmpty()) {
                 IconButton(onClick = { showClearDialog = true }) {
@@ -92,37 +93,40 @@ fun RecognitionHistoryScreen(
         OutlinedTextField(
             value = query,
             onValueChange = viewModel::onQueryChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             singleLine = true,
-            placeholder = { Text(stringResource(R.string.recognition_search_history)) }
+            placeholder = { Text(stringResource(R.string.recognition_search_history)) },
         )
 
         if (history.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = stringResource(R.string.recognition_history_empty),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
             ) {
                 items(history, key = { it.id }) { item ->
                     HistoryRow(
                         item = item,
                         onClick = { onItemClick(item) },
-                        onDelete = { viewModel.delete(item.id) }
+                        onDelete = { viewModel.delete(item.id) },
                     )
                 }
             }
@@ -134,28 +138,30 @@ fun RecognitionHistoryScreen(
 private fun HistoryRow(
     item: RecognitionHistoryEntity,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center,
         ) {
             if (!item.coverArtUrl.isNullOrBlank() || !item.coverArtHqUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = item.coverArtHqUrl ?: item.coverArtUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             } else {
                 Icon(Icons.Filled.MusicNote, contentDescription = null)
@@ -168,19 +174,19 @@ private fun HistoryRow(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = item.artist,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = DateUtils.getRelativeTimeSpanString(item.recognizedAt).toString(),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
         }
 

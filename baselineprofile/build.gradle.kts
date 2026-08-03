@@ -17,7 +17,7 @@ android {
     defaultConfig {
         // Baseline profile generation requires API 28+.
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 36
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

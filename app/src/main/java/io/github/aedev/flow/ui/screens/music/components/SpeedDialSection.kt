@@ -43,7 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.ItemThumbnail
 import io.github.aedev.flow.ui.components.SectionTitle
@@ -56,13 +56,14 @@ fun SpeedDialSection(
     downloadedTrackIds: Set<String> = emptySet(),
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     if (speedDialTracks.isEmpty()) return
 
-    val pageCount = remember(speedDialTracks) {
-        1 + ((speedDialTracks.size - 8).coerceAtLeast(0) + 8) / 9
-    }
+    val pageCount =
+        remember(speedDialTracks) {
+            1 + ((speedDialTracks.size - 8).coerceAtLeast(0) + 8) / 9
+        }
     val pagerState = rememberPagerState(pageCount = { pageCount })
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val horizontalPadding = 24.dp
@@ -70,40 +71,44 @@ fun SpeedDialSection(
     val itemSize = (screenWidth - horizontalPadding - gap * 2) / 3
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 10.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp, bottom = 10.dp),
     ) {
         SectionTitle(title = stringResource(R.string.section_speed_dial))
 
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(itemSize * 3 + gap * 2),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(itemSize * 3 + gap * 2),
             contentPadding = PaddingValues(horizontal = 12.dp),
-            pageSpacing = 12.dp
+            pageSpacing = 12.dp,
         ) { page ->
-            val pageTracks = if (page == 0) {
-                speedDialTracks.take(8)
-            } else {
-                speedDialTracks.drop(8 + (page - 1) * 9).take(9)
-            }
+            val pageTracks =
+                if (page == 0) {
+                    speedDialTracks.take(8)
+                } else {
+                    speedDialTracks.drop(8 + (page - 1) * 9).take(9)
+                }
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(gap)
+                verticalArrangement = Arrangement.spacedBy(gap),
             ) {
                 for (rowIndex in 0 until 3) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(gap)
+                        horizontalArrangement = Arrangement.spacedBy(gap),
                     ) {
                         for (colIndex in 0 until 3) {
                             val slotIndex = rowIndex * 3 + colIndex
                             Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f)
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f),
                             ) {
                                 if (page == 0 && slotIndex == 8) {
                                     RandomizeSpeedDialCard(
@@ -112,7 +117,7 @@ fun SpeedDialSection(
                                             if (shuffled.isNotEmpty()) {
                                                 onSongClick(shuffled.first(), shuffled, "speed_dial_shuffle")
                                             }
-                                        }
+                                        },
                                     )
                                 } else {
                                     pageTracks.getOrNull(slotIndex)?.let { track ->
@@ -120,7 +125,7 @@ fun SpeedDialSection(
                                             track = track,
                                             isDownloaded = downloadedTrackIds.contains(track.videoId),
                                             onClick = { onSongClick(track, speedDialTracks, "speed_dial") },
-                                            onLongClick = { onTrackMenu(track) }
+                                            onLongClick = { onTrackMenu(track) },
                                         )
                                     }
                                 }
@@ -138,20 +143,22 @@ fun SpeedDialSection(
                     .wrapContentHeight()
                     .fillMaxWidth()
                     .align(Alignment.CenterHorizontally),
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
             ) {
                 repeat(pageCount) { iteration ->
-                    val color = if (pagerState.currentPage == iteration) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    }
+                    val color =
+                        if (pagerState.currentPage == iteration) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        }
                     Box(
-                        modifier = Modifier
-                            .padding(4.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                            .size(6.dp)
+                        modifier =
+                            Modifier
+                                .padding(4.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .size(6.dp),
                     )
                 }
             }
@@ -166,37 +173,39 @@ fun SpeedDialArtworkCard(
     isDownloaded: Boolean = false,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .fillMaxSize()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
                 model = track.highResThumbnailUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.Black.copy(alpha = 0.12f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.72f)
-                            )
-                        )
-                    )
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Black.copy(alpha = 0.12f),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.72f),
+                                ),
+                            ),
+                        ),
             )
             Text(
                 text = track.title,
@@ -205,19 +214,21 @@ fun SpeedDialArtworkCard(
                 color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(12.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(12.dp),
             )
             if (isDownloaded) {
                 Icon(
                     imageVector = Icons.Rounded.OfflinePin,
                     contentDescription = stringResource(R.string.status_downloaded),
                     tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp)
-                        .size(18.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(10.dp)
+                            .size(18.dp),
                 )
             }
         }
@@ -227,17 +238,17 @@ fun SpeedDialArtworkCard(
 @Composable
 fun RandomizeSpeedDialCard(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier.fillMaxSize(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        onClick = onClick
+        onClick = onClick,
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             val dotColor = MaterialTheme.colorScheme.onSecondaryContainer
             val dotSize = 14.dp
@@ -247,15 +258,16 @@ fun RandomizeSpeedDialCard(
                 Alignment.TopEnd,
                 Alignment.Center,
                 Alignment.BottomStart,
-                Alignment.BottomEnd
+                Alignment.BottomEnd,
             ).forEach { alignment ->
                 Box(
-                    modifier = Modifier
-                        .align(alignment)
-                        .padding(dotPadding)
-                        .size(dotSize)
-                        .clip(CircleShape)
-                        .background(dotColor)
+                    modifier =
+                        Modifier
+                            .align(alignment)
+                            .padding(dotPadding)
+                            .size(dotSize)
+                            .clip(CircleShape)
+                            .background(dotColor),
                 )
             }
         }
@@ -265,42 +277,47 @@ fun RandomizeSpeedDialCard(
 @Composable
 fun ShufflePlayCard(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier.fillMaxSize(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-        ),
-        onClick = onClick
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+            ),
+        onClick = onClick,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.tertiary
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            brush =
+                                Brush.linearGradient(
+                                    colors =
+                                        listOf(
+                                            MaterialTheme.colorScheme.primary,
+                                            MaterialTheme.colorScheme.tertiary,
+                                        ),
+                                ),
+                        ),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = stringResource(R.string.shuffle_play),
                     tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 )
             }
 
@@ -311,7 +328,7 @@ fun ShufflePlayCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = stringResource(R.string.feeling_lucky),
@@ -319,7 +336,7 @@ fun ShufflePlayCard(
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -330,27 +347,29 @@ fun ShufflePlayCard(
 fun SpeedDialTrackCard(
     track: MusicTrack,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier.fillMaxSize(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        ),
-        onClick = onClick
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            ),
+        onClick = onClick,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ItemThumbnail(
                 thumbnailUrl = track.thumbnailUrl,
                 size = 40.dp,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
             )
 
             Column(verticalArrangement = Arrangement.Center) {
@@ -360,7 +379,7 @@ fun SpeedDialTrackCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = track.artist,
@@ -368,7 +387,7 @@ fun SpeedDialTrackCard(
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

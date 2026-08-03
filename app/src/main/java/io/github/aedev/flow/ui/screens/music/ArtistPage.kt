@@ -34,23 +34,24 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import io.github.aedev.flow.R
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
-import io.github.aedev.flow.ui.components.AddToPlaylistDialog
-import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.screens.music.components.TrackListItem
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -64,19 +65,19 @@ fun ArtistPage(
     onArtistClick: (String) -> Unit,
     onFollowClick: () -> Unit,
     onSeeAllClick: (String, String?) -> Unit = { _, _ -> },
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberLazyListState()
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val density = LocalDensity.current
-    
+
     val transparentAppBar by remember {
         derivedStateOf {
             scrollState.firstVisibleItemIndex == 0 && scrollState.firstVisibleItemScrollOffset < 100
         }
     }
-    
+
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
     var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
@@ -86,24 +87,33 @@ fun ArtistPage(
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onViewArtist = { 
+            onViewArtist = {
                 if (selectedTrack!!.channelId.isNotEmpty()) {
                     onArtistClick(selectedTrack!!.channelId)
                 }
             },
-            onViewAlbum = { 
+            onViewAlbum = {
                 selectedTrack!!.albumId?.let { albumId ->
-                     onAlbumClick(MusicPlaylist(id = albumId, title = selectedTrack!!.album ?: "Album", thumbnailUrl = ""))
+                    onAlbumClick(MusicPlaylist(id = albumId, title = selectedTrack!!.album ?: "Album", thumbnailUrl = ""))
                 }
             },
-            onShare = { 
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, selectedTrack!!.title, selectedTrack!!.artist, selectedTrack!!.videoId))
-                }
+            onShare = {
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            context.getString(
+                                R.string.share_message_template,
+                                selectedTrack!!.title,
+                                selectedTrack!!.artist,
+                                selectedTrack!!.videoId,
+                            ),
+                        )
+                    }
                 context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            }
+            },
         )
     }
 
@@ -117,26 +127,26 @@ fun ArtistPage(
                         id = collection.id,
                         title = collection.title,
                         thumbnailUrl = collection.thumbnailUrl.orEmpty(),
-                        author = collection.subtitle
-                    )
+                        author = collection.subtitle,
+                    ),
                 )
-            }
+            },
         )
     }
-    
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     if (!transparentAppBar) {
                         Text(
                             text = artistDetails.name,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.titleLarge
+                            style = MaterialTheme.typography.titleLarge,
                         )
                     }
                 },
@@ -145,7 +155,7 @@ fun ArtistPage(
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.btn_back),
-                            tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface
+                            tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 },
@@ -158,23 +168,24 @@ fun ArtistPage(
                         Icon(
                             imageVector = Icons.Default.Link,
                             contentDescription = stringResource(R.string.share_link_cd),
-                            tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface
+                            tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0),
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (transparentAppBar) Color.Transparent else MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = if (transparentAppBar) Color.Transparent else MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background,
+                    ),
             )
-        }
+        },
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 state = scrollState,
                 contentPadding = PaddingValues(bottom = 32.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             ) {
                 // Header Image Setup
                 item {
@@ -182,54 +193,63 @@ fun ArtistPage(
                     Box(modifier = Modifier.fillMaxWidth()) {
                         // Background Image
                         AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(imageUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(400.dp)
-                                .blur(50.dp)
-                                .mediaQuery(
-                                    comparator = androidx.compose.ui.layout.ContentScale.Crop
-                                ),
-                            contentScale = ContentScale.Crop,
-                            alpha = 0.6f
-                        )
-                        
-                        // Main Hero Image
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                        ) {
-                             AsyncImage(
-                                model = ImageRequest.Builder(context)
+                            model =
+                                ImageRequest
+                                    .Builder(context)
                                     .data(imageUrl)
                                     .crossfade(true)
                                     .build(),
+                            contentDescription = null,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(400.dp)
+                                    .blur(50.dp)
+                                    .mediaQuery(
+                                        comparator = androidx.compose.ui.layout.ContentScale.Crop,
+                                    ),
+                            contentScale = ContentScale.Crop,
+                            alpha = 0.6f,
+                        )
+
+                        // Main Hero Image
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f),
+                        ) {
+                            AsyncImage(
+                                model =
+                                    ImageRequest
+                                        .Builder(context)
+                                        .data(imageUrl)
+                                        .crossfade(true)
+                                        .build(),
                                 contentDescription = null,
-                                modifier = Modifier
-                                    .fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize(),
+                                contentScale = ContentScale.Crop,
                             )
-                            
+
                             // Bottom Gradient for Text
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                Color.Black.copy(alpha = 0.1f),
-                                                Color.Black.copy(alpha = 0.5f),
-                                                MaterialTheme.colorScheme.background
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors =
+                                                    listOf(
+                                                        Color.Transparent,
+                                                        Color.Black.copy(alpha = 0.1f),
+                                                        Color.Black.copy(alpha = 0.5f),
+                                                        MaterialTheme.colorScheme.background,
+                                                    ),
+                                                startY = 0.5f,
                                             ),
-                                            startY = 0.5f
-                                        )
-                                    )
+                                        ),
                             )
                         }
                     }
@@ -238,80 +258,96 @@ fun ArtistPage(
                 // Artist Info & Controls
                 item {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .offset(y = (-32).dp)
-                            .padding(horizontal = 24.dp)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .offset(y = (-32).dp)
+                                .padding(horizontal = 24.dp),
                     ) {
                         Text(
                             text = artistDetails.name,
-                            style = MaterialTheme.typography.displaySmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = (-1).sp
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground
+                            style =
+                                MaterialTheme.typography.displaySmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-1).sp,
+                                ),
+                            color = MaterialTheme.colorScheme.onBackground,
                         )
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
-                        
+
                         // Controls Row
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             // Subscribe Button
                             Button(
                                 onClick = onFollowClick,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (artistDetails.isSubscribed) 
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    else 
-                                        MaterialTheme.colorScheme.primary,
-                                    contentColor = if (artistDetails.isSubscribed)
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    else
-                                        MaterialTheme.colorScheme.onPrimary
-                                ),
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor =
+                                            if (artistDetails.isSubscribed) {
+                                                MaterialTheme.colorScheme.surfaceVariant
+                                            } else {
+                                                MaterialTheme.colorScheme.primary
+                                            },
+                                        contentColor =
+                                            if (artistDetails.isSubscribed) {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            } else {
+                                                MaterialTheme.colorScheme.onPrimary
+                                            },
+                                    ),
                                 contentPadding = PaddingValues(horizontal = 24.dp),
                                 shape = RoundedCornerShape(32.dp),
-                                modifier = Modifier.height(44.dp)
+                                modifier = Modifier.height(44.dp),
                             ) {
                                 Text(
-                                    text = if (artistDetails.isSubscribed) stringResource(R.string.subscribed) else stringResource(R.string.subscribe),
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                    text =
+                                        if (artistDetails.isSubscribed) {
+                                            stringResource(
+                                                R.string.subscribed,
+                                            )
+                                        } else {
+                                            stringResource(R.string.subscribe)
+                                        },
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                                 )
                             }
-                            
+
                             Spacer(modifier = Modifier.weight(1f))
-                            
+
                             // Shuffle Button
                             FilledIconButton(
-                                onClick = { 
+                                onClick = {
                                     if (artistDetails.topTracks.isNotEmpty()) {
                                         onTrackClick(artistDetails.topTracks.random(), artistDetails.topTracks.shuffled())
                                     }
                                 },
                                 modifier = Modifier.size(48.dp),
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
+                                colors =
+                                    IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    ),
                             ) {
                                 Icon(Icons.Default.Shuffle, stringResource(R.string.shuffle))
                             }
 
                             // Play Button
                             FilledIconButton(
-                                onClick = { 
+                                onClick = {
                                     if (artistDetails.topTracks.isNotEmpty()) {
                                         onTrackClick(artistDetails.topTracks.first(), artistDetails.topTracks)
                                     }
                                 },
                                 modifier = Modifier.size(48.dp),
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                )
+                                colors =
+                                    IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                                    ),
                             ) {
                                 Icon(Icons.Default.PlayArrow, stringResource(R.string.play))
                             }
@@ -322,17 +358,18 @@ fun ArtistPage(
                 // About Artist Section
                 item {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .padding(bottom = 24.dp)
-                            .animateContentSize()
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
+                                .padding(bottom = 24.dp)
+                                .animateContentSize(),
                     ) {
-                         if (artistDetails.subscriberCount > 0) {
+                        if (artistDetails.subscriberCount > 0) {
                             Text(
                                 text = stringResource(R.string.subscribers_count_template, formatViews(artistDetails.subscriberCount)),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
@@ -344,7 +381,7 @@ fun ArtistPage(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = if (descriptionExpanded) Int.MAX_VALUE else 3,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.clickable { descriptionExpanded = !descriptionExpanded }
+                                modifier = Modifier.clickable { descriptionExpanded = !descriptionExpanded },
                             )
                         }
                     }
@@ -354,18 +391,19 @@ fun ArtistPage(
                 if (artistDetails.topTracks.isNotEmpty()) {
                     item {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = stringResource(R.string.filter_popular),
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             )
                             if (artistDetails.topTracks.size > 5 || artistDetails.topTracksBrowseId != null) {
-                                TextButton(onClick = { 
+                                TextButton(onClick = {
                                     artistDetails.topTracksBrowseId?.let { onSeeAllClick(it, artistDetails.topTracksParams) }
                                 }) {
                                     Text(stringResource(R.string.action_view_all))
@@ -373,7 +411,7 @@ fun ArtistPage(
                             }
                         }
                     }
-                    
+
                     itemsIndexed(artistDetails.topTracks.take(5)) { index, track ->
                         TrackListItem(
                             track = track,
@@ -384,7 +422,7 @@ fun ArtistPage(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.width(32.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 )
                             },
                             onClick = { onTrackClick(track, artistDetails.topTracks) },
@@ -392,32 +430,32 @@ fun ArtistPage(
                                 selectedTrack = track
                                 showBottomSheet = true
                             },
-                            onMenuClick = { 
+                            onMenuClick = {
                                 selectedTrack = track
                                 showBottomSheet = true
-                            }
+                            },
                         )
                     }
                 }
-                
+
                 // Singles & EPs
                 if (artistDetails.singles.isNotEmpty()) {
-                    item { 
+                    item {
                         SectionHeader(
                             title = stringResource(R.string.section_singles),
-                            onSeeAllClick = { artistDetails.singlesBrowseId?.let { onSeeAllClick(it, artistDetails.singlesParams) } }
+                            onSeeAllClick = { artistDetails.singlesBrowseId?.let { onSeeAllClick(it, artistDetails.singlesParams) } },
                         )
                     }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.singles) { album ->
                                 AlbumCard(
                                     album = album,
                                     onClick = { onAlbumClick(album) },
-                                    onActionClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) }
+                                    onActionClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
                                 )
                             }
                         }
@@ -426,35 +464,35 @@ fun ArtistPage(
 
                 // Albums
                 if (artistDetails.albums.isNotEmpty()) {
-                    item { 
+                    item {
                         SectionHeader(
                             title = stringResource(R.string.filter_albums),
-                            onSeeAllClick = { artistDetails.albumsBrowseId?.let { onSeeAllClick(it, artistDetails.albumsParams) } }
+                            onSeeAllClick = { artistDetails.albumsBrowseId?.let { onSeeAllClick(it, artistDetails.albumsParams) } },
                         )
                     }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.albums) { album ->
                                 AlbumCard(
                                     album = album,
                                     onClick = { onAlbumClick(album) },
-                                    onActionClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) }
+                                    onActionClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
                                 )
                             }
                         }
                     }
                 }
-                
+
                 // Videos
                 if (artistDetails.videos.isNotEmpty()) {
                     item { SectionHeader(title = stringResource(R.string.tab_videos)) }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.videos, key = { it.videoId }) { video ->
                                 VideoCard(video = video, onClick = { onTrackClick(video, listOf(video)) })
@@ -469,32 +507,32 @@ fun ArtistPage(
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.featuredOn) { playlist ->
                                 AlbumCard(
                                     album = playlist,
                                     onClick = { onAlbumClick(playlist) },
                                     showAuthor = true,
-                                    onActionClick = { selectedCollection = playlist.toCollectionActionItem(isAlbum = false) }
+                                    onActionClick = { selectedCollection = playlist.toCollectionActionItem(isAlbum = false) },
                                 )
                             }
                         }
                     }
                 }
-                
+
                 // Related Artists
                 if (artistDetails.relatedArtists.isNotEmpty()) {
                     item { SectionHeader(title = stringResource(R.string.section_fans_also_like)) }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.relatedArtists) { artist ->
                                 RelatedArtistCard(
                                     artist = artist,
-                                    onClick = { onArtistClick(artist.channelId) }
+                                    onClick = { onArtistClick(artist.channelId) },
                                 )
                             }
                         }
@@ -508,32 +546,35 @@ fun ArtistPage(
 private fun Modifier.mediaQuery(comparator: androidx.compose.ui.layout.ContentScale): Modifier = this
 
 @Composable
-fun SectionHeader(title: String, onSeeAllClick: (() -> Unit)? = null) {
+fun SectionHeader(
+    title: String,
+    onSeeAllClick: (() -> Unit)? = null,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 24.dp, end = 12.dp, top = 24.dp, bottom = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 12.dp, top = 24.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
         )
         if (onSeeAllClick != null) {
             TextButton(
                 onClick = onSeeAllClick,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
             ) {
                 Text(
                     stringResource(R.string.action_view_all),
-                    style = MaterialTheme.typography.labelLarge
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
         }
     }
 }
-
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -541,34 +582,36 @@ fun AlbumCard(
     album: MusicPlaylist,
     onClick: () -> Unit,
     showAuthor: Boolean = false,
-    onActionClick: (() -> Unit)? = null
+    onActionClick: (() -> Unit)? = null,
 ) {
     Column(
-        modifier = Modifier
-            .width(160.dp)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onActionClick
-            )
+        modifier =
+            Modifier
+                .width(160.dp)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onActionClick,
+                ),
     ) {
         Box {
             AsyncImage(
                 model = album.thumbnailUrl,
                 contentDescription = null,
-                modifier = Modifier
-                    .size(160.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
+                modifier =
+                    Modifier
+                        .size(160.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop,
             )
             if (onActionClick != null) {
                 IconButton(
                     onClick = onActionClick,
-                    modifier = Modifier.align(Alignment.TopEnd)
+                    modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.more_options),
-                        tint = Color.White
+                        tint = Color.White,
                     )
                 }
             }
@@ -578,14 +621,23 @@ fun AlbumCard(
             text = album.title,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = if (showAuthor) stringResource(R.string.subtitle_playlist_template, album.author) else if (album.trackCount > 0) stringResource(R.string.tracks_count_template, album.trackCount) else stringResource(R.string.album_label),
+            text =
+                if (showAuthor) {
+                    stringResource(R.string.subtitle_playlist_template, album.author)
+                } else if (album.trackCount >
+                    0
+                ) {
+                    stringResource(R.string.tracks_count_template, album.trackCount)
+                } else {
+                    stringResource(R.string.album_label)
+                },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -597,25 +649,30 @@ private fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollect
         subtitle = author,
         thumbnailUrl = thumbnailUrl,
         description = if (trackCount > 0) "$trackCount tracks" else author,
-        isAlbum = isAlbum
+        isAlbum = isAlbum,
     )
 
 @Composable
-fun VideoCard(video: MusicTrack, onClick: () -> Unit) {
+fun VideoCard(
+    video: MusicTrack,
+    onClick: () -> Unit,
+) {
     Column(
-        modifier = Modifier
-            .width(220.dp)
-            .clickable(onClick = onClick)
+        modifier =
+            Modifier
+                .width(220.dp)
+                .clickable(onClick = onClick),
     ) {
         Box {
             AsyncImage(
                 model = video.thumbnailUrl,
                 contentDescription = null,
-                modifier = Modifier
-                    .width(220.dp)
-                    .aspectRatio(16f/9f)
-                    .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
+                modifier =
+                    Modifier
+                        .width(220.dp)
+                        .aspectRatio(16f / 9f)
+                        .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop,
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -623,38 +680,44 @@ fun VideoCard(video: MusicTrack, onClick: () -> Unit) {
             text = video.title,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
-        
+
         val viewsText = if (video.views > 0) formatViews(video.views) else null
-        val subtitle = if (viewsText != null) {
-            stringResource(R.string.artist_views_template, video.artist, viewsText)
-        } else {
-            video.artist
-        }
+        val subtitle =
+            if (viewsText != null) {
+                stringResource(R.string.artist_views_template, video.artist, viewsText)
+            } else {
+                video.artist
+            }
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 @Composable
-fun RelatedArtistCard(artist: ArtistDetails, onClick: () -> Unit) {
+fun RelatedArtistCard(
+    artist: ArtistDetails,
+    onClick: () -> Unit,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .width(100.dp)
-            .clickable(onClick = onClick)
+        modifier =
+            Modifier
+                .width(100.dp)
+                .clickable(onClick = onClick),
     ) {
         AsyncImage(
             model = artist.thumbnailUrl,
             contentDescription = null,
-            modifier = Modifier
-                .size(100.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(100.dp)
+                    .clip(CircleShape),
+            contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
@@ -662,8 +725,7 @@ fun RelatedArtistCard(artist: ArtistDetails, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
     }
 }
-

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -13,106 +14,105 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.ContentCopy
-import android.widget.Toast
-import io.github.aedev.flow.player.error.PlayerDiagnostics
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.res.stringResource
 import androidx.media3.common.util.UnstableApi
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
-import io.github.aedev.flow.player.PlayerHardwareController
-import io.github.aedev.flow.ui.components.DraggablePlayerLayout
-import io.github.aedev.flow.ui.components.PlayerDraggableState
-import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
-import io.github.aedev.flow.ui.components.PlayerSheetValue
-import io.github.aedev.flow.ui.screens.player.EnhancedVideoPlayerScreen
-import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
-import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
-import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
-import io.github.aedev.flow.ui.components.CommentSortFilterChips
-import io.github.aedev.flow.ui.components.FlowCommentsList
-import io.github.aedev.flow.ui.components.commentTimestampToMs
-import io.github.aedev.flow.ui.components.sortCommentsByFilter
-import io.github.aedev.flow.ui.components.Media3SubtitleOverlay
-import io.github.aedev.flow.ui.components.SleepTimerSheet
-import io.github.aedev.flow.ui.components.SubtitleStyle
-import io.github.aedev.flow.ui.screens.player.content.PlayerContent
-import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
-import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
-import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContainer
-import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
-import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
-import io.github.aedev.flow.ui.screens.player.effects.*
-import io.github.aedev.flow.ui.screens.player.PremiumControlsOverlay
-import io.github.aedev.flow.ui.screens.player.components.videoPlayerControls
-import io.github.aedev.flow.ui.screens.player.components.PlayerGestureOverlays
-import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
-import io.github.aedev.flow.ui.screens.player.components.AutoplayCountdownOverlay
-import io.github.aedev.flow.ui.screens.player.components.SettingsMenuDialog
-import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
-import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
-import io.github.aedev.flow.ui.screens.player.components.resolvePlayerQualityLabel
-import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.player.PictureInPictureHelper
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
-import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.PlayerHardwareController
 import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.player.dlna.DlnaDevice
-import java.util.Locale
+import io.github.aedev.flow.player.error.PlayerDiagnostics
+import io.github.aedev.flow.ui.components.CommentSortFilterChips
+import io.github.aedev.flow.ui.components.DraggablePlayerLayout
+import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
+import io.github.aedev.flow.ui.components.FlowCommentsList
+import io.github.aedev.flow.ui.components.Media3SubtitleOverlay
+import io.github.aedev.flow.ui.components.PlayerDraggableState
+import io.github.aedev.flow.ui.components.PlayerSheetValue
+import io.github.aedev.flow.ui.components.SleepTimerSheet
+import io.github.aedev.flow.ui.components.SubtitleStyle
+import io.github.aedev.flow.ui.components.commentTimestampToMs
+import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
+import io.github.aedev.flow.ui.components.sortCommentsByFilter
+import io.github.aedev.flow.ui.screens.player.EnhancedVideoPlayerScreen
+import io.github.aedev.flow.ui.screens.player.PremiumControlsOverlay
+import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.components.AutoplayCountdownOverlay
+import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
+import io.github.aedev.flow.ui.screens.player.components.PlayerGestureOverlays
+import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
+import io.github.aedev.flow.ui.screens.player.components.SettingsMenuDialog
+import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
+import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
+import io.github.aedev.flow.ui.screens.player.components.resolvePlayerQualityLabel
+import io.github.aedev.flow.ui.screens.player.components.videoPlayerControls
+import io.github.aedev.flow.ui.screens.player.content.PlayerContent
+import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
+import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContainer
+import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
+import io.github.aedev.flow.ui.screens.player.effects.*
+import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
+import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * GlobalPlayerOverlay - The main video player overlay that sits above everything.
- * 
+ *
  * This composable handles:
  * - Draggable player layout (expanded/collapsed states)
  * - All player effects (position tracking, controls, PiP, etc.)
  * - Dialogs and bottom sheets
  * - PiP mode rendering
- * 
+ *
  * @param video The current video to play (null if no video)
  * @param isVisible Whether the player overlay should be visible
  * @param playerSheetState State of the draggable player (expanded/collapsed)
@@ -133,15 +133,15 @@ fun GlobalPlayerOverlay(
     onClose: () -> Unit,
     onMinimize: () -> Unit,
     onNavigateToChannel: (String) -> Unit,
-    onNavigateToShorts: (String) -> Unit
+    onNavigateToShorts: (String) -> Unit,
 ) {
     if (video == null || !isVisible) return
-    
+
     val context = LocalContext.current
     val activity = context as ComponentActivity
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    
+
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity)
     val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
@@ -176,9 +176,10 @@ fun GlobalPlayerOverlay(
     val lockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
     val commentsEnabled by playerPreferences.commentsEnabled.collectAsState(initial = true)
     val isCommentsAvailable = commentsEnabled && playerUiState.hlsUrl.isNullOrEmpty()
-    val sortedComments = remember(comments, screenState.commentSortFilter) {
-        sortCommentsByFilter(comments, screenState.commentSortFilter)
-    }
+    val sortedComments =
+        remember(comments, screenState.commentSortFilter) {
+            sortCommentsByFilter(comments, screenState.commentSortFilter)
+        }
 
     LaunchedEffect(allowVolumeBoost) {
         if (!allowVolumeBoost && screenState.volumeLevel > 1f) {
@@ -220,23 +221,24 @@ fun GlobalPlayerOverlay(
     }
 
     var decodedVideoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
-    val videoAspectRatio = playerState.sourceVideoAspectRatio
-        .takeIf { playerState.currentVideoId == video.id }
-        ?: decodedVideoAspectRatio
+    val videoAspectRatio =
+        playerState.sourceVideoAspectRatio
+            .takeIf { playerState.currentVideoId == video.id }
+            ?: decodedVideoAspectRatio
     var mediaSheetProgress by remember { mutableFloatStateOf(0f) }
     var lockedMediaSheetCollapsedHeight by remember { mutableStateOf<androidx.compose.ui.unit.Dp?>(null) }
     val progressDrivenMediaSheetVisible =
         screenState.showCommentsSheet ||
-        screenState.showDescriptionSheet ||
-        screenState.showChaptersSheet ||
-        screenState.showPlaylistQueueSheet ||
-        screenState.showLiveChatSheet ||
-        screenState.showSleepTimerSheet ||
-        screenState.showSettingsMenu ||
-        screenState.showQualitySelector ||
-        screenState.showAudioTrackSelector ||
-        screenState.showPlaybackSpeedSelector ||
-        screenState.showSubtitleSelector
+            screenState.showDescriptionSheet ||
+            screenState.showChaptersSheet ||
+            screenState.showPlaylistQueueSheet ||
+            screenState.showLiveChatSheet ||
+            screenState.showSleepTimerSheet ||
+            screenState.showSettingsMenu ||
+            screenState.showQualitySelector ||
+            screenState.showAudioTrackSelector ||
+            screenState.showPlaybackSpeedSelector ||
+            screenState.showSubtitleSelector
     val progressDrivenMediaSheetResize =
         adaptivePlayerSizeEnabled &&
             !screenState.isFullscreen &&
@@ -256,15 +258,17 @@ fun GlobalPlayerOverlay(
             mediaSheetProgress = nextProgress
         }
     }
-    val sheetPlayerHeightFractionOverride = if (progressDrivenMediaSheetResize) {
-        1f - mediaSheetProgress.coerceIn(0f, 1f)
-    } else {
-        null
-    }
-    val effectiveVideoAspectRatio = when {
-        adaptivePlayerSizeEnabled || screenState.isFullscreen -> videoAspectRatio
-        else -> 16f / 9f
-    }
+    val sheetPlayerHeightFractionOverride =
+        if (progressDrivenMediaSheetResize) {
+            1f - mediaSheetProgress.coerceIn(0f, 1f)
+        } else {
+            null
+        }
+    val effectiveVideoAspectRatio =
+        when {
+            adaptivePlayerSizeEnabled || screenState.isFullscreen -> videoAspectRatio
+            else -> 16f / 9f
+        }
     var expandedPlayerBottom by remember { mutableStateOf(0.dp) }
     var pipForcedFullscreen by remember { mutableStateOf(false) }
 
@@ -285,11 +289,12 @@ fun GlobalPlayerOverlay(
 
     LaunchedEffect(rememberBrightnessEnabled, rememberedBrightnessLevel) {
         if (rememberBrightnessEnabled) {
-            screenState.brightnessLevel = if (rememberedBrightnessLevel < 0f) {
-                WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-            } else {
-                rememberedBrightnessLevel.coerceIn(0f, 1f)
-            }
+            screenState.brightnessLevel =
+                if (rememberedBrightnessLevel < 0f) {
+                    WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                } else {
+                    rememberedBrightnessLevel.coerceIn(0f, 1f)
+                }
         }
     }
 
@@ -303,20 +308,21 @@ fun GlobalPlayerOverlay(
     var showDlnaDialog by remember { mutableStateOf(false) }
     val dlnaDevices by DlnaCastManager.devices.collectAsState()
     val isDlnaDiscovering by DlnaCastManager.isDiscovering.collectAsState()
-    
+
     val localIsInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     var keepMiniOnQueueAutoAdvance by remember { mutableStateOf(false) }
-    
-    val progressProvider = remember {
-        {
-            if (screenState.duration > 0) {
-                (screenState.currentPosition.toFloat() / screenState.duration.toFloat()).coerceIn(0f, 1f)
-            } else {
-                0f
+
+    val progressProvider =
+        remember {
+            {
+                if (screenState.duration > 0) {
+                    (screenState.currentPosition.toFloat() / screenState.duration.toFloat()).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
             }
         }
-    }
-    
+
     // Sync fullscreen state with player sheet state
     LaunchedEffect(playerSheetState.currentValue) {
         if (playerSheetState.currentValue == PlayerSheetValue.Collapsed) {
@@ -346,12 +352,13 @@ fun GlobalPlayerOverlay(
     val isTablet = config.smallestScreenWidthDp >= 600
     val windowInsetDensity = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
-    val sponsorSkipEndPadding = with(windowInsetDensity) {
-        maxOf(
-            WindowInsets.displayCutout.getRight(this, layoutDirection),
-            WindowInsets.systemBars.getRight(this, layoutDirection)
-        ).toDp() + 16.dp
-    }
+    val sponsorSkipEndPadding =
+        with(windowInsetDensity) {
+            maxOf(
+                WindowInsets.displayCutout.getRight(this, layoutDirection),
+                WindowInsets.systemBars.getRight(this, layoutDirection),
+            ).toDp() + 16.dp
+        }
     val sponsorSkipBottomInset = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
     val updateBrightnessLevel: (Float) -> Unit = { brightnessLevel ->
@@ -375,7 +382,7 @@ fun GlobalPlayerOverlay(
         screenState.isFullscreen = false
         screenState.isFullscreenPortrait = false
     }
-    
+
     // ===== EFFECTS =====
     LaunchedEffect(playerUiState.shouldDismissPlayer) {
         if (playerUiState.shouldDismissPlayer) {
@@ -389,12 +396,12 @@ fun GlobalPlayerOverlay(
             keepMiniOnQueueAutoAdvance = playerSheetState.currentValue == PlayerSheetValue.Collapsed
         }
     }
-    
+
     LaunchedEffect(playerUiState.isLoading) {
         val isQueueAutoAdvanceInMiniPlayer =
             keepMiniOnQueueAutoAdvance &&
-            playerState.queueTitle != null &&
-            playerSheetState.currentValue == PlayerSheetValue.Collapsed
+                playerState.queueTitle != null &&
+                playerSheetState.currentValue == PlayerSheetValue.Collapsed
 
         if (
             playerUiState.isLoading &&
@@ -419,9 +426,10 @@ fun GlobalPlayerOverlay(
     }
 
     BackHandler(
-        enabled = playerSheetState.currentValue == PlayerSheetValue.Expanded &&
-            !localIsInPipMode &&
-            !screenState.isFullscreen
+        enabled =
+            playerSheetState.currentValue == PlayerSheetValue.Expanded &&
+                !localIsInPipMode &&
+                !screenState.isFullscreen,
     ) {
         playerSheetState.collapse()
     }
@@ -430,7 +438,7 @@ fun GlobalPlayerOverlay(
         screenState.revealLockOverlay()
         screenState.onInteraction()
     }
-    
+
     val isMinimized by remember(playerSheetState) {
         derivedStateOf { playerSheetState.fraction > 0.5f }
     }
@@ -438,26 +446,27 @@ fun GlobalPlayerOverlay(
     PositionTrackingEffect(
         isPlaying = playerState.playWhenReady,
         screenState = screenState,
-        showsPreciseProgress = !isMinimized && !localIsInPipMode &&
-            (screenState.showControls || !screenState.isFullscreen)
+        showsPreciseProgress =
+            !isMinimized && !localIsInPipMode &&
+                (screenState.showControls || !screenState.isFullscreen),
     )
 
     PlaybackRefocusEffect(
         screenState = screenState,
-        lifecycleOwner = lifecycleOwner
+        lifecycleOwner = lifecycleOwner,
     )
-    
+
     AutoHideControlsEffect(
         showControls = screenState.showControls,
         isPlaying = playerState.playWhenReady,
         hasEnded = playerState.hasEnded,
         lastInteractionTimestamp = screenState.lastInteractionTimestamp,
         isTouchLocked = screenState.isTouchLocked,
-        onHideControls = { screenState.showControls = false }
+        onHideControls = { screenState.showControls = false },
     )
-    
+
     GestureOverlayAutoHideEffect(screenState)
-    
+
     SetupPipEffects(
         context = context,
         activity = activity,
@@ -468,7 +477,7 @@ fun GlobalPlayerOverlay(
         pipPreferences = pipPreferences,
         onPipModeChanged = { inPipMode ->
             GlobalPlayerState.setPipMode(inPipMode)
-        }
+        },
     )
 
     FullscreenEffect(
@@ -478,11 +487,11 @@ fun GlobalPlayerOverlay(
         lifecycleOwner = lifecycleOwner,
         fullscreenBrightnessLevel = if (rememberBrightnessEnabled) screenState.brightnessLevel else null,
         suppressFullscreenRequest = pipForcedFullscreen,
-        isPortrait = screenState.isFullscreenPortrait
+        isPortrait = screenState.isFullscreenPortrait,
     )
-    
+
     OrientationResetEffect(activity)
-    
+
     WatchProgressSaveEffect(
         videoId = video.id,
         video = video,
@@ -490,15 +499,15 @@ fun GlobalPlayerOverlay(
         currentPosition = { screenState.currentPosition },
         duration = { screenState.duration },
         uiState = playerUiState,
-        viewModel = playerViewModel
+        viewModel = playerViewModel,
     )
-    
+
     if (!playerUiState.isRestoredSession) {
         VideoLoadEffect(
             videoId = video.id,
             context = context,
             screenState = screenState,
-            viewModel = playerViewModel
+            viewModel = playerViewModel,
         )
 
         LaunchedEffect(
@@ -507,7 +516,7 @@ fun GlobalPlayerOverlay(
             playerUiState.error,
             playerUiState.streamInfo,
             playerUiState.audioStream,
-            playerUiState.localFilePath
+            playerUiState.localFilePath,
         ) {
             playerViewModel.ensurePlaybackPrepared(video.id)
         }
@@ -516,10 +525,10 @@ fun GlobalPlayerOverlay(
             videoId = video.id,
             uiState = playerUiState,
             screenState = screenState,
-            viewModel = playerViewModel
+            viewModel = playerViewModel,
         )
     }
-    
+
     val globalCurrentVideo by GlobalPlayerState.currentVideo.collectAsState()
     LaunchedEffect(globalCurrentVideo?.id) {
         val current = globalCurrentVideo
@@ -532,24 +541,24 @@ fun GlobalPlayerOverlay(
             }
         }
     }
-    
+
     SubscriptionAndLikeEffect(
         videoId = video.id,
         uiState = playerUiState,
-        viewModel = playerViewModel
+        viewModel = playerViewModel,
     )
-    
+
     // Short video prompt
     ShortVideoPromptEffect(
         videoDuration = completeVideo.duration,
         screenState = screenState,
         isInQueue = playerState.queueSize > 1,
         disableShortsPlayer = disableShortsPlayer,
-        showShortsPlayerPrompt = showShortsPlayerPrompt
+        showShortsPlayerPrompt = showShortsPlayerPrompt,
     )
 
     SponsorSkipEffect(context)
-    
+
     OrientationListenerEffect(
         context = context,
         isExpanded = playerSheetState.currentValue == PlayerSheetValue.Expanded,
@@ -560,13 +569,13 @@ fun GlobalPlayerOverlay(
         onExitFullscreen = {
             screenState.isFullscreen = false
             screenState.isFullscreenPortrait = false
-        }
+        },
     )
-    
+
     KeepScreenOnEffect(
         isPlaying = playerState.playWhenReady && !playerState.hasEnded,
         activity = activity,
-        lifecycleOwner = lifecycleOwner
+        lifecycleOwner = lifecycleOwner,
     )
 
     LaunchedEffect(video.id, playerUiState.isUpcoming, playerUiState.upcomingReleaseTimeMs) {
@@ -591,7 +600,7 @@ fun GlobalPlayerOverlay(
             screenState.showControls = true
         }
     }
-    
+
     LaunchedEffect(localIsInPipMode, isLandscape) {
         if (localIsInPipMode) {
             playerSheetState.expand()
@@ -612,10 +621,11 @@ fun GlobalPlayerOverlay(
             val streamInfo = playerUiState.streamInfo
             val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
             val channelName = streamInfo?.uploaderName ?: video.channelName
-            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
-                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
-            
+            val thumbnailUrl =
+                streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
+                    ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                    ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
+
             val title = streamInfo?.name ?: video.title
             if (title.isNotEmpty() && screenState.duration > 0) {
                 playerViewModel.savePlaybackPosition(
@@ -626,43 +636,47 @@ fun GlobalPlayerOverlay(
                     thumbnailUrl = thumbnailUrl,
                     channelName = channelName,
                     channelId = channelId,
-                    isShort = video.isShort
+                    isShort = video.isShort,
                 )
             }
         }
     }
-    
+
     // ===== UI =====
     val density = LocalDensity.current
-    val floatingSponsorSkipBottomPadding = if (screenState.isFullscreen) {
-        maxOf(sponsorSkipBottomInset + 128.dp, 136.dp)
-    } else {
-        56.dp
-    }
+    val floatingSponsorSkipBottomPadding =
+        if (screenState.isFullscreen) {
+            maxOf(sponsorSkipBottomInset + 128.dp, 136.dp)
+        } else {
+            56.dp
+        }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val fullScreenHeight = constraints.maxHeight.toFloat()
-        val rawMediaSheetCollapsedHeight = with(density) {
-            val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
-            if (expandedPlayerBottom > 0.dp && availablePx > 0f) {
-                availablePx.toDp()
-            } else {
-                0.dp
+        val rawMediaSheetCollapsedHeight =
+            with(density) {
+                val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
+                if (expandedPlayerBottom > 0.dp && availablePx > 0f) {
+                    availablePx.toDp()
+                } else {
+                    0.dp
+                }
             }
-        }
-        val defaultMediaSheetExpandedHeight = with(density) {
-            val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
-            if (expandedPlayerBottom > 0.dp && availablePx > 0f) {
-                availablePx.toDp()
-            } else {
-                config.screenHeightDp.dp * 0.75f
+        val defaultMediaSheetExpandedHeight =
+            with(density) {
+                val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
+                if (expandedPlayerBottom > 0.dp && availablePx > 0f) {
+                    availablePx.toDp()
+                } else {
+                    config.screenHeightDp.dp * 0.75f
+                }
             }
-        }
-        val sixteenNineMediaSheetExpandedHeight = with(density) {
-            val statusBarHeightPx = WindowInsets.statusBars.getTop(this).toFloat()
-            val sixteenNinePlayerBottomPx = statusBarHeightPx + constraints.maxWidth.toFloat() * 9f / 16f
-            (fullScreenHeight - sixteenNinePlayerBottomPx).coerceAtLeast(0f).toDp()
-        }
+        val sixteenNineMediaSheetExpandedHeight =
+            with(density) {
+                val statusBarHeightPx = WindowInsets.statusBars.getTop(this).toFloat()
+                val sixteenNinePlayerBottomPx = statusBarHeightPx + constraints.maxWidth.toFloat() * 9f / 16f
+                (fullScreenHeight - sixteenNinePlayerBottomPx).coerceAtLeast(0f).toDp()
+            }
         LaunchedEffect(progressDrivenMediaSheetResize, rawMediaSheetCollapsedHeight, maxWidth, maxHeight) {
             if (
                 progressDrivenMediaSheetResize &&
@@ -674,34 +688,42 @@ fun GlobalPlayerOverlay(
                 lockedMediaSheetCollapsedHeight = null
             }
         }
-        val mediaSheetCollapsedHeight = if (progressDrivenMediaSheetResize) {
-            lockedMediaSheetCollapsedHeight ?: rawMediaSheetCollapsedHeight
-        } else {
-            0.dp
-        }
-        val mediaSheetExpandedHeight = if (progressDrivenMediaSheetResize) {
-            maxOf(mediaSheetCollapsedHeight, sixteenNineMediaSheetExpandedHeight)
-        } else {
-            defaultMediaSheetExpandedHeight
-        }
+        val mediaSheetCollapsedHeight =
+            if (progressDrivenMediaSheetResize) {
+                lockedMediaSheetCollapsedHeight ?: rawMediaSheetCollapsedHeight
+            } else {
+                0.dp
+            }
+        val mediaSheetExpandedHeight =
+            if (progressDrivenMediaSheetResize) {
+                maxOf(mediaSheetCollapsedHeight, sixteenNineMediaSheetExpandedHeight)
+            } else {
+                defaultMediaSheetExpandedHeight
+            }
         val canUseFullscreenSidePanel = screenState.isFullscreen && maxWidth > maxHeight
-        val settingsInitialPage = when {
-            screenState.showQualitySelector -> PlayerSettingsPage.Quality
-            screenState.showAudioTrackSelector -> PlayerSettingsPage.Audio
-            screenState.showPlaybackSpeedSelector -> PlayerSettingsPage.Speed
-            screenState.showSubtitleSelector -> PlayerSettingsPage.Subtitles
-            else -> PlayerSettingsPage.Main
-        }
-        val showSettingsSurface = screenState.showSettingsMenu ||
-            screenState.showQualitySelector ||
-            screenState.showAudioTrackSelector ||
-            screenState.showPlaybackSpeedSelector ||
-            screenState.showSubtitleSelector
+        val settingsInitialPage =
+            when {
+                screenState.showQualitySelector -> PlayerSettingsPage.Quality
+                screenState.showAudioTrackSelector -> PlayerSettingsPage.Audio
+                screenState.showPlaybackSpeedSelector -> PlayerSettingsPage.Speed
+                screenState.showSubtitleSelector -> PlayerSettingsPage.Subtitles
+                else -> PlayerSettingsPage.Main
+            }
+        val showSettingsSurface =
+            screenState.showSettingsMenu ||
+                screenState.showQualitySelector ||
+                screenState.showAudioTrackSelector ||
+                screenState.showPlaybackSpeedSelector ||
+                screenState.showSubtitleSelector
         val showLiveChatSidePanel = screenState.showLiveChatFullscreen && playerUiState.isLiveChatAvailable
         val showCommentsSidePanel = screenState.showCommentsFullscreen && commentsEnabled
         val showSleepTimerSidePanel = screenState.showSleepTimerSheet
-        val fullscreenSidePanelVisible = canUseFullscreenSidePanel &&
-            (showSettingsSurface || screenState.showChaptersSheet || showLiveChatSidePanel || showCommentsSidePanel || showSleepTimerSidePanel)
+        val fullscreenSidePanelVisible =
+            canUseFullscreenSidePanel &&
+                (
+                    showSettingsSurface || screenState.showChaptersSheet || showLiveChatSidePanel || showCommentsSidePanel ||
+                        showSleepTimerSidePanel
+                )
         val fullscreenDrawerWidth = minOf(maxWidth * 0.42f, 420.dp)
         val fullscreenDrawerWidthPx = with(density) { fullscreenDrawerWidth.toPx() }
         val fullscreenDrawerOffsetPx = remember { Animatable(0f) }
@@ -709,7 +731,7 @@ fun GlobalPlayerOverlay(
         LaunchedEffect(fullscreenSidePanelVisible, fullscreenDrawerWidthPx) {
             fullscreenDrawerOffsetPx.updateBounds(
                 lowerBound = 0f,
-                upperBound = fullscreenDrawerWidthPx
+                upperBound = fullscreenDrawerWidthPx,
             )
             if (fullscreenSidePanelVisible) {
                 if (fullscreenDrawerOffsetPx.value == 0f) {
@@ -717,7 +739,7 @@ fun GlobalPlayerOverlay(
                 }
                 fullscreenDrawerOffsetPx.animateTo(
                     targetValue = 0f,
-                    animationSpec = tween(durationMillis = 260)
+                    animationSpec = tween(durationMillis = 260),
                 )
             }
         }
@@ -726,212 +748,223 @@ fun GlobalPlayerOverlay(
             scope.launch {
                 fullscreenDrawerOffsetPx.animateTo(
                     targetValue = fullscreenDrawerWidthPx,
-                    animationSpec = tween(durationMillis = 220)
+                    animationSpec = tween(durationMillis = 220),
                 )
                 screenState.dismissMediaSheets()
                 screenState.showSleepTimerSheet = false
             }
         }
-        val fullscreenSidePanelDragModifier = Modifier.pointerInput(fullscreenDrawerWidthPx, fullscreenSidePanelVisible) {
-            if (!fullscreenSidePanelVisible || fullscreenDrawerWidthPx <= 0f) return@pointerInput
-            val velocityTracker = VelocityTracker()
-            detectHorizontalDragGestures(
-                onHorizontalDrag = { change, dragAmount ->
-                    velocityTracker.addPointerInputChange(change)
-                    change.consume()
-                    scope.launch {
-                        fullscreenDrawerOffsetPx.snapTo(
-                            (fullscreenDrawerOffsetPx.value + dragAmount)
-                                .coerceIn(0f, fullscreenDrawerWidthPx)
-                        )
-                    }
-                },
-                onDragCancel = {
-                    velocityTracker.resetTracking()
-                    scope.launch {
-                        fullscreenDrawerOffsetPx.animateTo(
-                            targetValue = 0f,
-                            animationSpec = tween(durationMillis = 220)
-                        )
-                    }
-                },
-                onDragEnd = {
-                    val velocityX = velocityTracker.calculateVelocity().x
-                    velocityTracker.resetTracking()
-                    val shouldDismiss = velocityX > 900f ||
-                        fullscreenDrawerOffsetPx.value > fullscreenDrawerWidthPx * 0.38f
-                    if (shouldDismiss) {
-                        closeFullscreenSidePanel()
-                    } else {
+        val fullscreenSidePanelDragModifier =
+            Modifier.pointerInput(fullscreenDrawerWidthPx, fullscreenSidePanelVisible) {
+                if (!fullscreenSidePanelVisible || fullscreenDrawerWidthPx <= 0f) return@pointerInput
+                val velocityTracker = VelocityTracker()
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { change, dragAmount ->
+                        velocityTracker.addPointerInputChange(change)
+                        change.consume()
+                        scope.launch {
+                            fullscreenDrawerOffsetPx.snapTo(
+                                (fullscreenDrawerOffsetPx.value + dragAmount)
+                                    .coerceIn(0f, fullscreenDrawerWidthPx),
+                            )
+                        }
+                    },
+                    onDragCancel = {
+                        velocityTracker.resetTracking()
                         scope.launch {
                             fullscreenDrawerOffsetPx.animateTo(
                                 targetValue = 0f,
-                                animationSpec = tween(durationMillis = 220)
+                                animationSpec = tween(durationMillis = 220),
                             )
                         }
-                    }
-                }
-            )
-        }
+                    },
+                    onDragEnd = {
+                        val velocityX = velocityTracker.calculateVelocity().x
+                        velocityTracker.resetTracking()
+                        val shouldDismiss =
+                            velocityX > 900f ||
+                                fullscreenDrawerOffsetPx.value > fullscreenDrawerWidthPx * 0.38f
+                        if (shouldDismiss) {
+                            closeFullscreenSidePanel()
+                        } else {
+                            scope.launch {
+                                fullscreenDrawerOffsetPx.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = tween(durationMillis = 220),
+                                )
+                            }
+                        }
+                    },
+                )
+            }
         val fullscreenDrawerOffset = with(density) { fullscreenDrawerOffsetPx.value.toDp() }
-        val fullscreenReservedWidth = if (fullscreenSidePanelVisible) {
-            (fullscreenDrawerWidth - fullscreenDrawerOffset).coerceIn(0.dp, fullscreenDrawerWidth)
-        } else {
-            0.dp
-        }
+        val fullscreenReservedWidth =
+            if (fullscreenSidePanelVisible) {
+                (fullscreenDrawerWidth - fullscreenDrawerOffset).coerceIn(0.dp, fullscreenDrawerWidth)
+            } else {
+                0.dp
+            }
         val fullscreenSidePanelHeight = maxHeight
-        val fullscreenPlayerWidth = if (fullscreenSidePanelVisible) {
-            (maxWidth - fullscreenReservedWidth).coerceAtLeast(maxWidth * 0.58f)
-        } else {
-            maxWidth
-        }
+        val fullscreenPlayerWidth =
+            if (fullscreenSidePanelVisible) {
+                (maxWidth - fullscreenReservedWidth).coerceAtLeast(maxWidth * 0.58f)
+            } else {
+                maxWidth
+            }
 
         DraggablePlayerLayout(
-                state = playerSheetState,
-                progress = progressProvider,
-                isFullscreen = screenState.isFullscreen,
-                thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
+            state = playerSheetState,
+            progress = progressProvider,
+            isFullscreen = screenState.isFullscreen,
+            thumbnailUrl =
+                video.thumbnailUrl.takeIf { it.isNotEmpty() }
                     ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
-                videoAspectRatio = effectiveVideoAspectRatio,
-                expandedPlayerHeightFractionOverride = sheetPlayerHeightFractionOverride,
-                bottomPadding = bottomPadding,
-                miniPlayerScale = miniPlayerScale,
-                tapToExpand = true,
-                onDismiss = onClose,
-                onCollapseGesture = {
-                    screenState.isFullscreen = false
-                    screenState.isFullscreenPortrait = false
-                    screenState.dismissMediaSheets()
-                },
-                onFullscreenGesture = {
-                    screenState.dismissMediaSheets()
-                    screenState.isFullscreenPortrait = false
-                    screenState.isFullscreen = true
-                },
-                onEnterPortraitFullscreen = {
-                    screenState.dismissMediaSheets()
-                    screenState.isFullscreenPortrait = true
-                    screenState.isFullscreen = true
-                },
-                onExpandedPlayerBottomChanged = { bottom ->
-                    expandedPlayerBottom = bottom
-                },
-                modifier = Modifier
+            videoAspectRatio = effectiveVideoAspectRatio,
+            expandedPlayerHeightFractionOverride = sheetPlayerHeightFractionOverride,
+            bottomPadding = bottomPadding,
+            miniPlayerScale = miniPlayerScale,
+            tapToExpand = true,
+            onDismiss = onClose,
+            onCollapseGesture = {
+                screenState.isFullscreen = false
+                screenState.isFullscreenPortrait = false
+                screenState.dismissMediaSheets()
+            },
+            onFullscreenGesture = {
+                screenState.dismissMediaSheets()
+                screenState.isFullscreenPortrait = false
+                screenState.isFullscreen = true
+            },
+            onEnterPortraitFullscreen = {
+                screenState.dismissMediaSheets()
+                screenState.isFullscreenPortrait = true
+                screenState.isFullscreen = true
+            },
+            onExpandedPlayerBottomChanged = { bottom ->
+                expandedPlayerBottom = bottom
+            },
+            modifier =
+                Modifier
                     .align(Alignment.CenterStart)
                     .width(fullscreenPlayerWidth)
                     .fillMaxHeight(),
-                videoContent = { modifier ->
-                    // ALWAYS use the same video surface
-                    val gestureModifier = if (!isMinimized && !localIsInPipMode && !screenState.isTouchLocked) {
-                        modifier.videoPlayerControls(
-                            isSpeedBoostActive = screenState.isSpeedBoostActive,
-                            onSpeedBoostChange = { screenState.isSpeedBoostActive = it },
-                            showControls = screenState.showControls,
-                            onShowControlsChange = { screenState.showControls = it },
-                            onShowSeekBackChange = { screenState.showSeekBackAnimation = it },
-                            onShowSeekForwardChange = { screenState.showSeekForwardAnimation = it },
-                            onSeekAccumulate = { screenState.seekAccumulation = kotlin.math.abs(it) },
-                            currentPosition = { screenState.currentPosition },
-                            duration = screenState.duration,
-                            normalSpeed = screenState.normalSpeed,
-                            scope = scope,
-                            isFullscreen = screenState.isFullscreen,
-                            onBrightnessChange = updateBrightnessLevel,
-                            onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
-                            onVolumeChange = { level ->
-                                screenState.volumeLevel = level
-                                EnhancedPlayerManager.getInstance()
-                                    .setVolumeBoost(if (level > 1f) level else 1f)
-                            },
-                            onShowVolumeChange = { screenState.showVolumeOverlay = it },
-                            onBack = {
-                                screenState.isFullscreen = false
-                                screenState.isFullscreenPortrait = false
-                                playerSheetState.collapse()
-                            },
-                            brightnessLevel = screenState.brightnessLevel,
-                            volumeLevel = screenState.volumeLevel,
-                            maxVolume = audioSystemInfo.maxVolume,
-                            audioManager = audioSystemInfo.audioManager,
-                            activity = activity,
-                            brightnessSwipeGesturesEnabled = brightnessSwipeGesturesEnabled,
-                            volumeSwipeGesturesEnabled = volumeSwipeGesturesEnabled,
-                            allowVolumeBoost = allowVolumeBoost,
-                            doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
-                            longPressPlaybackSpeed = longPressPlaybackSpeed,
-                            onExitFullscreen = {
-                                screenState.isFullscreen = false
-                                screenState.isFullscreenPortrait = false
-                            },
-                            isSeekForwardActive = screenState.showSeekForwardAnimation,
-                            isSeekBackActive = screenState.showSeekBackAnimation
-                        )
-                        // Two-finger pinch-to-zoom gesture. Only activates for 2+ pointers,
-                        // so single-finger gestures (brightness/volume swipe, tap) are unaffected.
-                        .pointerInput("pinchZoom") {
-                            awaitEachGesture {
-                                val firstDown = awaitFirstDown(requireUnconsumed = false)
-                                var secondPtr: PointerInputChange? = null
-                                while (secondPtr == null) {
-                                    val event = awaitPointerEvent()
-                                    secondPtr = event.changes.firstOrNull {
-                                        it.id != firstDown.id && it.pressed && !it.previousPressed
+            videoContent = { modifier ->
+                // ALWAYS use the same video surface
+                val gestureModifier =
+                    if (!isMinimized && !localIsInPipMode && !screenState.isTouchLocked) {
+                        modifier
+                            .videoPlayerControls(
+                                isSpeedBoostActive = screenState.isSpeedBoostActive,
+                                onSpeedBoostChange = { screenState.isSpeedBoostActive = it },
+                                showControls = screenState.showControls,
+                                onShowControlsChange = { screenState.showControls = it },
+                                onShowSeekBackChange = { screenState.showSeekBackAnimation = it },
+                                onShowSeekForwardChange = { screenState.showSeekForwardAnimation = it },
+                                onSeekAccumulate = { screenState.seekAccumulation = kotlin.math.abs(it) },
+                                currentPosition = { screenState.currentPosition },
+                                duration = screenState.duration,
+                                normalSpeed = screenState.normalSpeed,
+                                scope = scope,
+                                isFullscreen = screenState.isFullscreen,
+                                onBrightnessChange = updateBrightnessLevel,
+                                onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
+                                onVolumeChange = { level ->
+                                    screenState.volumeLevel = level
+                                    EnhancedPlayerManager
+                                        .getInstance()
+                                        .setVolumeBoost(if (level > 1f) level else 1f)
+                                },
+                                onShowVolumeChange = { screenState.showVolumeOverlay = it },
+                                onBack = {
+                                    screenState.isFullscreen = false
+                                    screenState.isFullscreenPortrait = false
+                                    playerSheetState.collapse()
+                                },
+                                brightnessLevel = screenState.brightnessLevel,
+                                volumeLevel = screenState.volumeLevel,
+                                maxVolume = audioSystemInfo.maxVolume,
+                                audioManager = audioSystemInfo.audioManager,
+                                activity = activity,
+                                brightnessSwipeGesturesEnabled = brightnessSwipeGesturesEnabled,
+                                volumeSwipeGesturesEnabled = volumeSwipeGesturesEnabled,
+                                allowVolumeBoost = allowVolumeBoost,
+                                doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
+                                longPressPlaybackSpeed = longPressPlaybackSpeed,
+                                onExitFullscreen = {
+                                    screenState.isFullscreen = false
+                                    screenState.isFullscreenPortrait = false
+                                },
+                                isSeekForwardActive = screenState.showSeekForwardAnimation,
+                                isSeekBackActive = screenState.showSeekBackAnimation,
+                            )
+                            // Two-finger pinch-to-zoom gesture. Only activates for 2+ pointers,
+                            // so single-finger gestures (brightness/volume swipe, tap) are unaffected.
+                            .pointerInput("pinchZoom") {
+                                awaitEachGesture {
+                                    val firstDown = awaitFirstDown(requireUnconsumed = false)
+                                    var secondPtr: PointerInputChange? = null
+                                    while (secondPtr == null) {
+                                        val event = awaitPointerEvent()
+                                        secondPtr =
+                                            event.changes.firstOrNull {
+                                                it.id != firstDown.id && it.pressed && !it.previousPressed
+                                            }
+                                        val p1 = event.changes.firstOrNull { it.id == firstDown.id }
+                                        if (p1 == null || !p1.pressed) return@awaitEachGesture
                                     }
-                                    val p1 = event.changes.firstOrNull { it.id == firstDown.id }
-                                    if (p1 == null || !p1.pressed) return@awaitEachGesture
+                                    val p2 = secondPtr!!
+                                    p2.consume()
+                                    val dx0 = firstDown.position.x - p2.position.x
+                                    val dy0 = firstDown.position.y - p2.position.y
+                                    var prevDist = kotlin.math.sqrt(dx0 * dx0 + dy0 * dy0).coerceAtLeast(1f)
+                                    var prevCentroidX = (firstDown.position.x + p2.position.x) / 2f
+                                    var prevCentroidY = (firstDown.position.y + p2.position.y) / 2f
+                                    val p1Id = firstDown.id
+                                    val p2Id = p2.id
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        val tp1 = event.changes.firstOrNull { it.id == p1Id }
+                                        val tp2 = event.changes.firstOrNull { it.id == p2Id }
+                                        if (tp1 == null || tp2 == null || !tp1.pressed || !tp2.pressed) break
+                                        tp1.consume()
+                                        tp2.consume()
+                                        val dx = tp1.position.x - tp2.position.x
+                                        val dy = tp1.position.y - tp2.position.y
+                                        val dist = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
+                                        val centroidX = (tp1.position.x + tp2.position.x) / 2f
+                                        val centroidY = (tp1.position.y + tp2.position.y) / 2f
+                                        val panX = centroidX - prevCentroidX
+                                        val panY = centroidY - prevCentroidY
+                                        val factor = dist / prevDist
+                                        val newScale = (screenState.zoomScale * factor).coerceIn(1f, 6f)
+                                        if (newScale <= 1.02f) {
+                                            screenState.zoomScale = 1f
+                                            screenState.zoomOffsetX = 0f
+                                            screenState.zoomOffsetY = 0f
+                                        } else {
+                                            screenState.zoomScale = newScale
+                                            val maxPanX = (newScale - 1f) * size.width / 2f
+                                            val maxPanY = (newScale - 1f) * size.height / 2f
+                                            screenState.zoomOffsetX = (screenState.zoomOffsetX + panX).coerceIn(-maxPanX, maxPanX)
+                                            screenState.zoomOffsetY = (screenState.zoomOffsetY + panY).coerceIn(-maxPanY, maxPanY)
+                                        }
+                                        screenState.showZoomIndicator = true
+                                        screenState.zoomIndicatorSequence += 1
+                                        prevDist = dist
+                                        prevCentroidX = centroidX
+                                        prevCentroidY = centroidY
+                                    } while (true)
                                 }
-                                val p2 = secondPtr!!
-                                p2.consume()
-                                val dx0 = firstDown.position.x - p2.position.x
-                                val dy0 = firstDown.position.y - p2.position.y
-                                var prevDist = kotlin.math.sqrt(dx0 * dx0 + dy0 * dy0).coerceAtLeast(1f)
-                                var prevCentroidX = (firstDown.position.x + p2.position.x) / 2f
-                                var prevCentroidY = (firstDown.position.y + p2.position.y) / 2f
-                                val p1Id = firstDown.id
-                                val p2Id = p2.id
-                                do {
-                                    val event = awaitPointerEvent()
-                                    val tp1 = event.changes.firstOrNull { it.id == p1Id }
-                                    val tp2 = event.changes.firstOrNull { it.id == p2Id }
-                                    if (tp1 == null || tp2 == null || !tp1.pressed || !tp2.pressed) break
-                                    tp1.consume()
-                                    tp2.consume()
-                                    val dx = tp1.position.x - tp2.position.x
-                                    val dy = tp1.position.y - tp2.position.y
-                                    val dist = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
-                                    val centroidX = (tp1.position.x + tp2.position.x) / 2f
-                                    val centroidY = (tp1.position.y + tp2.position.y) / 2f
-                                    val panX = centroidX - prevCentroidX
-                                    val panY = centroidY - prevCentroidY
-                                    val factor = dist / prevDist
-                                    val newScale = (screenState.zoomScale * factor).coerceIn(1f, 6f)
-                                    if (newScale <= 1.02f) {
-                                        screenState.zoomScale = 1f
-                                        screenState.zoomOffsetX = 0f
-                                        screenState.zoomOffsetY = 0f
-                                    } else {
-                                        screenState.zoomScale = newScale
-                                        val maxPanX = (newScale - 1f) * size.width / 2f
-                                        val maxPanY = (newScale - 1f) * size.height / 2f
-                                        screenState.zoomOffsetX = (screenState.zoomOffsetX + panX).coerceIn(-maxPanX, maxPanX)
-                                        screenState.zoomOffsetY = (screenState.zoomOffsetY + panY).coerceIn(-maxPanY, maxPanY)
-                                    }
-                                    screenState.showZoomIndicator = true
-                                    screenState.zoomIndicatorSequence += 1
-                                    prevDist = dist
-                                    prevCentroidX = centroidX
-                                    prevCentroidY = centroidY
-                                } while (true)
                             }
-                        }
                     } else {
                         modifier
                     }
-                    
-                    Box(modifier = gestureModifier) {
-                        // Zoomable layer: video + subtitles scale together with the pinch transform
-                        Box(
-                            modifier = Modifier
+
+                Box(modifier = gestureModifier) {
+                    // Zoomable layer: video + subtitles scale together with the pinch transform
+                    Box(
+                        modifier =
+                            Modifier
                                 .fillMaxSize()
                                 .graphicsLayer {
                                     if (!isMinimized) {
@@ -940,293 +973,318 @@ fun GlobalPlayerOverlay(
                                         translationX = screenState.zoomOffsetX
                                         translationY = screenState.zoomOffsetY
                                     }
-                                }
-                        ) {
+                                },
+                    ) {
                         VideoPlayerSurface(
                             video = video,
                             resizeMode = screenState.resizeMode,
                             modifier = Modifier.fillMaxSize(),
                             onVideoAspectRatioChanged = { decodedVideoAspectRatio = it },
-                            cornerRadiusDp = if (isMinimized && !localIsInPipMode) {
-                                12f / playerSheetState.miniVisualScale
-                            } else 0f,
-                            ambientMode = ambientModeEnabled && !isMinimized && !localIsInPipMode
+                            cornerRadiusDp =
+                                if (isMinimized && !localIsInPipMode) {
+                                    12f / playerSheetState.miniVisualScale
+                                } else {
+                                    0f
+                                },
+                            ambientMode = ambientModeEnabled && !isMinimized && !localIsInPipMode,
                         )
                         if (!isMinimized && !localIsInPipMode) {
                             Media3SubtitleOverlay(
                                 enabled = screenState.subtitlesEnabled,
-                                isAutoGenerated = playerState.availableSubtitles
-                                    .firstOrNull { it.url == screenState.selectedSubtitleUrl }
-                                    ?.isAutoGenerated == true,
+                                isAutoGenerated =
+                                    playerState.availableSubtitles
+                                        .firstOrNull { it.url == screenState.selectedSubtitleUrl }
+                                        ?.isAutoGenerated == true,
                                 style = screenState.subtitleStyle,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
                             )
                         }
                         if (playerUiState.isRestoredSession) {
-                            val thumbUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                                ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
-                            coil.compose.AsyncImage(
+                            val thumbUrl =
+                                video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                                    ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
+                            coil3.compose.AsyncImage(
                                 model = thumbUrl,
                                 contentDescription = null,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(
-                                        RoundedCornerShape(
-                                            if (isMinimized && !localIsInPipMode) {
-                                                (12f / playerSheetState.miniVisualScale).dp
-                                            } else 0.dp
-                                        )
-                                    ),
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .clip(
+                                            RoundedCornerShape(
+                                                if (isMinimized && !localIsInPipMode) {
+                                                    (12f / playerSheetState.miniVisualScale).dp
+                                                } else {
+                                                    0.dp
+                                                },
+                                            ),
+                                        ),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                             )
                         }
-                        } // end zoomable layer
-                        
-                        // Non-zoomable UI overlays (always at full-screen position)
-                        if (!isMinimized && !localIsInPipMode) {
-                            PlayerGestureOverlays(
-                                screenState = screenState,
-                                allowVolumeBoost = allowVolumeBoost,
-                                speedBoostSpeed = longPressPlaybackSpeed
-                            )
+                    } // end zoomable layer
 
-                            AnimatedVisibility(
-                                visible = screenState.showZoomIndicator,
-                                enter = fadeIn(),
-                                exit = fadeOut(),
-                                modifier = Modifier
+                    // Non-zoomable UI overlays (always at full-screen position)
+                    if (!isMinimized && !localIsInPipMode) {
+                        PlayerGestureOverlays(
+                            screenState = screenState,
+                            allowVolumeBoost = allowVolumeBoost,
+                            speedBoostSpeed = longPressPlaybackSpeed,
+                        )
+
+                        AnimatedVisibility(
+                            visible = screenState.showZoomIndicator,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier =
+                                Modifier
                                     .align(Alignment.TopCenter)
-                                    .padding(top = if (screenState.isFullscreen) 28.dp else 16.dp)
+                                    .padding(top = if (screenState.isFullscreen) 28.dp else 16.dp),
+                        ) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                                shape = RoundedCornerShape(999.dp),
+                                tonalElevation = 3.dp,
+                                shadowElevation = 2.dp,
                             ) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                                    shape = RoundedCornerShape(999.dp),
-                                    tonalElevation = 3.dp,
-                                    shadowElevation = 2.dp
+                                Text(
+                                    text = String.format(Locale.US, "%.1fx", screenState.zoomScale),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                )
+                            }
+                        }
+                        if (playerUiState.isUpcoming) {
+                            UpcomingVideoOverlay(
+                                title = video.title,
+                                releaseTimeMs = playerUiState.upcomingReleaseTimeMs,
+                                isReminderSet = playerUiState.isUpcomingReminderSet,
+                                onToggleReminder = playerViewModel::toggleUpcomingReminder,
+                                modifier = Modifier.align(Alignment.Center),
+                            )
+                        }
+
+                        // ── Error overlay — icon + title only; details/actions in body panel ──
+                        val errorMsg = playerUiState.error
+                        if (errorMsg != null && !playerUiState.isUpcoming) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.82f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier =
+                                        Modifier
+                                            .padding(horizontal = 32.dp)
+                                            .widthIn(max = 380.dp),
                                 ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ErrorOutline,
+                                        contentDescription = stringResource(R.string.ui_playback_error),
+                                        tint = Color(0xFFFF6B6B),
+                                        modifier = Modifier.size(48.dp),
+                                    )
                                     Text(
-                                        text = String.format(Locale.US, "%.1fx", screenState.zoomScale),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                        text = errorMsg,
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        textAlign = TextAlign.Center,
                                     )
                                 }
                             }
-                            if (playerUiState.isUpcoming) {
-                                UpcomingVideoOverlay(
-                                    title = video.title,
-                                    releaseTimeMs = playerUiState.upcomingReleaseTimeMs,
-                                    isReminderSet = playerUiState.isUpcomingReminderSet,
-                                    onToggleReminder = playerViewModel::toggleUpcomingReminder,
-                                    modifier = Modifier.align(Alignment.Center)
-                                )
-                            }
-
-                            // ── Error overlay — icon + title only; details/actions in body panel ──
-                            val errorMsg  = playerUiState.error
-                            if (errorMsg != null && !playerUiState.isUpcoming) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color.Black.copy(alpha = 0.82f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                                        modifier = Modifier
-                                            .padding(horizontal = 32.dp)
-                                            .widthIn(max = 380.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.ErrorOutline,
-                                            contentDescription = stringResource(R.string.ui_playback_error),
-                                            tint = Color(0xFFFF6B6B),
-                                            modifier = Modifier.size(48.dp)
-                                        )
-                                        Text(
-                                            text = errorMsg,
-                                            color = Color.White,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                            }
                         }
-                        
-                        // Controls overlay - fully expanded only
-                        var showRemainingTime by rememberSaveable { mutableStateOf(false) }
-                        if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode) {
-                            val controlsShown = screenState.showControls || screenState.isTouchLocked
-                            val bufferedFraction = (if (screenState.duration > 0) {
-                                screenState.bufferedPosition.toFloat() / screenState.duration.toFloat()
-                            } else 0f).coerceIn(0f, 1f)
-                            PremiumControlsOverlay(
-                                isVisible = controlsShown,
-                                isPlaying = playerState.playWhenReady,
-                                hasEnded = playerState.hasEnded,
-                                isBuffering = playerState.isBuffering,
-                                currentPosition = { screenState.currentPosition },
-                                duration = screenState.duration,
-                                qualityLabel = resolvePlayerQualityLabel(
+                    }
+
+                    // Controls overlay - fully expanded only
+                    var showRemainingTime by rememberSaveable { mutableStateOf(false) }
+                    if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode) {
+                        val controlsShown = screenState.showControls || screenState.isTouchLocked
+                        val bufferedFraction =
+                            (
+                                if (screenState.duration > 0) {
+                                    screenState.bufferedPosition.toFloat() / screenState.duration.toFloat()
+                                } else {
+                                    0f
+                                }
+                            ).coerceIn(0f, 1f)
+                        PremiumControlsOverlay(
+                            isVisible = controlsShown,
+                            isPlaying = playerState.playWhenReady,
+                            hasEnded = playerState.hasEnded,
+                            isBuffering = playerState.isBuffering,
+                            currentPosition = { screenState.currentPosition },
+                            duration = screenState.duration,
+                            qualityLabel =
+                                resolvePlayerQualityLabel(
                                     currentQuality = playerState.currentQuality,
                                     effectiveQuality = playerState.effectiveQuality,
                                     autoLabel = context.getString(R.string.quality_auto),
-                                    autoWithHeightLabel = context.getString(
-                                        R.string.quality_auto_template,
-                                        playerState.effectiveQuality,
-                                    ),
+                                    autoWithHeightLabel =
+                                        context.getString(
+                                            R.string.quality_auto_template,
+                                            playerState.effectiveQuality,
+                                        ),
                                 ),
-                                videoTitle = playerUiState.streamInfo?.name ?: video.title,
-                                playbackSpeed = playerState.playbackSpeed,
-                                resizeMode = screenState.resizeMode,
-                                onResizeClick = { 
-                                    screenState.onInteraction()
-                                    screenState.cycleResizeMode() 
-                                },
-                                onPlayPause = {
-                                    screenState.onInteraction()
-                                    if (playerState.hasEnded) {
-                                        EnhancedPlayerManager.getInstance().replay()
-                                        playerViewModel.ensureNotificationServiceRunning()
-                                    } else if (playerState.playWhenReady) {
-                                        EnhancedPlayerManager.getInstance().pause()
-                                    } else {
-                                        EnhancedPlayerManager.getInstance().play()
-                                        playerViewModel.ensureNotificationServiceRunning()
-                                    }
-                                },
-                                onSeek = { newPosition ->
-                                    screenState.onInteraction()
-                                    val manager = EnhancedPlayerManager.getInstance()
-                                    if (playerState.isLive) {
-                                        manager.seekToLiveTimeline(newPosition)
-                                    } else {
-                                        manager.seekTo(newPosition)
-                                    }
-                                },
-                                onBack = { playerSheetState.collapse() },
-                                onSettingsClick = { screenState.showSettingsMenu = true },
-                                onQualityClick = { screenState.showQualitySelector = true },
-                                onSpeedClick = { screenState.showPlaybackSpeedSelector = true },
-                                onFullscreenClick = { screenState.toggleFullscreen() },
-                                isFullscreen = screenState.isFullscreen,
-                                isPipSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 
-                                    io.github.aedev.flow.player.PictureInPictureHelper.isPlayerPopupSupported(context) &&
+                            videoTitle = playerUiState.streamInfo?.name ?: video.title,
+                            playbackSpeed = playerState.playbackSpeed,
+                            resizeMode = screenState.resizeMode,
+                            onResizeClick = {
+                                screenState.onInteraction()
+                                screenState.cycleResizeMode()
+                            },
+                            onPlayPause = {
+                                screenState.onInteraction()
+                                if (playerState.hasEnded) {
+                                    EnhancedPlayerManager.getInstance().replay()
+                                    playerViewModel.ensureNotificationServiceRunning()
+                                } else if (playerState.playWhenReady) {
+                                    EnhancedPlayerManager.getInstance().pause()
+                                } else {
+                                    EnhancedPlayerManager.getInstance().play()
+                                    playerViewModel.ensureNotificationServiceRunning()
+                                }
+                            },
+                            onSeek = { newPosition ->
+                                screenState.onInteraction()
+                                val manager = EnhancedPlayerManager.getInstance()
+                                if (playerState.isLive) {
+                                    manager.seekToLiveTimeline(newPosition)
+                                } else {
+                                    manager.seekTo(newPosition)
+                                }
+                            },
+                            onBack = { playerSheetState.collapse() },
+                            onSettingsClick = { screenState.showSettingsMenu = true },
+                            onQualityClick = { screenState.showQualitySelector = true },
+                            onSpeedClick = { screenState.showPlaybackSpeedSelector = true },
+                            onFullscreenClick = { screenState.toggleFullscreen() },
+                            isFullscreen = screenState.isFullscreen,
+                            isPipSupported =
+                                android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                                    io.github.aedev.flow.player.PictureInPictureHelper
+                                        .isPlayerPopupSupported(context) &&
                                     pipPreferences.manualPipButtonEnabled,
-                                onPipClick = {
-                                    PictureInPictureHelper.requestPlayerPipMode(
-                                        activity = activity,
-                                        aspectRatio = videoAspectRatio,
-                                        isPlaying = playerState.isPlaying
-                                    )
-                                },
-                                chapters = playerUiState.chapters,
-                                onChapterClick = { screenState.showChaptersSheet = true },
-                                onSubtitleClick = {
-                                    if (screenState.subtitlesEnabled) {
-                                        EnhancedPlayerManager.getInstance().selectSubtitle(null)
-                                        screenState.disableSubtitles()
-                                    } else {
-                                        if (screenState.selectedSubtitleUrl == null && playerState.availableSubtitles.isNotEmpty()) {
-                                            val targetSub = playerState.availableSubtitles.firstOrNull { !it.isAutoGenerated }
+                            onPipClick = {
+                                PictureInPictureHelper.requestPlayerPipMode(
+                                    activity = activity,
+                                    aspectRatio = videoAspectRatio,
+                                    isPlaying = playerState.isPlaying,
+                                )
+                            },
+                            chapters = playerUiState.chapters,
+                            onChapterClick = { screenState.showChaptersSheet = true },
+                            onSubtitleClick = {
+                                if (screenState.subtitlesEnabled) {
+                                    EnhancedPlayerManager.getInstance().selectSubtitle(null)
+                                    screenState.disableSubtitles()
+                                } else {
+                                    if (screenState.selectedSubtitleUrl == null && playerState.availableSubtitles.isNotEmpty()) {
+                                        val targetSub =
+                                            playerState.availableSubtitles.firstOrNull { !it.isAutoGenerated }
                                                 ?: playerState.availableSubtitles.first()
-                                            val index = playerState.availableSubtitles.indexOf(targetSub)
+                                        val index = playerState.availableSubtitles.indexOf(targetSub)
 
-                                            screenState.selectedSubtitleUrl = targetSub.url
+                                        screenState.selectedSubtitleUrl = targetSub.url
+                                        EnhancedPlayerManager.getInstance().selectSubtitle(index)
+                                        screenState.subtitlesEnabled = true
+                                    } else if (screenState.selectedSubtitleUrl == null) {
+                                        screenState.showSubtitleSelector = true
+                                    } else {
+                                        val index =
+                                            playerState.availableSubtitles.indexOfFirst {
+                                                it.url ==
+                                                    screenState.selectedSubtitleUrl
+                                            }
+                                        if (index >= 0) {
                                             EnhancedPlayerManager.getInstance().selectSubtitle(index)
                                             screenState.subtitlesEnabled = true
-                                        } else if (screenState.selectedSubtitleUrl == null) {
+                                        } else {
                                             screenState.showSubtitleSelector = true
-                                        } else {
-                                            val index = playerState.availableSubtitles.indexOfFirst { it.url == screenState.selectedSubtitleUrl }
-                                            if (index >= 0) {
-                                                EnhancedPlayerManager.getInstance().selectSubtitle(index)
-                                                screenState.subtitlesEnabled = true
-                                            } else {
-                                                screenState.showSubtitleSelector = true
-                                            }
                                         }
-                                    }
-                                },
-                                isSubtitlesEnabled = screenState.subtitlesEnabled,
-                                autoplayEnabled = playerUiState.autoplayEnabled,
-                                isLooping = playerState.isLooping,
-                                onAutoplayToggle = { playerViewModel.toggleAutoplay(it) },
-                                onPrevious = {
-                                    playerViewModel.playPrevious()
-                                },
-                                onNext = {
-                                    playerViewModel.playNext()
-                                },
-                                hasPrevious = playerState.hasPrevious || canGoPrevious,
-                                hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
-                                bufferedPercentage = bufferedFraction,
-                                windowInsets = WindowInsets(0, 0, 0, 0),
-                                sbSubmitEnabled = sbSubmitEnabled,
-                                onSbSubmitClick = {
-                                    screenState.showControls = false
-                                    showSbSubmitDialog = true
-                                },
-                                onCastClick = {
-                                    DlnaCastManager.startDiscovery(context)
-                                    showDlnaDialog = true
-                                },
-                                isCasting = DlnaCastManager.isCasting,
-                                isLive = !playerUiState.hlsUrl.isNullOrEmpty(),
-                                onLiveClick = {
-                                    EnhancedPlayerManager.getInstance().seekToLiveEdge(resetSpeed = true)
-                                },
-                                isLiveChatAvailable = playerUiState.isLiveChatAvailable,
-                                onLiveChatClick = {
-                                    if (screenState.showLiveChatFullscreen) {
-                                        screenState.showLiveChatFullscreen = false
-                                    } else {
-                                        screenState.dismissMediaSheets()
-                                        screenState.showLiveChatFullscreen = true
-                                    }
-                                },
-                                isCommentsAvailable = isCommentsAvailable,
-                                isCommentsPanelOpen = screenState.showCommentsFullscreen || screenState.showCommentsSheet,
-                                onCommentsClick = {
-                                    if (canUseFullscreenSidePanel) {
-                                        if (screenState.showCommentsFullscreen) {
-                                            screenState.showCommentsFullscreen = false
-                                        } else {
-                                            screenState.dismissMediaSheets()
-                                            screenState.showCommentsFullscreen = true
-                                        }
-                                    } else {
-                                        screenState.dismissMediaSheets()
-                                        screenState.showCommentsSheet = true
-                                    }
-                                },
-                                onSleepTimerClick = { screenState.showSleepTimerSheet = true },
-                                isSleepTimerActive = io.github.aedev.flow.player.SleepTimerManager.isActive,
-                                showRemainingTime = showRemainingTime,
-                                onToggleRemainingTime = { showRemainingTime = !showRemainingTime },
-                                isTouchLocked = screenState.isTouchLocked,
-                                lockModeEnabled = lockModeEnabled,
-                                lockOverlayRevealSignal = screenState.lockOverlayRevealSignal,
-                                isPortraitFullscreen = screenState.isFullscreenPortrait,
-                                onTouchLockToggle = {
-                                    if (lockModeEnabled || screenState.isTouchLocked) {
-                                        screenState.isTouchLocked = !screenState.isTouchLocked
-                                        screenState.showControls = true
-                                        if (screenState.isTouchLocked) {
-                                            screenState.revealLockOverlay()
-                                        }
-                                        screenState.onInteraction()
                                     }
                                 }
-                            )
+                            },
+                            isSubtitlesEnabled = screenState.subtitlesEnabled,
+                            autoplayEnabled = playerUiState.autoplayEnabled,
+                            isLooping = playerState.isLooping,
+                            onAutoplayToggle = { playerViewModel.toggleAutoplay(it) },
+                            onPrevious = {
+                                playerViewModel.playPrevious()
+                            },
+                            onNext = {
+                                playerViewModel.playNext()
+                            },
+                            hasPrevious = playerState.hasPrevious || canGoPrevious,
+                            hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
+                            bufferedPercentage = bufferedFraction,
+                            windowInsets = WindowInsets(0, 0, 0, 0),
+                            sbSubmitEnabled = sbSubmitEnabled,
+                            onSbSubmitClick = {
+                                screenState.showControls = false
+                                showSbSubmitDialog = true
+                            },
+                            onCastClick = {
+                                DlnaCastManager.startDiscovery(context)
+                                showDlnaDialog = true
+                            },
+                            isCasting = DlnaCastManager.isCasting,
+                            isLive = !playerUiState.hlsUrl.isNullOrEmpty(),
+                            onLiveClick = {
+                                EnhancedPlayerManager.getInstance().seekToLiveEdge(resetSpeed = true)
+                            },
+                            isLiveChatAvailable = playerUiState.isLiveChatAvailable,
+                            onLiveChatClick = {
+                                if (screenState.showLiveChatFullscreen) {
+                                    screenState.showLiveChatFullscreen = false
+                                } else {
+                                    screenState.dismissMediaSheets()
+                                    screenState.showLiveChatFullscreen = true
+                                }
+                            },
+                            isCommentsAvailable = isCommentsAvailable,
+                            isCommentsPanelOpen = screenState.showCommentsFullscreen || screenState.showCommentsSheet,
+                            onCommentsClick = {
+                                if (canUseFullscreenSidePanel) {
+                                    if (screenState.showCommentsFullscreen) {
+                                        screenState.showCommentsFullscreen = false
+                                    } else {
+                                        screenState.dismissMediaSheets()
+                                        screenState.showCommentsFullscreen = true
+                                    }
+                                } else {
+                                    screenState.dismissMediaSheets()
+                                    screenState.showCommentsSheet = true
+                                }
+                            },
+                            onSleepTimerClick = { screenState.showSleepTimerSheet = true },
+                            isSleepTimerActive = io.github.aedev.flow.player.SleepTimerManager.isActive,
+                            showRemainingTime = showRemainingTime,
+                            onToggleRemainingTime = { showRemainingTime = !showRemainingTime },
+                            isTouchLocked = screenState.isTouchLocked,
+                            lockModeEnabled = lockModeEnabled,
+                            lockOverlayRevealSignal = screenState.lockOverlayRevealSignal,
+                            isPortraitFullscreen = screenState.isFullscreenPortrait,
+                            onTouchLockToggle = {
+                                if (lockModeEnabled || screenState.isTouchLocked) {
+                                    screenState.isTouchLocked = !screenState.isTouchLocked
+                                    screenState.showControls = true
+                                    if (screenState.isTouchLocked) {
+                                        screenState.revealLockOverlay()
+                                    }
+                                    screenState.onInteraction()
+                                }
+                            },
+                        )
 
-                            AutoplayCountdownOverlay()
-                        }
+                        AutoplayCountdownOverlay()
                     }
-                },
+                }
+            },
             bodyContent = { alpha, videoHeight ->
                 Box(Modifier.fillMaxSize()) {
                     EnhancedVideoPlayerScreen(
@@ -1247,7 +1305,7 @@ fun GlobalPlayerOverlay(
                         },
                         onChannelClick = { channelId ->
                             onNavigateToChannel(channelId)
-                        }
+                        },
                     )
 
                     if (screenState.isTouchLocked && !screenState.isFullscreen && !localIsInPipMode && !isLandscape) {
@@ -1261,9 +1319,10 @@ fun GlobalPlayerOverlay(
                                 screenState.showControls = true
                                 screenState.onInteraction()
                             },
-                            modifier = Modifier
-                                .matchParentSize()
-                                .zIndex(2f)
+                            modifier =
+                                Modifier
+                                    .matchParentSize()
+                                    .zIndex(2f),
                         )
                     }
                 }
@@ -1301,42 +1360,44 @@ fun GlobalPlayerOverlay(
                         onPrevious = {
                             playerViewModel.playPrevious()
                         },
-                        onClose = onClose
+                        onClose = onClose,
                     )
                     if (playerUiState.isRestoredSession) {
                         Text(
                             text = stringResource(R.string.player_mini_player_continue_watching_label),
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 4.dp)
-                                .background(
-                                    Color(0xBB000000),
-                                    RoundedCornerShape(3.dp)
-                                )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier =
+                                Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 4.dp)
+                                    .background(
+                                        Color(0xBB000000),
+                                        RoundedCornerShape(3.dp),
+                                    ).padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
-            }
+            },
         )
 
         if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode && sponsorSegments.isNotEmpty()) {
             val sponsorButtonPositionMs by remember {
                 derivedStateOf { (screenState.currentPosition / 1_000L) * 1_000L }
             }
-            val sponsorLayerModifier = if (screenState.isFullscreen || expandedPlayerBottom <= 0.dp) {
-                Modifier.fillMaxHeight()
-            } else {
-                Modifier.height(expandedPlayerBottom)
-            }
+            val sponsorLayerModifier =
+                if (screenState.isFullscreen || expandedPlayerBottom <= 0.dp) {
+                    Modifier.fillMaxHeight()
+                } else {
+                    Modifier.height(expandedPlayerBottom)
+                }
             Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .width(fullscreenPlayerWidth)
-                    .then(sponsorLayerModifier)
-                    .zIndex(3f)
+                modifier =
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .width(fullscreenPlayerWidth)
+                        .then(sponsorLayerModifier)
+                        .zIndex(3f),
             ) {
                 SponsorBlockSkipButton(
                     sponsorSegments = sponsorSegments,
@@ -1347,12 +1408,13 @@ fun GlobalPlayerOverlay(
                     onSkipClick = { endPositionMs ->
                         EnhancedPlayerManager.getInstance().skipToSegmentEnd(endPositionMs)
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(
-                            end = sponsorSkipEndPadding,
-                            bottom = floatingSponsorSkipBottomPadding
-                        )
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
+                                end = sponsorSkipEndPadding,
+                                bottom = floatingSponsorSkipBottomPadding,
+                            ),
                 )
             }
         }
@@ -1361,14 +1423,15 @@ fun GlobalPlayerOverlay(
 
         if (fullscreenSidePanelVisible) {
             Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .offset(x = fullscreenDrawerOffset)
-                    .width(fullscreenDrawerWidth)
-                    .fillMaxHeight()
-                    .then(fullscreenSidePanelDragModifier)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .zIndex(8f)
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .offset(x = fullscreenDrawerOffset)
+                        .width(fullscreenDrawerWidth)
+                        .fillMaxHeight()
+                        .then(fullscreenSidePanelDragModifier)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .zIndex(8f),
             ) {
                 if (showSettingsSurface) {
                     SettingsMenuDialog(
@@ -1421,7 +1484,7 @@ fun GlobalPlayerOverlay(
                                 PictureInPictureHelper.requestPlayerPipMode(
                                     activity = activity,
                                     aspectRatio = videoAspectRatio,
-                                    isPlaying = playerState.isPlaying
+                                    isPlaying = playerState.isPlaying,
                                 )
                             }
                         },
@@ -1436,7 +1499,7 @@ fun GlobalPlayerOverlay(
                         expandedHeight = fullscreenSidePanelHeight,
                         enableVerticalDismiss = false,
                         useGroupedQualitySelector = groupedQualitySelectorEnabled,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
                     )
                 } else if (screenState.showChaptersSheet) {
                     val chaptersPositionMs by remember {
@@ -1453,7 +1516,7 @@ fun GlobalPlayerOverlay(
                         expandedHeight = fullscreenSidePanelHeight,
                         enableVerticalDismiss = false,
                         modifier = Modifier.fillMaxSize(),
-                        onDismiss = { closeFullscreenSidePanel() }
+                        onDismiss = { closeFullscreenSidePanel() },
                     )
                 } else if (showSleepTimerSidePanel) {
                     SleepTimerSheet(
@@ -1461,26 +1524,27 @@ fun GlobalPlayerOverlay(
                         expandedHeight = fullscreenSidePanelHeight,
                         enableVerticalDismiss = false,
                         asBottomSheet = false,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
                     )
                 } else if (showLiveChatSidePanel) {
                     androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
                         androidx.compose.foundation.layout.Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = stringResource(R.string.live_chat),
                                 style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Spacer(Modifier.weight(1f))
                             IconButton(onClick = { closeFullscreenSidePanel() }) {
                                 Icon(
                                     Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.close)
+                                    contentDescription = stringResource(R.string.close),
                                 )
                             }
                         }
@@ -1488,34 +1552,35 @@ fun GlobalPlayerOverlay(
                         io.github.aedev.flow.ui.components.LiveChatList(
                             messages = playerUiState.liveChatMessages,
                             isLoading = playerUiState.isLiveChatLoading,
-                            modifier = Modifier.fillMaxWidth().weight(1f)
+                            modifier = Modifier.fillMaxWidth().weight(1f),
                         )
                     }
                 } else if (showCommentsSidePanel) {
                     Column(Modifier.fillMaxSize()) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = stringResource(R.string.comments),
                                 style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Spacer(Modifier.weight(1f))
                             IconButton(onClick = { closeFullscreenSidePanel() }) {
                                 Icon(
                                     Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.close)
+                                    contentDescription = stringResource(R.string.close),
                                 )
                             }
                         }
                         CommentSortFilterChips(
                             selectedFilter = screenState.commentSortFilter,
                             onFilterChanged = { screenState.commentSortFilter = it },
-                            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp)
+                            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                         val commentsListState = rememberLazyListState()
@@ -1538,13 +1603,13 @@ fun GlobalPlayerOverlay(
                             isLoadingMore = isLoadingMoreComments,
                             onLoadMore = { playerViewModel.loadMoreComments(video.id) },
                             hasMore = hasMoreComments,
-                            modifier = Modifier.fillMaxWidth().weight(1f)
+                            modifier = Modifier.fillMaxWidth().weight(1f),
                         )
                     }
                 }
             }
         }
-        
+
         // Dialogs
         PlayerDialogsContainer(
             screenState = screenState,
@@ -1555,7 +1620,7 @@ fun GlobalPlayerOverlay(
             renderSettingsMenu = !canUseFullscreenSidePanel,
             mediaSheetExpandedHeight = mediaSheetExpandedHeight,
             mediaSheetCollapsedHeight = mediaSheetCollapsedHeight,
-            onMediaSheetProgressChange = updateMediaSheetProgress
+            onMediaSheetProgressChange = updateMediaSheetProgress,
         )
 
         // SB Submit dialog
@@ -1564,10 +1629,10 @@ fun GlobalPlayerOverlay(
             io.github.aedev.flow.ui.screens.player.dialogs.SbSubmitSegmentDialog(
                 videoId = video.id,
                 currentPositionMs = initialPosition,
-                onDismiss = { showSbSubmitDialog = false }
+                onDismiss = { showSbSubmitDialog = false },
             )
         }
-        
+
         // DLNA device picker dialog
         if (showDlnaDialog) {
             DlnaDevicePickerDialog(
@@ -1576,13 +1641,19 @@ fun GlobalPlayerOverlay(
                 isCasting = DlnaCastManager.isCasting,
                 videoTitle = video.title,
                 onDeviceSelected = { device ->
-                    val currentPlayerUrl = EnhancedPlayerManager.getInstance().getPlayer()
-                        ?.currentMediaItem?.localConfiguration?.uri?.toString()
+                    val currentPlayerUrl =
+                        EnhancedPlayerManager
+                            .getInstance()
+                            .getPlayer()
+                            ?.currentMediaItem
+                            ?.localConfiguration
+                            ?.uri
+                            ?.toString()
                     DlnaCastManager.castStreamInfo(
                         device = device,
                         title = video.title,
                         streamInfo = playerUiState.streamInfo,
-                        currentPlayerUrl = currentPlayerUrl
+                        currentPlayerUrl = currentPlayerUrl,
                     )
                     showDlnaDialog = false
                 },
@@ -1593,10 +1664,10 @@ fun GlobalPlayerOverlay(
                 onDismiss = {
                     DlnaCastManager.stopDiscovery()
                     showDlnaDialog = false
-                }
+                },
             )
         }
-        
+
         // Bottom Sheets
         PlayerBottomSheetsContainer(
             screenState = screenState,
@@ -1632,7 +1703,7 @@ fun GlobalPlayerOverlay(
             },
             renderChaptersSheet = !canUseFullscreenSidePanel,
             renderSleepTimerSheet = !canUseFullscreenSidePanel,
-            onMediaSheetProgressChange = updateMediaSheetProgress
+            onMediaSheetProgressChange = updateMediaSheetProgress,
         )
     }
 }

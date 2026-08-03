@@ -50,8 +50,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.utils.formatDuration
 
@@ -62,29 +63,33 @@ fun LocalMediaScreen(
     onVideoClick: (LocalMediaItem) -> Unit,
     onMusicClick: (items: List<LocalMediaItem>, index: Int) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LocalMediaViewModel = hiltViewModel()
+    viewModel: LocalMediaViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
 
-    val permissionsToRequest = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-            arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
-        else
-            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-    }
+    val permissionsToRequest =
+        remember {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
+            } else {
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+        }
 
-    fun hasAnyPermission(): Boolean = permissionsToRequest.any { perm ->
-        ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
-    }
+    fun hasAnyPermission(): Boolean =
+        permissionsToRequest.any { perm ->
+            ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+        }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        if (results.values.any { it }) viewModel.scan() else viewModel.onPermissionDenied()
-    }
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) { results ->
+            if (results.values.any { it }) viewModel.scan() else viewModel.onPermissionDenied()
+        }
 
     LaunchedEffect(Unit) {
         if (hasAnyPermission()) viewModel.scan() else permissionLauncher.launch(permissionsToRequest)
@@ -96,18 +101,19 @@ fun LocalMediaScreen(
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.background,
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.close)
+                            contentDescription = stringResource(R.string.close),
                         )
                     }
                     Text(
@@ -115,28 +121,32 @@ fun LocalMediaScreen(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     IconButton(
                         onClick = {
-                            if (hasAnyPermission()) viewModel.scan()
-                            else permissionLauncher.launch(permissionsToRequest)
-                        }
+                            if (hasAnyPermission()) {
+                                viewModel.scan()
+                            } else {
+                                permissionLauncher.launch(permissionsToRequest)
+                            }
+                        },
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Refresh,
-                            contentDescription = stringResource(R.string.local_media_rescan)
+                            contentDescription = stringResource(R.string.local_media_rescan),
                         )
                     }
                 }
             }
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
         ) {
             LocalMediaTabSelector(
                 selectedTabIndex = selectedTabIndex,
@@ -145,7 +155,7 @@ fun LocalMediaScreen(
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         selectedTabIndex = it
                     }
-                }
+                },
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -161,39 +171,45 @@ fun LocalMediaScreen(
                                 context.startActivity(
                                     Intent(
                                         Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                        Uri.fromParts("package", context.packageName, null)
-                                    )
+                                        Uri.fromParts("package", context.packageName, null),
+                                    ),
                                 )
                             }
                         }
-                    }
+                    },
                 )
             } else {
                 Crossfade(
                     targetState = selectedTabIndex,
                     animationSpec = tween(250, easing = EaseOutCubic),
                     label = "local_tab_crossfade",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f)
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .weight(1f),
                 ) { targetIndex ->
                     when (targetIndex) {
-                        0 -> LocalMediaList(
-                            items = uiState.videos,
-                            isVideo = true,
-                            isScanning = uiState.isScanning,
-                            hasScanned = uiState.hasScanned,
-                            onRefresh = { viewModel.scan() },
-                            onItemClick = { items, index -> onVideoClick(items[index]) }
-                        )
-                        1 -> LocalMediaList(
-                            items = uiState.music,
-                            isVideo = false,
-                            isScanning = uiState.isScanning,
-                            hasScanned = uiState.hasScanned,
-                            onRefresh = { viewModel.scan() },
-                            onItemClick = { items, index -> onMusicClick(items, index) }
-                        )
+                        0 -> {
+                            LocalMediaList(
+                                items = uiState.videos,
+                                isVideo = true,
+                                isScanning = uiState.isScanning,
+                                hasScanned = uiState.hasScanned,
+                                onRefresh = { viewModel.scan() },
+                                onItemClick = { items, index -> onVideoClick(items[index]) },
+                            )
+                        }
+
+                        1 -> {
+                            LocalMediaList(
+                                items = uiState.music,
+                                isVideo = false,
+                                isScanning = uiState.isScanning,
+                                hasScanned = uiState.hasScanned,
+                                onRefresh = { viewModel.scan() },
+                                onItemClick = { items, index -> onMusicClick(items, index) },
+                            )
+                        }
                     }
                 }
             }
@@ -206,36 +222,39 @@ fun LocalMediaScreen(
 @Composable
 private fun LocalMediaTabSelector(
     selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
 ) {
-    val tabs = listOf(
-        stringResource(R.string.tab_videos) to Icons.Outlined.VideoLibrary,
-        stringResource(R.string.tab_music) to Icons.Outlined.MusicNote
-    )
+    val tabs =
+        listOf(
+            stringResource(R.string.tab_videos) to Icons.Outlined.VideoLibrary,
+            stringResource(R.string.tab_music) to Icons.Outlined.MusicNote,
+        )
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .height(52.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
-            .padding(4.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .height(52.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
+                .padding(4.dp),
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val tabWidth = maxWidth / tabs.size
             val indicatorOffset by animateDpAsState(
                 targetValue = tabWidth * selectedTabIndex,
                 animationSpec = spring(dampingRatio = 0.75f, stiffness = 400f),
-                label = "local_indicator_offset"
+                label = "local_indicator_offset",
             )
             Box(
-                modifier = Modifier
-                    .width(tabWidth)
-                    .fillMaxHeight()
-                    .offset(x = indicatorOffset)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+                modifier =
+                    Modifier
+                        .width(tabWidth)
+                        .fillMaxHeight()
+                        .offset(x = indicatorOffset)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surface),
             )
         }
 
@@ -243,38 +262,43 @@ private fun LocalMediaTabSelector(
             tabs.forEachIndexed { index, (title, icon) ->
                 val isSelected = selectedTabIndex == index
                 val contentColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.onSurface
-                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    targetValue =
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        },
                     animationSpec = tween(250),
-                    label = "local_tab_color_$index"
+                    label = "local_tab_color_$index",
                 )
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            role = Role.Tab
-                        ) { onTabSelected(index) },
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                role = Role.Tab,
+                            ) { onTabSelected(index) },
+                    contentAlignment = Alignment.Center,
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
                             tint = contentColor,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(19.dp),
                         )
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = contentColor
+                            color = contentColor,
                         )
                     }
                 }
@@ -294,32 +318,33 @@ private fun LocalMediaList(
     hasScanned: Boolean,
     onRefresh: () -> Unit,
     onItemClick: (List<LocalMediaItem>, Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val pullState = rememberPullToRefreshState()
     PullToRefreshBox(
         isRefreshing = isScanning,
         onRefresh = onRefresh,
         state = pullState,
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize(),
     ) {
         if (items.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
             ) {
                 LocalMediaEmptyState(
                     type = stringResource(if (isVideo) R.string.tab_videos else R.string.tab_music),
                     icon = if (isVideo) Icons.Outlined.VideoLibrary else Icons.Outlined.MusicNote,
-                    isScanning = isScanning && !hasScanned
+                    isScanning = isScanning && !hasScanned,
                 )
             }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
                     if (isVideo) {
@@ -336,51 +361,59 @@ private fun LocalMediaList(
 // ─── Cards ───────────────────────────────────────────────────────────────────
 
 @Composable
-private fun LocalVideoCard(item: LocalMediaItem, onClick: () -> Unit) {
+private fun LocalVideoCard(
+    item: LocalMediaItem,
+    onClick: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick, role = Role.Button)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick, role = Role.Button)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .width(152.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .width(152.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Outlined.VideoLibrary,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(28.dp),
             )
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(item.contentUri)
-                    .crossfade(true)
-                    .build(),
+                model =
+                    ImageRequest
+                        .Builder(LocalContext.current)
+                        .data(item.contentUri)
+                        .crossfade(true)
+                        .build(),
                 contentDescription = item.title,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
             if (item.durationMs > 0) {
                 Surface(
                     color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.85f),
                     shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(6.dp),
                 ) {
                     Text(
                         text = formatDuration((item.durationMs / 1000).toInt()),
                         color = MaterialTheme.colorScheme.inverseOnSurface,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                     )
                 }
             }
@@ -396,7 +429,7 @@ private fun LocalVideoCard(item: LocalMediaItem, onClick: () -> Unit) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 20.sp
+                lineHeight = 20.sp,
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
@@ -404,43 +437,50 @@ private fun LocalVideoCard(item: LocalMediaItem, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
 
 @Composable
-private fun LocalMusicCard(item: LocalMediaItem, onClick: () -> Unit) {
+private fun LocalMusicCard(
+    item: LocalMediaItem,
+    onClick: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick, role = Role.Button)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick, role = Role.Button)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Outlined.MusicNote,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
             if (item.artworkUri != null) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(item.artworkUri)
-                        .crossfade(true)
-                        .build(),
+                    model =
+                        ImageRequest
+                            .Builder(LocalContext.current)
+                            .data(item.artworkUri)
+                            .crossfade(true)
+                            .build(),
                     contentDescription = item.title,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             }
         }
@@ -454,18 +494,19 @@ private fun LocalMusicCard(item: LocalMediaItem, onClick: () -> Unit) {
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = buildSubtitle(
-                    item.subtitle,
-                    if (item.durationMs > 0) formatDuration((item.durationMs / 1000).toInt()) else ""
-                ),
+                text =
+                    buildSubtitle(
+                        item.subtitle,
+                        if (item.durationMs > 0) formatDuration((item.durationMs / 1000).toInt()) else "",
+                    ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -474,44 +515,53 @@ private fun LocalMusicCard(item: LocalMediaItem, onClick: () -> Unit) {
 // ─── Empty & permission states ───────────────────────────────────────────────
 
 @Composable
-private fun LocalMediaEmptyState(type: String, icon: ImageVector, isScanning: Boolean) {
+private fun LocalMediaEmptyState(
+    type: String,
+    icon: ImageVector,
+    isScanning: Boolean,
+) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
         Surface(
             modifier = Modifier.size(100.dp),
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 if (isScanning) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(36.dp),
                         strokeWidth = 3.dp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 } else {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     )
                 }
             }
         }
         Spacer(modifier = Modifier.height(28.dp))
         Text(
-            text = if (isScanning) stringResource(R.string.local_media_scanning)
-            else stringResource(R.string.local_media_empty_title, type),
+            text =
+                if (isScanning) {
+                    stringResource(R.string.local_media_scanning)
+                } else {
+                    stringResource(R.string.local_media_empty_title, type)
+                },
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         if (!isScanning) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -520,7 +570,7 @@ private fun LocalMediaEmptyState(type: String, icon: ImageVector, isScanning: Bo
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                lineHeight = 22.sp
+                lineHeight = 22.sp,
             )
         }
     }
@@ -529,23 +579,24 @@ private fun LocalMediaEmptyState(type: String, icon: ImageVector, isScanning: Bo
 @Composable
 private fun LocalMediaPermissionState(onGrant: () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
         Surface(
             modifier = Modifier.size(100.dp),
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Outlined.VideoLibrary,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                 )
             }
         }
@@ -555,7 +606,7 @@ private fun LocalMediaPermissionState(onGrant: () -> Unit) {
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
@@ -563,24 +614,26 @@ private fun LocalMediaPermissionState(onGrant: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            lineHeight = 22.sp
+            lineHeight = 22.sp,
         )
         Spacer(modifier = Modifier.height(36.dp))
         FilledTonalButton(
             onClick = onGrant,
             shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .height(48.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(48.dp),
+            colors =
+                ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
         ) {
             Text(
                 text = stringResource(R.string.local_media_grant),
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
@@ -588,11 +641,15 @@ private fun LocalMediaPermissionState(onGrant: () -> Unit) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-private fun buildSubtitle(primary: String, secondary: String): String = when {
-    primary.isNotBlank() && secondary.isNotBlank() -> "$primary · $secondary"
-    primary.isNotBlank() -> primary
-    else -> secondary
-}
+private fun buildSubtitle(
+    primary: String,
+    secondary: String,
+): String =
+    when {
+        primary.isNotBlank() && secondary.isNotBlank() -> "$primary · $secondary"
+        primary.isNotBlank() -> primary
+        else -> secondary
+    }
 
 private fun formatSize(bytes: Long): String {
     if (bytes <= 0) return ""

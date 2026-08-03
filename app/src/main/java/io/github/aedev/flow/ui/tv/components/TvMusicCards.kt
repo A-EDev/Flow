@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.tv.focus.rememberTvFocusState
 import io.github.aedev.flow.ui.tv.focus.tvFocusScale
@@ -75,24 +75,27 @@ private fun TvFlatSquareCard(
 
     Surface(
         onClick = onClick,
-        modifier = modifier
-            .width(dimens.musicCardWidth)
-            .tvFocusScale(focusState),
+        modifier =
+            modifier
+                .width(dimens.musicCardWidth)
+                .tvFocusScale(focusState),
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                border = if (focusState.isFocused) {
-                    BorderStroke(dimens.focusBorderWidth, MaterialTheme.colorScheme.onSurface)
-                } else {
-                    null
-                },
+                border =
+                    if (focusState.isFocused) {
+                        BorderStroke(dimens.focusBorderWidth, MaterialTheme.colorScheme.onSurface)
+                    } else {
+                        null
+                    },
             ) {
                 AsyncImage(
                     model = thumbnailUrl,
@@ -136,9 +139,10 @@ fun TvArtistCard(
 
     Surface(
         onClick = onClick,
-        modifier = modifier
-            .width(dimens.musicCardWidth)
-            .tvFocusScale(focusState),
+        modifier =
+            modifier
+                .width(dimens.musicCardWidth)
+                .tvFocusScale(focusState),
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
@@ -147,16 +151,18 @@ fun TvArtistCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                border = if (focusState.isFocused) {
-                    BorderStroke(dimens.focusBorderWidth, MaterialTheme.colorScheme.onSurface)
-                } else {
-                    null
-                },
+                border =
+                    if (focusState.isFocused) {
+                        BorderStroke(dimens.focusBorderWidth, MaterialTheme.colorScheme.onSurface)
+                    } else {
+                        null
+                    },
             ) {
                 AsyncImage(
                     model = thumbnailUrl,
@@ -189,9 +195,10 @@ fun TvMusicTrackRow(
         selected = selected,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
