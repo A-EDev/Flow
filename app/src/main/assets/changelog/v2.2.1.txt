@@ -40,3 +40,8 @@ FIXES AND STABILITY
 
 DEPENDENCY
 - Bump NewPipeExtractor to v0.26.4
+- Update Gradle to 9.6.1 and Android Gradle Plugin to 9.3.1
+- Update Kotlin to 2.4.10 with the Compose compiler plugin and KSP 2.3.10
+- Update Hilt to 2.60.1 and Room to 2.8.4
+- Update Coroutines and Serialization to 1.11.0
+- Update baseline profile and benchmark tooling to 1.5.0-beta01
