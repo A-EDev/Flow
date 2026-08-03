@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "io.github.aedev.flow.baselineprofile"
-    compileSdk = 35
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

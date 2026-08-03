@@ -218,7 +218,6 @@ private class AmbientPipeline {
     private var supported = true
     private var consecutiveFailures = 0
 
-
     suspend fun runCapture(
         playerView: PlayerView,
         isPlaying: () -> Boolean,

@@ -12,7 +12,7 @@ plugins {
 
 android {
     namespace = "io.github.aedev.flow"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "io.github.aedev.flow"
@@ -30,9 +30,6 @@ android {
         ndk {
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
         }
-
-        // Enable multidex for older devices
-        multiDexEnabled = true
     }
 
     dependenciesInfo {
@@ -276,13 +273,8 @@ dependencies {
     implementation(libs.androidx.paging.runtime.ktx)
     implementation(libs.androidx.paging.compose)
 
-    // RxJava (Required for NewPipeExtractor)
-    implementation(libs.rxjava)
-    implementation(libs.rxandroid)
-
     implementation(libs.androidx.work.runtime.ktx)
     "githubImplementation"(libs.apkupdater)
-    implementation(libs.androidx.multidex)
 
     implementation(libs.brotli)
     implementation(libs.re2j)
@@ -295,25 +287,24 @@ dependencies {
     baselineProfile(project(":baselineprofile"))
 
     // Desugaring for older Android versions
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
+    coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
 
     // --- Testing ---
     testImplementation(libs.junit)
-    // Add missing test libs to TOML or keep hardcoded for now if not in catalog
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
-    testImplementation("io.mockk:mockk:1.13.12")
-    testImplementation("com.google.truth:truth:1.1.5")
-    testImplementation("app.cash.turbine:turbine:1.1.0")
-    testImplementation("com.google.dagger:hilt-android-testing:2.60.1")
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockk)
+    testImplementation(libs.truth)
+    testImplementation(libs.turbine)
+    testImplementation(libs.hilt.android.testing)
     kspTest(libs.hilt.android.compiler)
 
     // Room migration tests (device-sync schema 20→23)
     androidTestImplementation(libs.androidx.room.testing)
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
-    androidTestImplementation("com.google.dagger:hilt-android-testing:2.60.1")
+    androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.android.compiler)
 
     debugImplementation(libs.androidx.ui.tooling)

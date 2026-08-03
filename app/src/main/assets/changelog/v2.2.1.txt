@@ -45,3 +45,8 @@ DEPENDENCY
 - Update Hilt to 2.60.1 and Room to 2.8.4
 - Update Coroutines and Serialization to 1.11.0
 - Update baseline profile and benchmark tooling to 1.5.0-beta01
+- Update Compose BOM to 2026.06.01 with Material 3 1.4
+- Raise compileSdk to 37
+- Update Navigation, Lifecycle, Activity, Core, WorkManager, Paging and CameraX
+- Update Gson to 2.14.0, Conscrypt to 2.5.3 and core library desugaring to 2.1.5
+- Remove unused RxJava and multidex dependencies
