@@ -405,16 +405,16 @@
     <string name="settings_item_content_prefs">Preferencje Treści</string>
     <string name="settings_item_content_prefs_subtitle">Zablokuj tematy, których nie chcesz widzieć</string>
     <string name="settings_item_player">Ustawienia Odtwarzacza</string>
-    <string name="settings_item_player_subtitle">Automatyczne Odtwarzanie, Odtwarzanie w tle, SponsorBlock</string>
+    <string name="settings_item_player_subtitle">Zmień przyciski w odtwarzaczu, ustaw odtwarzanie w tle bądź autoodtwarzanie</string>
     <string name="settings_item_proxy">Ustawienia Proxy</string>
     <string name="settings_item_proxy_subtitle">Kieruj zewnętrzny ruch po HTTP lub SOCKS5</string>
     <string name="settings_item_quality">Jakość Filmów i Muzyki</string>
-    <string name="settings_item_quality_subtitle">Ustaw domyślna rozdzielczość dla filmów i jakość muzyki</string>
+    <string name="settings_item_quality_subtitle">Ustaw domyślną rozdzielczość dla filmów i jakość muzyki</string>
     <string name="settings_item_content_display_subtitle">Rozmiar siatki, miniaturki, układ</string>
     <string name="settings_item_app_language">Język Aplikacji</string>
     <string name="settings_item_app_language_subtitle">Użyj języka ustawionego na urządzeniu lub wybierz go ręcznie</string>
     <string name="settings_item_buffer">Ustawienia Buforowania</string>
-    <string name="settings_item_buffer_subtitle">Konfiguruj zachowanie buforowania filmów</string>
+    <string name="settings_item_buffer_subtitle">Skonfiguruj zachowanie buforowania filmów</string>
     <string name="settings_item_downloads">Ustawienia Pobierania</string>
     <string name="settings_item_downloads_subtitle">Wydajność, Pamięć, Wątki</string>
     <string name="settings_item_region">Region Treści</string>
@@ -750,7 +750,7 @@
     <string name="recognition_clear_history">Wyczyścić historię?</string>
     <string name="recognition_clear_history_body">Spowoduje to usunięcie wszystkich rozpoznanych utworów. Czynności tej nie można cofnąć.</string>
     <string name="datetime_sample_relative">7 miesięcy temu</string>
-    <string name="settings_item_content_display">Wyświetlanie treści</string>
+    <string name="settings_item_content_display">Wyświetlanie Treści</string>
     <string name="content_settings_grid_size_title">Rozmiar elementów siatki</string>
     <string name="content_settings_grid_size_subtitle">Ustaw rozmiar okładek albumów i kart treści</string>
     <string name="content_settings_grid_big_desc">Większe miniatury</string>
@@ -764,7 +764,7 @@
     <string name="content_settings_show_app_logo_title">Wyświetlaj logo aplikacji</string>
     <string name="content_settings_show_app_logo_subtitle">Wyświetl ikonę z logo Flow obok nazwy aplikacji na górnym pasku ekranu głównego</string>
     <string name="settings_subs_shorts_shelf_title">Sekcja Shorts w karcie Subskrypcji</string>
-    <string name="settings_subs_shorts_shelf_subtitle">Wyświetl poziomą sekcje z Shorts w siatce karty Subskrypcji.</string>
+    <string name="settings_subs_shorts_shelf_subtitle">Wyświetl poziomą sekcje z Shorts w karcie Subskrypcji.</string>
     <string name="settings_home_shorts_shelf_title">Sekcja Shorts w karcie Głównej</string>
     <string name="settings_home_shorts_shelf_subtitle">Wyświetl poziomą sekcję z Shorts w karcie Głównej.</string>
     <string name="settings_continue_watching_title">Sekcja Kontynuuj Oglądanie</string>
@@ -901,7 +901,7 @@
     <string name="proxy_settings_invalid_host">Przed włączeniem serwera proxy należy wprowadzić nazwę hosta serwera proxy.</string>
     <string name="proxy_settings_invalid_port">Wprowadź prawidłowy numer portu serwera proxy z zakresu od 1 do 65535.</string>
     <string name="proxy_settings_saved">Ustawienia serwera proxy zostały zapisane</string>
-    <string name="sb_settings_subtitle">Zarządzanie segmentami, opcje DeArrow i licznik łapek w dół</string>
+    <string name="sb_settings_subtitle">Zarządzanie DeArrow, licznikiem łapek w dół i segmentami SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Pomiń fragmenty sponsorowane</string>
     <string name="player_settings_dearrow_subtitle">Zastąp clickbaitowe tytuły i miniatury alternatywami od społeczności</string>
     <string name="sb_settings_general_header">Ogólne</string>
@@ -1344,7 +1344,7 @@
     <string name="parallel_downloading_title">Pobieranie Równoległe</string>
     <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
     <string name="shorts_quality_settings_title">Jakość Shorts</string>
-    <string name="shorts_quality_settings_subtitle">Ustaw domyślna rozdzielczość dla Shorts</string>
+    <string name="shorts_quality_settings_subtitle">Ustaw domyślną rozdzielczość dla Shorts</string>
     <string name="sb_user_id_not_set">Dotknij, aby ustawić lub wygenerować ID użytkownika</string>
     <string name="sb_user_id_dialog_body">Podaj własny identyfikator użytkownika lub pozostaw puste pole – system wygeneruje go automatycznie. Identyfikator pozwala śledzić przesłane segmenty.</string>
     <string name="sb_user_id_hint">Identyfikator użytkownika (UUID)</string>
