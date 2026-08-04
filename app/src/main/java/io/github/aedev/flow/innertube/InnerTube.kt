@@ -1,7 +1,6 @@
 package io.github.aedev.flow.innertube
 
 import android.util.Log
-
 import io.github.aedev.flow.FlowApplication
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.models.Context
@@ -9,8 +8,8 @@ import io.github.aedev.flow.innertube.models.MediaInfo
 import io.github.aedev.flow.innertube.models.ReturnYouTubeDislikeResponse
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.YouTubeLocale
-import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
 import io.github.aedev.flow.innertube.models.body.*
+import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
 import io.github.aedev.flow.innertube.models.response.NextResponse
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.models.response.ReelWatchSequenceResponse
@@ -20,24 +19,24 @@ import io.ktor.client.*
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.*
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
-import io.ktor.util.encodeBase64
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import okhttp3.ConnectionPool
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import java.io.IOException
 import java.net.Proxy
 import java.util.*
-import kotlinx.coroutines.delay
-import java.io.IOException
-import okhttp3.ConnectionPool
-import okhttp3.Protocol
-import okhttp3.OkHttpClient
+import kotlin.io.encoding.Base64
 
 private const val TAG = "InnerTube"
 
@@ -48,12 +47,13 @@ private const val TAG = "InnerTube"
 class InnerTube {
     private var httpClient = createClient()
 
-    var locale = sanitizeLocale(
-        YouTubeLocale(
-            gl = Locale.getDefault().country,
-            hl = Locale.getDefault().toLanguageTag()
+    var locale =
+        sanitizeLocale(
+            YouTubeLocale(
+                gl = Locale.getDefault().country,
+                hl = Locale.getDefault().toLanguageTag(),
+            ),
         )
-    )
         set(value) {
             field = sanitizeLocale(value)
         }
@@ -95,7 +95,9 @@ class InnerTube {
         return if (normalized.matches(Regex("[A-Z]{2}"))) {
             normalized
         } else {
-            Locale.getDefault().country
+            Locale
+                .getDefault()
+                .country
                 .trim()
                 .uppercase(Locale.US)
                 .takeIf { it.matches(Regex("[A-Z]{2}")) }
@@ -103,94 +105,98 @@ class InnerTube {
         }
     }
 
-    private fun sanitizeLanguageCode(value: String): String {
-        return normalizeYouTubeHostLanguage(value)
-    }
+    private fun sanitizeLanguageCode(value: String): String = normalizeYouTubeHostLanguage(value)
 
     @OptIn(ExperimentalSerializationApi::class)
-    private fun createClient() = HttpClient(OkHttp) {
-        expectSuccess = true
+    private fun createClient() =
+        HttpClient(OkHttp) {
+            expectSuccess = true
 
-        install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-                explicitNulls = false
-                encodeDefaults = true
-            })
-        }
-
-        install(ContentEncoding) {
-            gzip(0.9F)
-            deflate(0.8F)
-        }
-
-        // PERFORMANCE OPTIMIZED: Enhanced network configuration
-        engine {
-            config {
-                // Aggressive connection pool for faster connection reuse
-                connectionPool(
-                    okhttp3.ConnectionPool(
-                        15, // Increased from 10 - more connections available
-                        5, // keepAliveDuration
-                        java.util.concurrent.TimeUnit.MINUTES
-                    )
-                )
-                
-                // Faster timeout configurations - fail fast, retry smart
-                connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS) 
-                readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                callTimeout(45, java.util.concurrent.TimeUnit.SECONDS)    
-                
-                // Enable HTTP/2 for multiplexing (parallel streams on single connection)
-                protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
-                
-                // Retry on connection failure
-                retryOnConnectionFailure(true)
-                
-                // High concurrency dispatcher
-                dispatcher(okhttp3.Dispatcher().apply {
-                    maxRequests = 48
-                    maxRequestsPerHost = 8
-                })
-                
-                // Cache configuration for better performance
-                cache(
-                     okhttp3.Cache(
-                         directory = java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
-                         maxSize = 50L * 1024L * 1024L // 50 MB
-                     )
+            install(ContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        explicitNulls = false
+                        encodeDefaults = true
+                    },
                 )
             }
-            
-            proxy?.let { proxy = this@InnerTube.proxy }
-            
-            // Fix proxy auth
-            proxyAuth?.let { auth ->
-                 config {
-                    proxyAuthenticator { _, response ->
-                        response.request.newBuilder()
-                            .header("Proxy-Authorization", auth)
-                            .build()
+
+            install(ContentEncoding) {
+                gzip(0.9F)
+                deflate(0.8F)
+            }
+
+            // PERFORMANCE OPTIMIZED: Enhanced network configuration
+            engine {
+                config {
+                    // Aggressive connection pool for faster connection reuse
+                    connectionPool(
+                        okhttp3.ConnectionPool(
+                            15, // Increased from 10 - more connections available
+                            5, // keepAliveDuration
+                            java.util.concurrent.TimeUnit.MINUTES,
+                        ),
+                    )
+
+                    // Faster timeout configurations - fail fast, retry smart
+                    connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    callTimeout(45, java.util.concurrent.TimeUnit.SECONDS)
+
+                    // Enable HTTP/2 for multiplexing (parallel streams on single connection)
+                    protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
+
+                    // Retry on connection failure
+                    retryOnConnectionFailure(true)
+
+                    // High concurrency dispatcher
+                    dispatcher(
+                        okhttp3.Dispatcher().apply {
+                            maxRequests = 48
+                            maxRequestsPerHost = 8
+                        },
+                    )
+
+                    // Cache configuration for better performance
+                    cache(
+                        okhttp3.Cache(
+                            directory = java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
+                            maxSize = 50L * 1024L * 1024L, // 50 MB
+                        ),
+                    )
+                }
+
+                proxy?.let { proxy = this@InnerTube.proxy }
+
+                // Fix proxy auth
+                proxyAuth?.let { auth ->
+                    config {
+                        proxyAuthenticator { _, response ->
+                            response.request
+                                .newBuilder()
+                                .header("Proxy-Authorization", auth)
+                                .build()
+                        }
                     }
                 }
             }
-        }
 
-        install(HttpTimeout) {
-            requestTimeoutMillis = 45000  
-            connectTimeoutMillis = 15000  
-            socketTimeoutMillis = 30000   
-        }
+            install(HttpTimeout) {
+                requestTimeoutMillis = 45000
+                connectTimeoutMillis = 15000
+                socketTimeoutMillis = 30000
+            }
 
-        defaultRequest {
-            url(YouTubeClient.API_URL_YOUTUBE_MUSIC)
-            // Add common headers for better compatibility
-            header("Accept", "application/json")
-            header("Accept-Language", "en-US,en;q=0.9")
-            header("Cache-Control", "no-cache")
+            defaultRequest {
+                url(YouTubeClient.API_URL_YOUTUBE_MUSIC)
+                // Add common headers for better compatibility
+                header("Accept", "application/json")
+                header("Accept-Language", "en-US,en;q=0.9")
+                header("Cache-Control", "no-cache")
+            }
         }
-    }
 
     /**
      * Simple retry wrapper for transient IO errors (socket aborts, timeouts).
@@ -217,14 +223,18 @@ class InnerTube {
         }
     }
 
-    private fun HttpRequestBuilder.ytClient(client: YouTubeClient, setLogin: Boolean = false, apiUrl: String? = null) {
+    private fun HttpRequestBuilder.ytClient(
+        client: YouTubeClient,
+        setLogin: Boolean = false,
+        apiUrl: String? = null,
+    ) {
         val useMainSite = apiUrl != null && apiUrl != YouTubeClient.API_URL_YOUTUBE_MUSIC
         val origin = if (useMainSite) YouTubeClient.ORIGIN_YOUTUBE else YouTubeClient.ORIGIN_YOUTUBE_MUSIC
         val referer = if (useMainSite) YouTubeClient.REFERER_YOUTUBE else YouTubeClient.REFERER_YOUTUBE_MUSIC
         contentType(ContentType.Application.Json)
         headers {
             append("X-Goog-Api-Format-Version", "1")
-            append("X-YouTube-Client-Name", client.clientId /* Not a typo. The Client-Name header does contain the client id. */)
+            append("X-YouTube-Client-Name", client.clientId)
             append("X-YouTube-Client-Version", client.clientVersion)
             append("X-Origin", origin)
             append("Referer", referer)
@@ -235,7 +245,7 @@ class InnerTube {
                     if ("SAPISID" !in cookieMap) return@let
                     val currentTime = System.currentTimeMillis() / 1000
                     val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} $origin")
-                    append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
+                    append("Authorization", "SAPISIDHASH ${currentTime}_$sapisidHash")
                 }
             }
         }
@@ -253,14 +263,15 @@ class InnerTube {
             ytClient(client, setLogin = useLoginForBrowse)
             setBody(
                 SearchBody(
-                    context = client.toContext(
-                        locale,
-                        visitorData,
-                        if (useLoginForBrowse) dataSyncId else null
-                    ),
+                    context =
+                        client.toContext(
+                            locale,
+                            visitorData,
+                            if (useLoginForBrowse) dataSyncId else null,
+                        ),
                     query = query,
-                    params = params
-                )
+                    params = params,
+                ),
             )
             parameter("continuation", continuation)
             parameter("ctoken", continuation)
@@ -304,7 +315,7 @@ class InnerTube {
                         query = query,
                         params = params,
                         continuation = continuation,
-                    )
+                    ),
                 )
             }
         }
@@ -379,8 +390,9 @@ class InnerTube {
         includeVisitorData: Boolean = true,
         block: suspend (String?) -> T,
     ): T {
-        val requestVisitorData = visitorData?.takeIf { includeVisitorData && it.isNotBlank() }
-            ?: return block(null)
+        val requestVisitorData =
+            visitorData?.takeIf { includeVisitorData && it.isNotBlank() }
+                ?: return block(null)
         return try {
             block(requestVisitorData)
         } catch (error: ClientRequestException) {
@@ -405,11 +417,12 @@ class InnerTube {
             browseId = if (continuation == null) "FEpost_detail" else null,
             params = if (continuation == null) params else null,
             continuation = continuation,
-            canonicalBaseUrl = if (continuation == null && params == null) {
-                postId?.let { "/post/$it" }
-            } else {
-                null
-            },
+            canonicalBaseUrl =
+                if (continuation == null && params == null) {
+                    postId?.let { "/post/$it" }
+                } else {
+                    null
+                },
         )
     }
 
@@ -426,26 +439,33 @@ class InnerTube {
             ytClient(client, setLogin = true, apiUrl = apiUrl)
             setBody(
                 PlayerBody(
-                    context = client.toContext(localeOverride ?: locale, visitorData, dataSyncId).let {
-                        if (client.isEmbedded) {
-                            it.copy(
-                                thirdParty = Context.ThirdParty(
-                                    embedUrl = "https://www.youtube.com/watch?v=${videoId}"
+                    context =
+                        client.toContext(localeOverride ?: locale, visitorData, dataSyncId).let {
+                            if (client.isEmbedded) {
+                                it.copy(
+                                    thirdParty =
+                                        Context.ThirdParty(
+                                            embedUrl = "https://www.youtube.com/watch?v=$videoId",
+                                        ),
                                 )
-                            )
-                        } else it
-                    },
+                            } else {
+                                it
+                            }
+                        },
                     videoId = videoId,
                     playlistId = playlistId,
-                    playbackContext = if (client.useSignatureTimestamp && signatureTimestamp != null) {
-                        PlayerBody.PlaybackContext(
-                            PlayerBody.PlaybackContext.ContentPlaybackContext(
-                                signatureTimestamp
+                    playbackContext =
+                        if (client.useSignatureTimestamp && signatureTimestamp != null) {
+                            PlayerBody.PlaybackContext(
+                                PlayerBody.PlaybackContext.ContentPlaybackContext(
+                                    signatureTimestamp,
+                                ),
                             )
-                        )
-                    } else null,
-                serviceIntegrityDimensions = poToken?.let { PlayerBody.ServiceIntegrityDimensions(it) },
-                )
+                        } else {
+                            null
+                        },
+                    serviceIntegrityDimensions = poToken?.let { PlayerBody.ServiceIntegrityDimensions(it) },
+                ),
             )
         }
     }
@@ -477,30 +497,35 @@ class InnerTube {
                     context = client.toContext(locale, visitorData, null),
                     videoId = videoId,
                     playlistId = null,
-                    playbackContext = if (signatureTimestamp != null || reloadToken != null) {
-                        PlayerBody.PlaybackContext(
-                            contentPlaybackContext = signatureTimestamp?.let {
-                                PlayerBody.PlaybackContext.ContentPlaybackContext(
-                                    signatureTimestamp = it,
-                                    referer = "https://www.youtube.com/watch?v=$videoId",
-                                    vis = 0,
-                                    splay = false,
-                                    lactMilliseconds = "-1",
-                                    html5Preference = "HTML5_PREF_WANTS",
-                                )
-                            },
-                            reloadPlaybackContext = reloadToken?.let {
-                                PlayerBody.PlaybackContext.ReloadPlaybackContext(
-                                    PlayerBody.PlaybackContext.ReloadPlaybackContext.ReloadPlaybackParams(it)
-                                )
-                            },
-                        )
-                    } else null,
+                    playbackContext =
+                        if (signatureTimestamp != null || reloadToken != null) {
+                            PlayerBody.PlaybackContext(
+                                contentPlaybackContext =
+                                    signatureTimestamp?.let {
+                                        PlayerBody.PlaybackContext.ContentPlaybackContext(
+                                            signatureTimestamp = it,
+                                            referer = "https://www.youtube.com/watch?v=$videoId",
+                                            vis = 0,
+                                            splay = false,
+                                            lactMilliseconds = "-1",
+                                            html5Preference = "HTML5_PREF_WANTS",
+                                        )
+                                    },
+                                reloadPlaybackContext =
+                                    reloadToken?.let {
+                                        PlayerBody.PlaybackContext.ReloadPlaybackContext(
+                                            PlayerBody.PlaybackContext.ReloadPlaybackContext.ReloadPlaybackParams(it),
+                                        )
+                                    },
+                            )
+                        } else {
+                            null
+                        },
                     serviceIntegrityDimensions = poToken?.let { PlayerBody.ServiceIntegrityDimensions(it) },
                     contentCheckOk = true,
                     racyCheckOk = true,
                     cpn = cpn,
-                )
+                ),
             )
         }
     }
@@ -533,15 +558,16 @@ class InnerTube {
             ytClient(client, setLogin = setLogin || useLoginForBrowse)
             setBody(
                 BrowseBody(
-                    context = client.toContext(
-                        locale,
-                        visitorData,
-                        if (setLogin || useLoginForBrowse) dataSyncId else null
-                    ),
+                    context =
+                        client.toContext(
+                            locale,
+                            visitorData,
+                            if (setLogin || useLoginForBrowse) dataSyncId else null,
+                        ),
                     browseId = browseId,
                     params = params,
-                    continuation = continuation
-                )
+                    continuation = continuation,
+                ),
             )
         }
     }
@@ -552,20 +578,22 @@ class InnerTube {
         sequenceParams: String? = "CA8%3D", // Default for initial fetch
         setLogin: Boolean = false,
     ) = withRetry {
-        httpClient.post("reel/reel_watch_sequence") {
-            ytClient(client, setLogin = setLogin)
-            setBody(
-                ReelBody(
-                    context = client.toContext(
-                        locale,
-                        visitorData,
-                        if (setLogin) dataSyncId else null
+        httpClient
+            .post("reel/reel_watch_sequence") {
+                ytClient(client, setLogin = setLogin)
+                setBody(
+                    ReelBody(
+                        context =
+                            client.toContext(
+                                locale,
+                                visitorData,
+                                if (setLogin) dataSyncId else null,
+                            ),
+                        params = params,
+                        sequenceParams = sequenceParams,
                     ),
-                    params = params,
-                    sequenceParams = sequenceParams
                 )
-            )
-        }.body<ReelWatchSequenceResponse>()
+            }.body<ReelWatchSequenceResponse>()
     }
 
     suspend fun next(
@@ -587,8 +615,8 @@ class InnerTube {
                     playlistSetVideoId = playlistSetVideoId,
                     index = index,
                     params = params,
-                    continuation = continuation
-                )
+                    continuation = continuation,
+                ),
             )
         }
     }
@@ -607,25 +635,29 @@ class InnerTube {
         parameter("prettyPrint", false)
     }
 
-    suspend fun nextForLiveChat(videoId: String) = withRetry {
-        val client = YouTubeClient.WEB
-        httpClient.post("https://www.youtube.com/youtubei/v1/next") {
-            webYouTubeHeaders(client)
-            setBody(
-                NextBody(
-                    context = client.toContext(locale, visitorData, null),
-                    videoId = videoId,
-                    playlistId = null,
-                    playlistSetVideoId = null,
-                    index = null,
-                    params = null,
-                    continuation = null,
+    suspend fun nextForLiveChat(videoId: String) =
+        withRetry {
+            val client = YouTubeClient.WEB
+            httpClient.post("https://www.youtube.com/youtubei/v1/next") {
+                webYouTubeHeaders(client)
+                setBody(
+                    NextBody(
+                        context = client.toContext(locale, visitorData, null),
+                        videoId = videoId,
+                        playlistId = null,
+                        playlistSetVideoId = null,
+                        index = null,
+                        params = null,
+                        continuation = null,
+                    ),
                 )
-            )
+            }
         }
-    }
 
-    suspend fun getLiveChat(continuation: String, offsetMs: Long? = null) = withRetry {
+    suspend fun getLiveChat(
+        continuation: String,
+        offsetMs: Long? = null,
+    ) = withRetry {
         val client = YouTubeClient.WEB
         httpClient.post("https://www.youtube.com/youtubei/v1/live_chat/get_live_chat") {
             webYouTubeHeaders(client)
@@ -633,24 +665,25 @@ class InnerTube {
                 GetLiveChatBody(
                     context = client.toContext(locale, visitorData, null),
                     continuation = continuation,
-                    currentPlayerState = offsetMs?.let {
-                        GetLiveChatBody.CurrentPlayerState(playerOffsetMs = it.toString())
-                    },
-                )
+                    currentPlayerState =
+                        offsetMs?.let {
+                            GetLiveChatBody.CurrentPlayerState(playerOffsetMs = it.toString())
+                        },
+                ),
             )
         }
     }
 
     suspend fun feedback(
         client: YouTubeClient,
-        tokens: List<String>
+        tokens: List<String>,
     ) = httpClient.post("feedback") {
         ytClient(client, setLogin = true)
         setBody(
             FeedbackBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                feedbackTokens = tokens
-            )
+                feedbackTokens = tokens,
+            ),
         )
     }
 
@@ -663,8 +696,8 @@ class InnerTube {
             setBody(
                 GetSearchSuggestionsBody(
                     context = client.toContext(locale, visitorData, null),
-                    input = input
-                )
+                    input = input,
+                ),
             )
         }
     }
@@ -680,8 +713,8 @@ class InnerTube {
                 GetQueueBody(
                     context = client.toContext(locale, visitorData, null),
                     videoIds = videoIds,
-                    playlistId = playlistId
-                )
+                    playlistId = playlistId,
+                ),
             )
         }
     }
@@ -697,17 +730,18 @@ class InnerTube {
         setBody(
             GetTranscriptBody(
                 context = client.toContext(locale, null, null),
-                params = "\n${11.toChar()}$videoId".encodeBase64()
-            )
+                params = Base64.Default.encode("\n${11.toChar()}$videoId".toByteArray()),
+            ),
         )
     }
 
     suspend fun getSwJsData() = httpClient.get("https://music.youtube.com/sw.js_data")
 
-    suspend fun accountMenu(client: YouTubeClient) = httpClient.post("account/account_menu") {
-        ytClient(client, setLogin = true)
-        setBody(AccountMenuBody(client.toContext(locale, visitorData, dataSyncId)))
-    }
+    suspend fun accountMenu(client: YouTubeClient) =
+        httpClient.post("account/account_menu") {
+            ytClient(client, setLogin = true)
+            setBody(AccountMenuBody(client.toContext(locale, visitorData, dataSyncId)))
+        }
 
     suspend fun likeVideo(
         client: YouTubeClient,
@@ -717,8 +751,8 @@ class InnerTube {
         setBody(
             LikeBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                target = LikeBody.Target.VideoTarget(videoId)
-            )
+                target = LikeBody.Target.VideoTarget(videoId),
+            ),
         )
     }
 
@@ -730,8 +764,8 @@ class InnerTube {
         setBody(
             LikeBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                target = LikeBody.Target.VideoTarget(videoId)
-            )
+                target = LikeBody.Target.VideoTarget(videoId),
+            ),
         )
     }
 
@@ -743,8 +777,8 @@ class InnerTube {
         setBody(
             SubscribeBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                channelIds = listOf(channelId)
-            )
+                channelIds = listOf(channelId),
+            ),
         )
     }
 
@@ -756,8 +790,8 @@ class InnerTube {
         setBody(
             SubscribeBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                channelIds = listOf(channelId)
-            )
+                channelIds = listOf(channelId),
+            ),
         )
     }
 
@@ -769,8 +803,8 @@ class InnerTube {
         setBody(
             LikeBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                target = LikeBody.Target.PlaylistTarget(playlistId)
-            )
+                target = LikeBody.Target.PlaylistTarget(playlistId),
+            ),
         )
     }
 
@@ -782,8 +816,8 @@ class InnerTube {
         setBody(
             LikeBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                target = LikeBody.Target.PlaylistTarget(playlistId)
-            )
+                target = LikeBody.Target.PlaylistTarget(playlistId),
+            ),
         )
     }
 
@@ -797,10 +831,11 @@ class InnerTube {
             EditPlaylistBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
                 playlistId = playlistId.removePrefix("VL"),
-                actions = listOf(
-                    Action.AddVideoAction(addedVideoId = videoId)
-                )
-            )
+                actions =
+                    listOf(
+                        Action.AddVideoAction(addedVideoId = videoId),
+                    ),
+            ),
         )
     }
 
@@ -814,10 +849,11 @@ class InnerTube {
             EditPlaylistBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
                 playlistId = playlistId.removePrefix("VL"),
-                actions = listOf(
-                    Action.AddPlaylistAction(addedFullListId = addPlaylistId)
-                )
-            )
+                actions =
+                    listOf(
+                        Action.AddPlaylistAction(addedFullListId = addPlaylistId),
+                    ),
+            ),
         )
     }
 
@@ -832,13 +868,14 @@ class InnerTube {
             EditPlaylistBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
                 playlistId = playlistId.removePrefix("VL"),
-                actions = listOf(
-                    Action.RemoveVideoAction(
-                        removedVideoId = videoId,
-                        setVideoId = setVideoId,
-                    )
-                )
-            )
+                actions =
+                    listOf(
+                        Action.RemoveVideoAction(
+                            removedVideoId = videoId,
+                            setVideoId = setVideoId,
+                        ),
+                    ),
+            ),
         )
     }
 
@@ -853,14 +890,14 @@ class InnerTube {
             EditPlaylistBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
                 playlistId = playlistId,
-                actions = listOf(
-                    Action.MoveVideoAction(
-                        movedSetVideoIdSuccessor = successorSetVideoId,
-                        setVideoId = setVideoId,
-                    )
-                )
-
-            )
+                actions =
+                    listOf(
+                        Action.MoveVideoAction(
+                            movedSetVideoIdSuccessor = successorSetVideoId,
+                            setVideoId = setVideoId,
+                        ),
+                    ),
+            ),
         )
     }
 
@@ -872,8 +909,8 @@ class InnerTube {
         setBody(
             CreatePlaylistBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                title = title
-            )
+                title = title,
+            ),
         )
     }
 
@@ -887,18 +924,19 @@ class InnerTube {
             EditPlaylistBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
                 playlistId = playlistId,
-                actions = listOf(
-                    Action.RenamePlaylistAction(
-                        playlistName = name
-                    )
-                )
-            )
+                actions =
+                    listOf(
+                        Action.RenamePlaylistAction(
+                            playlistName = name,
+                        ),
+                    ),
+            ),
         )
     }
-    
+
     suspend fun getUploadCustomThumbnailLink(
         client: YouTubeClient,
-        contentLength: Int
+        contentLength: Int,
     ) = httpClient.post("https://music.youtube.com/playlist_image_upload/playlist_custom_thumbnail") {
         ytClient(client, setLogin = true)
         headers {
@@ -933,30 +971,33 @@ class InnerTube {
             EditPlaylistBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
                 playlistId = playlistId,
-                actions = listOf(
-                    Action.SetCustomThumbnailAction(
-                        addedCustomThumbnail = Action.SetCustomThumbnailAction.AddedCustomThumbnail(
-                            playlistScottyEncryptedBlobId = blobId
-                        )
-                    )
-                )
-            )
+                actions =
+                    listOf(
+                        Action.SetCustomThumbnailAction(
+                            addedCustomThumbnail =
+                                Action.SetCustomThumbnailAction.AddedCustomThumbnail(
+                                    playlistScottyEncryptedBlobId = blobId,
+                                ),
+                        ),
+                    ),
+            ),
         )
     }
 
     suspend fun removeThumbnailPlaylist(
         client: YouTubeClient,
-        playlistId: String
+        playlistId: String,
     ) = httpClient.post("browse/edit_playlist") {
         ytClient(client, setLogin = true)
         setBody(
             EditPlaylistBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
                 playlistId = playlistId,
-                actions = listOf(
-                    Action.RemoveCustomThumbnailAction()
-                )
-            )
+                actions =
+                    listOf(
+                        Action.RemoveCustomThumbnailAction(),
+                    ),
+            ),
         )
     }
 
@@ -969,8 +1010,8 @@ class InnerTube {
         setBody(
             PlaylistDeleteBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                playlistId = playlistId
-            )
+                playlistId = playlistId,
+            ),
         )
     }
 
@@ -979,11 +1020,16 @@ class InnerTube {
             contentType(ContentType.Application.Json)
         }
 
-
     suspend fun getMediaInfo(videoId: String): Result<MediaInfo> =
         runCatching {
             val response = next(client = YouTubeClient.WEB, videoId, null, null, null, null, null).body<NextResponse>()
-            val playerResponse = player(client = YouTubeClient.ANDROID, videoId = videoId, playlistId = null, signatureTimestamp = null).body<PlayerResponse>()
+            val playerResponse =
+                player(
+                    client = YouTubeClient.ANDROID,
+                    videoId = videoId,
+                    playlistId = null,
+                    signatureTimestamp = null,
+                ).body<PlayerResponse>()
 
             val baseForInfo =
                 response.contents.twoColumnWatchNextResults
@@ -1011,23 +1057,32 @@ class InnerTube {
                     null
                 }
 
-            val bestAudio = playerResponse.streamingData?.adaptiveFormats?.filter { it.isAudio }?.maxByOrNull { it.bitrate }
-                ?: playerResponse.streamingData?.formats?.filter { it.isAudio }?.maxByOrNull { it.bitrate }
+            val bestAudio =
+                playerResponse.streamingData
+                    ?.adaptiveFormats
+                    ?.filter { it.isAudio }
+                    ?.maxByOrNull { it.bitrate }
+                    ?: playerResponse.streamingData
+                        ?.formats
+                        ?.filter { it.isAudio }
+                        ?.maxByOrNull { it.bitrate }
 
             return@runCatching MediaInfo(
                 videoId = videoId,
-                title = baseForTitle
-                    ?.title
-                    ?.runs
-                    ?.firstOrNull()
-                    ?.text,
-                author = baseForInfo
-                    ?.owner
-                    ?.videoOwnerRenderer
-                    ?.title
-                    ?.runs
-                    ?.firstOrNull()
-                    ?.text,
+                title =
+                    baseForTitle
+                        ?.title
+                        ?.runs
+                        ?.firstOrNull()
+                        ?.text,
+                author =
+                    baseForInfo
+                        ?.owner
+                        ?.videoOwnerRenderer
+                        ?.title
+                        ?.runs
+                        ?.firstOrNull()
+                        ?.text,
                 authorId =
                     baseForInfo
                         ?.owner
@@ -1051,13 +1106,20 @@ class InnerTube {
                         ?.owner
                         ?.videoOwnerRenderer
                         ?.subscriberCountText
-                        ?.simpleText?.split(" ")?.firstOrNull(),
+                        ?.simpleText
+                        ?.split(" ")
+                        ?.firstOrNull(),
                 uploadDate = baseForTitle?.dateText?.simpleText,
                 viewCount = returnYouTubeDislikeResponse?.viewCount,
                 like = returnYouTubeDislikeResponse?.likes,
                 dislike = returnYouTubeDislikeResponse?.dislikes,
-                durationSeconds = playerResponse.videoDetails?.lengthSeconds?.toIntOrNull()
-                    ?: bestAudio?.approxDurationMs?.toLongOrNull()?.div(1000L)?.toInt(),
+                durationSeconds =
+                    playerResponse.videoDetails?.lengthSeconds?.toIntOrNull()
+                        ?: bestAudio
+                            ?.approxDurationMs
+                            ?.toLongOrNull()
+                            ?.div(1000L)
+                            ?.toInt(),
                 mimeType = bestAudio?.mimeType,
                 bitrate = bestAudio?.bitrate?.toLong(),
                 sampleRate = bestAudio?.audioSampleRate,
@@ -1066,10 +1128,7 @@ class InnerTube {
                 height = bestAudio?.height,
                 contentLength = bestAudio?.contentLength.toString(),
                 qualityLabel = bestAudio?.qualityLabel,
-                videoId_tag = bestAudio?.itag
+                videoId_tag = bestAudio?.itag,
             )
-
         }
-
-
 }

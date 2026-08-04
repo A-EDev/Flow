@@ -54,3 +54,4 @@ DEPENDENCY
 - Raise targetSdk to 36 for Android 16 platform behaviour
 - Update OkHttp to 5.4.0 and Media3 to 1.9.0
 - Update Coil image loading to 3.5.0
+- Update Ktor networking to 3.5.2
