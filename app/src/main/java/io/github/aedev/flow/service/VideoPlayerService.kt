@@ -85,6 +85,7 @@ class VideoPlayerService : MediaSessionService() {
                 .build()
                 .apply { setSmallIcon(R.drawable.ic_notification_logo) }
         setMediaNotificationProvider(notificationProvider)
+        recordForegroundStartFailures("video-service")
 
         FlowCrashHandler.recordPhase("video-service", "onCreate")
         serviceLog("onCreate")

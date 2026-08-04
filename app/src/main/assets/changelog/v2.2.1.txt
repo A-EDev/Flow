@@ -37,6 +37,8 @@ FIXES AND STABILITY
 - Fix playback media-session notifications missing metadata, artwork, controls, and seek state
 - Fix background subscription and update notifications not being delivered until the app is opened
 - Fix missing channel avatars in comments and replies with cached channel-avatar fallback
+- Fix a crash when playback notification artwork finished loading in the background
+- Fix the playback notification disappearing when the queue auto-advanced in the background
 - Fix crash issues
 
 DEPENDENCY
@@ -52,6 +54,6 @@ DEPENDENCY
 - Update Gson to 2.14.0, Conscrypt to 2.5.3 and core library desugaring to 2.1.5
 - Remove unused RxJava and multidex dependencies
 - Raise targetSdk to 36 for Android 16 platform behaviour
-- Update OkHttp to 5.4.0 and Media3 to 1.9.0
+- Update OkHttp to 5.4.0 and Media3/ExoPlayer to 1.11.0-rc01
 - Update Coil image loading to 3.5.0
 - Update Ktor networking to 3.5.2

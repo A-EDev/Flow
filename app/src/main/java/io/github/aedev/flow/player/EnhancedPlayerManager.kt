@@ -1039,10 +1039,7 @@ class EnhancedPlayerManager private constructor() {
         pendingLiveDisplaySeekAtMs = 0L
         pendingInitialLiveEdgeSeek = false
 
-        player?.let {
-            it.stop()
-            it.clearMediaItems()
-        }
+        player?.stop()
 
         _playerState.value =
             _playerState.value.copy(
@@ -1110,6 +1107,31 @@ class EnhancedPlayerManager private constructor() {
         localFilePath: String? = null,
         audioOnly: Boolean = false,
         playWhenReady: Boolean = true,
+    ): Boolean {
+        val loaded =
+            prepareMediaSource(
+                videoStream = videoStream,
+                audioStream = audioStream,
+                preservePosition = preservePosition,
+                localFilePath = localFilePath,
+                audioOnly = audioOnly,
+                playWhenReady = playWhenReady,
+            )
+        if (!loaded) {
+            // The previous item is still queued (see resetPlaybackStateForNewVideo). Drop it so a
+            // failed load doesn't leave the notification advertising the video we just left.
+            player?.clearMediaItems()
+        }
+        return loaded
+    }
+
+    private fun prepareMediaSource(
+        videoStream: VideoStream?,
+        audioStream: AudioStream?,
+        preservePosition: Long?,
+        localFilePath: String?,
+        audioOnly: Boolean,
+        playWhenReady: Boolean,
     ): Boolean {
         autoNextLog("loadMediaInternal audioOnly=$audioOnly preserve=$preservePosition local=${localFilePath != null}")
         clearPreload()
