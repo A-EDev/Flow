@@ -50,7 +50,7 @@
     <string name="repeat">Repetir</string>
     <string name="loading_track">Carregando faixa...</string>
     <string name="error_occurred">Ocorreu um erro</string>
-    <string name="playing_from">Tocando</string>
+    <string name="playing_from">Tocando de</string>
     <string name="move_up">Para cima</string>
     <string name="move_down">Para baixo</string>
     <string name="lyrics_not_available">Letra indisponível</string>
@@ -896,4 +896,8 @@
     <string name="content_settings_subs_startup_refresh_subtitle">Confira seu feed de inscrições quando o aplicativo abrir</string>
     <string name="content_settings_subs_show_checked_count_title">Contagem de vídeos verificados</string>
     <string name="content_settings_subs_show_checked_count_subtitle">Mostre quantos vídeos foram visualizados ao lado da hora da última atualização</string>
+    <string name="content_settings_subs_show_videos_title">Vídeos de assinatura</string>
+    <string name="content_settings_subs_show_videos_subtitle">Exibir vídeos regularmente no feed de assinantes</string>
+    <string name="content_settings_subs_show_shorts_title">Shorts de assinaturas</string>
+    <string name="content_settings_subs_show_shorts_subtitle">Exibir shorts no feed de assinantes</string>
 </resources>
