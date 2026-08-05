@@ -19,22 +19,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import coil.compose.AsyncImage
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import kotlinx.coroutines.delay
@@ -46,7 +46,7 @@ import kotlin.math.roundToInt
 fun PersistentMiniMusicPlayer(
     onExpandClick: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
     val playerState by EnhancedMusicPlayerManager.playerState.collectAsState()
@@ -56,148 +56,174 @@ fun PersistentMiniMusicPlayer(
     var isDismissing by remember { mutableStateOf(false) }
 
     val animatedProgress by animateFloatAsState(
-        targetValue = if (playerState.duration > 0) {
-            (playerState.position.toFloat() / playerState.duration.toFloat()).coerceIn(0f, 1f)
-        } else 0f,
+        targetValue =
+            if (playerState.duration > 0) {
+                (playerState.position.toFloat() / playerState.duration.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            },
         animationSpec = tween(900, easing = LinearEasing),
-        label = "progress"
+        label = "progress",
     )
 
     var playPauseScale by remember { mutableFloatStateOf(1f) }
     val animatedScale by animateFloatAsState(
         targetValue = playPauseScale,
         animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f),
-        label = "scale"
+        label = "scale",
     )
 
     // Dismiss offset animation
     val dismissAlpha by animateFloatAsState(
-        targetValue = if (kotlin.math.abs(offsetX) > 80) {
-            1f - (kotlin.math.abs(offsetX) - 80f) / 200f
-        } else 1f,
+        targetValue =
+            if (kotlin.math.abs(offsetX) > 80) {
+                1f - (kotlin.math.abs(offsetX) - 80f) / 200f
+            } else {
+                1f
+            },
         animationSpec = tween(50),
-        label = "dismiss_alpha"
+        label = "dismiss_alpha",
     )
 
     AnimatedVisibility(
         visible = currentTrack != null && !isDismissing,
-        enter = slideInVertically(
-            initialOffsetY = { it },
-            animationSpec = spring(dampingRatio = 0.85f, stiffness = 280f)
-        ) + fadeIn(animationSpec = tween(250)),
-        exit = slideOutVertically(
-            targetOffsetY = { it },
-            animationSpec = tween(200, easing = FastOutSlowInEasing)
-        ) + fadeOut(animationSpec = tween(150)),
-        modifier = modifier
+        enter =
+            slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = 280f),
+            ) + fadeIn(animationSpec = tween(250)),
+        exit =
+            slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(200, easing = FastOutSlowInEasing),
+            ) + fadeOut(animationSpec = tween(150)),
+        modifier = modifier,
     ) {
         currentTrack?.let { track ->
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                    .offset { IntOffset(offsetX.roundToInt(), 0) }
-                    .graphicsLayer { alpha = dismissAlpha.coerceIn(0f, 1f) }
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragEnd = {
-                                if (kotlin.math.abs(offsetX) > 140) {
-                                    isDismissing = true
-                                    onDismiss()
-                                }
-                                offsetX = 0f
-                            },
-                            onHorizontalDrag = { _, dragAmount ->
-                                offsetX += dragAmount
-                            }
-                        )
-                    }
-            ) {
-                // Container 
-                Surface(
-                    modifier = Modifier
+                modifier =
+                    Modifier
                         .fillMaxWidth()
-                        .height(64.dp)
-                        .shadow(16.dp, RoundedCornerShape(18.dp), ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color.Black.copy(alpha = 0.5f))
-                        .clickable(onClick = onExpandClick),
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .offset { IntOffset(offsetX.roundToInt(), 0) }
+                        .graphicsLayer { alpha = dismissAlpha.coerceIn(0f, 1f) }
+                        .pointerInput(Unit) {
+                            detectHorizontalDragGestures(
+                                onDragEnd = {
+                                    if (kotlin.math.abs(offsetX) > 140) {
+                                        isDismissing = true
+                                        onDismiss()
+                                    }
+                                    offsetX = 0f
+                                },
+                                onHorizontalDrag = { _, dragAmount ->
+                                    offsetX += dragAmount
+                                },
+                            )
+                        },
+            ) {
+                // Container
+                Surface(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
+                            .shadow(
+                                16.dp,
+                                RoundedCornerShape(18.dp),
+                                ambientColor = Color.Black.copy(alpha = 0.5f),
+                                spotColor = Color.Black.copy(alpha = 0.5f),
+                            ).clickable(onClick = onExpandClick),
                     shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surface
+                    color = MaterialTheme.colorScheme.surface,
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AsyncImage(
                             model = track.listThumbnailUrl,
                             contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .blur(40.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .blur(40.dp),
                             contentScale = ContentScale.Crop,
-                            alpha = 0.25f
+                            alpha = 0.25f,
                         )
 
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)),
                         )
 
-                        // Progress 
+                        // Progress
                         val progressTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
                         val progressFillColor = MaterialTheme.colorScheme.primary
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .align(Alignment.BottomCenter)
-                                .drawBehind {
-                                    drawRect(color = progressTrackColor)
-                                    drawRect(
-                                        color = progressFillColor,
-                                        size = Size(size.width * animatedProgress, size.height)
-                                    )
-                                }
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .align(Alignment.BottomCenter)
+                                    .drawBehind {
+                                        drawRect(color = progressTrackColor)
+                                        drawRect(
+                                            color = progressFillColor,
+                                            size = Size(size.width * animatedProgress, size.height),
+                                        )
+                                    },
                         )
 
                         // Content row
                         Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 8.5.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 8.5.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             // Album art + info
                             Row(
                                 modifier = Modifier.weight(1f),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 // Album art
                                 Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                    modifier =
+                                        Modifier
+                                            .size(48.dp)
+                                            .clip(RoundedCornerShape(12.dp)),
                                 ) {
                                     AsyncImage(
                                         model = track.listThumbnailUrl,
                                         contentDescription = stringResource(R.string.album_art),
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(12.dp)),
-                                        contentScale = ContentScale.Crop
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(12.dp)),
+                                        contentScale = ContentScale.Crop,
                                     )
-                                    
+
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .border(
+                                                    1.dp,
+                                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                                    RoundedCornerShape(12.dp),
+                                                ),
                                     )
 
                                     if (playerState.isPlaying) {
                                         Box(
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .background(Color.Black.copy(alpha = 0.35f)),
-                                            contentAlignment = Alignment.Center
+                                            modifier =
+                                                Modifier
+                                                    .size(48.dp)
+                                                    .background(Color.Black.copy(alpha = 0.35f)),
+                                            contentAlignment = Alignment.Center,
                                         ) {
                                             MiniWaveform()
                                         }
@@ -207,29 +233,31 @@ fun PersistentMiniMusicPlayer(
                                 // Track info
                                 Column(
                                     modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.Center
+                                    verticalArrangement = Arrangement.Center,
                                 ) {
                                     Text(
                                         text = track.title,
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            letterSpacing = (-0.2).sp
-                                        ),
+                                        style =
+                                            MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp,
+                                                letterSpacing = (-0.2).sp,
+                                            ),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = MaterialTheme.colorScheme.onSurface,
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = track.artist,
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium
-                                        ),
+                                        style =
+                                            MaterialTheme.typography.bodyMedium.copy(
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium,
+                                            ),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 }
                             }
@@ -237,40 +265,50 @@ fun PersistentMiniMusicPlayer(
                             // Controls
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 // Play/Pause
                                 Box(
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .scale(animatedScale)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                        .clickable {
-                                            playPauseScale = 0.85f
-                                            EnhancedMusicPlayerManager.togglePlayPause()
-                                            scope.launch {
-                                                delay(100)
-                                                playPauseScale = 1f
-                                            }
-                                        },
-                                    contentAlignment = Alignment.Center
+                                    modifier =
+                                        Modifier
+                                            .size(44.dp)
+                                            .scale(animatedScale)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary)
+                                            .clickable {
+                                                playPauseScale = 0.85f
+                                                EnhancedMusicPlayerManager.togglePlayPause()
+                                                scope.launch {
+                                                    delay(100)
+                                                    playPauseScale = 1f
+                                                }
+                                            },
+                                    contentAlignment = Alignment.Center,
                                 ) {
                                     if (playerState.isBuffering) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(20.dp),
                                             strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.onPrimary
+                                            color = MaterialTheme.colorScheme.onPrimary,
                                         )
                                     } else {
                                         Icon(
-                                            imageVector = if (playerState.isPlaying)
-                                                Icons.Filled.Pause
-                                            else
-                                                Icons.Filled.PlayArrow,
-                                            contentDescription = if (playerState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
+                                            imageVector =
+                                                if (playerState.isPlaying) {
+                                                    Icons.Filled.Pause
+                                                } else {
+                                                    Icons.Filled.PlayArrow
+                                                },
+                                            contentDescription =
+                                                if (playerState.isPlaying) {
+                                                    stringResource(
+                                                        R.string.pause,
+                                                    )
+                                                } else {
+                                                    stringResource(R.string.play)
+                                                },
                                             modifier = Modifier.size(24.dp),
-                                            tint = MaterialTheme.colorScheme.onPrimary
+                                            tint = MaterialTheme.colorScheme.onPrimary,
                                         )
                                     }
                                 }
@@ -278,13 +316,13 @@ fun PersistentMiniMusicPlayer(
                                 // Next
                                 IconButton(
                                     onClick = { EnhancedMusicPlayerManager.playNext() },
-                                    modifier = Modifier.size(38.dp)
+                                    modifier = Modifier.size(38.dp),
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.SkipNext,
                                         contentDescription = stringResource(R.string.next),
                                         modifier = Modifier.size(22.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -304,7 +342,7 @@ private fun MiniWaveform() {
         barCount = 3,
         barWidth = 2.5.dp,
         barSpacing = 1.5.dp,
-        staggerMillis = 120
+        staggerMillis = 120,
     )
 }
 
@@ -315,7 +353,7 @@ private fun MiniWaveform() {
 fun CompactMiniMusicPlayer(
     onExpandClick: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
     val playerState by EnhancedMusicPlayerManager.playerState.collectAsState()
@@ -324,52 +362,56 @@ fun CompactMiniMusicPlayer(
         visible = currentTrack != null,
         enter = fadeIn(animationSpec = tween(250)) + expandVertically(),
         exit = fadeOut(animationSpec = tween(180)) + shrinkVertically(),
-        modifier = modifier
+        modifier = modifier,
     ) {
         currentTrack?.let { track ->
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .clickable(onClick = onExpandClick),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clickable(onClick = onExpandClick),
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 tonalElevation = 0.dp,
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(14.dp),
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(
                         modifier = Modifier.weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // Album art
                         Surface(
                             modifier = Modifier.size(40.dp),
                             shape = RoundedCornerShape(8.dp),
-                            color = Color.Transparent
+                            color = Color.Transparent,
                         ) {
                             Box {
                                 AsyncImage(
                                     model = track.listThumbnailUrl,
                                     contentDescription = null,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(8.dp))
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(8.dp)),
                                 )
                                 if (playerState.isPlaying) {
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color.Black.copy(alpha = 0.25f)),
-                                        contentAlignment = Alignment.Center
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color.Black.copy(alpha = 0.25f)),
+                                        contentAlignment = Alignment.Center,
                                     ) {
                                         MiniWaveform()
                                     }
@@ -380,62 +422,73 @@ fun CompactMiniMusicPlayer(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = track.title,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Medium
-                                ),
+                                style =
+                                    MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Medium,
+                                    ),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = track.artist,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         FilledIconButton(
                             onClick = { EnhancedMusicPlayerManager.togglePlayPause() },
                             modifier = Modifier.size(40.dp),
                             shape = RoundedCornerShape(10.dp),
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
+                            colors =
+                                IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                ),
                         ) {
                             if (playerState.isBuffering) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                 )
                             } else {
                                 Icon(
-                                    imageVector = if (playerState.isPlaying)
-                                        Icons.Filled.Pause
-                                    else
-                                        Icons.Filled.PlayArrow,
-                                    contentDescription = if (playerState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
+                                    imageVector =
+                                        if (playerState.isPlaying) {
+                                            Icons.Filled.Pause
+                                        } else {
+                                            Icons.Filled.PlayArrow
+                                        },
+                                    contentDescription =
+                                        if (playerState.isPlaying) {
+                                            stringResource(
+                                                R.string.pause,
+                                            )
+                                        } else {
+                                            stringResource(R.string.play)
+                                        },
                                     modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimary
+                                    tint = MaterialTheme.colorScheme.onPrimary,
                                 )
                             }
                         }
 
                         IconButton(
                             onClick = onDismiss,
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(34.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
                                 contentDescription = stringResource(R.string.close_player),
                                 modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

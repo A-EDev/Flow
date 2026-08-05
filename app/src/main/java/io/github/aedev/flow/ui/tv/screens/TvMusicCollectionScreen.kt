@@ -26,7 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
@@ -60,15 +60,19 @@ fun TvMusicCollectionScreen(
 
     val details = state.playlistDetails
     when {
-        state.isPlaylistLoading || (details == null && state.error == null) ->
+        state.isPlaylistLoading || (details == null && state.error == null) -> {
             TvLoadingState(modifier.fillMaxSize())
+        }
 
-        details == null -> Box(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(horizontal = dimens.overscanHorizontal),
-        ) {
-            TvMessageState(title = stringResource(R.string.error_failed_to_load_playlist))
+        details == null -> {
+            Box(
+                modifier =
+                    modifier
+                        .fillMaxSize()
+                        .padding(horizontal = dimens.overscanHorizontal),
+            ) {
+                TvMessageState(title = stringResource(R.string.error_failed_to_load_playlist))
+            }
         }
 
         else -> {
@@ -77,12 +81,13 @@ fun TvMusicCollectionScreen(
                 LazyColumn(
                     modifier = modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(
-                        start = dimens.overscanHorizontal,
-                        end = dimens.overscanHorizontal,
-                        top = dimens.overscanVertical,
-                        bottom = dimens.overscanVertical,
-                    ),
+                    contentPadding =
+                        PaddingValues(
+                            start = dimens.overscanHorizontal,
+                            end = dimens.overscanHorizontal,
+                            top = dimens.overscanVertical,
+                            bottom = dimens.overscanVertical,
+                        ),
                 ) {
                     item(key = "collection-header") {
                         Row(
@@ -107,13 +112,14 @@ fun TvMusicCollectionScreen(
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                val metadata = listOfNotNull(
-                                    details.author.takeIf { it.isNotBlank() },
-                                    stringResource(
-                                        R.string.tracks_count_template,
-                                        tracks.size.takeIf { it > 0 } ?: details.trackCount,
-                                    ),
-                                ).joinToString(" • ")
+                                val metadata =
+                                    listOfNotNull(
+                                        details.author.takeIf { it.isNotBlank() },
+                                        stringResource(
+                                            R.string.tracks_count_template,
+                                            tracks.size.takeIf { it > 0 } ?: details.trackCount,
+                                        ),
+                                    ).joinToString(" • ")
                                 Text(
                                     text = metadata,
                                     style = MaterialTheme.typography.bodyLarge,

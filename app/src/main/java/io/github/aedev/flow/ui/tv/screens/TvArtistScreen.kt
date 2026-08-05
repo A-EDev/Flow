@@ -28,7 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.music.MusicPlaylist
 import io.github.aedev.flow.ui.screens.music.MusicTrack
@@ -74,9 +74,10 @@ fun TvArtistScreen(
                 TvLoadingState(modifier.fillMaxSize())
             } else {
                 Box(
-                    modifier = modifier
-                        .fillMaxSize()
-                        .padding(horizontal = dimens.overscanHorizontal),
+                    modifier =
+                        modifier
+                            .fillMaxSize()
+                            .padding(horizontal = dimens.overscanHorizontal),
                 ) {
                     TvMessageState(title = stringResource(R.string.tv_error_loading))
                 }
@@ -89,17 +90,19 @@ fun TvArtistScreen(
                 LazyColumn(
                     modifier = modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(
-                        top = dimens.overscanVertical,
-                        bottom = dimens.overscanVertical,
-                    ),
+                    contentPadding =
+                        PaddingValues(
+                            top = dimens.overscanVertical,
+                            bottom = dimens.overscanVertical,
+                        ),
                 ) {
                     item(key = "artist-header") {
                         Row(
-                            modifier = Modifier.padding(
-                                horizontal = dimens.overscanHorizontal,
-                                vertical = 8.dp,
-                            ),
+                            modifier =
+                                Modifier.padding(
+                                    horizontal = dimens.overscanHorizontal,
+                                    vertical = 8.dp,
+                                ),
                             horizontalArrangement = Arrangement.spacedBy(28.dp),
                         ) {
                             Surface(
@@ -122,10 +125,11 @@ fun TvArtistScreen(
                                 )
                                 if (details.subscriberCount > 0) {
                                     Text(
-                                        text = stringResource(
-                                            R.string.subscribers_count_template,
-                                            formatSubscriberCount(details.subscriberCount),
-                                        ),
+                                        text =
+                                            stringResource(
+                                                R.string.subscribers_count_template,
+                                                formatSubscriberCount(details.subscriberCount),
+                                            ),
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -159,17 +163,19 @@ fun TvArtistScreen(
                                         )
                                     }
                                     TvButton(
-                                        text = if (details.isSubscribed) {
-                                            stringResource(R.string.subscribed)
-                                        } else {
-                                            stringResource(R.string.subscribe)
-                                        },
+                                        text =
+                                            if (details.isSubscribed) {
+                                                stringResource(R.string.subscribed)
+                                            } else {
+                                                stringResource(R.string.subscribe)
+                                            },
                                         onClick = { viewModel.toggleFollowArtist(details) },
-                                        icon = if (details.isSubscribed) {
-                                            Icons.Outlined.Check
-                                        } else {
-                                            Icons.Outlined.PersonAddAlt
-                                        },
+                                        icon =
+                                            if (details.isSubscribed) {
+                                                Icons.Outlined.Check
+                                            } else {
+                                                Icons.Outlined.PersonAddAlt
+                                            },
                                     )
                                 }
                             }

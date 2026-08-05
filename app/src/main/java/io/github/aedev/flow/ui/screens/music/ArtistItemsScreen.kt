@@ -9,9 +9,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -22,18 +22,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
+import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalContext
-import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
@@ -49,7 +49,7 @@ fun ArtistItemsScreen(
     onAlbumClick: (String) -> Unit,
     onArtistClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
-    viewModel: MusicViewModel = hiltViewModel()
+    viewModel: MusicViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val artistItemsPage = uiState.artistItemsPage
@@ -66,13 +66,17 @@ fun ArtistItemsScreen(
             onViewArtist = { artistId -> if (artistId.isNotEmpty()) onArtistClick(artistId) },
             onViewAlbum = { albumId -> if (albumId.isNotEmpty()) onAlbumClick(albumId) },
             onShare = {
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, track.title)
-                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, track.title, track.artist, track.videoId))
-                }
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, track.title)
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            context.getString(R.string.share_message_template, track.title, track.artist, track.videoId),
+                        )
+                    }
                 context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            }
+            },
         )
     }
 
@@ -82,7 +86,7 @@ fun ArtistItemsScreen(
             onDismiss = { selectedCollection = null },
             onOpen = {
                 if (collection.isAlbum) onAlbumClick(collection.id) else onPlaylistClick(collection.id)
-            }
+            },
         )
     }
 
@@ -94,21 +98,31 @@ fun ArtistItemsScreen(
     val lazyGridState = rememberLazyGridState()
 
     LaunchedEffect(lazyListState) {
-        snapshotFlow { lazyListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .collect { index ->
-                if (index != null && artistItemsPage != null && artistItemsPage.continuation != null && !isMoreLoading && index >= artistItemsPage.items.size - 5) {
-                    viewModel.loadMoreArtistItems()
-                }
+        snapshotFlow {
+            lazyListState.layoutInfo.visibleItemsInfo
+                .lastOrNull()
+                ?.index
+        }.collect { index ->
+            if (index != null && artistItemsPage != null && artistItemsPage.continuation != null && !isMoreLoading &&
+                index >= artistItemsPage.items.size - 5
+            ) {
+                viewModel.loadMoreArtistItems()
             }
+        }
     }
-    
+
     LaunchedEffect(lazyGridState) {
-        snapshotFlow { lazyGridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .collect { index ->
-                if (index != null && artistItemsPage != null && artistItemsPage.continuation != null && !isMoreLoading && index >= artistItemsPage.items.size - 5) {
-                    viewModel.loadMoreArtistItems()
-                }
+        snapshotFlow {
+            lazyGridState.layoutInfo.visibleItemsInfo
+                .lastOrNull()
+                ?.index
+        }.collect { index ->
+            if (index != null && artistItemsPage != null && artistItemsPage.continuation != null && !isMoreLoading &&
+                index >= artistItemsPage.items.size - 5
+            ) {
+                viewModel.loadMoreArtistItems()
             }
+        }
     }
 
     Scaffold(
@@ -122,12 +136,13 @@ fun ArtistItemsScreen(
                     }
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0),
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background,
+                    ),
             )
-        }
+        },
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (isLoading) {
@@ -136,7 +151,7 @@ fun ArtistItemsScreen(
                 if (artistItemsPage.items.firstOrNull() is SongItem) {
                     LazyColumn(
                         state = lazyListState,
-                        contentPadding = PaddingValues(bottom = 16.dp)
+                        contentPadding = PaddingValues(bottom = 16.dp),
                     ) {
                         items(artistItemsPage.items, key = { it.id }) { item ->
                             if (item is SongItem) {
@@ -146,7 +161,7 @@ fun ArtistItemsScreen(
                                     isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
                                     onClick = { onTrackClick(item) },
                                     onLongClick = { selectedTrack = track },
-                                    onMenuClick = { selectedTrack = track }
+                                    onMenuClick = { selectedTrack = track },
                                 )
                             }
                         }
@@ -164,25 +179,35 @@ fun ArtistItemsScreen(
                         state = lazyGridState,
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         items(artistItemsPage.items, key = { it.id }) { item ->
                             ArtistGridItem(
                                 item = item,
-                                onActionClick = when (item) {
-                                    is AlbumItem, is PlaylistItem -> ({ selectedCollection = item.toCollectionActionItem() })
-                                    else -> null
-                                },
+                                onActionClick =
+                                    when (item) {
+                                        is AlbumItem, is PlaylistItem -> ({ selectedCollection = item.toCollectionActionItem() })
+                                        else -> null
+                                    },
                                 onClick = {
                                     when (item) {
-                                        is AlbumItem -> onAlbumClick(item.id)
-                                        is ArtistItem -> onArtistClick(item.id)
-                                        is PlaylistItem -> onPlaylistClick(item.id)
+                                        is AlbumItem -> {
+                                            onAlbumClick(item.id)
+                                        }
+
+                                        is ArtistItem -> {
+                                            onArtistClick(item.id)
+                                        }
+
+                                        is PlaylistItem -> {
+                                            onPlaylistClick(item.id)
+                                        }
+
                                         is SongItem -> {
                                             onTrackClick(item)
                                         }
                                     }
-                                }
+                                },
                             )
                         }
                         if (isMoreLoading) {
@@ -199,8 +224,8 @@ fun ArtistItemsScreen(
     }
 }
 
-private fun SongItem.toMusicTrack(): MusicTrack {
-    return MusicTrack(
+private fun SongItem.toMusicTrack(): MusicTrack =
+    MusicTrack(
         videoId = id,
         title = title,
         artist = artists.joinToString { it.name },
@@ -210,16 +235,15 @@ private fun SongItem.toMusicTrack(): MusicTrack {
         album = album?.name ?: "",
         channelId = artists.firstOrNull()?.id ?: "",
         isExplicit = explicit,
-        isVideoSong = isVideoSong
+        isVideoSong = isVideoSong,
     )
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ArtistGridItem(
     item: io.github.aedev.flow.innertube.models.YTItem,
     onClick: () -> Unit,
-    onActionClick: (() -> Unit)? = null
+    onActionClick: (() -> Unit)? = null,
 ) {
     var title = ""
     var subtitle = ""
@@ -232,16 +256,19 @@ fun ArtistGridItem(
             subtitle = stringResource(R.string.year_artist_template, item.year ?: "", artistOrAlbum)
             thumbnailUrl = item.thumbnail
         }
+
         is ArtistItem -> {
             title = item.title
             subtitle = stringResource(R.string.subtitle_artist)
             thumbnailUrl = item.thumbnail
         }
+
         is PlaylistItem -> {
             title = item.title
             subtitle = stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
             thumbnailUrl = item.thumbnail
         }
+
         is SongItem -> {
             title = item.title
             subtitle = item.artists.joinToString { it.name }
@@ -250,32 +277,34 @@ fun ArtistGridItem(
     }
 
     Column(
-        modifier = Modifier
-            .width(160.dp)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onActionClick
-            )
+        modifier =
+            Modifier
+                .width(160.dp)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onActionClick,
+                ),
     ) {
         Box {
             AsyncImage(
                 model = thumbnailUrl,
                 contentDescription = null,
-                modifier = Modifier
-                    .aspectRatio(1f)
-                    .fillMaxWidth()
-                    .clip(if (item is ArtistItem) androidx.compose.foundation.shape.CircleShape else RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
+                modifier =
+                    Modifier
+                        .aspectRatio(1f)
+                        .fillMaxWidth()
+                        .clip(if (item is ArtistItem) androidx.compose.foundation.shape.CircleShape else RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop,
             )
             if (onActionClick != null) {
                 IconButton(
                     onClick = onActionClick,
-                    modifier = Modifier.align(Alignment.TopEnd)
+                    modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.more_options),
-                        tint = androidx.compose.ui.graphics.Color.White
+                        tint = androidx.compose.ui.graphics.Color.White,
                     )
                 }
             }
@@ -285,34 +314,43 @@ fun ArtistGridItem(
             text = title,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
-private fun io.github.aedev.flow.innertube.models.YTItem.toCollectionActionItem(): MusicCollectionActionItem? = when (this) {
-    is AlbumItem -> MusicCollectionActionItem(
-        id = id,
-        title = title,
-        subtitle = artists?.joinToString { it.name }.orEmpty(),
-        thumbnailUrl = thumbnail,
-        description = year?.toString().orEmpty(),
-        isAlbum = true
-    )
-    is PlaylistItem -> MusicCollectionActionItem(
-        id = id,
-        title = title,
-        subtitle = author?.name.orEmpty(),
-        thumbnailUrl = thumbnail,
-        description = author?.name.orEmpty(),
-        isAlbum = false
-    )
-    else -> null
-}
+private fun io.github.aedev.flow.innertube.models.YTItem.toCollectionActionItem(): MusicCollectionActionItem? =
+    when (this) {
+        is AlbumItem -> {
+            MusicCollectionActionItem(
+                id = id,
+                title = title,
+                subtitle = artists?.joinToString { it.name }.orEmpty(),
+                thumbnailUrl = thumbnail,
+                description = year?.toString().orEmpty(),
+                isAlbum = true,
+            )
+        }
+
+        is PlaylistItem -> {
+            MusicCollectionActionItem(
+                id = id,
+                title = title,
+                subtitle = author?.name.orEmpty(),
+                thumbnailUrl = thumbnail,
+                description = author?.name.orEmpty(),
+                isAlbum = false,
+            )
+        }
+
+        else -> {
+            null
+        }
+    }

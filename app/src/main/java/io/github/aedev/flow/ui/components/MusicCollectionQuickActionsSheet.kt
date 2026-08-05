@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
@@ -50,14 +50,15 @@ data class MusicCollectionActionItem(
     val subtitle: String,
     val thumbnailUrl: String?,
     val description: String = subtitle,
-    val isAlbum: Boolean = false
+    val isAlbum: Boolean = false,
 ) {
     val shareUrl: String
-        get() = if (isAlbum) {
-            "https://music.youtube.com/browse/$id"
-        } else {
-            "https://music.youtube.com/playlist?list=$id"
-        }
+        get() =
+            if (isAlbum) {
+                "https://music.youtube.com/browse/$id"
+            } else {
+                "https://music.youtube.com/playlist?list=$id"
+            }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,32 +67,35 @@ fun MusicCollectionQuickActionsSheet(
     item: MusicCollectionActionItem,
     onDismiss: () -> Unit,
     onOpen: () -> Unit,
-    viewModel: MusicCollectionActionsViewModel = hiltViewModel()
+    viewModel: MusicCollectionActionsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberFlowSheetState()
+        sheetState = rememberFlowSheetState(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 AsyncImage(
                     model = item.thumbnailUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                    modifier =
+                        Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(8.dp)),
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -100,14 +104,14 @@ fun MusicCollectionQuickActionsSheet(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = item.subtitle,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -115,69 +119,73 @@ fun MusicCollectionQuickActionsSheet(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             FlowMenuGroup(
-                items = listOf(
-                    FlowMenuItemData(
-                        icon = { Icon(Icons.Outlined.BookmarkBorder, null) },
-                        title = { Text(stringResource(R.string.add_to_library)) },
-                        onClick = {
-                            viewModel.saveToLibrary(item)
-                            onDismiss()
-                        }
+                items =
+                    listOf(
+                        FlowMenuItemData(
+                            icon = { Icon(Icons.Outlined.BookmarkBorder, null) },
+                            title = { Text(stringResource(R.string.add_to_library)) },
+                            onClick = {
+                                viewModel.saveToLibrary(item)
+                                onDismiss()
+                            },
+                        ),
+                        FlowMenuItemData(
+                            icon = { Icon(Icons.Outlined.Share, null) },
+                            title = { Text(stringResource(R.string.share)) },
+                            onClick = {
+                                context.shareCollection(item)
+                                onDismiss()
+                            },
+                        ),
+                        FlowMenuItemData(
+                            icon = { Icon(Icons.Outlined.OpenInNew, null) },
+                            title = { Text(stringResource(R.string.open)) },
+                            onClick = {
+                                onOpen()
+                                onDismiss()
+                            },
+                        ),
                     ),
-                    FlowMenuItemData(
-                        icon = { Icon(Icons.Outlined.Share, null) },
-                        title = { Text(stringResource(R.string.share)) },
-                        onClick = {
-                            context.shareCollection(item)
-                            onDismiss()
-                        }
-                    ),
-                    FlowMenuItemData(
-                        icon = { Icon(Icons.Outlined.OpenInNew, null) },
-                        title = { Text(stringResource(R.string.open)) },
-                        onClick = {
-                            onOpen()
-                            onDismiss()
-                        }
-                    )
-                ),
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
     }
 }
 
 @HiltViewModel
-class MusicCollectionActionsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val playlistRepository: PlaylistRepository
-) : ViewModel() {
-    fun saveToLibrary(item: MusicCollectionActionItem) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                playlistRepository.saveExternalMusicPlaylist(
-                    id = item.id,
-                    name = item.title,
-                    description = item.description,
-                    thumbnailUrl = item.thumbnailUrl.orEmpty()
-                )
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.saved_to_library), Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.failed_to_save_to_library), Toast.LENGTH_SHORT).show()
+class MusicCollectionActionsViewModel
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context,
+        private val playlistRepository: PlaylistRepository,
+    ) : ViewModel() {
+        fun saveToLibrary(item: MusicCollectionActionItem) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    playlistRepository.saveExternalMusicPlaylist(
+                        id = item.id,
+                        name = item.title,
+                        description = item.description,
+                        thumbnailUrl = item.thumbnailUrl.orEmpty(),
+                    )
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, context.getString(R.string.saved_to_library), Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, context.getString(R.string.failed_to_save_to_library), Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
     }
-}
 
 private fun Context.shareCollection(item: MusicCollectionActionItem) {
-    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, item.title)
-        putExtra(Intent.EXTRA_TEXT, item.shareUrl)
-    }
+    val shareIntent =
+        Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, item.title)
+            putExtra(Intent.EXTRA_TEXT, item.shareUrl)
+        }
     startActivity(Intent.createChooser(shareIntent, getString(R.string.share)))
 }

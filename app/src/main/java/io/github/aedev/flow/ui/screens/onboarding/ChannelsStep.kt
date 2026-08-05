@@ -43,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
@@ -52,9 +53,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import kotlinx.coroutines.Dispatchers
@@ -70,7 +70,7 @@ internal fun ChannelsStep(
     isSearching: Boolean,
     subscribedInSession: Set<String>,
     onQueryChange: (String) -> Unit,
-    onSubscribeToggle: (ChannelSearchResult) -> Unit
+    onSubscribeToggle: (ChannelSearchResult) -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -81,14 +81,15 @@ internal fun ChannelsStep(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-            .padding(top = 8.dp)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .padding(top = 8.dp),
     ) {
         StepHeader(
             title = stringResource(R.string.onboarding_channels_title),
-            subtitle = stringResource(R.string.onboarding_channels_subtitle)
+            subtitle = stringResource(R.string.onboarding_channels_subtitle),
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -96,56 +97,62 @@ internal fun ChannelsStep(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onQueryChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
             placeholder = {
                 Text(
                     stringResource(R.string.onboarding_channels_search_placeholder),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                 )
             },
             leadingIcon = {
                 Icon(
                     Icons.Outlined.Search,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
-            trailingIcon = if (isSearching) {
-                { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) }
-            } else null,
+            trailingIcon =
+                if (isSearching) {
+                    { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) }
+                } else {
+                    null
+                },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
             shape = RoundedCornerShape(28.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-            )
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
         )
 
         Spacer(modifier = Modifier.height(10.dp))
 
         LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(bottom = 8.dp)
+            contentPadding = PaddingValues(bottom = 8.dp),
         ) {
             if (searchQuery.isBlank()) {
                 item {
                     ChannelsPlaceholder(
                         text = stringResource(R.string.onboarding_channels_empty_prompt),
-                        strong = false
+                        strong = false,
                     )
                 }
             } else if (searchResults.isEmpty() && !isSearching) {
                 item {
                     ChannelsPlaceholder(
                         text = stringResource(R.string.onboarding_channels_no_results, searchQuery),
-                        strong = true
+                        strong = true,
                     )
                 }
             }
@@ -154,7 +161,7 @@ internal fun ChannelsStep(
                 ChannelResultRow(
                     result = result,
                     isSubscribed = subscribedInSession.contains(result.channelId),
-                    onToggle = { onSubscribeToggle(result) }
+                    onToggle = { onSubscribeToggle(result) },
                 )
             }
 
@@ -165,7 +172,7 @@ internal fun ChannelsStep(
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
             }
@@ -176,12 +183,16 @@ internal fun ChannelsStep(
 }
 
 @Composable
-private fun ChannelsPlaceholder(text: String, strong: Boolean) {
+private fun ChannelsPlaceholder(
+    text: String,
+    strong: Boolean,
+) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = if (strong) 32.dp else 48.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = if (strong) 32.dp else 48.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (!strong) {
@@ -189,14 +200,14 @@ private fun ChannelsPlaceholder(text: String, strong: Boolean) {
                     Icons.Outlined.Search,
                     contentDescription = null,
                     modifier = Modifier.size(36.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
                 )
                 Spacer(Modifier.height(8.dp))
             }
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
         }
     }
@@ -206,26 +217,28 @@ private fun ChannelsPlaceholder(text: String, strong: Boolean) {
 private fun ChannelResultRow(
     result: ChannelSearchResult,
     isSubscribed: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
             model = result.thumbnailUrl,
             contentDescription = null,
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+            modifier =
+                Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
             contentScale = ContentScale.Crop,
             placeholder = painterResource(R.drawable.ic_notification_logo),
-            error = painterResource(R.drawable.ic_notification_logo)
+            error = painterResource(R.drawable.ic_notification_logo),
         )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -235,16 +248,17 @@ private fun ChannelResultRow(
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             if (result.subscriberCount > 0) {
                 Text(
-                    text = stringResource(
-                        R.string.onboarding_channels_subscribers,
-                        formatSubscriberCount(result.subscriberCount)
-                    ),
+                    text =
+                        stringResource(
+                            R.string.onboarding_channels_subscribers,
+                            formatSubscriberCount(result.subscriberCount),
+                        ),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                 )
             }
         }
@@ -252,17 +266,18 @@ private fun ChannelResultRow(
         AnimatedContent(
             targetState = isSubscribed,
             transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(100)) },
-            label = "sub_btn_${result.channelId}"
+            label = "sub_btn_${result.channelId}",
         ) { subscribed ->
             if (subscribed) {
                 FilledTonalButton(
                     onClick = onToggle,
                     modifier = Modifier.height(38.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                    colors =
+                        ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
@@ -273,7 +288,7 @@ private fun ChannelResultRow(
                     onClick = onToggle,
                     modifier = Modifier.height(38.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
@@ -292,38 +307,48 @@ internal suspend fun searchChannels(query: String): List<ChannelSearchResult> =
             extractor.initialPage.items
                 .filterIsInstance<ChannelInfoItem>()
                 .mapNotNull { item ->
-                    val channelId = try {
-                        val url = item.url
-                        when {
-                            url.contains("/channel/") ->
-                                url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
-                            url.contains("/@") ->
-                                url.substringAfter("/@").substringBefore("/").substringBefore("?")
-                            else ->
-                                url.substringAfterLast("/").substringBefore("?")
+                    val channelId =
+                        try {
+                            val url = item.url
+                            when {
+                                url.contains("/channel/") -> {
+                                    url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
+                                }
+
+                                url.contains("/@") -> {
+                                    url.substringAfter("/@").substringBefore("/").substringBefore("?")
+                                }
+
+                                else -> {
+                                    url.substringAfterLast("/").substringBefore("?")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            ""
                         }
-                    } catch (e: Exception) { "" }
 
                     if (channelId.isEmpty() || item.name.isNullOrEmpty()) return@mapNotNull null
 
                     ChannelSearchResult(
                         channelId = channelId,
                         name = item.name ?: "",
-                        thumbnailUrl = item.thumbnails
-                            .sortedByDescending { it.height }
-                            .firstOrNull()?.url ?: "",
-                        subscriberCount = item.subscriberCount
+                        thumbnailUrl =
+                            item.thumbnails
+                                .sortedByDescending { it.height }
+                                .firstOrNull()
+                                ?.url ?: "",
+                        subscriberCount = item.subscriberCount,
                     )
-                }
-                .distinctByNonBlankKey(ChannelSearchResult::channelId)
+                }.distinctByNonBlankKey(ChannelSearchResult::channelId)
                 .take(15)
         } catch (e: Exception) {
             emptyList()
         }
     }
 
-private fun formatSubscriberCount(count: Long): String = when {
-    count >= 1_000_000 -> "${count / 1_000_000}M"
-    count >= 1_000 -> "${count / 1_000}K"
-    else -> count.toString()
-}
+private fun formatSubscriberCount(count: Long): String =
+    when {
+        count >= 1_000_000 -> "${count / 1_000_000}M"
+        count >= 1_000 -> "${count / 1_000}K"
+        else -> count.toString()
+    }

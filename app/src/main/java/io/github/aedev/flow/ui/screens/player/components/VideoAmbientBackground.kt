@@ -116,21 +116,23 @@ private const val CAPTURE_UNSUPPORTED = 2
 private const val LINEAR_LUT_SIZE = 4096
 
 /** Exact sRGB EOTF; 256 entries covers every possible input byte. */
-private val SRGB_TO_LINEAR = FloatArray(256) { i ->
-    val c = i / 255f
-    if (c <= 0.04045f) c / 12.92f else ((c + 0.055f) / 1.055f).pow(2.4f)
-}
+private val SRGB_TO_LINEAR =
+    FloatArray(256) { i ->
+        val c = i / 255f
+        if (c <= 0.04045f) c / 12.92f else ((c + 0.055f) / 1.055f).pow(2.4f)
+    }
 
 /**
  * Inverse EOTF. 4096 entries rather than the ~2048 that would give half-LSB accuracy across most of
  * the range: the curve's slope is 12.92 near black, so a coarser table quantises visibly there —
  * and near-black is exactly where a dim glow lives.
  */
-private val LINEAR_TO_SRGB = IntArray(LINEAR_LUT_SIZE + 1) { i ->
-    val c = i / LINEAR_LUT_SIZE.toFloat()
-    val s = if (c <= 0.0031308f) c * 12.92f else 1.055f * c.pow(1f / 2.4f) - 0.055f
-    (s * 255f + 0.5f).toInt().coerceIn(0, 255)
-}
+private val LINEAR_TO_SRGB =
+    IntArray(LINEAR_LUT_SIZE + 1) { i ->
+        val c = i / LINEAR_LUT_SIZE.toFloat()
+        val s = if (c <= 0.0031308f) c * 12.92f else 1.055f * c.pow(1f / 2.4f) - 0.055f
+        (s * 255f + 0.5f).toInt().coerceIn(0, 255)
+    }
 
 /** Latest smoothed frame plus the dominant/accent colours extracted from it. */
 data class AmbientFrameState(
@@ -138,7 +140,7 @@ data class AmbientFrameState(
     val base: Color? = null,
     val accent: Color? = null,
     /** False once capture has been found permanently impossible, e.g. a protected surface. */
-    val supported: Boolean = true
+    val supported: Boolean = true,
 )
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -148,7 +150,7 @@ fun rememberAmbientFrame(
     active: Boolean,
     isPlayingProvider: () -> Boolean = {
         EnhancedPlayerManager.getInstance().getPlayer()?.isPlaying == true
-    }
+    },
 ): AmbientFrameState {
     var state by remember { mutableStateOf(AmbientFrameState()) }
     val currentIsPlayingProvider by rememberUpdatedState(isPlayingProvider)
@@ -164,20 +166,15 @@ fun rememberAmbientFrame(
         // the screen off, painting a surface nobody could see.
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             val pipeline = AmbientPipeline()
-            try {
-                // coroutineScope, not a bare launch pair: it suspends until both loops finish, so
-                // the buffers below outlive them. Launching without it lets this block return
-                // immediately and recycle every bitmap out from under the running loops.
-                coroutineScope {
-                    // Capture sets targets at whatever cadence the surface can afford; smoothing
-                    // walks toward them on its own clock. Both run on Main, so the shared target
-                    // buffers need no synchronisation — the heavy work inside each hops to Default
-                    // and is joined before anything is published.
-                    launch { pipeline.runCapture(playerView, currentIsPlayingProvider) }
-                    launch { pipeline.runSmoothing { state = it } }
-                }
-            } finally {
-                pipeline.release()
+            // coroutineScope, not a bare launch pair: it suspends until both loops finish, so the
+            // pipeline is never abandoned while either loop can still touch its buffers.
+            coroutineScope {
+                // Capture sets targets at whatever cadence the surface can afford; smoothing
+                // walks toward them on its own clock. Both run on Main, so the shared target
+                // buffers need no synchronisation — the heavy work inside each hops to Default
+                // and is joined before anything is published.
+                launch { pipeline.runCapture(playerView, currentIsPlayingProvider) }
+                launch { pipeline.runSmoothing { state = it } }
             }
         }
     }
@@ -208,10 +205,11 @@ private class AmbientPipeline {
     private val currentAccent = FloatArray(3)
 
     // Double buffered: the render thread may still be uploading the bitmap handed over last tick.
-    private val buffers = arrayOf(
-        Bitmap.createBitmap(DISPLAY_W, DISPLAY_H, Bitmap.Config.ARGB_8888),
-        Bitmap.createBitmap(DISPLAY_W, DISPLAY_H, Bitmap.Config.ARGB_8888)
-    )
+    private val buffers =
+        arrayOf(
+            Bitmap.createBitmap(DISPLAY_W, DISPLAY_H, Bitmap.Config.ARGB_8888),
+            Bitmap.createBitmap(DISPLAY_W, DISPLAY_H, Bitmap.Config.ARGB_8888),
+        )
     private var bufferIndex = 0
 
     private var hasPreviousSample = false
@@ -220,12 +218,10 @@ private class AmbientPipeline {
     private var supported = true
     private var consecutiveFailures = 0
 
-    fun release() {
-        sample.recycle()
-        buffers.forEach { it.recycle() }
-    }
-
-    suspend fun runCapture(playerView: PlayerView, isPlaying: () -> Boolean) {
+    suspend fun runCapture(
+        playerView: PlayerView,
+        isPlaying: () -> Boolean,
+    ) {
         while (currentCoroutineContext().isActive && supported) {
             val surface = playerView.videoSurfaceView
             val playing = isPlaying()
@@ -244,11 +240,16 @@ private class AmbientPipeline {
                             hasTarget = true
                         }
                     }
-                    CAPTURE_UNSUPPORTED -> supported = false
+
+                    CAPTURE_UNSUPPORTED -> {
+                        supported = false
+                    }
+
                     else -> {
                         consecutiveFailures++
-                        val multiplier = (1L shl consecutiveFailures.coerceAtMost(3))
-                            .coerceAtMost(MAX_BACKOFF_MULTIPLIER)
+                        val multiplier =
+                            (1L shl consecutiveFailures.coerceAtMost(3))
+                                .coerceAtMost(MAX_BACKOFF_MULTIPLIER)
                         cadence = base * multiplier
                     }
                 }
@@ -260,8 +261,9 @@ private class AmbientPipeline {
     /** Runs on Default. Returns true when the frame differed enough to become a new target. */
     private fun computeTarget(): Boolean {
         sample.getPixels(samplePixels, 0, SAMPLE_W, 0, 0, SAMPLE_W, SAMPLE_H)
-        val changed = !hasPreviousSample ||
-            meanAbsDiff(samplePixels, previousPixels) >= FRAME_CHANGE_THRESHOLD
+        val changed =
+            !hasPreviousSample ||
+                meanAbsDiff(samplePixels, previousPixels) >= FRAME_CHANGE_THRESHOLD
         if (!changed) return false
         // previousPixels advances only on an accepted frame, so a slow fade accumulates against a
         // fixed reference instead of never clearing the threshold.
@@ -324,13 +326,17 @@ private class AmbientPipeline {
             frame = bitmap.asImageBitmap(),
             base = fromLinear(currentBase),
             accent = fromLinear(currentAccent),
-            supported = supported
+            supported = supported,
         )
     }
 }
 
 /** Advances [current] toward [target]; returns whether anything moved beyond the epsilon. */
-internal fun step(current: FloatArray, target: FloatArray, alpha: Float): Boolean {
+internal fun step(
+    current: FloatArray,
+    target: FloatArray,
+    alpha: Float,
+): Boolean {
     var moved = false
     for (i in current.indices) {
         val delta = target[i] - current[i]
@@ -353,7 +359,10 @@ internal fun step(current: FloatArray, target: FloatArray, alpha: Float): Boolea
  * Averaging in gamma-encoded sRGB was the other half — mixing saturated complementaries there lands
  * darker than either input.
  */
-private fun decimateToLinear(src: IntArray, dst: FloatArray) {
+private fun decimateToLinear(
+    src: IntArray,
+    dst: FloatArray,
+) {
     val n = (DECIMATION * DECIMATION).toFloat()
     var o = 0
     for (y in 0 until DISPLAY_H) {
@@ -383,7 +392,7 @@ internal fun boxBlurLinear(
     w: Int,
     h: Int,
     radius: Int,
-    passes: Int
+    passes: Int,
 ) {
     if (radius <= 0 || w <= 0 || h <= 0) return
     repeat(passes) {
@@ -398,7 +407,7 @@ private fun blurAxisLinear(
     w: Int,
     h: Int,
     radius: Int,
-    horizontal: Boolean
+    horizontal: Boolean,
 ) {
     val lines = if (horizontal) h else w
     val span = if (horizontal) w else h
@@ -424,7 +433,10 @@ private fun blurAxisLinear(
     }
 }
 
-private fun encodeToPixels(grid: FloatArray, out: IntArray) {
+private fun encodeToPixels(
+    grid: FloatArray,
+    out: IntArray,
+) {
     for (i in out.indices) {
         val o = i * 3
         out[i] = (0xFF shl 24) or
@@ -439,22 +451,26 @@ private fun encodeToPixels(grid: FloatArray, out: IntArray) {
  * black — where the EOTF slope is 12.92 — is enough to lose a whole output level and break the
  * round trip.
  */
-internal fun linearToSrgb(v: Float): Int =
-    LINEAR_TO_SRGB[(v.coerceIn(0f, 1f) * LINEAR_LUT_SIZE + 0.5f).toInt()]
+internal fun linearToSrgb(v: Float): Int = LINEAR_TO_SRGB[(v.coerceIn(0f, 1f) * LINEAR_LUT_SIZE + 0.5f).toInt()]
 
 internal fun srgbToLinear(byteValue: Int): Float = SRGB_TO_LINEAR[byteValue.coerceIn(0, 255)]
 
-private fun toLinear(color: Color, out: FloatArray) {
+private fun toLinear(
+    color: Color,
+    out: FloatArray,
+) {
     out[0] = srgbToLinear((color.red * 255f + 0.5f).toInt())
     out[1] = srgbToLinear((color.green * 255f + 0.5f).toInt())
     out[2] = srgbToLinear((color.blue * 255f + 0.5f).toInt())
 }
 
-private fun fromLinear(v: FloatArray): Color =
-    Color(linearToSrgb(v[0]), linearToSrgb(v[1]), linearToSrgb(v[2]))
+private fun fromLinear(v: FloatArray): Color = Color(linearToSrgb(v[0]), linearToSrgb(v[1]), linearToSrgb(v[2]))
 
 /** Mean absolute per-channel difference over a strided subset of the two buffers. */
-internal fun meanAbsDiff(current: IntArray, previous: IntArray): Int {
+internal fun meanAbsDiff(
+    current: IntArray,
+    previous: IntArray,
+): Int {
     var sum = 0L
     var count = 0
     var i = 0
@@ -470,7 +486,11 @@ internal fun meanAbsDiff(current: IntArray, previous: IntArray): Int {
     return if (count == 0) 0 else (sum / count).toInt()
 }
 
-private suspend fun captureSurface(surface: View, dst: Bitmap, handler: Handler): Int =
+private suspend fun captureSurface(
+    surface: View,
+    dst: Bitmap,
+    handler: Handler,
+): Int =
     suspendCancellableCoroutine { cont ->
         try {
             when {
@@ -482,6 +502,7 @@ private suspend fun captureSurface(surface: View, dst: Bitmap, handler: Handler)
                         cont.resume(CAPTURE_RETRY)
                     }
                 }
+
                 surface is SurfaceView && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N -> {
                     val holderSurface = surface.holder?.surface
                     if (holderSurface != null && holderSurface.isValid) {
@@ -494,16 +515,19 @@ private suspend fun captureSurface(surface: View, dst: Bitmap, handler: Handler)
                                         PixelCopy.SUCCESS -> CAPTURE_OK
                                         PixelCopy.ERROR_SOURCE_INVALID -> CAPTURE_UNSUPPORTED
                                         else -> CAPTURE_RETRY
-                                    }
+                                    },
                                 )
                             },
-                            handler
+                            handler,
                         )
                     } else {
                         cont.resume(CAPTURE_RETRY)
                     }
                 }
-                else -> cont.resume(CAPTURE_RETRY)
+
+                else -> {
+                    cont.resume(CAPTURE_RETRY)
+                }
             }
         } catch (t: Throwable) {
             cont.resume(CAPTURE_RETRY)
@@ -516,23 +540,26 @@ private const val MAX_PREFERRED_LUMA = 0.86f
 
 private fun extractColors(bmp: Bitmap): Pair<Color?, Color?> {
     val palette = Palette.from(bmp).clearFilters().generate()
-    val usableSwatches = palette.swatches
-        .filter { it.population >= MIN_COLOR_POPULATION }
-        .sortedWith(
-            compareByDescending<Palette.Swatch> { swatch ->
-                val hsl = swatch.hsl
-                val lumaFit = 1f - kotlin.math.abs(hsl[2].coerceIn(0f, 1f) - 0.56f)
-                (hsl[1] * 1.5f + lumaFit) * swatch.population
-            }
-        )
-    val baseSwatch = usableSwatches.firstOrNull { swatch ->
-        swatch.hsl[2] in MIN_PREFERRED_LUMA..MAX_PREFERRED_LUMA
-    } ?: palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: palette.dominantSwatch
-    val accentSwatch = palette.vibrantSwatch
-        ?: palette.lightVibrantSwatch
-        ?: usableSwatches.firstOrNull()
-        ?: palette.mutedSwatch
-        ?: palette.dominantSwatch
+    val usableSwatches =
+        palette.swatches
+            .filter { it.population >= MIN_COLOR_POPULATION }
+            .sortedWith(
+                compareByDescending<Palette.Swatch> { swatch ->
+                    val hsl = swatch.hsl
+                    val lumaFit = 1f - kotlin.math.abs(hsl[2].coerceIn(0f, 1f) - 0.56f)
+                    (hsl[1] * 1.5f + lumaFit) * swatch.population
+                },
+            )
+    val baseSwatch =
+        usableSwatches.firstOrNull { swatch ->
+            swatch.hsl[2] in MIN_PREFERRED_LUMA..MAX_PREFERRED_LUMA
+        } ?: palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: palette.dominantSwatch
+    val accentSwatch =
+        palette.vibrantSwatch
+            ?: palette.lightVibrantSwatch
+            ?: usableSwatches.firstOrNull()
+            ?: palette.mutedSwatch
+            ?: palette.dominantSwatch
     return baseSwatch?.let { Color(it.rgb) } to accentSwatch?.let { Color(it.rgb) }
 }
 
@@ -546,20 +573,22 @@ fun VideoAmbientBackground(
     frame: ImageBitmap?,
     baseColor: Color?,
     accentColor: Color?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val base = baseColor ?: Color.Transparent
     val accent = accentColor ?: Color.Transparent
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black)
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(Color.Black),
     ) {
         Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(base.copy(alpha = AMBIENT_BASE_ALPHA))
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .background(base.copy(alpha = AMBIENT_BASE_ALPHA)),
         )
 
         if (frame != null) {
@@ -568,20 +597,22 @@ fun VideoAmbientBackground(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize(),
-                alpha = AMBIENT_FRAME_ALPHA
+                alpha = AMBIENT_FRAME_ALPHA,
             )
         }
 
         Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(accent.copy(alpha = AMBIENT_ACCENT_ALPHA))
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .background(accent.copy(alpha = AMBIENT_ACCENT_ALPHA)),
         )
 
         Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(Color.Black.copy(alpha = AMBIENT_SCRIM_ALPHA))
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = AMBIENT_SCRIM_ALPHA)),
         )
     }
 }

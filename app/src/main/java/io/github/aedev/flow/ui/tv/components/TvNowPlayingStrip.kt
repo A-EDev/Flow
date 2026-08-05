@@ -34,7 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.screens.music.MusicTrack
@@ -59,20 +59,22 @@ fun TvNowPlayingStrip(
     LaunchedEffect(playerState.isPlaying, track.videoId) {
         while (isActive) {
             val duration = EnhancedMusicPlayerManager.getDuration()
-            progressFraction = if (duration > 0) {
-                (EnhancedMusicPlayerManager.getCurrentPosition().toFloat() / duration).coerceIn(0f, 1f)
-            } else {
-                0f
-            }
+            progressFraction =
+                if (duration > 0) {
+                    (EnhancedMusicPlayerManager.getCurrentPosition().toFloat() / duration).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
             if (!playerState.isPlaying) break
             delay(1_000)
         }
     }
 
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 10.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 10.dp),
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 3.dp,
@@ -86,34 +88,39 @@ fun TvNowPlayingStrip(
                 var bodyFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = onExpand,
-                    modifier = Modifier
-                        .weight(1f)
-                        .onFocusChanged { bodyFocused = it.isFocused },
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .onFocusChanged { bodyFocused = it.isFocused },
                     shape = MaterialTheme.shapes.large,
-                    color = if (bodyFocused) {
-                        MaterialTheme.colorScheme.secondaryContainer
-                    } else {
-                        Color.Transparent
-                    },
-                    contentColor = if (bodyFocused) {
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+                    color =
+                        if (bodyFocused) {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        } else {
+                            Color.Transparent
+                        },
+                    contentColor =
+                        if (bodyFocused) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         AsyncImage(
                             model = track.listThumbnailUrl,
                             contentDescription = stringResource(R.string.tv_music_expand),
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(MaterialTheme.shapes.medium),
+                            modifier =
+                                Modifier
+                                    .size(52.dp)
+                                    .clip(MaterialTheme.shapes.medium),
                             contentScale = ContentScale.Crop,
                         )
                         Column(
@@ -143,11 +150,12 @@ fun TvNowPlayingStrip(
                 )
                 TvIconButton(
                     icon = if (playerState.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                    contentDescription = if (playerState.isPlaying) {
-                        stringResource(R.string.pause)
-                    } else {
-                        stringResource(R.string.play)
-                    },
+                    contentDescription =
+                        if (playerState.isPlaying) {
+                            stringResource(R.string.pause)
+                        } else {
+                            stringResource(R.string.play)
+                        },
                     onClick = EnhancedMusicPlayerManager::togglePlayPause,
                     active = playerState.isPlaying,
                 )
@@ -164,9 +172,10 @@ fun TvNowPlayingStrip(
             }
             LinearProgressIndicator(
                 progress = { progressFraction },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(3.dp),
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 drawStopIndicator = {},
             )

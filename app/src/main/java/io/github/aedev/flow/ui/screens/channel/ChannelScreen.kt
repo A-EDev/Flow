@@ -1,9 +1,10 @@
 package io.github.aedev.flow.ui.screens.channel
 
+import android.content.Intent
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,23 +18,21 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ViewList
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.PersonRemove
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -42,20 +41,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import android.content.Intent
-import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -64,19 +63,20 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.CompactVideoCard
+import io.github.aedev.flow.innertube.pages.CommunityPost
 import io.github.aedev.flow.ui.components.ChannelBanner
 import io.github.aedev.flow.ui.components.CommentSortFilter
+import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FullSizeImageDialog
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.PlaylistCard
+import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.sortCommentsByFilter
-import io.github.aedev.flow.innertube.pages.CommunityPost
 import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -94,7 +94,7 @@ fun ChannelScreen(
     onPlaylistClick: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ChannelViewModel = viewModel()
+    viewModel: ChannelViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -114,9 +114,10 @@ fun ChannelScreen(
     var showCollapsedChannelTitle by remember(channelUrl) { mutableStateOf(false) }
     val collapsedChannelTitle = uiState.channelInfo?.name.orEmpty()
     var communityCommentSort by rememberSaveable { mutableStateOf(CommentSortFilter.TOP) }
-    val sortedCommunityComments = remember(communityUiState.comments, communityCommentSort) {
-        sortCommentsByFilter(communityUiState.comments, communityCommentSort)
-    }
+    val sortedCommunityComments =
+        remember(communityUiState.comments, communityCommentSort) {
+            sortCommentsByFilter(communityUiState.comments, communityCommentSort)
+        }
 
     LaunchedEffect(communityUiState.activePost?.id) {
         communityCommentSort = CommentSortFilter.TOP
@@ -124,112 +125,117 @@ fun ChannelScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
         ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
-                .height(48.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = stringResource(R.string.close)
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .height(48.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showCollapsedChannelTitle && collapsedChannelTitle.isNotBlank(),
-                    modifier = Modifier.align(Alignment.CenterStart)
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = stringResource(R.string.close),
+                    )
+                }
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp),
                 ) {
-                    Text(
-                        text = collapsedChannelTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showCollapsedChannelTitle && collapsedChannelTitle.isNotBlank(),
+                        modifier = Modifier.align(Alignment.CenterStart),
+                    ) {
+                        Text(
+                            text = collapsedChannelTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                IconButton(onClick = {
+                    val shareUrl = "https://www.youtube.com/channel/${uiState.channelInfo?.id ?: channelUrl}"
+                    val shareIntent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, shareUrl)
+                        }
+                    context.startActivity(Intent.createChooser(shareIntent, null))
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = stringResource(R.string.share),
                     )
                 }
             }
-            IconButton(onClick = {
-                val shareUrl = "https://www.youtube.com/channel/${uiState.channelInfo?.id ?: channelUrl}"
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, shareUrl)
-                }
-                context.startActivity(Intent.createChooser(shareIntent, null))
-            }) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = stringResource(R.string.share)
-                )
-            }
-        }
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
+            Box(modifier = Modifier.fillMaxSize()) {
+                when {
+                    uiState.isLoading -> {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    }
 
-                uiState.error != null -> {
-                    ErrorState(
-                        message = uiState.error ?: stringResource(R.string.failed_to_load_channel),
-                        onRetry = { viewModel.loadChannel(channelUrl) },
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
+                    uiState.error != null -> {
+                        ErrorState(
+                            message = uiState.error ?: stringResource(R.string.failed_to_load_channel),
+                            onRetry = { viewModel.loadChannel(channelUrl) },
+                            modifier = Modifier.align(Alignment.Center),
+                        )
+                    }
 
-                uiState.channelInfo != null -> {
-                    ChannelContent(
-                        uiState = uiState,
-                        communityUiState = communityUiState,
-                        allVideos = allVideos,
-                        isLoadingAllVideos = isLoadingAllVideos,
-                        shortsLazyPagingItems = shortsLazyPagingItems,
-                        allLiveVideos = allLiveVideos,
-                        playlistsLazyPagingItems = playlistsLazyPagingItems,
-                        onVideoClick = onVideoClick,
-                        onChannelClick = onChannelClick,
-                        onShortClick = onShortClick,
-                        onPlaylistClick = onPlaylistClick,
-                        onSubscribeClick = { viewModel.toggleSubscription() },
-                        onUnsubscribeClick = { viewModel.unsubscribe() },
-                        onNotificationChange = { viewModel.setNotificationState(it) },
-                        onTabSelected = { viewModel.selectTab(it) },
-                        onSearchToggle = { viewModel.setSearchActive(!uiState.searchActive) },
-                        onSearchQueryChange = { viewModel.searchInChannel(it) },
-                        onCommunityPostComments = viewModel::openCommunityPostComments,
-                        onCommunityPostShare = { post ->
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/post/${post.id}")
-                            }
-                            context.startActivity(
-                                Intent.createChooser(
-                                    shareIntent,
-                                    context.getString(R.string.share_community_post),
+                    uiState.channelInfo != null -> {
+                        ChannelContent(
+                            uiState = uiState,
+                            communityUiState = communityUiState,
+                            allVideos = allVideos,
+                            isLoadingAllVideos = isLoadingAllVideos,
+                            shortsLazyPagingItems = shortsLazyPagingItems,
+                            allLiveVideos = allLiveVideos,
+                            playlistsLazyPagingItems = playlistsLazyPagingItems,
+                            onVideoClick = onVideoClick,
+                            onChannelClick = onChannelClick,
+                            onShortClick = onShortClick,
+                            onPlaylistClick = onPlaylistClick,
+                            onSubscribeClick = { viewModel.toggleSubscription() },
+                            onUnsubscribeClick = { viewModel.unsubscribe() },
+                            onNotificationChange = { viewModel.setNotificationState(it) },
+                            onTabSelected = { viewModel.selectTab(it) },
+                            onSearchToggle = { viewModel.setSearchActive(!uiState.searchActive) },
+                            onSearchQueryChange = { viewModel.searchInChannel(it) },
+                            onCommunityPostComments = viewModel::openCommunityPostComments,
+                            onCommunityPostShare = { post ->
+                                val shareIntent =
+                                    Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/post/${post.id}")
+                                    }
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        shareIntent,
+                                        context.getString(R.string.share_community_post),
+                                    ),
                                 )
-                            )
-                        },
-                        onLoadMoreCommunityPosts = viewModel::loadMoreCommunityPosts,
-                        onRetryCommunityPosts = viewModel::retryCommunityPosts,
-                        initialScrollIndex = viewModel.listScrollIndex,
-                        initialScrollOffset = viewModel.listScrollOffset,
-                        onScrollChanged = { idx, off -> viewModel.saveScrollPosition(idx, off) },
-                        onCollapsedTitleVisibilityChange = { showCollapsedChannelTitle = it }
-                    )
+                            },
+                            onLoadMoreCommunityPosts = viewModel::loadMoreCommunityPosts,
+                            onRetryCommunityPosts = viewModel::retryCommunityPosts,
+                            initialScrollIndex = viewModel.listScrollIndex,
+                            initialScrollOffset = viewModel.listScrollOffset,
+                            onScrollChanged = { idx, off -> viewModel.saveScrollPosition(idx, off) },
+                            onCollapsedTitleVisibilityChange = { showCollapsedChannelTitle = it },
+                        )
+                    }
                 }
             }
-        }
         }
 
         if (communityUiState.activePost != null) {
@@ -279,40 +285,48 @@ private fun ChannelContent(
     initialScrollIndex: Int = 0,
     initialScrollOffset: Int = 0,
     onScrollChanged: (index: Int, offset: Int) -> Unit = { _, _ -> },
-    onCollapsedTitleVisibilityChange: (Boolean) -> Unit = {}
+    onCollapsedTitleVisibilityChange: (Boolean) -> Unit = {},
 ) {
     val channelInfo = uiState.channelInfo ?: return
 
     val context = androidx.compose.ui.platform.LocalContext.current
-    val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
+    val preferences =
+        remember {
+            io.github.aedev.flow.data.local
+                .PlayerPreferences(context)
+        }
     val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
     var selectedFilter by rememberSaveable { mutableStateOf(VideoFilter.Latest) }
     val coroutineScope = rememberCoroutineScope()
 
-    val sortedVideos: List<Video> = when (selectedFilter) {
-        VideoFilter.Latest -> allVideos
-        VideoFilter.Popular -> allVideos.sortedByDescending { it.viewCount }
-        VideoFilter.Oldest -> allVideos.reversed()
-    }
-    val sortedLive: List<Video> = when (selectedFilter) {
-        VideoFilter.Latest -> allLiveVideos
-        VideoFilter.Popular -> allLiveVideos.sortedByDescending { it.viewCount }
-        VideoFilter.Oldest -> allLiveVideos.reversed()
-    }
+    val sortedVideos: List<Video> =
+        when (selectedFilter) {
+            VideoFilter.Latest -> allVideos
+            VideoFilter.Popular -> allVideos.sortedByDescending { it.viewCount }
+            VideoFilter.Oldest -> allVideos.reversed()
+        }
+    val sortedLive: List<Video> =
+        when (selectedFilter) {
+            VideoFilter.Latest -> allLiveVideos
+            VideoFilter.Popular -> allLiveVideos.sortedByDescending { it.viewCount }
+            VideoFilter.Oldest -> allLiveVideos.reversed()
+        }
 
-    val tabTitles = listOf(
-        stringResource(R.string.tab_videos),
-        stringResource(R.string.tab_shorts),
-        stringResource(R.string.tab_live),
-        stringResource(R.string.tab_playlists),
-        stringResource(R.string.tab_posts),
-        stringResource(R.string.tab_about)
-    )
+    val tabTitles =
+        listOf(
+            stringResource(R.string.tab_videos),
+            stringResource(R.string.tab_shorts),
+            stringResource(R.string.tab_live),
+            stringResource(R.string.tab_playlists),
+            stringResource(R.string.tab_posts),
+            stringResource(R.string.tab_about),
+        )
 
-    val pagerState = rememberPagerState(
-        initialPage = uiState.selectedTab.coerceIn(0, tabTitles.lastIndex),
-        pageCount = { tabTitles.size }
-    )
+    val pagerState =
+        rememberPagerState(
+            initialPage = uiState.selectedTab.coerceIn(0, tabTitles.lastIndex),
+            pageCount = { tabTitles.size },
+        )
 
     // Persist only fully settled pages so an in-progress swipe cannot trigger a competing animation.
     LaunchedEffect(channelInfo.id, pagerState.settledPage) {
@@ -327,11 +341,12 @@ private fun ChannelContent(
 
     val density = LocalDensity.current
     val collapseTitleThresholdPx = with(density) { 2.dp.toPx() }
-    val visibleHeaderHeightDp = with(density) {
-        (collapsingHeaderHeightPx + stickySectionHeightPx + headerOffsetPx)
-            .coerceAtLeast(stickySectionHeightPx)
-            .toDp()
-    }
+    val visibleHeaderHeightDp =
+        with(density) {
+            (collapsingHeaderHeightPx + stickySectionHeightPx + headerOffsetPx)
+                .coerceAtLeast(stickySectionHeightPx)
+                .toDp()
+        }
     val headerMeasured by remember { derivedStateOf { collapsingHeaderHeightPx > 0f } }
     val showCollapsedTopBarTitle by remember(collapseTitleThresholdPx) {
         derivedStateOf {
@@ -352,35 +367,40 @@ private fun ChannelContent(
         headerOffsetPx = headerOffsetPx.coerceIn(-collapsingHeaderHeightPx, 0f)
     }
 
-    val nestedScrollConnection = remember(collapsingHeaderHeightPx) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y >= 0f) return Offset.Zero
-                val previous = headerOffsetPx
-                val next = (previous + available.y).coerceIn(-collapsingHeaderHeightPx, 0f)
-                headerOffsetPx = next
-                return Offset(x = 0f, y = next - previous)
-            }
+    val nestedScrollConnection =
+        remember(collapsingHeaderHeightPx) {
+            object : NestedScrollConnection {
+                override fun onPreScroll(
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (available.y >= 0f) return Offset.Zero
+                    val previous = headerOffsetPx
+                    val next = (previous + available.y).coerceIn(-collapsingHeaderHeightPx, 0f)
+                    headerOffsetPx = next
+                    return Offset(x = 0f, y = next - previous)
+                }
 
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource
-            ): Offset {
-                if (available.y <= 0f) return Offset.Zero
-                val previous = headerOffsetPx
-                val next = (previous + available.y).coerceIn(-collapsingHeaderHeightPx, 0f)
-                headerOffsetPx = next
-                return Offset(x = 0f, y = next - previous)
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (available.y <= 0f) return Offset.Zero
+                    val previous = headerOffsetPx
+                    val next = (previous + available.y).coerceIn(-collapsingHeaderHeightPx, 0f)
+                    headerOffsetPx = next
+                    return Offset(x = 0f, y = next - previous)
+                }
             }
         }
-    }
 
     // Persist Videos-tab scroll position across navigation
-    val videosListState = rememberLazyListState(
-        initialFirstVisibleItemIndex = initialScrollIndex,
-        initialFirstVisibleItemScrollOffset = initialScrollOffset
-    )
+    val videosListState =
+        rememberLazyListState(
+            initialFirstVisibleItemIndex = initialScrollIndex,
+            initialFirstVisibleItemScrollOffset = initialScrollOffset,
+        )
     val shortsListState = rememberLazyListState()
     val liveListState = rememberLazyListState()
     val playlistsListState = rememberLazyListState()
@@ -407,7 +427,10 @@ private fun ChannelContent(
         if (selectedFilter == VideoFilter.Latest || pagerState.settledPage != 0 || uiState.searchActive) return@LaunchedEffect
 
         when (selectedFilter) {
-            VideoFilter.Oldest -> videosListState.scrollToItem(0)
+            VideoFilter.Oldest -> {
+                videosListState.scrollToItem(0)
+            }
+
             VideoFilter.Popular -> {
                 val isNearTop =
                     videosListState.firstVisibleItemIndex <= 1 &&
@@ -416,7 +439,10 @@ private fun ChannelContent(
                     videosListState.scrollToItem(0)
                 }
             }
-            VideoFilter.Latest -> Unit
+
+            VideoFilter.Latest -> {
+                Unit
+            }
         }
     }
 
@@ -424,7 +450,10 @@ private fun ChannelContent(
         if (selectedFilter == VideoFilter.Latest || pagerState.settledPage != 2) return@LaunchedEffect
 
         when (selectedFilter) {
-            VideoFilter.Oldest -> liveListState.scrollToItem(0)
+            VideoFilter.Oldest -> {
+                liveListState.scrollToItem(0)
+            }
+
             VideoFilter.Popular -> {
                 val isNearTop =
                     liveListState.firstVisibleItemIndex <= 1 &&
@@ -433,23 +462,28 @@ private fun ChannelContent(
                     liveListState.scrollToItem(0)
                 }
             }
-            VideoFilter.Latest -> Unit
+
+            VideoFilter.Latest -> {
+                Unit
+            }
         }
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clipToBounds()
-            .nestedScroll(nestedScrollConnection)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .clipToBounds()
+                .nestedScroll(nestedScrollConnection),
     ) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { alpha = if (headerMeasured) 1f else 0f },
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = if (headerMeasured) 1f else 0f },
             verticalAlignment = Alignment.Top,
-            userScrollEnabled = true
+            userScrollEnabled = true,
         ) { page ->
             val listPadding = PaddingValues(top = visibleHeaderHeightDp)
 
@@ -460,19 +494,21 @@ private fun ChannelContent(
                             when {
                                 uiState.isSearching -> {
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(top = visibleHeaderHeightDp),
-                                        contentAlignment = Alignment.Center
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .padding(top = visibleHeaderHeightDp),
+                                        contentAlignment = Alignment.Center,
                                     ) { CircularProgressIndicator() }
                                 }
 
                                 uiState.searchErrorLog != null -> {
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(top = visibleHeaderHeightDp),
-                                        contentAlignment = Alignment.Center
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .padding(top = visibleHeaderHeightDp),
+                                        contentAlignment = Alignment.Center,
                                     ) {
                                         ChannelRequestErrorState(
                                             message = stringResource(R.string.channel_search_failed),
@@ -486,10 +522,11 @@ private fun ChannelContent(
 
                                 uiState.searchResults.isEmpty() -> {
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(top = visibleHeaderHeightDp),
-                                        contentAlignment = Alignment.Center
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .padding(top = visibleHeaderHeightDp),
+                                        contentAlignment = Alignment.Center,
                                     ) {
                                         Text(
                                             text = stringResource(R.string.channel_search_no_results, uiState.searchQuery),
@@ -503,14 +540,14 @@ private fun ChannelContent(
                                     LazyColumn(
                                         state = videosListState,
                                         modifier = Modifier.fillMaxSize(),
-                                        contentPadding = listPadding
+                                        contentPadding = listPadding,
                                     ) {
                                         videosContent(
                                             pagingItems = null,
                                             sortedItems = uiState.searchResults,
                                             isGridView = isGridView,
                                             listKeyPrefix = "Search_${uiState.searchQuery}",
-                                            onVideoClick = onVideoClick
+                                            onVideoClick = onVideoClick,
                                         )
                                         item { Spacer(Modifier.height(16.dp)) }
                                     }
@@ -520,10 +557,11 @@ private fun ChannelContent(
 
                         isLoadingAllVideos && sortedVideos.isEmpty() -> {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(top = visibleHeaderHeightDp),
-                                contentAlignment = Alignment.Center
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(top = visibleHeaderHeightDp),
+                                contentAlignment = Alignment.Center,
                             ) { CircularProgressIndicator() }
                         }
 
@@ -531,14 +569,14 @@ private fun ChannelContent(
                             LazyColumn(
                                 state = videosListState,
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = listPadding
+                                contentPadding = listPadding,
                             ) {
                                 videosContent(
                                     pagingItems = null,
                                     sortedItems = sortedVideos,
                                     isGridView = isGridView,
                                     listKeyPrefix = selectedFilter.name,
-                                    onVideoClick = onVideoClick
+                                    onVideoClick = onVideoClick,
                                 )
                                 item { Spacer(Modifier.height(16.dp)) }
                             }
@@ -546,86 +584,97 @@ private fun ChannelContent(
                     }
                 }
 
-                1 -> LazyColumn(
-                    state = shortsListState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = listPadding
-                ) {
-                    shortsContent(shortsLazyPagingItems, onShortClick)
-                    item { Spacer(Modifier.height(16.dp)) }
+                1 -> {
+                    LazyColumn(
+                        state = shortsListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = listPadding,
+                    ) {
+                        shortsContent(shortsLazyPagingItems, onShortClick)
+                        item { Spacer(Modifier.height(16.dp)) }
+                    }
                 }
 
                 2 -> {
                     if (isLoadingAllVideos && sortedLive.isEmpty()) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = visibleHeaderHeightDp),
-                            contentAlignment = Alignment.Center
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(top = visibleHeaderHeightDp),
+                            contentAlignment = Alignment.Center,
                         ) { CircularProgressIndicator() }
                     } else {
                         LazyColumn(
                             state = liveListState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = listPadding
+                            contentPadding = listPadding,
                         ) {
                             liveContent(
                                 pagingItems = null,
                                 sortedItems = sortedLive,
                                 isGridView = isGridView,
                                 listKeyPrefix = selectedFilter.name,
-                                onVideoClick = onVideoClick
+                                onVideoClick = onVideoClick,
                             )
                             item { Spacer(Modifier.height(16.dp)) }
                         }
                     }
                 }
 
-                3 -> LazyColumn(
-                    state = playlistsListState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = listPadding
-                ) {
-                    playlistsContent(playlistsLazyPagingItems, onPlaylistClick)
-                    item { Spacer(Modifier.height(16.dp)) }
+                3 -> {
+                    LazyColumn(
+                        state = playlistsListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = listPadding,
+                    ) {
+                        playlistsContent(playlistsLazyPagingItems, onPlaylistClick)
+                        item { Spacer(Modifier.height(16.dp)) }
+                    }
                 }
 
-                4 -> ChannelCommunityPosts(
-                    posts = communityUiState.posts,
-                    isLoading = communityUiState.isLoadingPosts,
-                    isLoadingMore = communityUiState.isLoadingMorePosts,
-                    hasMore = communityUiState.postsContinuation != null,
-                    errorLog = communityUiState.postsErrorLog,
-                    listState = postsListState,
-                    contentPadding = listPadding,
-                    onAuthorClick = { onChannelClick(channelInfo.id) },
-                    onCommentsClick = onCommunityPostComments,
-                    onShareClick = onCommunityPostShare,
-                    onLoadMore = onLoadMoreCommunityPosts,
-                    onRetry = onRetryCommunityPosts,
-                )
+                4 -> {
+                    ChannelCommunityPosts(
+                        posts = communityUiState.posts,
+                        isLoading = communityUiState.isLoadingPosts,
+                        isLoadingMore = communityUiState.isLoadingMorePosts,
+                        hasMore = communityUiState.postsContinuation != null,
+                        errorLog = communityUiState.postsErrorLog,
+                        listState = postsListState,
+                        contentPadding = listPadding,
+                        onAuthorClick = { onChannelClick(channelInfo.id) },
+                        onCommentsClick = onCommunityPostComments,
+                        onShareClick = onCommunityPostShare,
+                        onLoadMore = onLoadMoreCommunityPosts,
+                        onRetry = onRetryCommunityPosts,
+                    )
+                }
 
-                5 -> LazyColumn(
-                    state = aboutListState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = listPadding
-                ) {
-                    item { AboutSection(channelInfo = channelInfo) }
-                    item { Spacer(Modifier.height(16.dp)) }
+                5 -> {
+                    LazyColumn(
+                        state = aboutListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = listPadding,
+                    ) {
+                        item { AboutSection(channelInfo = channelInfo) }
+                        item { Spacer(Modifier.height(16.dp)) }
+                    }
                 }
             }
         }
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset { IntOffset(x = 0, y = headerOffsetPx.roundToInt()) }
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .offset { IntOffset(x = 0, y = headerOffsetPx.roundToInt()) },
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .onSizeChanged { collapsingHeaderHeightPx = it.height.toFloat() }
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .onSizeChanged { collapsingHeaderHeightPx = it.height.toFloat() },
             ) {
                 ChannelHeader(
                     channelInfo = channelInfo,
@@ -634,22 +683,23 @@ private fun ChannelContent(
                     isNotificationsEnabled = uiState.isNotificationsEnabled,
                     onSubscribeClick = onSubscribeClick,
                     onUnsubscribeClick = onUnsubscribeClick,
-                    onNotificationChange = onNotificationChange
+                    onNotificationChange = onNotificationChange,
                 )
             }
 
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .onSizeChanged { stickySectionHeightPx = it.height.toFloat() }
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .onSizeChanged { stickySectionHeightPx = it.height.toFloat() },
             ) {
                 ChannelTabRow(
                     selectedIndex = pagerState.currentPage,
                     tabs = tabTitles,
                     onTabSelected = { idx ->
                         coroutineScope.launch { pagerState.animateScrollToPage(idx) }
-                    }
+                    },
                 )
                 if (showFilterBar) {
                     FilterAndToggleBar(
@@ -681,53 +731,59 @@ private fun FilterAndToggleBar(
     onSearchToggle: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
 ) {
-    val filters = listOf(
-        VideoFilter.Latest to R.string.channel_sort_latest,
-        VideoFilter.Popular to R.string.filter_popular,
-        VideoFilter.Oldest to R.string.filter_oldest
-    )
+    val filters =
+        listOf(
+            VideoFilter.Latest to R.string.channel_sort_latest,
+            VideoFilter.Popular to R.string.filter_popular,
+            VideoFilter.Oldest to R.string.filter_oldest,
+        )
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (searchActive) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp),
                 placeholder = { Text(stringResource(R.string.channel_search_hint), style = MaterialTheme.typography.bodySmall) },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodySmall,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Search,
-                ),
-                keyboardActions = KeyboardActions(
-                    onSearch = { onSearchQueryChange(searchQuery) },
-                ),
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Search,
+                    ),
+                keyboardActions =
+                    KeyboardActions(
+                        onSearch = { onSearchQueryChange(searchQuery) },
+                    ),
                 shape = RoundedCornerShape(20.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                ),
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    ),
             )
             IconButton(onClick = onSearchToggle) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.channel_search_close),
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(22.dp),
                 )
             }
         } else {
             LazyRow(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(filters.size) { idx ->
                     val (filter, labelRes) = filters[idx]
@@ -737,19 +793,22 @@ private fun FilterAndToggleBar(
                         label = {
                             Text(
                                 text = stringResource(labelRes),
-                                style = MaterialTheme.typography.labelMedium
+                                style = MaterialTheme.typography.labelMedium,
                             )
                         },
                         shape = RoundedCornerShape(20.dp),
-                        leadingIcon = if (selectedFilter == filter) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                        } else null
+                        leadingIcon =
+                            if (selectedFilter == filter) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                }
+                            } else {
+                                null
+                            },
                     )
                 }
             }
@@ -757,14 +816,14 @@ private fun FilterAndToggleBar(
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = stringResource(R.string.channel_search_open),
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(22.dp),
                 )
             }
             IconButton(onClick = onToggleGridView) {
                 Icon(
                     imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
                     contentDescription = if (isGridView) stringResource(R.string.ui_list_view) else stringResource(R.string.ui_grid_view),
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
@@ -780,24 +839,31 @@ private fun ChannelHeader(
     isNotificationsEnabled: Boolean,
     onSubscribeClick: () -> Unit,
     onUnsubscribeClick: () -> Unit,
-    onNotificationChange: (Boolean) -> Unit
+    onNotificationChange: (Boolean) -> Unit,
 ) {
-    val bannerUrl = try {
-        val rawBanner = channelInfo.banners.maxByOrNull { it.width }?.url
-            ?: channelInfo.banners.firstOrNull()?.url
-        ThumbnailUrlResolver.resolveChannelBanner(rawBanner, targetWidth = 2048)
-    } catch (e: Exception) { null }
+    val bannerUrl =
+        try {
+            val rawBanner =
+                channelInfo.banners.maxByOrNull { it.width }?.url
+                    ?: channelInfo.banners.firstOrNull()?.url
+            ThumbnailUrlResolver.resolveChannelBanner(rawBanner, targetWidth = 2048)
+        } catch (e: Exception) {
+            null
+        }
     // Use highest-res avatar available
-    val avatarUrl = try {
-        channelInfo.avatars.maxByOrNull { it.height }?.url
-            ?: channelInfo.avatars.firstOrNull()?.url
-    } catch (e: Exception) { null }
+    val avatarUrl =
+        try {
+            channelInfo.avatars.maxByOrNull { it.height }?.url
+                ?: channelInfo.avatars.firstOrNull()?.url
+        } catch (e: Exception) {
+            null
+        }
     var showFullSizeAvatar by remember { mutableStateOf(false) }
 
     if (showFullSizeAvatar && !avatarUrl.isNullOrEmpty()) {
         FullSizeImageDialog(
             imageUrl = avatarUrl,
-            onDismiss = { showFullSizeAvatar = false }
+            onDismiss = { showFullSizeAvatar = false },
         )
     }
 
@@ -805,36 +871,38 @@ private fun ChannelHeader(
     val context = LocalContext.current
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.background),
     ) {
         ChannelBanner(imageUrl = bannerUrl)
 
         // ── Avatar row + subscribe button ────────────────────────────────────
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(top = 14.dp, bottom = 4.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 14.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Avatar: shows image with icon fallback on error or null URL
             Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = CircleShape
-                    )
-                    .clickable(enabled = !avatarUrl.isNullOrEmpty()) {
-                        showFullSizeAvatar = true
-                    },
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape,
+                        ).clickable(enabled = !avatarUrl.isNullOrEmpty()) {
+                            showFullSizeAvatar = true
+                        },
+                contentAlignment = Alignment.Center,
             ) {
                 if (!avatarUrl.isNullOrEmpty()) {
                     var avatarFailed by remember(avatarUrl) { mutableStateOf(false) }
@@ -845,7 +913,7 @@ private fun ChannelHeader(
                             imageVector = Icons.Default.AccountCircle,
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize().padding(4.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         AsyncImage(
@@ -869,7 +937,7 @@ private fun ChannelHeader(
                                     Log.e("ChannelHeader", "Avatar retry failed '$retryUrl' ($msg) → icon")
                                     avatarFailed = true
                                 }
-                            }
+                            },
                         )
                     }
                 } else {
@@ -877,7 +945,7 @@ private fun ChannelHeader(
                         imageVector = Icons.Default.AccountCircle,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize().padding(4.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -889,24 +957,25 @@ private fun ChannelHeader(
                 isNotificationsEnabled = isNotificationsEnabled,
                 onSubscribeClick = onSubscribeClick,
                 onUnsubscribeClick = onUnsubscribeClick,
-                onNotificationChange = onNotificationChange
+                onNotificationChange = onNotificationChange,
             )
         }
 
         // ── Channel name + stats ─────────────────────────────────────────────
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             Text(
                 text = channelInfo.name,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             val subText = formatSubscriberCount(channelInfo.subscriberCount, context)
@@ -939,19 +1008,27 @@ fun SubscribeButton(
     onSubscribeClick: () -> Unit,
     onUnsubscribeClick: () -> Unit,
     onNotificationChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     val containerColor by animateColorAsState(
-        targetValue = if (isSubscribed) MaterialTheme.colorScheme.surfaceVariant
-                      else MaterialTheme.colorScheme.onSurface,
-        label = "subscribeBg"
+        targetValue =
+            if (isSubscribed) {
+                MaterialTheme.colorScheme.surfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+        label = "subscribeBg",
     )
     val contentColor by animateColorAsState(
-        targetValue = if (isSubscribed) MaterialTheme.colorScheme.onSurfaceVariant
-                      else MaterialTheme.colorScheme.surface,
-        label = "subscribeFg"
+        targetValue =
+            if (isSubscribed) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        label = "subscribeFg",
     )
 
     Box(modifier = modifier) {
@@ -964,36 +1041,41 @@ fun SubscribeButton(
                 }
             },
             shape = RoundedCornerShape(20.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = containerColor,
-                contentColor = contentColor
-            ),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = containerColor,
+                    contentColor = contentColor,
+                ),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 9.dp),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.animateContentSize()
+                modifier = Modifier.animateContentSize(),
             ) {
                 AnimatedVisibility(visible = isSubscribed) {
                     Icon(
                         imageVector = if (isNotificationsEnabled) Icons.Rounded.NotificationsActive else Icons.Rounded.NotificationsOff,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
                 Text(
-                    text = if (isSubscribed) stringResource(R.string.subscribed)
-                           else stringResource(R.string.subscribe),
+                    text =
+                        if (isSubscribed) {
+                            stringResource(R.string.subscribed)
+                        } else {
+                            stringResource(R.string.subscribe)
+                        },
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
                 AnimatedVisibility(visible = isSubscribed) {
                     Icon(
                         imageVector = Icons.Rounded.KeyboardArrowDown,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
@@ -1002,13 +1084,13 @@ fun SubscribeButton(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.width(200.dp)
+            modifier = Modifier.width(200.dp),
         ) {
             Text(
                 text = "Notifications",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             DropdownMenuItem(
@@ -1017,7 +1099,7 @@ fun SubscribeButton(
                 onClick = {
                     onNotificationChange(true)
                     expanded = false
-                }
+                },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.off)) },
@@ -1025,7 +1107,7 @@ fun SubscribeButton(
                 onClick = {
                     onNotificationChange(false)
                     expanded = false
-                }
+                },
             )
             HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             DropdownMenuItem(
@@ -1034,7 +1116,7 @@ fun SubscribeButton(
                 onClick = {
                     onUnsubscribeClick()
                     expanded = false
-                }
+                },
             )
         }
     }
@@ -1045,7 +1127,7 @@ fun SubscribeButton(
 private fun ChannelTabRow(
     selectedIndex: Int,
     tabs: List<String>,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
 ) {
     ScrollableTabRow(
         selectedTabIndex = selectedIndex,
@@ -1056,15 +1138,15 @@ private fun ChannelTabRow(
             TabRowDefaults.Indicator(
                 modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
                 height = 2.dp,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
         },
         divider = {
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                thickness = 0.5.dp
+                thickness = 0.5.dp,
             )
-        }
+        },
     ) {
         tabs.forEachIndexed { index, title ->
             Tab(
@@ -1072,12 +1154,12 @@ private fun ChannelTabRow(
                 onClick = { onTabSelected(index) },
                 modifier = Modifier.height(44.dp),
                 selectedContentColor = MaterialTheme.colorScheme.onSurface,
-                unselectedContentColor = MaterialTheme.extendedColors.textSecondary
+                unselectedContentColor = MaterialTheme.extendedColors.textSecondary,
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (selectedIndex == index) FontWeight.SemiBold else FontWeight.Normal
+                    fontWeight = if (selectedIndex == index) FontWeight.SemiBold else FontWeight.Normal,
                 )
             }
         }
@@ -1090,7 +1172,7 @@ private fun LazyListScope.videosContent(
     sortedItems: SortedVideos,
     isGridView: Boolean,
     listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit
+    onVideoClick: (Video) -> Unit,
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
@@ -1109,7 +1191,8 @@ private fun LazyListScope.videosContent(
     }
 
     if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)) {
+        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
+    ) {
         item { EmptyState(message = "No videos found") }
         return
     }
@@ -1126,10 +1209,11 @@ private fun LazyListScope.videosContent(
 
 private fun LazyListScope.shortsContent(
     pagingItems: LazyPagingItems<Video>?,
-    onShortClick: (String) -> Unit
+    onShortClick: (String) -> Unit,
 ) {
     if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)) {
+        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
+    ) {
         item { EmptyState(message = "No Shorts found") }
         return
     }
@@ -1140,7 +1224,7 @@ private fun LazyListScope.shortsContent(
         val secondIdx = rowIdx * 2 + 1
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(1.dp)
+            horizontalArrangement = Arrangement.spacedBy(1.dp),
         ) {
             Box(modifier = Modifier.weight(1f)) {
                 pagingItems[firstIdx]?.let { video ->
@@ -1163,7 +1247,7 @@ private fun LazyListScope.liveContent(
     sortedItems: SortedVideos,
     isGridView: Boolean,
     listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit
+    onVideoClick: (Video) -> Unit,
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
@@ -1182,7 +1266,8 @@ private fun LazyListScope.liveContent(
     }
 
     if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)) {
+        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
+    ) {
         item { EmptyState(message = "No live videos found") }
         return
     }
@@ -1199,10 +1284,11 @@ private fun LazyListScope.liveContent(
 
 private fun LazyListScope.playlistsContent(
     pagingItems: LazyPagingItems<io.github.aedev.flow.data.model.Playlist>?,
-    onPlaylistClick: (String) -> Unit
+    onPlaylistClick: (String) -> Unit,
 ) {
     if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)) {
+        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
+    ) {
         item { EmptyState(message = "No playlists found") }
         return
     }
@@ -1217,35 +1303,38 @@ private fun LazyListScope.playlistsContent(
 @Composable
 private fun ShortsGridCard(
     video: Video,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(9f / 16f)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(9f / 16f)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
                 model = video.thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
             Text(
                 text = formatViewCount(video.viewCount),
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(6.dp)
-                    .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 5.dp, vertical = 2.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(6.dp)
+                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 2.dp),
                 color = Color.White,
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
             )
         }
         Text(
@@ -1253,23 +1342,22 @@ private fun ShortsGridCard(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             style = MaterialTheme.typography.bodySmall,
             maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
 // About section
 @Composable
-private fun AboutSection(
-    channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo
-) {
+private fun AboutSection(channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo) {
     val context = LocalContext.current
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         if (!channelInfo.description.isNullOrBlank()) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1277,18 +1365,18 @@ private fun AboutSection(
                     text = stringResource(R.string.about),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.extendedColors.textSecondary
+                    color = MaterialTheme.extendedColors.textSecondary,
                 )
                 Text(
                     text = channelInfo.description,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
 
         HorizontalDivider(
             color = MaterialTheme.colorScheme.surfaceVariant,
-            thickness = 0.5.dp
+            thickness = 0.5.dp,
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1296,21 +1384,21 @@ private fun AboutSection(
                 text = stringResource(R.string.stats),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.extendedColors.textSecondary
+                color = MaterialTheme.extendedColors.textSecondary,
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     text = stringResource(R.string.subscribers),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.extendedColors.textSecondary
+                    color = MaterialTheme.extendedColors.textSecondary,
                 )
                 Text(
                     text = formatSubscriberCount(channelInfo.subscriberCount, context),
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }
@@ -1322,17 +1410,17 @@ private fun AboutSection(
 private fun ErrorState(
     message: String,
     onRetry: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
             text = message,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error
+            color = MaterialTheme.colorScheme.error,
         )
         Button(onClick = onRetry) {
             Text(stringResource(R.string.retry))
@@ -1344,31 +1432,37 @@ private fun ErrorState(
 @Composable
 private fun EmptyState(message: String) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 64.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 64.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = message,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.extendedColors.textSecondary
+            color = MaterialTheme.extendedColors.textSecondary,
         )
     }
 }
 
 // Formatters
-private fun formatSubscriberCount(count: Long, context: android.content.Context): String {
-    val formatted = when {
-        count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-        count >= 1_000     -> String.format("%.1fK", count / 1_000.0)
-        else               -> count.toString()
-    }
+private fun formatSubscriberCount(
+    count: Long,
+    context: android.content.Context,
+): String {
+    val formatted =
+        when {
+            count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
+            count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
+            else -> count.toString()
+        }
     return context.getString(R.string.subscribers_count_template, formatted)
 }
 
-private fun formatViewCount(count: Long): String = when {
-    count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-    count >= 1_000     -> String.format("%.1fK", count / 1_000.0)
-    else               -> count.toString()
-}
+private fun formatViewCount(count: Long): String =
+    when {
+        count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
+        count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
+        else -> count.toString()
+    }

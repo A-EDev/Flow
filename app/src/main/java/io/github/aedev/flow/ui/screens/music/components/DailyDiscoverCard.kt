@@ -29,7 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.music.DailyDiscoverItem
 
@@ -40,49 +40,55 @@ fun DailyDiscoverCard(
     isDownloaded: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .width(320.dp)
-            .fillMaxHeight()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
+        modifier =
+            modifier
+                .width(320.dp)
+                .fillMaxHeight()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
                 model = item.recommendation.highResThumbnailUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
 
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.28f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.65f),
-                                Color.Black.copy(alpha = 0.92f)
-                            )
-                        )
-                    )
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush =
+                                Brush.verticalGradient(
+                                    colors =
+                                        listOf(
+                                            Color.Black.copy(alpha = 0.28f),
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.65f),
+                                            Color.Black.copy(alpha = 0.92f),
+                                        ),
+                                ),
+                        ),
             )
 
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(22.dp),
-                verticalArrangement = Arrangement.SpaceBetween
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(22.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     text = stringResource(R.string.daily_discover_subtitle),
@@ -90,7 +96,7 @@ fun DailyDiscoverCard(
                     fontWeight = FontWeight.Medium,
                     color = Color.White.copy(alpha = 0.78f),
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
 
                 Column {
@@ -100,7 +106,7 @@ fun DailyDiscoverCard(
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
@@ -108,7 +114,7 @@ fun DailyDiscoverCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.8f),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -117,9 +123,10 @@ fun DailyDiscoverCard(
                     imageVector = Icons.Rounded.OfflinePin,
                     contentDescription = stringResource(R.string.status_downloaded),
                     tint = Color.White,
-                    modifier = Modifier
-                        .padding(14.dp)
-                        .align(androidx.compose.ui.Alignment.TopEnd)
+                    modifier =
+                        Modifier
+                            .padding(14.dp)
+                            .align(androidx.compose.ui.Alignment.TopEnd),
                 )
             }
         }

@@ -2,7 +2,7 @@ package io.github.aedev.flow.sync.transport
 
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
@@ -20,41 +20,43 @@ import kotlinx.coroutines.channels.Channel
  * Android. v1 handles a single 1↔1 session per server instance.
  */
 class WsServer {
-
-    private var engine: ApplicationEngine? = null
+    private var server: EmbeddedServer<*, *>? = null
     private val connectionDeferred = CompletableDeferred<SyncConnection>()
 
     /** Bind to an ephemeral port and start listening; returns the actual bound port for the QR. */
     suspend fun start(): Int {
-        val e = embeddedServer(CIO, host = "0.0.0.0", port = 0) {
-            install(WebSockets)
-            routing {
-                webSocket(QrPath.PATH) {
-                    val conn = KtorServerConnection(this)
-                    if (!connectionDeferred.isCompleted) connectionDeferred.complete(conn)
-                    try {
-                        for (frame in incoming) {
-                            if (frame is Frame.Binary) conn.deliver(frame.readBytes())
+        val e =
+            embeddedServer(CIO, host = "0.0.0.0", port = 0) {
+                install(WebSockets)
+                routing {
+                    webSocket(QrPath.PATH) {
+                        val conn = KtorServerConnection(this)
+                        if (!connectionDeferred.isCompleted) connectionDeferred.complete(conn)
+                        try {
+                            for (frame in incoming) {
+                                if (frame is Frame.Binary) conn.deliver(frame.readBytes())
+                            }
+                        } catch (_: Throwable) {
+                        } finally {
+                            conn.onClosed()
                         }
-                    } catch (_: Throwable) {
-                        // client dropped / cancelled
-                    } finally {
-                        conn.onClosed()
                     }
                 }
             }
-        }
         e.start(wait = false)
-        engine = e
-        return e.resolvedConnectors().first().port
+        server = e
+        return e.engine
+            .resolvedConnectors()
+            .first()
+            .port
     }
 
     /** Suspends until a peer connects and the handshake socket is ready. */
     suspend fun awaitConnection(): SyncConnection = connectionDeferred.await()
 
     fun stop() {
-        runCatching { engine?.stop(0, 0) }
-        engine = null
+        runCatching { server?.stop(0, 0) }
+        server = null
     }
 
     private object QrPath {

@@ -1,11 +1,13 @@
 package io.github.aedev.flow.di
 
 import android.content.Context
-import coil.ImageLoader
-import coil.decode.VideoFrameDecoder
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
-import coil.util.DebugLogger
+import coil3.ImageLoader
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.crossfade
+import coil3.util.DebugLogger
+import coil3.video.VideoFrameDecoder
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,6 +16,7 @@ import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.innertube.YouTube
 import okhttp3.OkHttpClient
+import okio.Path.Companion.toOkioPath
 import javax.inject.Singleton
 
 @Module
@@ -31,21 +34,21 @@ object AppModule {
     ): ImageLoader =
         ImageLoader
             .Builder(context)
-            .okHttpClient(okHttpClient)
-            .components { add(VideoFrameDecoder.Factory()) }
-            .memoryCache {
+            .components {
+                add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
+                add(VideoFrameDecoder.Factory())
+            }.memoryCache {
                 MemoryCache
-                    .Builder(context)
-                    .maxSizePercent(0.10)
+                    .Builder()
+                    .maxSizePercent(context, 0.10)
                     .build()
             }.diskCache {
                 DiskCache
                     .Builder()
-                    .directory(context.cacheDir.resolve("image_cache"))
+                    .directory(context.cacheDir.resolve("image_cache").toOkioPath())
                     .maxSizePercent(0.02)
                     .build()
             }.crossfade(true)
-            .respectCacheHeaders(false) // Cache images even if headers say otherwise (YouTube thumbnails)
             .apply { if (BuildConfig.DEBUG) logger(DebugLogger()) }
             .build()
 }

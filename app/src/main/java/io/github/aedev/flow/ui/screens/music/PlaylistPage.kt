@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,13 +18,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Downloading
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.foundation.lazy.items
-import io.github.aedev.flow.ui.components.rememberFlowSheetState
-import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Downloading
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,12 +47,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.ReorderHandle
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.ReorderHandle
 import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
+import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
+import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +71,7 @@ fun PlaylistPage(
     isSaved: Boolean = false,
     onSaveToggle: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    playlistsViewModel: MusicPlaylistsViewModel = hiltViewModel()
+    playlistsViewModel: MusicPlaylistsViewModel = hiltViewModel(),
 ) {
     val scrollState = rememberLazyListState()
     val context = LocalContext.current
@@ -87,11 +87,12 @@ fun PlaylistPage(
     val addedTrackIds by playlistsViewModel.addedTrackIds.collectAsState()
     val locallyAddedTracks by playlistsViewModel.locallyAddedTracks.collectAsState()
     val deletedTrackIds = remember { mutableStateOf(emptySet<String>()) }
-    val displayTracks = remember(playlistDetails.tracks, locallyAddedTracks, deletedTrackIds.value) {
-        val existing = playlistDetails.tracks.map { it.videoId }.toHashSet()
-        val all = playlistDetails.tracks + locallyAddedTracks.filter { it.videoId !in existing }
-        all.filter { it.videoId !in deletedTrackIds.value }
-    }
+    val displayTracks =
+        remember(playlistDetails.tracks, locallyAddedTracks, deletedTrackIds.value) {
+            val existing = playlistDetails.tracks.map { it.videoId }.toHashSet()
+            val all = playlistDetails.tracks + locallyAddedTracks.filter { it.videoId !in existing }
+            all.filter { it.videoId !in deletedTrackIds.value }
+        }
     var orderedDisplayTracks by remember { mutableStateOf(displayTracks) }
     var heroTitleBottomPx by remember { mutableIntStateOf(Int.MAX_VALUE) }
     var topBarBottomPx by remember { mutableIntStateOf(0) }
@@ -100,23 +101,25 @@ fun PlaylistPage(
         orderedDisplayTracks = displayTracks
     }
 
-    val reorderState = rememberReorderableLazyListState(
-        listState = scrollState,
-        itemIndexOffset = 3,
-        onMove = { from, to ->
-            orderedDisplayTracks = orderedDisplayTracks.toMutableList().apply {
-                add(to, removeAt(from))
-            }
-        },
-        onDragStopped = {
-            if (isUserPlaylist) {
-                playlistsViewModel.reorderTracksInPlaylist(
-                    playlistDetails.id,
-                    orderedDisplayTracks.map { it.videoId }
-                )
-            }
-        }
-    )
+    val reorderState =
+        rememberReorderableLazyListState(
+            listState = scrollState,
+            itemIndexOffset = 3,
+            onMove = { from, to ->
+                orderedDisplayTracks =
+                    orderedDisplayTracks.toMutableList().apply {
+                        add(to, removeAt(from))
+                    }
+            },
+            onDragStopped = {
+                if (isUserPlaylist) {
+                    playlistsViewModel.reorderTracksInPlaylist(
+                        playlistDetails.id,
+                        orderedDisplayTracks.map { it.videoId },
+                    )
+                }
+            },
+        )
 
     var showSearchPanel by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -164,21 +167,22 @@ fun PlaylistPage(
             },
             onViewAlbum = {},
             onShare = {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                    putExtra(
-                        Intent.EXTRA_TEXT,
-                        context.getString(
-                            R.string.share_message_template,
-                            selectedTrack!!.title,
-                            selectedTrack!!.artist,
-                            selectedTrack!!.videoId
+                val intent =
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            context.getString(
+                                R.string.share_message_template,
+                                selectedTrack!!.title,
+                                selectedTrack!!.artist,
+                                selectedTrack!!.videoId,
+                            ),
                         )
-                    )
-                }
+                    }
                 context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_song)))
-            }
+            },
         )
     }
 
@@ -189,39 +193,42 @@ fun PlaylistPage(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-
         // ── Ambient blurred background (same as music player) ──────────────
         AsyncImage(
             model = playlistDetails.thumbnailUrl,
             contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(480.dp)
-                .blur(120.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(480.dp)
+                    .blur(120.dp),
             alpha = 0.65f,
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
         )
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(480.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.45f),
-                            Color.Black.copy(alpha = 0.3f),
-                            Color.Black.copy(alpha = 0.65f),
-                            Color.Black.copy(alpha = 0.92f),
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
-                )
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(480.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    Color.Black.copy(alpha = 0.45f),
+                                    Color.Black.copy(alpha = 0.3f),
+                                    Color.Black.copy(alpha = 0.65f),
+                                    Color.Black.copy(alpha = 0.92f),
+                                    MaterialTheme.colorScheme.background,
+                                ),
+                        ),
+                    ),
         )
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 480.dp)
-                .background(MaterialTheme.colorScheme.background)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(top = 480.dp)
+                    .background(MaterialTheme.colorScheme.background),
         )
 
         // ── Main content ──────────────────────────────────────────────────
@@ -249,19 +256,19 @@ fun PlaylistPage(
                     onSaveToggle = onSaveToggle,
                     showMergeButton = !isUserPlaylist,
                     onMergeClick = { showMergeDialog = true },
-                    onBottomPositioned = { topBarBottomPx = it }
+                    onBottomPositioned = { topBarBottomPx = it },
                 )
-            }
+            },
         ) { paddingValues ->
             LazyColumn(
                 state = scrollState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .imePadding(),
-                contentPadding = PaddingValues(bottom = 120.dp)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .imePadding(),
+                contentPadding = PaddingValues(bottom = 120.dp),
             ) {
-
                 // ── HEADER: centered poster + metadata + actions ───────────
                 item {
                     PlaylistCenteredHeader(
@@ -283,7 +290,7 @@ fun PlaylistPage(
                             if (!isDownloading) playlistsViewModel.downloadPlaylistTracks(playlistDetails)
                         },
                         onArtistClick = onArtistClick,
-                        onTitleBottomPositioned = { heroTitleBottomPx = it }
+                        onTitleBottomPositioned = { heroTitleBottomPx = it },
                     )
                 }
 
@@ -297,7 +304,10 @@ fun PlaylistPage(
                                 if (!showSearchPanel && it.isNotBlank()) showSearchPanel = true
                             },
                             onSearch = { keyboardController?.hide() },
-                            onClear = { searchQuery = ""; playlistsViewModel.clearTrackSearch() },
+                            onClear = {
+                                searchQuery = ""
+                                playlistsViewModel.clearTrackSearch()
+                            },
                             focusRequester = searchFocusRequester,
                             searchActive = showSearchPanel,
                             onActivate = { showSearchPanel = true },
@@ -309,7 +319,7 @@ fun PlaylistPage(
                                     keyboardController?.hide()
                                     focusManager.clearFocus()
                                 }
-                            }
+                            },
                         )
                     }
                 }
@@ -320,19 +330,19 @@ fun PlaylistPage(
                         item {
                             Box(
                                 modifier = Modifier.fillMaxWidth().height(120.dp),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.Center,
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(26.dp),
                                     strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }
                     } else if (searchResults.isNotEmpty()) {
                         itemsIndexed(
                             searchResults,
-                            key = { index, track -> "${track.videoId}_$index" }
+                            key = { index, track -> "${track.videoId}_$index" },
                         ) { _, track ->
                             SearchResultTrackRow(
                                 track = track,
@@ -340,19 +350,19 @@ fun PlaylistPage(
                                 onAddClick = {
                                     playlistsViewModel.addTrackToPlaylist(playlistDetails.id, track)
                                 },
-                                onClick = { onTrackClick(track, listOf(track)) }
+                                onClick = { onTrackClick(track, listOf(track)) },
                             )
                         }
                     } else if (searchQuery.isNotEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier.fillMaxWidth().height(100.dp),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     text = "No songs found",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                 )
                             }
                         }
@@ -362,7 +372,7 @@ fun PlaylistPage(
                     item {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = Color.White.copy(alpha = 0.08f)
+                            color = Color.White.copy(alpha = 0.08f),
                         )
                     }
                     itemsIndexed(orderedDisplayTracks, key = { index, t -> "${t.videoId}_$index" }) { index, track ->
@@ -373,18 +383,26 @@ fun PlaylistPage(
                             dragHandleModifier = if (isUserPlaylist) reorderState.handleModifier(index) else Modifier,
                             showDragHandle = isUserPlaylist,
                             onClick = { onTrackClick(track, orderedDisplayTracks) },
-                            onMenuClick = { selectedTrack = track; showBottomSheet = true },
-                            onDeleteClick = if (isUserPlaylist) {{
-                                deletedTrackIds.value = deletedTrackIds.value + track.videoId
-                                playlistsViewModel.removeTrackFromPlaylist(playlistDetails.id, track.videoId)
-                            }} else null
+                            onMenuClick = {
+                                selectedTrack = track
+                                showBottomSheet = true
+                            },
+                            onDeleteClick =
+                                if (isUserPlaylist) {
+                                    {
+                                        deletedTrackIds.value = deletedTrackIds.value + track.videoId
+                                        playlistsViewModel.removeTrackFromPlaylist(playlistDetails.id, track.videoId)
+                                    }
+                                } else {
+                                    null
+                                },
                         )
                     }
                     item {
                         PlaylistFooter(
                             trackCount = playlistDetails.trackCount,
                             durationText = playlistDetails.durationText,
-                            isLoadingMore = playlistDetails.continuation != null
+                            isLoadingMore = playlistDetails.continuation != null,
                         )
                     }
                 }
@@ -396,7 +414,7 @@ fun PlaylistPage(
         MusicMergeIntoPlaylistDialog(
             tracks = playlistDetails.tracks,
             playlistsViewModel = playlistsViewModel,
-            onDismiss = { showMergeDialog = false }
+            onDismiss = { showMergeDialog = false },
         )
     }
 }
@@ -416,33 +434,38 @@ private fun PlaylistTopBar(
     onSaveToggle: (() -> Unit)? = null,
     showMergeButton: Boolean = false,
     onMergeClick: (() -> Unit)? = null,
-    onBottomPositioned: (Int) -> Unit
+    onBottomPositioned: (Int) -> Unit,
 ) {
-    val bgColor = if (showTitle)
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-    else Color.Transparent
+    val bgColor =
+        if (showTitle) {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+        } else {
+            Color.Transparent
+        }
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .onGloballyPositioned { coordinates ->
-                onBottomPositioned(
-                    (coordinates.positionInRoot().y + coordinates.size.height).toInt()
-                )
-            },
-        color = bgColor
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    onBottomPositioned(
+                        (coordinates.positionInRoot().y + coordinates.size.height).toInt(),
+                    )
+                },
+        color = bgColor,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBackClick) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
                     contentDescription = stringResource(R.string.btn_back),
-                    tint = Color.White
+                    tint = Color.White,
                 )
             }
             Box(modifier = Modifier.weight(1f)) {
@@ -452,7 +475,7 @@ private fun PlaylistTopBar(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Color.White
+                        color = Color.White,
                     )
                 }
             }
@@ -461,8 +484,15 @@ private fun PlaylistTopBar(
                 IconButton(onClick = onSearchToggle) {
                     Icon(
                         imageVector = if (searchActive) Icons.Default.Close else Icons.Default.Search,
-                        contentDescription = if (searchActive) stringResource(R.string.ui_close_search) else stringResource(R.string.ui_add_songs),
-                        tint = Color.White
+                        contentDescription =
+                            if (searchActive) {
+                                stringResource(
+                                    R.string.ui_close_search,
+                                )
+                            } else {
+                                stringResource(R.string.ui_add_songs)
+                            },
+                        tint = Color.White,
                     )
                 }
             }
@@ -472,8 +502,11 @@ private fun PlaylistTopBar(
                         IconButton(onClick = onMergeClick) {
                             Icon(
                                 imageVector = Icons.Default.PlaylistAdd,
-                                contentDescription = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.add_all_to_playlist),
-                                tint = Color.White
+                                contentDescription =
+                                    androidx.compose.ui.res.stringResource(
+                                        io.github.aedev.flow.R.string.add_all_to_playlist,
+                                    ),
+                                tint = Color.White,
                             )
                         }
                     }
@@ -481,8 +514,15 @@ private fun PlaylistTopBar(
                         IconButton(onClick = onSaveToggle) {
                             Icon(
                                 imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (isSaved) stringResource(R.string.ui_remove_from_library) else stringResource(R.string.ui_save_to_library),
-                                tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White
+                                contentDescription =
+                                    if (isSaved) {
+                                        stringResource(
+                                            R.string.ui_remove_from_library,
+                                        )
+                                    } else {
+                                        stringResource(R.string.ui_save_to_library)
+                                    },
+                                tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White,
                             )
                         }
                     }
@@ -503,28 +543,30 @@ private fun PlaylistCenteredHeader(
     onShuffleClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onArtistClick: (String) -> Unit,
-    onTitleBottomPositioned: (Int) -> Unit = {}
+    onTitleBottomPositioned: (Int) -> Unit = {},
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 24.dp, bottom = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp, bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Large centered artwork
         Surface(
-            modifier = Modifier
-                .size(220.dp)
-                .clip(RoundedCornerShape(16.dp)),
+            modifier =
+                Modifier
+                    .size(220.dp)
+                    .clip(RoundedCornerShape(16.dp)),
             shape = RoundedCornerShape(16.dp),
             tonalElevation = 0.dp,
-            shadowElevation = 24.dp
+            shadowElevation = 24.dp,
         ) {
             AsyncImage(
                 model = playlistDetails.thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         }
 
@@ -533,20 +575,22 @@ private fun PlaylistCenteredHeader(
         // Title
         Text(
             text = playlistDetails.title,
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontWeight = FontWeight.ExtraBold,
-                lineHeight = 30.sp
-            ),
+            style =
+                MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    lineHeight = 30.sp,
+                ),
             color = Color.White,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .onGloballyPositioned { coordinates ->
-                    onTitleBottomPositioned(
-                        (coordinates.positionInRoot().y + coordinates.size.height).toInt()
-                    )
-                }
+            modifier =
+                Modifier
+                    .padding(horizontal = 24.dp)
+                    .onGloballyPositioned { coordinates ->
+                        onTitleBottomPositioned(
+                            (coordinates.positionInRoot().y + coordinates.size.height).toInt(),
+                        )
+                    },
         )
 
         Spacer(modifier = Modifier.height(6.dp))
@@ -558,29 +602,39 @@ private fun PlaylistCenteredHeader(
             color = Color.White.copy(alpha = 0.7f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .then(
-                    if (playlistDetails.authorId != null)
-                        Modifier.clickable { onArtistClick(playlistDetails.authorId) }
-                    else Modifier
-                )
+            modifier =
+                Modifier
+                    .padding(horizontal = 24.dp)
+                    .then(
+                        if (playlistDetails.authorId != null) {
+                            Modifier.clickable { onArtistClick(playlistDetails.authorId) }
+                        } else {
+                            Modifier
+                        },
+                    ),
         )
 
         Spacer(modifier = Modifier.height(6.dp))
 
         // Metadata line
-        val meta = buildString {
-            playlistDetails.trackCount.takeIf { it > 0 }?.let { append("$it songs") }
-            playlistDetails.durationText?.let { if (isNotEmpty()) append("  ·  "); append(it) }
-            playlistDetails.dateText?.let { if (isNotEmpty()) append("  ·  "); append(it) }
-        }
+        val meta =
+            buildString {
+                playlistDetails.trackCount.takeIf { it > 0 }?.let { append("$it songs") }
+                playlistDetails.durationText?.let {
+                    if (isNotEmpty()) append("  ·  ")
+                    append(it)
+                }
+                playlistDetails.dateText?.let {
+                    if (isNotEmpty()) append("  ·  ")
+                    append(it)
+                }
+            }
         if (meta.isNotEmpty()) {
             Text(
                 text = meta,
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.45f),
-                maxLines = 1
+                maxLines = 1,
             )
         }
 
@@ -593,7 +647,7 @@ private fun PlaylistCenteredHeader(
                 color = Color.White.copy(alpha = 0.38f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 32.dp)
+                modifier = Modifier.padding(horizontal = 32.dp),
             )
         }
 
@@ -601,26 +655,28 @@ private fun PlaylistCenteredHeader(
 
         // Actions row
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // Download with progress ring
             Box(contentAlignment = Alignment.Center) {
                 IconButton(
                     onClick = onDownloadClick,
                     enabled = !isDownloading,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                    modifier =
+                        Modifier
+                            .size(48.dp)
+                            .background(Color.White.copy(alpha = 0.1f), CircleShape),
                 ) {
                     Icon(
                         imageVector = if (isDownloading) Icons.Outlined.Downloading else Icons.Outlined.Download,
                         contentDescription = stringResource(R.string.download),
                         tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(22.dp),
                     )
                 }
                 if (isDownloading) {
@@ -628,7 +684,7 @@ private fun PlaylistCenteredHeader(
                         progress = { downloadProgress },
                         modifier = Modifier.size(54.dp),
                         strokeWidth = 2.5.dp,
-                        color = Color.White
+                        color = Color.White,
                     )
                 }
             }
@@ -636,43 +692,46 @@ private fun PlaylistCenteredHeader(
             // Play all
             Button(
                 onClick = onPlayClick,
-                modifier = Modifier
-                    .height(52.dp)
-                    .width(160.dp),
+                modifier =
+                    Modifier
+                        .height(52.dp)
+                        .width(160.dp),
                 shape = CircleShape,
                 contentPadding = PaddingValues(horizontal = 20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black,
+                    ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(22.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = stringResource(R.string.play_all),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 15.sp,
                 )
             }
 
             // Shuffle
             IconButton(
                 onClick = onShuffleClick,
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .background(Color.White.copy(alpha = 0.1f), CircleShape),
             ) {
                 Icon(
                     imageVector = Icons.Default.Shuffle,
                     contentDescription = stringResource(R.string.shuffle),
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
@@ -692,72 +751,83 @@ private fun PlaylistSearchBar(
     focusRequester: FocusRequester,
     searchActive: Boolean,
     onActivate: () -> Unit,
-    onToggleSearch: () -> Unit
+    onToggleSearch: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AnimatedVisibility(visible = searchActive) {
                 IconButton(onClick = onToggleSearch, modifier = Modifier.size(40.dp)) {
                     Icon(
                         Icons.Default.ArrowBack,
                         contentDescription = stringResource(R.string.ui_close_search),
-                        tint = MaterialTheme.colorScheme.onBackground
+                        tint = MaterialTheme.colorScheme.onBackground,
                     )
                 }
             }
 
             // Pill-shaped search field
             Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .then(if (!searchActive) Modifier.clickable { onActivate() } else Modifier)
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .then(if (!searchActive) Modifier.clickable { onActivate() } else Modifier)
+                        .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (!searchActive) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .focusRequester(focusRequester),
                     singleLine = true,
-                    textStyle = TextStyle(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 16.sp
-                    ),
+                    textStyle =
+                        TextStyle(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 16.sp,
+                        ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { onSearch() }),
                     decorationBox = { inner ->
                         if (query.isEmpty()) {
                             Text(
-                                text = if (searchActive) stringResource(R.string.ui_search_songs_to_add) else stringResource(R.string.ui_add_songs_to_playlist),
+                                text =
+                                    if (searchActive) {
+                                        stringResource(
+                                            R.string.ui_search_songs_to_add,
+                                        )
+                                    } else {
+                                        stringResource(R.string.ui_add_songs_to_playlist)
+                                    },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 16.sp
+                                fontSize = 16.sp,
                             )
                         }
                         inner()
-                    }
+                    },
                 )
                 if (query.isNotEmpty()) {
                     IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
@@ -765,7 +835,7 @@ private fun PlaylistSearchBar(
                             Icons.Default.Close,
                             contentDescription = stringResource(R.string.ui_clear),
                             tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }
@@ -785,21 +855,22 @@ private fun PlaylistTrackRow(
     showDragHandle: Boolean,
     onClick: () -> Unit,
     onMenuClick: () -> Unit,
-    onDeleteClick: (() -> Unit)? = null
+    onDeleteClick: (() -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier
-            .then(reorderModifier)
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .then(reorderModifier)
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (showDragHandle) {
             ReorderHandle(
                 modifier = dragHandleModifier,
-                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
             )
         } else {
             Text(
@@ -807,31 +878,33 @@ private fun PlaylistTrackRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.35f),
                 modifier = Modifier.width(22.dp),
-                maxLines = 1
+                maxLines = 1,
             )
         }
         Box {
             Surface(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(6.dp)),
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(6.dp)),
                 shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant
+                color = MaterialTheme.colorScheme.surfaceVariant,
             ) {
                 AsyncImage(
                     model = track.thumbnailUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             }
 
             ThumbnailWatchProgress(
                 videoId = track.videoId,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .height(3.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp),
             )
         }
         Column(modifier = Modifier.weight(1f)) {
@@ -840,21 +913,21 @@ private fun PlaylistTrackRow(
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.artist,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
         if (track.duration > 0) {
             Text(
                 text = formatTrackDuration(track.duration),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -864,7 +937,7 @@ private fun PlaylistTrackRow(
                         imageVector = Icons.Default.Delete,
                         contentDescription = stringResource(R.string.ui_delete_from_playlist),
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
                 Spacer(modifier = Modifier.width(4.dp))
@@ -874,7 +947,7 @@ private fun PlaylistTrackRow(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
@@ -888,41 +961,44 @@ private fun SearchResultTrackRow(
     track: MusicTrack,
     isAdded: Boolean,
     onAddClick: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
             model = track.thumbnailUrl,
             contentDescription = null,
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+            contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp
-                ),
+                style =
+                    MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp,
+                    ),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.artist,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
         if (isAdded) {
@@ -930,7 +1006,7 @@ private fun SearchResultTrackRow(
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = stringResource(R.string.ui_added),
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(28.dp),
             )
         } else {
             IconButton(onClick = onAddClick) {
@@ -938,7 +1014,7 @@ private fun SearchResultTrackRow(
                     imageVector = Icons.Outlined.AddCircle,
                     contentDescription = stringResource(R.string.add_to_playlist),
                     tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(28.dp),
                 )
             }
         }
@@ -951,25 +1027,27 @@ private fun SearchResultTrackRow(
 private fun PlaylistFooter(
     trackCount: Int,
     durationText: String?,
-    isLoadingMore: Boolean
+    isLoadingMore: Boolean,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp, horizontal = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (isLoadingMore) {
             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
         }
         Text(
-            text = buildString {
-                append("$trackCount songs")
-                durationText?.let { append("  ·  $it") }
-            },
+            text =
+                buildString {
+                    append("$trackCount songs")
+                    durationText?.let { append("  ·  $it") }
+                },
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f),
         )
     }
 }
@@ -989,68 +1067,77 @@ private fun formatTrackDuration(seconds: Int): String {
 private fun MusicMergeIntoPlaylistDialog(
     tracks: List<MusicTrack>,
     playlistsViewModel: MusicPlaylistsViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val playlists by playlistsViewModel.userCreatedMusicPlaylists.collectAsState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface
+        shape =
+            androidx.compose.foundation.shape
+                .RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
         ) {
             Text(
-                text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.merge_playlist_dialog_title),
+                text =
+                    androidx.compose.ui.res
+                        .stringResource(io.github.aedev.flow.R.string.merge_playlist_dialog_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
 
             HorizontalDivider()
 
             if (playlists.isEmpty()) {
                 Text(
-                    text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.merge_playlist_no_playlists),
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(io.github.aedev.flow.R.string.merge_playlist_no_playlists),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(24.dp)
+                    modifier = Modifier.padding(24.dp),
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    contentPadding = PaddingValues(vertical = 8.dp),
                 ) {
                     items(
                         items = playlists,
-                        key = { it.id }
+                        key = { it.id },
                     ) { playlist ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    playlistsViewModel.mergeTracksIntoPlaylist(playlist.id, tracks)
-                                    onDismiss()
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        playlistsViewModel.mergeTracksIntoPlaylist(playlist.id, tracks)
+                                        onDismiss()
+                                    }.padding(horizontal = 16.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Surface(
                                 modifier = Modifier.size(48.dp),
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
+                                shape =
+                                    androidx.compose.foundation.shape
+                                        .RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
                             ) {
                                 if (playlist.thumbnailUrl.isNotEmpty()) {
                                     AsyncImage(
                                         model = playlist.thumbnailUrl,
                                         contentDescription = null,
                                         modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
+                                        contentScale = ContentScale.Crop,
                                     )
                                 } else {
                                     Box(contentAlignment = Alignment.Center) {
@@ -1058,7 +1145,7 @@ private fun MusicMergeIntoPlaylistDialog(
                                             imageVector = Icons.Default.MusicNote,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(24.dp),
                                         )
                                     }
                                 }
@@ -1070,15 +1157,16 @@ private fun MusicMergeIntoPlaylistDialog(
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = androidx.compose.ui.res.stringResource(
-                                        io.github.aedev.flow.R.string.songs_count_template,
-                                        playlist.videoCount
-                                    ),
+                                    text =
+                                        androidx.compose.ui.res.stringResource(
+                                            io.github.aedev.flow.R.string.songs_count_template,
+                                            playlist.videoCount,
+                                        ),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }

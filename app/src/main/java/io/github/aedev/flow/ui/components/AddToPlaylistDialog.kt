@@ -15,15 +15,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import io.github.aedev.flow.data.local.PlaylistRepository
-import androidx.compose.ui.res.stringResource
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
 import kotlinx.coroutines.flow.first
@@ -33,12 +33,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun AddToPlaylistDialog(
     video: Video,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repo = remember { PlaylistRepository(context) }
-    
+
     var playlists by remember { mutableStateOf<List<PlaylistInfo>>(emptyList()) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var watchLaterVideos by remember { mutableStateOf<List<Video>>(emptyList()) }
@@ -48,14 +48,15 @@ fun AddToPlaylistDialog(
     var playlistSelectionInitialized by remember(video.id) { mutableStateOf(false) }
     var selectedWatchLater by remember(video.id) { mutableStateOf(false) }
     var watchLaterSelectionInitialized by remember(video.id) { mutableStateOf(false) }
-    
+
     // Load playlists and watch later
     LaunchedEffect(Unit) {
         launch {
             repo.getAllPlaylistsFlow().collect {
-                playlists = it.filter { playlist ->
-                    playlist.id != PlaylistRepository.WATCH_LATER_ID
-                }
+                playlists =
+                    it.filter { playlist ->
+                        playlist.id != PlaylistRepository.WATCH_LATER_ID
+                    }
                 playlistsLoaded = true
             }
         }
@@ -69,9 +70,12 @@ fun AddToPlaylistDialog(
 
     LaunchedEffect(playlistsLoaded, playlists, video.id) {
         if (playlistsLoaded && !playlistSelectionInitialized) {
-            val existingPlaylistIds = playlists.filter { playlist ->
-                repo.getPlaylistVideosFlow(playlist.id).first().any { it.id == video.id }
-            }.map { it.id }.toSet()
+            val existingPlaylistIds =
+                playlists
+                    .filter { playlist ->
+                        repo.getPlaylistVideosFlow(playlist.id).first().any { it.id == video.id }
+                    }.map { it.id }
+                    .toSet()
 
             selectedPlaylistIds = existingPlaylistIds
             playlistSelectionInitialized = true
@@ -87,37 +91,44 @@ fun AddToPlaylistDialog(
     }
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val maxHeight = configuration.screenHeightDp.dp * 0.65f
-    val watchLaterThumbnail = watchLaterVideos.firstOrNull()?.thumbnailUrl.orEmpty().ifBlank { video.thumbnailUrl }
-    
+    val watchLaterThumbnail =
+        watchLaterVideos
+            .firstOrNull()
+            ?.thumbnailUrl
+            .orEmpty()
+            .ifBlank { video.thumbnailUrl }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         scrimColor = Color.Transparent,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+        dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = maxHeight)
-                .navigationBarsPadding()
-                .padding(bottom = 16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = maxHeight)
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp),
         ) {
             Text(
                 text = stringResource(R.string.save_to),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
-            
+
             HorizontalDivider()
-            
+
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false),
+                contentPadding = PaddingValues(vertical = 8.dp),
             ) {
                 // Watch Later
                 item {
@@ -142,35 +153,43 @@ fun AddToPlaylistDialog(
                                     }
                                 }
                             }
-                        }
+                        },
                     )
                 }
-                
+
                 // HorizontalDivider
                 item {
                     HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     )
                 }
-                
+
                 // User Playlists
                 items(
                     items = playlists,
-                    key = { it.id }
+                    key = { it.id },
                 ) { playlist ->
                     PlaylistSheetRow(
                         thumbnail = playlist.thumbnailUrl,
                         name = playlist.name,
-                        privacy = if (playlist.isPrivate) stringResource(R.string.playlist_private) else stringResource(R.string.playlist_public),
+                        privacy =
+                            if (playlist.isPrivate) {
+                                stringResource(
+                                    R.string.playlist_private,
+                                )
+                            } else {
+                                stringResource(R.string.playlist_public)
+                            },
                         isSaved = playlist.id in selectedPlaylistIds,
                         onClick = {
                             if (playlistSelectionInitialized) {
                                 val isCurrentlySaved = playlist.id in selectedPlaylistIds
-                                selectedPlaylistIds = if (isCurrentlySaved) {
-                                    selectedPlaylistIds - playlist.id
-                                } else {
-                                    selectedPlaylistIds + playlist.id
-                                }
+                                selectedPlaylistIds =
+                                    if (isCurrentlySaved) {
+                                        selectedPlaylistIds - playlist.id
+                                    } else {
+                                        selectedPlaylistIds + playlist.id
+                                    }
 
                                 scope.launch {
                                     runCatching {
@@ -180,45 +199,48 @@ fun AddToPlaylistDialog(
                                             repo.addVideoToPlaylist(playlist.id, video)
                                         }
                                     }.onFailure {
-                                        selectedPlaylistIds = if (isCurrentlySaved) {
-                                            selectedPlaylistIds + playlist.id
-                                        } else {
-                                            selectedPlaylistIds - playlist.id
-                                        }
+                                        selectedPlaylistIds =
+                                            if (isCurrentlySaved) {
+                                                selectedPlaylistIds + playlist.id
+                                            } else {
+                                                selectedPlaylistIds - playlist.id
+                                            }
                                     }
                                 }
                             }
-                        }
+                        },
                     )
                 }
-                
+
                 // Create New Playlist
                 item {
                     Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                         shape = RoundedCornerShape(24.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        onClick = { showCreateDialog = true }
+                        onClick = { showCreateDialog = true },
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 14.dp),
                             horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Add,
                                 contentDescription = null,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
                                 text = stringResource(R.string.create_new_playlist),
                                 style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                     }
@@ -226,7 +248,7 @@ fun AddToPlaylistDialog(
             }
         }
     }
-    
+
     // Create Playlist Dialog
     if (showCreateDialog) {
         CreateNewPlaylistDialog(
@@ -239,7 +261,7 @@ fun AddToPlaylistDialog(
                     selectedPlaylistIds = selectedPlaylistIds + playlistId
                     showCreateDialog = false
                 }
-            }
+            },
         )
     }
 }
@@ -250,56 +272,59 @@ private fun PlaylistSheetRow(
     name: String,
     privacy: String,
     isSaved: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .size(width = 88.dp, height = 50.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .size(width = 88.dp, height = 50.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             if (thumbnail.isNotEmpty()) {
                 AsyncImage(
                     model = thumbnail,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             } else {
                 Icon(
                     imageVector = Icons.Outlined.PlaylistPlay,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .align(Alignment.Center),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    modifier =
+                        Modifier
+                            .size(28.dp)
+                            .align(Alignment.Center),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 )
             }
         }
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
                 text = name,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = privacy,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -307,7 +332,7 @@ private fun PlaylistSheetRow(
             imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
             contentDescription = null,
             tint = if (isSaved) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(28.dp),
         )
     }
 }
@@ -315,11 +340,11 @@ private fun PlaylistSheetRow(
 @Composable
 private fun CreateNewPlaylistDialog(
     onDismiss: () -> Unit,
-    onCreate: (String, String) -> Unit
+    onCreate: (String, String) -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -330,22 +355,22 @@ private fun CreateNewPlaylistDialog(
         },
         text = {
             Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.playlist_name)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                
+
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text(stringResource(R.string.playlist_description_optional)) },
                     maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
@@ -356,7 +381,7 @@ private fun CreateNewPlaylistDialog(
                         onCreate(name.trim(), description.trim())
                     }
                 },
-                enabled = name.isNotBlank()
+                enabled = name.isNotBlank(),
             ) {
                 Text(stringResource(R.string.create))
             }
@@ -365,6 +390,6 @@ private fun CreateNewPlaylistDialog(
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.cancel))
             }
-        }
+        },
     )
 }

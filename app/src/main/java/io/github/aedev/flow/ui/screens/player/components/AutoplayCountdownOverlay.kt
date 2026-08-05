@@ -51,8 +51,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.AutoplayCountdownState
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -70,14 +71,15 @@ fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
             visible = state.isActive,
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(200)),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
-                    .pointerInput(Unit) { detectTapGestures { } },
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
+                        .pointerInput(Unit) { detectTapGestures { } },
+                contentAlignment = Alignment.Center,
             ) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     CountdownCard(
@@ -86,7 +88,7 @@ fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
                         onCancel = { manager.cancelAutoplayCountdown() },
                         onRestart = { manager.restartFromAutoplayCountdown() },
                         onPlayNow = { manager.skipAutoplayCountdown() },
-                        modifier = Modifier.align(Alignment.Center)
+                        modifier = Modifier.align(Alignment.Center),
                     )
                 }
             }
@@ -101,23 +103,27 @@ private fun CountdownCard(
     onCancel: () -> Unit,
     onRestart: () -> Unit,
     onPlayNow: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val progress by animateFloatAsState(
-        targetValue = if (state.totalSeconds > 0) {
-            state.secondsRemaining.toFloat() / state.totalSeconds.toFloat()
-        } else 0f,
+        targetValue =
+            if (state.totalSeconds > 0) {
+                state.secondsRemaining.toFloat() / state.totalSeconds.toFloat()
+            } else {
+                0f
+            },
         animationSpec = tween(400),
-        label = "autoplayCountdownProgress"
+        label = "autoplayCountdownProgress",
     )
 
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.background,
-        modifier = modifier
-            .padding(horizontal = 20.dp)
-            .widthIn(max = if (compactActions) 420.dp else 560.dp)
-            .fillMaxWidth()
+        modifier =
+            modifier
+                .padding(horizontal = 20.dp)
+                .widthIn(max = if (compactActions) 420.dp else 560.dp)
+                .fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -127,12 +133,12 @@ private fun CountdownCard(
                         modifier = Modifier.fillMaxSize(),
                         strokeWidth = 3.dp,
                         color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
                     )
                     Text(
                         text = state.secondsRemaining.coerceAtLeast(0).toString(),
                         color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
                     )
                 }
 
@@ -142,16 +148,17 @@ private fun CountdownCard(
                     Text(
                         text = stringResource(R.string.autoplay_countdown_up_next),
                         color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = state.nextVideoTitle?.takeIf { it.isNotBlank() }
-                            ?: stringResource(R.string.autoplay_countdown_next_video),
+                        text =
+                            state.nextVideoTitle?.takeIf { it.isNotBlank() }
+                                ?: stringResource(R.string.autoplay_countdown_next_video),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     state.nextVideoChannel?.takeIf { it.isNotBlank() }?.let { channel ->
                         Text(
@@ -159,7 +166,7 @@ private fun CountdownCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -167,16 +174,19 @@ private fun CountdownCard(
                 state.nextVideoThumbnailUrl?.takeIf { it.isNotBlank() }?.let { thumb ->
                     Spacer(Modifier.width(12.dp))
                     AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(thumb)
-                            .crossfade(true)
-                            .build(),
+                        model =
+                            ImageRequest
+                                .Builder(LocalContext.current)
+                                .data(thumb)
+                                .crossfade(true)
+                                .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .width(72.dp)
-                            .height(40.dp)
-                            .clip(MaterialTheme.shapes.small)
+                        modifier =
+                            Modifier
+                                .width(72.dp)
+                                .height(40.dp)
+                                .clip(MaterialTheme.shapes.small),
                     )
                 }
             }
@@ -187,7 +197,7 @@ private fun CountdownCard(
                 compact = compactActions,
                 onCancel = onCancel,
                 onRestart = onRestart,
-                onPlayNow = onPlayNow
+                onPlayNow = onPlayNow,
             )
         }
     }
@@ -198,7 +208,7 @@ private fun CountdownActions(
     compact: Boolean,
     onCancel: () -> Unit,
     onRestart: () -> Unit,
-    onPlayNow: () -> Unit
+    onPlayNow: () -> Unit,
 ) {
     val cancelLabel = stringResource(R.string.autoplay_countdown_cancel)
     val restartLabel = stringResource(R.string.autoplay_countdown_restart)
@@ -206,12 +216,13 @@ private fun CountdownActions(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (compact) {
-            Arrangement.SpaceEvenly
-        } else {
-            Arrangement.spacedBy(8.dp)
-        },
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement =
+            if (compact) {
+                Arrangement.SpaceEvenly
+            } else {
+                Arrangement.spacedBy(8.dp)
+            },
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (compact) {
             IconButton(onClick = onCancel) {

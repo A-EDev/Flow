@@ -23,9 +23,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.request.crossfade
+import coil3.size.Precision
 import io.github.aedev.flow.R
 
 @Composable
@@ -38,76 +40,82 @@ fun PlayerArtwork(
     player: Player?,
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-     val context = LocalContext.current
-     val artworkRequest = remember(thumbnailUrl) {
-         ImageRequest.Builder(context)
-             .data(thumbnailUrl)
-             .allowHardware(false)
-             .crossfade(true)
-             .precision(Precision.EXACT)
-             .size(1080)
-             .build()
-     }
+    val context = LocalContext.current
+    val artworkRequest =
+        remember(thumbnailUrl) {
+            ImageRequest
+                .Builder(context)
+                .data(thumbnailUrl)
+                .allowHardware(false)
+                .crossfade(true)
+                .precision(Precision.EXACT)
+                .size(1080)
+                .build()
+        }
 
-     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.Black)
-            .pointerInput(Unit) {
-                var totalDrag = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { totalDrag = 0f },
-                    onDragEnd = {
-                        if (totalDrag > 100) {
-                            onSkipPrevious()
-                        } else if (totalDrag < -100) {
-                            onSkipNext()
-                        }
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        totalDrag += dragAmount
-                        change.consume()
-                    }
-                )
-            }
+    Box(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.Black)
+                .pointerInput(Unit) {
+                    var totalDrag = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { totalDrag = 0f },
+                        onDragEnd = {
+                            if (totalDrag > 100) {
+                                onSkipPrevious()
+                            } else if (totalDrag < -100) {
+                                onSkipNext()
+                            }
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            totalDrag += dragAmount
+                            change.consume()
+                        },
+                    )
+                },
     ) {
         if (isVideoMode) {
-             AndroidView(
+            AndroidView(
                 factory = { context ->
                     PlayerView(context).apply {
                         this.player = player
                         useController = false
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
+                        layoutParams =
+                            ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                            )
                     }
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         } else if (hideArtwork) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(hiddenArtworkColor),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(hiddenArtworkColor),
+                contentAlignment = Alignment.Center,
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_launcher_foreground),
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize(0.42f)
+                    modifier = Modifier.fillMaxSize(0.42f),
                 )
             }
 
             if (isLoading) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(color = Color.White)
                 }
@@ -117,15 +125,16 @@ fun PlayerArtwork(
                 model = artworkRequest,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
-            
+
             if (isLoading) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(color = Color.White)
                 }

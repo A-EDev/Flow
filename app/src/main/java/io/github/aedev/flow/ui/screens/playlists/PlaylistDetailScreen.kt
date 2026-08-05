@@ -1,23 +1,26 @@
 package io.github.aedev.flow.ui.screens.playlists
 
+import android.content.Context
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,54 +32,49 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.aedev.flow.R
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import coil.compose.AsyncImage
-import io.github.aedev.flow.data.local.PlaylistRepository
+import coil3.compose.AsyncImage
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.migration.WatchLaterMetadataMigrator
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.player.stream.AudioStreamSelector
+import io.github.aedev.flow.ui.components.ReorderHandle
+import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
+import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
+import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
+import io.github.aedev.flow.ui.components.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
+import io.github.aedev.flow.utils.DateContext
+import io.github.aedev.flow.utils.formatPremiereDate
+import io.github.aedev.flow.utils.formatYouTubeRelativeTime
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Semaphore
-
-import androidx.hilt.navigation.compose.hiltViewModel
-import io.github.aedev.flow.utils.formatPremiereDate
-
-import androidx.lifecycle.SavedStateHandle
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import android.content.Context
-import android.widget.Toast
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.withPermit
-import androidx.compose.foundation.lazy.items
-import io.github.aedev.flow.ui.components.rememberFlowSheetState
-import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
-import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
-import io.github.aedev.flow.utils.DateContext
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
-import io.github.aedev.flow.ui.components.ReorderHandle
-import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
-import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
-import io.github.aedev.flow.utils.formatYouTubeRelativeTime
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -86,7 +84,7 @@ fun PlaylistDetailScreen(
     onPlayPlaylist: (List<Video>, Int) -> Unit,
     modifier: Modifier = Modifier,
     onChannelClick: ((String) -> Unit)? = null,
-    viewModel: PlaylistDetailViewModel = hiltViewModel()
+    viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isDownloadingPlaylist by viewModel.isDownloadingPlaylist.collectAsState()
@@ -122,22 +120,24 @@ fun PlaylistDetailScreen(
         if (uiState.videos.isEmpty()) exitSelection()
     }
 
-    val reorderState = rememberReorderableLazyListState(
-        listState = listState,
-        itemIndexOffset = 1,
-        onMove = { from, to ->
-            if (canReorder) {
-                displayVideos = displayVideos.toMutableList().apply {
-                    add(to, removeAt(from))
+    val reorderState =
+        rememberReorderableLazyListState(
+            listState = listState,
+            itemIndexOffset = 1,
+            onMove = { from, to ->
+                if (canReorder) {
+                    displayVideos =
+                        displayVideos.toMutableList().apply {
+                            add(to, removeAt(from))
+                        }
                 }
-            }
-        },
-        onDragStopped = {
-            if (canReorder) {
-                viewModel.reorderVideos(displayVideos.map { it.id })
-            }
-        }
-    )
+            },
+            onDragStopped = {
+                if (canReorder) {
+                    viewModel.reorderVideos(displayVideos.map { it.id })
+                }
+            },
+        )
 
     BackHandler(enabled = inSelectionMode) { exitSelection() }
 
@@ -153,34 +153,38 @@ fun PlaylistDetailScreen(
             AsyncImage(
                 model = heroThumbnail,
                 contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(420.dp)
-                    .blur(90.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(420.dp)
+                        .blur(90.dp),
                 alpha = 0.55f,
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         }
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(420.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.35f),
-                            Color.Black.copy(alpha = 0.42f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.88f),
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
-                )
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(420.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    Color.Black.copy(alpha = 0.35f),
+                                    Color.Black.copy(alpha = 0.42f),
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.88f),
+                                    MaterialTheme.colorScheme.background,
+                                ),
+                        ),
+                    ),
         )
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 420.dp)
-                .background(MaterialTheme.colorScheme.background)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(top = 420.dp)
+                    .background(MaterialTheme.colorScheme.background),
         )
 
         Scaffold(
@@ -201,14 +205,20 @@ fun PlaylistDetailScreen(
                     onClearSelection = exitSelection,
                     onSelectAll = {
                         selectedIds =
-                            if (selectedIds.size == displayVideos.size) emptySet()
-                            else displayVideos.map { it.id }.toSet()
+                            if (selectedIds.size == displayVideos.size) {
+                                emptySet()
+                            } else {
+                                displayVideos.map { it.id }.toSet()
+                            }
                     },
                     onDeleteSelected = { showRemoveSelectedDialog = true },
                     onMergeClick = { showMergeDialog = true },
                     onSaveToggle = {
-                        if (uiState.isSaved) viewModel.unsaveFromLibrary()
-                        else viewModel.saveToLibrary()
+                        if (uiState.isSaved) {
+                            viewModel.unsaveFromLibrary()
+                        } else {
+                            viewModel.saveToLibrary()
+                        }
                     },
                     onOptionsClick = { showOptionsMenu = true },
                     onOptionsDismiss = { showOptionsMenu = false },
@@ -225,18 +235,19 @@ fun PlaylistDetailScreen(
                         viewModel.togglePrivacy()
                     },
                     isPrivate = uiState.isPrivate,
-                    onBottomPositioned = { topBarBottomPx = it }
+                    onBottomPositioned = { topBarBottomPx = it },
                 )
             },
             modifier = Modifier.fillMaxSize(),
-            containerColor = Color.Transparent
+            containerColor = Color.Transparent,
         ) { paddingValues ->
             LazyColumn(
                 state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(bottom = 16.dp)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                contentPadding = PaddingValues(bottom = 16.dp),
             ) {
                 item {
                     Column {
@@ -258,12 +269,12 @@ fun PlaylistDetailScreen(
                             isDownloading = isDownloadingPlaylist,
                             downloadProgress = playlistDownloadProgress,
                             currentDownloadingTitle = currentDownloadingTitle,
-                            onTitleBottomPositioned = { heroTitleBottomPx = it }
+                            onTitleBottomPositioned = { heroTitleBottomPx = it },
                         )
                         PlaylistSortButton(
                             sortOrder = sortOrder,
                             onClick = { showSortSheet = true },
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                         )
                     }
                 }
@@ -272,13 +283,13 @@ fun PlaylistDetailScreen(
                     item {
                         EmptyPlaylistState(
                             modifier = Modifier.padding(32.dp),
-                            isWatchLater = uiState.isWatchLater
+                            isWatchLater = uiState.isWatchLater,
                         )
                     }
                 } else {
                     itemsIndexed(
                         items = displayVideos,
-                        key = { index, video -> "${video.id}_$index" }
+                        key = { index, video -> "${video.id}_$index" },
                     ) { index, video ->
                         val isSelected = video.id in selectedIds
                         PlaylistVideoItem(
@@ -300,7 +311,7 @@ fun PlaylistDetailScreen(
                             onRemove = { viewModel.removeVideo(video.id) },
                             onChannelClick = onChannelClick,
                             isWatchLater = uiState.isWatchLater,
-                            showAddedDate = isUserCreatedPlaylist
+                            showAddedDate = isUserCreatedPlaylist,
                         )
                     }
                 }
@@ -317,7 +328,7 @@ fun PlaylistDetailScreen(
             onSave = { name, description ->
                 viewModel.updatePlaylist(name, description)
                 showEditDialog = false
-            }
+            },
         )
     }
 
@@ -335,9 +346,10 @@ fun PlaylistDetailScreen(
                         showDeleteDialog = false
                         onNavigateBack()
                     },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
                 ) {
                     Text(stringResource(R.string.action_delete))
                 }
@@ -346,14 +358,14 @@ fun PlaylistDetailScreen(
                 TextButton(onClick = { showDeleteDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
-            }
+            },
         )
     }
 
     if (showMergeDialog) {
         MergeIntoPlaylistDialog(
             viewModel = viewModel,
-            onDismiss = { showMergeDialog = false }
+            onDismiss = { showMergeDialog = false },
         )
     }
 
@@ -368,7 +380,7 @@ fun PlaylistDetailScreen(
                     onClick = {
                         viewModel.downloadPlaylist()
                         showDownloadAllDialog = false
-                    }
+                    },
                 ) {
                     Text(stringResource(R.string.download))
                 }
@@ -377,7 +389,7 @@ fun PlaylistDetailScreen(
                 TextButton(onClick = { showDownloadAllDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
-            }
+            },
         )
     }
 
@@ -390,8 +402,11 @@ fun PlaylistDetailScreen(
             },
             text = {
                 Text(
-                    if (uiState.isWatchLater) stringResource(R.string.remove_selected_watch_later_text)
-                    else stringResource(R.string.remove_selected_playlist_text)
+                    if (uiState.isWatchLater) {
+                        stringResource(R.string.remove_selected_watch_later_text)
+                    } else {
+                        stringResource(R.string.remove_selected_playlist_text)
+                    },
                 )
             },
             confirmButton = {
@@ -400,7 +415,7 @@ fun PlaylistDetailScreen(
                         viewModel.removeVideos(selectedIds)
                         selectedIds = emptySet()
                         showRemoveSelectedDialog = false
-                    }
+                    },
                 ) {
                     Text(stringResource(R.string.remove), color = MaterialTheme.colorScheme.error)
                 }
@@ -409,7 +424,7 @@ fun PlaylistDetailScreen(
                 TextButton(onClick = { showRemoveSelectedDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
-            }
+            },
         )
     }
 
@@ -420,7 +435,7 @@ fun PlaylistDetailScreen(
                 viewModel.setSortOrder(it)
                 showSortSheet = false
             },
-            onDismiss = { showSortSheet = false }
+            onDismiss = { showSortSheet = false },
         )
     }
 }
@@ -450,32 +465,42 @@ private fun PlaylistDetailTopBar(
     onDeletePlaylistClick: () -> Unit,
     onTogglePrivacy: () -> Unit,
     isPrivate: Boolean,
-    onBottomPositioned: (Int) -> Unit
+    onBottomPositioned: (Int) -> Unit,
 ) {
     val backgroundColor =
-        if (inSelectionMode || showTitle) MaterialTheme.colorScheme.background.copy(alpha = 0.92f)
-        else Color.Transparent
+        if (inSelectionMode || showTitle) {
+            MaterialTheme.colorScheme.background.copy(alpha = 0.92f)
+        } else {
+            Color.Transparent
+        }
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .onGloballyPositioned { coordinates ->
-                onBottomPositioned(
-                    (coordinates.positionInRoot().y + coordinates.size.height).toInt()
-                )
-            },
-        color = backgroundColor
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    onBottomPositioned(
+                        (coordinates.positionInRoot().y + coordinates.size.height).toInt(),
+                    )
+                },
+        color = backgroundColor,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = if (inSelectionMode) onClearSelection else onNavigateBack) {
                 Icon(
                     imageVector = if (inSelectionMode) Icons.Default.Close else Icons.Default.ArrowBack,
-                    contentDescription = if (inSelectionMode) stringResource(R.string.cancel_selection) else stringResource(R.string.btn_back)
+                    contentDescription =
+                        if (inSelectionMode) {
+                            stringResource(R.string.cancel_selection)
+                        } else {
+                            stringResource(R.string.btn_back)
+                        },
                 )
             }
             Box(modifier = Modifier.weight(1f)) {
@@ -484,7 +509,7 @@ private fun PlaylistDetailTopBar(
                         text = if (inSelectionMode) stringResource(R.string.selected_count_template, selectedCount) else title,
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -493,14 +518,19 @@ private fun PlaylistDetailTopBar(
                 IconButton(onClick = onSelectAll) {
                     Icon(
                         imageVector = if (allSelected) Icons.Outlined.CheckBox else Icons.Default.SelectAll,
-                        contentDescription = if (allSelected) stringResource(R.string.deselect_all) else stringResource(R.string.select_all)
+                        contentDescription =
+                            if (allSelected) {
+                                stringResource(R.string.deselect_all)
+                            } else {
+                                stringResource(R.string.select_all)
+                            },
                     )
                 }
                 IconButton(onClick = onDeleteSelected) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = stringResource(R.string.delete_selected),
-                        tint = MaterialTheme.colorScheme.error
+                        tint = MaterialTheme.colorScheme.error,
                     )
                 }
             } else {
@@ -508,7 +538,7 @@ private fun PlaylistDetailTopBar(
                     IconButton(onClick = onEnterSelection) {
                         Icon(
                             imageVector = Icons.Default.Checklist,
-                            contentDescription = stringResource(R.string.select_videos)
+                            contentDescription = stringResource(R.string.select_videos),
                         )
                     }
                 }
@@ -516,15 +546,20 @@ private fun PlaylistDetailTopBar(
                     IconButton(onClick = onMergeClick) {
                         Icon(
                             imageVector = Icons.Default.PlaylistAdd,
-                            contentDescription = stringResource(R.string.add_all_to_playlist)
+                            contentDescription = stringResource(R.string.add_all_to_playlist),
                         )
                     }
                     if (!isWatchLater) {
                         IconButton(onClick = onSaveToggle) {
                             Icon(
                                 imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (isSaved) stringResource(R.string.ui_remove_from_library) else stringResource(R.string.ui_save_to_library),
-                                tint = if (isSaved) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                contentDescription =
+                                    if (isSaved) {
+                                        stringResource(R.string.ui_remove_from_library)
+                                    } else {
+                                        stringResource(R.string.ui_save_to_library)
+                                    },
+                                tint = if (isSaved) MaterialTheme.colorScheme.primary else LocalContentColor.current,
                             )
                         }
                     }
@@ -536,27 +571,35 @@ private fun PlaylistDetailTopBar(
                         }
                         DropdownMenu(
                             expanded = showOptionsMenu,
-                            onDismissRequest = onOptionsDismiss
+                            onDismissRequest = onOptionsDismiss,
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.edit_playlist_action)) },
                                 onClick = onEditClick,
-                                leadingIcon = { Icon(Icons.Default.Edit, null) }
+                                leadingIcon = { Icon(Icons.Default.Edit, null) },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.delete_playlist_action)) },
                                 onClick = onDeletePlaylistClick,
-                                leadingIcon = { Icon(Icons.Default.Delete, null) }
+                                leadingIcon = { Icon(Icons.Default.Delete, null) },
                             )
                             DropdownMenuItem(
-                                text = { Text(if (isPrivate) stringResource(R.string.make_public_action) else stringResource(R.string.make_private_action)) },
+                                text = {
+                                    Text(
+                                        if (isPrivate) {
+                                            stringResource(R.string.make_public_action)
+                                        } else {
+                                            stringResource(R.string.make_private_action)
+                                        },
+                                    )
+                                },
                                 onClick = onTogglePrivacy,
                                 leadingIcon = {
                                     Icon(
                                         if (isPrivate) Icons.Default.Lock else Icons.Default.Public,
-                                        null
+                                        null,
                                     )
-                                }
+                                },
                             )
                         }
                     }
@@ -581,37 +624,40 @@ private fun PlaylistHeader(
     downloadProgress: Float = 0f,
     currentDownloadingTitle: String? = null,
     onTitleBottomPositioned: (Int) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Thumbnail - Hero style
         Box(
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .aspectRatio(16f/9f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.95f)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             if (thumbnailUrl.isNotEmpty()) {
                 AsyncImage(
                     model = thumbnailUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.PlaylistPlay,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .align(Alignment.Center),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    modifier =
+                        Modifier
+                            .size(64.dp)
+                            .align(Alignment.Center),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 )
             }
         }
@@ -622,31 +668,34 @@ private fun PlaylistHeader(
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = name,
-                modifier = Modifier.onGloballyPositioned { coordinates ->
-                    onTitleBottomPositioned(
-                        (coordinates.positionInRoot().y + coordinates.size.height).toInt()
-                    )
-                },
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp
-                ),
-                color = MaterialTheme.colorScheme.onSurface
+                modifier =
+                    Modifier.onGloballyPositioned { coordinates ->
+                        onTitleBottomPositioned(
+                            (coordinates.positionInRoot().y + coordinates.size.height).toInt(),
+                        )
+                    },
+                style =
+                    MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp,
+                    ),
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
             // Dynamic User Name Placeholder removed
             // Metadata Row
             Text(
-                text = stringResource(
-                    if (isPrivate) R.string.playlist_metadata_private_template else R.string.playlist_metadata_public_template,
-                    videoCount
-                ),
+                text =
+                    stringResource(
+                        if (isPrivate) R.string.playlist_metadata_private_template else R.string.playlist_metadata_public_template,
+                        videoCount,
+                    ),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             if (description.isNotEmpty()) {
@@ -655,7 +704,7 @@ private fun PlaylistHeader(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
@@ -665,16 +714,17 @@ private fun PlaylistHeader(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Button(
                     onClick = onPlayAll,
                     modifier = Modifier.height(48.dp).weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
-                    ),
-                    shape = RoundedCornerShape(24.dp)
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black,
+                        ),
+                    shape = RoundedCornerShape(24.dp),
                 ) {
                     Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
@@ -686,7 +736,7 @@ private fun PlaylistHeader(
                     onClick = onShuffle,
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Shuffle, stringResource(R.string.shuffle), modifier = Modifier.size(24.dp))
@@ -695,23 +745,30 @@ private fun PlaylistHeader(
 
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Surface(
                         onClick = { if (!isDownloading) onDownloadAll() },
                         shape = CircleShape,
-                        color = if (isDownloading)
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        modifier = Modifier.size(48.dp)
+                        color =
+                            if (isDownloading) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            },
+                        modifier = Modifier.size(48.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = if (isDownloading) Icons.Default.Downloading else Icons.Default.ArrowDownward,
-                                contentDescription = if (isDownloading) stringResource(R.string.ui_downloading_playlist) else stringResource(R.string.download_all),
+                                contentDescription =
+                                    if (isDownloading) {
+                                        stringResource(R.string.ui_downloading_playlist)
+                                    } else {
+                                        stringResource(R.string.download_all)
+                                    },
                                 tint = if (isDownloading) MaterialTheme.colorScheme.primary else LocalContentColor.current,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                     }
@@ -720,7 +777,7 @@ private fun PlaylistHeader(
                             progress = { downloadProgress },
                             modifier = Modifier.size(48.dp),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
                         )
                     }
                 }
@@ -729,7 +786,7 @@ private fun PlaylistHeader(
             AnimatedVisibility(
                 visible = isDownloading && currentDownloadingTitle != null,
                 enter = fadeIn(),
-                exit = fadeOut()
+                exit = fadeOut(),
             ) {
                 Text(
                     text = "Downloading: ${currentDownloadingTitle ?: ""}",
@@ -737,7 +794,7 @@ private fun PlaylistHeader(
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
@@ -748,28 +805,28 @@ private fun PlaylistHeader(
 private fun PlaylistSortButton(
     sortOrder: PlaylistSortOrder,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = stringResource(sortOrder.labelRes),
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
             )
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = stringResource(R.string.playlist_sort_options),
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(18.dp),
             )
         }
     }
@@ -780,37 +837,39 @@ private fun PlaylistSortButton(
 private fun PlaylistSortSheet(
     selected: PlaylistSortOrder,
     onSelected: (PlaylistSortOrder) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
         ) {
             PlaylistSortOrder.values().forEach { option ->
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelected(option) }
-                        .padding(horizontal = 24.dp, vertical = 18.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelected(option) }
+                            .padding(horizontal = 24.dp, vertical = 18.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     Icon(
                         imageVector = if (option == selected) Icons.Default.Check else Icons.Default.Sort,
                         contentDescription = null,
-                        tint = if (option == selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (option == selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = stringResource(option.labelRes),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = if (option == selected) FontWeight.SemiBold else FontWeight.Normal
+                        fontWeight = if (option == selected) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 }
             }
@@ -834,116 +893,123 @@ private fun PlaylistVideoItem(
     onChannelClick: ((String) -> Unit)?,
     isWatchLater: Boolean,
     showAddedDate: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val selectionBg = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.24f) else Color.Transparent
 
     Row(
-        modifier = modifier
-            .then(reorderModifier)
-            .fillMaxWidth()
-            .background(selectionBg)
-            .combinedClickable(
-                onClick = onVideoClick,
-                onLongClick = if (!inSelectionMode) {
-                    { showQuickActions = true }
-                } else null
-            )
-            .padding(vertical = 12.dp, horizontal = 16.dp),
+        modifier =
+            modifier
+                .then(reorderModifier)
+                .fillMaxWidth()
+                .background(selectionBg)
+                .combinedClickable(
+                    onClick = onVideoClick,
+                    onLongClick =
+                        if (!inSelectionMode) {
+                            { showQuickActions = true }
+                        } else {
+                            null
+                        },
+                ).padding(vertical = 12.dp, horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (inSelectionMode) {
             Checkbox(
                 checked = isSelected,
                 onCheckedChange = { onVideoClick() },
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
         } else if (showDragHandle) {
             ReorderHandle(
                 modifier = dragHandleModifier,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
             )
         } else {
             Text(
                 text = position.toString(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.width(20.dp)
+                modifier = Modifier.width(20.dp),
             )
         }
-        
+
         // Thumbnail
         Box(
-            modifier = Modifier
-                .width(140.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .width(140.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
                 model = video.thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
 
             // Duration overlay
             video.duration?.let { duration ->
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                        .background(
-                            color = Color.Black.copy(alpha = 0.8f),
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .background(
+                                color = Color.Black.copy(alpha = 0.8f),
+                                shape = RoundedCornerShape(4.dp),
+                            ).padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {
                     Text(
                         text = formatDuration(duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp
+                        fontSize = 10.sp,
                     )
                 }
             }
 
             ThumbnailWatchProgress(
                 videoId = video.id,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .height(3.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp),
             )
         }
 
         // Video Info
         Column(
-            modifier = Modifier
-                .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier =
+                Modifier
+                    .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 text = video.title,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.Medium
-                ),
+                style =
+                    MaterialTheme.typography.bodyLarge.copy(
+                        lineHeight = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                    ),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
-            
+
             Column {
                 Text(
                     text = video.channelName,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
@@ -952,15 +1018,29 @@ private fun PlaylistVideoItem(
                 val isPremiere = video.viewCount < 0L
                 val showAdded = showAddedDate && addedAt != null
                 Text(
-                    text = when {
-                        showAdded -> stringResource(R.string.playlist_video_added_template, formatYouTubeRelativeTime(addedAt!!))
-                        isPremiere -> premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                        else -> stringResource(R.string.video_metadata_short_template, formatViewCount(video.viewCount), uploadDate)
-                    },
+                    text =
+                        when {
+                            showAdded -> {
+                                stringResource(R.string.playlist_video_added_template, formatYouTubeRelativeTime(addedAt!!))
+                            }
+
+                            isPremiere -> {
+                                premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) }
+                                    ?: stringResource(R.string.premiere_soon)
+                            }
+
+                            else -> {
+                                stringResource(R.string.video_metadata_short_template, formatViewCount(video.viewCount), uploadDate)
+                            }
+                        },
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isPremiere && !showAdded) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    maxLines = 1
+                    color =
+                        if (isPremiere && !showAdded) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        },
+                    maxLines = 1,
                 )
             }
         }
@@ -968,13 +1048,13 @@ private fun PlaylistVideoItem(
         if (!inSelectionMode) {
             IconButton(
                 onClick = { showQuickActions = true },
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -985,13 +1065,19 @@ private fun PlaylistVideoItem(
             video = video,
             onChannelClick = onChannelClick,
             onRemoveFromCollection = if (canModify) onRemove else null,
-            removeFromCollectionLabel = if (canModify) {
-                stringResource(
-                    if (isWatchLater) R.string.remove_from_watch_later
-                    else R.string.remove_from_playlist_action
-                )
-            } else null,
-            onDismiss = { showQuickActions = false }
+            removeFromCollectionLabel =
+                if (canModify) {
+                    stringResource(
+                        if (isWatchLater) {
+                            R.string.remove_from_watch_later
+                        } else {
+                            R.string.remove_from_playlist_action
+                        },
+                    )
+                } else {
+                    null
+                },
+            onDismiss = { showQuickActions = false },
         )
     }
 }
@@ -999,31 +1085,31 @@ private fun PlaylistVideoItem(
 @Composable
 private fun EmptyPlaylistState(
     modifier: Modifier = Modifier,
-    isWatchLater: Boolean = false
+    isWatchLater: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Icon(
             imageVector = if (isWatchLater) Icons.Default.WatchLater else Icons.Default.PlaylistPlay,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
         )
 
         Text(
             text = stringResource(if (isWatchLater) R.string.no_videos_saved else R.string.playlist_empty_title),
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
         )
 
         Text(
             text = stringResource(if (isWatchLater) R.string.no_videos_saved_body else R.string.playlist_empty_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
     }
 }
@@ -1033,7 +1119,7 @@ private fun EditPlaylistDialog(
     name: String,
     description: String,
     onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit
+    onSave: (String, String) -> Unit,
 ) {
     var editedName by remember { mutableStateOf(name) }
     var editedDescription by remember { mutableStateOf(description) }
@@ -1050,7 +1136,7 @@ private fun EditPlaylistDialog(
                     label = { Text(stringResource(R.string.playlist_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
                 )
 
                 OutlinedTextField(
@@ -1059,14 +1145,14 @@ private fun EditPlaylistDialog(
                     label = { Text(stringResource(R.string.playlist_description_optional)) },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
                 )
             }
         },
         confirmButton = {
             TextButton(
                 onClick = { onSave(editedName, editedDescription) },
-                enabled = editedName.isNotBlank()
+                enabled = editedName.isNotBlank(),
             ) {
                 Text(stringResource(R.string.action_save))
             }
@@ -1075,7 +1161,7 @@ private fun EditPlaylistDialog(
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.cancel))
             }
-        }
+        },
     )
 }
 
@@ -1091,39 +1177,45 @@ private fun formatDuration(seconds: Int): String {
     }
 }
 
-private fun formatViewCount(count: Long): String {
-    return when {
+private fun formatViewCount(count: Long): String =
+    when {
         count >= 1_000_000_000 -> String.format("%.1f%s views", count / 1_000_000_000.0, "B")
         count >= 1_000_000 -> String.format("%.1f%s views", count / 1_000_000.0, "M")
         count >= 1_000 -> String.format("%.1f%s views", count / 1_000.0, "K")
         else -> "$count views"
     }
-}
 
-enum class PlaylistSortOrder(val storageValue: String, val labelRes: Int) {
+enum class PlaylistSortOrder(
+    val storageValue: String,
+    val labelRes: Int,
+) {
     MANUAL("manual", R.string.playlist_sort_manual),
     DATE_ADDED_NEWEST("date_added_newest", R.string.playlist_sort_date_added_newest),
     DATE_ADDED_OLDEST("date_added_oldest", R.string.playlist_sort_date_added_oldest),
     MOST_POPULAR("most_popular", R.string.playlist_sort_most_popular),
     DATE_PUBLISHED_NEWEST("date_published_newest", R.string.playlist_sort_date_published_newest),
-    DATE_PUBLISHED_OLDEST("date_published_oldest", R.string.playlist_sort_date_published_oldest);
+    DATE_PUBLISHED_OLDEST("date_published_oldest", R.string.playlist_sort_date_published_oldest),
+    ;
 
     companion object {
-        fun fromStorageValue(value: String?): PlaylistSortOrder =
-            values().firstOrNull { it.storageValue == value } ?: MANUAL
+        fun fromStorageValue(value: String?): PlaylistSortOrder = values().firstOrNull { it.storageValue == value } ?: MANUAL
     }
 }
 
-private fun List<Video>.sortedForPlaylist(sortOrder: PlaylistSortOrder): List<Video> {
-    return when (sortOrder) {
+private fun List<Video>.sortedForPlaylist(sortOrder: PlaylistSortOrder): List<Video> =
+    when (sortOrder) {
         PlaylistSortOrder.MANUAL,
-        PlaylistSortOrder.DATE_ADDED_NEWEST -> this
+        PlaylistSortOrder.DATE_ADDED_NEWEST,
+        -> this
+
         PlaylistSortOrder.DATE_ADDED_OLDEST -> asReversed()
+
         PlaylistSortOrder.MOST_POPULAR -> sortedByDescending { it.viewCount }
+
         PlaylistSortOrder.DATE_PUBLISHED_NEWEST -> sortedByDescending { it.effectivePlaylistUploadTimestamp() }
+
         PlaylistSortOrder.DATE_PUBLISHED_OLDEST -> sortedBy { it.effectivePlaylistUploadTimestamp() }
     }
-}
 
 private fun Video.effectivePlaylistUploadTimestamp(now: Long = System.currentTimeMillis()): Long {
     val relativeDuration = parseRelativeDurationMillis(uploadDate)
@@ -1141,39 +1233,48 @@ private fun Video.effectivePlaylistUploadTimestamp(now: Long = System.currentTim
 }
 
 private fun parseRelativeDurationMillis(text: String): Long? {
-    val normalized = text.lowercase()
-        .replace("streamed", "")
-        .replace("premiered", "")
-        .replace("ago", "")
-        .trim()
+    val normalized =
+        text
+            .lowercase()
+            .replace("streamed", "")
+            .replace("premiered", "")
+            .replace("ago", "")
+            .trim()
     if (normalized.isBlank() || normalized == "unknown") return null
     if (normalized.contains("just now") || normalized == "today") return 0L
     if (normalized.contains("yesterday")) return 24L * 60L * 60L * 1000L
 
-    val value = Regex("(\\d+)").find(normalized)?.groupValues?.getOrNull(1)?.toLongOrNull()
-        ?: return null
-    val unit = when {
-        normalized.contains("second") || normalized.matches(Regex(".*\\d+\\s*s$")) -> 1_000L
-        normalized.contains("minute") || normalized.matches(Regex(".*\\d+\\s*m$")) -> 60_000L
-        normalized.contains("hour") || normalized.matches(Regex(".*\\d+\\s*h$")) -> 3_600_000L
-        normalized.contains("day") || normalized.matches(Regex(".*\\d+\\s*d$")) -> 86_400_000L
-        normalized.contains("week") || normalized.matches(Regex(".*\\d+\\s*w$")) -> 7L * 86_400_000L
-        normalized.contains("month") || normalized.matches(Regex(".*\\d+\\s*mo$")) -> 30L * 86_400_000L
-        normalized.contains("year") || normalized.matches(Regex(".*\\d+\\s*y$")) -> 365L * 86_400_000L
-        else -> return null
-    }
+    val value =
+        Regex("(\\d+)")
+            .find(normalized)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toLongOrNull()
+            ?: return null
+    val unit =
+        when {
+            normalized.contains("second") || normalized.matches(Regex(".*\\d+\\s*s$")) -> 1_000L
+            normalized.contains("minute") || normalized.matches(Regex(".*\\d+\\s*m$")) -> 60_000L
+            normalized.contains("hour") || normalized.matches(Regex(".*\\d+\\s*h$")) -> 3_600_000L
+            normalized.contains("day") || normalized.matches(Regex(".*\\d+\\s*d$")) -> 86_400_000L
+            normalized.contains("week") || normalized.matches(Regex(".*\\d+\\s*w$")) -> 7L * 86_400_000L
+            normalized.contains("month") || normalized.matches(Regex(".*\\d+\\s*mo$")) -> 30L * 86_400_000L
+            normalized.contains("year") || normalized.matches(Regex(".*\\d+\\s*y$")) -> 365L * 86_400_000L
+            else -> return null
+        }
     return value * unit
 }
 
-private fun formatRelativeTime(timestamp: Long, now: Long): String {
-    return formatYouTubeRelativeTime(timestamp, now)
-}
+private fun formatRelativeTime(
+    timestamp: Long,
+    now: Long,
+): String = formatYouTubeRelativeTime(timestamp, now)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MergeIntoPlaylistDialog(
     viewModel: PlaylistDetailViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val playlists by viewModel.userCreatedPlaylists.collectAsState()
 
@@ -1181,18 +1282,19 @@ private fun MergeIntoPlaylistDialog(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
         ) {
             Text(
                 text = stringResource(R.string.merge_playlist_dialog_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
 
             HorizontalDivider()
@@ -1202,49 +1304,51 @@ private fun MergeIntoPlaylistDialog(
                     text = stringResource(R.string.merge_playlist_no_playlists),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(24.dp)
+                    modifier = Modifier.padding(24.dp),
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    contentPadding = PaddingValues(vertical = 8.dp),
                 ) {
                     items(
                         items = playlists,
-                        key = { it.id }
+                        key = { it.id },
                     ) { playlist ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.mergeIntoPlaylist(playlist.id)
-                                    onDismiss()
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.mergeIntoPlaylist(playlist.id)
+                                        onDismiss()
+                                    }.padding(horizontal = 16.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                modifier =
+                                    Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
                             ) {
                                 if (playlist.thumbnailUrl.isNotEmpty()) {
                                     AsyncImage(
                                         model = playlist.thumbnailUrl,
                                         contentDescription = null,
                                         modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
+                                        contentScale = ContentScale.Crop,
                                     )
                                 } else {
                                     Icon(
                                         imageVector = Icons.Default.PlaylistPlay,
                                         contentDescription = null,
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .align(Alignment.Center),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                        modifier =
+                                            Modifier
+                                                .size(24.dp)
+                                                .align(Alignment.Center),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                     )
                                 }
                             }
@@ -1255,12 +1359,12 @@ private fun MergeIntoPlaylistDialog(
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
                                     text = stringResource(R.string.songs_count_template, playlist.videoCount),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -1274,448 +1378,485 @@ private fun MergeIntoPlaylistDialog(
 // ViewModel
 
 @HiltViewModel
-class PlaylistDetailViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val repository: PlaylistRepository,
-    private val youTubeRepository: io.github.aedev.flow.data.repository.YouTubeRepository,
-    private val playerPreferences: PlayerPreferences,
-    private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
-    savedStateHandle: SavedStateHandle
-) : ViewModel() {
+class PlaylistDetailViewModel
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context,
+        private val repository: PlaylistRepository,
+        private val youTubeRepository: io.github.aedev.flow.data.repository.YouTubeRepository,
+        private val playerPreferences: PlayerPreferences,
+        private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
+        savedStateHandle: SavedStateHandle,
+    ) : ViewModel() {
+        private val playlistId: String = checkNotNull(savedStateHandle["playlistId"])
 
-    private val playlistId: String = checkNotNull(savedStateHandle["playlistId"])
+        data class UiState(
+            val playlistName: String = "",
+            val description: String = "",
+            val isPrivate: Boolean = false,
+            val videos: List<Video> = emptyList(),
+            val thumbnailUrl: String = "",
+            val isLocalPlaylist: Boolean = false,
+            val isSaved: Boolean = false,
+            val isWatchLater: Boolean = false,
+        )
 
-    data class UiState(
-        val playlistName: String = "",
-        val description: String = "",
-        val isPrivate: Boolean = false,
-        val videos: List<Video> = emptyList(),
-        val thumbnailUrl: String = "",
-        val isLocalPlaylist: Boolean = false,
-        val isSaved: Boolean = false,
-        val isWatchLater: Boolean = false
-    )
+        private val _uiState = MutableStateFlow(UiState())
+        val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+        val sortOrder: StateFlow<PlaylistSortOrder> =
+            playerPreferences.playlistSortOrder
+                .map { PlaylistSortOrder.fromStorageValue(it) }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), PlaylistSortOrder.MANUAL)
 
-    val sortOrder: StateFlow<PlaylistSortOrder> =
-        playerPreferences.playlistSortOrder
-            .map { PlaylistSortOrder.fromStorageValue(it) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), PlaylistSortOrder.MANUAL)
+        // ── Playlist download state ──────────────────────────────────────────────
+        private val _isDownloadingPlaylist = MutableStateFlow(false)
+        val isDownloadingPlaylist: StateFlow<Boolean> = _isDownloadingPlaylist.asStateFlow()
 
-    // ── Playlist download state ──────────────────────────────────────────────
-    private val _isDownloadingPlaylist = MutableStateFlow(false)
-    val isDownloadingPlaylist: StateFlow<Boolean> = _isDownloadingPlaylist.asStateFlow()
+        private val _playlistDownloadProgress = MutableStateFlow(0f)
+        val playlistDownloadProgress: StateFlow<Float> = _playlistDownloadProgress.asStateFlow()
 
-    private val _playlistDownloadProgress = MutableStateFlow(0f)
-    val playlistDownloadProgress: StateFlow<Float> = _playlistDownloadProgress.asStateFlow()
+        private val _currentDownloadingTitle = MutableStateFlow<String?>(null)
+        val currentDownloadingTitle: StateFlow<String?> = _currentDownloadingTitle.asStateFlow()
 
-    private val _currentDownloadingTitle = MutableStateFlow<String?>(null)
-    val currentDownloadingTitle: StateFlow<String?> = _currentDownloadingTitle.asStateFlow()
-
-    init {
-        loadPlaylist()
-    }
-
-    fun setSortOrder(order: PlaylistSortOrder) {
-        viewModelScope.launch {
-            playerPreferences.setPlaylistSortOrder(order.storageValue)
+        init {
+            loadPlaylist()
         }
-    }
 
-    /**
-     * Download every video in this playlist sequentially via [FlowDownloadService].
-     * Fetches stream info (NewPipe) for each video, picks the best 720p-compatible MP4
-     * stream with a paired AAC audio track, then hands off to the background service.
-     */
-    fun downloadPlaylist() {
-        if (_isDownloadingPlaylist.value) return
-
-        viewModelScope.launch {
-            val videos = _uiState.value.videos
-            if (videos.isEmpty()) {
-                Toast.makeText(context, context.getString(R.string.ui_playlist_empty), Toast.LENGTH_SHORT).show()
-                return@launch
+        fun setSortOrder(order: PlaylistSortOrder) {
+            viewModelScope.launch {
+                playerPreferences.setPlaylistSortOrder(order.storageValue)
             }
+        }
 
-            _isDownloadingPlaylist.value = true
-            _playlistDownloadProgress.value = 0f
-            Toast.makeText(context, context.getString(R.string.ui_downloading_videos, videos.size), Toast.LENGTH_SHORT).show()
+        /**
+         * Download every video in this playlist sequentially via [FlowDownloadService].
+         * Fetches stream info (NewPipe) for each video, picks the best 720p-compatible MP4
+         * stream with a paired AAC audio track, then hands off to the background service.
+         */
+        fun downloadPlaylist() {
+            if (_isDownloadingPlaylist.value) return
 
-            var successCount = 0
-            var processedCount = 0
-            val total = videos.size
-            val preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first()
+            viewModelScope.launch {
+                val videos = _uiState.value.videos
+                if (videos.isEmpty()) {
+                    Toast.makeText(context, context.getString(R.string.ui_playlist_empty), Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
 
-            val semaphore = Semaphore(2)
+                _isDownloadingPlaylist.value = true
+                _playlistDownloadProgress.value = 0f
+                Toast.makeText(context, context.getString(R.string.ui_downloading_videos, videos.size), Toast.LENGTH_SHORT).show()
 
-            for (video in videos) {
-                semaphore.withPermit {
-                    _currentDownloadingTitle.value = video.title
-                    try {
-                        val streamInfo = withContext(Dispatchers.IO) {
-                            youTubeRepository.getVideoStreamInfo(video.id)
+                var successCount = 0
+                var processedCount = 0
+                val total = videos.size
+                val preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first()
+
+                val semaphore = Semaphore(2)
+
+                for (video in videos) {
+                    semaphore.withPermit {
+                        _currentDownloadingTitle.value = video.title
+                        try {
+                            val streamInfo =
+                                withContext(Dispatchers.IO) {
+                                    youTubeRepository.getVideoStreamInfo(video.id)
+                                }
+
+                            if (streamInfo != null) {
+                                // ── Select best video stream (prefer MP4, 720p cap for bandwidth) ──
+                                val videoOnlyStreams =
+                                    streamInfo.videoOnlyStreams
+                                        ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
+                                        ?: emptyList()
+                                val combinedStreams =
+                                    streamInfo.videoStreams
+                                        ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
+                                        ?: emptyList()
+                                val allAudio = streamInfo.audioStreams ?: emptyList()
+
+                                fun isMp4(s: org.schabi.newpipe.extractor.stream.VideoStream): Boolean {
+                                    val mime = (s.format?.mimeType ?: "").lowercase()
+                                    val name = (s.format?.name ?: "").lowercase()
+                                    return mime.contains("mp4") || name.contains("mp4") || name.contains("mpeg")
+                                }
+
+                                fun isAacAudio(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
+                                    val mime = (a.format?.mimeType ?: "").lowercase()
+                                    val name = (a.format?.name ?: "").lowercase()
+                                    return !name.contains("opus") && !name.contains("webm") &&
+                                        !mime.contains("opus") && !mime.contains("webm")
+                                }
+
+                                // Prefer video-only MP4 ≤720p for offline storage efficiency
+                                fun qualityHeight(s: org.schabi.newpipe.extractor.stream.VideoStream): Int =
+                                    io.github.aedev.flow.player.quality.QualityManager.normalizeQualityHeight(
+                                        io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+                                            .qualityHeightFromStream(s),
+                                    )
+
+                                val bestVideoOnly =
+                                    videoOnlyStreams
+                                        .filter { isMp4(it) && qualityHeight(it) <= 720 }
+                                        .maxByOrNull { qualityHeight(it) }
+                                        ?: videoOnlyStreams.filter { isMp4(it) }.maxByOrNull { qualityHeight(it) }
+
+                                val bestCombined =
+                                    combinedStreams
+                                        .filter { isMp4(it) }
+                                        .maxByOrNull { qualityHeight(it) }
+
+                                val selectedStream =
+                                    bestVideoOnly ?: bestCombined
+                                        ?: (videoOnlyStreams + combinedStreams).maxByOrNull { qualityHeight(it) }
+
+                                if (selectedStream != null) {
+                                    val videoUrl = selectedStream.content ?: selectedStream.url
+                                    val audioUrl =
+                                        if (selectedStream in videoOnlyStreams) {
+                                            val aac =
+                                                AudioStreamSelector.selectPreferredAudioStream(
+                                                    streams = allAudio,
+                                                    preferredAudioLanguage = preferredAudioLanguage,
+                                                    compatibilityFilter = ::isAacAudio,
+                                                )
+                                            aac?.content ?: aac?.url
+                                        } else {
+                                            null
+                                        }
+
+                                    // Detect codec so the service picks the correct container
+                                    // (VP9 → .webm, AV1 → .mkv, H264 → .mp4).
+                                    // Without this, VP9 content written into a .mp4 filename
+                                    // causes MediaMuxer to fail during audio/video merging.
+                                    val videoCodec =
+                                        io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+                                            .codecKeyFromStream(selectedStream)
+
+                                    val qualityLabel = "${qualityHeight(selectedStream)}p"
+                                    val fullVideo =
+                                        video.copy(
+                                            thumbnailUrl =
+                                                video.thumbnailUrl.ifBlank {
+                                                    streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: ""
+                                                },
+                                        )
+
+                                    if (videoUrl != null) {
+                                        withContext(Dispatchers.Main) {
+                                            io.github.aedev.flow.data.video.downloader.FlowDownloadService.startDownload(
+                                                context = context,
+                                                video = fullVideo,
+                                                url = videoUrl,
+                                                quality = qualityLabel,
+                                                audioUrl = audioUrl,
+                                                videoCodec = videoCodec,
+                                            )
+                                            successCount++
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("PlaylistDetailVM", "Failed to queue download for ${video.title}", e)
                         }
 
-                        if (streamInfo != null) {
-                            // ── Select best video stream (prefer MP4, 720p cap for bandwidth) ──
-                            val videoOnlyStreams = streamInfo.videoOnlyStreams
-                                ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
-                                ?: emptyList()
-                            val combinedStreams = streamInfo.videoStreams
-                                ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
-                                ?: emptyList()
-                            val allAudio = streamInfo.audioStreams ?: emptyList()
+                        processedCount++
+                        _playlistDownloadProgress.value = processedCount.toFloat() / total
+                        delay(400L)
+                    }
+                }
 
-                            fun isMp4(s: org.schabi.newpipe.extractor.stream.VideoStream): Boolean {
-                                val mime = (s.format?.mimeType ?: "").lowercase()
-                                val name = (s.format?.name ?: "").lowercase()
-                                return mime.contains("mp4") || name.contains("mp4") || name.contains("mpeg")
-                            }
+                val msg =
+                    if (successCount > 0) {
+                        "Queued $successCount/$total downloads"
+                    } else {
+                        "Could not queue any downloads from this playlist"
+                    }
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
-                            fun isAacAudio(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
-                                val mime = (a.format?.mimeType ?: "").lowercase()
-                                val name = (a.format?.name ?: "").lowercase()
-                                return !name.contains("opus") && !name.contains("webm") &&
-                                       !mime.contains("opus") && !mime.contains("webm")
-                            }
+                _isDownloadingPlaylist.value = false
+                _currentDownloadingTitle.value = null
+                _playlistDownloadProgress.value = 0f
+            }
+        }
 
-                            // Prefer video-only MP4 ≤720p for offline storage efficiency
-                            fun qualityHeight(s: org.schabi.newpipe.extractor.stream.VideoStream): Int {
-                                return io.github.aedev.flow.player.quality.QualityManager.normalizeQualityHeight(
-                                    io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils.qualityHeightFromStream(s)
+        /**
+         * Fresh online fetch for a saved (not-owned) playlist. Reconciles the local copy with the
+         * creator's current playlist — real view counts / release dates plus any added or removed
+         * videos — then lets the DB flow re-emit the updated list. No-op on failure (stays offline).
+         */
+        private fun refreshSavedPlaylist() {
+            viewModelScope.launch {
+                try {
+                    val details = youTubeRepository.getPlaylistDetails(playlistId) ?: return@launch
+                    repository.syncSavedPlaylistVideos(playlistId, details.videos)
+                    _uiState.update { state ->
+                        state.copy(
+                            playlistName = details.name.ifBlank { state.playlistName },
+                            description = (details.description ?: "").ifBlank { state.description },
+                            thumbnailUrl = details.thumbnailUrl.ifBlank { state.thumbnailUrl },
+                        )
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("PlaylistDetailVM", "Saved playlist refresh failed", e)
+                }
+            }
+        }
+
+        private fun loadPlaylist() {
+            viewModelScope.launch {
+                if (playlistId == PlaylistRepository.WATCH_LATER_ID) {
+                    _uiState.update {
+                        it.copy(
+                            playlistName = context.getString(R.string.watch_later),
+                            description = "",
+                            isPrivate = true,
+                            isLocalPlaylist = true,
+                            isSaved = false,
+                            isWatchLater = true,
+                        )
+                    }
+                    var migrationStarted = false
+                    repository.getVideoOnlyWatchLaterFlow().collect { videos ->
+                        _uiState.update {
+                            it.copy(
+                                videos = videos,
+                                thumbnailUrl = videos.firstOrNull()?.thumbnailUrl.orEmpty(),
+                            )
+                        }
+                        if (!migrationStarted && videos.isNotEmpty()) {
+                            migrationStarted = true
+                            viewModelScope.launch { watchLaterMetadataMigrator.migrate(videos) }
+                        }
+                        val stubs = videos.filter { it.title.isEmpty() }.take(50)
+                        if (stubs.isNotEmpty()) {
+                            enrichMetadata(stubs)
+                        }
+                    }
+                    return@launch
+                }
+
+                // Try Local first
+                val localInfo = repository.getPlaylistInfo(playlistId)
+                if (localInfo != null) {
+                    val isSaved = repository.isExternalPlaylistSaved(playlistId)
+                    _uiState.update {
+                        it.copy(
+                            playlistName = localInfo.name,
+                            description = localInfo.description,
+                            isPrivate = localInfo.isPrivate,
+                            thumbnailUrl = localInfo.thumbnailUrl,
+                            isLocalPlaylist = true,
+                            isSaved = isSaved,
+                            isWatchLater = false,
+                        )
+                    }
+                    if (isSaved) {
+                        refreshSavedPlaylist()
+                    }
+                    repository.getPlaylistVideosWithAddedAtFlow(playlistId).collect { videos ->
+                        _uiState.update { it.copy(videos = videos) }
+                        val stubs = videos.filter { it.title.isEmpty() }.take(50)
+                        if (stubs.isNotEmpty()) {
+                            enrichMetadata(stubs)
+                        }
+                    }
+                } else {
+                    // Try Remote (YouTube)
+                    try {
+                        val details = youTubeRepository.getPlaylistDetails(playlistId)
+                        if (details != null) {
+                            _uiState.update {
+                                it.copy(
+                                    playlistName = details.name,
+                                    description = details.description ?: "",
+                                    isPrivate = false,
+                                    videos = details.videos,
+                                    thumbnailUrl = details.thumbnailUrl,
+                                    isLocalPlaylist = false,
+                                    isSaved = false,
+                                    isWatchLater = false,
                                 )
                             }
-
-                            val bestVideoOnly = videoOnlyStreams
-                                .filter { isMp4(it) && qualityHeight(it) <= 720 }
-                                .maxByOrNull { qualityHeight(it) }
-                                ?: videoOnlyStreams.filter { isMp4(it) }.maxByOrNull { qualityHeight(it) }
-
-                            val bestCombined = combinedStreams.filter { isMp4(it) }
-                                .maxByOrNull { qualityHeight(it) }
-
-                            val selectedStream = bestVideoOnly ?: bestCombined
-                                ?: (videoOnlyStreams + combinedStreams).maxByOrNull { qualityHeight(it) }
-
-                            if (selectedStream != null) {
-                                val videoUrl = selectedStream.content ?: selectedStream.url
-                                val audioUrl = if (selectedStream in videoOnlyStreams) {
-                                    val aac = AudioStreamSelector.selectPreferredAudioStream(
-                                        streams = allAudio,
-                                        preferredAudioLanguage = preferredAudioLanguage,
-                                        compatibilityFilter = ::isAacAudio
-                                    )
-                                    aac?.content ?: aac?.url
-                                } else null
-
-                                // Detect codec so the service picks the correct container
-                                // (VP9 → .webm, AV1 → .mkv, H264 → .mp4).
-                                // Without this, VP9 content written into a .mp4 filename
-                                // causes MediaMuxer to fail during audio/video merging.
-                                val videoCodec = io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
-                                    .codecKeyFromStream(selectedStream)
-
-                                val qualityLabel = "${qualityHeight(selectedStream)}p"
-                                val fullVideo = video.copy(
-                                    thumbnailUrl = video.thumbnailUrl.ifBlank {
-                                        streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: ""
-                                    }
-                                )
-
-                                if (videoUrl != null) {
-                                    withContext(Dispatchers.Main) {
-                                        io.github.aedev.flow.data.video.downloader.FlowDownloadService.startDownload(
-                                            context = context,
-                                            video = fullVideo,
-                                            url = videoUrl,
-                                            quality = qualityLabel,
-                                            audioUrl = audioUrl,
-                                            videoCodec = videoCodec
+                        } else {
+                            // Fallback to Music Service if regular fails (e.g. music playlist)
+                            val musicDetails = YouTubeMusicService.fetchPlaylistDetails(playlistId)
+                            if (musicDetails != null) {
+                                val videos =
+                                    musicDetails.tracks.map { track ->
+                                        Video(
+                                            id = track.videoId,
+                                            title = track.title,
+                                            channelName = track.artist,
+                                            channelId = track.channelId,
+                                            thumbnailUrl = track.thumbnailUrl,
+                                            duration = track.duration,
+                                            viewCount = track.views ?: 0,
+                                            uploadDate = "",
+                                            isMusic = true,
                                         )
-                                        successCount++
                                     }
+                                _uiState.update {
+                                    it.copy(
+                                        playlistName = musicDetails.title,
+                                        description = musicDetails.description ?: "",
+                                        isPrivate = false,
+                                        videos = videos,
+                                        thumbnailUrl = musicDetails.thumbnailUrl,
+                                        isLocalPlaylist = false,
+                                        isSaved = false,
+                                        isWatchLater = false,
+                                    )
                                 }
                             }
                         }
                     } catch (e: Exception) {
-                        android.util.Log.w("PlaylistDetailVM", "Failed to queue download for ${video.title}", e)
+                        // Error handling could be added here
                     }
-
-                    processedCount++
-                    _playlistDownloadProgress.value = processedCount.toFloat() / total
-                    delay(400L)
-                }
-            }
-
-            val msg = if (successCount > 0)
-                "Queued $successCount/${total} downloads"
-            else
-                "Could not queue any downloads from this playlist"
-            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-
-            _isDownloadingPlaylist.value = false
-            _currentDownloadingTitle.value = null
-            _playlistDownloadProgress.value = 0f
-        }
-    }
-
-    /**
-     * Fresh online fetch for a saved (not-owned) playlist. Reconciles the local copy with the
-     * creator's current playlist — real view counts / release dates plus any added or removed
-     * videos — then lets the DB flow re-emit the updated list. No-op on failure (stays offline).
-     */
-    private fun refreshSavedPlaylist() {
-        viewModelScope.launch {
-            try {
-                val details = youTubeRepository.getPlaylistDetails(playlistId) ?: return@launch
-                repository.syncSavedPlaylistVideos(playlistId, details.videos)
-                _uiState.update { state ->
-                    state.copy(
-                        playlistName = details.name.ifBlank { state.playlistName },
-                        description = (details.description ?: "").ifBlank { state.description },
-                        thumbnailUrl = details.thumbnailUrl.ifBlank { state.thumbnailUrl }
-                    )
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("PlaylistDetailVM", "Saved playlist refresh failed", e)
-            }
-        }
-    }
-
-    private fun loadPlaylist() {
-        viewModelScope.launch {
-            if (playlistId == PlaylistRepository.WATCH_LATER_ID) {
-                _uiState.update {
-                    it.copy(
-                        playlistName = context.getString(R.string.watch_later),
-                        description = "",
-                        isPrivate = true,
-                        isLocalPlaylist = true,
-                        isSaved = false,
-                        isWatchLater = true
-                    )
-                }
-                var migrationStarted = false
-                repository.getVideoOnlyWatchLaterFlow().collect { videos ->
-                    _uiState.update {
-                        it.copy(
-                            videos = videos,
-                            thumbnailUrl = videos.firstOrNull()?.thumbnailUrl.orEmpty()
-                        )
-                    }
-                    if (!migrationStarted && videos.isNotEmpty()) {
-                        migrationStarted = true
-                        viewModelScope.launch { watchLaterMetadataMigrator.migrate(videos) }
-                    }
-                    val stubs = videos.filter { it.title.isEmpty() }.take(50)
-                    if (stubs.isNotEmpty()) {
-                        enrichMetadata(stubs)
-                    }
-                }
-                return@launch
-            }
-
-            // Try Local first
-            val localInfo = repository.getPlaylistInfo(playlistId)
-            if (localInfo != null) {
-                val isSaved = repository.isExternalPlaylistSaved(playlistId)
-                _uiState.update { it.copy(
-                    playlistName = localInfo.name,
-                    description = localInfo.description,
-                    isPrivate = localInfo.isPrivate,
-                    thumbnailUrl = localInfo.thumbnailUrl,
-                    isLocalPlaylist = true,
-                    isSaved = isSaved,
-                    isWatchLater = false
-                )}
-                if (isSaved) {
-                    refreshSavedPlaylist()
-                }
-                repository.getPlaylistVideosWithAddedAtFlow(playlistId).collect { videos ->
-                    _uiState.update { it.copy(videos = videos) }
-                    val stubs = videos.filter { it.title.isEmpty() }.take(50)
-                    if (stubs.isNotEmpty()) {
-                        enrichMetadata(stubs)
-                    }
-                }
-            } else {
-                // Try Remote (YouTube)
-                try {
-                    val details = youTubeRepository.getPlaylistDetails(playlistId)
-                    if (details != null) {
-                        _uiState.update { it.copy(
-                            playlistName = details.name,
-                            description = details.description ?: "",
-                            isPrivate = false,
-                            videos = details.videos,
-                            thumbnailUrl = details.thumbnailUrl,
-                            isLocalPlaylist = false,
-                            isSaved = false,
-                            isWatchLater = false
-                        )}
-                    } else {
-                        // Fallback to Music Service if regular fails (e.g. music playlist)
-                        val musicDetails = YouTubeMusicService.fetchPlaylistDetails(playlistId)
-                        if (musicDetails != null) {
-                            val videos = musicDetails.tracks.map { track ->
-                                Video(
-                                    id = track.videoId,
-                                    title = track.title,
-                                    channelName = track.artist,
-                                    channelId = track.channelId,
-                                    thumbnailUrl = track.thumbnailUrl,
-                                    duration = track.duration,
-                                    viewCount = track.views ?: 0,
-                                    uploadDate = "",
-                                    isMusic = true
-                                )
-                            }
-                            _uiState.update { it.copy(
-                                playlistName = musicDetails.title,
-                                description = musicDetails.description ?: "",
-                                isPrivate = false,
-                                videos = videos,
-                                thumbnailUrl = musicDetails.thumbnailUrl,
-                                isLocalPlaylist = false,
-                                isSaved = false,
-                                isWatchLater = false
-                            )}
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Error handling could be added here
                 }
             }
         }
-    }
 
-    fun saveToLibrary() {
-        viewModelScope.launch {
-            val state = _uiState.value
-            repository.saveExternalVideoPlaylist(
-                id = playlistId,
-                name = state.playlistName,
-                description = state.description,
-                thumbnailUrl = state.thumbnailUrl.ifEmpty {
-                    state.videos.firstOrNull()?.thumbnailUrl ?: ""
+        fun saveToLibrary() {
+            viewModelScope.launch {
+                val state = _uiState.value
+                repository.saveExternalVideoPlaylist(
+                    id = playlistId,
+                    name = state.playlistName,
+                    description = state.description,
+                    thumbnailUrl =
+                        state.thumbnailUrl.ifEmpty {
+                            state.videos.firstOrNull()?.thumbnailUrl ?: ""
+                        },
+                )
+                state.videos.forEachIndexed { index, video ->
+                    repository.addVideoToPlaylist(playlistId, video)
                 }
-            )
-            state.videos.forEachIndexed { index, video ->
-                repository.addVideoToPlaylist(playlistId, video)
+                _uiState.update { it.copy(isLocalPlaylist = true, isSaved = true) }
+                android.widget.Toast
+                    .makeText(context, context.getString(R.string.ui_playlist_saved_to_library), android.widget.Toast.LENGTH_SHORT)
+                    .show()
             }
-            _uiState.update { it.copy(isLocalPlaylist = true, isSaved = true) }
-            android.widget.Toast.makeText(context, context.getString(R.string.ui_playlist_saved_to_library), android.widget.Toast.LENGTH_SHORT).show()
         }
-    }
 
-    fun unsaveFromLibrary() {
-        viewModelScope.launch {
-            repository.unsaveExternalPlaylist(playlistId)
-            _uiState.update { it.copy(isLocalPlaylist = false, isSaved = false) }
-            android.widget.Toast.makeText(context, context.getString(R.string.ui_playlist_removed_from_library), android.widget.Toast.LENGTH_SHORT).show()
+        fun unsaveFromLibrary() {
+            viewModelScope.launch {
+                repository.unsaveExternalPlaylist(playlistId)
+                _uiState.update { it.copy(isLocalPlaylist = false, isSaved = false) }
+                android.widget.Toast
+                    .makeText(context, context.getString(R.string.ui_playlist_removed_from_library), android.widget.Toast.LENGTH_SHORT)
+                    .show()
+            }
         }
-    }
 
-    fun removeVideo(videoId: String) {
-        viewModelScope.launch {
-            repository.removeVideoFromPlaylist(playlistId, videoId)
-        }
-    }
-
-    fun removeVideos(videoIds: Set<String>) {
-        if (videoIds.isEmpty()) return
-        viewModelScope.launch {
-            videoIds.forEach { videoId ->
+        fun removeVideo(videoId: String) {
+            viewModelScope.launch {
                 repository.removeVideoFromPlaylist(playlistId, videoId)
             }
         }
-    }
 
-    fun reorderVideos(orderedVideoIds: List<String>) {
-        viewModelScope.launch {
-            repository.reorderVideosInPlaylist(playlistId, orderedVideoIds)
-        }
-    }
-
-    fun updatePlaylist(name: String, description: String) {
-        viewModelScope.launch {
-            val currentInfo = repository.getPlaylistInfo(playlistId) ?: return@launch
-            val videos = _uiState.value.videos
-            repository.deletePlaylist(playlistId)
-            repository.createPlaylist(playlistId, name, description, _uiState.value.isPrivate)
-            // Re-add all videos
-            videos.forEach { video ->
-                repository.addVideoToPlaylist(playlistId, video)
-            }
-            _uiState.update { it.copy(
-                playlistName = name,
-                description = description
-            )}
-        }
-    }
-
-    fun togglePrivacy() {
-        viewModelScope.launch {
-            val newPrivacy = !_uiState.value.isPrivate
-            updatePlaylist(_uiState.value.playlistName, _uiState.value.description)
-            _uiState.update { it.copy(isPrivate = newPrivacy) }
-        }
-    }
-
-    fun deletePlaylist() {
-        viewModelScope.launch {
-            repository.deletePlaylist(playlistId)
-        }
-    }
-
-    val userCreatedPlaylists: StateFlow<List<PlaylistInfo>> =
-        repository.getUserCreatedVideoPlaylistsFlow()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
-
-    private val _isMerging = MutableStateFlow(false)
-    val isMerging: StateFlow<Boolean> = _isMerging.asStateFlow()
-
-    fun mergeIntoPlaylist(targetPlaylistId: String) {
-        viewModelScope.launch {
-            _isMerging.value = true
-            val videos = _uiState.value.videos
-            try {
-                repository.addVideosToPlaylist(targetPlaylistId, videos)
-                val targetInfo = repository.getPlaylistInfo(targetPlaylistId)
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.merge_playlist_success, videos.size, targetInfo?.name ?: ""),
-                    Toast.LENGTH_SHORT
-                ).show()
-            } catch (e: Exception) {
-                android.util.Log.e("PlaylistDetailVM", "Failed to merge playlist", e)
-                Toast.makeText(context, context.getString(R.string.toast_failed_to_merge_playlist), Toast.LENGTH_SHORT).show()
-            } finally {
-                _isMerging.value = false
-            }
-        }
-    }
-
-    private val enrichSemaphore = Semaphore(1)
-
-    private fun enrichMetadata(videos: List<Video>) {
-        if (!enrichSemaphore.tryAcquire()) return
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                videos.chunked(5).forEach { chunk ->
-                    chunk.forEach videoLoop@ { video ->
-                        try {
-                            val refreshed = youTubeRepository.getVideo(video.id) ?: return@videoLoop
-                            repository.updateVideoMetadata(refreshed)
-                        } catch (_: Exception) {}
-                    }
-                    delay(300L)
+        fun removeVideos(videoIds: Set<String>) {
+            if (videoIds.isEmpty()) return
+            viewModelScope.launch {
+                videoIds.forEach { videoId ->
+                    repository.removeVideoFromPlaylist(playlistId, videoId)
                 }
-            } finally {
-                enrichSemaphore.release()
+            }
+        }
+
+        fun reorderVideos(orderedVideoIds: List<String>) {
+            viewModelScope.launch {
+                repository.reorderVideosInPlaylist(playlistId, orderedVideoIds)
+            }
+        }
+
+        fun updatePlaylist(
+            name: String,
+            description: String,
+        ) {
+            viewModelScope.launch {
+                val currentInfo = repository.getPlaylistInfo(playlistId) ?: return@launch
+                val videos = _uiState.value.videos
+                repository.deletePlaylist(playlistId)
+                repository.createPlaylist(playlistId, name, description, _uiState.value.isPrivate)
+                // Re-add all videos
+                videos.forEach { video ->
+                    repository.addVideoToPlaylist(playlistId, video)
+                }
+                _uiState.update {
+                    it.copy(
+                        playlistName = name,
+                        description = description,
+                    )
+                }
+            }
+        }
+
+        fun togglePrivacy() {
+            viewModelScope.launch {
+                val newPrivacy = !_uiState.value.isPrivate
+                updatePlaylist(_uiState.value.playlistName, _uiState.value.description)
+                _uiState.update { it.copy(isPrivate = newPrivacy) }
+            }
+        }
+
+        fun deletePlaylist() {
+            viewModelScope.launch {
+                repository.deletePlaylist(playlistId)
+            }
+        }
+
+        val userCreatedPlaylists: StateFlow<List<PlaylistInfo>> =
+            repository
+                .getUserCreatedVideoPlaylistsFlow()
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+
+        private val _isMerging = MutableStateFlow(false)
+        val isMerging: StateFlow<Boolean> = _isMerging.asStateFlow()
+
+        fun mergeIntoPlaylist(targetPlaylistId: String) {
+            viewModelScope.launch {
+                _isMerging.value = true
+                val videos = _uiState.value.videos
+                try {
+                    repository.addVideosToPlaylist(targetPlaylistId, videos)
+                    val targetInfo = repository.getPlaylistInfo(targetPlaylistId)
+                    Toast
+                        .makeText(
+                            context,
+                            context.getString(R.string.merge_playlist_success, videos.size, targetInfo?.name ?: ""),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                } catch (e: Exception) {
+                    android.util.Log.e("PlaylistDetailVM", "Failed to merge playlist", e)
+                    Toast.makeText(context, context.getString(R.string.toast_failed_to_merge_playlist), Toast.LENGTH_SHORT).show()
+                } finally {
+                    _isMerging.value = false
+                }
+            }
+        }
+
+        private val enrichSemaphore = Semaphore(1)
+
+        private fun enrichMetadata(videos: List<Video>) {
+            if (!enrichSemaphore.tryAcquire()) return
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    videos.chunked(5).forEach { chunk ->
+                        chunk.forEach videoLoop@{ video ->
+                            try {
+                                val refreshed = youTubeRepository.getVideo(video.id) ?: return@videoLoop
+                                repository.updateVideoMetadata(refreshed)
+                            } catch (_: Exception) {
+                            }
+                        }
+                        delay(300L)
+                    }
+                } finally {
+                    enrichSemaphore.release()
+                }
             }
         }
     }
-}

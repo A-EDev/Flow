@@ -49,7 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Comment
@@ -101,19 +101,20 @@ fun BoxScope.TvPlayerPanelsHost(
         }
     }
 
-    val title = when (activePanel) {
-        TvPlayerPanel.SETTINGS -> stringResource(R.string.tv_player_settings)
-        TvPlayerPanel.QUALITY -> stringResource(R.string.quality)
-        TvPlayerPanel.SPEED -> stringResource(R.string.playback_speed)
-        TvPlayerPanel.AUDIO -> stringResource(R.string.audio_track)
-        TvPlayerPanel.SUBTITLES -> stringResource(R.string.filter_subtitles)
-        TvPlayerPanel.QUEUE -> uiState.queueTitle ?: stringResource(R.string.tv_player_queue)
-        TvPlayerPanel.COMMENTS -> stringResource(R.string.comments)
-        TvPlayerPanel.LIVE_CHAT -> stringResource(R.string.live_chat)
-        TvPlayerPanel.DESCRIPTION -> stringResource(R.string.description)
-        TvPlayerPanel.SAVE -> stringResource(R.string.add_to_playlist)
-        null -> ""
-    }
+    val title =
+        when (activePanel) {
+            TvPlayerPanel.SETTINGS -> stringResource(R.string.tv_player_settings)
+            TvPlayerPanel.QUALITY -> stringResource(R.string.quality)
+            TvPlayerPanel.SPEED -> stringResource(R.string.playback_speed)
+            TvPlayerPanel.AUDIO -> stringResource(R.string.audio_track)
+            TvPlayerPanel.SUBTITLES -> stringResource(R.string.filter_subtitles)
+            TvPlayerPanel.QUEUE -> uiState.queueTitle ?: stringResource(R.string.tv_player_queue)
+            TvPlayerPanel.COMMENTS -> stringResource(R.string.comments)
+            TvPlayerPanel.LIVE_CHAT -> stringResource(R.string.live_chat)
+            TvPlayerPanel.DESCRIPTION -> stringResource(R.string.description)
+            TvPlayerPanel.SAVE -> stringResource(R.string.add_to_playlist)
+            null -> ""
+        }
 
     TvSidePanel(
         visible = activePanel != null,
@@ -121,72 +122,108 @@ fun BoxScope.TvPlayerPanelsHost(
         onClose = onDismissPanels,
     ) {
         when (activePanel) {
-            TvPlayerPanel.SETTINGS -> TvSettingsMainPage(
-                currentQualityLabel = uiState.selectedQuality.label,
-                currentSpeed = playerState.playbackSpeed,
-                currentAudioLabel = playerState.availableAudioTracks
-                    .firstOrNull { it.index == playerState.currentAudioTrack }?.label,
-                currentSubtitleLabel = playerState.availableSubtitles
-                    .firstOrNull { it.url == selectedSubtitleUrl }?.label,
-                subtitlesAvailable = playerState.availableSubtitles.isNotEmpty(),
-                audioTracksAvailable = playerState.availableAudioTracks.size > 1,
-                autoplayEnabled = uiState.autoplayEnabled,
-                onToggleAutoplay = viewModel::toggleAutoplay,
-                isLooping = playerState.isLooping,
-                onToggleLoop = viewModel::toggleLoop,
-                skipSilenceEnabled = playerState.isSkipSilenceEnabled,
-                onToggleSkipSilence = viewModel::toggleSkipSilence,
-                stableVolumeEnabled = playerState.isStableVolumeEnabled,
-                onToggleStableVolume = viewModel::toggleStableVolume,
-                ambientModeEnabled = ambientModeEnabled,
-                onToggleAmbientMode = onToggleAmbientMode,
-                onOpen = onOpenPanel,
-            )
-            TvPlayerPanel.QUALITY -> TvQualityPage(
-                qualities = uiState.availableQualities,
-                selected = uiState.selectedQuality,
-                onSelect = {
-                    viewModel.switchQuality(it)
-                    onClosePanel()
-                },
-            )
-            TvPlayerPanel.SPEED -> TvSpeedPage(
-                currentSpeed = playerState.playbackSpeed,
-                onSelect = {
-                    manager.setPlaybackSpeed(it)
-                    onClosePanel()
-                },
-            )
-            TvPlayerPanel.AUDIO -> TvAudioPage(
-                tracks = playerState.availableAudioTracks,
-                currentIndex = playerState.currentAudioTrack,
-                onSelect = {
-                    manager.switchAudioTrack(it.index)
-                    onClosePanel()
-                },
-            )
-            TvPlayerPanel.SUBTITLES -> TvSubtitlesPage(
-                subtitles = playerState.availableSubtitles,
-                selectedUrl = selectedSubtitleUrl,
-                subtitlesEnabled = uiState.subtitlesEnabled,
-                onDisable = onDisableSubtitles,
-                onSelect = onSelectSubtitle,
-            )
-            TvPlayerPanel.QUEUE -> TvQueuePanelContent(
-                manager = manager,
-                onPlayVideo = onPlayVideo,
-            )
-            TvPlayerPanel.COMMENTS -> TvCommentsPanelContent(
-                videoId = video.id,
-                viewModel = viewModel,
-            )
-            TvPlayerPanel.LIVE_CHAT -> TvLiveChatPanelContent(viewModel = viewModel)
-            TvPlayerPanel.DESCRIPTION -> TvDescriptionPanelContent(
-                viewModel = viewModel,
-                onSeekTo = onSeekTo,
-            )
-            TvPlayerPanel.SAVE -> TvSavePanelContent(video = video)
-            null -> Unit
+            TvPlayerPanel.SETTINGS -> {
+                TvSettingsMainPage(
+                    currentQualityLabel = uiState.selectedQuality.label,
+                    currentSpeed = playerState.playbackSpeed,
+                    currentAudioLabel =
+                        playerState.availableAudioTracks
+                            .firstOrNull { it.index == playerState.currentAudioTrack }
+                            ?.label,
+                    currentSubtitleLabel =
+                        playerState.availableSubtitles
+                            .firstOrNull { it.url == selectedSubtitleUrl }
+                            ?.label,
+                    subtitlesAvailable = playerState.availableSubtitles.isNotEmpty(),
+                    audioTracksAvailable = playerState.availableAudioTracks.size > 1,
+                    autoplayEnabled = uiState.autoplayEnabled,
+                    onToggleAutoplay = viewModel::toggleAutoplay,
+                    isLooping = playerState.isLooping,
+                    onToggleLoop = viewModel::toggleLoop,
+                    skipSilenceEnabled = playerState.isSkipSilenceEnabled,
+                    onToggleSkipSilence = viewModel::toggleSkipSilence,
+                    stableVolumeEnabled = playerState.isStableVolumeEnabled,
+                    onToggleStableVolume = viewModel::toggleStableVolume,
+                    ambientModeEnabled = ambientModeEnabled,
+                    onToggleAmbientMode = onToggleAmbientMode,
+                    onOpen = onOpenPanel,
+                )
+            }
+
+            TvPlayerPanel.QUALITY -> {
+                TvQualityPage(
+                    qualities = uiState.availableQualities,
+                    selected = uiState.selectedQuality,
+                    onSelect = {
+                        viewModel.switchQuality(it)
+                        onClosePanel()
+                    },
+                )
+            }
+
+            TvPlayerPanel.SPEED -> {
+                TvSpeedPage(
+                    currentSpeed = playerState.playbackSpeed,
+                    onSelect = {
+                        manager.setPlaybackSpeed(it)
+                        onClosePanel()
+                    },
+                )
+            }
+
+            TvPlayerPanel.AUDIO -> {
+                TvAudioPage(
+                    tracks = playerState.availableAudioTracks,
+                    currentIndex = playerState.currentAudioTrack,
+                    onSelect = {
+                        manager.switchAudioTrack(it.index)
+                        onClosePanel()
+                    },
+                )
+            }
+
+            TvPlayerPanel.SUBTITLES -> {
+                TvSubtitlesPage(
+                    subtitles = playerState.availableSubtitles,
+                    selectedUrl = selectedSubtitleUrl,
+                    subtitlesEnabled = uiState.subtitlesEnabled,
+                    onDisable = onDisableSubtitles,
+                    onSelect = onSelectSubtitle,
+                )
+            }
+
+            TvPlayerPanel.QUEUE -> {
+                TvQueuePanelContent(
+                    manager = manager,
+                    onPlayVideo = onPlayVideo,
+                )
+            }
+
+            TvPlayerPanel.COMMENTS -> {
+                TvCommentsPanelContent(
+                    videoId = video.id,
+                    viewModel = viewModel,
+                )
+            }
+
+            TvPlayerPanel.LIVE_CHAT -> {
+                TvLiveChatPanelContent(viewModel = viewModel)
+            }
+
+            TvPlayerPanel.DESCRIPTION -> {
+                TvDescriptionPanelContent(
+                    viewModel = viewModel,
+                    onSeekTo = onSeekTo,
+                )
+            }
+
+            TvPlayerPanel.SAVE -> {
+                TvSavePanelContent(video = video)
+            }
+
+            null -> {
+                Unit
+            }
         }
     }
 }
@@ -235,9 +272,10 @@ private fun TvQueueVideoRow(
         selected = selected,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -278,7 +316,8 @@ private fun TvQueueVideoRow(
 private fun TvSavePanelContent(video: Video) {
     val context = LocalContext.current
     val repository = remember { PlaylistRepository(context.applicationContext) }
-    val playlists by repository.getAllPlaylistsFlow()
+    val playlists by repository
+        .getAllPlaylistsFlow()
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val visible = playlists.filterNot { it.id == PlaylistRepository.SAVED_SHORTS_ID }
     var membership by remember(video.id) { mutableStateOf(emptySet<String>()) }
@@ -295,10 +334,11 @@ private fun TvSavePanelContent(video: Video) {
     }
 
     LaunchedEffect(video.id, visible.size) {
-        membership = visible
-            .filter { repository.isVideoInPlaylist(it.id, video.id) }
-            .map { it.id }
-            .toSet()
+        membership =
+            visible
+                .filter { repository.isVideoInPlaylist(it.id, video.id) }
+                .map { it.id }
+                .toSet()
     }
 
     fun createAndAdd() {
@@ -326,9 +366,10 @@ private fun TvSavePanelContent(video: Video) {
                         onValueChange = { newName = it },
                         label = { Text(stringResource(R.string.playlist_name)) },
                         singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(nameFocusRequester),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .focusRequester(nameFocusRequester),
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TvButton(
@@ -347,14 +388,16 @@ private fun TvSavePanelContent(video: Video) {
             } else {
                 TvCard(
                     onClick = { creating = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .tvInitialFocus(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .tvInitialFocus(),
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -432,11 +475,12 @@ private fun TvCommentsPanelContent(
                 TvCommentRow(
                     comment = comment,
                     repliesExpanded = expanded,
-                    modifier = if (comment.id == comments.first().id) {
-                        Modifier.tvInitialFocus(comments.first().id)
-                    } else {
-                        Modifier
-                    },
+                    modifier =
+                        if (comment.id == comments.first().id) {
+                            Modifier.tvInitialFocus(comments.first().id)
+                        } else {
+                            Modifier
+                        },
                     onClick = {
                         if (comment.replyCount > 0 || comment.replies.isNotEmpty()) {
                             if (expanded) {
@@ -500,9 +544,10 @@ private fun TvCommentsPanelContent(
                     viewModel.loadMoreComments(videoId)
                 }
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -525,17 +570,19 @@ private fun TvCommentRow(
         selected = repliesExpanded,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             AsyncImage(
                 model = comment.authorThumbnail,
                 contentDescription = null,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape),
+                modifier =
+                    Modifier
+                        .size(32.dp)
+                        .clip(CircleShape),
                 contentScale = ContentScale.Crop,
             )
             Column(
@@ -543,9 +590,10 @@ private fun TvCommentRow(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = listOf(comment.author, comment.publishedTime)
-                        .filter { it.isNotBlank() }
-                        .joinToString(" • "),
+                    text =
+                        listOf(comment.author, comment.publishedTime)
+                            .filter { it.isNotBlank() }
+                            .joinToString(" • "),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -597,10 +645,11 @@ private fun TvLiveChatPanelContent(viewModel: VideoPlayerViewModel) {
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .tvInitialFocus()
-            .focusable(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .tvInitialFocus()
+                .focusable(),
     ) {
         TvLiveChatMessages(uiState = uiState, listState = listState)
     }
@@ -612,41 +661,50 @@ private fun TvLiveChatMessages(
     listState: androidx.compose.foundation.lazy.LazyListState,
 ) {
     when {
-        uiState.isLiveChatLoading && uiState.liveChatMessages.isEmpty() -> Text(
-            text = stringResource(R.string.live_chat_connecting),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        uiState.liveChatMessages.isEmpty() -> Text(
-            text = stringResource(R.string.live_chat_empty),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        else -> LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            itemsIndexed(
-                uiState.liveChatMessages,
-                key = { index, message -> "$index-${message.id}" },
-            ) { _, message ->
-                Column {
-                    Text(
-                        text = message.author,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (message.isOwner || message.isModerator) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = message.message,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+        uiState.isLiveChatLoading && uiState.liveChatMessages.isEmpty() -> {
+            Text(
+                text = stringResource(R.string.live_chat_connecting),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        uiState.liveChatMessages.isEmpty() -> {
+            Text(
+                text = stringResource(R.string.live_chat_empty),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        else -> {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                itemsIndexed(
+                    uiState.liveChatMessages,
+                    key = { index, message -> "$index-${message.id}" },
+                ) { _, message ->
+                    Column {
+                        Text(
+                            text = message.author,
+                            style = MaterialTheme.typography.labelMedium,
+                            color =
+                                if (message.isOwner || message.isModerator) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = message.message,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
             }
         }
@@ -659,7 +717,11 @@ private fun TvDescriptionPanelContent(
     onSeekTo: (Long) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val description = uiState.streamInfo?.description?.content.orEmpty()
+    val description =
+        uiState.streamInfo
+            ?.description
+            ?.content
+            .orEmpty()
     // Mobile's formatter: strips/styles HTML, highlights links and timestamps.
     val formattedDescription = remember(description) { parseHtmlDescription(description) }
     val scrollState = rememberScrollState()
@@ -673,32 +735,36 @@ private fun TvDescriptionPanelContent(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .then(
-                if (hasChapters) {
-                    Modifier
-                } else {
-                    Modifier
-                        .focusRequester(focusRequester)
-                        .onKeyEvent { event ->
-                            if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                            when (event.nativeKeyEvent.keyCode) {
-                                KeyEvent.KEYCODE_DPAD_DOWN -> {
-                                    scope.launch { scrollState.animateScrollBy(320f) }
-                                    true
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .then(
+                    if (hasChapters) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .focusRequester(focusRequester)
+                            .onKeyEvent { event ->
+                                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                                when (event.nativeKeyEvent.keyCode) {
+                                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                        scope.launch { scrollState.animateScrollBy(320f) }
+                                        true
+                                    }
+
+                                    KeyEvent.KEYCODE_DPAD_UP -> {
+                                        scope.launch { scrollState.animateScrollBy(-320f) }
+                                        true
+                                    }
+
+                                    else -> {
+                                        false
+                                    }
                                 }
-                                KeyEvent.KEYCODE_DPAD_UP -> {
-                                    scope.launch { scrollState.animateScrollBy(-320f) }
-                                    true
-                                }
-                                else -> false
-                            }
-                        }
-                        .focusable()
-                }
-            ),
+                            }.focusable()
+                    },
+                ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         if (description.isNotBlank()) {
@@ -716,7 +782,9 @@ private fun TvDescriptionPanelContent(
                 uiState.chapters.forEachIndexed { index, chapter ->
                     TvSelectionRow(
                         label = chapter.title.orEmpty(),
-                        supportingText = io.github.aedev.flow.utils.formatDuration(chapter.startTimeSeconds),
+                        supportingText =
+                            io.github.aedev.flow.utils
+                                .formatDuration(chapter.startTimeSeconds),
                         selected = false,
                         onClick = { onSeekTo(chapter.startTimeSeconds * 1_000L) },
                         modifier = if (index == 0) Modifier.tvInitialFocus() else Modifier,

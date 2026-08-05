@@ -18,7 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.utils.formatSubscriberCount
@@ -35,18 +35,20 @@ fun TvChannelCard(
         modifier = modifier.width(148.dp),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AsyncImage(
                 model = channel.thumbnailUrl,
                 contentDescription = channel.name,
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape),
+                modifier =
+                    Modifier
+                        .size(72.dp)
+                        .clip(CircleShape),
                 contentScale = ContentScale.Crop,
             )
             Text(

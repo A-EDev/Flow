@@ -2,6 +2,7 @@
 
 package io.github.aedev.flow.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -17,26 +18,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
-import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,19 +47,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.util.Log
-import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import coil.compose.AsyncImage
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
@@ -66,11 +66,11 @@ import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.theme.extendedColors
-import io.github.aedev.flow.utils.avatarImageIdentityKey
+import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatPremiereDate
-import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatViewCount
 
 private const val AVATAR_TAG = "ChannelAvatarImage"
@@ -84,21 +84,21 @@ private fun Video.channelAvatarUrls(collaborators: List<VideoCollaborator> = emp
             .take(1)
     }
 
-    return collaborators.map { it.thumbnailUrl }
+    return collaborators
+        .map { it.thumbnailUrl }
         .map { it.trim() }
         .filter { it.isNotEmpty() }
         .distinctBy { it.avatarImageIdentityKey() }
         .take(3)
 }
 
-internal fun Video.collaboratorItems(resolvedCollaborators: List<VideoCollaborator> = emptyList()): List<VideoCollaborator> {
-    return (collaborators + resolvedCollaborators)
+internal fun Video.collaboratorItems(resolvedCollaborators: List<VideoCollaborator> = emptyList()): List<VideoCollaborator> =
+    (collaborators + resolvedCollaborators)
         .filter { it.name.isNotBlank() }
         .filter { it.hasChannelCollaboratorSignal() }
         .distinctBy { it.channelId.ifBlank { it.name.lowercase() } }
         .takeIf { it.size > 1 }
         .orEmpty()
-}
 
 private fun VideoCollaborator.hasChannelCollaboratorSignal(): Boolean =
     channelId.startsWith("UC") ||
@@ -123,11 +123,12 @@ internal fun rememberCollaboratorChannelDisplayName(
     collaborators: List<VideoCollaborator>,
 ): String {
     val firstName = collaborators.firstOrNull()?.name.orEmpty()
-    val compactName = stringResource(
-        R.string.channel_and_more_template,
-        firstName,
-        (collaborators.size - 1).coerceAtLeast(0)
-    )
+    val compactName =
+        stringResource(
+            R.string.channel_and_more_template,
+            firstName,
+            (collaborators.size - 1).coerceAtLeast(0),
+        )
     return remember(fallback, collaborators, compactName) {
         collaborators.displayCollaboratorChannelName(fallback, compactName)
     }
@@ -142,11 +143,12 @@ internal fun rememberCollaboratorItems(video: Video): List<VideoCollaborator> {
         key2 = video.collaborators,
         key3 = needsResolution,
     ) {
-        value = if (needsResolution) {
-            VideoCollaboratorResolver.resolve(video.id)
-        } else {
-            emptyList()
-        }
+        value =
+            if (needsResolution) {
+                VideoCollaboratorResolver.resolve(video.id)
+            } else {
+                emptyList()
+            }
     }
     return remember(video, fetchedCollaborators) {
         video.collaboratorItems(fetchedCollaborators)
@@ -159,15 +161,16 @@ private fun UpcomingReminderBadge(modifier: Modifier = Modifier) {
         modifier = modifier,
         shape = RoundedCornerShape(999.dp),
         color = Color.Black.copy(alpha = 0.7f),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
     ) {
         Icon(
             imageVector = Icons.Rounded.NotificationsActive,
             contentDescription = stringResource(R.string.upcoming_video_reminder_badge),
             tint = Color.White,
-            modifier = Modifier
-                .size(20.dp)
-                .padding(4.dp)
+            modifier =
+                Modifier
+                    .size(20.dp)
+                    .padding(4.dp),
         )
     }
 }
@@ -177,7 +180,7 @@ fun VideoCard(
     video: Video,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onChannelClick: ((String) -> Unit)? = null
+    onChannelClick: ((String) -> Unit)? = null,
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     var showCollaborators by remember { mutableStateOf(false) }
@@ -203,76 +206,80 @@ fun VideoCard(
     val quickActionsVm: QuickActionsViewModel = hiltViewModel()
     val interactionSource = remember { MutableInteractionSource() }
     Column(
-        modifier = modifier
-            .width(180.dp)
-            .pressScale(interactionSource)
-            .clip(RoundedCornerShape(16.dp))
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.material3.ripple(),
-                onLongClick = { showQuickActions = true },
-                onClick = onClick
-            )
-            .padding(4.dp)
+        modifier =
+            modifier
+                .width(180.dp)
+                .pressScale(interactionSource)
+                .clip(RoundedCornerShape(16.dp))
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
+                    onLongClick = { showQuickActions = true },
+                    onClick = onClick,
+                ).padding(4.dp),
     ) {
         // THUMBNAIL BOX
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .thumbnailGradientOverlay()
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .thumbnailGradientOverlay(),
         ) {
             VideoThumbnailImage(
                 videoId = video.id,
                 model = displayThumbnailUrl,
                 contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
 
             if (video.isUpcoming) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
                     color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
                 ) {
                     Text(
                         text = stringResource(R.string.status_upcoming),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             } else if (video.isLive || video.duration > 0) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
                     color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.6f),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
                 ) {
                     Text(
                         text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
 
             if (video.isUpcoming && video.id in upcomingReminderIds) {
                 UpcomingReminderBadge(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
                 )
             }
 
@@ -280,30 +287,33 @@ fun VideoCard(
             watchProgress?.let { progress ->
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(3.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(3.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Black.copy(alpha = 0.4f)
+                    trackColor = Color.Black.copy(alpha = 0.4f),
                 )
             }
 
             if (deArrowResult != null && deArrowBadgeEnabled) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp),
                     shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.AutoFixHigh,
                         contentDescription = stringResource(R.string.dearrow_badge),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .padding(2.dp)
+                        modifier =
+                            Modifier
+                                .size(16.dp)
+                                .padding(2.dp),
                     )
                 }
             }
@@ -313,74 +323,91 @@ fun VideoCard(
 
         // INFO ROW
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             ChannelAvatarStack(
                 urls = video.channelAvatarUrls(collaboratorItems),
                 contentDescription = displayChannelName,
                 avatarSize = 32.dp,
-                modifier = if (onChannelClick != null) {
-                    Modifier.clickable { openChannelOrCollaborators() }
-                } else {
-                    Modifier
-                }
+                modifier =
+                    if (onChannelClick != null) {
+                        Modifier.clickable { openChannelOrCollaborators() }
+                    } else {
+                        Modifier
+                    },
             )
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = displayTitle,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.12f
-                    ),
+                    style =
+                        MaterialTheme.typography.bodyMedium.copy(
+                            lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.12f,
+                        ),
                     fontWeight = FontWeight.SemiBold, // Stronger weight for readability
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
-                
+
                 Spacer(modifier = Modifier.height(6.dp))
-                
+
                 // Metadata Row
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val premiereDate = formatPremiereDate(video.uploadDate)
-                    val displayDate = remember(video.uploadDate, video.timestamp, dateSettings) {
-                        dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
-                    }
+                    val displayDate =
+                        remember(video.uploadDate, video.timestamp, dateSettings) {
+                            dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                        }
                     Text(
-                        text = if (video.isUpcoming)
-                            premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                        else if (video.viewCount >= 0L)
-                            stringResource(R.string.video_metadata_short_template, displayChannelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)))
-                        else
-                            "$displayChannelName · $displayDate",
+                        text =
+                            if (video.isUpcoming) {
+                                premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) }
+                                    ?: stringResource(R.string.premiere_soon)
+                            } else if (video.viewCount >= 0L) {
+                                stringResource(
+                                    R.string.video_metadata_short_template,
+                                    displayChannelName,
+                                    stringResource(R.string.views_template, formatViewCount(video.viewCount)),
+                                )
+                            } else {
+                                "$displayChannelName · $displayDate"
+                            },
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color =
+                            if (video.isUpcoming) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = if (onChannelClick != null) {
-                            Modifier.clickable { openChannelOrCollaborators() }
-                        } else {
-                            Modifier
-                        }
+                        modifier =
+                            if (onChannelClick != null) {
+                                Modifier.clickable { openChannelOrCollaborators() }
+                            } else {
+                                Modifier
+                            },
                     )
                 }
             }
 
             IconButton(
                 onClick = { showQuickActions = true },
-                modifier = Modifier
-                    .size(24.dp)
-                    .offset(x = 4.dp, y = (-4).dp) // Adjust for better alignment
+                modifier =
+                    Modifier
+                        .size(24.dp)
+                        .offset(x = 4.dp, y = (-4).dp), // Adjust for better alignment
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.ui_options),
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -389,25 +416,27 @@ fun VideoCard(
         if (videoCardActionsEnabled) {
             Spacer(modifier = Modifier.height(6.dp))
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { quickActionsVm.markAsInteresting(video) }
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { quickActionsVm.markAsInteresting(video) }
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         Icons.Outlined.ThumbUp,
                         contentDescription = stringResource(R.string.i_like_this),
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -415,23 +444,24 @@ fun VideoCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { quickActionsVm.markNotInterested(video) }
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { quickActionsVm.markNotInterested(video) }
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         Icons.Outlined.ThumbDown,
                         contentDescription = stringResource(R.string.not_interested),
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -439,18 +469,18 @@ fun VideoCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
         }
     }
-    
+
     if (showQuickActions) {
-         VideoQuickActionsBottomSheet(
+        VideoQuickActionsBottomSheet(
             video = video,
             onChannelClick = onChannelClick,
-            onDismiss = { showQuickActions = false }
+            onDismiss = { showQuickActions = false },
         )
     }
 
@@ -458,7 +488,7 @@ fun VideoCard(
         CollaboratorsBottomSheet(
             collaborators = collaboratorItems,
             onChannelClick = onChannelClick,
-            onDismiss = { showCollaborators = false }
+            onDismiss = { showCollaborators = false },
         )
     }
 }
@@ -468,7 +498,7 @@ fun VideoCardHorizontal(
     video: Video,
     modifier: Modifier = Modifier,
     onChannelClick: ((String) -> Unit)? = null,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val dateSettings = rememberDateDisplaySettings()
     val cardPreferences = LocalVideoCardPreferences.current
@@ -491,70 +521,74 @@ fun VideoCardHorizontal(
     }
     val interactionSource = remember { MutableInteractionSource() }
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .pressScale(interactionSource)
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.material3.ripple(),
-                onLongClick = { showQuickActions = true },
-                onClick = onClick
-            )
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .pressScale(interactionSource)
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
+                    onLongClick = { showQuickActions = true },
+                    onClick = onClick,
+                ).padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
-            modifier = Modifier
-                .width(140.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(14.dp)) // Sleek corners
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier =
+                Modifier
+                    .width(140.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(14.dp)) // Sleek corners
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             VideoThumbnailImage(
                 videoId = video.id,
                 model = displayThumbnailUrl,
                 contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
 
             if (video.isUpcoming) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(6.dp),
                     color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(6.dp)
+                    shape = RoundedCornerShape(6.dp),
                 ) {
                     Text(
                         text = stringResource(R.string.status_upcoming),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                     )
                 }
             } else if (video.isLive || video.duration > 0) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(6.dp),
                     color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(6.dp)
+                    shape = RoundedCornerShape(6.dp),
                 ) {
                     Text(
                         text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                     )
                 }
             }
 
             if (video.isUpcoming && video.id in upcomingReminderIds) {
                 UpcomingReminderBadge(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(6.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(6.dp),
                 )
             }
 
@@ -562,26 +596,27 @@ fun VideoCardHorizontal(
             watchProgress?.let { progress ->
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(3.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(3.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Black.copy(alpha = 0.4f)
+                    trackColor = Color.Black.copy(alpha = 0.4f),
                 )
             }
         }
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = displayTitle,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             Column {
@@ -591,29 +626,42 @@ fun VideoCardHorizontal(
                     color = MaterialTheme.extendedColors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = if (onChannelClick != null) {
-                        Modifier.clickable { openChannelOrCollaborators() }
-                    } else {
-                        Modifier
-                    }
+                    modifier =
+                        if (onChannelClick != null) {
+                            Modifier.clickable { openChannelOrCollaborators() }
+                        } else {
+                            Modifier
+                        },
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
-                val displayDate = remember(video.uploadDate, video.timestamp, dateSettings) {
-                    dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
-                }
+                val displayDate =
+                    remember(video.uploadDate, video.timestamp, dateSettings) {
+                        dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                    }
                 Text(
-                    text = if (video.isUpcoming)
-                               premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                           else if (video.viewCount >= 0L)
-                               stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), displayDate)
-                           else
-                               "$displayChannelName · $displayDate",
+                    text =
+                        if (video.isUpcoming) {
+                            premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) }
+                                ?: stringResource(R.string.premiere_soon)
+                        } else if (video.viewCount >= 0L) {
+                            stringResource(
+                                R.string.video_metadata_short_template,
+                                stringResource(R.string.views_template, formatViewCount(video.viewCount)),
+                                displayDate,
+                            )
+                        } else {
+                            "$displayChannelName · $displayDate"
+                        },
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.extendedColors.textSecondary,
+                    color =
+                        if (video.isUpcoming) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.extendedColors.textSecondary
+                        },
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -623,7 +671,7 @@ fun VideoCardHorizontal(
         VideoQuickActionsBottomSheet(
             video = video,
             onChannelClick = onChannelClick,
-            onDismiss = { showQuickActions = false }
+            onDismiss = { showQuickActions = false },
         )
     }
 
@@ -631,7 +679,7 @@ fun VideoCardHorizontal(
         CollaboratorsBottomSheet(
             collaborators = collaboratorItems,
             onChannelClick = onChannelClick,
-            onDismiss = { showCollaborators = false }
+            onDismiss = { showCollaborators = false },
         )
     }
 }
@@ -644,7 +692,7 @@ fun VideoCardFullWidth(
     showChannelAvatar: Boolean = true,
     onClick: () -> Unit,
     onChannelClick: ((String) -> Unit)? = null,
-    onMoreClick: () -> Unit = {}
+    onMoreClick: () -> Unit = {},
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     var showCollaborators by remember { mutableStateOf(false) }
@@ -674,75 +722,79 @@ fun VideoCardFullWidth(
 
     val interactionSource = remember { MutableInteractionSource() }
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .pressScale(interactionSource)
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.material3.ripple(),
-                onLongClick = { showQuickActions = true },
-                onClick = onClick
-            )
-            .then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .pressScale(interactionSource)
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
+                    onLongClick = { showQuickActions = true },
+                    onClick = onClick,
+                ).then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier),
     ) {
         // Thumbnail with duration
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .thumbnailGradientOverlay()
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .thumbnailGradientOverlay(),
         ) {
             VideoThumbnailImage(
                 videoId = video.id,
                 model = displayThumbnailUrl,
                 contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
 
             if (video.isUpcoming) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
                     color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
                     shape = RoundedCornerShape(5.dp),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
                 ) {
                     Text(
                         text = stringResource(R.string.status_upcoming),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             } else if (video.isLive || video.duration > 0) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
                     color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.7f),
                     shape = RoundedCornerShape(5.dp),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
                 ) {
                     Text(
                         text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
 
             if (video.isUpcoming && video.id in upcomingReminderIds) {
                 UpcomingReminderBadge(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
                 )
             }
 
@@ -750,30 +802,33 @@ fun VideoCardFullWidth(
             watchProgress?.let { progress ->
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(3.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(3.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Black.copy(alpha = 0.4f)
+                    trackColor = Color.Black.copy(alpha = 0.4f),
                 )
             }
 
             if (deArrowResultFullWidth != null && deArrowBadgeEnabledFullWidth) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp),
                     shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.AutoFixHigh,
                         contentDescription = stringResource(R.string.dearrow_badge),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .padding(2.dp)
+                        modifier =
+                            Modifier
+                                .size(16.dp)
+                                .padding(2.dp),
                     )
                 }
             }
@@ -781,70 +836,93 @@ fun VideoCardFullWidth(
 
         // Video info section
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp, horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (showChannelAvatar) {
                 ChannelAvatarStack(
                     urls = video.channelAvatarUrls(collaboratorItems),
                     contentDescription = displayChannelName,
                     avatarSize = 40.dp,
-                    modifier = if (onChannelClick != null) {
-                        Modifier.clickable { openChannelOrCollaborators() }
-                    } else {
-                        Modifier
-                    }
+                    modifier =
+                        if (onChannelClick != null) {
+                            Modifier.clickable { openChannelOrCollaborators() }
+                        } else {
+                            Modifier
+                        },
                 )
             }
 
             // Video details
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
                     text = displayTitle,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        lineHeight = MaterialTheme.typography.bodyLarge.fontSize * 1.12f
-                    ),
+                    style =
+                        MaterialTheme.typography.bodyLarge.copy(
+                            lineHeight = MaterialTheme.typography.bodyLarge.fontSize * 1.12f,
+                        ),
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
-                val displayDate = remember(video.uploadDate, video.timestamp, dateSettings) {
-                    dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
-                }
+                val displayDate =
+                    remember(video.uploadDate, video.timestamp, dateSettings) {
+                        dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                    }
                 Text(
-                    text = if (video.isUpcoming)
-                           premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                           else if (video.viewCount >= 0L)
-                               stringResource(R.string.video_metadata_template, displayChannelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)), displayDate)
-                           else
-                               "$displayChannelName · $displayDate",
+                    text =
+                        if (video.isUpcoming) {
+                            premiereDate?.let {
+                                stringResource(
+                                    R.string.premiere_date_prefix,
+                                    it,
+                                )
+                            } ?: stringResource(R.string.premiere_soon)
+                        } else if (video.viewCount >= 0L) {
+                            stringResource(
+                                R.string.video_metadata_template,
+                                displayChannelName,
+                                stringResource(R.string.views_template, formatViewCount(video.viewCount)),
+                                displayDate,
+                            )
+                        } else {
+                            "$displayChannelName · $displayDate"
+                        },
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.extendedColors.textSecondary,
+                    color =
+                        if (video.isUpcoming) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.extendedColors.textSecondary
+                        },
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = if (onChannelClick != null)
-                        Modifier.clickable { openChannelOrCollaborators() }
-                    else Modifier
+                    modifier =
+                        if (onChannelClick != null) {
+                            Modifier.clickable { openChannelOrCollaborators() }
+                        } else {
+                            Modifier
+                        },
                 )
             }
 
             // More options button
             IconButton(
                 onClick = { showQuickActions = true },
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.more_options),
-                    tint = MaterialTheme.colorScheme.onBackground
+                    tint = MaterialTheme.colorScheme.onBackground,
                 )
             }
         }
@@ -852,106 +930,110 @@ fun VideoCardFullWidth(
         // Video card quick actions (like/dislike/mark watched)
         if (videoCardActionsEnabledFW || videoCardMarkWatchedEnabledFW) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .padding(bottom = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 if (videoCardActionsEnabledFW) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { quickActionsVmFW.markAsInteresting(video) }
-                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { quickActionsVmFW.markAsInteresting(video) }
+                                    .padding(horizontal = 8.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
                                 Icons.Outlined.ThumbUp,
                                 contentDescription = stringResource(R.string.i_like_this),
                                 modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = stringResource(R.string.i_like_this),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { quickActionsVmFW.markNotInterested(video) }
-                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { quickActionsVmFW.markNotInterested(video) }
+                                    .padding(horizontal = 8.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
                                 Icons.Outlined.ThumbDown,
                                 contentDescription = stringResource(R.string.not_interested),
                                 modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = stringResource(R.string.not_interested),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
 
                 if (videoCardMarkWatchedEnabledFW) {
-                    val watchedTint = if (isWatchedFW) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    val watchedTint =
+                        if (isWatchedFW) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                if (!isWatchedFW) quickActionsVmFW.markAsWatched(video)
-                            }
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    if (!isWatchedFW) quickActionsVmFW.markAsWatched(video)
+                                }.padding(horizontal = 8.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
                             Icons.Outlined.Visibility,
                             contentDescription = stringResource(R.string.mark_as_watched),
                             modifier = Modifier.size(16.dp),
-                            tint = watchedTint
+                            tint = watchedTint,
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = stringResource(R.string.mark_as_watched),
                             style = MaterialTheme.typography.labelMedium,
-                            color = watchedTint
+                            color = watchedTint,
                         )
                     }
                 }
             }
         }
     }
-    
+
     // Quick actions bottom sheet
     if (showQuickActions) {
         VideoQuickActionsBottomSheet(
             video = video,
             onChannelClick = onChannelClick,
-            onDismiss = { showQuickActions = false }
+            onDismiss = { showQuickActions = false },
         )
     }
 
@@ -959,7 +1041,7 @@ fun VideoCardFullWidth(
         CollaboratorsBottomSheet(
             collaborators = collaboratorItems,
             onChannelClick = onChannelClick,
-            onDismiss = { showCollaborators = false }
+            onDismiss = { showCollaborators = false },
         )
     }
 }
@@ -974,7 +1056,7 @@ fun CompactVideoCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onMoreClick: () -> Unit = {},
-    onChannelClick: ((String) -> Unit)? = null
+    onChannelClick: ((String) -> Unit)? = null,
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     var showCollaborators by remember { mutableStateOf(false) }
@@ -1002,40 +1084,42 @@ fun CompactVideoCard(
 
     val interactionSource = remember { MutableInteractionSource() }
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .pressScale(interactionSource)
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.material3.ripple(),
-                onLongClick = { showQuickActions = true },
-                onClick = onClick
-            )
-            .padding(vertical = 8.dp, horizontal = 12.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .pressScale(interactionSource)
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
+                    onLongClick = { showQuickActions = true },
+                    onClick = onClick,
+                ).padding(vertical = 8.dp, horizontal = 12.dp),
     ) {
         // Thumbnail (Left side)
         Box(
-            modifier = Modifier
-                .width(168.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            modifier =
+                Modifier
+                    .width(168.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         ) {
             VideoThumbnailImage(
                 videoId = video.id,
                 model = displayThumbnailUrl,
                 contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
 
             if (video.isUpcoming || video.viewCount < 0L) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp),
                     color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(4.dp)
+                    shape = RoundedCornerShape(4.dp),
                 ) {
                     Text(
                         text = stringResource(R.string.status_upcoming),
@@ -1043,16 +1127,17 @@ fun CompactVideoCard(
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             } else if (video.isLive || video.duration > 0) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp),
                     color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(4.dp)
+                    shape = RoundedCornerShape(4.dp),
                 ) {
                     Text(
                         text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
@@ -1060,7 +1145,7 @@ fun CompactVideoCard(
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -1069,30 +1154,33 @@ fun CompactVideoCard(
             watchProgress?.let { progress ->
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(3.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(3.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Black.copy(alpha = 0.4f)
+                    trackColor = Color.Black.copy(alpha = 0.4f),
                 )
             }
 
             if (deArrowResultCompact != null && deArrowBadgeEnabledCompact) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp),
                     shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.AutoFixHigh,
                         contentDescription = stringResource(R.string.dearrow_badge),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .padding(2.dp)
+                        modifier =
+                            Modifier
+                                .size(16.dp)
+                                .padding(2.dp),
                     )
                 }
             }
@@ -1102,17 +1190,18 @@ fun CompactVideoCard(
 
         // Info (Right side)
         Column(
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             Text(
                 text = displayTitle,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.12f
-                ),
+                style =
+                    MaterialTheme.typography.bodyMedium.copy(
+                        lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.12f,
+                    ),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -1123,42 +1212,57 @@ fun CompactVideoCard(
                 color = MaterialTheme.extendedColors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = if (onChannelClick != null)
-                    Modifier.clickable { openChannelOrCollaborators() }
-                else Modifier
+                modifier =
+                    if (onChannelClick != null) {
+                        Modifier.clickable { openChannelOrCollaborators() }
+                    } else {
+                        Modifier
+                    },
             )
-            
+
             val premiereDate = formatPremiereDate(video.uploadDate)
-            val displayDate = remember(video.uploadDate, video.timestamp, dateSettings) {
-                dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
-            }
+            val displayDate =
+                remember(video.uploadDate, video.timestamp, dateSettings) {
+                    dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
+                }
             Text(
-                text = if (video.viewCount < 0L)
-                           premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                       else stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), displayDate),
+                text =
+                    if (video.viewCount < 0L) {
+                        premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
+                    } else {
+                        stringResource(
+                            R.string.video_metadata_short_template,
+                            stringResource(R.string.views_template, formatViewCount(video.viewCount)),
+                            displayDate,
+                        )
+                    },
                 style = MaterialTheme.typography.bodySmall,
-                color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.8f),
+                color =
+                    if (video.viewCount < 0L) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.8f)
+                    },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                fontSize = 11.sp
+                fontSize = 11.sp,
             )
         }
 
         Column(
             modifier = Modifier.align(Alignment.Top),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             IconButton(
                 onClick = { showQuickActions = true },
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
 
@@ -1167,24 +1271,24 @@ fun CompactVideoCard(
                     onClick = {
                         if (!isWatchedCompact) quickActionsVmCompact.markAsWatched(video)
                     },
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Visibility,
                         contentDescription = stringResource(R.string.mark_as_watched),
                         tint = if (isWatchedCompact) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
         }
     }
-    
+
     if (showQuickActions) {
-         VideoQuickActionsBottomSheet(
+        VideoQuickActionsBottomSheet(
             video = video,
             onChannelClick = onChannelClick,
-            onDismiss = { showQuickActions = false }
+            onDismiss = { showQuickActions = false },
         )
     }
 
@@ -1192,7 +1296,7 @@ fun CompactVideoCard(
         CollaboratorsBottomSheet(
             collaborators = collaboratorItems,
             onChannelClick = onChannelClick,
-            onDismiss = { showCollaborators = false }
+            onDismiss = { showCollaborators = false },
         )
     }
 }
@@ -1203,12 +1307,13 @@ fun CollaboratorsBottomSheet(
     collaborators: List<VideoCollaborator>,
     onChannelClick: ((String) -> Unit)?,
     onDismiss: () -> Unit,
-    viewModel: QuickActionsViewModel = hiltViewModel()
+    viewModel: QuickActionsViewModel = hiltViewModel(),
 ) {
     val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsState()
-    val collaboratorChannelIds = remember(collaborators) {
-        collaborators.map { it.channelId }.filter { it.isNotBlank() }.distinct()
-    }
+    val collaboratorChannelIds =
+        remember(collaborators) {
+            collaborators.map { it.channelId }.filter { it.isNotBlank() }.distinct()
+        }
     androidx.compose.runtime.LaunchedEffect(collaboratorChannelIds) {
         collaboratorChannelIds.forEach { channelId ->
             viewModel.loadSubscriptionState(channelId)
@@ -1217,27 +1322,29 @@ fun CollaboratorsBottomSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = 16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp),
         ) {
             Text(
                 text = stringResource(R.string.collaborators),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
             )
 
             collaborators.forEach { collaborator ->
                 val canOpenChannel = onChannelClick != null && collaborator.channelId.isNotBlank()
                 val isSubscribed = subscribedChannelIds.contains(collaborator.channelId)
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 10.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     ChannelAvatarStack(
                         urls = listOf(collaborator.thumbnailUrl).filter { it.isNotBlank() },
@@ -1245,18 +1352,19 @@ fun CollaboratorsBottomSheet(
                         avatarSize = 48.dp,
                     )
                     Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .then(
-                                if (canOpenChannel) {
-                                    Modifier.clickable {
-                                        onDismiss()
-                                        onChannelClick?.invoke(collaborator.channelId)
-                                    }
-                                } else {
-                                    Modifier
-                                }
-                            )
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .then(
+                                    if (canOpenChannel) {
+                                        Modifier.clickable {
+                                            onDismiss()
+                                            onChannelClick?.invoke(collaborator.channelId)
+                                        }
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
                     ) {
                         val collaboratorName = collaborator.name.ifBlank { stringResource(R.string.collaborator) }
                         Text(
@@ -1264,7 +1372,7 @@ fun CollaboratorsBottomSheet(
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         if (collaborator.subscriberCountText.isNotBlank()) {
                             Text(
@@ -1272,7 +1380,7 @@ fun CollaboratorsBottomSheet(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -1283,16 +1391,16 @@ fun CollaboratorsBottomSheet(
                                 viewModel.toggleSubscription(
                                     channelId = collaborator.channelId,
                                     channelName = collaborator.name,
-                                    channelThumbnail = collaborator.thumbnailUrl
+                                    channelThumbnail = collaborator.thumbnailUrl,
                                 )
                             },
                             onUnsubscribeClick = {
                                 viewModel.toggleSubscription(
                                     channelId = collaborator.channelId,
                                     channelName = collaborator.name,
-                                    channelThumbnail = collaborator.thumbnailUrl
+                                    channelThumbnail = collaborator.thumbnailUrl,
                                 )
-                            }
+                            },
                         )
                     }
                 }
@@ -1307,32 +1415,34 @@ fun ContinueWatchingShelf(
     onVideoClick: (String) -> Unit,
     onRemove: (String) -> Unit = {},
     onSeeAllClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val uniqueEntries = remember(entries) {
-        entries.distinctByNonBlankKey(VideoHistoryEntry::videoId)
-    }
+    val uniqueEntries =
+        remember(entries) {
+            entries.distinctByNonBlankKey(VideoHistoryEntry::videoId)
+        }
     if (uniqueEntries.isEmpty()) return
     val context = LocalContext.current
     Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (onSeeAllClick != null) Modifier.clickable(onClick = onSeeAllClick) else Modifier)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .then(if (onSeeAllClick != null) Modifier.clickable(onClick = onSeeAllClick) else Modifier)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = Icons.Filled.PlayCircle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = context.getString(R.string.continue_watching_title),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             if (onSeeAllClick != null) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -1340,19 +1450,19 @@ fun ContinueWatchingShelf(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
         LazyRow(
             contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(uniqueEntries, key = { it.videoId }) { entry ->
                 ContinueWatchingCard(
                     entry = entry,
                     onClick = { onVideoClick(entry.videoId) },
-                    onRemove = { onRemove(entry.videoId) }
+                    onRemove = { onRemove(entry.videoId) },
                 )
             }
         }
@@ -1363,18 +1473,19 @@ fun ContinueWatchingShelf(
 private fun ContinueWatchingCard(
     entry: VideoHistoryEntry,
     onClick: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
 ) {
     val resolvedCollaborators by produceState<List<VideoCollaborator>>(
         initialValue = emptyList(),
         key1 = entry.videoId,
         key2 = entry.channelName,
     ) {
-        value = if (entry.channelName.hasLikelyCollaborationByline()) {
-            VideoCollaboratorResolver.resolve(entry.videoId)
-        } else {
-            emptyList()
-        }
+        value =
+            if (entry.channelName.hasLikelyCollaborationByline()) {
+                VideoCollaboratorResolver.resolve(entry.videoId)
+            } else {
+                emptyList()
+            }
     }
     val displayChannelName = rememberCollaboratorChannelDisplayName(entry.channelName, resolvedCollaborators)
 
@@ -1383,24 +1494,25 @@ private fun ContinueWatchingCard(
         thumbnailUrl = entry.thumbnailUrl,
         title = entry.title,
         channelName = displayChannelName,
-        durationText = entry.duration.takeIf { it > 0 }?.let { duration ->
-            formatContinueWatchingTime((duration - entry.position).coerceAtLeast(0L))
-        },
+        durationText =
+            entry.duration.takeIf { it > 0 }?.let { duration ->
+                formatContinueWatchingTime((duration - entry.position).coerceAtLeast(0L))
+            },
         progress = (entry.progressPercentage / 100f).coerceIn(0f, 1f),
         onClick = onClick,
         trailingContent = {
             IconButton(
                 onClick = onRemove,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(28.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
-        }
+        },
     )
 }
 
@@ -1414,76 +1526,81 @@ private fun ShelfVideoCardContent(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     progress: Float? = null,
-    trailingContent: (@Composable () -> Unit)? = null
+    trailingContent: (@Composable () -> Unit)? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Column(
-        modifier = modifier
-            .width(350.dp)
-            .pressScale(interactionSource)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.material3.ripple(),
-                onClick = onClick
-            )
+        modifier =
+            modifier
+                .width(350.dp)
+                .pressScale(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
+                    onClick = onClick,
+                ),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .thumbnailGradientOverlay()
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .thumbnailGradientOverlay(),
         ) {
             VideoThumbnailImage(
                 videoId = videoId,
                 model = thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
             if (durationText != null) {
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {
                     Text(
                         text = durationText,
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
             if (progress != null) {
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(3.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(3.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Black.copy(alpha = 0.4f)
+                    trackColor = Color.Black.copy(alpha = 0.4f),
                 )
             }
         }
         Spacer(modifier = Modifier.height(6.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        lineHeight = MaterialTheme.typography.bodySmall.fontSize * 1.12f
-                    ),
-                    fontWeight = FontWeight.SemiBold
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            lineHeight = MaterialTheme.typography.bodySmall.fontSize * 1.12f,
+                        ),
+                    fontWeight = FontWeight.SemiBold,
                 )
                 if (channelName.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1492,7 +1609,7 @@ private fun ShelfVideoCardContent(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -1513,37 +1630,38 @@ private fun formatContinueWatchingTime(ms: Long): String {
     }
 }
 
-
 @Composable
 fun ShortsShelf(
     shorts: List<Video>,
     onShortClick: (Video) -> Unit,
-    onSeeAllClick: (() -> Unit)? = null
+    onSeeAllClick: (() -> Unit)? = null,
 ) {
-    val uniqueShorts = remember(shorts) {
-        shorts.distinctByNonBlankKey(Video::id)
-    }
+    val uniqueShorts =
+        remember(shorts) {
+            shorts.distinctByNonBlankKey(Video::id)
+        }
     if (uniqueShorts.isEmpty()) return
     val context = LocalContext.current
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (onSeeAllClick != null) Modifier.clickable(onClick = onSeeAllClick) else Modifier)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .then(if (onSeeAllClick != null) Modifier.clickable(onClick = onSeeAllClick) else Modifier)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_shorts),
                 contentDescription = stringResource(R.string.shorts),
                 tint = Color.Red,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = context.getString(R.string.shorts),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             if (onSeeAllClick != null) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -1551,14 +1669,14 @@ fun ShortsShelf(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
-        
+
         LazyRow(
             contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(uniqueShorts, key = { it.id }) { short ->
                 ShortsCard(video = short, onClick = { onShortClick(short) })
@@ -1572,34 +1690,36 @@ fun ShortsCard(
     video: Video,
     onClick: () -> Unit,
     modifier: Modifier = Modifier.width(160.dp),
-    trailingContent: (@Composable () -> Unit)? = null
+    trailingContent: (@Composable () -> Unit)? = null,
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     Column(
-        modifier = modifier
-            .pressScale(interactionSource)
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.material3.ripple(),
-                onLongClick = { showQuickActions = true },
-                onClick = onClick
-            )
+        modifier =
+            modifier
+                .pressScale(interactionSource)
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
+                    onLongClick = { showQuickActions = true },
+                    onClick = onClick,
+                ),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(9f / 16f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .thumbnailGradientOverlay()
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(9f / 16f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .thumbnailGradientOverlay(),
         ) {
             VideoThumbnailImage(
                 videoId = video.id,
                 model = video.thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -1608,17 +1728,17 @@ fun ShortsCard(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
         )
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = stringResource(R.string.views_template, formatViewCount(video.viewCount)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.extendedColors.textSecondary,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             trailingContent?.invoke()
         }
@@ -1628,7 +1748,7 @@ fun ShortsCard(
         VideoQuickActionsBottomSheet(
             video = video,
             onChannelClick = null,
-            onDismiss = { showQuickActions = false }
+            onDismiss = { showQuickActions = false },
         )
     }
 }
@@ -1639,21 +1759,26 @@ fun VideoThumbnailImage(
     model: Any?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Fit
+    contentScale: ContentScale = ContentScale.Fit,
 ) {
-    val models = remember(videoId, model) {
-        when {
-            model is String || model == null ->
-                ThumbnailUrlResolver.resolveVideoThumbnailCandidates(videoId, model as? String)
-            else -> listOf(model)
+    val models =
+        remember(videoId, model) {
+            when {
+                model is String || model == null -> {
+                    ThumbnailUrlResolver.resolveVideoThumbnailCandidates(videoId, model as? String)
+                }
+
+                else -> {
+                    listOf(model)
+                }
+            }
         }
-    }
 
     SafeAsyncImage(
         models = models,
         contentDescription = contentDescription,
         modifier = modifier,
-        contentScale = contentScale
+        contentScale = contentScale,
     )
 }
 
@@ -1662,29 +1787,39 @@ private fun SafeAsyncImage(
     models: List<Any>,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Fit
+    contentScale: ContentScale = ContentScale.Fit,
 ) {
     var index by remember(models) { mutableStateOf(0) }
     val currentModel = models.getOrNull(index)
 
     when {
-        currentModel is ImageVector -> Image(
-            imageVector = currentModel,
-            contentDescription = contentDescription,
-            modifier = modifier,
-            contentScale = contentScale,
-            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)
-        )
-        (currentModel is String && currentModel.isNotEmpty()) || currentModel is Int -> AsyncImage(
-            model = currentModel,
-            contentDescription = contentDescription,
-            modifier = modifier,
-            contentScale = contentScale,
-            onError = {
-                index = if (index < models.lastIndex) index + 1 else models.size
-            }
-        )
-        else -> Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))
+        currentModel is ImageVector -> {
+            Image(
+                imageVector = currentModel,
+                contentDescription = contentDescription,
+                modifier = modifier,
+                contentScale = contentScale,
+                colorFilter =
+                    androidx.compose.ui.graphics.ColorFilter
+                        .tint(MaterialTheme.colorScheme.onSurfaceVariant),
+            )
+        }
+
+        (currentModel is String && currentModel.isNotEmpty()) || currentModel is Int -> {
+            AsyncImage(
+                model = currentModel,
+                contentDescription = contentDescription,
+                modifier = modifier,
+                contentScale = contentScale,
+                onError = {
+                    index = if (index < models.lastIndex) index + 1 else models.size
+                },
+            )
+        }
+
+        else -> {
+            Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))
+        }
     }
 }
 
@@ -1698,7 +1833,7 @@ private fun SafeAsyncImage(
 fun ChannelAvatarImage(
     url: String?,
     contentDescription: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var currentModel by remember(url) {
         val highQualityUrl = ThumbnailUrlResolver.resolveChannelAvatar(url)
@@ -1713,42 +1848,49 @@ fun ChannelAvatarImage(
     var didRetry by remember(url) { mutableStateOf(false) }
 
     when (val model = currentModel) {
-        is ImageVector -> Image(
-            imageVector = model,
-            contentDescription = contentDescription,
-            modifier = modifier,
-            contentScale = ContentScale.Crop,
-            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                MaterialTheme.colorScheme.onSurfaceVariant
+        is ImageVector -> {
+            Image(
+                imageVector = model,
+                contentDescription = contentDescription,
+                modifier = modifier,
+                contentScale = ContentScale.Crop,
+                colorFilter =
+                    androidx.compose.ui.graphics.ColorFilter.tint(
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
             )
-        )
-        else -> AsyncImage(
-            model = model,
-            contentDescription = contentDescription,
-            modifier = modifier,
-            contentScale = ContentScale.Crop,
-            onError = { errorResult ->
-                val errMsg = errorResult.result.throwable?.message ?: "unknown error"
-                if (!didRetry) {
-                    didRetry = true
-                    val src = currentModel as? String ?: run {
-                        Log.e(AVATAR_TAG, "Expected String model but got ${currentModel::class.simpleName}")
-                        return@AsyncImage
-                    }
-                    val lowRes = src.replace(Regex("=s\\d+"), "=s88")
-                    if (lowRes != src) {
-                        Log.w(AVATAR_TAG, "Failed '$src' ($errMsg) → retrying with '$lowRes'")
-                        currentModel = lowRes
+        }
+
+        else -> {
+            AsyncImage(
+                model = model,
+                contentDescription = contentDescription,
+                modifier = modifier,
+                contentScale = ContentScale.Crop,
+                onError = { errorResult ->
+                    val errMsg = errorResult.result.throwable?.message ?: "unknown error"
+                    if (!didRetry) {
+                        didRetry = true
+                        val src =
+                            currentModel as? String ?: run {
+                                Log.e(AVATAR_TAG, "Expected String model but got ${currentModel::class.simpleName}")
+                                return@AsyncImage
+                            }
+                        val lowRes = src.replace(Regex("=s\\d+"), "=s88")
+                        if (lowRes != src) {
+                            Log.w(AVATAR_TAG, "Failed '$src' ($errMsg) → retrying with '$lowRes'")
+                            currentModel = lowRes
+                        } else {
+                            Log.e(AVATAR_TAG, "Failed '$src' ($errMsg), no size param to replace → icon")
+                            currentModel = Icons.Default.AccountCircle
+                        }
                     } else {
-                        Log.e(AVATAR_TAG, "Failed '$src' ($errMsg), no size param to replace → icon")
+                        Log.e(AVATAR_TAG, "Retry also failed for '$model' ($errMsg) → icon")
                         currentModel = Icons.Default.AccountCircle
                     }
-                } else {
-                    Log.e(AVATAR_TAG, "Retry also failed for '$model' ($errMsg) → icon")
-                    currentModel = Icons.Default.AccountCircle
-                }
-            }
-        )
+                },
+            )
+        }
     }
 }
 
@@ -1757,36 +1899,39 @@ fun ChannelAvatarStack(
     urls: List<String>,
     contentDescription: String?,
     avatarSize: androidx.compose.ui.unit.Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val avatarUrls = urls.ifEmpty { listOf("") }.take(3)
     val primaryUrl = avatarUrls.first()
     val secondaryUrl = avatarUrls.getOrNull(1)
     val tertiaryUrl = avatarUrls.getOrNull(2)
-    val stackedAvatarSize = when {
-        !tertiaryUrl.isNullOrBlank() -> avatarSize * 0.64f
-        !secondaryUrl.isNullOrBlank() -> avatarSize * 0.78f
-        else -> avatarSize
-    }
+    val stackedAvatarSize =
+        when {
+            !tertiaryUrl.isNullOrBlank() -> avatarSize * 0.64f
+            !secondaryUrl.isNullOrBlank() -> avatarSize * 0.78f
+            else -> avatarSize
+        }
 
     Box(
-        modifier = modifier
-            .size(avatarSize)
+        modifier =
+            modifier
+                .size(avatarSize),
     ) {
         if (!tertiaryUrl.isNullOrBlank()) {
             ChannelAvatarImage(
                 url = tertiaryUrl,
                 contentDescription = contentDescription,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(stackedAvatarSize)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .border(
-                        width = 1.5.dp,
-                        color = MaterialTheme.colorScheme.background,
-                        shape = CircleShape
-                    )
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(stackedAvatarSize)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(
+                            width = 1.5.dp,
+                            color = MaterialTheme.colorScheme.background,
+                            shape = CircleShape,
+                        ),
             )
         }
 
@@ -1794,39 +1939,41 @@ fun ChannelAvatarStack(
             ChannelAvatarImage(
                 url = secondaryUrl,
                 contentDescription = contentDescription,
-                modifier = Modifier
-                    .align(if (tertiaryUrl.isNullOrBlank()) Alignment.BottomEnd else Alignment.BottomStart)
-                    .size(stackedAvatarSize)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .border(
-                        width = 1.5.dp,
-                        color = MaterialTheme.colorScheme.background,
-                        shape = CircleShape
-                    )
+                modifier =
+                    Modifier
+                        .align(if (tertiaryUrl.isNullOrBlank()) Alignment.BottomEnd else Alignment.BottomStart)
+                        .size(stackedAvatarSize)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(
+                            width = 1.5.dp,
+                            color = MaterialTheme.colorScheme.background,
+                            shape = CircleShape,
+                        ),
             )
         }
 
         ChannelAvatarImage(
             url = primaryUrl,
             contentDescription = contentDescription,
-            modifier = Modifier
-                .align(if (tertiaryUrl.isNullOrBlank()) Alignment.TopStart else Alignment.TopCenter)
-                .size(stackedAvatarSize)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .then(
-                    if (!secondaryUrl.isNullOrBlank()) {
-                        Modifier
-                            .border(
-                                width = 1.5.dp,
-                                color = MaterialTheme.colorScheme.background,
-                                shape = CircleShape
-                            )
-                    } else {
-                        Modifier
-                    }
-                )
+            modifier =
+                Modifier
+                    .align(if (tertiaryUrl.isNullOrBlank()) Alignment.TopStart else Alignment.TopCenter)
+                    .size(stackedAvatarSize)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .then(
+                        if (!secondaryUrl.isNullOrBlank()) {
+                            Modifier
+                                .border(
+                                    width = 1.5.dp,
+                                    color = MaterialTheme.colorScheme.background,
+                                    shape = CircleShape,
+                                )
+                        } else {
+                            Modifier
+                        },
+                    ),
         )
     }
 }

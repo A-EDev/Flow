@@ -1,8 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
@@ -11,12 +12,12 @@ plugins {
 
 android {
     namespace = "io.github.aedev.flow"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "io.github.aedev.flow"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 17
         versionName = "2.2.0"
 
@@ -29,16 +30,13 @@ android {
         ndk {
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
         }
+    }
 
-        // Enable multidex for older devices
-        multiDexEnabled = true
-
-        dependenciesInfo {
-            // Disables dependency metadata when building APKs (for IzzyOnDroid/F-Droid)
-            includeInApk = false
-            // Disables dependency metadata when building Android App Bundles (for Google Play)
-            includeInBundle = false
-        }
+    dependenciesInfo {
+        // Disables dependency metadata when building APKs (for IzzyOnDroid/F-Droid)
+        includeInApk = false
+        // Disables dependency metadata when building Android App Bundles (for Google Play)
+        includeInBundle = false
     }
 
     splits {
@@ -111,7 +109,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = false
             proguardFiles(
-                getDefaultProguardFile("proguard-android.txt"),
+                getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
             signingConfig = signingConfigs.getByName("debug")
@@ -121,7 +119,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
-                getDefaultProguardFile("proguard-android.txt"),
+                getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
             // Use release signing if configured, otherwise fallback to debug
@@ -147,37 +145,6 @@ android {
         isCoreLibraryDesugaringEnabled = true // Enable desugaring
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-
-        if (project.findProperty("composeStrongSkipping") != "false") {
-            freeCompilerArgs +=
-                listOf(
-                    "-P",
-                    "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true",
-                )
-        }
-
-        if (project.findProperty("composeCompilerReports") == "true") {
-            val reportsDir =
-                layout.buildDirectory
-                    .dir("compose_compiler")
-                    .get()
-                    .asFile.absolutePath
-            freeCompilerArgs +=
-                listOf(
-                    "-P",
-                    "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=$reportsDir",
-                    "-P",
-                    "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=$reportsDir",
-                )
-        }
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -193,6 +160,20 @@ android {
         unitTests {
             isReturnDefaultValues = true
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
+    }
+}
+
+composeCompiler {
+    if (project.findProperty("composeCompilerReports") == "true") {
+        val reportsDir = layout.buildDirectory.dir("compose_compiler")
+        reportsDestination = reportsDir
+        metricsDestination = reportsDir
     }
 }
 
@@ -224,6 +205,7 @@ dependencies {
     // --- Image Loading ---
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+    implementation(libs.coil.network.okhttp)
     implementation("androidx.palette:palette-ktx:1.0.0")
 
     // --- Dependency Injection ---
@@ -292,13 +274,8 @@ dependencies {
     implementation(libs.androidx.paging.runtime.ktx)
     implementation(libs.androidx.paging.compose)
 
-    // RxJava (Required for NewPipeExtractor)
-    implementation(libs.rxjava)
-    implementation(libs.rxandroid)
-
     implementation(libs.androidx.work.runtime.ktx)
     "githubImplementation"(libs.apkupdater)
-    implementation(libs.androidx.multidex)
 
     implementation(libs.brotli)
     implementation(libs.re2j)
@@ -311,29 +288,28 @@ dependencies {
     baselineProfile(project(":baselineprofile"))
 
     // Desugaring for older Android versions
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
+    coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
 
     // --- Testing ---
     testImplementation(libs.junit)
-    // Add missing test libs to TOML or keep hardcoded for now if not in catalog
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
-    testImplementation("io.mockk:mockk:1.13.12")
-    testImplementation("com.google.truth:truth:1.1.5")
-    testImplementation("app.cash.turbine:turbine:1.1.0")
-    testImplementation("com.google.dagger:hilt-android-testing:2.51.1")
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockk)
+    testImplementation(libs.truth)
+    testImplementation(libs.turbine)
+    testImplementation(libs.hilt.android.testing)
     kspTest(libs.hilt.android.compiler)
 
     // Room migration tests (device-sync schema 20→23)
     androidTestImplementation(libs.androidx.room.testing)
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.android.compiler)
 
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
 }
 
 // Allow references to generated code

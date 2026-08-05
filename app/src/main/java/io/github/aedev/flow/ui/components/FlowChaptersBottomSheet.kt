@@ -4,13 +4,14 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,35 +20,35 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import io.github.aedev.flow.R
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
@@ -64,7 +65,7 @@ fun FlowChaptersBottomSheet(
     collapsedHeight: Dp = 0.dp,
     enableVerticalDismiss: Boolean = true,
     onSheetProgressChange: (Float) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -77,22 +78,25 @@ fun FlowChaptersBottomSheet(
     val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
-    val sheetProgress = if (expandedHeightPx > 0f) {
-        ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
+    val sheetProgress =
+        if (expandedHeightPx > 0f) {
+            ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
     SideEffect {
         onSheetProgressChange(sheetProgress)
     }
-    val initialActiveChapterIndex = remember(chapters) {
-        chapters
-            .indexOfLast { currentPosition >= it.startTimeSeconds.toLong() * 1000L }
-            .coerceAtLeast(0)
-    }
-    val chaptersListState = rememberLazyListState(
-        initialFirstVisibleItemIndex = initialActiveChapterIndex
-    )
+    val initialActiveChapterIndex =
+        remember(chapters) {
+            chapters
+                .indexOfLast { currentPosition >= it.startTimeSeconds.toLong() * 1000L }
+                .coerceAtLeast(0)
+        }
+    val chaptersListState =
+        rememberLazyListState(
+            initialFirstVisibleItemIndex = initialActiveChapterIndex,
+        )
 
     fun animateToExpanded() {
         if (!enableVerticalDismiss) {
@@ -102,10 +106,11 @@ fun FlowChaptersBottomSheet(
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = expandedHeightPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
             )
         }
     }
@@ -120,10 +125,11 @@ fun FlowChaptersBottomSheet(
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = collapsedHeightPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
             )
             latestOnDismiss()
         }
@@ -141,10 +147,11 @@ fun FlowChaptersBottomSheet(
         }
         sheetHeightPx.animateTo(
             targetValue = expandedHeightPx,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessLow
-            )
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessLow,
+                ),
         )
     }
 
@@ -156,84 +163,94 @@ fun FlowChaptersBottomSheet(
 
     BackHandler(onBack = ::animateToDismiss)
 
-    val headerDragModifier = if (enableVerticalDismiss) Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
-        val velocityTracker = VelocityTracker()
-        detectVerticalDragGestures(
-            onVerticalDrag = { change, dragAmount ->
-                if (isAnimatingOut) return@detectVerticalDragGestures
-                velocityTracker.addPointerInputChange(change)
-                coroutineScope.launch {
-                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
-                    sheetHeightPx.snapTo(nextValue)
-                }
-            },
-            onDragCancel = {
-                velocityTracker.resetTracking()
-                if (!isAnimatingOut) animateToExpanded()
-            },
-            onDragEnd = {
-                val velocityY = velocityTracker.calculateVelocity().y
-                velocityTracker.resetTracking()
-                when {
-                    velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
-                    else -> animateToExpanded()
-                }
+    val headerDragModifier =
+        if (enableVerticalDismiss) {
+            Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
+                val velocityTracker = VelocityTracker()
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, dragAmount ->
+                        if (isAnimatingOut) return@detectVerticalDragGestures
+                        velocityTracker.addPointerInputChange(change)
+                        coroutineScope.launch {
+                            val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
+                            sheetHeightPx.snapTo(nextValue)
+                        }
+                    },
+                    onDragCancel = {
+                        velocityTracker.resetTracking()
+                        if (!isAnimatingOut) animateToExpanded()
+                    },
+                    onDragEnd = {
+                        val velocityY = velocityTracker.calculateVelocity().y
+                        velocityTracker.resetTracking()
+                        when {
+                            velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
+                            else -> animateToExpanded()
+                        }
+                    },
+                )
             }
-        )
-    } else Modifier
+        } else {
+            Modifier
+        }
 
     Box(
         modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
+        contentAlignment = Alignment.BottomCenter,
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(with(density) { sheetHeightPx.value.toDp() }),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(with(density) { sheetHeightPx.value.toDp() }),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp
+            tonalElevation = 0.dp,
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp)
-                        .then(headerDragModifier),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                            .then(headerDragModifier),
+                    contentAlignment = Alignment.Center,
                 ) {
                     BottomSheetDefaults.DragHandle()
                 }
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(headerDragModifier)
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .then(headerDragModifier)
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.in_this_video),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 22.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
+                            style =
+                                MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 22.sp,
+                                ),
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = stringResource(R.string.chapters),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     IconButton(
                         onClick = ::animateToDismiss,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(40.dp),
                     ) {
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
@@ -243,31 +260,35 @@ fun FlowChaptersBottomSheet(
 
                 LazyColumn(
                     state = chaptersListState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     itemsIndexed(
                         chapters,
                         key = { index, chapter ->
                             "${chapter.title}_${chapter.startTimeSeconds}_$index"
-                        }
+                        },
                     ) { index, chapter ->
                         val startTimeMs = chapter.startTimeSeconds.toLong() * 1000L
                         val nextChapter = chapters.getOrNull(index + 1)
-                        val endTimeMs = nextChapter?.startTimeSeconds?.let { it.toLong() * 1000L }
-                            ?: durationMs.takeIf { it > startTimeMs }
+                        val endTimeMs =
+                            nextChapter?.startTimeSeconds?.let { it.toLong() * 1000L }
+                                ?: durationMs.takeIf { it > startTimeMs }
                         val isCurrent = currentPosition >= startTimeMs && (endTimeMs == null || currentPosition < endTimeMs)
-                        val progress = if (isCurrent && endTimeMs != null && endTimeMs > startTimeMs) {
-                            ((currentPosition - startTimeMs).toFloat() / (endTimeMs - startTimeMs).toFloat()).coerceIn(0f, 1f)
-                        } else {
-                            0f
-                        }
-                        val durationLabel = endTimeMs
-                            ?.takeIf { it > startTimeMs }
-                            ?.let { formatChapterDuration((it - startTimeMs) / 1000L) }
+                        val progress =
+                            if (isCurrent && endTimeMs != null && endTimeMs > startTimeMs) {
+                                ((currentPosition - startTimeMs).toFloat() / (endTimeMs - startTimeMs).toFloat()).coerceIn(0f, 1f)
+                            } else {
+                                0f
+                            }
+                        val durationLabel =
+                            endTimeMs
+                                ?.takeIf { it > startTimeMs }
+                                ?.let { formatChapterDuration((it - startTimeMs) / 1000L) }
 
                         ChapterItem(
                             chapter = chapter,
@@ -277,7 +298,7 @@ fun FlowChaptersBottomSheet(
                             thumbnailUrl = chapter.previewUrl?.takeIf { it.isNotBlank() } ?: thumbnailUrl,
                             onClick = {
                                 onChapterClick(startTimeMs)
-                            }
+                            },
                         )
                     }
                 }
@@ -293,55 +314,66 @@ fun ChapterItem(
     progress: Float,
     durationLabel: String?,
     thumbnailUrl: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
-        color = if (isCurrent) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surfaceContainerLow,
-        border = if (isCurrent) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)) else null
+        color =
+            if (isCurrent) {
+                MaterialTheme.colorScheme.surfaceVariant.copy(
+                    alpha = 0.7f,
+                )
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        border = if (isCurrent) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)) else null,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val thumbnailWidth = (maxWidth * 0.42f).coerceIn(72.dp, 146.dp)
             val thumbnailHeight = thumbnailWidth * (82f / 146f)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 ChapterThumbnail(
                     thumbnailUrl = thumbnailUrl,
                     isCurrent = isCurrent,
                     progress = progress,
                     width = thumbnailWidth,
-                    height = thumbnailHeight
+                    height = thumbnailHeight,
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(vertical = 4.dp)
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(vertical = 4.dp),
                 ) {
                     if (isCurrent) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                                contentAlignment = Alignment.Center
+                                modifier =
+                                    Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(12.dp),
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -349,7 +381,7 @@ fun ChapterItem(
                                 text = formatChapterTime(chapter.startTimeSeconds),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
@@ -358,7 +390,7 @@ fun ChapterItem(
                             text = formatChapterTime(chapter.startTimeSeconds),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                     }
@@ -369,7 +401,7 @@ fun ChapterItem(
                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.SemiBold,
                         color = if (isCurrent) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface,
                         maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     if (durationLabel != null) {
                         Spacer(modifier = Modifier.height(4.dp))
@@ -377,7 +409,7 @@ fun ChapterItem(
                             text = durationLabel,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
                         )
                     }
                 }
@@ -392,57 +424,65 @@ private fun ChapterThumbnail(
     isCurrent: Boolean,
     progress: Float,
     width: Dp,
-    height: Dp
+    height: Dp,
 ) {
     val context = LocalContext.current
 
     Box(
-        modifier = Modifier
-            .width(width)
-            .height(height)
-            .clip(RoundedCornerShape(14.dp))
+        modifier =
+            Modifier
+                .width(width)
+                .height(height)
+                .clip(RoundedCornerShape(14.dp)),
     ) {
         if (thumbnailUrl.isNotBlank()) {
             AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(thumbnailUrl)
-                    .crossfade(true)
-                    .build(),
+                model =
+                    ImageRequest
+                        .Builder(context)
+                        .data(thumbnailUrl)
+                        .crossfade(true)
+                        .build(),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         } else {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.colorScheme.surfaceContainerHigh
-                            )
-                        )
-                    )
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush =
+                                Brush.linearGradient(
+                                    colors =
+                                        listOf(
+                                            MaterialTheme.colorScheme.surfaceVariant,
+                                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        ),
+                                ),
+                        ),
             )
         }
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = if (isCurrent) 0.16f else 0.26f))
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = if (isCurrent) 0.16f else 0.26f)),
         )
 
         if (isCurrent) {
             LinearProgressIndicator(
                 progress = { progress },
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth(),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = Color.White.copy(alpha = 0.22f),
                 gapSize = 0.dp,
-                drawStopIndicator = {}
+                drawStopIndicator = {},
             )
         }
     }
@@ -471,6 +511,7 @@ private fun formatChapterDuration(totalSeconds: Long): String {
     }
 }
 
-private fun pluralize(unit: String, value: Long): String {
-    return if (value == 1L) unit else "${unit}s"
-}
+private fun pluralize(
+    unit: String,
+    value: Long,
+): String = if (value == 1L) unit else "${unit}s"

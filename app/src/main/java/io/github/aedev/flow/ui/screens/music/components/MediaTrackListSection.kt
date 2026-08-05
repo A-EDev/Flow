@@ -26,10 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 
@@ -41,7 +41,7 @@ fun MediaTrackListSection(
     onPlayAll: () -> Unit,
     onTrackClick: (MusicTrack) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         SectionHeader(title = title, onPlayAll = onPlayAll)
@@ -50,10 +50,11 @@ fun MediaTrackListSection(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(336.dp)
-                .padding(bottom = 12.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(336.dp)
+                    .padding(bottom = 12.dp),
         ) {
             items(tracks.take(16), key = { it.videoId }) { track ->
                 WideMediaTrackItem(
@@ -62,7 +63,7 @@ fun MediaTrackListSection(
                     onClick = { onTrackClick(track) },
                     onLongClick = { onTrackMenu(track) },
                     onMenuClick = { onTrackMenu(track) },
-                    modifier = Modifier.width(360.dp)
+                    modifier = Modifier.width(360.dp),
                 )
             }
         }
@@ -77,42 +78,43 @@ fun WideMediaTrackItem(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     onMenuClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .height(72.dp)
-            .clip(MaterialTheme.shapes.medium)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-            .padding(horizontal = 4.dp),
+        modifier =
+            modifier
+                .height(72.dp)
+                .clip(MaterialTheme.shapes.medium)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ).padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         AsyncImage(
             model = track.thumbnailUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .width(96.dp)
-                .height(54.dp)
-                .clip(MaterialTheme.shapes.small)
+            modifier =
+                Modifier
+                    .width(96.dp)
+                    .height(54.dp)
+                    .clip(MaterialTheme.shapes.small),
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.artist,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
         if (isDownloaded) {
@@ -120,7 +122,7 @@ fun WideMediaTrackItem(
                 imageVector = Icons.Rounded.OfflinePin,
                 contentDescription = stringResource(R.string.status_downloaded),
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(18.dp),
             )
         }
         IconButton(onClick = onMenuClick) {

@@ -18,7 +18,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.AutoplayCountdownState
 import io.github.aedev.flow.ui.tv.components.TvButton
@@ -51,9 +51,10 @@ fun TvAutoplayCountdownCard(
                     AsyncImage(
                         model = thumbnail,
                         contentDescription = null,
-                        modifier = Modifier
-                            .size(width = 128.dp, height = 72.dp)
-                            .clip(MaterialTheme.shapes.small),
+                        modifier =
+                            Modifier
+                                .size(width = 128.dp, height = 72.dp)
+                                .clip(MaterialTheme.shapes.small),
                         contentScale = ContentScale.Crop,
                     )
                 }
