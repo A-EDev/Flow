@@ -146,6 +146,8 @@ fun SubscriptionsScreen(
     val scope = rememberCoroutineScope()
     val feedGridState = rememberLazyGridState()
 
+    LaunchedEffect(viewModel) { viewModel.ensureStarted() }
+
     // Import Launcher
     val launcher =
         rememberLauncherForActivityResult(

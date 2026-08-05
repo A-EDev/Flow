@@ -17,7 +17,6 @@ import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.utils.PerformanceDispatcher
@@ -88,8 +87,20 @@ class SubscriptionsViewModel
         private var durationEnrichmentJob: Job? = null
         private var visibleVideoIds: Set<String> = emptySet()
         private var hasPendingVisibleEnrichment = false
+        private var hasStarted = false
 
-        init {
+        /**
+         * Starts the preference/feed collectors. Deliberately not run from `init`: the TV shell
+         * hoists this ViewModel at launch (see `FlowTvApp`), so constructing it would kick off the
+         * subscription RSS fetch before the user ever opens Subscriptions. Called from the screens
+         * instead, so the work still begins exactly when the feed becomes visible.
+         *
+         * Idempotent, and only ever called from composition (main thread).
+         */
+        fun ensureStarted() {
+            if (hasStarted) return
+            hasStarted = true
+
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 subscriptionGroupDao.getAllGroups().collect { entities ->
                     val groups = entities.map { it.toUiModel() }
