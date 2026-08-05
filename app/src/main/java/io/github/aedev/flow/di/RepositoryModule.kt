@@ -44,7 +44,6 @@ object RepositoryModule {
         return io.github.aedev.flow.data.music.PlaylistRepository(context)
     }
 
-
     // VideoDownloadManager is now @Singleton @Inject — Hilt provides it automatically
     @Provides
     @Singleton

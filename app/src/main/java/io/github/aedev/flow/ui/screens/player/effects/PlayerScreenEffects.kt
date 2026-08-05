@@ -444,24 +444,6 @@ fun AutoHideControlsEffect(
 }
 
 @Composable
-fun AutoPlayNextEffect(
-    hasEnded: Boolean,
-    autoplayEnabled: Boolean,
-    isLooping: Boolean,
-    hasNextInQueue: Boolean,
-    relatedVideos: List<Video>,
-    onVideoClick: (Video) -> Unit
-) {
-    LaunchedEffect(hasEnded, autoplayEnabled, isLooping, hasNextInQueue) {
-        if (hasEnded && autoplayEnabled && !isLooping && !hasNextInQueue) {
-            relatedVideos.firstOrNull()?.let { nextVideo ->
-                onVideoClick(nextVideo)
-            }
-        }
-    }
-}
-
-@Composable
 fun GestureOverlayAutoHideEffect(
     screenState: PlayerScreenState
 ) {
@@ -472,7 +454,7 @@ fun GestureOverlayAutoHideEffect(
             screenState.showBrightnessOverlay = false
         }
     }
-    
+
     // Volume overlay auto-hide
     LaunchedEffect(screenState.showVolumeOverlay, screenState.volumeLevel) {
         if (screenState.showVolumeOverlay) {
@@ -480,7 +462,7 @@ fun GestureOverlayAutoHideEffect(
             screenState.showVolumeOverlay = false
         }
     }
-    
+
     LaunchedEffect(screenState.seekAccumulation, screenState.showSeekForwardAnimation) {
         if (screenState.showSeekForwardAnimation) {
             delay(800)
@@ -733,64 +715,6 @@ fun PlaybackStartupRecoveryEffect(
 }
 
 @Composable
-fun VideoCleanupEffect(
-    videoId: String,
-    video: Video,
-    currentPosition: Long,
-    duration: Long,
-    uiState: VideoPlayerUiState,
-    viewModel: VideoPlayerViewModel
-) {
-    var lastKnownPosition by remember(videoId) { mutableLongStateOf(currentPosition) }
-    var lastKnownDuration by remember(videoId) { mutableLongStateOf(duration) }
-    var lastKnownTitle by remember(videoId) { mutableStateOf(video.title) }
-    var lastKnownThumbnail by remember(videoId) {
-        mutableStateOf(
-            video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
-        )
-    }
-    var lastKnownChannelName by remember(videoId) { mutableStateOf(video.channelName) }
-    var lastKnownChannelId by remember(videoId) { mutableStateOf(video.channelId) }
-    val currentUiState by rememberUpdatedState(uiState)
-
-    SideEffect {
-        val streamInfo = uiState.streamInfo
-        val belongsToVideo = streamInfo?.id == videoId || uiState.cachedVideo?.id == videoId
-        if (belongsToVideo) {
-            lastKnownPosition = currentPosition
-            lastKnownDuration = duration
-            lastKnownTitle = streamInfo?.name ?: video.title
-            lastKnownThumbnail = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
-                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
-            lastKnownChannelName = resolveHistoryChannelName(video, streamInfo?.uploaderName)
-            lastKnownChannelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-        }
-    }
-
-    DisposableEffect(videoId) {
-        onDispose {
-            if (!currentUiState.isCurrentLiveStream()) {
-                viewModel.savePlaybackPosition(
-                    videoId = videoId,
-                    position = lastKnownPosition,
-                    duration = lastKnownDuration,
-                    title = lastKnownTitle,
-                    thumbnailUrl = lastKnownThumbnail,
-                    channelName = lastKnownChannelName,
-                    channelId = lastKnownChannelId,
-                    isShort = video.isShort
-                )
-
-                viewModel.reportWatchProgress(video, lastKnownPosition, lastKnownDuration)
-            }
-            Log.d(TAG, "Video cleanup disposed for $videoId")
-        }
-    }
-}
-
-@Composable
 fun ShortVideoPromptEffect(
     videoDuration: Int,
     screenState: PlayerScreenState,
@@ -811,16 +735,6 @@ fun ShortVideoPromptEffect(
                 screenState.hasShownShortsPrompt = true
             }
         }
-    }
-}
-
-@Composable
-fun CommentsLoadEffect(
-    videoId: String,
-    viewModel: VideoPlayerViewModel
-) {
-    LaunchedEffect(videoId) {
-        viewModel.loadComments(videoId)
     }
 }
 
@@ -871,17 +785,17 @@ fun OrientationListenerEffect(
         val listener = object : OrientationEventListener(context) {
             override fun onOrientationChanged(orientation: Int) {
                 if (orientation == ORIENTATION_UNKNOWN) return
-                
+
                 val autoRotateOn = try {
                     Settings.System.getInt(context.contentResolver, Settings.System.ACCELEROMETER_ROTATION) == 1
                 } catch (e: Exception) { true }
-                
+
                 if (!autoRotateOn) return
 
                 val newOrientation = when {
-                    orientation in 60..120 || orientation in 240..300 -> 1 
-                    orientation in 0..30 || orientation in 330..359 || orientation in 150..210 -> 0 
-                    else -> physicalOrientation 
+                    orientation in 60..120 || orientation in 240..300 -> 1
+                    orientation in 0..30 || orientation in 330..359 || orientation in 150..210 -> 0
+                    else -> physicalOrientation
                 }
 
                 if (newOrientation != physicalOrientation) {
@@ -895,7 +809,7 @@ fun OrientationListenerEffect(
 
     LaunchedEffect(physicalOrientation, isExpanded) {
         delay(150)
-        
+
         if (physicalOrientation == -1) return@LaunchedEffect
 
         val isVerticalVideo = currentAspectRatio < 1f

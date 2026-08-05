@@ -446,7 +446,7 @@ class EnhancedPlayerManager private constructor() {
         cacheManager = PlayerCacheManager(context).also { it.initialize() }
 
         // Initialize surface manager
-        surfaceManager = SurfaceManager(context)
+        surfaceManager = SurfaceManager()
 
         // Initialize sponsor block handler
         sponsorBlockHandler = SponsorBlockHandler(scope)

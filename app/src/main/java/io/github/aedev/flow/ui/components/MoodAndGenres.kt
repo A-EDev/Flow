@@ -56,48 +56,6 @@ fun MoodAndGenresButton(
 }
 
 /**
- * NEW DESIGN: The "Floating Pill"
- */
-@Composable
-fun MoodChip(
-    title: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isSelected: Boolean = false
-) {
-    val backgroundColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
-
-    val contentColor = if (isSelected) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .height(32.dp)
-            .clip(CircleShape)
-            .background(backgroundColor)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-            ),
-            color = contentColor,
-            maxLines = 1
-        )
-    }
-}
-
-/**
  * NEW DESIGN: The "Modern Tag"
  */
 @Composable

@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Performance Dispatcher - Centralized coroutine management for fast performance
- * 
+ *
  * This module provides:
  * - Optimized thread pools for different workload types
  * - Parallel task execution with automatic error isolation
@@ -35,10 +35,10 @@ import java.util.concurrent.atomic.AtomicInteger
  * - Load balancing across available cores
  */
 object PerformanceDispatcher {
-    
+
     // Get available processors for optimal thread allocation
     private val availableProcessors = Runtime.getRuntime().availableProcessors()
-    
+
     // Network I/O dispatcher - Optimized for high-concurrency network operations
     // Uses more threads than CPU cores since network ops are I/O bound, but keeps
     // TLS/socket allocation pressure bounded on 256 MB heap devices.
@@ -51,36 +51,35 @@ object PerformanceDispatcher {
         }
     }
     private val networkThreadCounter = AtomicInteger(0)
-    
+
     /**
      * Dispatcher optimized for network operations
      * Higher concurrency for I/O bound tasks
      */
     val networkIO: CoroutineDispatcher = networkExecutor.asCoroutineDispatcher()
-    
+
     /**
      * Dispatcher for CPU-intensive parsing operations
      */
     val parsing: CoroutineDispatcher = Dispatchers.Default
-    
+
     /**
      * Dispatcher for disk I/O operations (database, file)
      */
     val diskIO: CoroutineDispatcher = Dispatchers.IO
-    
+
     /**
      * Main thread dispatcher for UI updates
      */
     val main: CoroutineDispatcher = Dispatchers.Main
-    
+
     // Global supervisor scope for background tasks
     private val supervisorJob = SupervisorJob()
-    val backgroundScope = CoroutineScope(diskIO + supervisorJob)
-    
+
     /**
      * Execute multiple network tasks in parallel with error isolation
      * If one task fails, others continue executing
-     * 
+     *
      * @param tasks List of suspend functions to execute
      * @param timeoutMs Maximum time for all tasks (default 30 seconds)
      * @return List of successful results (failed tasks return null)
@@ -102,10 +101,10 @@ object PerformanceDispatcher {
             }
         }.awaitAll()
     }
-    
+
     /**
      * Execute multiple network tasks in parallel and collect non-null results
-     * 
+     *
      * @param tasks List of suspend functions to execute
      * @param timeoutMs Maximum time for all tasks
      * @return List of successful non-null results
@@ -114,11 +113,11 @@ object PerformanceDispatcher {
         vararg tasks: suspend () -> T?,
         timeoutMs: Long = 30_000L
     ): List<T> = parallelFetch(*tasks, timeoutMs = timeoutMs).filterNotNull()
-    
+
     /**
      * Execute a list of tasks with a concurrency limit
      * Prevents overwhelming the network with too many concurrent requests
-     * 
+     *
      * @param items Items to process
      * @param concurrencyLimit Maximum concurrent tasks
      * @param transform Transformation function for each item
@@ -143,10 +142,10 @@ object PerformanceDispatcher {
                 }.awaitAll().filterNotNull()
             }
     }
-    
+
     /**
      * Execute a task with automatic retry on failure
-     * 
+     *
      * @param maxAttempts Maximum retry attempts
      * @param delayMs Delay between attempts (uses exponential backoff)
      * @param task The task to execute
@@ -171,7 +170,7 @@ object PerformanceDispatcher {
         }
         null
     }
-    
+
     /**
      * Execute a task with timeout protection
      */
@@ -181,7 +180,7 @@ object PerformanceDispatcher {
     ): T? = withTimeoutOrNull(timeoutMs) {
         withContext(networkIO) { task() }
     }
-    
+
     /**
      * Batch fetch with automatic chunking and parallel execution
      * Ideal for fetching content from multiple sources
@@ -206,7 +205,7 @@ object PerformanceDispatcher {
         }
         results
     }
-    
+
     /**
      * Race multiple tasks and return the first successful result
      * Useful for fallback strategies
@@ -226,7 +225,7 @@ object PerformanceDispatcher {
                 }
             }
         }
-        
+
         // Wait for first non-null result
         for (deferred in deferreds) {
             val result = deferred.await()
@@ -238,7 +237,7 @@ object PerformanceDispatcher {
         }
         null
     }
-    
+
     /**
      * Cleanup resources when app is destroyed
      */
@@ -247,19 +246,3 @@ object PerformanceDispatcher {
         networkExecutor.shutdown()
     }
 }
-
-/**
- * Extension function for parallel list processing
- */
-suspend fun <T, R> List<T>.parallelMap(
-    concurrency: Int = 6,
-    transform: suspend (T) -> R?
-): List<R> = PerformanceDispatcher.parallelMap(this, concurrency, transform)
-
-/**
- * Extension function for batch fetching
- */
-suspend fun <T, R> List<T>.batchFetch(
-    chunkSize: Int = 4,
-    fetchFn: suspend (T) -> R?
-): List<R> = PerformanceDispatcher.batchFetch(this, chunkSize, fetchFn)

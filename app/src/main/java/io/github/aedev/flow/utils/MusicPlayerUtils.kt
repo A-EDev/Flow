@@ -41,12 +41,6 @@ import kotlin.math.abs
 object MusicPlayerUtils {
     private const val TAG = "MusicPlayerUtils"
 
-    private val httpClient: OkHttpClient
-        get() = AppProxyManager.applyTo(OkHttpClient.Builder())
-            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
-
     @Volatile
     private var cachedSignatureTimestamp: Int? = null
 
@@ -64,7 +58,7 @@ object MusicPlayerUtils {
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         TVHTML5_SIMPLY_EMBEDDED_PLAYER,
         TVHTML5,
-        ANDROID_VR_1_43_32,      
+        ANDROID_VR_1_43_32,
         ANDROID_VR_1_61_48,
         ANDROID_CREATOR,
         IPADOS,
@@ -87,12 +81,12 @@ object MusicPlayerUtils {
 
     // Request deduplication - prevents duplicate fetches for same video
     private val activeRequests = ConcurrentHashMap<String, CompletableDeferred<Result<PlaybackData>>>()
-    
+
     private data class CachedResult(val result: Result<PlaybackData>, val expiryMs: Long)
     private val resultCache = ConcurrentHashMap<String, CachedResult>()
     private const val MAX_RESULT_CACHE_TTL_MS = 600_000L // 10 minutes
     private const val ESCALATION_WINDOW_MS = 120_000L
-    
+
     private val videoRefreshTimestamps = ConcurrentHashMap<String, Long>()
 
     data class PlaybackData(
@@ -134,32 +128,32 @@ object MusicPlayerUtils {
                 resultCache.remove(videoId)
             }
         }
-        
+
         val existingRequest = activeRequests[videoId]
         if (existingRequest != null && existingRequest.isActive) {
             Log.d(TAG, "Reusing existing request for $videoId")
             return@withContext existingRequest.await()
         }
-        
+
         val deferred = CompletableDeferred<Result<PlaybackData>>()
         val previousRequest = activeRequests.putIfAbsent(videoId, deferred)
-        
+
         if (previousRequest != null && previousRequest.isActive) {
             Log.d(TAG, "Another thread started request for $videoId, waiting...")
             return@withContext previousRequest.await()
         }
-        
+
         try {
             val result = fetchPlaybackData(videoId, playlistId)
             deferred.complete(result)
-            
+
             if (result.isSuccess) {
                 val expiresInSec = result.getOrNull()?.streamExpiresInSeconds ?: 300
                 val ttlMs = minOf(expiresInSec * 1000L - 60_000L, MAX_RESULT_CACHE_TTL_MS).coerceAtLeast(30_000L)
                 resultCache[videoId] = CachedResult(result, System.currentTimeMillis() + ttlMs)
                 Log.d(TAG, "Cached result for $videoId, TTL=${ttlMs / 1000}s")
             }
-            
+
             result
         } catch (e: Exception) {
             val failure = Result.failure<PlaybackData>(e)
@@ -169,14 +163,14 @@ object MusicPlayerUtils {
             activeRequests.remove(videoId, deferred)
         }
     }
-    
+
     private suspend fun fetchPlaybackData(
         videoId: String,
         playlistId: String?
     ): Result<PlaybackData> = runCatching {
         val startTime = System.currentTimeMillis()
         Log.d(TAG, "Fetching playback for $videoId (logged in: ${isLoggedIn()})")
-        
+
         var poToken: PoTokenResult? = null
         var sts: Int? = null
         val sessionId = if (isLoggedIn()) YouTube.dataSyncId else YouTube.visitorData
@@ -396,7 +390,7 @@ object MusicPlayerUtils {
     }
 
     private suspend fun tryExtract(
-        response: PlayerResponse?, 
+        response: PlayerResponse?,
         client: YouTubeClient,
         videoId: String,
         validate: Boolean = true,
@@ -497,13 +491,13 @@ object MusicPlayerUtils {
         requireDirectUrl: Boolean = false
     ): PlayerResponse.StreamingData.Format? {
         val adaptiveFormats = response.streamingData?.adaptiveFormats ?: emptyList()
-        
+
         val audioFormats = adaptiveFormats.filter { format ->
             format.mimeType.startsWith("audio/") &&
                 format.audioTrack?.isAutoDubbed != true &&
                 (!requireDirectUrl || !format.url.isNullOrEmpty())
         }
-        
+
         if (audioFormats.isEmpty()) {
             Log.d(TAG, "No audio formats found")
             return null
@@ -517,9 +511,9 @@ object MusicPlayerUtils {
             playerPreferences.musicAudioQuality.first()
         }
         val preferredFormats = preferredAudioFormats(audioFormats, preferredAudioLanguage)
-        
+
         val bestFormat = selectPreferredMusicFormat(preferredFormats, preferredMusicAudioQuality)
-        
+
         Log.d(TAG, "Selected format: ${bestFormat?.mimeType}, bitrate: ${bestFormat?.bitrate}")
         return bestFormat
     }

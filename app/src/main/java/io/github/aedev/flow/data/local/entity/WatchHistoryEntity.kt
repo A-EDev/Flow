@@ -63,20 +63,4 @@ data class WatchHistoryEntity(
         uploadDate = "",
         isShort = isShort
     )
-
-    companion object {
-        fun fromDomain(entry: VideoHistoryEntry) = WatchHistoryEntity(
-            videoId      = entry.videoId,
-            position     = entry.position,
-            duration     = entry.duration,
-            timestamp    = entry.timestamp,
-            title        = entry.title,
-            thumbnailUrl = entry.thumbnailUrl,
-            channelName  = entry.channelName,
-            channelId    = entry.channelId,
-            isMusic      = entry.isMusic,
-            isShort      = entry.isShort,
-            isLocal      = entry.isLocal
-        )
-    }
 }

@@ -61,7 +61,6 @@ object DlnaCastManager {
     val devices: StateFlow<List<DlnaDevice>> = _devices.asStateFlow()
 
     private val _currentDevice = MutableStateFlow<DlnaDevice?>(null)
-    val currentDevice: StateFlow<DlnaDevice?> = _currentDevice.asStateFlow()
 
     private val _isDiscovering = MutableStateFlow(false)
     val isDiscovering: StateFlow<Boolean> = _isDiscovering.asStateFlow()
@@ -74,10 +73,8 @@ object DlnaCastManager {
     private val proxy = StreamProxyServer.getInstance()
 
     private val _castPosition = MutableStateFlow(0L)
-    val castPosition: StateFlow<Long> = _castPosition.asStateFlow()
 
     private val _castDuration = MutableStateFlow(0L)
-    val castDuration: StateFlow<Long> = _castDuration.asStateFlow()
 
     private var positionPollingJob: Job? = null
 
@@ -438,7 +435,7 @@ object DlnaCastManager {
             }
         }
     }
-    
+
     fun seekTo(device: DlnaDevice, positionSeconds: Long) {
         scope.launch {
             try {
@@ -477,7 +474,7 @@ object DlnaCastManager {
             else -> fallback
         }
     }
-    
+
     private fun startPositionPolling(device: DlnaDevice) {
         positionPollingJob?.cancel()
         positionPollingJob = scope.launch {
@@ -569,7 +566,7 @@ object DlnaCastManager {
             }
         }
     }
-    
+
     private fun sendSoapWithResponse(url: String, action: String, body: String): String {
         val request = Request.Builder()
             .url(url)

@@ -200,9 +200,9 @@ fun ShimmerGridVideoCard(
                     modifier = Modifier.fillMaxWidth(0.7f).height(12.dp),
                     delayMillis = 120
                 )
-                
+
                 Spacer(modifier = Modifier.height(2.dp))
-                
+
                 // Metadata
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     ShimmerBone(
@@ -362,54 +362,6 @@ fun ShimmerVideoCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-fun ShimmerListItem(
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Leading image/icon
-        ShimmerBone(
-            modifier = Modifier.size(48.dp),
-            shape = RoundedCornerShape(8.dp)
-        )
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Title
-            ShimmerBone(
-                modifier = Modifier
-                    .fillMaxWidth(0.80f)
-                    .height(13.dp),
-                delayMillis = 60
-            )
-
-            // Subtitle
-            ShimmerBone(
-                modifier = Modifier
-                    .fillMaxWidth(0.50f)
-                    .height(11.dp),
-                shape = RoundedCornerShape(4.dp),
-                delayMillis = 120
-            )
-        }
-
-        // Trailing action
-        ShimmerBone(
-            modifier = Modifier.size(20.dp),
-            shape = CircleShape,
-            delayMillis = 180
-        )
     }
 }
 
@@ -876,154 +828,6 @@ fun MusicScreenShimmerLoading(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun HomeShimmerLoading(
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxSize()
-    ) {
-        // Filter chips
-        ShimmerChipRow()
-
-        Spacer(Modifier.height(8.dp))
-
-        // Section 1: Carousel
-        ShimmerSectionTitle()
-
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            repeat(3) { index ->
-                ShimmerVideoCard(
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Section 2: Full width videos
-        ShimmerSectionTitle()
-
-        repeat(3) { index ->
-            ShimmerVideoCardFullWidth()
-            if (index < 2) Spacer(Modifier.height(8.dp))
-        }
-    }
-}
-
-@Composable
-fun SearchShimmerLoading(
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxSize()
-    ) {
-        // Filter chips
-        ShimmerChipRow(chipCount = 4)
-
-        Spacer(Modifier.height(8.dp))
-
-        repeat(6) { index ->
-            ShimmerVideoCardHorizontal()
-        }
-    }
-}
-
-@Composable
-fun MusicLibraryShimmerLoading(
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxSize()
-    ) {
-        // Shelf title
-        ShimmerSectionTitle()
-
-        // Album row
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            repeat(3) {
-                ShimmerAlbumCard(
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        // Track list title
-        ShimmerSectionTitle()
-
-        // Track list
-        repeat(8) {
-            ShimmerMusicTrack()
-        }
-    }
-}
-
-@Composable
-fun PlayerRelatedShimmerLoading(
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxWidth()
-    ) {
-        ShimmerSectionTitle()
-
-        repeat(5) {
-            ShimmerVideoCardHorizontal()
-        }
-    }
-}
-
-@Composable
-fun ChannelShimmerLoading(
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxSize()
-    ) {
-        ShimmerChannelHeader()
-
-        Spacer(Modifier.height(16.dp))
-
-        // Tab bar
-        ShimmerChipRow(chipCount = 4)
-
-        Spacer(Modifier.height(8.dp))
-
-        // Video grid
-        repeat(4) {
-            ShimmerVideoCardFullWidth()
-            Spacer(Modifier.height(8.dp))
-        }
-    }
-}
-
-@Composable
-fun CommentsShimmerLoading(
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Comment count header
-        ShimmerBone(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .width(100.dp)
-                .height(14.dp)
-        )
-
-        repeat(6) {
-            ShimmerComment()
         }
     }
 }

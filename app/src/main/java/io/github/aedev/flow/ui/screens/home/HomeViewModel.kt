@@ -509,7 +509,7 @@ private fun Video.withChannelMetadataFrom(enriched: Video): Video {
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: YouTubeRepository,
-    private val subscriptionRepository: SubscriptionRepository, 
+    private val subscriptionRepository: SubscriptionRepository,
     private val shortsRepository: ShortsRepository,
     private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
     @ApplicationContext private val appContext: Context
@@ -537,7 +537,7 @@ class HomeViewModel @Inject constructor(
     private val channelMetadataEnrichmentInFlight =
         java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
-    
+
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState
         .map(HomeUiState::withUniqueLazyContent)
@@ -546,7 +546,7 @@ class HomeViewModel @Inject constructor(
             started = SharingStarted.Eagerly,
             initialValue = _uiState.value.withUniqueLazyContent()
         )
-    
+
     private var currentPage: Page? = null
     private var isInitialized = false
     private val homePrefetchQueue = HomePrefetchQueue()
@@ -554,15 +554,13 @@ class HomeViewModel @Inject constructor(
     private var homePrefetchJob: Job? = null
 
     private var subsBacklog: List<Video> = emptyList()
-    
+
     private var currentQueryIndex = 0
     private val discoveryQueries = mutableListOf<String>()
     private var wave2Job: Job? = null
     private var savedInterestJob: Job? = null
 
     private var viewHistory: ViewHistory? = null
-    
-    private val sessionWatchedTopics = mutableListOf<String>()
 
     private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
 
@@ -570,7 +568,7 @@ class HomeViewModel @Inject constructor(
     private data class CachedRelated(val videos: List<Video>, val ts: Long)
     private val relatedCache = java.util.concurrent.ConcurrentHashMap<String, CachedRelated>()
     private val relatedSemaphore = Semaphore(3)
-    
+
     init {
         if (HomeFeedCache.isFresh()) {
             _uiState.update {
@@ -588,14 +586,14 @@ class HomeViewModel @Inject constructor(
             loadHomeShorts()
         }
     }
-    
+
 
     fun initialize(context: Context) {
         if (isInitialized) return
         isInitialized = true
-        
+
         viewHistory = ViewHistory.getInstance(context)
-        
+
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             combine(
                 viewHistory!!.getVideoHistoryFlow(),
@@ -625,7 +623,7 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
-        
+
         viewModelScope.launch {
             FlowNeuroEngine.initialize(context)
         }
@@ -849,13 +847,13 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-    
+
 
     private fun updateVideosAndShorts(newVideos: List<Video>, append: Boolean = false) {
-        val (newShorts, regularVideos) = newVideos.partition { 
+        val (newShorts, regularVideos) = newVideos.partition {
             it.isShort || (it.duration in 1..120) || (it.duration == 0 && !it.isLive)
         }
-        
+
         _uiState.update { state ->
             val watched = watchedVideoIds.value
             val updatedVideos = if (append) (state.videos + regularVideos) else regularVideos
@@ -867,19 +865,19 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    
+
     fun loadFlowFeed(forceRefresh: Boolean = false) {
         if (_uiState.value.isLoading && !forceRefresh) return
-        
+
         wave2Job?.cancel()
         _uiState.update { it.copy(isLoading = true, error = null) }
-        
+
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 discoveryQueries.clear()
                 discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries())
                 currentQueryIndex = 0
-                
+
                 val userSubs = subscriptionRepository.getAllSubscriptionIds()
                 val region = playerPreferences.trendingRegion.first()
                 val fetchStart = System.currentTimeMillis()
@@ -902,14 +900,14 @@ class HomeViewModel @Inject constructor(
 
                     val deferredDiscovery = async {
                         wave1Queries.map { query ->
-                            async { 
-                                runCatching { 
+                            async {
+                                runCatching {
                                     repository.searchVideos(query).first
                                 }.getOrElse { emptyList() }
                             }
                         }.awaitAll().flatten()
                     }
-                    
+
                     val deferredViral = async {
                         runCatching {
                              repository.getTrendingVideos(region).first
@@ -994,7 +992,7 @@ class HomeViewModel @Inject constructor(
                         state.copy(shorts = (state.shorts + rankedShorts).distinctBy { it.id })
                     }
                 }
-                
+
                 // Filter to regular videos for the main feed
                 val watched = watchedVideoIds.value
                 val subsPool = rawSubs.filterValid().filterWatched(watched).enrichAvatars()
@@ -1176,11 +1174,11 @@ class HomeViewModel @Inject constructor(
 
             } catch (e: Exception) {
                  _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = appContext.getString(R.string.error_failed_to_load_feed)) }
-                 loadTrendingFallback() 
+                 loadTrendingFallback()
             }
         }
     }
-    
+
 
     private suspend fun loadNextPrefetchPage(generation: Int): Boolean {
         try {
@@ -1270,12 +1268,12 @@ class HomeViewModel @Inject constructor(
                 if (currentQueryIndex >= discoveryQueries.size) {
                     discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries())
                 }
-                
+
                 val queryA = discoveryQueries.getOrNull(currentQueryIndex++)
                 val queryB = discoveryQueries.getOrNull(currentQueryIndex++)
-                
+
                 val searchQueries = listOfNotNull(queryA, queryB)
-                
+
                 val finalQueries = if (searchQueries.isEmpty()) listOf("Viral") else searchQueries
 
                 val rawVideos = coroutineScope {
@@ -1306,7 +1304,7 @@ class HomeViewModel @Inject constructor(
                         state.copy(shorts = (state.shorts + rankedMore).distinctBy { it.id })
                     }
                 }
-                
+
                 val newVideos = rawVideos.filterValid()
                     .filterWatched(watchedVideoIds.value)
                     .filterRecentHomeSuggestion(now)
@@ -1430,7 +1428,7 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-    
+
 
     fun loadTrendingVideos() {
         if (_uiState.value.isLoading && _uiState.value.videos.isEmpty()) return
@@ -1481,7 +1479,7 @@ class HomeViewModel @Inject constructor(
             error = null
         )}
     }
-    
+
     fun refreshFeed() {
         resetHomePrefetch()
         wave2Job?.cancel()
@@ -1489,7 +1487,7 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(isRefreshing = true) }
         loadFlowFeed(forceRefresh = true)
     }
-    
+
     fun retry() {
         resetHomePrefetch()
         wave2Job?.cancel()
@@ -1525,8 +1523,8 @@ class HomeViewModel @Inject constructor(
             .toList()
 
     private fun addUnique(
-        video: Video?, 
-        targetList: MutableList<Video>, 
+        video: Video?,
+        targetList: MutableList<Video>,
         channelCounts: MutableMap<String, Int>,
         usedVideoIds: MutableSet<String>,
         maxPerChannel: Int = 2
@@ -1731,11 +1729,11 @@ class HomeViewModel @Inject constructor(
 
         return false
     }
-    
+
     private fun List<Video>.filterValid(): List<Video> {
-        return this.filter { 
-            !it.isShort && 
-            ((it.duration > 120) || (it.duration == 0 && it.isLive)) 
+        return this.filter {
+            !it.isShort &&
+            ((it.duration > 120) || (it.duration == 0 && it.isLive))
         }
     }
 
@@ -1744,13 +1742,13 @@ class HomeViewModel @Inject constructor(
             !candidate.video.isShort &&
                 ((candidate.video.duration > 120) || (candidate.video.duration == 0 && candidate.video.isLive))
         }
-    
+
     /**
      * Filter that extracts shorts from a video list for the shelf.
      * Complements filterValid() by capturing what it discards.
      */
     private fun List<Video>.extractShorts(): List<Video> {
-        return this.filter { 
+        return this.filter {
             it.isShort || (it.duration in 1..120 && !it.isLive)
         }
     }

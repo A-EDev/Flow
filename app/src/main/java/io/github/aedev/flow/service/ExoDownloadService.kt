@@ -47,42 +47,11 @@ class ExoDownloadService : DownloadService(
     ): Notification {
         return downloadUtil.downloadNotificationHelper.buildProgressNotification(
             this,
-            io.github.aedev.flow.R.drawable.ic_music_note, 
+            io.github.aedev.flow.R.drawable.ic_music_note,
             null,
-            null, 
+            null,
             downloads,
             notMetRequirements
         )
-    }
-
-    class TerminalStateNotificationHelper(
-        private val context: Context,
-        private val notificationHelper: DownloadNotificationHelper,
-        private var nextNotificationId: Int,
-    ) : DownloadManager.Listener {
-        override fun onDownloadChanged(
-            downloadManager: DownloadManager,
-            download: Download,
-            finalException: Exception?,
-        ) {
-            val notification: Notification
-            if (download.state == Download.STATE_FAILED) {
-                notification = notificationHelper.buildDownloadFailedNotification(
-                    context,
-                    io.github.aedev.flow.R.drawable.ic_music_note, 
-                    null,
-                    Util.fromUtf8Bytes(download.request.data)
-                )
-                NotificationUtil.setNotification(context, nextNotificationId++, notification)
-            } else if (download.state == Download.STATE_COMPLETED) {
-                 notification = notificationHelper.buildDownloadCompletedNotification(
-                    context,
-                    io.github.aedev.flow.R.drawable.ic_music_note, 
-                    null,
-                    Util.fromUtf8Bytes(download.request.data)
-                )
-                NotificationUtil.setNotification(context, nextNotificationId++, notification)
-            }
-        }
     }
 }

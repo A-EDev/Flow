@@ -275,7 +275,6 @@ internal fun ShortVideoPage(
                     }
                 }
             }
-
         if (isActive && player != null) {
             player.addListener(eventListener)
         }
@@ -1801,19 +1800,10 @@ fun ShortsActionButton(
     }
 }
 
-@Composable
-fun ActionButton(
-    icon: ImageVector,
-    text: String,
-    tint: Color = Color.White,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ShortsActionButton(
-        icon = icon,
-        text = text,
-        tint = tint,
-        onClick = onClick,
-        modifier = modifier,
-    )
-}
+fun formatViewCount(count: Long): String {
+    return when {
+        count >= 1_000_000_000 -> String.format("%.1fB", count / 1_000_000_000.0)
+        count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
+        count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
+        else -> count.toString()
+    }

@@ -35,10 +35,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.screens.music.components.*
-import io.github.aedev.flow.ui.screens.music.tabs.*
 import io.github.aedev.flow.ui.theme.Dimensions
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 
 private fun MusicTrack.isAudioMusicCandidate(): Boolean {
     val usableDuration = duration == 0 || duration in 30..1200
@@ -106,7 +104,7 @@ fun EnhancedMusicScreen(
                     onAlbumClick(albumId)
                 }
             },
-            onShare = { 
+            onShare = {
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
@@ -124,7 +122,7 @@ fun EnhancedMusicScreen(
             onOpen = { onAlbumClick(collection.id) }
         )
     }
-    
+
 
 
 
@@ -171,14 +169,14 @@ fun EnhancedMusicScreen(
                 isInitialLoading -> {
                     MusicScreenShimmerLoading()
                 }
-                
+
                 uiState.error != null && uiState.trendingSongs.isEmpty() -> {
                     ErrorContent(
                         error = uiState.error ?: stringResource(R.string.error_occurred),
                         onRetry = { viewModel.retry() }
                     )
                 }
-                
+
                 else -> {
                     val popularArtists = remember(uiState.trendingSongs, uiState.newReleases) {
                         (uiState.trendingSongs + uiState.newReleases)
@@ -244,7 +242,7 @@ fun EnhancedMusicScreen(
                                         ContentFilterChip(
                                             title = chip.title,
                                             isSelected = isChipSelected,
-                                            onClick = { 
+                                            onClick = {
                                                 if (isChipSelected) {
                                                     viewModel.setHomeChip(null)
                                                 } else {
@@ -470,7 +468,7 @@ fun EnhancedMusicScreen(
                                                             thumbnailUrl = track.thumbnailUrl,
                                                             thumbnailHeight = sectionThumbnailHeight,
                                                             isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                            onClick = { 
+                                                            onClick = {
                                                                 when (track.itemType) {
                                                                     MusicItemType.ALBUM, MusicItemType.PLAYLIST -> onAlbumClick(track.videoId)
                                                                     else -> onSongClick(track, section.tracks, section.title)
@@ -581,7 +579,7 @@ fun EnhancedMusicScreen(
                                     }
                                     HomeSectionType.DYNAMIC_HOME -> {
                                         uiState.dynamicSections.forEach { section ->
-                                            if (!section.title.contains("Quick picks", true) && 
+                                            if (!section.title.contains("Quick picks", true) &&
                                                 !section.title.contains("Music videos", true) &&
                                                 !section.title.contains("Music videos for you", true) &&
                                                 !section.title.contains("Live performances", true) &&
@@ -589,7 +587,7 @@ fun EnhancedMusicScreen(
                                                 !section.title.contains("Mixed for you", true) &&
                                                 !section.title.contains("Recommended", true) &&
                                                 !section.title.contains("Listen again", true)) {
-                                                
+
                                                 item {
                                                     SectionTitle(title = section.title)
                                                     val sectionThumbnailHeight = currentGridThumbnailHeight()
@@ -604,7 +602,7 @@ fun EnhancedMusicScreen(
                                                                 thumbnailUrl = track.thumbnailUrl,
                                                                 thumbnailHeight = sectionThumbnailHeight,
                                                                 isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                onClick = { 
+                                                                onClick = {
                                                                     when (track.itemType) {
                                                                         MusicItemType.ALBUM, MusicItemType.PLAYLIST -> onAlbumClick(track.videoId)
                                                                         else -> onSongClick(track, section.tracks, section.title)
@@ -672,7 +670,7 @@ fun EnhancedMusicScreen(
                                                             thumbnailUrl = track.thumbnailUrl,
                                                             thumbnailHeight = newReleaseThumbnailHeight,
                                                             isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                            onClick = { 
+                                                            onClick = {
                                                                 when (track.itemType) {
                                                                     MusicItemType.ALBUM, MusicItemType.PLAYLIST -> onAlbumClick(track.videoId)
                                                                     else -> onSongClick(track, uiState.newReleases, "new_releases")
@@ -800,15 +798,15 @@ fun EnhancedMusicScreen(
                                                     onClick = { onMoodsClick(null) },
                                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                                 )
-                                                
+
                                                 val moodItems = remember(uiState.moodsAndGenres) {
                                                     uiState.moodsAndGenres.flatMap { it.items }
                                                 }
-                                                
+
                                                 val rows = 4
                                                 val moodButtonWidth = ((LocalConfiguration.current.screenWidthDp.dp - 36.dp) / 2)
                                                 val gridHeight = (Dimensions.MoodButtonHeight * rows) + (8.dp * (rows - 1))
-                                                
+
                                                 LazyHorizontalGrid(
                                                     rows = GridCells.Fixed(rows),
                                                     contentPadding = PaddingValues(horizontal = 12.dp),

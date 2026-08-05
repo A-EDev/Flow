@@ -317,44 +317,6 @@ private fun RowScope.ElasticControlButton(
     }
 }
 
-@Composable
-fun ControlButton(
-    icon: ImageVector,
-    contentDescription: String?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    size: Dp = 24.dp,
-    isActive: Boolean = false,
-    activeColor: Color = Color.White,
-    inactiveColor: Color = Color.White
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.75f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 400f),
-        label = "scale"
-    )
-    
-    IconButton(
-        onClick = onClick,
-        modifier = modifier
-            .size(48.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            },
-        interactionSource = interactionSource,
-        colors = IconButtonDefaults.iconButtonColors(contentColor = if (isActive) activeColor else inactiveColor)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(size)
-        )
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerProgressSlider(
@@ -392,7 +354,7 @@ fun PlayerProgressSlider(
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "trackHeight"
     )
-    
+
     val thumbAlpha by animateFloatAsState(
         targetValue = if (isInteracting) 1f else 0f,
         label = "thumbAlpha"
@@ -425,10 +387,10 @@ fun PlayerProgressSlider(
                     isSeeking = false
                 }
             }
-            
+
             when (sliderStyle) {
                 SliderStyle.METROLIST -> {
-                    // Metrolist Thick Style 
+                    // Metrolist Thick Style
                     Slider(
                         value = displayedPosition,
                         onValueChange = { handleSeekPreview(it) },
@@ -442,7 +404,7 @@ fun PlayerProgressSlider(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp) 
+                            .height(48.dp)
                     )
                 }
                 SliderStyle.METROLIST_SLIM -> {
@@ -474,7 +436,7 @@ fun PlayerProgressSlider(
                             inactiveTrackColor = Color.White.copy(alpha = 0.3f),
                             thumbColor = Color.White
                         ),
-                        isPlaying = isPlaying 
+                        isPlaying = isPlaying
                     )
                 }
                 SliderStyle.SLIM -> {
@@ -523,7 +485,7 @@ fun PlayerProgressSlider(
                         },
                         track = {
                             val fraction = if (duration > 0) displayedPosition / sliderEnd else 0f
-                            
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -619,9 +581,9 @@ fun PlayerMainActionButtons(
                 modifier = Modifier.size(20.dp)
             )
         }
-        
+
         Spacer(modifier = Modifier.width(2.dp))
-        
+
         // Divider
         Box(
             modifier = Modifier
@@ -629,9 +591,9 @@ fun PlayerMainActionButtons(
                 .height(16.dp)
                 .background(Color.White.copy(alpha = 0.2f))
         )
-        
+
         Spacer(modifier = Modifier.width(2.dp))
-        
+
         // Like Button
         val likeInteractionSource = remember { MutableInteractionSource() }
         val isLikePressed by likeInteractionSource.collectIsPressedAsState()
@@ -734,36 +696,5 @@ fun PlayerLyricsRefreshButton(
                     .graphicsLayer { rotationZ = rotation.value }
             )
         }
-    }
-}
-
-@Composable
-fun MinimalActionButton(
-    icon: ImageVector,
-    text: String,
-    onClick: () -> Unit,
-    isActive: Boolean = false
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(8.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = text,
-            tint = if (isActive) Color.Green else Color.White.copy(alpha = 0.8f),
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = text.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = if (isActive) Color.Green else Color.White.copy(alpha = 0.6f),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium
-        )
     }
 }

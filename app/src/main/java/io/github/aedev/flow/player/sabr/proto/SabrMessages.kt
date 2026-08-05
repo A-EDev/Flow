@@ -441,18 +441,6 @@ data class FormatBufferedRange(
     }
 }
 
-data class ClientScreenInfo(
-    val screenWidthPixels: Int = 0,
-    val screenHeightPixels: Int = 0,
-    val screenDensity: Float = 0f
-) {
-    fun encode(): ByteArray = ProtobufWriter.encode {
-        if (screenWidthPixels != 0) writeInt32(1, screenWidthPixels)
-        if (screenHeightPixels != 0) writeInt32(2, screenHeightPixels)
-        if (screenDensity != 0f) writeFloat(3, screenDensity)
-    }
-}
-
 /**
  * ClientInfo — nested inside [StreamerContext]. Field numbers per
  * LuanRT/googlevideo `streamer_context.proto`. For the WEB client, [clientName] = 1.
@@ -481,8 +469,8 @@ data class ClientInfo(
 
 // A single SABR context to send back to the server ({type, value})
 data class SabrContext(
-    val type: Int = 0,                   
-    val value: ByteArray = ByteArray(0) 
+    val type: Int = 0,
+    val value: ByteArray = ByteArray(0)
 ) {
     fun encode(): ByteArray = ProtobufWriter.encode {
         if (type != 0) writeInt32(1, type)
@@ -512,7 +500,7 @@ data class StreamerContext(
 }
 
  // VideoPlaybackAbrRequest — field numbers per LuanRT/googlevideo `video_playback_abr_request.proto`
- 
+
 data class VideoPlaybackAbrRequest(
     val clientAbrState: ClientAbrState? = null,             // field 1
     val selectedFormatIds: List<FormatId> = emptyList(),    // field 2 (repeated, server-initialized formats)

@@ -85,9 +85,9 @@ fun FlowActionButton(
                 androidx.compose.material3.LocalContentColor provides if (enabled) contentColor else contentColor.copy(alpha = 0.5f)
                 icon()
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelMedium.copy(
@@ -111,7 +111,7 @@ fun FlowActionGrid(
     columns: Int = 3
 ) {
     val rows = actions.chunked(columns)
-    
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -131,7 +131,7 @@ fun FlowActionGrid(
                         contentColor = if (action.contentColor != Color.Unspecified) action.contentColor else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
+
                 // Fill remaining space if row is not full
                 repeat(columns - row.size) {
                     Spacer(modifier = Modifier.weight(1f))
@@ -245,20 +245,4 @@ fun FlowMenuSectionHeader(
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier.padding(horizontal = 20.dp, vertical = 12.dp)
     )
-}
-
-// Enhanced Menu Container
-@Composable
-fun FlowMenuContainer(
-    content: @Composable () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 32.dp)
-    ) {
-        content()
-    }
 }

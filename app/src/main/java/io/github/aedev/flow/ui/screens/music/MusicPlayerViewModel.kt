@@ -61,9 +61,8 @@ class MusicPlayerViewModel @Inject constructor(
     val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
 
 
-    private val playerPreferences = PlayerPreferences(context)
     private val lyricsHelper = LyricsHelper(context)
-    
+
     private var isInitialized = false
     private var loadTrackJob: kotlinx.coroutines.Job? = null
     private var pendingSeekPosition: Long? = null
@@ -73,11 +72,11 @@ class MusicPlayerViewModel @Inject constructor(
         EnhancedMusicPlayerManager.initialize(context)
         initializeObservers()
     }
-    
+
     private fun initializeObservers() {
         if (isInitialized) return
         isInitialized = true
-        
+
         viewModelScope.launch {
             EnhancedMusicPlayerManager.playerEvents.collect { event ->
                 when (event) {
@@ -90,7 +89,7 @@ class MusicPlayerViewModel @Inject constructor(
                 }
             }
         }
-        
+
         viewModelScope.launch {
             EnhancedMusicPlayerManager.playerState.collect { playerState ->
                 _uiState.update { it.copy(
@@ -108,7 +107,7 @@ class MusicPlayerViewModel @Inject constructor(
                 }
             }
         }
-            
+
         viewModelScope.launch {
             EnhancedMusicPlayerManager.currentTrack.collect { track ->
                 _uiState.update { it.copy(
@@ -134,38 +133,38 @@ class MusicPlayerViewModel @Inject constructor(
                 _uiState.update { it.copy(playingFrom = source) }
             }
         }
-        
+
         viewModelScope.launch {
             downloadManager.downloadedTracks.collect { tracks ->
                 val ids = tracks.map { it.track.videoId }.toSet()
                 _uiState.update { it.copy(downloadedTrackIds = ids) }
             }
         }
-            
+
         viewModelScope.launch {
             EnhancedMusicPlayerManager.queue.collect { queue ->
                 _uiState.update { it.copy(queue = queue) }
             }
         }
-            
+
         viewModelScope.launch {
             EnhancedMusicPlayerManager.currentQueueIndex.collect { index ->
                 _uiState.update { it.copy(currentQueueIndex = index) }
             }
         }
-            
+
         viewModelScope.launch {
             EnhancedMusicPlayerManager.shuffleEnabled.collect { enabled ->
                 _uiState.update { it.copy(shuffleEnabled = enabled) }
             }
         }
-            
+
         viewModelScope.launch {
             EnhancedMusicPlayerManager.repeatMode.collect { mode ->
                 _uiState.update { it.copy(repeatMode = mode) }
             }
         }
-            
+
         viewModelScope.launch {
             EnhancedMusicPlayerManager.automixItems.collect { automix ->
                 _uiState.update {
@@ -176,7 +175,7 @@ class MusicPlayerViewModel @Inject constructor(
                 }
             }
         }
-            
+
         viewModelScope.launch {
             localPlaylistRepository.getMusicPlaylistsFlow().collect { playlistInfos ->
                 val playlists = playlistInfos.map { info ->
@@ -184,7 +183,7 @@ class MusicPlayerViewModel @Inject constructor(
                         id = info.id,
                         name = info.name,
                         description = info.description,
-                        tracks = emptyList(), 
+                        tracks = emptyList(),
                         createdAt = info.createdAt,
                         thumbnailUrl = info.thumbnailUrl,
                         customTrackCount = info.videoCount
@@ -194,7 +193,7 @@ class MusicPlayerViewModel @Inject constructor(
             }
         }
     }
-    
+
     private fun checkIfFavorite(videoId: String) {
         viewModelScope.launch {
             likedVideosRepository.getLikeState(videoId).collect { state ->
@@ -395,13 +394,13 @@ class MusicPlayerViewModel @Inject constructor(
     fun setFilter(filter: String) {
         val currentTrack = _uiState.value.currentTrack ?: return
         _uiState.update { it.copy(selectedFilter = filter, isRelatedLoading = true) }
-        
+
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 val freshRelated = withTimeoutOrNull(10_000L) {
                     YouTubeMusicService.getRelatedMusic(currentTrack.videoId, 25)
                 } ?: emptyList()
-                
+
                 val filteredList = when (filter) {
                     FILTER_DISCOVER -> freshRelated.shuffled().take(20)
                     FILTER_POPULAR -> freshRelated.sortedByDescending { it.duration }.take(20)
@@ -413,12 +412,12 @@ class MusicPlayerViewModel @Inject constructor(
                     }.ifEmpty { freshRelated.shuffled() }.take(20)
                     else -> freshRelated
                 }.distinctByNonBlankKey(MusicTrack::videoId)
-                
+
                 _uiState.update { it.copy(
                     autoplaySuggestions = filteredList,
                     isRelatedLoading = false
                 ) }
-                
+
                 EnhancedMusicPlayerManager.updateAutomixItems(filteredList)
             } catch (e: Exception) {
                 _uiState.update { it.copy(isRelatedLoading = false) }
@@ -482,7 +481,7 @@ class MusicPlayerViewModel @Inject constructor(
                 } else {
                     YouTubeMusicService.getAudioUrl(currentTrack.videoId)
                 }
-                
+
                 if (url != null) {
                     EnhancedMusicPlayerManager.switchMode(url)
                 }
@@ -499,7 +498,7 @@ class MusicPlayerViewModel @Inject constructor(
                 val related = withTimeoutOrNull(10_000L) {
                     YouTubeMusicService.getRelatedMusic(videoId, 20)
                 } ?: emptyList()
-                
+
                 _uiState.update { it.copy(
                     relatedContent = related,
                     isRelatedLoading = false
@@ -525,11 +524,11 @@ class MusicPlayerViewModel @Inject constructor(
 
     fun toggleLike() {
         val currentTrack = _uiState.value.currentTrack ?: return
-        
+
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             val isNowFavorite = playlistRepository.toggleFavorite(currentTrack)
             _uiState.update { it.copy(isLiked = isNowFavorite) }
-            
+
             if (isNowFavorite) {
                 likedVideosRepository.likeVideo(
                     LikedVideoInfo(
@@ -545,16 +544,16 @@ class MusicPlayerViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun addToPlaylist(playlistId: String, track: MusicTrack? = null) {
         val trackToAdd = track ?: _uiState.value.currentTrack ?: return
-        
+
         viewModelScope.launch {
             val video = Video(
                 id = trackToAdd.videoId,
                 title = trackToAdd.title,
                 channelName = trackToAdd.artist,
-                channelId = "", 
+                channelId = "",
                 thumbnailUrl = trackToAdd.thumbnailUrl,
                 duration = trackToAdd.duration,
                 viewCount = 0,
@@ -567,7 +566,7 @@ class MusicPlayerViewModel @Inject constructor(
             Toast.makeText(context, context.getString(R.string.added_to_playlist_toast), Toast.LENGTH_SHORT).show()
         }
     }
-    
+
     fun createPlaylist(name: String, description: String = "", track: MusicTrack? = null) {
         viewModelScope.launch {
             val id = UUID.randomUUID().toString()
@@ -575,11 +574,11 @@ class MusicPlayerViewModel @Inject constructor(
             track?.let { addToPlaylist(id, it) }
         }
     }
-    
+
     fun showAddToPlaylistDialog(show: Boolean) {
         _uiState.update { it.copy(showAddToPlaylistDialog = show) }
     }
-    
+
     fun showCreatePlaylistDialog(show: Boolean) {
         _uiState.update { it.copy(showCreatePlaylistDialog = show) }
     }
@@ -595,10 +594,10 @@ class MusicPlayerViewModel @Inject constructor(
         EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
         Toast.makeText(context, context.getString(R.string.added_to_queue_toast), Toast.LENGTH_SHORT).show()
     }
-    
+
     fun downloadTrack(track: MusicTrack? = null) {
         val trackToDownload = track ?: _uiState.value.currentTrack ?: return
-        
+
         if (_uiState.value.downloadedTrackIds.contains(trackToDownload.videoId)) {
              viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
                  Toast.makeText(context, context.getString(R.string.already_downloaded_toast), Toast.LENGTH_SHORT).show()
@@ -610,10 +609,10 @@ class MusicPlayerViewModel @Inject constructor(
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 Toast.makeText(context, context.getString(R.string.download_started_toast), Toast.LENGTH_SHORT).show()
             }
-            
+
             try {
                 downloadManager.downloadTrack(trackToDownload)
-                
+
             } catch (e: Exception) {
                 android.util.Log.e("MusicDownload", "Download start exception", e)
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
@@ -622,11 +621,11 @@ class MusicPlayerViewModel @Inject constructor(
             }
         }
     }
-    
+
     suspend fun isTrackDownloaded(videoId: String): Boolean {
         return downloadManager.isDownloaded(videoId)
     }
-    
+
     suspend fun isTrackFavorite(videoId: String): Boolean {
         return playlistRepository.isFavorite(videoId)
     }
@@ -652,7 +651,7 @@ class MusicPlayerViewModel @Inject constructor(
                 syncedLyrics = emptyList(),
                 lyricsProviderName = ""
             ) }
-            
+
             val cleanArtist = cleanName(artist)
             val cleanTitle = cleanName(title)
             val targetDuration = duration ?: (_uiState.value.duration.toInt() / 1000)

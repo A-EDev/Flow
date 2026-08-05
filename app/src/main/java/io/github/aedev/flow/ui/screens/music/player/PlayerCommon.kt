@@ -31,23 +31,23 @@ fun AnimatedSkipIndicators(
             delay(500)
             onAnimationComplete()
         }
-        
+
         val slideIn = remember { Animatable(if (direction == SkipDirection.NEXT) 1f else -1f) }
-        
+
         LaunchedEffect(direction) {
             slideIn.animateTo(
                 targetValue = 0f,
                 animationSpec = tween(300, easing = FastOutSlowInEasing)
             )
         }
-        
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(32.dp),
-            contentAlignment = if (direction == SkipDirection.NEXT) 
-                Alignment.CenterEnd 
-            else 
+            contentAlignment = if (direction == SkipDirection.NEXT)
+                Alignment.CenterEnd
+            else
                 Alignment.CenterStart
         ) {
             Surface(
@@ -68,42 +68,6 @@ fun AnimatedSkipIndicators(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun PillButton(
-    icon: ImageVector,
-    text: String,
-    onClick: () -> Unit
-) {
-    // Deprecated: Used MinimalActionButton in PlayerControls instead (Maybe i will reuse later)
-    val buttonBgColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-    val contentColor = MaterialTheme.colorScheme.onSurface
-    
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = buttonBgColor,
-        onClick = onClick,
-        modifier = Modifier.height(40.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = text,
-                tint = contentColor,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge,
-                color = contentColor
-            )
         }
     }
 }

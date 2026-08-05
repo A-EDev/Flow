@@ -545,7 +545,6 @@ class MainActivity : ComponentActivity() {
             } else {
                 notificationVideoId
             }
-
         // Check extra
         if (intent.getBooleanExtra("is_short", false) || intent.getBooleanExtra("is_shorts", false)) {
             _isDeeplinkShort.value = true
@@ -738,7 +737,6 @@ class MainActivity : ComponentActivity() {
             playerManager.playerState.value.isPlaying &&
                 playerManager.playerState.value.currentVideoId != null &&
                 playerManager.getCurrentPosition() > 500 // At least 0.5s in
-
         val isMusicPlaying = musicManager.playerState.value.isPlaying
 
         // Only enter PiP for video, not for music (which uses background service)
@@ -864,7 +862,6 @@ class MainActivity : ComponentActivity() {
                         .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
                         .header("Accept", "application/vnd.github.v3+json")
                         .build()
-
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
                     val body = response.body?.string()

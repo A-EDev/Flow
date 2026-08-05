@@ -422,7 +422,7 @@ fun LicenseDialog(onDismiss: () -> Unit) {
 fun DeviceInfoDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    
+
     val deviceInfo = remember {
         buildString {
             append(context.getString(R.string.manufacturer_label, Build.MANUFACTURER) + "\n")
@@ -512,12 +512,3 @@ private fun openUrl(context: Context, url: String) {
         e.printStackTrace()
     }
 }
-
-// Compat shim — kept for any existing call sites
-@Composable
-fun CustomIconSettingsItem(
-    iconPainter: Painter,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) = AboutRowWithPainter(iconPainter = iconPainter, title = title, subtitle = subtitle, onClick = onClick)

@@ -12,26 +12,24 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
 @UnstableApi
-class SurfaceManager(
-    private val appContext: Context?
-) {
+class SurfaceManager {
     companion object {
         private const val TAG = "SurfaceManager"
     }
-    
+
     private var surfaceHolder: SurfaceHolder? = null
     private var placeholderSurface: PlaceholderSurface? = null
-    
+
     var isSurfaceReady: Boolean = false
         private set
-    
+
     private val _surfaceReadyFlow = MutableStateFlow(false)
-    
+
     /**
      * Get the current surface holder.
      */
     fun getSurfaceHolder(): SurfaceHolder? = surfaceHolder
-    
+
     /**
      * Attach a video surface to the player.
      * Uses getSurface() approach like NewPipe for better compatibility.
@@ -90,7 +88,7 @@ class SurfaceManager(
             false
         }
     }
-    
+
     /**
      * Detach the video surface from the player.
      */
@@ -103,7 +101,7 @@ class SurfaceManager(
 
         Log.d(TAG, "detachVideoSurface called")
         surfaceHolder = null
-        
+
         try {
             if (player != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 if (context != null) {
@@ -116,7 +114,7 @@ class SurfaceManager(
                             Log.w(TAG, "Failed to create placeholder surface", e)
                         }
                     }
-                    
+
                     placeholderSurface?.let {
                         player.setVideoSurface(it)
                         Log.d(TAG, "Attached placeholder surface (surface detached temporarily)")
@@ -135,7 +133,7 @@ class SurfaceManager(
 
         setSurfaceReady(false)
     }
-    
+
     /**
      * Reattach surface to player if holder is still valid.
      * Used after player initialization or recreation.
@@ -160,7 +158,7 @@ class SurfaceManager(
         }
         return false
     }
-    
+
     /**
      * Set surface readiness state.
      */
@@ -169,7 +167,7 @@ class SurfaceManager(
         _surfaceReadyFlow.value = ready
         Log.d(TAG, "Surface ready: $ready")
     }
-    
+
     /**
      * Suspend function that waits for a real surface to be attached.
      * Returns true if surface became ready within timeout.
@@ -193,14 +191,14 @@ class SurfaceManager(
                 Log.d(TAG, "Surface holder exists but surface invalid - waiting for callback")
             }
         }
-        
+
         Log.d(TAG, "Waiting for surface to be ready (timeout: ${timeoutMillis}ms)...")
-        
+
         val result = withTimeoutOrNull(timeoutMillis) {
             _surfaceReadyFlow.first { it }
             true
         }
-        
+
         return if (result == true) {
             Log.d(TAG, "Surface became ready!")
             true
@@ -215,14 +213,14 @@ class SurfaceManager(
             false
         }
     }
-    
+
     /**
      * Check if the current surface is valid and ready for rendering.
      */
     fun isSurfaceValid(): Boolean {
         return runCatching { surfaceHolder?.surface?.isValid == true }.getOrDefault(false)
     }
-    
+
     /**
      * Release all surface resources.
      */
@@ -237,7 +235,7 @@ class SurfaceManager(
             runCatching { surface.release() }
         }
         placeholderSurface = null
-        
+
         isSurfaceReady = false
         _surfaceReadyFlow.value = false
         surfaceHolder = null

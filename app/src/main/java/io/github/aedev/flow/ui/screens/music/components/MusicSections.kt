@@ -72,92 +72,13 @@ fun SectionHeader(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            stringResource(R.string.action_play_all), 
-                            color = MaterialTheme.colorScheme.onBackground, 
+                            stringResource(R.string.action_play_all),
+                            color = MaterialTheme.colorScheme.onBackground,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun QuickPicksGrid(
-    songs: List<MusicTrack>,
-    currentVideoId: String? = null,
-    downloadedTrackIds: Set<String> = emptySet(),
-    onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
-    onMenuClick: (MusicTrack) -> Unit
-) {
-    LazyHorizontalGrid(
-        rows = GridCells.Fixed(4),
-        modifier = Modifier
-            .height(340.dp)
-            .fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(songs, key = { it.videoId }) { track ->
-            QuickPickItem(
-                track = track, 
-                isPlaying = track.videoId == currentVideoId,
-                isDownloaded = downloadedTrackIds.contains(track.videoId),
-                onClick = { onSongClick(track, songs, "quick_picks") },
-                onMenuClick = { onMenuClick(track) }
-            )
-        }
-    }
-}
-
-@Composable
-fun GenreSection(
-    genre: String,
-    tracks: List<MusicTrack>,
-    downloadedTrackIds: Set<String> = emptySet(),
-    onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
-    onTrackMenu: (MusicTrack) -> Unit = {},
-    onSeeAllClick: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = genre,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            TextButton(onClick = onSeeAllClick) {
-                Text(stringResource(R.string.action_view_all))
-                Icon(
-                    imageVector = Icons.Filled.ChevronRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-        
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
-        ) {
-            items(tracks.take(10), key = { it.videoId }) { track ->
-                io.github.aedev.flow.ui.screens.music.components.AlbumCard(
-                    title = track.title,
-                    subtitle = track.artist,
-                    thumbnailUrl = track.thumbnailUrl,
-                    isDownloaded = downloadedTrackIds.contains(track.videoId),
-                    onClick = { onSongClick(track, tracks, "genre_$genre") },
-                    onLongClick = { onTrackMenu(track) }
-                )
             }
         }
     }
