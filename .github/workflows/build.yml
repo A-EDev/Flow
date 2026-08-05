@@ -50,16 +50,9 @@ jobs:
             echo "Release keystore secret is not available. Skipping decoding."
           fi
 
-      - name: Run CI unit tests
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+      - name: Run unit tests
         run: >
-          ./gradlew :app:testGithubNightlyUnitTest :app:testFossReleaseUnitTest
-          --parallel --build-cache --stacktrace
-
-      - name: Run release unit tests
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: >
-          ./gradlew :app:testGithubReleaseUnitTest :app:testFossReleaseUnitTest
+          ./gradlew :app:testGithubDebugUnitTest :app:testFossDebugUnitTest
           --parallel --build-cache --stacktrace
 
       - name: Lint GitHub nightly
@@ -94,7 +87,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Verify Discord nightly APK
+      - name: Checksum nightly APK
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: |
           test -f app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk
