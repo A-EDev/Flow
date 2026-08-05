@@ -17,6 +17,7 @@ plugins {
     id("com.android.test") version "9.3.1" apply false
     id("androidx.baselineprofile") version "1.5.0-beta01" apply false
     id("com.diffplug.spotless") version "8.8.0"
+    alias(libs.plugins.room) apply false
 }
 
 spotless {
