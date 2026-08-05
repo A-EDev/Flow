@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.screens.channel
 
 import android.content.Context
 import com.google.common.truth.Truth.assertThat
-import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -64,28 +63,29 @@ class ChannelViewModelTest {
         }
 
     @Test
-    fun `unsubscribe delegates to subscription repository`() =
+    fun `saveScrollPosition retains index and offset`() =
         runTest {
-            val channelId = "UC_test_channel_123"
-            coEvery { subscriptionRepository.unsubscribe(channelId) } returns Unit
+            viewModel.saveScrollPosition(index = 7, offset = 120)
 
-            viewModel.unsubscribe()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Without a channelId in state, unsubscribe returns early
-            coVerify(exactly = 0) { subscriptionRepository.unsubscribe(channelId) }
+            assertThat(viewModel.listScrollIndex).isEqualTo(7)
+            assertThat(viewModel.listScrollOffset).isEqualTo(120)
         }
 
     @Test
-    fun `setNotificationState delegates to subscription repository when channelId present`() =
+    fun `unsubscribe is a no-op until a channel is loaded`() =
         runTest {
-            val channelId = "UC_test_channel"
-            coEvery { subscriptionRepository.updateNotificationState(channelId, true) } returns Unit
+            viewModel.unsubscribe()
+            testDispatcher.scheduler.advanceUntilIdle()
 
+            coVerify(exactly = 0) { subscriptionRepository.unsubscribe(any()) }
+        }
+
+    @Test
+    fun `setNotificationState is a no-op until a channel is loaded`() =
+        runTest {
             viewModel.setNotificationState(true)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Verify guarded execution when channelId is null
             coVerify(exactly = 0) { subscriptionRepository.updateNotificationState(any(), any()) }
         }
 }

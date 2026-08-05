@@ -76,6 +76,42 @@ class SubscriptionsViewModelTest {
         unmockkAll()
     }
 
+    /**
+     * Regression guard: the TV shell hoists this ViewModel at app launch, so merely constructing it
+     * must not read preferences or kick off the subscription feed fetch. That work belongs to
+     * [SubscriptionsViewModel.ensureStarted], which the screens call when the feed becomes visible.
+     */
+    @Test
+    fun `construction does not start collectors or touch the feed`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 0) { subscriptionRepository.getAllSubscriptions() }
+            coVerify(exactly = 0) { subscriptionGroupDao.getAllGroups() }
+            coVerify(exactly = 0) { cacheDao.getSubscriptionFeed() }
+        }
+
+    @Test
+    fun `ensureStarted begins collecting subscriptions`() =
+        runTest {
+            viewModel.ensureStarted()
+
+            coVerify(timeout = VERIFY_TIMEOUT_MS) { subscriptionRepository.getAllSubscriptions() }
+            coVerify(timeout = VERIFY_TIMEOUT_MS) { subscriptionGroupDao.getAllGroups() }
+        }
+
+    @Test
+    fun `ensureStarted is idempotent`() =
+        runTest {
+            viewModel.ensureStarted()
+            coVerify(timeout = VERIFY_TIMEOUT_MS) { subscriptionGroupDao.getAllGroups() }
+
+            viewModel.ensureStarted()
+            viewModel.ensureStarted()
+
+            coVerify(exactly = 1) { subscriptionGroupDao.getAllGroups() }
+        }
+
     @Test
     fun `initial ui state has default properties`() =
         runTest {
@@ -91,7 +127,6 @@ class SubscriptionsViewModelTest {
     fun `selectGroup updates selectedGroupName in state`() =
         runTest {
             viewModel.selectGroup("Tech")
-            testDispatcher.scheduler.advanceUntilIdle()
 
             assertThat(viewModel.uiState.value.selectedGroupName).isEqualTo("Tech")
         }
@@ -100,7 +135,6 @@ class SubscriptionsViewModelTest {
     fun `selectChannel updates selectedChannelId in state`() =
         runTest {
             viewModel.selectChannel("channel_123")
-            testDispatcher.scheduler.advanceUntilIdle()
 
             assertThat(viewModel.uiState.value.selectedChannelId).isEqualTo("channel_123")
         }
@@ -112,9 +146,8 @@ class SubscriptionsViewModelTest {
             coEvery { subscriptionRepository.unsubscribe(channelId) } returns Unit
 
             viewModel.unsubscribe(channelId)
-            testDispatcher.scheduler.advanceUntilIdle()
 
-            coVerify(exactly = 1) { subscriptionRepository.unsubscribe(channelId) }
+            coVerify(timeout = VERIFY_TIMEOUT_MS, exactly = 1) { subscriptionRepository.unsubscribe(channelId) }
         }
 
     @Test
@@ -124,8 +157,16 @@ class SubscriptionsViewModelTest {
             coEvery { subscriptionRepository.updateNotificationState(channelId, true) } returns Unit
 
             viewModel.updateNotificationState(channelId, true)
-            testDispatcher.scheduler.advanceUntilIdle()
 
-            coVerify(exactly = 1) { subscriptionRepository.updateNotificationState(channelId, true) }
+            coVerify(timeout = VERIFY_TIMEOUT_MS, exactly = 1) { subscriptionRepository.updateNotificationState(channelId, true) }
         }
+
+    private companion object {
+        /**
+         * The ViewModel launches on [io.github.aedev.flow.utils.PerformanceDispatcher] rather than
+         * on an injected dispatcher, so the test scheduler cannot join those coroutines. Verify
+         * with a timeout instead of racing them.
+         */
+        const val VERIFY_TIMEOUT_MS = 2_000L
+    }
 }
