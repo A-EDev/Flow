@@ -71,6 +71,7 @@ import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
 import io.github.aedev.flow.ui.screens.player.components.VideoAmbientBackground
 import io.github.aedev.flow.ui.screens.player.components.rememberAmbientFrame
 import io.github.aedev.flow.utils.DateContext
+import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -1162,7 +1163,7 @@ internal fun ShortVideoPage(
             )
         }
     }
-}
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1816,11 +1817,3 @@ fun ActionButton(
         modifier = modifier,
     )
 }
-
-fun formatViewCount(count: Long): String =
-    when {
-        count >= 1_000_000_000 -> String.format("%.1fB", count / 1_000_000_000.0)
-        count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-        count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
-        else -> count.toString()
-    }

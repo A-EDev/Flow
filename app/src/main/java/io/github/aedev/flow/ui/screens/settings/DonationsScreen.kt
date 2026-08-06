@@ -147,7 +147,7 @@ fun DonationsScreen(
 
             item {
                 Text(
-                    text = "CRYPTOCURRENCY",
+                    text = stringResource(R.string.donations_cryptocurrency),
                     style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 4.dp)

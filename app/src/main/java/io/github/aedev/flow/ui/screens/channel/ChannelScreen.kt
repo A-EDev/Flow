@@ -118,6 +118,8 @@ import io.github.aedev.flow.ui.components.sortCommentsByFilter
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.ui.youtubeChannelUrl
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.formatSubscriberCount
+import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -298,7 +300,7 @@ fun ChannelScreen(
             )
         }
     }
-}
+    }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -1020,7 +1022,10 @@ private fun ChannelHeader(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            val subText = formatSubscriberCount(channelInfo.subscriberCount, context)
+            val subText = context.getString(
+                R.string.subscribers_count_template,
+                formatSubscriberCount(channelInfo.subscriberCount),
+            )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1129,7 +1134,7 @@ fun SubscribeButton(
             modifier = Modifier.width(200.dp),
         ) {
             Text(
-                text = "Notifications",
+                text = stringResource(R.string.notifications),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1218,7 +1223,7 @@ private fun LazyListScope.videosContent(
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
-            item { EmptyState(message = "No videos found") }
+            item { EmptyState(message = stringResource(R.string.error_no_videos_found)) }
             return
         }
         items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
@@ -1235,7 +1240,7 @@ private fun LazyListScope.videosContent(
     if (pagingItems == null ||
         (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
     ) {
-        item { EmptyState(message = "No videos found") }
+        item { EmptyState(message = stringResource(R.string.error_no_videos_found)) }
         return
     }
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
@@ -1256,7 +1261,7 @@ private fun LazyListScope.shortsContent(
     if (pagingItems == null ||
         (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
     ) {
-        item { EmptyState(message = "No Shorts found") }
+        item { EmptyState(message = stringResource(R.string.error_no_shorts_found)) }
         return
     }
     val count = pagingItems.itemCount
@@ -1293,7 +1298,7 @@ private fun LazyListScope.liveContent(
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
-            item { EmptyState(message = "No live videos found") }
+            item { EmptyState(message = stringResource(R.string.error_no_live_videos_found)) }
             return
         }
         items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
@@ -1310,7 +1315,7 @@ private fun LazyListScope.liveContent(
     if (pagingItems == null ||
         (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
     ) {
-        item { EmptyState(message = "No live videos found") }
+        item { EmptyState(message = stringResource(R.string.error_no_live_videos_found)) }
         return
     }
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
@@ -1331,7 +1336,7 @@ private fun LazyListScope.playlistsContent(
     if (pagingItems == null ||
         (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
     ) {
-        item { EmptyState(message = "No playlists found") }
+        item { EmptyState(message = stringResource(R.string.error_no_playlists_found)) }
         return
     }
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
@@ -1438,7 +1443,10 @@ private fun AboutSection(channelInfo: org.schabi.newpipe.extractor.channel.Chann
                     color = MaterialTheme.extendedColors.textSecondary,
                 )
                 Text(
-                    text = formatSubscriberCount(channelInfo.subscriberCount, context),
+                    text = context.getString(
+                        R.string.subscribers_count_template,
+                        formatSubscriberCount(channelInfo.subscriberCount),
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                 )
@@ -1487,24 +1495,3 @@ private fun EmptyState(message: String) {
         )
     }
 }
-
-// Formatters
-private fun formatSubscriberCount(
-    count: Long,
-    context: android.content.Context,
-): String {
-    val formatted =
-        when {
-            count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-            count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
-            else -> count.toString()
-        }
-    return context.getString(R.string.subscribers_count_template, formatted)
-}
-
-private fun formatViewCount(count: Long): String =
-    when {
-        count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-        count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
-        else -> count.toString()
-    }

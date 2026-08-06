@@ -98,7 +98,7 @@ fun SavedShortsGridScreen(
                         tint = MaterialTheme.colorScheme.surfaceVariant,
                     )
                     Text(
-                        "No saved shorts yet",
+                        stringResource(R.string.empty_saved_shorts),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

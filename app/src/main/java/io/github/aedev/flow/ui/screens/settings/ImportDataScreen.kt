@@ -71,11 +71,11 @@ fun ImportDataScreen(
             }
             is ImportViewModel.State.Error -> {
                 val msg = when (s.message) {
-                    "no_entries"     -> "No watch-history entries found in file"
-                    "no_videos"      -> "No videos found in playlist file"
-                    "no_content"     -> "No importable content found in this backup"
-                    "invalid_format" -> "Unrecognised backup format — make sure you selected the correct file"
-                    else             -> "Import failed: ${s.message}"
+                    "no_entries"     -> context.getString(R.string.import_no_history_entries)
+                    "no_videos"      -> context.getString(R.string.import_no_videos)
+                    "no_content"     -> context.getString(R.string.import_no_content)
+                    "invalid_format" -> context.getString(R.string.import_invalid_format)
+                    else             -> context.getString(R.string.import_failed_template, s.message)
                 }
                 snackbarHostState.showSnackbar(msg)
                 importViewModel.dismiss()
@@ -664,7 +664,7 @@ internal fun ImportProgressBanner(state: ImportViewModel.State) {
                         color     = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text     = "Importing ${running.label}\u2026",
+                        text     = stringResource(R.string.importing_label, running.label),
                         style    = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
@@ -695,7 +695,7 @@ internal fun ImportProgressBanner(state: ImportViewModel.State) {
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text  = "You can navigate away \u2014 the import continues in the background.",
+                    text  = stringResource(R.string.import_running_background),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )

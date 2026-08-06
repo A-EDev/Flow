@@ -40,10 +40,14 @@ object DownloadStreamHelpers {
             ?: stream.audioTrackId?.takeIf { it.isNotBlank() }
     }
 
-    fun audioTrackTypeLabel(stream: AudioStream): String? {
+    fun audioTrackTypeLabel(
+        stream: AudioStream,
+        originalLabel: String,
+        dubbedLabel: String,
+    ): String? {
         return when (stream.audioTrackType) {
-            AudioTrackType.ORIGINAL -> "Original"
-            AudioTrackType.DUBBED -> "Dubbed"
+            AudioTrackType.ORIGINAL -> originalLabel
+            AudioTrackType.DUBBED -> dubbedLabel
             null -> null
             else -> stream.audioTrackType?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
         }

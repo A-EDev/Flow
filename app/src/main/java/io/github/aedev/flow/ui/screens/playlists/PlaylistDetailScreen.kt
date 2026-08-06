@@ -45,6 +45,7 @@ import coil3.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.utils.formatViewCount
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.migration.WatchLaterMetadataMigrator
@@ -1030,7 +1031,11 @@ private fun PlaylistVideoItem(
                             }
 
                             else -> {
-                                stringResource(R.string.video_metadata_short_template, formatViewCount(video.viewCount), uploadDate)
+                                stringResource(
+                                    R.string.video_metadata_short_template,
+                                    stringResource(R.string.views_template, formatViewCount(video.viewCount)),
+                                    uploadDate,
+                                )
                             }
                         },
                     style = MaterialTheme.typography.labelSmall,
@@ -1176,14 +1181,6 @@ private fun formatDuration(seconds: Int): String {
         else -> String.format("%d:%02d", minutes, secs)
     }
 }
-
-private fun formatViewCount(count: Long): String =
-    when {
-        count >= 1_000_000_000 -> String.format("%.1f%s views", count / 1_000_000_000.0, "B")
-        count >= 1_000_000 -> String.format("%.1f%s views", count / 1_000_000.0, "M")
-        count >= 1_000 -> String.format("%.1f%s views", count / 1_000.0, "K")
-        else -> "$count views"
-    }
 
 enum class PlaylistSortOrder(
     val storageValue: String,

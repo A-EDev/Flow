@@ -929,7 +929,7 @@ fun PlayerSettingsScreen(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                 )
                 Text(
-                    text = "Providers are tried in order. The first one that returns lyrics wins.",
+                    text = stringResource(R.string.settings_lyrics_provider_order_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 0.dp).padding(bottom = 8.dp)

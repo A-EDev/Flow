@@ -839,8 +839,11 @@ private fun BedtimeScheduleIndicator(
                 buildString {
                     append(stringResource(R.string.sleep_window))
                     append(" ")
-                    if (hours > 0) append("${hours}h ")
-                    if (minutes > 0) append("${minutes}m")
+                    if (hours > 0) {
+                        append(stringResource(R.string.duration_hours_short, hours))
+                        append(" ")
+                    }
+                    if (minutes > 0) append(stringResource(R.string.duration_minutes_short, minutes))
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = primaryColor,

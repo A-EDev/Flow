@@ -339,7 +339,7 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = { isSearchActive = true }) {
-                            Icon(Icons.Outlined.Search, "Search settings")
+                            Icon(Icons.Outlined.Search, stringResource(R.string.ui_search_settings))
                         }
                     }
                 }
@@ -365,7 +365,7 @@ fun SettingsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No settings found for \"$searchQuery\"",
+                                text = stringResource(R.string.settings_search_no_results, searchQuery),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -668,7 +668,7 @@ item {
                                             8 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_8h)
                                             12 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_12h)
                                             24 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_24h)
-                                            else -> "$hours hours"
+                                            else -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_hours, hours)
                                         }
                                     }
                                 ),

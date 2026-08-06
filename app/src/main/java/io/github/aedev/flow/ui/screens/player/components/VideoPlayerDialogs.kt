@@ -295,7 +295,11 @@ fun DownloadQualityDialog(
                             val audioFormat = DownloadStreamHelpers.audioFormatLabel(audioStream)
                             val audioUrl = audioStream.getContent().takeIf { it.isNotBlank() }
                             val languageLabel = DownloadStreamHelpers.audioLanguageLabel(audioStream)
-                            val trackTypeLabel = DownloadStreamHelpers.audioTrackTypeLabel(audioStream)
+                            val trackTypeLabel = DownloadStreamHelpers.audioTrackTypeLabel(
+                                stream = audioStream,
+                                originalLabel = stringResource(R.string.audio_track_original),
+                                dubbedLabel = stringResource(R.string.audio_track_dubbed),
+                            )
 
                             Surface(
                                 onClick = {

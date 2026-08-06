@@ -94,6 +94,7 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatRichText
+import io.github.aedev.flow.utils.formatTimeAgo
 import kotlinx.coroutines.launch
 
 enum class CommentSortFilter {
@@ -571,7 +572,7 @@ fun FlowCommentItem(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = comment.publishedTime,
+                    text = localizedCommentPublishedTime(comment.publishedTime),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -838,7 +839,7 @@ fun FlowReplyItem(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = reply.publishedTime,
+                    text = localizedCommentPublishedTime(reply.publishedTime),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -906,6 +907,18 @@ fun FlowReplyItem(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun localizedCommentPublishedTime(publishedTime: String): String {
+    val editedSuffix = Regex("\\s*\\(?edited\\)?\\s*$", RegexOption.IGNORE_CASE)
+    val isEdited = editedSuffix.containsMatchIn(publishedTime)
+    val time = formatTimeAgo(publishedTime.replace(editedSuffix, "").trim())
+    return if (isEdited) {
+        stringResource(R.string.comment_time_edited_template, time, stringResource(R.string.comment_edited))
+    } else {
+        time
     }
 }
 

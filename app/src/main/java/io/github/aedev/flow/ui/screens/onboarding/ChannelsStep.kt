@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.utils.formatSubscriberCount
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -344,11 +345,4 @@ internal suspend fun searchChannels(query: String): List<ChannelSearchResult> =
         } catch (e: Exception) {
             emptyList()
         }
-    }
-
-private fun formatSubscriberCount(count: Long): String =
-    when {
-        count >= 1_000_000 -> "${count / 1_000_000}M"
-        count >= 1_000 -> "${count / 1_000}K"
-        else -> count.toString()
     }

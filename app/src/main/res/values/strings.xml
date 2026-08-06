@@ -242,7 +242,10 @@
     <string name="filter_oldest">Oldest</string>
     <string name="no_comments_yet">No comments yet</string>
     <string name="add_comment_placeholder">Add a comment...</string>
+    <string name="comment_edited">edited</string>
+    <string name="comment_time_edited_template">%1$s (%2$s)</string>
     <string name="read_more">Read more</string>
+    <string name="desc_more">...more</string>
     <string name="reply">Reply</string>
     <string name="hide_replies">Hide replies</string>
     <string name="view_replies_template">View %1$d replies</string>
@@ -440,6 +443,7 @@
     <string name="deep_flow_duration_8h">8 hours</string>
     <string name="deep_flow_duration_12h">12 hours</string>
     <string name="deep_flow_duration_24h">24 hours</string>
+    <string name="deep_flow_duration_hours">%1$d hours</string>
     <string name="settings_header_appearance">Appearance</string>
     <string name="settings_header_content_playback">Content &amp; Playback</string>
     <string name="settings_header_data_management">Data Management</string>
@@ -2255,7 +2259,7 @@
     <string name="ui_sync_lyrics">Sync lyrics</string>
     <string name="ui_downloading_playlist">Downloading playlist</string>
     <string name="ui_no_songs_found">No songs found</string>
-    <string name="ui_search_songs_to_add">Search songs to add</string>
+    <string name="ui_search_songs_to_add">Search songs to add…</string>
     <string name="ui_add_songs_to_playlist">Add songs to playlist</string>
     <string name="ui_show_less">Show less</string>
     <string name="ui_show_more">Show more</string>
@@ -2266,7 +2270,7 @@
     <string name="ui_clear_and_continue">Clear &amp; Continue</string>
     <string name="ui_crashed_last_session">Flow crashed last session</string>
     <string name="ui_copy_log_description">Copy the log below and paste it into a GitHub issue so it can be fixed.</string>
-    <string name="ui_search_settings">Search settings</string>
+    <string name="ui_search_settings">Search settings…</string>
     <string name="ui_custom_interest_title">Add Custom Interest</string>
     <string name="ui_custom_interest_subtitle">Type any topic you want to follow</string>
     <string name="ui_custom_interest_hint">Custom interest (e.g. Jazz, Astrophysics)</string>
@@ -2275,10 +2279,12 @@
     <string name="update_download_prompt">A new version of Flow is available (%1$s). Download the latest APK?</string>
     <string name="ui_instrumental">I N S T R U M E N T A L</string>
     <string name="ui_playlist_empty">Playlist is empty</string>
-    <string name="ui_downloading_videos">Downloading %1$d videos</string>
+    <string name="ui_downloading_videos">Downloading %1$d videos…</string>
     <string name="ui_playlist_saved_to_library">Playlist saved to library</string>
     <string name="ui_playlist_removed_from_library">Playlist removed from library</string>
     <string name="ui_download_audio">Downloading audio: %1$skbps %2$s</string>
+    <string name="audio_track_original">Original</string>
+    <string name="audio_track_dubbed">Dubbed</string>
     <string name="ui_skipped_segment">Skipped %1$s</string>
     <string name="ui_started_download">Started download: %1$s</string>
     <string name="ui_download_start_failed">Download failed to start: %1$s</string>
@@ -2288,9 +2294,9 @@
     <string name="toast_subscribed_to">Subscribed to %1$s</string>
     <string name="toast_removed_from_watch_later">Removed from Watch Later</string>
     <string name="toast_added_to_watch_later">Added to Watch Later</string>
-    <string name="toast_fetching_download_links">Fetching download links</string>
+    <string name="toast_fetching_download_links">Fetching download links…</string>
     <string name="toast_download_started">Download started: %1$s</string>
-    <string name="toast_trying_sabr_download">Trying SABR download</string>
+    <string name="toast_trying_sabr_download">Trying SABR download…</string>
     <string name="toast_sabr_download_started">SABR download started</string>
     <string name="toast_sabr_download_started_for_video">SABR download started: %1$s</string>
     <string name="toast_no_download_source">No download source available</string>
@@ -2298,7 +2304,7 @@
     <string name="toast_copied_to_clipboard">Copied to clipboard</string>
     <string name="toast_playlist_deleted">Playlist deleted</string>
     <string name="toast_playlist_renamed">Playlist renamed</string>
-    <string name="toast_starting_playlist_download">Starting download for %1$s</string>
+    <string name="toast_starting_playlist_download">Starting download for %1$s…</string>
     <string name="toast_downloaded_tracks_from_playlist">Downloaded %1$d tracks from %2$s</string>
     <string name="toast_failed_to_download_playlist">Failed to download playlist</string>
     <string name="toast_error_downloading_playlist">Error downloading playlist</string>
@@ -2379,7 +2385,7 @@
     <string name="error_playback_retry_hint">Try again later or check your network connection.</string>
     <string name="download_waiting_for_wifi">Waiting for WiFi</string>
     <string name="download_failed_try_again">Download failed. Please try again.</string>
-    <string name="download_merging_audio_video">Merging audio &amp; video</string>
+    <string name="download_merging_audio_video">Merging audio &amp; video…</string>
     <string name="download_muxing_incompatible">Muxing failed â€” audio format incompatible with video container. Try re-downloading.</string>
     <string name="download_muxing_failed_retry">Muxing failed — try re-downloading.</string>
     <string name="download_url_expired">URL expired (403). Re-fetch needed.</string>
@@ -2396,11 +2402,25 @@
     <string name="import_other_youtube_clients">Import from other YouTube clients</string>
     <string name="imported_count">Imported %1$d %2$s</string>
     <string name="imported_successfully">%1$s imported successfully</string>
-    <string name="importing_label">Importing %1$s</string>
+    <string name="importing_label">Importing %1$s…</string>
     <string name="imported_from_google_takeout">Imported from Google Takeout</string>
 
     <!-- Localization follow-up: fallback labels (#738) -->
-    <string name="fallback_playing">Playing</string>
+    <string name="fallback_playing">Playing…</string>
+    <string name="empty_saved_shorts">No saved shorts yet</string>
+    <string name="settings_search_no_results">No settings found for &quot;%1$s&quot;</string>
+    <string name="settings_lyrics_provider_order_description">Providers are tried in order. The first one that returns lyrics wins.</string>
+    <string name="import_running_background">You can navigate away — the import continues in the background.</string>
+    <string name="donations_cryptocurrency">CRYPTOCURRENCY</string>
+    <string name="import_no_history_entries">No watch-history entries found in file</string>
+    <string name="import_no_videos">No videos found in playlist file</string>
+    <string name="import_no_content">No importable content found in this backup</string>
+    <string name="import_invalid_format">Unrecognised backup format — make sure you selected the correct file</string>
+    <string name="import_failed_template">Import failed: %1$s</string>
+    <string name="duration_hours_minutes">%1$d hr %2$d min</string>
+    <string name="duration_minutes">%1$d min</string>
+    <string name="duration_hours_short">%1$dh</string>
+    <string name="duration_minutes_short">%1$dm</string>
     <string name="fallback_unknown_title">Unknown Title</string>
     <string name="fallback_unknown_channel">Unknown Channel</string>
     <string name="fallback_unknown_playlist">Unknown Playlist</string>

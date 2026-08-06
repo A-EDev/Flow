@@ -1,5 +1,6 @@
 package io.github.aedev.flow.utils
 
+import android.icu.text.CompactDecimalFormat
 import android.icu.text.RelativeDateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -17,23 +18,19 @@ fun formatDuration(seconds: Int): String {
 }
 
 fun formatViewCount(count: Long): String {
-    return when {
-        count >= 1_000_000_000 -> "${(count / 1_000_000_000.0).roundToInt()}B"
-        count >= 1_000_000 -> "${(count / 1_000_000.0).roundToInt()}M"
-        count >= 1_000 -> "${(count / 1_000.0).roundToInt()}K"
-        else -> "$count"
-    }
+    return compactCountFormatter().format(count)
 }
 
 fun formatSubscriberCount(count: Long): String {
     if (count <= 0L) return ""
-    return when {
-        count >= 1_000_000_000 -> "${(count / 1_000_000_000.0 * 10).roundToInt() / 10.0}B"
-        count >= 1_000_000 -> "${(count / 1_000_000.0 * 10).roundToInt() / 10.0}M"
-        count >= 1_000 -> "${(count / 1_000.0 * 10).roundToInt() / 10.0}K"
-        else -> "$count"
-    }
+    return compactCountFormatter().format(count)
 }
+
+private fun compactCountFormatter(): CompactDecimalFormat =
+    CompactDecimalFormat.getInstance(
+        Locale.getDefault(),
+        CompactDecimalFormat.CompactStyle.SHORT,
+    )
 
 fun formatYouTubeRelativeTime(
     timestampMillis: Long,

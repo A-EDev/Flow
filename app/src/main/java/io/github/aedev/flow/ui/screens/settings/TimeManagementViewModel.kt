@@ -8,6 +8,7 @@ import io.github.aedev.flow.notification.ReminderManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
+import io.github.aedev.flow.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +27,14 @@ class TimeManagementViewModel @Inject constructor(
     @ApplicationContext private val applicationContext: Context
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(TimeManagementState())
+    private val initialDuration = applicationContext.getString(R.string.duration_minutes, 0)
+    private val _uiState = MutableStateFlow(
+        TimeManagementState(
+            dailyAverageFormatted = initialDuration,
+            todayWatchTime = initialDuration,
+            last7DaysWatchTime = initialDuration,
+        )
+    )
     val uiState: StateFlow<TimeManagementState> = _uiState.asStateFlow()
 
     init {
@@ -131,7 +139,11 @@ class TimeManagementViewModel @Inject constructor(
     private fun formatDuration(millis: Long): String {
         val hours = TimeUnit.MILLISECONDS.toHours(millis)
         val minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60
-        return if (hours > 0) "${hours} hr ${minutes} min" else "${minutes} min"
+        return if (hours > 0) {
+            applicationContext.getString(R.string.duration_hours_minutes, hours, minutes)
+        } else {
+            applicationContext.getString(R.string.duration_minutes, minutes)
+        }
     }
 
     fun toggleBedtimeReminder(enabled: Boolean) {
@@ -196,9 +208,9 @@ class TimeManagementViewModel @Inject constructor(
 }
 
 data class TimeManagementState(
-    val dailyAverageFormatted: String = "0 min",
-    val todayWatchTime: String = "0 min",
-    val last7DaysWatchTime: String = "0 min",
+    val dailyAverageFormatted: String = "",
+    val todayWatchTime: String = "",
+    val last7DaysWatchTime: String = "",
     val trend: String = "",
     val chartData: List<DailyStat> = emptyList(),
     val bedtimeReminderEnabled: Boolean = false,

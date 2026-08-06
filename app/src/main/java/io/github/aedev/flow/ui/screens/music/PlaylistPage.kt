@@ -360,7 +360,7 @@ fun PlaylistPage(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = "No songs found",
+                                    text = stringResource(R.string.ui_no_songs_found),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                 )

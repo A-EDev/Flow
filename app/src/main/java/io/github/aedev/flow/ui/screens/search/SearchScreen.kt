@@ -54,6 +54,7 @@ import io.github.aedev.flow.data.search.SearchSuggestionsService
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatViewCount
+import io.github.aedev.flow.utils.formatSubscriberCount
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1883,7 +1884,10 @@ private fun SearchChannelCard(
                 if (channel.subscriberCount > 0) {
                     Spacer(Modifier.height(3.dp))
                     Text(
-                        formatSubs(channel.subscriberCount),
+                        stringResource(
+                            R.string.subscribers_count_template,
+                            formatSubscriberCount(channel.subscriberCount),
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -2035,11 +2039,3 @@ private fun Dot() {
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
     )
 }
-
-private fun formatSubs(count: Long): String =
-    when {
-        count >= 1_000_000 -> "${"%.1f".format(count / 1_000_000.0)}M subscribers"
-        count >= 1_000 -> "${"%.1f".format(count / 1_000.0)}K subscribers"
-        count > 0 -> "$count subscribers"
-        else -> ""
-    }
