@@ -1014,9 +1014,9 @@
     <string name="cd_play">Phát</string>
     <string name="cd_more_options">Thêm</string>
     <string name="shorts_original_sound">Âm thanh gốc - %1$s</string>
-    <string name="view_count_billion_suffix">B</string>
+    <string name="view_count_billion_suffix">T</string>
     <string name="view_count_million_suffix">Tr</string>
-    <string name="view_count_thousand_suffix">K</string>
+    <string name="view_count_thousand_suffix">N</string>
     <string name="action_like">Thích</string>
     <string name="action_dislike">Không thích</string>
     <string name="action_comments">Bình luận</string>
@@ -1259,10 +1259,10 @@
     <string name="v_version_template">v%1$s (%2$s)</string>
     <string name="manufacturer_label">Hãng sản xuất: %1$s</string>
     <string name="model_label">Model: %1$s</string>
-    <string name="board_label">Bo mạch: %1$s</string>
+    <string name="board_label">Codename: %1$s</string>
     <string name="arch_label">Kiến trúc: %1$s</string>
     <string name="android_sdk_label">Android SDK: %1$s</string>
-    <string name="os_label">HĐH: Android %1$s</string>
+    <string name="os_label">Hệ điều hành: Android %1$s</string>
     <string name="density_label">Mật độ: %1$s</string>
     <string name="about_title">Giới thiệu</string>
     <string name="section_app">Ứng dụng</string>
@@ -1436,7 +1436,7 @@
     <string name="section_listen_again">Nghe lại</string>
     <string name="section_daily_discover">Khám phá hôm nay</string>
     <string name="section_quick_picks">Chọn nhanh</string>
-    <string name="section_speed_dial">Quay số nhanh</string>
+    <string name="section_speed_dial">Phát lại</string>
     <string name="shuffle_play">Phát ngẫu nhiên</string>
     <string name="feeling_lucky">Ngẫu nhiên?</string>
     <string name="daily_discover_sounds_like">Giống %1$s</string>
@@ -2299,4 +2299,6 @@
     <string name="remove_from_queue_confirmation">Bạn có chắc chắn muốn xóa video này khỏi hàng chờ?</string>
     <string name="reorder_queue_item">Sắp xếp lại mục hàng chờ</string>
     <string name="topic_score_prefix">Bằng chứng chủ đề</string>
+    <string name="notif_background_restricted_title">Tính năng chạy nền bị hạn chế</string>
+    <string name="notif_background_restricted_subtitle">Android đang chặn Flow kiểm tra video mới khi ứng dụng đang đóng, nên các cảnh báo chỉ xuất hiện khi bạn mở ứng dụng. Nhấn vào đây để cho phép hoạt động nền không bị hạn chế.</string>
 </resources>
