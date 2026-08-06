@@ -241,7 +241,7 @@
     <string name="filter_hd">HD</string>
     <string name="filter_4k">4K</string>
     <string name="filter_subtitles">Untertitel</string>
-    <string name="date_any">Jederzeit</string>
+    <string name="date_any">Beliebiges Datum</string>
     <string name="date_last_hour">Letzte Stunde</string>
     <string name="date_today">Heute</string>
     <string name="date_this_week">Diese Woche</string>
@@ -1669,4 +1669,8 @@
     <string name="cast_connecting">Verbindung zum Cast-Gerät wird hergestellt…</string>
     <string name="cast_connected">Casting</string>
     <string name="dlna_cast_to_device">Auf Gerät übertragen</string>
+    <string name="support_donations_title">Unterstützung &amp; Spenden</string>
+    <string name="subtitle_bold_text">Fettgedruckter Text</string>
+    <string name="subtitle_reset_default">Auf Standard zurücksetzen</string>
+    <string name="check_for_updates_subtitle">Tippen Sie hier, um nach der neuesten Version zu suchen</string>
 </resources>
