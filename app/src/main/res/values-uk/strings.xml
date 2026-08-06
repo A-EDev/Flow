@@ -2311,4 +2311,6 @@
     <string name="remove_from_queue">Видалити з черги</string>
     <string name="remove_from_queue_confirmation">Упевнені, що хочете видалити це відео з черги?</string>
     <string name="reorder_queue_item">Змінити порядок елемента в черзі</string>
+    <string name="notif_background_restricted_title">Перевірка біографічних даних обмежена</string>
+    <string name="notif_background_restricted_subtitle">Android блокує Flow можливість перевіряти наявність нових відео, коли застосунок закрито, тому сповіщення надходять лише тоді, коли ви його відкриваєте. Натисніть, щоби дозволити необмежену фонову активність.</string>
 </resources>
