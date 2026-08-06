@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
@@ -22,9 +23,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserFactory
-import java.io.StringReader
 import java.util.concurrent.TimeUnit
 
 /**
@@ -36,7 +34,9 @@ class SubscriptionCheckWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
     companion object {
-        const val WORK_NAME = "subscription_check_work"
+        const val WORK_NAME = "subscription_check_work_v2"
+        private const val LEGACY_WORK_NAME = "subscription_check_work"
+        private const val IMMEDIATE_WORK_NAME = "subscription_check_work_now"
         private const val TAG = "SubscriptionCheckWorker"
 
         // RSS Feed URL format
@@ -63,7 +63,6 @@ class SubscriptionCheckWorker(
                 Constraints
                     .Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .setRequiresBatteryNotLow(true)
                     .build()
 
             val workRequest =
@@ -77,11 +76,14 @@ class SubscriptionCheckWorker(
                         TimeUnit.MILLISECONDS,
                     ).build()
 
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                WORK_NAME,
-                periodicWorkPolicy(reschedule),
-                workRequest,
-            )
+            WorkManager.getInstance(context).apply {
+                cancelUniqueWork(LEGACY_WORK_NAME)
+                enqueueUniquePeriodicWork(
+                    WORK_NAME,
+                    periodicWorkPolicy(reschedule),
+                    workRequest,
+                )
+            }
 
             Log.d(TAG, "Scheduled periodic subscription check every $intervalMinutes minutes")
         }
@@ -90,12 +92,15 @@ class SubscriptionCheckWorker(
          * Cancel scheduled subscription checks
          */
         fun cancelScheduledChecks(context: Context) {
-            WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+            WorkManager.getInstance(context).apply {
+                cancelUniqueWork(WORK_NAME)
+                cancelUniqueWork(LEGACY_WORK_NAME)
+            }
             Log.d(TAG, "Cancelled scheduled subscription checks")
         }
 
         /**
-         * Run an immediate one-time check
+         * Run an immediate one-time check.
          */
         fun runImmediateCheck(context: Context) {
             val workRequest =
@@ -107,7 +112,11 @@ class SubscriptionCheckWorker(
                             .build(),
                     ).build()
 
-            WorkManager.getInstance(context).enqueue(workRequest)
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                IMMEDIATE_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                workRequest,
+            )
             Log.d(TAG, "Started immediate subscription check")
         }
     }
@@ -154,11 +163,11 @@ class SubscriptionCheckWorker(
                                         checkChannel(subscription, subscriptionRepository)
                                     } catch (e: Exception) {
                                         Log.e(TAG, "Error checking channel ${subscription.channelName}", e)
-                                        null
+                                        emptyList()
                                     }
                                 }
                             }.awaitAll()
-                            .filterNotNull()
+                            .flatten()
                             .let { newVideos.addAll(it) }
                     }
                 }
@@ -178,7 +187,7 @@ class SubscriptionCheckWorker(
     private suspend fun checkChannel(
         subscription: io.github.aedev.flow.data.local.ChannelSubscription,
         repository: SubscriptionRepository,
-    ): NotificationHelper.NewVideoEntry? {
+    ): List<NotificationHelper.NewVideoEntry> {
         val url = String.format(RSS_URL_FORMAT, subscription.channelId)
         val request = Request.Builder().url(url).build()
 
@@ -186,98 +195,39 @@ class SubscriptionCheckWorker(
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
                 response.close()
-                return null
+                return emptyList()
             }
 
             val xmlContent = response.body?.string()
             response.close()
 
-            if (xmlContent.isNullOrEmpty()) return null
+            if (xmlContent.isNullOrEmpty()) return emptyList()
 
-            val latestVideo = parseRssFeed(xmlContent) ?: return null
+            val entries = SubscriptionRssParser.parse(xmlContent)
+            val latestVideo = entries.firstOrNull() ?: return emptyList()
 
-            if (subscription.lastVideoId != latestVideo.id) {
-                val shouldNotify = subscription.lastVideoId != null
+            if (subscription.lastVideoId == latestVideo.id) return emptyList()
 
-                // Update local DB
-                repository.updateChannelLatestVideo(subscription.channelId, latestVideo.id)
+            val newEntries = SubscriptionRssParser.newEntriesSince(entries, subscription.lastVideoId)
 
-                if (shouldNotify) {
-                    Log.d(TAG, "New video found for ${subscription.channelName}: ${latestVideo.title}")
-                    return NotificationHelper.NewVideoEntry(
-                        channelName = subscription.channelName,
-                        videoTitle = latestVideo.title,
-                        videoId = latestVideo.id,
-                        thumbnailUrl = latestVideo.thumbnailUrl,
-                    )
-                }
+            // Update local DB
+            repository.updateChannelLatestVideo(subscription.channelId, latestVideo.id)
+
+            if (newEntries.isNotEmpty()) {
+                Log.d(TAG, "${newEntries.size} new video(s) for ${subscription.channelName}")
+            }
+
+            return newEntries.map { video ->
+                NotificationHelper.NewVideoEntry(
+                    channelName = subscription.channelName,
+                    videoTitle = video.title,
+                    videoId = video.id,
+                    thumbnailUrl = video.thumbnailUrl,
+                )
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to check RSS for ${subscription.channelName}: ${e.message}")
         }
-        return null
-    }
-
-    private data class RssVideo(
-        val id: String,
-        val title: String,
-        val thumbnailUrl: String?,
-    )
-
-    private fun parseRssFeed(xml: String): RssVideo? {
-        try {
-            val factory = XmlPullParserFactory.newInstance()
-            factory.isNamespaceAware = true
-            val parser = factory.newPullParser()
-            parser.setInput(StringReader(xml))
-
-            var eventType = parser.eventType
-            var insideEntry = false
-
-            var videoId: String? = null
-            var title: String? = null
-            var thumbnail: String? = null
-
-            while (eventType != XmlPullParser.END_DOCUMENT) {
-                val tagName = parser.name
-
-                when (eventType) {
-                    XmlPullParser.START_TAG -> {
-                        if (tagName.equals("entry", ignoreCase = true)) {
-                            insideEntry = true
-                        } else if (insideEntry) {
-                            when {
-                                tagName.equals("videoId", ignoreCase = true) -> {
-                                    videoId = parser.nextText()
-                                }
-
-                                tagName.equals("title", ignoreCase = true) -> {
-                                    title = parser.nextText()
-                                }
-
-                                tagName.equals("thumbnail", ignoreCase = true) -> {
-                                    thumbnail = parser.getAttributeValue(null, "url")
-                                }
-                            }
-                        }
-                    }
-
-                    XmlPullParser.END_TAG -> {
-                        if (tagName.equals("entry", ignoreCase = true)) {
-                            // We only need the first entry (latest video)
-                            if (!videoId.isNullOrEmpty() && !title.isNullOrEmpty()) {
-                                return RssVideo(videoId, title, thumbnail)
-                            }
-                            return null // If first entry didn't have data, stop anyway? Or continue?
-                            // RSS feeds are ordered by date, so first entry is latest.
-                        }
-                    }
-                }
-                eventType = parser.next()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing RSS XML", e)
-        }
-        return null
+        return emptyList()
     }
 }

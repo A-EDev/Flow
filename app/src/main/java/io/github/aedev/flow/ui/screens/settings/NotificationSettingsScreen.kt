@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Notifications
@@ -37,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,9 +51,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.notification.BackgroundWorkPolicy
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
 import io.github.aedev.flow.notification.UpdateCheckWorker
 import kotlinx.coroutines.launch
@@ -71,6 +77,24 @@ fun NotificationSettingsScreen(onNavigateBack: () -> Unit) {
     val notifGeneral by prefs.notifGeneralEnabled.collectAsState(initial = true)
     val subCheckInterval by prefs.subscriptionCheckIntervalMinutes.collectAsState(initial = 360)
     var showIntervalDialog by remember { mutableStateOf(false) }
+
+    var backgroundWorkAllowed by remember {
+        mutableStateOf(BackgroundWorkPolicy.isBackgroundWorkUnrestricted(context))
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
+                val allowed = BackgroundWorkPolicy.isBackgroundWorkUnrestricted(context)
+                if (allowed && !backgroundWorkAllowed) {
+                    SubscriptionCheckWorker.runImmediateCheck(context)
+                }
+                backgroundWorkAllowed = allowed
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val intervalOptions =
         listOf(
@@ -144,6 +168,9 @@ fun NotificationSettingsScreen(onNavigateBack: () -> Unit) {
                                     if (BuildConfig.UPDATER_ENABLED) {
                                         UpdateCheckWorker.schedulePeriodicCheck(context, reschedule = true)
                                     }
+                                    if (!backgroundWorkAllowed) {
+                                        BackgroundWorkPolicy.requestUnrestrictedBackgroundWork(context)
+                                    }
                                 } else {
                                     SubscriptionCheckWorker.cancelScheduledChecks(context)
                                     UpdateCheckWorker.cancelScheduledChecks(context)
@@ -151,6 +178,18 @@ fun NotificationSettingsScreen(onNavigateBack: () -> Unit) {
                             }
                         },
                     )
+                    if (notificationsEnabled && !backgroundWorkAllowed) {
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.BatteryAlert,
+                            title = stringResource(R.string.notif_background_restricted_title),
+                            subtitle = stringResource(R.string.notif_background_restricted_subtitle),
+                            onClick = { BackgroundWorkPolicy.requestUnrestrictedBackgroundWork(context) },
+                        )
+                    }
                     HorizontalDivider(
                         Modifier.padding(start = 56.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),

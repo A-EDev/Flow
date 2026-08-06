@@ -463,6 +463,8 @@
     <string name="notif_check_interval_section_header">Feed Check Schedule</string>
     <string name="notif_master_toggle">Enable notifications</string>
     <string name="notif_master_toggle_subtitle">Allow Flow to wake up in the background for notification checks and alerts</string>
+    <string name="notif_background_restricted_title">Background checks are restricted</string>
+    <string name="notif_background_restricted_subtitle">Android is blocking Flow from checking for new videos while it is closed, so alerts only arrive when you open the app. Tap to allow unrestricted background activity.</string>
     <string name="notif_check_interval">New Video Check Interval</string>
     <string name="notif_check_interval_subtitle_template">Check every %s</string>
     <string name="notif_check_interval_disabled">Background notification checks are disabled</string>

@@ -6,9 +6,7 @@ import android.os.Bundle
 import android.app.AlertDialog
 import android.content.Context
 import android.media.AudioManager
-import android.net.Uri
 import android.os.PowerManager
-import android.provider.Settings
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
@@ -870,27 +868,4 @@ class MainActivity : ComponentActivity() {
         return false
     }
 
-    /**
-     * Ask Android to whitelist this app from battery optimization / Doze mode.
-     *
-     * Without this, on aggressive OEM ROMs (Xiaomi MIUI, Samsung OneUI DeX, CRDroid, Huawei)
-     * the OS can throttle network access or kill the background playback service after a few
-     * minutes of screen-off. 
-     *
-     * The system shows a standard dialog asking the user to confirm.  We only request this once
-     * per install (if the app is not already exempt).  No spammy repeat prompts.
-     */
-    private fun requestBatteryOptimizationExemptionIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
-        if (powerManager.isIgnoringBatteryOptimizations(packageName)) return // already exempt
-        try {
-            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                data = Uri.parse("package:$packageName")
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Log.w("MainActivity", "Could not request battery optimization exemption: ${e.message}")
-        }
-    }
 }
