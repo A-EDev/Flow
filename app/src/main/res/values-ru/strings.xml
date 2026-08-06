@@ -2308,4 +2308,6 @@
     <string name="remove_from_queue">Убрать из очереди</string>
     <string name="remove_from_queue_confirmation">Вы уверены, что хотите удалить это видео из очереди?</string>
     <string name="reorder_queue_item">Изменение порядка в очереди</string>
+    <string name="notif_background_restricted_title">Фоновые проверки ограничены</string>
+    <string name="notif_background_restricted_subtitle">Android блокирует проверку новых видео, когда Flow закрыт, поэтому уведомления приходят только при открытии приложения. Нажмите, чтобы снять ограничения на фоновую активность.</string>
 </resources>
