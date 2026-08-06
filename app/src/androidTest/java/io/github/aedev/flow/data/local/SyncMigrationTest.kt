@@ -5,6 +5,8 @@ import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.aedev.flow.data.local.migrations.Migration20To21
+import io.github.aedev.flow.data.local.migrations.Migration21To22
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
@@ -12,34 +14,39 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SyncMigrationTest {
-
     /** A bare in-memory DB at schema v20 with just the pre-migration `playlists` table. */
     private fun openV20(): SupportSQLiteDatabase {
-        val config = SupportSQLiteOpenHelper.Configuration
-            .builder(ApplicationProvider.getApplicationContext())
-            .name(null) // in-memory
-            .callback(object : SupportSQLiteOpenHelper.Callback(20) {
-                override fun onCreate(db: SupportSQLiteDatabase) {
-                    db.execSQL(
-                        """
-                        CREATE TABLE playlists (
-                            id TEXT NOT NULL PRIMARY KEY,
-                            name TEXT NOT NULL,
-                            description TEXT NOT NULL,
-                            thumbnailUrl TEXT NOT NULL,
-                            isPrivate INTEGER NOT NULL,
-                            createdAt INTEGER NOT NULL,
-                            videoCount INTEGER NOT NULL DEFAULT 0,
-                            isMusic INTEGER NOT NULL DEFAULT 0,
-                            isUserCreated INTEGER NOT NULL DEFAULT 1
-                        )
-                        """.trimIndent(),
-                    )
-                }
+        val config =
+            SupportSQLiteOpenHelper.Configuration
+                .builder(ApplicationProvider.getApplicationContext())
+                .name(null) // in-memory
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(20) {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            db.execSQL(
+                                """
+                                CREATE TABLE playlists (
+                                    id TEXT NOT NULL PRIMARY KEY,
+                                    name TEXT NOT NULL,
+                                    description TEXT NOT NULL,
+                                    thumbnailUrl TEXT NOT NULL,
+                                    isPrivate INTEGER NOT NULL,
+                                    createdAt INTEGER NOT NULL,
+                                    videoCount INTEGER NOT NULL DEFAULT 0,
+                                    isMusic INTEGER NOT NULL DEFAULT 0,
+                                    isUserCreated INTEGER NOT NULL DEFAULT 1
+                                )
+                                """.trimIndent(),
+                            )
+                        }
 
-                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
-            })
-            .build()
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int,
+                        ) {}
+                    },
+                ).build()
         return FrameworkSQLiteOpenHelperFactory().create(config).writableDatabase
     }
 
@@ -51,8 +58,8 @@ class SyncMigrationTest {
                 "VALUES ('pl1','My Playlist','','',0,123456789)",
         )
 
-        AppDatabase.MIGRATION_20_21.migrate(db)
-        AppDatabase.MIGRATION_21_22.migrate(db)
+        Migration20To21().migrate(db)
+        Migration21To22().migrate(db)
 
         // syncId added + backfilled (lower(hex(randomblob(16))) → 32 hex chars).
         db.query("SELECT syncId FROM playlists WHERE id='pl1'").use { c ->

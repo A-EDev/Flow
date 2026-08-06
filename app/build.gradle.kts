@@ -8,6 +8,7 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("androidx.baselineprofile")
+    alias(libs.plugins.room)
 }
 
 android {
@@ -139,6 +140,10 @@ android {
         }
     }
 
+    sourceSets {
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -161,6 +166,10 @@ android {
             isReturnDefaultValues = true
         }
     }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 kotlin {
