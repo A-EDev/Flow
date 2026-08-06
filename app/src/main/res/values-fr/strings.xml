@@ -2349,4 +2349,6 @@
     <string name="remove_from_queue">Retirer de la file d\'attente</string>
     <string name="remove_from_queue_confirmation">Êtes-vous sûr de vouloir supprimer cette vidéo de la file d\'attente ?</string>
     <string name="reorder_queue_item">Réorganiser un élément de la file d\'attente</string>
+    <string name="notif_background_restricted_subtitle">Android empêche Flow de vérifier la présence de nouvelles vidéos lorsque l\'application est fermée ; les notifications ne s\'affichent donc que lorsque vous ouvrez l\'application. Appuyez ici pour autoriser l\'activité en arrière-plan sans restriction.</string>
+    <string name="notif_background_restricted_title">Les vérifications d\'antécédents sont soumises à des restrictions</string>
 </resources>
