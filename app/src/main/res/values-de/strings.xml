@@ -1585,4 +1585,20 @@
     <string name="feeling_lucky">Fühlen Sie sich glücklich?</string>
     <string name="daily_discover_based_on">Basierend auf %1$s</string>
     <string name="daily_discover_for_fans_of">Für Fans von %1$s</string>
+    <string name="temporal_patterns">Zeitliche Muster</string>
+    <string name="channel_memory_subtitle">Implizites Feedback anhand Ihres Browserverlaufs</string>
+    <string name="persona_initiate_title">Der Eingeweihte</string>
+    <string name="persona_initiate_description">Du fängst gerade erst an. Dein Profil ist noch im Aufbau.</string>
+    <string name="persona_audiophile_title">Der Audiophile</string>
+    <string name="persona_audiophile_description">Du nutzt Flow hauptsächlich für Musik. Die Stimmung ist das Wichtigste.</string>
+    <string name="persona_skimmer_title">Der Skimmer</string>
+    <string name="persona_skimmer_description">Rasante, kurze Inhalte. Dopamin auf Abruf.</string>
+    <string name="screen_title_music_library">Bildschirm „Musik-Playlists“</string>
+    <string name="subtitle_liked_music">Deine Lieblingssongs</string>
+    <string name="subtitle_history">Songs, die du dir angehört hast</string>
+    <string name="empty_music_playlists">Noch keine Musik-Playlists</string>
+    <string name="rename_playlist_title">Playlist umbenennen</string>
+    <string name="section_featured_on">Vorgestellt auf</string>
+    <string name="section_fans_also_like">Fans mögen auch</string>
+    <string name="artist_views_template">%1$s • %2$s Aufrufe</string>
 </resources>
