@@ -116,6 +116,7 @@ import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.sortCommentsByFilter
 import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.ui.youtubeChannelUrl
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -203,7 +204,9 @@ fun ChannelScreen(
                     }
                 }
                 IconButton(onClick = {
-                    val shareUrl = "https://www.youtube.com/channel/${uiState.channelInfo?.id ?: channelUrl}"
+                    // channelUrl may already be a full URL, so it must be normalized rather than
+                    // pasted behind /channel/ — that produced a nested, unopenable share link.
+                    val shareUrl = youtubeChannelUrl(uiState.channelInfo?.id ?: channelUrl) ?: channelUrl
                     val shareIntent =
                         Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"

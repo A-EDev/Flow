@@ -37,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -966,6 +967,7 @@ fun GlobalPlayerOverlay(
                         modifier =
                             Modifier
                                 .fillMaxSize()
+                                .clipToBounds()
                                 .graphicsLayer {
                                     if (!isMinimized) {
                                         scaleX = screenState.zoomScale
@@ -1595,9 +1597,9 @@ fun GlobalPlayerOverlay(
                             onTimestampClick = { EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(it)) },
                             onLoadReplies = { playerViewModel.loadCommentReplies(it) },
                             onLoadMoreReplies = { playerViewModel.loadMoreCommentReplies(it) },
-                            onAuthorClick = { handle ->
+                            onAuthorClick = { authorChannelRef ->
                                 closeFullscreenSidePanel()
-                                onNavigateToChannel("@$handle")
+                                onNavigateToChannel(authorChannelRef)
                             },
                             onAvatarClick = {},
                             isLoadingMore = isLoadingMoreComments,

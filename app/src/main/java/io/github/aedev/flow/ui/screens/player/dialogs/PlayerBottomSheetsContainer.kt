@@ -147,9 +147,9 @@ fun PlayerBottomSheetsContainer(
             isLoadingMore = isLoadingMoreComments,
             hasMore = hasMoreComments,
             onLoadMore = { onLoadMoreComments(video.id) },
-            onAuthorClick = { authorHandle ->
+            onAuthorClick = { authorChannelRef ->
                 screenState.showCommentsSheet = false
-                onNavigateToChannel?.invoke("@$authorHandle")
+                onNavigateToChannel?.invoke(authorChannelRef)
             },
             expandedHeight = mediaSheetExpandedHeight,
             collapsedHeight = mediaSheetCollapsedHeight,

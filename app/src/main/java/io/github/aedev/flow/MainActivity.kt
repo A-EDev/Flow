@@ -1,71 +1,71 @@
 package io.github.aedev.flow
 
-import android.content.Intent
-import android.os.Build
-import android.os.Bundle
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.media.AudioManager
+import android.os.Build
+import android.os.Bundle
 import android.os.PowerManager
+import android.util.Log
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.*
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import io.github.aedev.flow.data.local.LocalDataManager
-import io.github.aedev.flow.data.local.AppUiModePreferences
-import io.github.aedev.flow.player.BackgroundPlaybackPolicy
-import io.github.aedev.flow.player.GlobalPlayerState
-import io.github.aedev.flow.player.MemoryPressurePolicy
-import io.github.aedev.flow.ui.FlowApp
-import io.github.aedev.flow.ui.theme.FlowTheme
-import io.github.aedev.flow.ui.theme.ThemeMode
-import io.github.aedev.flow.ui.theme.CustomThemePalettes
-import io.github.aedev.flow.ui.theme.ThemeVariant
-import io.github.aedev.flow.updater.ApkUpdateHelper
-import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import androidx.lifecycle.lifecycleScope
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
-import android.util.Log
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import androidx.lifecycle.lifecycleScope
 import com.google.gson.JsonParser
-import io.github.aedev.flow.ui.screens.CrashReporterScreen
-import io.github.aedev.flow.utils.FlowCrashHandler
-import io.github.aedev.flow.utils.UpdateManager
-import io.github.aedev.flow.utils.UpdateInfo
+import dagger.hilt.android.AndroidEntryPoint
+import io.github.aedev.flow.BuildConfig
+import io.github.aedev.flow.data.local.AppUiModePreferences
+import io.github.aedev.flow.data.local.LocalDataManager
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.network.AppProxyManager
-import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.platform.AppUiRoot
 import io.github.aedev.flow.platform.DeviceFormFactorDetector
+import io.github.aedev.flow.player.BackgroundPlaybackPolicy
+import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.MemoryPressurePolicy
+import io.github.aedev.flow.player.PictureInPictureHelper
+import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.components.ProvideVideoCardState
 import io.github.aedev.flow.ui.components.UpdateDialog
+import io.github.aedev.flow.ui.screens.CrashReporterScreen
+import io.github.aedev.flow.ui.theme.CustomThemePalettes
+import io.github.aedev.flow.ui.theme.FlowTheme
+import io.github.aedev.flow.ui.theme.ThemeMode
+import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.tv.FlowTvApp
-import io.github.aedev.flow.BuildConfig
-import androidx.activity.SystemBarStyle
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import io.github.aedev.flow.updater.ApkUpdateHelper
 import io.github.aedev.flow.utils.AppLanguageManager
+import io.github.aedev.flow.utils.FlowCrashHandler
+import io.github.aedev.flow.utils.UpdateInfo
+import io.github.aedev.flow.utils.UpdateManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.flow.drop
-import io.github.aedev.flow.discord.DiscordPresenceRuntime
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val _deeplinkVideoId = mutableStateOf<String?>(null)
     val deeplinkVideoId: State<String?> = _deeplinkVideoId
-    
+
     private val _isDeeplinkShort = mutableStateOf(false)
     val isDeeplinkShort: State<Boolean> = _isDeeplinkShort
 
@@ -91,18 +91,21 @@ class MainActivity : ComponentActivity() {
     private var pendingAutoPip = false
     private var cachedAppUiRoot = AppUiRoot.MOBILE
 
-    private fun videoPlaybackStateName(state: Int?): String = when (state) {
-        androidx.media3.common.Player.STATE_IDLE -> "IDLE"
-        androidx.media3.common.Player.STATE_BUFFERING -> "BUFFERING"
-        androidx.media3.common.Player.STATE_READY -> "READY"
-        androidx.media3.common.Player.STATE_ENDED -> "ENDED"
-        null -> "NO_PLAYER"
-        else -> "UNKNOWN($state)"
-    }
+    private fun videoPlaybackStateName(state: Int?): String =
+        when (state) {
+            androidx.media3.common.Player.STATE_IDLE -> "IDLE"
+            androidx.media3.common.Player.STATE_BUFFERING -> "BUFFERING"
+            androidx.media3.common.Player.STATE_READY -> "READY"
+            androidx.media3.common.Player.STATE_ENDED -> "ENDED"
+            null -> "NO_PLAYER"
+            else -> "UNKNOWN($state)"
+        }
 
     private fun lifecyclePlaybackSnapshot(): String {
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+        val playerManager =
+            io.github.aedev.flow.player.EnhancedPlayerManager
+                .getInstance()
         val playerState = playerManager.playerState.value
         val player = playerManager.getPlayer()
         return "interactive=${powerManager?.isInteractive} lifecycle=${lifecycle.currentState} " +
@@ -129,24 +132,26 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
         DiscordPresenceRuntime.attachActivity(this)
-        
+
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
-        
+
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.auto(
-                android.graphics.Color.TRANSPARENT,
-                android.graphics.Color.TRANSPARENT
-            ),
-            navigationBarStyle = SystemBarStyle.auto(
-                android.graphics.Color.TRANSPARENT,
-                android.graphics.Color.TRANSPARENT
-            )
+            statusBarStyle =
+                SystemBarStyle.auto(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT,
+                ),
+            navigationBarStyle =
+                SystemBarStyle.auto(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT,
+                ),
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
             window.isStatusBarContrastEnforced = false
         }
-        
+
         // Player setup reads DataStore and opens the media cache index, so it runs off the main
         // thread and settles after the first frame instead of blocking onCreate.
         lifecycleScope.launch { GlobalPlayerState.initializeAsync(applicationContext) }
@@ -156,11 +161,12 @@ class MainActivity : ComponentActivity() {
         // separately mapped the same emission three times on the startup path.
         lifecycleScope.launch {
             val playerPreferences =
-                io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
+                io.github.aedev.flow.data.local
+                    .PlayerPreferences(applicationContext)
             combine(
                 playerPreferences.autoPipEnabled,
                 playerPreferences.backgroundPlayEnabled,
-                playerPreferences.shortsBackgroundPlay
+                playerPreferences.shortsBackgroundPlay,
             ) { autoPip, backgroundPlay, shortsBackgroundPlay ->
                 Triple(autoPip, backgroundPlay, shortsBackgroundPlay)
             }.collect { (autoPip, backgroundPlay, shortsBackgroundPlay) ->
@@ -178,16 +184,17 @@ class MainActivity : ComponentActivity() {
         val dataManager = LocalDataManager(applicationContext)
 
         lifecycleScope.launch {
-            io.github.aedev.flow.widget.core.widgetThemeSignatureFlow(applicationContext)
+            io.github.aedev.flow.widget.core
+                .widgetThemeSignatureFlow(applicationContext)
                 .drop(1)
                 .collect {
-                    io.github.aedev.flow.widget.core.FlowWidgets.updateAll(applicationContext)
+                    io.github.aedev.flow.widget.core.FlowWidgets
+                        .updateAll(applicationContext)
                 }
         }
 
         handleIntent(intent)
 
-        
         // Check for updates (only in release builds, only in github flavor)
         if (!BuildConfig.DEBUG && BuildConfig.UPDATER_ENABLED) {
             checkForUpdates(dataManager)
@@ -208,9 +215,10 @@ class MainActivity : ComponentActivity() {
             val configuration = LocalConfiguration.current
             val uiPreferences = remember { AppUiModePreferences(applicationContext) }
             val appUiMode by uiPreferences.mode.collectAsState(initial = AppUiMode.AUTOMATIC)
-            val deviceFormFactor = remember(configuration.uiMode, context) {
-                DeviceFormFactorDetector.detect(context)
-            }
+            val deviceFormFactor =
+                remember(configuration.uiMode, context) {
+                    DeviceFormFactorDetector.detect(context)
+                }
             val appUiRoot = appUiMode.resolve(deviceFormFactor)
             SideEffect { cachedAppUiRoot = appUiRoot }
 
@@ -227,21 +235,21 @@ class MainActivity : ComponentActivity() {
                     customThemePalettes = customThemePalettes,
                     systemLightThemeMode = systemLightThemeMode,
                     systemDarkThemeMode = systemDarkThemeMode,
-                    systemDarkThemeVariant = systemDarkThemeVariant
+                    systemDarkThemeVariant = systemDarkThemeVariant,
                 ) {
                     CrashReporterScreen(
                         crashLog = pendingCrashLog!!,
                         onClearAndRestart = {
                             FlowCrashHandler.clearLastCrash(applicationContext)
                             pendingCrashLog = null
-                        }
+                        },
                     )
                 }
                 return@setContent
             }
 
             var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
-            
+
             // Check for updates ONCE on launch — skip debug/foss builds, enforce 24h cooldown
             LaunchedEffect(Unit) {
                 if (BuildConfig.DEBUG || !BuildConfig.UPDATER_ENABLED) return@LaunchedEffect
@@ -292,10 +300,11 @@ class MainActivity : ComponentActivity() {
                     systemDarkThemeVariant = variant
                 }
             }
-            
+
             // Initialize Flow Neuro Engine
             LaunchedEffect(Unit) {
-                io.github.aedev.flow.data.recommendation.FlowNeuroEngine.initialize(applicationContext)
+                io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+                    .initialize(applicationContext)
             }
 
             FlowTheme(
@@ -304,7 +313,7 @@ class MainActivity : ComponentActivity() {
                 customThemePalettes = customThemePalettes,
                 systemLightThemeMode = systemLightThemeMode,
                 systemDarkThemeMode = systemDarkThemeMode,
-                systemDarkThemeVariant = systemDarkThemeVariant
+                systemDarkThemeVariant = systemDarkThemeVariant,
             ) {
                 // Show Dialog Overlay if update exists (github flavor only)
                 if (BuildConfig.UPDATER_ENABLED && updateInfo != null) {
@@ -314,7 +323,7 @@ class MainActivity : ComponentActivity() {
                         onUpdate = {
                             UpdateManager.triggerDownload(context, updateInfo!!.downloadUrl)
                             updateInfo = null
-                        }
+                        },
                     )
                 }
 
@@ -330,20 +339,22 @@ class MainActivity : ComponentActivity() {
 
                 // Request notification permission for Android 13+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-                    ) { isGranted ->
-                        if (isGranted) {
-                            android.util.Log.d("MainActivity", "Notification permission granted")
-                        } else {
-                            android.util.Log.w("MainActivity", "Notification permission denied")
+                    val permissionLauncher =
+                        androidx.activity.compose.rememberLauncherForActivityResult(
+                            androidx.activity.result.contract.ActivityResultContracts
+                                .RequestPermission(),
+                        ) { isGranted ->
+                            if (isGranted) {
+                                android.util.Log.d("MainActivity", "Notification permission granted")
+                            } else {
+                                android.util.Log.w("MainActivity", "Notification permission denied")
+                            }
                         }
-                    }
 
                     LaunchedEffect(Unit) {
                         if (androidx.core.content.ContextCompat.checkSelfPermission(
                                 context,
-                                android.Manifest.permission.POST_NOTIFICATIONS
+                                android.Manifest.permission.POST_NOTIFICATIONS,
                             ) != android.content.pm.PackageManager.PERMISSION_GRANTED
                         ) {
                             permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -355,87 +366,87 @@ class MainActivity : ComponentActivity() {
                 // collect them individually, so a feed of ten opened ten Room observers and
                 // fifty DataStore collectors.
                 ProvideVideoCardState {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    // 1. MAIN APP (Home/NavHost)
-                    // This loads *behind* the splash screen immediately.
-                    // By the time splash fades, this is ready.
-                    val deeplinkVideoId by this@MainActivity.deeplinkVideoId
-                    val isDeeplinkShort by this@MainActivity.isDeeplinkShort
-                    val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
-                    val pendingWidgetRoute by this@MainActivity.pendingWidgetRoute
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // 1. MAIN APP (Home/NavHost)
+                        // This loads *behind* the splash screen immediately.
+                        // By the time splash fades, this is ready.
+                        val deeplinkVideoId by this@MainActivity.deeplinkVideoId
+                        val isDeeplinkShort by this@MainActivity.isDeeplinkShort
+                        val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
+                        val pendingWidgetRoute by this@MainActivity.pendingWidgetRoute
 
-                    if (appUiRoot == AppUiRoot.TV) {
-                        FlowTvApp(
-                            deeplinkVideoId = deeplinkVideoId,
-                            isShort = isDeeplinkShort,
-                            onDeeplinkConsumed = { consumeDeeplink() },
-                        )
-                    } else {
-                        FlowApp(
-                            currentTheme = themeMode,
-                            themeVariant = themeVariant,
-                            customThemePalettes = customThemePalettes,
-                            systemLightThemeMode = systemLightThemeMode,
-                            systemDarkThemeMode = systemDarkThemeMode,
-                            systemDarkThemeVariant = systemDarkThemeVariant,
-                            onThemeChange = { newTheme ->
-                                themeMode = newTheme
-                                scope.launch {
-                                    dataManager.setThemeMode(newTheme)
-                                }
-                            },
-                            onThemeVariantChange = { variant ->
-                                themeVariant = variant
-                                scope.launch {
-                                    dataManager.setThemeVariant(variant)
-                                }
-                            },
-                            onCustomThemePalettesChange = { palettes ->
-                                customThemePalettes = palettes
-                                scope.launch {
-                                    dataManager.setCustomThemePalettes(palettes)
-                                }
-                            },
-                            onSystemLightThemeChange = { newTheme ->
-                                systemLightThemeMode = newTheme
-                                scope.launch {
-                                    dataManager.setSystemLightThemeMode(newTheme)
-                                }
-                            },
-                            onSystemDarkThemeChange = { newTheme ->
-                                systemDarkThemeMode = newTheme
-                                scope.launch {
-                                    dataManager.setSystemDarkThemeMode(newTheme)
-                                }
-                            },
-                            onSystemDarkThemeVariantChange = { variant ->
-                                systemDarkThemeVariant = variant
-                                scope.launch {
-                                    dataManager.setSystemDarkThemeVariant(variant)
-                                }
-                            },
-                            deeplinkVideoId = deeplinkVideoId,
-                            isShort = isDeeplinkShort,
-                            openMusicPlayerRequest = openMusicPlayerRequest,
-                            onDeeplinkConsumed = {
-                                consumeDeeplink()
-                            },
-                            pendingWidgetRoute = pendingWidgetRoute,
-                            onWidgetRouteConsumed = {
-                                _pendingWidgetRoute.value = null
-                            }
-                        )
-                    }
+                        if (appUiRoot == AppUiRoot.TV) {
+                            FlowTvApp(
+                                deeplinkVideoId = deeplinkVideoId,
+                                isShort = isDeeplinkShort,
+                                onDeeplinkConsumed = { consumeDeeplink() },
+                            )
+                        } else {
+                            FlowApp(
+                                currentTheme = themeMode,
+                                themeVariant = themeVariant,
+                                customThemePalettes = customThemePalettes,
+                                systemLightThemeMode = systemLightThemeMode,
+                                systemDarkThemeMode = systemDarkThemeMode,
+                                systemDarkThemeVariant = systemDarkThemeVariant,
+                                onThemeChange = { newTheme ->
+                                    themeMode = newTheme
+                                    scope.launch {
+                                        dataManager.setThemeMode(newTheme)
+                                    }
+                                },
+                                onThemeVariantChange = { variant ->
+                                    themeVariant = variant
+                                    scope.launch {
+                                        dataManager.setThemeVariant(variant)
+                                    }
+                                },
+                                onCustomThemePalettesChange = { palettes ->
+                                    customThemePalettes = palettes
+                                    scope.launch {
+                                        dataManager.setCustomThemePalettes(palettes)
+                                    }
+                                },
+                                onSystemLightThemeChange = { newTheme ->
+                                    systemLightThemeMode = newTheme
+                                    scope.launch {
+                                        dataManager.setSystemLightThemeMode(newTheme)
+                                    }
+                                },
+                                onSystemDarkThemeChange = { newTheme ->
+                                    systemDarkThemeMode = newTheme
+                                    scope.launch {
+                                        dataManager.setSystemDarkThemeMode(newTheme)
+                                    }
+                                },
+                                onSystemDarkThemeVariantChange = { variant ->
+                                    systemDarkThemeVariant = variant
+                                    scope.launch {
+                                        dataManager.setSystemDarkThemeVariant(variant)
+                                    }
+                                },
+                                deeplinkVideoId = deeplinkVideoId,
+                                isShort = isDeeplinkShort,
+                                openMusicPlayerRequest = openMusicPlayerRequest,
+                                onDeeplinkConsumed = {
+                                    consumeDeeplink()
+                                },
+                                pendingWidgetRoute = pendingWidgetRoute,
+                                onWidgetRouteConsumed = {
+                                    _pendingWidgetRoute.value = null
+                                },
+                            )
+                        }
 
-                    // 2. THE SPLASH SCREEN (Z-Index Top)
-                    if (showSplash) {
-                        io.github.aedev.flow.ui.components.FlowSplashScreen(
-                            onAnimationFinished = {
-                                showSplash = false
-                            }
-                        )
+                        // 2. THE SPLASH SCREEN (Z-Index Top)
+                        if (showSplash) {
+                            io.github.aedev.flow.ui.components.FlowSplashScreen(
+                                onAnimationFinished = {
+                                    showSplash = false
+                                },
+                            )
+                        }
                     }
-                }
                 }
             }
         }
@@ -449,16 +460,19 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         videoLifecycleLog("onDestroy")
         DiscordPresenceRuntime.detachActivity(this)
-        val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+        val playerManager =
+            io.github.aedev.flow.player.EnhancedPlayerManager
+                .getInstance()
         val playerState = playerManager.playerState.value
         val hasActiveVideo =
             playerState.currentVideoId != null &&
                 (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
-        val shouldKeepBackgroundPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
-            backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
-            explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
-            hasActiveVideo = hasActiveVideo
-        )
+        val shouldKeepBackgroundPlayback =
+            BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
+                backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
+                explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
+                hasActiveVideo = hasActiveVideo,
+            )
 
         if (shouldKeepBackgroundPlayback) {
             handOffVideoPlaybackToBackground()
@@ -478,9 +492,10 @@ class MainActivity : ComponentActivity() {
         val data = intent.data
         val notificationVideoId = intent.getStringExtra("notification_video_id") ?: intent.getStringExtra("video_id")
 
-        val widgetRoute = intent.getStringExtra(
-            io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE
-        )
+        val widgetRoute =
+            intent.getStringExtra(
+                io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE,
+            )
         if (widgetRoute != null) {
             intent.removeExtra(io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
             _pendingWidgetRoute.value = widgetRoute
@@ -506,33 +521,36 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        
+
         // Reset shorts flag
         _isDeeplinkShort.value = false
 
-        val videoId = if (data != null && intent.action == Intent.ACTION_VIEW) {
-            val urlString = data.toString()
-            if (urlString.contains("shorts/")) {
-                _isDeeplinkShort.value = true
-            }
-            extractVideoId(urlString)
-        } else if (intent.action == Intent.ACTION_SEND && intent.type == "text/plain") {
-            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-            if (sharedText != null) {
-                if (sharedText.contains("shorts/")) {
+        val videoId =
+            if (data != null && intent.action == Intent.ACTION_VIEW) {
+                val urlString = data.toString()
+                if (urlString.contains("shorts/")) {
                     _isDeeplinkShort.value = true
                 }
-                extractVideoId(sharedText)
-            } else null
-        } else {
-            notificationVideoId
-        }
-        
+                extractVideoId(urlString)
+            } else if (intent.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                if (sharedText != null) {
+                    if (sharedText.contains("shorts/")) {
+                        _isDeeplinkShort.value = true
+                    }
+                    extractVideoId(sharedText)
+                } else {
+                    null
+                }
+            } else {
+                notificationVideoId
+            }
+
         // Check extra
         if (intent.getBooleanExtra("is_short", false) || intent.getBooleanExtra("is_shorts", false)) {
             _isDeeplinkShort.value = true
         }
-        
+
         if (videoId != null) {
             _deeplinkVideoId.value = videoId
             intent.putExtra("deeplink_video_id", videoId)
@@ -553,13 +571,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun extractVideoId(url: String): String? {
-        val patterns = listOf(
-            Regex("v=([^&]+)"),
-            Regex("shorts/([^/?]+)"),
-            Regex("youtu.be/([^/?]+)"),
-            Regex("embed/([^/?]+)"),
-            Regex("v/([^/?]+)")
-        )
+        val patterns =
+            listOf(
+                Regex("v=([^&]+)"),
+                Regex("shorts/([^/?]+)"),
+                Regex("youtu.be/([^/?]+)"),
+                Regex("embed/([^/?]+)"),
+                Regex("v/([^/?]+)"),
+            )
         for (pattern in patterns) {
             val match = pattern.find(url)
             if (match != null) return match.groupValues[1]
@@ -567,7 +586,10 @@ class MainActivity : ComponentActivity() {
         return url.substringAfterLast("/").substringBefore("?").ifEmpty { null }
     }
 
-    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration,
+    ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         videoLifecycleLog("onPictureInPictureModeChanged pip=$isInPictureInPictureMode")
         GlobalPlayerState.setPipMode(isInPictureInPictureMode)
@@ -577,15 +599,20 @@ class MainActivity : ComponentActivity() {
 
         pipDismissCheckJob?.cancel()
         if (!isInPictureInPictureMode) {
-            pipDismissCheckJob = lifecycleScope.launch {
-                delay(350L)
-                val stillBackgrounded = !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-                if (stillBackgrounded && !isInPictureInPictureMode) {
-                    GlobalPlayerState.requestDismiss()
-                    io.github.aedev.flow.player.EnhancedPlayerManager.getInstance().stop()
-                    io.github.aedev.flow.player.EnhancedPlayerManager.getInstance().stopBackgroundService()
+            pipDismissCheckJob =
+                lifecycleScope.launch {
+                    delay(350L)
+                    val stillBackgrounded = !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                    if (stillBackgrounded && !isInPictureInPictureMode) {
+                        GlobalPlayerState.requestDismiss()
+                        io.github.aedev.flow.player.EnhancedPlayerManager
+                            .getInstance()
+                            .stop()
+                        io.github.aedev.flow.player.EnhancedPlayerManager
+                            .getInstance()
+                            .stopBackgroundService()
+                    }
                 }
-            }
         }
     }
 
@@ -606,18 +633,22 @@ class MainActivity : ComponentActivity() {
         PictureInPictureHelper.dismissPopup(this)
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+    override fun onKeyDown(
+        keyCode: Int,
+        event: KeyEvent,
+    ): Boolean {
         if (
             (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) &&
             io.github.aedev.flow.player.PlayerHardwareController.fullscreenVideoActive.value
         ) {
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             if (audioManager != null) {
-                val direction = if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-                    AudioManager.ADJUST_RAISE
-                } else {
-                    AudioManager.ADJUST_LOWER
-                }
+                val direction =
+                    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                        AudioManager.ADJUST_RAISE
+                    } else {
+                        AudioManager.ADJUST_LOWER
+                    }
                 audioManager.adjustStreamVolume(
                     AudioManager.STREAM_MUSIC,
                     direction,
@@ -625,10 +656,11 @@ class MainActivity : ComponentActivity() {
                         0
                     } else {
                         AudioManager.FLAG_SHOW_UI
-                    }
+                    },
                 )
                 if (io.github.aedev.flow.player.PlayerHardwareController.inAppVolumeOverlayEnabled.value) {
-                    io.github.aedev.flow.player.PlayerHardwareController.notifyVolumeKey()
+                    io.github.aedev.flow.player.PlayerHardwareController
+                        .notifyVolumeKey()
                 }
                 return true
             }
@@ -636,7 +668,10 @@ class MainActivity : ComponentActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
-    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+    override fun onKeyUp(
+        keyCode: Int,
+        event: KeyEvent,
+    ): Boolean {
         if (
             (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) &&
             io.github.aedev.flow.player.PlayerHardwareController.fullscreenVideoActive.value
@@ -651,7 +686,7 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         FlowCrashHandler.recordPhase(
             "activity",
-            "onStop pip=$isInPictureInPictureMode backgroundPlay=$cachedBackgroundPlayEnabled shortsBackground=$cachedShortsBackgroundPlay"
+            "onStop pip=$isInPictureInPictureMode backgroundPlay=$cachedBackgroundPlayEnabled shortsBackground=$cachedShortsBackgroundPlay",
         )
         videoLifecycleLog("onStop")
         if (!isInPictureInPictureMode && !PictureInPictureHelper.isPopupActive) {
@@ -659,7 +694,9 @@ class MainActivity : ComponentActivity() {
                 requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
             if (!cachedShortsBackgroundPlay) {
-                io.github.aedev.flow.player.shorts.ShortsPlayerPool.getInstance().pauseAll()
+                io.github.aedev.flow.player.shorts.ShortsPlayerPool
+                    .getInstance()
+                    .pauseAll()
             }
 
             if (pendingAutoPip) {
@@ -687,30 +724,34 @@ class MainActivity : ComponentActivity() {
             GlobalPlayerState.isExplicitBackgroundPlaybackActive.value
         FlowCrashHandler.recordPhase(
             "activity",
-            "onUserLeaveHint autoPip=$cachedAutoPipEnabled explicitBackground=$explicitBackgroundPlaybackActive"
+            "onUserLeaveHint autoPip=$cachedAutoPipEnabled explicitBackground=$explicitBackgroundPlaybackActive",
         )
         videoLifecycleLog("onUserLeaveHint")
         // Only enter PiP mode if video is playing and has progressed
         // We use the EnhancedPlayerManager directly to get the immediate state
-        val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+        val playerManager =
+            io.github.aedev.flow.player.EnhancedPlayerManager
+                .getInstance()
         val musicManager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
-        
-        val isVideoPlaying = playerManager.playerState.value.isPlaying && 
-                           playerManager.playerState.value.currentVideoId != null &&
-                           playerManager.getCurrentPosition() > 500 // At least 0.5s in
-        
+
+        val isVideoPlaying =
+            playerManager.playerState.value.isPlaying &&
+                playerManager.playerState.value.currentVideoId != null &&
+                playerManager.getCurrentPosition() > 500 // At least 0.5s in
+
         val isMusicPlaying = musicManager.playerState.value.isPlaying
-        
+
         // Only enter PiP for video, not for music (which uses background service)
-        val shouldEnterAutoPip = BackgroundPlaybackPolicy.shouldEnterAutoPip(
-            autoPipEnabled = cachedAutoPipEnabled,
-            isVideoPlaying = isVideoPlaying,
-            explicitBackgroundPlaybackActive = explicitBackgroundPlaybackActive
-        )
+        val shouldEnterAutoPip =
+            BackgroundPlaybackPolicy.shouldEnterAutoPip(
+                autoPipEnabled = cachedAutoPipEnabled,
+                isVideoPlaying = isVideoPlaying,
+                explicitBackgroundPlaybackActive = explicitBackgroundPlaybackActive,
+            )
         if (shouldEnterAutoPip && !isMusicPlaying) {
             enterPlayerPictureInPictureMode(
                 aspectRatio = PictureInPictureHelper.currentVideoAspectRatio,
-                isPlaying = true
+                isPlaying = true,
             )
         }
     }
@@ -719,7 +760,8 @@ class MainActivity : ComponentActivity() {
         super.onTrimMemory(level)
         FlowCrashHandler.recordPhase("memory", "MainActivity.onTrimMemory level=$level")
         if (MemoryPressurePolicy.shouldReleaseVideoPlayback(level)) {
-            io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+            io.github.aedev.flow.player.EnhancedPlayerManager
+                .getInstance()
                 .handleCriticalMemoryPressure()
         }
     }
@@ -727,7 +769,7 @@ class MainActivity : ComponentActivity() {
     fun enterPlayerPictureInPictureMode(
         aspectRatio: Float = PictureInPictureHelper.currentVideoAspectRatio,
         isPlaying: Boolean = true,
-        openSettingsOnDenied: Boolean = false
+        openSettingsOnDenied: Boolean = false,
     ): Boolean {
         if (cachedAppUiRoot == AppUiRoot.TV) return false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
@@ -739,12 +781,13 @@ class MainActivity : ComponentActivity() {
         }
 
         pendingAutoPip = true
-        val entered = PictureInPictureHelper.enterPipMode(
-            activity = this,
-            aspectRatio = aspectRatio,
-            isPlaying = isPlaying,
-            autoEnterEnabled = false
-        )
+        val entered =
+            PictureInPictureHelper.enterPipMode(
+                activity = this,
+                aspectRatio = aspectRatio,
+                isPlaying = isPlaying,
+                autoEnterEnabled = false,
+            )
         if (!entered) {
             pendingAutoPip = false
         }
@@ -754,7 +797,9 @@ class MainActivity : ComponentActivity() {
     private fun handOffVideoPlaybackToBackground() {
         FlowCrashHandler.recordPhase("background-handoff", "handOffVideoPlaybackToBackground")
         videoLifecycleLog("handOffVideoPlaybackToBackground")
-        val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+        val playerManager =
+            io.github.aedev.flow.player.EnhancedPlayerManager
+                .getInstance()
         val playerState = playerManager.playerState.value
         if (
             playerState.currentVideoId != null &&
@@ -765,7 +810,7 @@ class MainActivity : ComponentActivity() {
                 videoId = video?.id ?: playerState.currentVideoId,
                 title = video?.title?.ifEmpty { "Playing..." } ?: "Playing...",
                 channel = video?.channelName ?: "",
-                thumbnail = video?.thumbnailUrl ?: ""
+                thumbnail = video?.thumbnailUrl ?: "",
             )
             playerManager.continueVideoPlaybackInBackground()
         }
@@ -774,7 +819,9 @@ class MainActivity : ComponentActivity() {
     private fun handleBackgroundPlaybackOnStop() {
         FlowCrashHandler.recordPhase("background-handoff", "handleBackgroundPlaybackOnStop")
         videoLifecycleLog("handleBackgroundPlaybackOnStop")
-        val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+        val playerManager =
+            io.github.aedev.flow.player.EnhancedPlayerManager
+                .getInstance()
         val playerState = playerManager.playerState.value
         val hasActiveVideo =
             playerState.currentVideoId != null &&
@@ -782,11 +829,12 @@ class MainActivity : ComponentActivity() {
 
         if (!hasActiveVideo) return
 
-        val shouldKeepBackgroundPlayback = BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
-            backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
-            explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
-            hasActiveVideo = hasActiveVideo
-        )
+        val shouldKeepBackgroundPlayback =
+            BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
+                backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
+                explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
+                hasActiveVideo = hasActiveVideo,
+            )
 
         if (shouldKeepBackgroundPlayback) {
             videoLifecycleLog("handleBackgroundPlaybackOnStop handoff")
@@ -810,11 +858,13 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val client = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
-                val request = Request.Builder()
-                    .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
-                    .header("Accept", "application/vnd.github.v3+json")
-                    .build()
-                
+                val request =
+                    Request
+                        .Builder()
+                        .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .build()
+
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
                     val body = response.body?.string()
@@ -822,42 +872,44 @@ class MainActivity : ComponentActivity() {
                         val json = JsonParser.parseString(body).asJsonObject
                         val latestTag = json.get("tag_name").asString
                         val currentVersion = BuildConfig.VERSION_NAME
-                        
+
                         val cleanLatest = latestTag.removePrefix("v").split("-").first()
                         val cleanCurrent = currentVersion.removePrefix("v").split("-").first()
-                        
+
                         Log.d("MainActivity", "Latest tag: $latestTag, Current: $currentVersion, Comparing: $cleanLatest vs $cleanCurrent")
-                        
+
                         if (isNewerVersion(cleanLatest, cleanCurrent)) {
                             withContext(Dispatchers.Main) {
-                                AlertDialog.Builder(this@MainActivity)
+                                AlertDialog
+                                    .Builder(this@MainActivity)
                                     .setTitle(getString(R.string.new_update_available))
                                     .setMessage(getString(R.string.update_download_prompt, latestTag))
                                     .setPositiveButton(getString(R.string.download)) { _, _ ->
                                         ApkUpdateHelper.requestDownload(this@MainActivity, "https://github.com/A-EDev/Flow/releases/latest")
-                                    }
-                                    .setNegativeButton(getString(R.string.maybe_later), null)
+                                    }.setNegativeButton(getString(R.string.maybe_later), null)
                                     .show()
                             }
                         }
                     }
                 }
-                
+
                 // Update last check time
                 dataManager.setLastUpdateCheck(currentTime)
-                
             } catch (e: Exception) {
                 Log.e("MainActivity", "Failed to check for updates", e)
             }
         }
     }
 
-    private fun isNewerVersion(latest: String, current: String): Boolean {
+    private fun isNewerVersion(
+        latest: String,
+        current: String,
+    ): Boolean {
         val cleanLatest = latest.split("-").first()
         val cleanCurrent = current.split("-").first()
         val latestParts = cleanLatest.split(".").mapNotNull { it.toIntOrNull() }
         val currentParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
-        
+
         val size = maxOf(latestParts.size, currentParts.size)
         for (i in 0 until size) {
             val l = latestParts.getOrNull(i) ?: 0
@@ -867,5 +919,4 @@ class MainActivity : ComponentActivity() {
         }
         return false
     }
-
 }

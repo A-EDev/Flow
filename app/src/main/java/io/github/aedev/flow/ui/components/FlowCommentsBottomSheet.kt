@@ -566,11 +566,7 @@ fun FlowCommentItem(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(),
-                                onClick = {
-                                    onAuthorClick(
-                                        comment.authorChannelId.ifBlank { getAuthorHandle(comment.author) },
-                                    )
-                                },
+                                onClick = { onAuthorClick(commentAuthorChannelRef(comment)) },
                             ),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -837,11 +833,7 @@ fun FlowReplyItem(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(),
-                                onClick = {
-                                    onAuthorClick(
-                                        reply.authorChannelId.ifBlank { getAuthorHandle(reply.author) },
-                                    )
-                                },
+                                onClick = { onAuthorClick(commentAuthorChannelRef(reply)) },
                             ),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -1003,7 +995,14 @@ fun formatAuthorName(author: String): String {
     }
 }
 
-fun getAuthorHandle(author: String): String = author.trim().removePrefix("@")
+/**
+ * Channel reference for a comment author, in one of the forms `youtubeChannelUrl` accepts:
+ * a `UC…` channel id, an `@handle`, or a bare handle.
+ *
+ * Callers must forward the value unchanged — re-prefixing it with `@` turns a channel id into a
+ * handle that does not exist, which is why comment authors used to open a 404 page.
+ */
+fun commentAuthorChannelRef(comment: Comment): String = comment.authorChannelId.trim().ifBlank { comment.author.trim().removePrefix("@") }
 
 private fun toHighQualityAvatarUrl(url: String): String {
     if (url.isBlank()) return url

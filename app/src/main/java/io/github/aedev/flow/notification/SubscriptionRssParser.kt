@@ -66,15 +66,18 @@ internal object SubscriptionRssParser {
                             thumbnail = null
                         } else if (insideEntry) {
                             when {
-                                tagName.equals("videoId", ignoreCase = true) ->
+                                tagName.equals("videoId", ignoreCase = true) -> {
                                     videoId = parser.nextText()
+                                }
 
                                 // The feed repeats the title inside <media:group>; keep the first.
-                                tagName.equals("title", ignoreCase = true) && title == null ->
+                                tagName.equals("title", ignoreCase = true) && title == null -> {
                                     title = parser.nextText()
+                                }
 
-                                tagName.equals("thumbnail", ignoreCase = true) && thumbnail == null ->
+                                tagName.equals("thumbnail", ignoreCase = true) && thumbnail == null -> {
                                     thumbnail = parser.getAttributeValue(null, "url")
+                                }
                             }
                         }
                     }
