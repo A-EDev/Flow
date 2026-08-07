@@ -11,6 +11,7 @@ import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
 import io.github.aedev.flow.player.sabr.core.SabrCpn
+import io.github.aedev.flow.player.sabr.integration.SabrClientIdentity
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
@@ -53,6 +54,7 @@ object InnerTubeVideoStreamExtractor {
         listOf(
             YouTubeClient.ANDROID_VR_1_61_48,
             YouTubeClient.ANDROID_VR_NO_AUTH,
+            YouTubeClient.ANDROID_VR_1_65_10,
             YouTubeClient.IPADOS,
             YouTubeClient.IOS,
             YouTubeClient.ANDROID_VR_1_43_32,
@@ -76,6 +78,12 @@ object InnerTubeVideoStreamExtractor {
         listOf(
             YouTubeClient.IPADOS,
             YouTubeClient.IOS,
+        )
+
+    private val SABR_CLIENTS: List<YouTubeClient> =
+        listOf(
+            YouTubeClient.WEB,
+            YouTubeClient.MWEB,
         )
 
     private val LIVE_MANIFEST_CLIENTS: List<YouTubeClient> =
@@ -149,9 +157,9 @@ object InnerTubeVideoStreamExtractor {
             val liveDetected = booleanArrayOf(false)
 
             if (forceSabr) {
-                tryWebSabr(videoId, failureReasons)?.let {
-                    Log.w(TAG, "Extraction OK for $videoId via WEB (mode=SABR/forced)")
-                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR/forced")
+                trySabrClients(videoId, failureReasons)?.let {
+                    Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=SABR/forced)")
+                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR/forced via ${it.usedClient.clientName}")
                     return@withContext it
                 }
                 Log.e(TAG, "Forced SABR extraction failed for $videoId. Reasons: ${failureReasons.joinToString(" | ")}")
@@ -180,10 +188,10 @@ object InnerTubeVideoStreamExtractor {
                 }
             }
 
-            // 2) Durable path: WEB + BotGuard PoToken + SABR. Survives the LOGIN_REQUIRED bot wall
-            tryWebSabr(videoId, failureReasons)?.let {
-                Log.w(TAG, "Extraction OK for $videoId via WEB (mode=SABR)")
-                PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR (durable)")
+            // 2) Durable path: web client + BotGuard PoToken + SABR. Survives the LOGIN_REQUIRED bot wall
+            trySabrClients(videoId, failureReasons)?.let {
+                Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=SABR)")
+                PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR (durable) via ${it.usedClient.clientName}")
                 return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
             }
 
@@ -327,7 +335,10 @@ object InnerTubeVideoStreamExtractor {
         }
 
     private fun distinctAudioTrackCount(formats: List<PlayerResponse.StreamingData.Format>): Int =
-        formats.mapNotNullTo(mutableSetOf()) { it.audioTrack?.id }.size
+        formats
+            .mapNotNullTo(mutableSetOf()) {
+                it.audioTrack?.id
+            }.size
 
     private fun resultMode(r: VideoExtractionResult): String =
         when {
@@ -359,7 +370,7 @@ object InnerTubeVideoStreamExtractor {
             TAG,
             "Direct ladder for $videoId capped at ${directMaxHeight}p (< ${SabrRoutingPolicy.QUALITY_UPGRADE_FLOOR}p); attempting SABR upgrade",
         )
-        val sabr = tryWebSabr(videoId, failureReasons) ?: return direct
+        val sabr = trySabrClients(videoId, failureReasons) ?: return direct
         val sabrHeight = sabr.sabrInfo?.videoHeight ?: 0
         return if (sabr.sabrInfo != null && sabrHeight > directMaxHeight) {
             Log.w(TAG, "Upgraded $videoId: ${directMaxHeight}p direct → ${sabrHeight}p SABR")
@@ -369,12 +380,18 @@ object InnerTubeVideoStreamExtractor {
         }
     }
 
+    /**
+     * @param client the client that opened the session being reloaded. A reload must stay on it —
+     *   re-resolving an MWEB session as WEB would contradict the player response the server is
+     *   already tracking — so this deliberately does not walk [SABR_CLIENTS].
+     */
     suspend fun resolveSabrDownload(
         videoId: String,
         targetHeight: Int = 0,
         preferredCodec: String? = null,
         cpn: String = SabrCpn.generate(),
         reloadToken: String? = null,
+        client: YouTubeClient = YouTubeClient.WEB,
     ): SabrStreamInfo? =
         withContext(Dispatchers.IO) {
             val failureReasons = mutableListOf<String>()
@@ -385,6 +402,7 @@ object InnerTubeVideoStreamExtractor {
                 preferredCodec = preferredCodec,
                 cpn = cpn,
                 reloadToken = reloadToken,
+                client = client,
             )?.sabrInfo.also { sabrInfo ->
                 if (sabrInfo == null) {
                     Log.w(TAG, "SABR download resolve failed for $videoId: ${failureReasons.joinToString(" | ")}")
@@ -558,8 +576,34 @@ object InnerTubeVideoStreamExtractor {
     }
 
     /**
-     * WEB client + a WebView BotGuard PoToken + forced en-US locale.
-     * Produces a SABR session (the response is SABR-only). Returns null when no visitorData / PoToken is available
+     * Walks [SABR_CLIENTS] until one resolves a SABR session, so a bot wall on WEB alone does not
+     * end the durable path.
+     */
+    private suspend fun trySabrClients(
+        videoId: String,
+        failureReasons: MutableList<String>,
+        targetHeight: Int = 0,
+        preferredCodec: String? = null,
+        cpn: String = SabrCpn.generate(),
+        reloadToken: String? = null,
+    ): VideoExtractionResult? {
+        for (client in SABR_CLIENTS) {
+            tryWebSabr(
+                videoId = videoId,
+                failureReasons = failureReasons,
+                targetHeight = targetHeight,
+                preferredCodec = preferredCodec,
+                cpn = cpn,
+                reloadToken = reloadToken,
+                client = client,
+            )?.let { return it }
+        }
+        return null
+    }
+
+    /**
+     * A web-like [client] + a WebView BotGuard PoToken + forced en-US locale. Produces a SABR
+     * session (the response is SABR-only). Returns null when no visitorData / PoToken is available.
      */
     private suspend fun tryWebSabr(
         videoId: String,
@@ -568,18 +612,23 @@ object InnerTubeVideoStreamExtractor {
         preferredCodec: String? = null,
         cpn: String = SabrCpn.generate(),
         reloadToken: String? = null,
+        client: YouTubeClient = YouTubeClient.WEB,
     ): VideoExtractionResult? {
+        val label = client.clientName
+        if (reloadToken != null && client != YouTubeClient.WEB) {
+            Log.w(TAG, "$label+SABR: reload tokens are WEB-only; resolving a fresh session instead")
+        }
         try {
             val visitorData = WebPoTokenSession.sessionVisitorData()
             if (visitorData.isNullOrEmpty()) {
-                failureReasons.add("WEB: no visitorData")
-                Log.w(TAG, "WEB+SABR: no visitorData available")
+                failureReasons.add("$label: no visitorData")
+                Log.w(TAG, "$label+SABR: no visitorData available")
                 return null
             }
             val poToken = WebPoTokenSession.mintForVisitorData(videoId, visitorData)
             if (poToken == null) {
-                failureReasons.add("WEB: PoToken unavailable (WebView missing/broken?)")
-                Log.w(TAG, "WEB+SABR: PoToken mint returned null (WebView missing/broken?)")
+                failureReasons.add("$label: PoToken unavailable (WebView missing/broken?)")
+                Log.w(TAG, "$label+SABR: PoToken mint returned null (WebView missing/broken?)")
                 return null
             }
             val sts =
@@ -588,20 +637,36 @@ object InnerTubeVideoStreamExtractor {
 
             val playerResponse =
                 withTimeoutOrNull(WEB_PLAYER_TIMEOUT_MS) {
-                    YouTube
-                        .playerWeb(
-                            videoId = videoId,
-                            signatureTimestamp = sts,
-                            poToken = poToken.playerRequestPoToken,
-                            visitorData = visitorData,
-                            locale = YouTubeLocale.EXTRACTION,
-                            cpn = cpn,
-                            reloadToken = reloadToken,
-                        ).getOrNull()
+                    if (client == YouTubeClient.WEB) {
+                        YouTube
+                            .playerWeb(
+                                videoId = videoId,
+                                signatureTimestamp = sts,
+                                poToken = poToken.playerRequestPoToken,
+                                visitorData = visitorData,
+                                locale = YouTubeLocale.EXTRACTION,
+                                cpn = cpn,
+                                reloadToken = reloadToken,
+                            ).getOrNull()
+                    } else {
+                        // The generic player endpoint reaches the same www.youtube.com host with the
+                        // same header set, and carries the client's own context — enough for a cold
+                        // SABR resolve. It has no reloadPlaybackContext, though, so a reload demand
+                        // on such a session is answered by resolving cold instead (see below).
+                        YouTube
+                            .player(
+                                videoId = videoId,
+                                client = client,
+                                signatureTimestamp = sts,
+                                poToken = poToken.playerRequestPoToken,
+                                localeOverride = YouTubeLocale.EXTRACTION,
+                                apiUrl = YouTubeClient.API_URL_YOUTUBE,
+                            ).getOrNull()
+                    }
                 }
             if (playerResponse == null) {
-                failureReasons.add("WEB: timeout or null response")
-                Log.w(TAG, "WEB+SABR: player request timeout/null")
+                failureReasons.add("$label: timeout or null response")
+                Log.w(TAG, "$label+SABR: player request timeout/null")
                 return null
             }
 
@@ -609,8 +674,8 @@ object InnerTubeVideoStreamExtractor {
             if (status != "OK") {
                 val reason = playerResponse.playabilityStatus.reason
                 val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
-                failureReasons.add("WEB: $tag, reason=$reason")
-                Log.w(TAG, "WEB: $tag, reason=$reason")
+                failureReasons.add("$label: $tag, reason=$reason")
+                Log.w(TAG, "$label: $tag, reason=$reason")
                 return null
             }
 
@@ -634,12 +699,12 @@ object InnerTubeVideoStreamExtractor {
                     )
                 }
             if (resolved == null) {
-                failureReasons.add("WEB: SABR resolve failed (no serverAbrStreamingUrl / formats)")
-                Log.w(TAG, "WEB+SABR: resolve failed — no serverAbrStreamingUrl/formats (pot/ustreamer present?)")
+                failureReasons.add("$label: SABR resolve failed (no serverAbrStreamingUrl / formats)")
+                Log.w(TAG, "$label+SABR: resolve failed — no serverAbrStreamingUrl/formats (pot/ustreamer present?)")
                 return null
             }
 
-            val sabrInfo =
+            val withTransformedN =
                 try {
                     val transformedUrl =
                         transformNParamInUrlOrNull(
@@ -648,7 +713,7 @@ object InnerTubeVideoStreamExtractor {
                             label = "SABR",
                         )
                     if (transformedUrl == null) {
-                        Log.w(TAG, "WEB+SABR: n-transform unavailable; using the server SABR endpoint unchanged")
+                        Log.w(TAG, "$label+SABR: n-transform unavailable; using the server SABR endpoint unchanged")
                         resolved.copy(cpn = cpn)
                     } else {
                         resolved.copy(streamingUrl = transformedUrl, cpn = cpn)
@@ -656,9 +721,18 @@ object InnerTubeVideoStreamExtractor {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Log.w(TAG, "WEB+SABR: n-transform threw; using the server SABR endpoint unchanged: ${e.message}")
+                    Log.w(TAG, "$label+SABR: n-transform threw; using the server SABR endpoint unchanged: ${e.message}")
                     resolved.copy(cpn = cpn)
                 }
+
+            // Carried on the session so the GVS streaming request and any later reload report the
+            // same client that minted this response.
+            val sabrInfo =
+                withTransformedN.copy(
+                    clientNameId = SabrClientIdentity.clientNameId(client),
+                    clientVersion = client.clientVersion,
+                    clientUserAgent = client.userAgent,
+                )
 
             val adaptiveFormats = playerResponse.streamingData?.adaptiveFormats.orEmpty()
             val videoFormats = adaptiveFormats.filter { !it.isAudio && it.height != null }
@@ -667,21 +741,22 @@ object InnerTubeVideoStreamExtractor {
             val heights = videoFormats.mapNotNull { it.height }.distinct().sorted()
             Log.w(
                 TAG,
-                "WEB+PoToken (SABR) resolved: ${videoFormats.size} video (${heights.joinToString()}p), ${audioFormats.size} audio, sabr=true",
+                "$label+PoToken (SABR) resolved: ${videoFormats.size} video (${heights.joinToString()}p), " +
+                    "${audioFormats.size} audio, sabr=true",
             )
 
             return VideoExtractionResult(
                 videoFormats = videoFormats,
                 audioFormats = audioFormats,
                 playerResponse = playerResponse,
-                usedClient = YouTubeClient.WEB,
+                usedClient = client,
                 sabrInfo = sabrInfo,
             )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            failureReasons.add("WEB: exception=${e.javaClass.simpleName}: ${e.message}")
-            Log.w(TAG, "WEB+SABR failed: ${e.message}")
+            failureReasons.add("$label: exception=${e.javaClass.simpleName}: ${e.message}")
+            Log.w(TAG, "$label+SABR failed: ${e.message}")
             return null
         }
     }

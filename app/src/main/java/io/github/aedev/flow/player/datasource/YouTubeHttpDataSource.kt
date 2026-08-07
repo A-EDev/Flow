@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * YouTube-specific HttpDataSource optimized for streaming performance.
- * 
+ *
  * Key optimizations:
  * - Longer timeouts (30s read) to handle YouTube's variable latency
  * - Proper YouTube headers to avoid bot detection
@@ -25,19 +25,19 @@ import java.util.concurrent.TimeUnit
 @UnstableApi
 class YouTubeHttpDataSource private constructor(
     private val userAgent: String,
-    private val defaultRequestProperties: Map<String, String>
-) : BaseDataSource(true), HttpDataSource {
-
+    private val defaultRequestProperties: Map<String, String>,
+) : BaseDataSource(true),
+    HttpDataSource {
     private var dataSource: DataSource? = null
     private var currentUri: Uri? = null
 
     class Factory : HttpDataSource.Factory {
         private val requestProperties = HashMap<String, String>()
-        private var userAgent = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+        private var userAgent =
+            "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
-        override fun createDataSource(): HttpDataSource {
-            return YouTubeHttpDataSource(userAgent, requestProperties.toMap())
-        }
+        override fun createDataSource(): HttpDataSource = YouTubeHttpDataSource(userAgent, requestProperties.toMap())
 
         override fun setDefaultRequestProperties(defaultRequestProperties: MutableMap<String, String>): HttpDataSource.Factory {
             requestProperties.clear()
@@ -61,13 +61,15 @@ class YouTubeHttpDataSource private constructor(
 
             return synchronized(clientLock) {
                 cachedClient?.takeIf { cachedProxySignature == proxySignature } ?: run {
-                    val client = AppProxyManager.applyTo(OkHttpClient.Builder())
-                        .connectTimeout(15, TimeUnit.SECONDS)
-                        .readTimeout(30, TimeUnit.SECONDS)
-                        .followRedirects(true)
-                        .followSslRedirects(true)
-                        .retryOnConnectionFailure(true)
-                        .build()
+                    val client =
+                        AppProxyManager
+                            .applyTo(OkHttpClient.Builder())
+                            .connectTimeout(15, TimeUnit.SECONDS)
+                            .readTimeout(30, TimeUnit.SECONDS)
+                            .followRedirects(true)
+                            .followSslRedirects(true)
+                            .retryOnConnectionFailure(true)
+                            .build()
                     cachedProxySignature = proxySignature
                     cachedClient = client
                     client
@@ -80,13 +82,16 @@ class YouTubeHttpDataSource private constructor(
     override fun open(dataSpec: DataSpec): Long {
         currentUri = dataSpec.uri
 
-        val requestUserAgent = if (isYouTubeUri(dataSpec.uri)) {
-            resolveYouTubeUserAgent(dataSpec.uri)
-        } else {
-            userAgent
-        }
-        val factory = OkHttpDataSource.Factory(sharedClient())
-            .setUserAgent(requestUserAgent)
+        val requestUserAgent =
+            if (isYouTubeUri(dataSpec.uri)) {
+                resolveYouTubeUserAgent(dataSpec.uri)
+            } else {
+                userAgent
+            }
+        val factory =
+            OkHttpDataSource
+                .Factory(sharedClient())
+                .setUserAgent(requestUserAgent)
 
         val requestHeaders = LinkedHashMap<String, String>()
         requestHeaders.putAll(defaultRequestProperties)
@@ -101,9 +106,11 @@ class YouTubeHttpDataSource private constructor(
         return dataSource!!.open(dataSpec)
     }
 
-    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        return dataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
-    }
+    override fun read(
+        buffer: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int = dataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
 
     override fun close() {
         dataSource?.close()
@@ -111,44 +118,47 @@ class YouTubeHttpDataSource private constructor(
     }
 
     override fun getUri(): Uri? = currentUri
-    
+
     override fun getResponseCode(): Int = (dataSource as? HttpDataSource)?.responseCode ?: -1
-    
-    override fun getResponseHeaders(): Map<String, List<String>> = 
-        (dataSource as? HttpDataSource)?.responseHeaders ?: emptyMap()
-    
+
+    override fun getResponseHeaders(): Map<String, List<String>> = (dataSource as? HttpDataSource)?.responseHeaders ?: emptyMap()
+
     override fun clearAllRequestProperties() {}
+
     override fun clearRequestProperty(name: String) {}
-    override fun setRequestProperty(name: String, value: String) {}
+
+    override fun setRequestProperty(
+        name: String,
+        value: String,
+    ) {}
 
     private fun isYouTubeUri(uri: Uri): Boolean {
         val host = uri.host ?: return false
-        return host.contains("youtube.com") || 
-               host.contains("googlevideo.com") ||
-               host.contains("ytimg.com")
+        return host.contains("youtube.com") ||
+            host.contains("googlevideo.com") ||
+            host.contains("ytimg.com")
     }
 
     // The fetching UA must match the client that minted the URL (`c=` param) — a mismatch is a
     // known cause of mid-stream 403s on googlevideo CDNs.
-    private fun resolveYouTubeUserAgent(uri: Uri): String {
-        return when (uri.getQueryParameter("c")?.uppercase()) {
-            "IOS" -> "com.google.ios.youtube/21.03.3 (iPad7,6; U; CPU iPadOS 17_7_10 like Mac OS X; en-US)"
-            "ANDROID", "ANDROID_CREATOR" -> "com.google.android.youtube/21.03.38 (Linux; U; Android 14) gzip"
-            "ANDROID_VR" -> "com.google.android.apps.youtube.vr.oculus/1.61.48 (Linux; U; Android 12; en_US; Quest 3; Build/SQ3A.220605.009.A1; Cronet/132.0.6808.3)"
-            "VISIONOS" -> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
-            "TVHTML5", "TVHTML5_SIMPLY_EMBEDDED_PLAYER" ->
-                "Mozilla/5.0 (PlayStation; PlayStation 4/12.02) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15"
-            "WEB", "MWEB", "WEB_REMIX" -> YouTubeClient.USER_AGENT_WEB
+    private fun resolveYouTubeUserAgent(uri: Uri): String =
+        when (uri.getQueryParameter("c")?.uppercase()) {
+            "IOS" -> YouTubeClient.IPADOS.userAgent
+            "ANDROID", "ANDROID_CREATOR" -> YouTubeClient.ANDROID.userAgent
+            "ANDROID_VR" -> YouTubeClient.ANDROID_VR_1_61_48.userAgent
+            "VISIONOS" -> YouTubeClient.VISIONOS.userAgent
+            "TVHTML5", "TVHTML5_SIMPLY_EMBEDDED_PLAYER" -> YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER.userAgent
+            "MWEB" -> YouTubeClient.USER_AGENT_MWEB
+            "WEB", "WEB_REMIX" -> YouTubeClient.USER_AGENT_WEB
             else -> userAgent
         }
-    }
 
     /**
      * Add headers that YouTube expects/requires for video streaming.
      * These help avoid bot detection and ensure proper CDN routing.
      */
-    private fun youtubeHeaders(): Map<String, String> {
-        return mapOf(
+    private fun youtubeHeaders(): Map<String, String> =
+        mapOf(
             "Origin" to "https://www.youtube.com",
             "Referer" to "https://www.youtube.com/",
             "Sec-Fetch-Dest" to "empty",
@@ -157,7 +167,6 @@ class YouTubeHttpDataSource private constructor(
             // Accept-Encoding helps with CDN optimization
             "Accept-Encoding" to "identity",
             // Accept header for video content
-            "Accept" to "*/*"
+            "Accept" to "*/*",
         )
-    }
 }

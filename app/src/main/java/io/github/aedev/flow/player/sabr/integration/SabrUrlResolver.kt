@@ -22,6 +22,13 @@ data class SabrStreamInfo(
     val targetHeight: Int = 0,
     val videoHeight: Int = 0,
     val cpn: String = "",
+    // Identity of the client whose player response produced this session. The GVS streaming request
+    // has to report the same client that minted the PoToken and the serverAbrStreamingUrl, so it
+    // travels with the session rather than being re-assumed downstream. Defaults describe WEB,
+    // which was the only possibility before MWEB was added.
+    val clientNameId: Int = SabrClientIdentity.WEB_CLIENT_NAME_ID,
+    val clientVersion: String = "",
+    val clientUserAgent: String = "",
 )
 
 object SabrUrlResolver {
@@ -29,15 +36,16 @@ object SabrUrlResolver {
 
     private val PREFERRED_AUDIO_ITAGS = listOf(251, 250, 249, 140, 141)
 
-    private val PREFERRED_VIDEO_ITAGS_BY_HEIGHT = mapOf(
-        2160 to listOf(313, 271),
-        1440 to listOf(308, 271),
-        1080 to listOf(299, 248, 303),
-        720  to listOf(298, 247, 302),
-        480  to listOf(135, 244, 218),
-        360  to listOf(134, 243),
-        240  to listOf(133, 242)
-    )
+    private val PREFERRED_VIDEO_ITAGS_BY_HEIGHT =
+        mapOf(
+            2160 to listOf(313, 271),
+            1440 to listOf(308, 271),
+            1080 to listOf(299, 248, 303),
+            720 to listOf(298, 247, 302),
+            480 to listOf(135, 244, 218),
+            360 to listOf(134, 243),
+            240 to listOf(133, 242),
+        )
 
     /**
      * Resolve a SABR session from a player response.
@@ -50,7 +58,7 @@ object SabrUrlResolver {
         playerResponse: PlayerResponse,
         preferredCodec: String? = null,
         injectedPoToken: String? = null,
-        injectedVisitorData: String? = null
+        injectedVisitorData: String? = null,
     ): SabrStreamInfo? {
         val streamingData = playerResponse.streamingData ?: return null
         val sabrUrl = streamingData.serverAbrStreamingUrl
@@ -58,10 +66,12 @@ object SabrUrlResolver {
             Log.d(TAG, "No serverAbrStreamingUrl in player response")
             return null
         }
-        val poToken = injectedPoToken?.takeIf { it.isNotEmpty() }
-            ?: queryParameter(sabrUrl, "pot").orEmpty()
-        val visitorId = injectedVisitorData?.takeIf { it.isNotEmpty() }
-            ?: playerResponse.responseContext.visitorData.orEmpty()
+        val poToken =
+            injectedPoToken?.takeIf { it.isNotEmpty() }
+                ?: queryParameter(sabrUrl, "pot").orEmpty()
+        val visitorId =
+            injectedVisitorData?.takeIf { it.isNotEmpty() }
+                ?: playerResponse.responseContext.visitorData.orEmpty()
         if (poToken.isEmpty() || visitorId.isEmpty()) {
             Log.d(TAG, "Skipping SABR: missing token context (pot=${poToken.isNotEmpty()}, visitor=${visitorId.isNotEmpty()})")
             return null
@@ -84,14 +94,23 @@ object SabrUrlResolver {
             return null
         }
 
-        val durationMs = selectedVideo.approxDurationMs?.toLongOrNull()
-            ?: selectedAudio.approxDurationMs?.toLongOrNull()
-            ?: (playerResponse.videoDetails?.lengthSeconds?.toLongOrNull()?.let { it * 1000L })
-            ?: 0L
+        val durationMs =
+            selectedVideo.approxDurationMs?.toLongOrNull()
+                ?: selectedAudio.approxDurationMs?.toLongOrNull()
+                ?: (
+                    playerResponse.videoDetails
+                        ?.lengthSeconds
+                        ?.toLongOrNull()
+                        ?.let { it * 1000L }
+                )
+                ?: 0L
         val ustreamerConfig = extractUstreamerConfig(playerResponse) ?: return null
 
-        Log.d(TAG, "Resolved SABR: audioItag=${selectedAudio.itag}, videoItag=${selectedVideo.itag}, " +
-            "video=${selectedVideo.width}x${selectedVideo.height}, duration=${durationMs}ms, ustreamer=${ustreamerConfig.size}B")
+        Log.d(
+            TAG,
+            "Resolved SABR: audioItag=${selectedAudio.itag}, videoItag=${selectedVideo.itag}, " +
+                "video=${selectedVideo.width}x${selectedVideo.height}, duration=${durationMs}ms, ustreamer=${ustreamerConfig.size}B",
+        )
 
         return SabrStreamInfo(
             streamingUrl = sabrUrl,
@@ -106,7 +125,7 @@ object SabrUrlResolver {
             audioMimeType = selectedAudio.mimeType,
             videoMimeType = selectedVideo.mimeType,
             audioTrackId = selectedAudio.audioTrack?.id.orEmpty(),
-            videoHeight = selectedVideo.height ?: 0
+            videoHeight = selectedVideo.height ?: 0,
         )
     }
 
@@ -115,14 +134,16 @@ object SabrUrlResolver {
         targetHeight: Int,
         preferredCodec: String? = null,
         injectedPoToken: String? = null,
-        injectedVisitorData: String? = null
+        injectedVisitorData: String? = null,
     ): SabrStreamInfo? {
         val streamingData = playerResponse.streamingData ?: return null
         val sabrUrl = streamingData.serverAbrStreamingUrl ?: return null
-        val poToken = injectedPoToken?.takeIf { it.isNotEmpty() }
-            ?: queryParameter(sabrUrl, "pot").orEmpty()
-        val visitorId = injectedVisitorData?.takeIf { it.isNotEmpty() }
-            ?: playerResponse.responseContext.visitorData.orEmpty()
+        val poToken =
+            injectedPoToken?.takeIf { it.isNotEmpty() }
+                ?: queryParameter(sabrUrl, "pot").orEmpty()
+        val visitorId =
+            injectedVisitorData?.takeIf { it.isNotEmpty() }
+                ?: playerResponse.responseContext.visitorData.orEmpty()
         if (poToken.isEmpty() || visitorId.isEmpty()) {
             Log.d(TAG, "Skipping SABR quality resolve: missing token context")
             return null
@@ -135,10 +156,16 @@ object SabrUrlResolver {
         val selectedVideo = selectVideoForHeight(videoFormats, targetHeight, preferredCodec) ?: return null
         val selectedAudio = selectBestAudio(audioFormats, selectedVideo) ?: return null
 
-        val durationMs = selectedVideo.approxDurationMs?.toLongOrNull()
-            ?: selectedAudio.approxDurationMs?.toLongOrNull()
-            ?: (playerResponse.videoDetails?.lengthSeconds?.toLongOrNull()?.let { it * 1000L })
-            ?: 0L
+        val durationMs =
+            selectedVideo.approxDurationMs?.toLongOrNull()
+                ?: selectedAudio.approxDurationMs?.toLongOrNull()
+                ?: (
+                    playerResponse.videoDetails
+                        ?.lengthSeconds
+                        ?.toLongOrNull()
+                        ?.let { it * 1000L }
+                )
+                ?: 0L
         val ustreamerConfig = extractUstreamerConfig(playerResponse) ?: return null
 
         return SabrStreamInfo(
@@ -155,7 +182,7 @@ object SabrUrlResolver {
             videoMimeType = selectedVideo.mimeType,
             audioTrackId = selectedAudio.audioTrack?.id.orEmpty(),
             targetHeight = targetHeight,
-            videoHeight = selectedVideo.height ?: targetHeight
+            videoHeight = selectedVideo.height ?: targetHeight,
         )
     }
 
@@ -163,11 +190,12 @@ object SabrUrlResolver {
     // A SABR session without it gets a degraded/short-lived response from GVS, so a missing
     // or undecodable config makes SABR unavailable (null) rather than silently degraded.
     private fun extractUstreamerConfig(playerResponse: PlayerResponse): ByteArray? {
-        val b64 = playerResponse.playerConfig
-            ?.mediaCommonConfig
-            ?.mediaUstreamerRequestConfig
-            ?.videoPlaybackUstreamerConfig
-            ?.takeIf { it.isNotEmpty() }
+        val b64 =
+            playerResponse.playerConfig
+                ?.mediaCommonConfig
+                ?.mediaUstreamerRequestConfig
+                ?.videoPlaybackUstreamerConfig
+                ?.takeIf { it.isNotEmpty() }
         if (b64 == null) {
             Log.w(TAG, "Skipping SABR: player response has no videoPlaybackUstreamerConfig")
             return null
@@ -180,13 +208,15 @@ object SabrUrlResolver {
         return decoded
     }
 
-    private fun queryParameter(url: String, name: String): String? {
-        return try {
+    private fun queryParameter(
+        url: String,
+        name: String,
+    ): String? =
+        try {
             Uri.parse(url).getQueryParameter(name)
         } catch (e: Exception) {
             null
         }
-    }
 
     /**
      * On multi-audio (auto-dub) videos the same itags repeat once per language; picking by
@@ -202,19 +232,22 @@ object SabrUrlResolver {
 
     private fun selectBestAudio(
         audioFormats: List<PlayerResponse.StreamingData.Format>,
-        selectedVideo: PlayerResponse.StreamingData.Format
+        selectedVideo: PlayerResponse.StreamingData.Format,
     ): PlayerResponse.StreamingData.Format? {
         val candidates = audioFormats.filter(::isOriginalAudioTrack).ifEmpty { audioFormats }
         val videoMime = selectedVideo.mimeType.lowercase()
         val videoCodec = VideoCodecUtils.codecKeyFromMimeType(selectedVideo.mimeType)
         val wantsMp4Audio = videoMime.contains("mp4") && videoCodec == "h264"
-        val compatibleCandidates = if (wantsMp4Audio) {
-            candidates.filter { it.mimeType.contains("mp4", ignoreCase = true) }
-                .ifEmpty { audioFormats.filter { it.mimeType.contains("mp4", ignoreCase = true) } }
-        } else {
-            candidates.filter { it.mimeType.contains("webm", ignoreCase = true) }
-                .ifEmpty { audioFormats.filter { it.mimeType.contains("webm", ignoreCase = true) } }
-        }
+        val compatibleCandidates =
+            if (wantsMp4Audio) {
+                candidates
+                    .filter { it.mimeType.contains("mp4", ignoreCase = true) }
+                    .ifEmpty { audioFormats.filter { it.mimeType.contains("mp4", ignoreCase = true) } }
+            } else {
+                candidates
+                    .filter { it.mimeType.contains("webm", ignoreCase = true) }
+                    .ifEmpty { audioFormats.filter { it.mimeType.contains("webm", ignoreCase = true) } }
+            }
         val audioPool = compatibleCandidates.ifEmpty { candidates }
 
         if (wantsMp4Audio) {
@@ -224,9 +257,10 @@ object SabrUrlResolver {
         for (preferredItag in PREFERRED_AUDIO_ITAGS) {
             audioPool.find { it.itag == preferredItag }?.let { return it }
         }
-        val webmAudio = audioPool
-            .filter { it.mimeType.contains("webm", ignoreCase = true) }
-            .maxByOrNull { it.bitrate }
+        val webmAudio =
+            audioPool
+                .filter { it.mimeType.contains("webm", ignoreCase = true) }
+                .maxByOrNull { it.bitrate }
         if (webmAudio != null) return webmAudio
 
         return audioPool.maxByOrNull { it.bitrate }
@@ -234,7 +268,7 @@ object SabrUrlResolver {
 
     private fun selectBestVideo(
         videoFormats: List<PlayerResponse.StreamingData.Format>,
-        preferredCodec: String?
+        preferredCodec: String?,
     ): PlayerResponse.StreamingData.Format? {
         val normalizedCodec = preferredCodec?.trim()?.lowercase()?.takeIf { it.isNotBlank() && it != "auto" }
         return videoFormats
@@ -243,18 +277,16 @@ object SabrUrlResolver {
                     .thenBy {
                         VideoCodecUtils.codecRankWithPreference(
                             VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
-                            normalizedCodec
+                            normalizedCodec,
                         )
-                    }
-                    .thenByDescending { it.averageBitrate ?: it.bitrate }
-            )
-            .firstOrNull()
+                    }.thenByDescending { it.averageBitrate ?: it.bitrate },
+            ).firstOrNull()
     }
 
     private fun selectVideoForHeight(
         videoFormats: List<PlayerResponse.StreamingData.Format>,
         targetHeight: Int,
-        preferredCodec: String?
+        preferredCodec: String?,
     ): PlayerResponse.StreamingData.Format? {
         val normalizedCodec = preferredCodec?.trim()?.lowercase()?.takeIf { it.isNotBlank() && it != "auto" }
         if (normalizedCodec != null) {
@@ -271,17 +303,17 @@ object SabrUrlResolver {
             }
         }
 
-        val anyAtHeight = videoFormats
-            .filter { it.height == targetHeight }
-            .sortedWith(
-                compareBy<PlayerResponse.StreamingData.Format> {
-                    VideoCodecUtils.codecRankWithPreference(
-                        VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
-                        normalizedCodec
-                    )
-                }.thenByDescending { it.averageBitrate ?: it.bitrate }
-            )
-            .firstOrNull()
+        val anyAtHeight =
+            videoFormats
+                .filter { it.height == targetHeight }
+                .sortedWith(
+                    compareBy<PlayerResponse.StreamingData.Format> {
+                        VideoCodecUtils.codecRankWithPreference(
+                            VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
+                            normalizedCodec,
+                        )
+                    }.thenByDescending { it.averageBitrate ?: it.bitrate },
+                ).firstOrNull()
         if (anyAtHeight != null) return anyAtHeight
 
         return videoFormats
@@ -290,11 +322,9 @@ object SabrUrlResolver {
                     .thenBy {
                         VideoCodecUtils.codecRankWithPreference(
                             VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
-                            normalizedCodec
+                            normalizedCodec,
                         )
-                    }
-                    .thenByDescending { it.averageBitrate ?: it.bitrate }
-            )
-            .firstOrNull()
+                    }.thenByDescending { it.averageBitrate ?: it.bitrate },
+            ).firstOrNull()
     }
 }

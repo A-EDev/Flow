@@ -12,12 +12,10 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * This is based and ported from Metrolist,
- * see https://github.com/MetrolistGroup/Metrolist for the original code and license.
- */
-
-/**
  * Process-wide owner of the single BotGuard WebView.
+ *
+ * Based on and ported from Metrolist — see https://github.com/MetrolistGroup/Metrolist for the
+ * original code and license.
  *
  * A singleton because attestation is expensive and main-thread bound: constructing a WebView and
  * running the BotGuard challenge both hop to [Dispatchers.Main], so a second instance means a
@@ -40,15 +38,16 @@ object PoTokenGenerator {
     fun getWebClientPoToken(
         videoId: String,
         sessionId: String,
-        forceRefresh: Boolean = false
-    ): PoTokenResult? = runBlocking {
-        getWebClientPoTokenSuspend(videoId, sessionId, forceRefresh)
-    }
+        forceRefresh: Boolean = false,
+    ): PoTokenResult? =
+        runBlocking {
+            getWebClientPoTokenSuspend(videoId, sessionId, forceRefresh)
+        }
 
     suspend fun getWebClientPoTokenSuspend(
         videoId: String,
         sessionId: String,
-        forceRefresh: Boolean = false
+        forceRefresh: Boolean = false,
     ): PoTokenResult? {
         Log.d(TAG, "getWebClientPoToken called: videoId=$videoId, sessionId=$sessionId")
         Log.d(TAG, "WebView state: supported=$webViewSupported, badImpl=$webViewBadImpl")
@@ -67,7 +66,10 @@ object PoTokenGenerator {
                     webViewBadImpl = true
                     null
                 }
-                else -> throw e // includes PoTokenException
+
+                else -> {
+                    throw e
+                } // includes PoTokenException
             }
         }
     }
@@ -94,27 +96,28 @@ object PoTokenGenerator {
     private suspend fun generateWebClientPoToken(
         videoId: String,
         sessionId: String,
-        forceRecreate: Boolean
+        forceRecreate: Boolean,
     ): PoTokenResult {
         Log.d(TAG, "Web poToken requested: videoId=$videoId, sessionId=$sessionId")
 
         val (poTokenGenerator, streamingPot, hasBeenRecreated) =
             ensureWebPoTokenGenerator(sessionId, forceRecreate)
 
-        val playerPot = try {
-            poTokenGenerator.generatePoToken(videoId)
-        } catch (throwable: Throwable) {
-            if (hasBeenRecreated) {
-                throw throwable
-            } else {
-                Log.e(TAG, "Failed to obtain poToken, retrying", throwable)
-                return generateWebClientPoToken(
-                    videoId = videoId,
-                    sessionId = sessionId,
-                    forceRecreate = true
-                )
+        val playerPot =
+            try {
+                poTokenGenerator.generatePoToken(videoId)
+            } catch (throwable: Throwable) {
+                if (hasBeenRecreated) {
+                    throw throwable
+                } else {
+                    Log.e(TAG, "Failed to obtain poToken, retrying", throwable)
+                    return generateWebClientPoToken(
+                        videoId = videoId,
+                        sessionId = sessionId,
+                        forceRecreate = true,
+                    )
+                }
             }
-        }
 
         Log.d(TAG, "poToken generated successfully: player=${playerPot.take(20)}..., streaming=${streamingPot.take(20)}...")
 
@@ -123,51 +126,53 @@ object PoTokenGenerator {
 
     private suspend fun ensureWebPoTokenGenerator(
         sessionId: String,
-        forceRecreate: Boolean
-    ): Triple<PoTokenWebView, String, Boolean> = webPoTokenGenLock.withLock {
-        val shouldRecreate = PoTokenAttestationPolicy.shouldReattest(
-            forceRecreate = forceRecreate,
-            hasSession = webPoTokenGenerator != null,
-            isExpired = webPoTokenGenerator?.isExpired == true,
-            sessionIdChanged = webPoTokenSessionId != sessionId,
-            lastTokenWasLowTrust = webPoTokenStreamingPotLowTrust,
-        )
-
-        if (shouldRecreate) {
-            Log.d(TAG, "Re-attesting BotGuard session (forceRecreate=$forceRecreate)")
-            webPoTokenStreamingPot = null
-            webPoTokenSessionId = null
-
-            var newStreamingPot: String? = null
-            var lowTrust = true
-            // GVS honors cold/low-trust attestations only briefly (the mid-playback 403).
-            // Re-run the full BotGuard challenge until the minted token reaches the
-            // documented 110-128 byte range, like the desktop minter's retry loop.
-            var attempt = 0
-            while (attempt < STREAMING_POT_ATTEMPTS) {
-                val generator = attestedGenerator()
-                val pot = generator.generatePoToken(sessionId)
-                newStreamingPot = pot
-                lowTrust = PoTokenAttestationPolicy.isLowTrust(pot)
-                if (!lowTrust) break
-                attempt++
-                Log.w(
-                    TAG,
-                    "Streaming poToken is low-trust (${PoTokenAttestationPolicy.tokenByteLength(pot)} bytes, " +
-                        "attempt $attempt/$STREAMING_POT_ATTEMPTS)"
+        forceRecreate: Boolean,
+    ): Triple<PoTokenWebView, String, Boolean> =
+        webPoTokenGenLock.withLock {
+            val shouldRecreate =
+                PoTokenAttestationPolicy.shouldReattest(
+                    forceRecreate = forceRecreate,
+                    hasSession = webPoTokenGenerator != null,
+                    isExpired = webPoTokenGenerator?.isExpired == true,
+                    sessionIdChanged = webPoTokenSessionId != sessionId,
+                    lastTokenWasLowTrust = webPoTokenStreamingPotLowTrust,
                 )
-            }
-            if (lowTrust) {
-                Log.w(TAG, "Accepting low-trust streaming poToken provisionally; will re-attest on next use")
-            }
-            webPoTokenStreamingPot = newStreamingPot
-            webPoTokenSessionId = sessionId
-            webPoTokenStreamingPotLowTrust = lowTrust
-            Log.d(TAG, "Streaming poToken generated for sessionId=${sessionId.take(20)}... lowTrust=$lowTrust")
-        }
 
-        Triple(webPoTokenGenerator!!, webPoTokenStreamingPot!!, shouldRecreate)
-    }
+            if (shouldRecreate) {
+                Log.d(TAG, "Re-attesting BotGuard session (forceRecreate=$forceRecreate)")
+                webPoTokenStreamingPot = null
+                webPoTokenSessionId = null
+
+                var newStreamingPot: String? = null
+                var lowTrust = true
+                // GVS honors cold/low-trust attestations only briefly (the mid-playback 403).
+                // Re-run the full BotGuard challenge until the minted token reaches the
+                // documented 110-128 byte range, like the desktop minter's retry loop.
+                var attempt = 0
+                while (attempt < STREAMING_POT_ATTEMPTS) {
+                    val generator = attestedGenerator()
+                    val pot = generator.generatePoToken(sessionId)
+                    newStreamingPot = pot
+                    lowTrust = PoTokenAttestationPolicy.isLowTrust(pot)
+                    if (!lowTrust) break
+                    attempt++
+                    Log.w(
+                        TAG,
+                        "Streaming poToken is low-trust (${PoTokenAttestationPolicy.tokenByteLength(pot)} bytes, " +
+                            "attempt $attempt/$STREAMING_POT_ATTEMPTS)",
+                    )
+                }
+                if (lowTrust) {
+                    Log.w(TAG, "Accepting low-trust streaming poToken provisionally; will re-attest on next use")
+                }
+                webPoTokenStreamingPot = newStreamingPot
+                webPoTokenSessionId = sessionId
+                webPoTokenStreamingPotLowTrust = lowTrust
+                Log.d(TAG, "Streaming poToken generated for sessionId=${sessionId.take(20)}... lowTrust=$lowTrust")
+            }
+
+            Triple(webPoTokenGenerator!!, webPoTokenStreamingPot!!, shouldRecreate)
+        }
 
     /**
      * Returns a freshly attested generator, reusing the existing WebView wherever possible.
