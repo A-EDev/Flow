@@ -1,0 +1,133 @@
+package io.github.aedev.flow.data.subscriptions
+
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.formatYouTubeRelativeTime
+
+/**
+ * Upload-time reconciliation for subscription items.
+ *
+ * The feed merges two sources with different date quality: RSS carries a real publish timestamp,
+ * while channel tabs often carry only relative text ("2 days ago") and sometimes a placeholder that
+ * is simply "now". These helpers decide which of the two to trust so an item does not jump to the
+ * top of the feed every refresh.
+ */
+object SubscriptionFeedTimestamps {
+    /** How close to "now" a timestamp must be before it is suspected of being a placeholder. */
+    private const val SUSPICIOUS_FRESH_TIMESTAMP_MS = 5L * 60L * 1000L
+
+    fun effectiveUploadTimestamp(
+        video: Video,
+        now: Long,
+    ): Long {
+        val parsedRelative = parseRelativeTime(video.uploadDate, now)
+        val timestamp = video.timestamp
+        val timestampLooksLikeFallbackNow =
+            timestamp in (now - SUSPICIOUS_FRESH_TIMESTAMP_MS)..(now + SUSPICIOUS_FRESH_TIMESTAMP_MS)
+        val relativeDateIsClearlyOlder =
+            parsedRelative != null && parsedRelative < now - SUSPICIOUS_FRESH_TIMESTAMP_MS
+
+        return when {
+            timestamp <= 0L -> parsedRelative ?: 0L
+            timestampLooksLikeFallbackNow && isUnstableFreshUploadText(video.uploadDate) -> parsedRelative ?: 0L
+            timestampLooksLikeFallbackNow && relativeDateIsClearlyOlder -> parsedRelative ?: timestamp
+            else -> timestamp
+        }
+    }
+
+    fun hasStableUploadMetadata(
+        video: Video,
+        now: Long,
+    ): Boolean {
+        val text = video.uploadDate.trim().lowercase()
+        if (video.isLive || video.isUpcoming) return true
+        if (video.timestamp <= 0L) return false
+        val timestampLooksLikeFallbackNow =
+            video.timestamp in (now - SUSPICIOUS_FRESH_TIMESTAMP_MS)..(now + SUSPICIOUS_FRESH_TIMESTAMP_MS)
+        if (timestampLooksLikeFallbackNow && isUnstableFreshUploadText(text)) {
+            return false
+        }
+        return true
+    }
+
+    fun isUnstableFreshUploadText(value: String): Boolean {
+        val text = value.trim().lowercase()
+        if (text.isBlank() || text == "unknown" || text == "just now" || text == "today") return true
+        return text.matches(Regex("""\d+\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours)(\s+ago)?"""))
+    }
+
+    fun parseRelativeTime(
+        dateString: String,
+        now: Long,
+    ): Long? {
+        try {
+            val text = dateString.lowercase().trim()
+            if (text.isBlank() || text == "unknown") return null
+
+            if (text.contains("scheduled") || text.contains("premiere")) return now + 86400000L
+            if (text.contains("live")) return now + 3600000L // Boost live streams
+
+            val parts = text.split(" ")
+            val valueLine = parts.firstOrNull { it.any { c -> c.isDigit() } }
+            val value = valueLine?.filter { it.isDigit() }?.toLongOrNull() ?: 1L
+
+            val multiplier =
+                when {
+                    text.contains("second") || text.endsWith("s ago") || text.matches(Regex("\\d+s")) -> 1000L
+                    text.contains("minute") || text.endsWith("m ago") || text.matches(Regex("\\d+m")) -> 60000L
+                    text.contains("hour") || text.endsWith("h ago") || text.matches(Regex("\\d+h")) -> 3600000L
+                    text.contains("day") || text.endsWith("d ago") || text.matches(Regex("\\d+d")) -> 86400000L
+                    text.contains("week") || text.endsWith("w ago") || text.matches(Regex("\\d+w")) -> 604800000L
+                    text.contains("month") || text.contains("mo ago") || text.matches(Regex("\\d+mo")) -> 2592000000L
+                    text.contains("year") || text.endsWith("y ago") || text.matches(Regex("\\d+y")) -> 31536000000L
+                    else -> return null
+                }
+
+            return now - (value * multiplier)
+        } catch (e: Exception) {
+            return null
+        }
+    }
+}
+
+private data class SortableVideo(
+    val video: Video,
+    val uploadTimestamp: Long,
+)
+
+fun List<Video>.withStableUploadSortKeys(now: Long): List<Video> =
+    map { video -> SortableVideo(video, SubscriptionFeedTimestamps.effectiveUploadTimestamp(video, now)) }
+        .sortedWith(
+            compareByDescending<SortableVideo> { it.uploadTimestamp }
+                .thenByDescending { it.video.viewCount }
+                .thenBy { it.video.id },
+        ).map { it.video }
+
+fun List<Video>.withRelativeUploadDates(now: Long): List<Video> =
+    map { video ->
+        val uploadTimestamp = SubscriptionFeedTimestamps.effectiveUploadTimestamp(video, now)
+        val isFutureUpcoming = video.isUpcoming && uploadTimestamp > now + 60_000L
+        if (isFutureUpcoming) {
+            video.copy(isUpcoming = true)
+        } else if (uploadTimestamp > 0L) {
+            video.copy(
+                uploadDate = formatYouTubeRelativeTime(uploadTimestamp, now),
+                isUpcoming = false,
+            )
+        } else {
+            video.copy(
+                uploadDate =
+                    video.uploadDate
+                        .takeUnless { SubscriptionFeedTimestamps.isUnstableFreshUploadText(it) }
+                        .orEmpty(),
+                isUpcoming = false,
+            )
+        }
+    }
+
+fun List<Video>.withHighQualityThumbnails(): List<Video> =
+    map { video ->
+        video.copy(
+            thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(video.id, video.thumbnailUrl),
+        )
+    }

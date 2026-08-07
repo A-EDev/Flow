@@ -1,24 +1,20 @@
-package io.github.aedev.flow.notification
+package io.github.aedev.flow.data.subscriptions
 
 import android.util.Log
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
-
-/** A single `<entry>` of a YouTube channel RSS feed. */
-internal data class RssVideo(
-    val id: String,
-    val title: String,
-    val thumbnailUrl: String?,
-)
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
 
 /**
- * Parsing and diffing for the channel RSS feeds the subscription check polls.
+ * Parsing and diffing for the channel RSS feeds both the subscription feed and the new-upload
+ * notification check are built on.
  *
- * Kept separate from the worker so both halves stay unit-testable without WorkManager.
+ * Kept free of network and WorkManager types so both halves stay unit-testable.
  */
-internal object SubscriptionRssParser {
-    private const val TAG = "SubscriptionRssParser"
+object ChannelRssParser {
+    private const val TAG = "ChannelRssParser"
 
     /**
      * A channel can publish several videos between two checks, so a burst is capped rather than
@@ -27,17 +23,17 @@ internal object SubscriptionRssParser {
      */
     const val MAX_NEW_PER_CHANNEL = 5
 
-    /** Entries in feed order (newest first). Returns empty on malformed XML. */
-    fun parse(xml: String): List<RssVideo> =
+    /** Returns [ChannelRssFeed.EMPTY] on malformed XML rather than throwing. */
+    fun parse(xml: String): ChannelRssFeed =
         try {
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
             val parser = factory.newPullParser()
             parser.setInput(StringReader(xml))
-            readEntries(parser)
+            readFeed(parser)
         } catch (e: Exception) {
             Log.e(TAG, "Could not create the RSS parser", e)
-            emptyList()
+            ChannelRssFeed.EMPTY
         }
 
     /**
@@ -45,13 +41,17 @@ internal object SubscriptionRssParser {
      * before any malformed markup. Separate from [parse] so tests can drive a real parser
      * implementation — the platform XML factory is stubbed out in local unit tests.
      */
-    internal fun readEntries(parser: XmlPullParser): List<RssVideo> {
-        val videos = mutableListOf<RssVideo>()
+    internal fun readFeed(parser: XmlPullParser): ChannelRssFeed {
+        val entries = mutableListOf<ChannelRssEntry>()
+        var channelName: String? = null
         try {
             var insideEntry = false
             var videoId: String? = null
             var title: String? = null
             var thumbnail: String? = null
+            var description: String? = null
+            var publishedAt = 0L
+            var viewCount = 0L
 
             var eventType = parser.eventType
             while (eventType != XmlPullParser.END_DOCUMENT) {
@@ -64,6 +64,9 @@ internal object SubscriptionRssParser {
                             videoId = null
                             title = null
                             thumbnail = null
+                            description = null
+                            publishedAt = 0L
+                            viewCount = 0L
                         } else if (insideEntry) {
                             when {
                                 tagName.equals("videoId", ignoreCase = true) -> {
@@ -78,7 +81,24 @@ internal object SubscriptionRssParser {
                                 tagName.equals("thumbnail", ignoreCase = true) && thumbnail == null -> {
                                     thumbnail = parser.getAttributeValue(null, "url")
                                 }
+
+                                tagName.equals("description", ignoreCase = true) && description == null -> {
+                                    description = parser.nextText()
+                                }
+
+                                // <updated> also appears per entry, but it moves on edits; only
+                                // <published> is a stable upload time.
+                                tagName.equals("published", ignoreCase = true) && publishedAt == 0L -> {
+                                    publishedAt = parseTimestamp(parser.nextText())
+                                }
+
+                                tagName.equals("statistics", ignoreCase = true) && viewCount == 0L -> {
+                                    viewCount = parser.getAttributeValue(null, "views")?.toLongOrNull() ?: 0L
+                                }
                             }
+                        } else if (tagName.equals("name", ignoreCase = true) && channelName == null) {
+                            // Only the feed-level <author> carries a <name> in a channel feed.
+                            channelName = parser.nextText()
                         }
                     }
 
@@ -88,7 +108,15 @@ internal object SubscriptionRssParser {
                             val id = videoId
                             val entryTitle = title
                             if (!id.isNullOrEmpty() && !entryTitle.isNullOrEmpty()) {
-                                videos += RssVideo(id, entryTitle, thumbnail)
+                                entries +=
+                                    ChannelRssEntry(
+                                        videoId = id,
+                                        title = entryTitle,
+                                        thumbnailUrl = thumbnail,
+                                        publishedAtMillis = publishedAt,
+                                        viewCount = viewCount,
+                                        description = description,
+                                    )
                             }
                         }
                     }
@@ -98,7 +126,17 @@ internal object SubscriptionRssParser {
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing RSS XML", e)
         }
-        return videos
+        return ChannelRssFeed(channelName = channelName?.takeIf { it.isNotBlank() }, entries = entries)
+    }
+
+    private fun parseTimestamp(value: String?): Long {
+        val text = value?.trim().orEmpty()
+        if (text.isEmpty()) return 0L
+        return try {
+            OffsetDateTime.parse(text).toInstant().toEpochMilli()
+        } catch (e: DateTimeParseException) {
+            0L
+        }
     }
 
     /**
@@ -109,12 +147,12 @@ internal object SubscriptionRssParser {
      * length is unknown, so only the newest entry is announced.
      */
     fun newEntriesSince(
-        entries: List<RssVideo>,
+        entries: List<ChannelRssEntry>,
         lastVideoId: String?,
-    ): List<RssVideo> {
+    ): List<ChannelRssEntry> {
         if (entries.isEmpty() || lastVideoId == null) return emptyList()
 
-        val knownIndex = entries.indexOfFirst { it.id == lastVideoId }
+        val knownIndex = entries.indexOfFirst { it.videoId == lastVideoId }
         return when {
             knownIndex == 0 -> emptyList()
             knownIndex > 0 -> entries.take(minOf(knownIndex, MAX_NEW_PER_CHANNEL))

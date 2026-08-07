@@ -5,8 +5,9 @@ import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
-import io.github.aedev.flow.data.local.dao.CacheDao
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
+import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
+import io.github.aedev.flow.data.subscriptions.SubscriptionRefreshPlan
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -28,7 +29,7 @@ class SubscriptionsViewModelTest {
 
     private val subscriptionRepository: SubscriptionRepository = mockk(relaxed = true)
     private val viewHistory: ViewHistory = mockk(relaxed = true)
-    private val cacheDao: CacheDao = mockk(relaxed = true)
+    private val subscriptionFeedRepository: SubscriptionFeedRepository = mockk(relaxed = true)
     private val database: AppDatabase = mockk(relaxed = true)
     private val playerPreferences: PlayerPreferences = mockk(relaxed = true)
     private val subscriptionGroupDao: SubscriptionGroupDao = mockk(relaxed = true)
@@ -57,13 +58,14 @@ class SubscriptionsViewModelTest {
         coEvery { playerPreferences.unplayableVideoIds } returns flowOf(emptySet())
         coEvery { playerPreferences.hideUnplayableVideosFromSubscriptions } returns flowOf(false)
         coEvery { subscriptionRepository.getAllSubscriptions() } returns flowOf(emptyList())
-        coEvery { cacheDao.getSubscriptionFeed() } returns flowOf(emptyList())
+        coEvery { subscriptionFeedRepository.observeFeed() } returns flowOf(emptyList())
+        coEvery { subscriptionFeedRepository.planRefresh(any()) } returns SubscriptionRefreshPlan.NOTHING_TO_DO
 
         viewModel =
             SubscriptionsViewModel(
                 subscriptionRepository = subscriptionRepository,
+                subscriptionFeedRepository = subscriptionFeedRepository,
                 viewHistory = viewHistory,
-                cacheDao = cacheDao,
                 database = database,
                 playerPreferences = playerPreferences,
                 subscriptionGroupDao = subscriptionGroupDao,
@@ -88,7 +90,7 @@ class SubscriptionsViewModelTest {
 
             coVerify(exactly = 0) { subscriptionRepository.getAllSubscriptions() }
             coVerify(exactly = 0) { subscriptionGroupDao.getAllGroups() }
-            coVerify(exactly = 0) { cacheDao.getSubscriptionFeed() }
+            coVerify(exactly = 0) { subscriptionFeedRepository.observeFeed() }
         }
 
     @Test

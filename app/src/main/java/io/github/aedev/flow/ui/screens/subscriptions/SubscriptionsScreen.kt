@@ -603,6 +603,13 @@ fun SubscriptionsScreen(
                                                 }
                                             }
 
+                                            SubscriptionFeedErrorCard(
+                                                failedChannelNames = uiState.failedChannelNames,
+                                                onRetry = { viewModel.retryFailedChannels() },
+                                                onDismiss = { viewModel.dismissFailedChannels() },
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                            )
+
                                             if (uiState.isLoading && uiState.refreshTotalChannels > 0) {
                                                 val progress =
                                                     uiState.refreshProcessedChannels.toFloat() /

@@ -23,8 +23,19 @@ interface CacheDao {
     @Query("SELECT MAX(cachedAt) FROM subscription_feed_cache")
     suspend fun getLatestCachedAt(): Long?
 
+    /** Rows for the given channels only, so an incremental refresh can merge against them. */
+    @Query("SELECT * FROM subscription_feed_cache WHERE channelId IN (:channelIds)")
+    suspend fun getSubscriptionFeedForChannels(channelIds: List<String>): List<SubscriptionFeedEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSubscriptionFeed(videos: List<SubscriptionFeedEntity>)
+
+    /**
+     * Adds rows without touching ones that already exist, so the background new-upload check can
+     * seed the feed without clobbering metadata the feed has since enriched.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSubscriptionFeedIfAbsent(videos: List<SubscriptionFeedEntity>)
 
     @Query(
         """
@@ -37,7 +48,7 @@ interface CacheDao {
             viewCount = :viewCount,
             isLive = :isLive
         WHERE videoId = :videoId
-        """
+        """,
     )
     suspend fun updateSubscriptionFeedMetadata(
         videoId: String,
@@ -52,6 +63,22 @@ interface CacheDao {
 
     @Query("DELETE FROM subscription_feed_cache WHERE channelId = :channelId")
     suspend fun deleteSubscriptionFeedForChannel(channelId: String)
+
+    /** Callers must chunk [channelIds] to stay under SQLite's bound-variable limit. */
+    @Query("DELETE FROM subscription_feed_cache WHERE channelId IN (:channelIds)")
+    suspend fun deleteSubscriptionFeedForChannels(channelIds: List<String>)
+
+    /**
+     * Drops rows that have aged past the feed's lookback window. Upcoming items are kept because
+     * their timestamp is a future premiere date, not an upload date.
+     */
+    @Query(
+        """
+        DELETE FROM subscription_feed_cache
+        WHERE isUpcoming = 0 AND timestamp > 0 AND timestamp < :cutoffMillis
+        """,
+    )
+    suspend fun pruneSubscriptionFeedOlderThan(cutoffMillis: Long)
 
     @Query("DELETE FROM subscription_feed_cache")
     suspend fun clearSubscriptionFeed()

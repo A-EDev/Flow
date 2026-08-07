@@ -15,6 +15,12 @@
     <string name="subscriptions_refresh_progress_template">Refreshing %1$d of %2$d channels</string>
     <string name="subscriptions_last_refreshed_template">Last refreshed %1$s - %2$d videos checked</string>
     <string name="subscriptions_last_refreshed_time_only_template">Last refreshed %1$s</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="one">%d channel couldn\'t be loaded</item>
+        <item quantity="other">%d channels couldn\'t be loaded</item>
+    </plurals>
+    <string name="subscriptions_failed_channels_body">Their latest videos are missing from this feed: %1$s</string>
+    <string name="subscriptions_failed_channels_more">%1$s and %2$d more</string>
     <string name="retry">Retry</string>
     <string name="copy_logs">Copy logs</string>
     <string name="logs_copied">Logs copied</string>
