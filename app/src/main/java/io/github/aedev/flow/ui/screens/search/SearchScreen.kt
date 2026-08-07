@@ -53,8 +53,8 @@ import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.search.SearchSuggestionsService
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.utils.formatDuration
-import io.github.aedev.flow.utils.formatViewCount
 import io.github.aedev.flow.utils.formatSubscriberCount
+import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

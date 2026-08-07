@@ -1129,8 +1129,7 @@ class SubscriptionsViewModel
             }
         }
 
-        private fun formatTimestamp(timestamp: Long): String =
-            formatYouTubeRelativeTime(timestamp)
+        private fun formatTimestamp(timestamp: Long): String = formatYouTubeRelativeTime(timestamp)
     }
 
 enum class SubscriptionSortMode {

@@ -300,7 +300,7 @@ fun ChannelScreen(
             )
         }
     }
-    }
+}
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -1022,10 +1022,11 @@ private fun ChannelHeader(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            val subText = context.getString(
-                R.string.subscribers_count_template,
-                formatSubscriberCount(channelInfo.subscriberCount),
-            )
+            val subText =
+                context.getString(
+                    R.string.subscribers_count_template,
+                    formatSubscriberCount(channelInfo.subscriberCount),
+                )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1443,10 +1444,11 @@ private fun AboutSection(channelInfo: org.schabi.newpipe.extractor.channel.Chann
                     color = MaterialTheme.extendedColors.textSecondary,
                 )
                 Text(
-                    text = context.getString(
-                        R.string.subscribers_count_template,
-                        formatSubscriberCount(channelInfo.subscriberCount),
-                    ),
+                    text =
+                        context.getString(
+                            R.string.subscribers_count_template,
+                            formatSubscriberCount(channelInfo.subscriberCount),
+                        ),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                 )

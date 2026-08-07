@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -11,61 +12,60 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.*
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.*
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.gson.JsonParser
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.AppUiModePreferences
 import io.github.aedev.flow.data.local.DEEP_FLOW_NEVER_EXPIRES_HOURS
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.UserBrain
+import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.extendedColors
-import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.AppUiModePreferences
-import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.utils.AppLanguageManager
-import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.activity.compose.BackHandler
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.ui.text.input.ImeAction
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.aedev.flow.discord.DiscordPresenceRuntime
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -97,7 +97,7 @@ fun SettingsScreen(
     onNavigateToExport: () -> Unit,
     onNavigateToSponsorBlockSettings: () -> Unit,
     onNavigateToDiscordSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -105,8 +105,12 @@ fun SettingsScreen(
     val appUiModePreferences = remember { AppUiModePreferences(context) }
     val appUiMode by appUiModePreferences.mode.collectAsStateWithLifecycle(initialValue = AppUiMode.AUTOMATIC)
     var showInterfaceModeDialog by remember { mutableStateOf(false) }
-    val backupRepo = remember { io.github.aedev.flow.data.local.BackupRepository(context) }
-    
+    val backupRepo =
+        remember {
+            io.github.aedev.flow.data.local
+                .BackupRepository(context)
+        }
+
     // Brain State
     var userBrain by remember { mutableStateOf<UserBrain?>(null) }
     var refreshBrainTrigger by remember { mutableStateOf(0) }
@@ -114,7 +118,7 @@ fun SettingsScreen(
     LaunchedEffect(refreshBrainTrigger) {
         userBrain = FlowNeuroEngine.getBrainSnapshot()
     }
-    
+
     var showRegionDialog by remember { mutableStateOf(false) }
     var showAppLanguageDialog by remember { mutableStateOf(false) }
     var showResetBrainDialog by remember { mutableStateOf(false) }
@@ -122,7 +126,7 @@ fun SettingsScreen(
     var isCheckingUpdate by remember { mutableStateOf(false) }
     // null = no dialog; non-null = tag string of the available update
     var updateAvailableTag by remember { mutableStateOf<String?>(null) }
-    
+
     // Player preferences states
     val currentRegion by playerPreferences.trendingRegion.collectAsState(initial = "US")
     val currentAppLanguage by playerPreferences.appLanguage.collectAsState(initial = AppLanguageManager.SYSTEM_DEFAULT)
@@ -146,27 +150,29 @@ fun SettingsScreen(
     val deepFlowSaveHistory by playerPreferences.deepFlowSaveToHistory.collectAsState(initial = false)
     var showDeepFlowDurationDialog by remember { mutableStateOf(false) }
 
-    val deepFlowRemainingLabel: String? = remember(deepFlowActive, deepFlowActivatedAt, deepFlowExpireHours) {
-        if (!deepFlowActive || deepFlowActivatedAt == 0L || deepFlowExpireHours == DEEP_FLOW_NEVER_EXPIRES_HOURS) return@remember null
-        val expiresAt = deepFlowActivatedAt + deepFlowExpireHours * 3_600_000L
-        val remainingMs = expiresAt - System.currentTimeMillis()
-        if (remainingMs <= 0) return@remember null
-        val remainingMins = remainingMs / 60_000
-        if (remainingMins < 60) "${remainingMins}m" else "${remainingMins / 60}h ${remainingMins % 60}m"
-    }
+    val deepFlowRemainingLabel: String? =
+        remember(deepFlowActive, deepFlowActivatedAt, deepFlowExpireHours) {
+            if (!deepFlowActive || deepFlowActivatedAt == 0L || deepFlowExpireHours == DEEP_FLOW_NEVER_EXPIRES_HOURS) return@remember null
+            val expiresAt = deepFlowActivatedAt + deepFlowExpireHours * 3_600_000L
+            val remainingMs = expiresAt - System.currentTimeMillis()
+            if (remainingMs <= 0) return@remember null
+            val remainingMins = remainingMs / 60_000
+            if (remainingMins < 60) "${remainingMins}m" else "${remainingMins / 60}h ${remainingMins % 60}m"
+        }
 
     // Optimize Region Dialog: compute list only once
     val regionList = remember { REGION_NAMES.toList() }
     val appLanguageOptions = remember { AppLanguageManager.getSupportedLanguages() }
-    val currentAppLanguageLabel = remember(currentAppLanguage, appLanguageOptions) {
-        val normalizedLanguage = AppLanguageManager.normalizeLanguageTag(currentAppLanguage)
-        if (normalizedLanguage == AppLanguageManager.SYSTEM_DEFAULT) {
-            context.getString(io.github.aedev.flow.R.string.settings_language_system_default)
-        } else {
-            appLanguageOptions.firstOrNull { it.tag == normalizedLanguage }?.localizedName
-                ?: AppLanguageManager.getLanguageLabel(normalizedLanguage)
+    val currentAppLanguageLabel =
+        remember(currentAppLanguage, appLanguageOptions) {
+            val normalizedLanguage = AppLanguageManager.normalizeLanguageTag(currentAppLanguage)
+            if (normalizedLanguage == AppLanguageManager.SYSTEM_DEFAULT) {
+                context.getString(R.string.settings_language_system_default)
+            } else {
+                appLanguageOptions.firstOrNull { it.tag == normalizedLanguage }?.localizedName
+                    ?: AppLanguageManager.getLanguageLabel(normalizedLanguage)
+            }
         }
-    }
 
     // Search state
     var searchQuery by remember { mutableStateOf("") }
@@ -175,7 +181,10 @@ fun SettingsScreen(
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) runCatching { searchFocusRequester.requestFocus() }
     }
-    BackHandler(enabled = isSearchActive) { isSearchActive = false; searchQuery = "" }
+    BackHandler(enabled = isSearchActive) {
+        isSearchActive = false
+        searchQuery = ""
+    }
 
     val onCheckForUpdatesClick: () -> Unit = {
         if (BuildConfig.UPDATER_ENABLED && !isCheckingUpdate) {
@@ -183,10 +192,12 @@ fun SettingsScreen(
             coroutineScope.launch(Dispatchers.IO) {
                 try {
                     val client = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
-                    val request = Request.Builder()
-                        .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
-                        .header("Accept", "application/vnd.github.v3+json")
-                        .build()
+                    val request =
+                        Request
+                            .Builder()
+                            .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
+                            .header("Accept", "application/vnd.github.v3+json")
+                            .build()
                     val response = client.newCall(request).execute()
                     withContext(Dispatchers.Main) {
                         isCheckingUpdate = false
@@ -204,35 +215,41 @@ fun SettingsScreen(
                                 for (i in 0 until size) {
                                     val l = latestParts.getOrNull(i) ?: 0
                                     val c = currentParts.getOrNull(i) ?: 0
-                                    if (l > c) { isNewer = true; break }
+                                    if (l > c) {
+                                        isNewer = true
+                                        break
+                                    }
                                     if (l < c) break
                                 }
                                 if (isNewer) {
                                     updateAvailableTag = latestTag
                                 } else {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        context.getString(io.github.aedev.flow.R.string.flow_is_up_to_date),
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
+                                    android.widget.Toast
+                                        .makeText(
+                                            context,
+                                            context.getString(R.string.flow_is_up_to_date),
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        ).show()
                                 }
                             }
                         } else {
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(io.github.aedev.flow.R.string.update_check_failed),
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
+                            android.widget.Toast
+                                .makeText(
+                                    context,
+                                    context.getString(R.string.update_check_failed),
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
                         }
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         isCheckingUpdate = false
-                        android.widget.Toast.makeText(
-                            context,
-                            context.getString(io.github.aedev.flow.R.string.update_check_failed),
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
+                        android.widget.Toast
+                            .makeText(
+                                context,
+                                context.getString(R.string.update_check_failed),
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
                     }
                 }
             }
@@ -240,82 +257,270 @@ fun SettingsScreen(
     }
 
     // Section label strings for the search index
-    val secFlowEngine = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_flow_engine_header)
-    val secAppearance = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_appearance)
-    val secContentPlayback = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_content_playback)
-    val secNotifications = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_notifications)
-    val secDataManagement = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_data_management)
-    val secAbout = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_about)
+    val secFlowEngine = stringResource(R.string.settings_flow_engine_header)
+    val secAppearance = stringResource(R.string.settings_header_appearance)
+    val secContentPlayback = stringResource(R.string.settings_header_content_playback)
+    val secNotifications = stringResource(R.string.settings_header_notifications)
+    val secDataManagement = stringResource(R.string.settings_header_data_management)
+    val secAbout = stringResource(R.string.settings_header_about)
 
-    val allSettingsEntries = listOf(
-        SettingSearchEntry(Icons.Outlined.Psychology, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.flow_control_center), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.neural_interest_map_subtitle), secFlowEngine, onNavigateToPersonality),
-        SettingSearchEntry(Icons.Outlined.Palette, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_theme), "", secAppearance, onNavigateToAppearance),
-        SettingSearchEntry(Icons.Outlined.Tv, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_interface_mode), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_interface_mode_subtitle), secAppearance) { showInterfaceModeDialog = true },
-        SettingSearchEntry(Icons.Outlined.Language, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_language), currentAppLanguageLabel, secAppearance) { showAppLanguageDialog = true },
-        SettingSearchEntry(Icons.Outlined.AppShortcut, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon_subtitle), secAppearance, onNavigateToAppIconPicker),
-        SettingSearchEntry(Icons.Outlined.Tune, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance_subtitle), secAppearance, onNavigateToPlayerAppearance),
-        SettingSearchEntry(Icons.Outlined.GridView, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display_subtitle), secAppearance, onNavigateToContentSettings),
-        SettingSearchEntry(Icons.Outlined.Schedule, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime_subtitle), secAppearance, onNavigateToDateTimeSettings),
-        SettingSearchEntry(Icons.Outlined.FilterAlt, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs_subtitle), secContentPlayback, onNavigateToUserPreferences),
-        SettingSearchEntry(Icons.Outlined.PlayCircle, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_subtitle), secContentPlayback, onNavigateToPlayerSettings),
-        SettingSearchEntry(Icons.Outlined.Share, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.discord_presence_title), discordSettingsSummary, secContentPlayback, onNavigateToDiscordSettings),
-        SettingSearchEntry(Icons.Outlined.Public, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy_subtitle), secContentPlayback, onNavigateToProxySettings),
-        SettingSearchEntry(io.github.aedev.flow.R.drawable.ic_block, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sb_settings_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sb_settings_subtitle), secContentPlayback, onNavigateToSponsorBlockSettings),
-        SettingSearchEntry(Icons.Outlined.HighQuality, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_quality), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_quality_subtitle), secContentPlayback, onNavigateToVideoQuality),
-        SettingSearchEntry(Icons.Outlined.Slideshow, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.shorts_quality_settings_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.shorts_quality_settings_subtitle), secContentPlayback, onNavigateToShortsQuality),
-        SettingSearchEntry(Icons.Outlined.Speed, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_buffer), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_buffer_subtitle), secContentPlayback, onNavigateToBufferSettings),
-        SettingSearchEntry(Icons.Outlined.Download, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_downloads), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_downloads_subtitle), secContentPlayback, onNavigateToDownloads),
-        SettingSearchEntry(Icons.Outlined.TrendingUp, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_region), REGION_NAMES[currentRegion] ?: currentRegion, secContentPlayback) { showRegionDialog = true },
-        SettingSearchEntry(Icons.Outlined.NotificationsNone, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_notifications), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_notifications_subtitle), secNotifications, onNavigateToNotifications),
-        SettingSearchEntry(Icons.Outlined.History, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_search_history), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_search_history_subtitle), secDataManagement, onNavigateToSearchHistory),
-        SettingSearchEntry(Icons.Outlined.Schedule, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_time_management), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_time_management_subtitle), secDataManagement, onNavigateToTimeManagement),
-        SettingSearchEntry(Icons.Outlined.FileUpload, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_export_data), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_export_data_subtitle), secDataManagement, onNavigateToExport),
-        SettingSearchEntry(Icons.Outlined.FileDownload, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data_subtitle), secDataManagement, onNavigateToImport),
-        SettingSearchEntry(Icons.Outlined.Schedule, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.auto_backup_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.auto_backup_subtitle), secDataManagement, onNavigateToAutoBackup),
-        SettingSearchEntry(Icons.Outlined.Devices, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sync_devices_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sync_devices_subtitle), secDataManagement, onNavigateToSyncDevices),
-        SettingSearchEntry(Icons.Outlined.Info, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow_subtitle), secAbout, onNavigateToAbout),
-        SettingSearchEntry(Icons.Outlined.BugReport, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics_subtitle), secAbout, onNavigateToDiagnostics),
-        SettingSearchEntry(Icons.Outlined.VolunteerActivism, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support_subtitle), secAbout, onNavigateToDonations)
-    ) + if (BuildConfig.UPDATER_ENABLED) listOf(
-        SettingSearchEntry(Icons.Outlined.Update, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates_subtitle), secAbout, onCheckForUpdatesClick)
-    ) else emptyList()
-    val filteredEntries = if (searchQuery.isBlank()) emptyList() else allSettingsEntries.filter { entry ->
-        entry.title.contains(searchQuery, ignoreCase = true) ||
-        entry.subtitle.contains(searchQuery, ignoreCase = true) ||
-        entry.sectionLabel.contains(searchQuery, ignoreCase = true)
-    }
+    val allSettingsEntries =
+        listOf(
+            SettingSearchEntry(
+                Icons.Outlined.Psychology,
+                stringResource(R.string.flow_control_center),
+                stringResource(R.string.neural_interest_map_subtitle),
+                secFlowEngine,
+                onNavigateToPersonality,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Palette,
+                stringResource(R.string.settings_item_theme),
+                "",
+                secAppearance,
+                onNavigateToAppearance,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Tv,
+                stringResource(R.string.settings_item_interface_mode),
+                stringResource(R.string.settings_item_interface_mode_subtitle),
+                secAppearance,
+            ) { showInterfaceModeDialog = true },
+            SettingSearchEntry(
+                Icons.Outlined.Language,
+                stringResource(R.string.settings_item_app_language),
+                currentAppLanguageLabel,
+                secAppearance,
+            ) { showAppLanguageDialog = true },
+            SettingSearchEntry(
+                Icons.Outlined.AppShortcut,
+                stringResource(R.string.settings_item_app_icon),
+                stringResource(R.string.settings_item_app_icon_subtitle),
+                secAppearance,
+                onNavigateToAppIconPicker,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Tune,
+                stringResource(R.string.settings_item_player_appearance),
+                stringResource(R.string.settings_item_player_appearance_subtitle),
+                secAppearance,
+                onNavigateToPlayerAppearance,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.GridView,
+                stringResource(R.string.settings_item_content_display),
+                stringResource(R.string.settings_item_content_display_subtitle),
+                secAppearance,
+                onNavigateToContentSettings,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Schedule,
+                stringResource(R.string.settings_item_datetime),
+                stringResource(R.string.settings_item_datetime_subtitle),
+                secAppearance,
+                onNavigateToDateTimeSettings,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.FilterAlt,
+                stringResource(R.string.settings_item_content_prefs),
+                stringResource(R.string.settings_item_content_prefs_subtitle),
+                secContentPlayback,
+                onNavigateToUserPreferences,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.PlayCircle,
+                stringResource(R.string.settings_item_player),
+                stringResource(R.string.settings_item_player_subtitle),
+                secContentPlayback,
+                onNavigateToPlayerSettings,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Share,
+                stringResource(R.string.discord_presence_title),
+                discordSettingsSummary,
+                secContentPlayback,
+                onNavigateToDiscordSettings,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Public,
+                stringResource(R.string.settings_item_proxy),
+                stringResource(R.string.settings_item_proxy_subtitle),
+                secContentPlayback,
+                onNavigateToProxySettings,
+            ),
+            SettingSearchEntry(
+                R.drawable.ic_block,
+                stringResource(R.string.sb_settings_title),
+                stringResource(R.string.sb_settings_subtitle),
+                secContentPlayback,
+                onNavigateToSponsorBlockSettings,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.HighQuality,
+                stringResource(R.string.settings_item_quality),
+                stringResource(R.string.settings_item_quality_subtitle),
+                secContentPlayback,
+                onNavigateToVideoQuality,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Slideshow,
+                stringResource(R.string.shorts_quality_settings_title),
+                stringResource(R.string.shorts_quality_settings_subtitle),
+                secContentPlayback,
+                onNavigateToShortsQuality,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Speed,
+                stringResource(R.string.settings_item_buffer),
+                stringResource(R.string.settings_item_buffer_subtitle),
+                secContentPlayback,
+                onNavigateToBufferSettings,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Download,
+                stringResource(R.string.settings_item_downloads),
+                stringResource(R.string.settings_item_downloads_subtitle),
+                secContentPlayback,
+                onNavigateToDownloads,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.TrendingUp,
+                stringResource(R.string.settings_item_region),
+                REGION_NAMES[currentRegion] ?: currentRegion,
+                secContentPlayback,
+            ) { showRegionDialog = true },
+            SettingSearchEntry(
+                Icons.Outlined.NotificationsNone,
+                stringResource(R.string.settings_item_notifications),
+                stringResource(R.string.settings_item_notifications_subtitle),
+                secNotifications,
+                onNavigateToNotifications,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.History,
+                stringResource(R.string.settings_item_search_history),
+                stringResource(R.string.settings_item_search_history_subtitle),
+                secDataManagement,
+                onNavigateToSearchHistory,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Schedule,
+                stringResource(R.string.settings_item_time_management),
+                stringResource(R.string.settings_item_time_management_subtitle),
+                secDataManagement,
+                onNavigateToTimeManagement,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.FileUpload,
+                stringResource(R.string.settings_item_export_data),
+                stringResource(R.string.settings_item_export_data_subtitle),
+                secDataManagement,
+                onNavigateToExport,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.FileDownload,
+                stringResource(R.string.settings_item_import_data),
+                stringResource(R.string.settings_item_import_data_subtitle),
+                secDataManagement,
+                onNavigateToImport,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Schedule,
+                stringResource(R.string.auto_backup_title),
+                stringResource(R.string.auto_backup_subtitle),
+                secDataManagement,
+                onNavigateToAutoBackup,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Devices,
+                stringResource(R.string.sync_devices_title),
+                stringResource(R.string.sync_devices_subtitle),
+                secDataManagement,
+                onNavigateToSyncDevices,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.Info,
+                stringResource(R.string.settings_item_about_flow),
+                stringResource(R.string.settings_item_about_flow_subtitle),
+                secAbout,
+                onNavigateToAbout,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.BugReport,
+                stringResource(R.string.settings_item_diagnostics),
+                stringResource(R.string.settings_item_diagnostics_subtitle),
+                secAbout,
+                onNavigateToDiagnostics,
+            ),
+            SettingSearchEntry(
+                Icons.Outlined.VolunteerActivism,
+                stringResource(R.string.settings_item_support),
+                stringResource(R.string.settings_item_support_subtitle),
+                secAbout,
+                onNavigateToDonations,
+            ),
+        ) +
+            if (BuildConfig.UPDATER_ENABLED) {
+                listOf(
+                    SettingSearchEntry(
+                        Icons.Outlined.Update,
+                        stringResource(R.string.check_for_updates),
+                        stringResource(R.string.check_for_updates_subtitle),
+                        secAbout,
+                        onCheckForUpdatesClick,
+                    ),
+                )
+            } else {
+                emptyList()
+            }
+    val filteredEntries =
+        if (searchQuery.isBlank()) {
+            emptyList()
+        } else {
+            allSettingsEntries.filter { entry ->
+                entry.title.contains(searchQuery, ignoreCase = true) ||
+                    entry.subtitle.contains(searchQuery, ignoreCase = true) ||
+                    entry.sectionLabel.contains(searchQuery, ignoreCase = true)
+            }
+        }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.background,
             ) {
                 if (isSearchActive) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        IconButton(onClick = { isSearchActive = false; searchQuery = "" }) {
+                        IconButton(onClick = {
+                            isSearchActive = false
+                            searchQuery = ""
+                        }) {
                             Icon(Icons.Default.ArrowBack, "Close search")
                         }
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(searchFocusRequester),
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .focusRequester(searchFocusRequester),
                             placeholder = { Text(stringResource(R.string.ui_search_settings)) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             keyboardActions = KeyboardActions(onSearch = {}),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color.Transparent,
-                                unfocusedBorderColor = Color.Transparent
-                            )
+                            colors =
+                                OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color.Transparent,
+                                    unfocusedBorderColor = Color.Transparent,
+                                ),
                         )
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }) {
@@ -325,18 +530,19 @@ fun SettingsScreen(
                     }
                 } else {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.btn_back))
+                            Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                         }
                         Text(
-                            text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_title),
+                            text = stringResource(R.string.settings_title),
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                         IconButton(onClick = { isSearchActive = true }) {
                             Icon(Icons.Outlined.Search, stringResource(R.string.ui_search_settings))
@@ -345,29 +551,31 @@ fun SettingsScreen(
                 }
             }
         },
-        modifier = modifier
+        modifier = modifier,
     ) { paddingValues ->
         if (isSearchActive && searchQuery.isNotBlank()) {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(MaterialTheme.colorScheme.background),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(MaterialTheme.colorScheme.background),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 if (filteredEntries.isEmpty()) {
                     item {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 48.dp),
-                            contentAlignment = Alignment.Center
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 text = stringResource(R.string.settings_search_no_results, searchQuery),
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -379,631 +587,731 @@ fun SettingsScreen(
                                 isSearchActive = false
                                 searchQuery = ""
                                 filteredEntries[index].onClick()
-                            }
+                            },
                         )
                     }
                 }
             }
         } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // =================================================
+            LazyColumn(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(MaterialTheme.colorScheme.background),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                // =================================================
 // 🧠 MY FLOW PERSONALITY (FLOW EXCLUSIVE FEATURE)
 // =================================================
-item {
-    Text(
-        text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_flow_engine_header),
-        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
-    )
-}
-
-item {
-    val persona = if (userBrain != null) FlowNeuroEngine.getPersona(userBrain!!) else null
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable(onClick = onNavigateToPersonality),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 180.dp)
-        ) {
-            // 1. Background Layer (Gradient)
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.primaryContainer
-                            )
-                        )
-                    )
-            )
-            // 2. Background Decor (Abstract Shapes)
-            Canvas(modifier = Modifier.matchParentSize()) {
-                // Top Right Circle
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.1f),
-                    radius = size.width * 0.5f,
-                    center = Offset(size.width, 0f)
-                )
-                // Bottom Left Blob
-                drawCircle(
-                    color = Color.Black.copy(alpha = 0.05f),
-                    radius = size.width * 0.3f,
-                    center = Offset(0f, size.height)
-                )
-            }
-
-            // 2. Huge Emoji Icon (Watermark style)
-            if (persona != null) {
-                Text(
-                    text = persona.icon, // e.g., 🤿 or 🧭
-                    fontSize = 120.sp,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .offset(x = 20.dp, y = 20.dp)
-                        .alpha(0.15f)
-                )
-            }
-
-            // 4. Main Content
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Header Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    // Badge
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_active_learning),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-
-                    // Reset Button (Subtle)
-                    IconButton(
-                        onClick = { showResetBrainDialog = true },
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.2f), CircleShape)
-                    ) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_reset_everything),
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-
-                // Persona Info
-                if (persona != null) {
-                    Column {
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(persona.titleRes),
-                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(persona.descriptionRes),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                } else {
-                    // Loading State
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_analyzing_interactions),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
-                
-                // Bottom CTA
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                item {
                     Text(
-                        text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_view_analytics),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        Icons.Default.ArrowForward, 
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(16.dp)
+                        text = stringResource(R.string.settings_flow_engine_header),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 16.dp),
                     )
                 }
-            }
-        }
-    }
-}
-            // DEEP FLOW MODE
-            item {
-                Spacer(Modifier.height(12.dp))
-                SettingsGroup {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                coroutineScope.launch {
-                                    DeepFlowManager.toggle(context)
-                                }
-                            }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+
+                item {
+                    val persona = if (userBrain != null) FlowNeuroEngine.getPersona(userBrain!!) else null
+
+                    Card(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .clickable(onClick = onNavigateToPersonality),
+                        shape = RoundedCornerShape(24.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.VisibilityOff,
-                            contentDescription = null,
-                            tint = if (deepFlowActive)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_mode_title),
-                                    style = MaterialTheme.typography.bodyLarge
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 180.dp),
+                        ) {
+                            // 1. Background Layer (Gradient)
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .matchParentSize()
+                                        .background(
+                                            brush =
+                                                Brush.linearGradient(
+                                                    colors =
+                                                        listOf(
+                                                            MaterialTheme.colorScheme.primary,
+                                                            MaterialTheme.colorScheme.primaryContainer,
+                                                        ),
+                                                ),
+                                        ),
+                            )
+                            // 2. Background Decor (Abstract Shapes)
+                            Canvas(modifier = Modifier.matchParentSize()) {
+                                // Top Right Circle
+                                drawCircle(
+                                    color = Color.White.copy(alpha = 0.1f),
+                                    radius = size.width * 0.5f,
+                                    center = Offset(size.width, 0f),
                                 )
-                                if (deepFlowActive && deepFlowRemainingLabel != null) {
-                                    Spacer(Modifier.width(8.dp))
+                                // Bottom Left Blob
+                                drawCircle(
+                                    color = Color.Black.copy(alpha = 0.05f),
+                                    radius = size.width * 0.3f,
+                                    center = Offset(0f, size.height),
+                                )
+                            }
+
+                            // 2. Huge Emoji Icon (Watermark style)
+                            if (persona != null) {
+                                Text(
+                                    text = persona.icon, // e.g., 🤿 or 🧭
+                                    fontSize = 120.sp,
+                                    modifier =
+                                        Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .offset(x = 20.dp, y = 20.dp)
+                                            .alpha(0.15f),
+                                )
+                            }
+
+                            // 4. Main Content
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(20.dp),
+                                verticalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                // Header Row
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Top,
+                                ) {
+                                    // Badge
                                     Surface(
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(6.dp)
+                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(8.dp),
                                     ) {
                                         Text(
-                                            text = androidx.compose.ui.res.stringResource(
-                                                io.github.aedev.flow.R.string.deep_flow_learning_paused
-                                            ),
+                                            text = stringResource(R.string.settings_active_learning),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            color = MaterialTheme.colorScheme.onPrimary,
                                             fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        )
+                                    }
+
+                                    // Reset Button (Subtle)
+                                    IconButton(
+                                        onClick = { showResetBrainDialog = true },
+                                        modifier =
+                                            Modifier
+                                                .size(32.dp)
+                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.2f), CircleShape),
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Refresh,
+                                            contentDescription = stringResource(R.string.settings_reset_everything),
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(16.dp),
                                         )
                                     }
                                 }
-                            }
-                            Text(
-                                text = when {
-                                    deepFlowActive && deepFlowRemainingLabel != null -> androidx.compose.ui.res.stringResource(
-                                        io.github.aedev.flow.R.string.deep_flow_expires_in,
-                                        deepFlowRemainingLabel
+
+                                // Persona Info
+                                if (persona != null) {
+                                    Column {
+                                        Text(
+                                            text = stringResource(persona.titleRes),
+                                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = stringResource(persona.descriptionRes),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                } else {
+                                    // Loading State
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        Text(
+                                            text = stringResource(R.string.settings_analyzing_interactions),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                        )
+                                    }
+                                }
+
+                                // Bottom CTA
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.settings_view_analytics),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        fontWeight = FontWeight.Bold,
                                     )
-                                    deepFlowActive && deepFlowExpireHours == DEEP_FLOW_NEVER_EXPIRES_HOURS -> androidx.compose.ui.res.stringResource(
-                                        io.github.aedev.flow.R.string.deep_flow_active_until_disabled
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(
+                                        Icons.Default.ArrowForward,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(16.dp),
                                     )
-                                    else -> androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_mode_subtitle)
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = deepFlowActive,
-                            onCheckedChange = { enabled ->
-                                coroutineScope.launch {
-                                    DeepFlowManager.setEnabled(context, enabled)
                                 }
                             }
-                        )
+                        }
                     }
-
-                    HorizontalDivider(
-                        Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDeepFlowDurationDialog = true }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Timer,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_expire_duration_title),
-                                style = MaterialTheme.typography.bodyLarge
+                }
+                // DEEP FLOW MODE
+                item {
+                    Spacer(Modifier.height(12.dp))
+                    SettingsGroup {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch {
+                                            DeepFlowManager.toggle(context)
+                                        }
+                                    }.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.VisibilityOff,
+                                contentDescription = null,
+                                tint =
+                                    if (deepFlowActive) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
                             )
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(
-                                    io.github.aedev.flow.R.string.deep_flow_expire_duration_subtitle,
-                                    deepFlowExpireHours.let { hours ->
-                                        when (hours) {
-                                            DEEP_FLOW_NEVER_EXPIRES_HOURS -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_never)
-                                            1 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_1h)
-                                            2 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_2h)
-                                            4 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_4h)
-                                            6 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_6h)
-                                            8 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_8h)
-                                            12 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_12h)
-                                            24 -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_24h)
-                                            else -> context.getString(io.github.aedev.flow.R.string.deep_flow_duration_hours, hours)
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = stringResource(R.string.deep_flow_mode_title),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                    if (deepFlowActive && deepFlowRemainingLabel != null) {
+                                        Spacer(Modifier.width(8.dp))
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(6.dp),
+                                        ) {
+                                            Text(
+                                                text =
+                                                    stringResource(
+                                                        R.string.deep_flow_learning_paused,
+                                                    ),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                            )
                                         }
                                     }
-                                ),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    HorizontalDivider(
-                        Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.History,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_save_history_title),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_save_history_subtitle),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = deepFlowSaveHistory,
-                            onCheckedChange = { enabled ->
-                                coroutineScope.launch {
-                                    playerPreferences.setDeepFlowSaveToHistory(enabled)
                                 }
+                                Text(
+                                    text =
+                                        when {
+                                            deepFlowActive && deepFlowRemainingLabel != null -> {
+                                                stringResource(
+                                                    R.string.deep_flow_expires_in,
+                                                    deepFlowRemainingLabel,
+                                                )
+                                            }
+
+                                            deepFlowActive && deepFlowExpireHours == DEEP_FLOW_NEVER_EXPIRES_HOURS -> {
+                                                stringResource(
+                                                    R.string.deep_flow_active_until_disabled,
+                                                )
+                                            }
+
+                                            else -> {
+                                                stringResource(R.string.deep_flow_mode_subtitle)
+                                            }
+                                        },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
+                            Switch(
+                                checked = deepFlowActive,
+                                onCheckedChange = { enabled ->
+                                    coroutineScope.launch {
+                                        DeepFlowManager.setEnabled(context, enabled)
+                                    }
+                                },
+                            )
+                        }
+
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         )
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showDeepFlowDurationDialog = true }
+                                    .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Timer,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.deep_flow_expire_duration_title),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                Text(
+                                    text =
+                                        stringResource(
+                                            R.string.deep_flow_expire_duration_subtitle,
+                                            deepFlowExpireHours.let { hours ->
+                                                when (hours) {
+                                                    DEEP_FLOW_NEVER_EXPIRES_HOURS -> context.getString(R.string.deep_flow_duration_never)
+                                                    1 -> context.getString(R.string.deep_flow_duration_1h)
+                                                    2 -> context.getString(R.string.deep_flow_duration_2h)
+                                                    4 -> context.getString(R.string.deep_flow_duration_4h)
+                                                    6 -> context.getString(R.string.deep_flow_duration_6h)
+                                                    8 -> context.getString(R.string.deep_flow_duration_8h)
+                                                    12 -> context.getString(R.string.deep_flow_duration_12h)
+                                                    24 -> context.getString(R.string.deep_flow_duration_24h)
+                                                    else -> context.getString(R.string.deep_flow_duration_hours, hours)
+                                                }
+                                            },
+                                        ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.History,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.deep_flow_save_history_title),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                Text(
+                                    text = stringResource(R.string.deep_flow_save_history_subtitle),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = deepFlowSaveHistory,
+                                onCheckedChange = { enabled ->
+                                    coroutineScope.launch {
+                                        playerPreferences.setDeepFlowSaveToHistory(enabled)
+                                    }
+                                },
+                            )
+                        }
                     }
+                    Spacer(Modifier.height(8.dp))
                 }
-                Spacer(Modifier.height(8.dp))
-            }
 
-            // =================================================
-            // APPEARANCE
-            // =================================================
-            item { SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_appearance)) }
-            item {
-                SettingsGroup { 
-                    SettingsItem(
-                        icon = Icons.Outlined.Palette,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_theme),
-                        subtitle = androidx.compose.ui.res.stringResource(getThemeNameRes(currentTheme)),
-                        onClick = onNavigateToAppearance
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Tv,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_interface_mode),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_interface_mode_subtitle),
-                        onClick = { showInterfaceModeDialog = true }
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Language,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_language),
-                        subtitle = currentAppLanguageLabel,
-                        onClick = { showAppLanguageDialog = true }
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.AppShortcut,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon_subtitle),
-                        onClick = onNavigateToAppIconPicker
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Tune,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance_subtitle),
-                        onClick = onNavigateToPlayerAppearance
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                         icon = Icons.Outlined.GridView,
-                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display),
-                         subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display_subtitle),
-                         onClick = onNavigateToContentSettings
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                         icon = Icons.Outlined.Schedule,
-                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime),
-                         subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime_subtitle),
-                         onClick = onNavigateToDateTimeSettings
-                    )
-                }
-            }
-
-            // =================================================
-            // CONTENT & PLAYBACK
-            // =================================================
-            item { SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_content_playback)) }
-            
-            item {
-                SettingsGroup {
-                    SettingsItem(
-                        icon = Icons.Outlined.FilterAlt,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs_subtitle),
-                        onClick = onNavigateToUserPreferences
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                         icon = Icons.Outlined.PlayCircle,
-                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player),
-                         subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_subtitle),
-                         onClick = onNavigateToPlayerSettings
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Share,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.discord_presence_title),
-                        subtitle = discordSettingsSummary,
-                        onClick = onNavigateToDiscordSettings
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Public,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy_subtitle),
-                        onClick = onNavigateToProxySettings
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = painterResource(io.github.aedev.flow.R.drawable.ic_block),
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sb_settings_title),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sb_settings_subtitle),
-                        onClick = onNavigateToSponsorBlockSettings
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                         icon = Icons.Outlined.HighQuality,
-                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_quality),
-                         subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_quality_subtitle),
-                         onClick = onNavigateToVideoQuality
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                         icon = Icons.Outlined.Slideshow,
-                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.shorts_quality_settings_title),
-                         subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.shorts_quality_settings_subtitle),
-                         onClick = onNavigateToShortsQuality
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Speed,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_buffer),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_buffer_subtitle),
-                        onClick = onNavigateToBufferSettings
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Download,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_downloads),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_downloads_subtitle),
-                        onClick = onNavigateToDownloads
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.TrendingUp,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_region),
-                        subtitle = REGION_NAMES[currentRegion] ?: currentRegion,
-                        onClick = { showRegionDialog = true }
-                    )
-                }
-            }
-            
-            // =================================================
-            // NOTIFICATIONS
-            // =================================================
-            item { SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_notifications)) }
-
-            item {
-                SettingsGroup {
-                    SettingsItem(
-                        icon = Icons.Outlined.NotificationsNone,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_notifications),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_notifications_subtitle),
-                        onClick = onNavigateToNotifications
-                    )
-                }
-            }
-
-            // =================================================
-            // DATA MANAGEMENT
-            // =================================================
-            item { SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_data_management)) }
-            
-            item {
-                SettingsGroup {
-                    SettingsItem(
-                        icon = Icons.Outlined.History,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_search_history),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_search_history_subtitle),
-                        onClick = onNavigateToSearchHistory
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Schedule,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_time_management),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_time_management_subtitle),
-                        onClick = onNavigateToTimeManagement
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.FileUpload,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_export_data),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_export_data_subtitle),
-                        onClick = onNavigateToExport
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.FileDownload,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data_subtitle),
-                        onClick = onNavigateToImport
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Schedule,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.auto_backup_title),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.auto_backup_subtitle),
-                        onClick = onNavigateToAutoBackup
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Devices,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sync_devices_title),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sync_devices_subtitle),
-                        onClick = onNavigateToSyncDevices
-                    )
-                }
-            }
-            
-            // =================================================
-            // ABOUT
-            // =================================================
-            item { SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_header_about)) }
-            item {
-                SettingsGroup {
-                    SettingsItem(
-                        icon = Icons.Outlined.Info,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow_subtitle),
-                        onClick = onNavigateToAbout
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.BugReport,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics_subtitle),
-                        onClick = onNavigateToDiagnostics
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    if (BuildConfig.UPDATER_ENABLED) {
+                // =================================================
+                // APPEARANCE
+                // =================================================
+                item { SectionHeader(text = stringResource(R.string.settings_header_appearance)) }
+                item {
+                    SettingsGroup {
                         SettingsItem(
-                            icon = if (isCheckingUpdate) Icons.Outlined.Sync else Icons.Outlined.Update,
-                            title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates),
-                            subtitle = if (isCheckingUpdate)
-                                androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.checking_for_updates)
-                            else
-                                androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates_subtitle),
-                            onClick = onCheckForUpdatesClick
+                            icon = Icons.Outlined.Palette,
+                            title = stringResource(R.string.settings_item_theme),
+                            subtitle = stringResource(getThemeNameRes(currentTheme)),
+                            onClick = onNavigateToAppearance,
                         )
-                        HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Tv,
+                            title = stringResource(R.string.settings_item_interface_mode),
+                            subtitle = stringResource(R.string.settings_item_interface_mode_subtitle),
+                            onClick = { showInterfaceModeDialog = true },
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Language,
+                            title = stringResource(R.string.settings_item_app_language),
+                            subtitle = currentAppLanguageLabel,
+                            onClick = { showAppLanguageDialog = true },
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.AppShortcut,
+                            title = stringResource(R.string.settings_item_app_icon),
+                            subtitle = stringResource(R.string.settings_item_app_icon_subtitle),
+                            onClick = onNavigateToAppIconPicker,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Tune,
+                            title = stringResource(R.string.settings_item_player_appearance),
+                            subtitle = stringResource(R.string.settings_item_player_appearance_subtitle),
+                            onClick = onNavigateToPlayerAppearance,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.GridView,
+                            title = stringResource(R.string.settings_item_content_display),
+                            subtitle = stringResource(R.string.settings_item_content_display_subtitle),
+                            onClick = onNavigateToContentSettings,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Schedule,
+                            title = stringResource(R.string.settings_item_datetime),
+                            subtitle = stringResource(R.string.settings_item_datetime_subtitle),
+                            onClick = onNavigateToDateTimeSettings,
+                        )
                     }
-                    SettingsItem(
-                        icon = Icons.Outlined.VolunteerActivism,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support_subtitle),
-                        onClick = onNavigateToDonations
+                }
+
+                // =================================================
+                // CONTENT & PLAYBACK
+                // =================================================
+                item { SectionHeader(text = stringResource(R.string.settings_header_content_playback)) }
+
+                item {
+                    SettingsGroup {
+                        SettingsItem(
+                            icon = Icons.Outlined.FilterAlt,
+                            title = stringResource(R.string.settings_item_content_prefs),
+                            subtitle = stringResource(R.string.settings_item_content_prefs_subtitle),
+                            onClick = onNavigateToUserPreferences,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.PlayCircle,
+                            title = stringResource(R.string.settings_item_player),
+                            subtitle = stringResource(R.string.settings_item_player_subtitle),
+                            onClick = onNavigateToPlayerSettings,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Share,
+                            title = stringResource(R.string.discord_presence_title),
+                            subtitle = discordSettingsSummary,
+                            onClick = onNavigateToDiscordSettings,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Public,
+                            title = stringResource(R.string.settings_item_proxy),
+                            subtitle = stringResource(R.string.settings_item_proxy_subtitle),
+                            onClick = onNavigateToProxySettings,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = painterResource(R.drawable.ic_block),
+                            title = stringResource(R.string.sb_settings_title),
+                            subtitle = stringResource(R.string.sb_settings_subtitle),
+                            onClick = onNavigateToSponsorBlockSettings,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.HighQuality,
+                            title = stringResource(R.string.settings_item_quality),
+                            subtitle = stringResource(R.string.settings_item_quality_subtitle),
+                            onClick = onNavigateToVideoQuality,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Slideshow,
+                            title = stringResource(R.string.shorts_quality_settings_title),
+                            subtitle = stringResource(R.string.shorts_quality_settings_subtitle),
+                            onClick = onNavigateToShortsQuality,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Speed,
+                            title = stringResource(R.string.settings_item_buffer),
+                            subtitle = stringResource(R.string.settings_item_buffer_subtitle),
+                            onClick = onNavigateToBufferSettings,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Download,
+                            title = stringResource(R.string.settings_item_downloads),
+                            subtitle = stringResource(R.string.settings_item_downloads_subtitle),
+                            onClick = onNavigateToDownloads,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.TrendingUp,
+                            title = stringResource(R.string.settings_item_region),
+                            subtitle = REGION_NAMES[currentRegion] ?: currentRegion,
+                            onClick = { showRegionDialog = true },
+                        )
+                    }
+                }
+
+                // =================================================
+                // NOTIFICATIONS
+                // =================================================
+                item { SectionHeader(text = stringResource(R.string.settings_header_notifications)) }
+
+                item {
+                    SettingsGroup {
+                        SettingsItem(
+                            icon = Icons.Outlined.NotificationsNone,
+                            title = stringResource(R.string.settings_item_notifications),
+                            subtitle = stringResource(R.string.settings_item_notifications_subtitle),
+                            onClick = onNavigateToNotifications,
+                        )
+                    }
+                }
+
+                // =================================================
+                // DATA MANAGEMENT
+                // =================================================
+                item {
+                    SectionHeader(
+                        text = stringResource(R.string.settings_header_data_management),
                     )
                 }
+
+                item {
+                    SettingsGroup {
+                        SettingsItem(
+                            icon = Icons.Outlined.History,
+                            title = stringResource(R.string.settings_item_search_history),
+                            subtitle = stringResource(R.string.settings_item_search_history_subtitle),
+                            onClick = onNavigateToSearchHistory,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Schedule,
+                            title = stringResource(R.string.settings_item_time_management),
+                            subtitle = stringResource(R.string.settings_item_time_management_subtitle),
+                            onClick = onNavigateToTimeManagement,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.FileUpload,
+                            title = stringResource(R.string.settings_item_export_data),
+                            subtitle = stringResource(R.string.settings_item_export_data_subtitle),
+                            onClick = onNavigateToExport,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.FileDownload,
+                            title = stringResource(R.string.settings_item_import_data),
+                            subtitle = stringResource(R.string.settings_item_import_data_subtitle),
+                            onClick = onNavigateToImport,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Schedule,
+                            title = stringResource(R.string.auto_backup_title),
+                            subtitle = stringResource(R.string.auto_backup_subtitle),
+                            onClick = onNavigateToAutoBackup,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.Devices,
+                            title = stringResource(R.string.sync_devices_title),
+                            subtitle = stringResource(R.string.sync_devices_subtitle),
+                            onClick = onNavigateToSyncDevices,
+                        )
+                    }
+                }
+
+                // =================================================
+                // ABOUT
+                // =================================================
+                item { SectionHeader(text = stringResource(R.string.settings_header_about)) }
+                item {
+                    SettingsGroup {
+                        SettingsItem(
+                            icon = Icons.Outlined.Info,
+                            title = stringResource(R.string.settings_item_about_flow),
+                            subtitle = stringResource(R.string.settings_item_about_flow_subtitle),
+                            onClick = onNavigateToAbout,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        SettingsItem(
+                            icon = Icons.Outlined.BugReport,
+                            title = stringResource(R.string.settings_item_diagnostics),
+                            subtitle = stringResource(R.string.settings_item_diagnostics_subtitle),
+                            onClick = onNavigateToDiagnostics,
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
+                        if (BuildConfig.UPDATER_ENABLED) {
+                            SettingsItem(
+                                icon = if (isCheckingUpdate) Icons.Outlined.Sync else Icons.Outlined.Update,
+                                title = stringResource(R.string.check_for_updates),
+                                subtitle =
+                                    if (isCheckingUpdate) {
+                                        stringResource(R.string.checking_for_updates)
+                                    } else {
+                                        stringResource(R.string.check_for_updates_subtitle)
+                                    },
+                                onClick = onCheckForUpdatesClick,
+                            )
+                            HorizontalDivider(
+                                Modifier.padding(start = 56.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            )
+                        }
+                        SettingsItem(
+                            icon = Icons.Outlined.VolunteerActivism,
+                            title = stringResource(R.string.settings_item_support),
+                            subtitle = stringResource(R.string.settings_item_support_subtitle),
+                            onClick = onNavigateToDonations,
+                        )
+                    }
+                }
             }
-        }
         }
     }
 
     if (showDeepFlowDurationDialog) {
-        val durationOptions = listOf(
-            DEEP_FLOW_NEVER_EXPIRES_HOURS to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_duration_never),
-            1 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_duration_1h),
-            2 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_duration_2h),
-            4 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_duration_4h),
-            6 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_duration_6h),
-            8 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_duration_8h),
-            12 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_duration_12h),
-            24 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_duration_24h)
-        )
+        val durationOptions =
+            listOf(
+                DEEP_FLOW_NEVER_EXPIRES_HOURS to stringResource(R.string.deep_flow_duration_never),
+                1 to stringResource(R.string.deep_flow_duration_1h),
+                2 to stringResource(R.string.deep_flow_duration_2h),
+                4 to stringResource(R.string.deep_flow_duration_4h),
+                6 to stringResource(R.string.deep_flow_duration_6h),
+                8 to stringResource(R.string.deep_flow_duration_8h),
+                12 to stringResource(R.string.deep_flow_duration_12h),
+                24 to stringResource(R.string.deep_flow_duration_24h),
+            )
         AlertDialog(
             onDismissRequest = { showDeepFlowDurationDialog = false },
             icon = { Icon(Icons.Outlined.Timer, null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_dialog_title)) },
+            title = { Text(stringResource(R.string.deep_flow_dialog_title)) },
             text = {
                 Column {
                     Text(
-                        text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.deep_flow_dialog_body),
+                        text = stringResource(R.string.deep_flow_dialog_body),
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        modifier = Modifier.padding(bottom = 12.dp),
                     )
                     durationOptions.forEach { (hours, label) ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    coroutineScope.launch {
-                                        playerPreferences.setDeepFlowExpireHours(hours)
-                                    }
-                                    showDeepFlowDurationDialog = false
-                                }
-                                .padding(vertical = 10.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch {
+                                            playerPreferences.setDeepFlowExpireHours(hours)
+                                        }
+                                        showDeepFlowDurationDialog = false
+                                    }.padding(vertical = 10.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(
                                 selected = deepFlowExpireHours == hours,
@@ -1012,7 +1320,7 @@ item {
                                         playerPreferences.setDeepFlowExpireHours(hours)
                                     }
                                     showDeepFlowDurationDialog = false
-                                }
+                                },
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(text = label, style = MaterialTheme.typography.bodyMedium)
@@ -1023,9 +1331,9 @@ item {
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showDeepFlowDurationDialog = false }) {
-                    Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cancel))
+                    Text(stringResource(R.string.cancel))
                 }
-            }
+            },
         )
     }
 
@@ -1033,12 +1341,12 @@ item {
         AlertDialog(
             onDismissRequest = { showResetBrainDialog = false },
             icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_reset_brain_title)) },
-            text = { 
+            title = { Text(stringResource(R.string.settings_reset_brain_title)) },
+            text = {
                 Text(
-                    androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_reset_brain_body),
-                    style = MaterialTheme.typography.bodyMedium
-                ) 
+                    stringResource(R.string.settings_reset_brain_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             },
             confirmButton = {
                 TextButton(
@@ -1049,12 +1357,12 @@ item {
                             showResetBrainDialog = false
                         }
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_reset_everything)) }
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.settings_reset_everything)) }
             },
             dismissButton = {
-                TextButton(onClick = { showResetBrainDialog = false }) { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cancel)) }
-            }
+                TextButton(onClick = { showResetBrainDialog = false }) { Text(stringResource(R.string.cancel)) }
+            },
         )
     }
 
@@ -1065,11 +1373,11 @@ item {
             AlertDialog(
                 onDismissRequest = { updateAvailableTag = null },
                 icon = { Icon(Icons.Outlined.Update, null, tint = MaterialTheme.colorScheme.primary) },
-                title = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.new_update_available), fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.new_update_available), fontWeight = FontWeight.Bold) },
                 text = {
                     Text(
-                        androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.update_available_template, tag),
-                        style = MaterialTheme.typography.bodyMedium
+                        stringResource(R.string.update_available_template, tag),
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 },
                 confirmButton = {
@@ -1078,46 +1386,48 @@ item {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/A-EDev/Flow/releases/latest"))
                         context.startActivity(intent)
                     }) {
-                        Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.download))
+                        Text(stringResource(R.string.download))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { updateAvailableTag = null }) {
-                        Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cancel))
+                        Text(stringResource(R.string.cancel))
                     }
-                }
+                },
             )
         }
     }
 
     if (showAppLanguageDialog) {
         var languageSearchQuery by remember { mutableStateOf("") }
-        val normalizedCurrentLanguage = remember(currentAppLanguage) {
-            AppLanguageManager.normalizeLanguageTag(currentAppLanguage)
-        }
-        val filteredLanguages = remember(languageSearchQuery, appLanguageOptions) {
-            if (languageSearchQuery.isBlank()) {
-                appLanguageOptions
-            } else {
-                appLanguageOptions.filter { option ->
-                    option.nativeName.contains(languageSearchQuery, ignoreCase = true) ||
-                        option.localizedName.contains(languageSearchQuery, ignoreCase = true) ||
-                        option.tag.contains(languageSearchQuery, ignoreCase = true)
+        val normalizedCurrentLanguage =
+            remember(currentAppLanguage) {
+                AppLanguageManager.normalizeLanguageTag(currentAppLanguage)
+            }
+        val filteredLanguages =
+            remember(languageSearchQuery, appLanguageOptions) {
+                if (languageSearchQuery.isBlank()) {
+                    appLanguageOptions
+                } else {
+                    appLanguageOptions.filter { option ->
+                        option.nativeName.contains(languageSearchQuery, ignoreCase = true) ||
+                            option.localizedName.contains(languageSearchQuery, ignoreCase = true) ||
+                            option.tag.contains(languageSearchQuery, ignoreCase = true)
+                    }
                 }
             }
-        }
         AlertDialog(
             onDismissRequest = { showAppLanguageDialog = false },
-            title = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_language_dialog_title)) },
+            title = { Text(stringResource(R.string.settings_language_dialog_title)) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = languageSearchQuery,
                         onValueChange = { languageSearchQuery = it },
-                        placeholder = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.search_hint)) },
+                        placeholder = { Text(stringResource(R.string.search_hint)) },
                         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(8.dp))
                     LazyColumn(Modifier.heightIn(max = 320.dp)) {
@@ -1132,21 +1442,20 @@ item {
                                             showAppLanguageDialog = false
                                             AppLanguageManager.activityContext(context)?.recreate()
                                         }
-                                    }
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    }.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 RadioButton(
                                     selected = normalizedCurrentLanguage == AppLanguageManager.SYSTEM_DEFAULT,
-                                    onClick = null
+                                    onClick = null,
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Column {
-                                    Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_language_system_default))
+                                    Text(stringResource(R.string.settings_language_system_default))
                                     Text(
-                                        text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_language_subtitle),
+                                        text = stringResource(R.string.settings_item_app_language_subtitle),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -1163,9 +1472,8 @@ item {
                                             showAppLanguageDialog = false
                                             AppLanguageManager.activityContext(context)?.recreate()
                                         }
-                                    }
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    }.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 RadioButton(selected = normalizedCurrentLanguage == option.tag, onClick = null)
                                 Spacer(Modifier.width(8.dp))
@@ -1175,7 +1483,7 @@ item {
                                         Text(
                                             text = option.localizedName,
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }
@@ -1187,34 +1495,38 @@ item {
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showAppLanguageDialog = false }) {
-                    Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cancel))
+                    Text(stringResource(R.string.cancel))
                 }
-            }
+            },
         )
     }
 
     // Region Selection Dialog
     if (showRegionDialog) {
         var regionSearchQuery by remember { mutableStateOf("") }
-        val filteredRegions = remember(regionSearchQuery) {
-            if (regionSearchQuery.isBlank()) regionList
-            else regionList.filter { (code, name) ->
-                name.contains(regionSearchQuery, ignoreCase = true) ||
-                code.contains(regionSearchQuery, ignoreCase = true)
+        val filteredRegions =
+            remember(regionSearchQuery) {
+                if (regionSearchQuery.isBlank()) {
+                    regionList
+                } else {
+                    regionList.filter { (code, name) ->
+                        name.contains(regionSearchQuery, ignoreCase = true) ||
+                            code.contains(regionSearchQuery, ignoreCase = true)
+                    }
+                }
             }
-        }
         AlertDialog(
             onDismissRequest = { showRegionDialog = false },
-            title = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_region_dialog_title)) },
+            title = { Text(stringResource(R.string.settings_region_dialog_title)) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = regionSearchQuery,
                         onValueChange = { regionSearchQuery = it },
-                        placeholder = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.search_hint)) },
+                        placeholder = { Text(stringResource(R.string.search_hint)) },
                         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(8.dp))
                     LazyColumn(Modifier.heightIn(max = 260.dp)) {
@@ -1224,10 +1536,12 @@ item {
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        coroutineScope.launch { playerPreferences.setTrendingRegion(code); showRegionDialog = false }
-                                    }
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                        coroutineScope.launch {
+                                            playerPreferences.setTrendingRegion(code)
+                                            showRegionDialog = false
+                                        }
+                                    }.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 RadioButton(selected = currentRegion == code, onClick = null)
                                 Spacer(Modifier.width(8.dp))
@@ -1238,14 +1552,18 @@ item {
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { showRegionDialog = false }) { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cancel)) } }
+            dismissButton = { TextButton(onClick = { showRegionDialog = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
-    
 }
 
 @Composable
-fun BrainTraitRow(label: String, value: Double, leftLabel: String, rightLabel: String) {
+fun BrainTraitRow(
+    label: String,
+    value: Double,
+    leftLabel: String,
+    rightLabel: String,
+) {
     Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
@@ -1256,7 +1574,7 @@ fun BrainTraitRow(label: String, value: Double, leftLabel: String, rightLabel: S
             progress = value.toFloat(), // Fixed: No lambda
             modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
             color = MaterialTheme.colorScheme.secondary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(leftLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1265,95 +1583,195 @@ fun BrainTraitRow(label: String, value: Double, leftLabel: String, rightLabel: S
     }
 }
 
-private val REGION_NAMES = mapOf(
-    "DZ" to "Algeria", "AS" to "American Samoa", "AI" to "Anguilla", "AR" to "Argentina",
-    "AW" to "Aruba", "AU" to "Australia", "AT" to "Austria", "AZ" to "Azerbaijan",
-    "BH" to "Bahrain", "BD" to "Bangladesh", "BY" to "Belarus", "BE" to "Belgium",
-    "BM" to "Bermuda", "BO" to "Bolivia", "BA" to "Bosnia and Herzegovina", "BR" to "Brazil",
-    "IO" to "British Indian Ocean Territory", "VG" to "British Virgin Islands", "BG" to "Bulgaria", "KH" to "Cambodia",
-    "CA" to "Canada", "KY" to "Cayman Islands", "CL" to "Chile", "CO" to "Colombia",
-    "CR" to "Costa Rica", "HR" to "Croatia", "CY" to "Cyprus", "CZ" to "Czech Republic",
-    "DK" to "Denmark", "DO" to "Dominican Republic", "EC" to "Ecuador", "EG" to "Egypt",
-    "SV" to "El Salvador", "EE" to "Estonia", "FK" to "Falkland Islands", "FO" to "Faroe Islands",
-    "FI" to "Finland", "FR" to "France", "GF" to "French Guiana", "PF" to "French Polynesia",
-    "GE" to "Georgia", "DE" to "Germany", "GH" to "Ghana", "GI" to "Gibraltar",
-    "GR" to "Greece", "GL" to "Greenland", "GP" to "Guadeloupe", "GU" to "Guam",
-    "GT" to "Guatemala", "HN" to "Honduras", "HK" to "Hong Kong", "HU" to "Hungary",
-    "IS" to "Iceland", "IN" to "India", "ID" to "Indonesia", "IQ" to "Iraq",
-    "IE" to "Ireland", "IL" to "Israel", "IT" to "Italy", "JM" to "Jamaica",
-    "JP" to "Japan", "JO" to "Jordan", "KZ" to "Kazakhstan", "KE" to "Kenya",
-    "KW" to "Kuwait", "LA" to "Laos", "LV" to "Latvia", "LB" to "Lebanon",
-    "LY" to "Libya", "LI" to "Liechtenstein", "LT" to "Lithuania", "LU" to "Luxembourg",
-    "MY" to "Malaysia", "MT" to "Malta", "MQ" to "Martinique", "YT" to "Mayotte",
-    "MX" to "Mexico", "MD" to "Moldova", "ME" to "Montenegro", "MS" to "Montserrat",
-    "MA" to "Morocco", "NP" to "Nepal", "NL" to "Netherlands", "NC" to "New Caledonia",
-    "NZ" to "New Zealand", "NI" to "Nicaragua", "NG" to "Nigeria", "NF" to "Norfolk Island",
-    "MP" to "Northern Mariana Islands", "NO" to "Norway", "OM" to "Oman", "PK" to "Pakistan",
-    "PA" to "Panama", "PG" to "Papua New Guinea", "PY" to "Paraguay", "PE" to "Peru",
-    "PH" to "Philippines", "PL" to "Poland", "PT" to "Portugal", "PR" to "Puerto Rico",
-    "QA" to "Qatar", "RE" to "Reunion", "RO" to "Romania", "RU" to "Russia",
-    "SH" to "Saint Helena", "PM" to "Saint Pierre and Miquelon", "SA" to "Saudi Arabia", "SN" to "Senegal",
-    "RS" to "Serbia", "SG" to "Singapore", "SK" to "Slovakia", "SI" to "Slovenia",
-    "ZA" to "South Africa", "KR" to "South Korea", "ES" to "Spain", "LK" to "Sri Lanka",
-    "SJ" to "Svalbard and Jan Mayen", "SE" to "Sweden", "CH" to "Switzerland", "TW" to "Taiwan",
-    "TZ" to "Tanzania", "TH" to "Thailand", "TN" to "Tunisia", "TR" to "Turkey",
-    "TC" to "Turks and Caicos Islands", "UG" to "Uganda", "UA" to "Ukraine", "AE" to "United Arab Emirates",
-    "GB" to "United Kingdom", "US" to "United States", "VI" to "U.S. Virgin Islands", "UY" to "Uruguay",
-    "VE" to "Venezuela", "VN" to "Vietnam"
-).toList().sortedBy { it.second }.toMap()
+private val REGION_NAMES =
+    mapOf(
+        "DZ" to "Algeria",
+        "AS" to "American Samoa",
+        "AI" to "Anguilla",
+        "AR" to "Argentina",
+        "AW" to "Aruba",
+        "AU" to "Australia",
+        "AT" to "Austria",
+        "AZ" to "Azerbaijan",
+        "BH" to "Bahrain",
+        "BD" to "Bangladesh",
+        "BY" to "Belarus",
+        "BE" to "Belgium",
+        "BM" to "Bermuda",
+        "BO" to "Bolivia",
+        "BA" to "Bosnia and Herzegovina",
+        "BR" to "Brazil",
+        "IO" to "British Indian Ocean Territory",
+        "VG" to "British Virgin Islands",
+        "BG" to "Bulgaria",
+        "KH" to "Cambodia",
+        "CA" to "Canada",
+        "KY" to "Cayman Islands",
+        "CL" to "Chile",
+        "CO" to "Colombia",
+        "CR" to "Costa Rica",
+        "HR" to "Croatia",
+        "CY" to "Cyprus",
+        "CZ" to "Czech Republic",
+        "DK" to "Denmark",
+        "DO" to "Dominican Republic",
+        "EC" to "Ecuador",
+        "EG" to "Egypt",
+        "SV" to "El Salvador",
+        "EE" to "Estonia",
+        "FK" to "Falkland Islands",
+        "FO" to "Faroe Islands",
+        "FI" to "Finland",
+        "FR" to "France",
+        "GF" to "French Guiana",
+        "PF" to "French Polynesia",
+        "GE" to "Georgia",
+        "DE" to "Germany",
+        "GH" to "Ghana",
+        "GI" to "Gibraltar",
+        "GR" to "Greece",
+        "GL" to "Greenland",
+        "GP" to "Guadeloupe",
+        "GU" to "Guam",
+        "GT" to "Guatemala",
+        "HN" to "Honduras",
+        "HK" to "Hong Kong",
+        "HU" to "Hungary",
+        "IS" to "Iceland",
+        "IN" to "India",
+        "ID" to "Indonesia",
+        "IQ" to "Iraq",
+        "IE" to "Ireland",
+        "IL" to "Israel",
+        "IT" to "Italy",
+        "JM" to "Jamaica",
+        "JP" to "Japan",
+        "JO" to "Jordan",
+        "KZ" to "Kazakhstan",
+        "KE" to "Kenya",
+        "KW" to "Kuwait",
+        "LA" to "Laos",
+        "LV" to "Latvia",
+        "LB" to "Lebanon",
+        "LY" to "Libya",
+        "LI" to "Liechtenstein",
+        "LT" to "Lithuania",
+        "LU" to "Luxembourg",
+        "MY" to "Malaysia",
+        "MT" to "Malta",
+        "MQ" to "Martinique",
+        "YT" to "Mayotte",
+        "MX" to "Mexico",
+        "MD" to "Moldova",
+        "ME" to "Montenegro",
+        "MS" to "Montserrat",
+        "MA" to "Morocco",
+        "NP" to "Nepal",
+        "NL" to "Netherlands",
+        "NC" to "New Caledonia",
+        "NZ" to "New Zealand",
+        "NI" to "Nicaragua",
+        "NG" to "Nigeria",
+        "NF" to "Norfolk Island",
+        "MP" to "Northern Mariana Islands",
+        "NO" to "Norway",
+        "OM" to "Oman",
+        "PK" to "Pakistan",
+        "PA" to "Panama",
+        "PG" to "Papua New Guinea",
+        "PY" to "Paraguay",
+        "PE" to "Peru",
+        "PH" to "Philippines",
+        "PL" to "Poland",
+        "PT" to "Portugal",
+        "PR" to "Puerto Rico",
+        "QA" to "Qatar",
+        "RE" to "Reunion",
+        "RO" to "Romania",
+        "RU" to "Russia",
+        "SH" to "Saint Helena",
+        "PM" to "Saint Pierre and Miquelon",
+        "SA" to "Saudi Arabia",
+        "SN" to "Senegal",
+        "RS" to "Serbia",
+        "SG" to "Singapore",
+        "SK" to "Slovakia",
+        "SI" to "Slovenia",
+        "ZA" to "South Africa",
+        "KR" to "South Korea",
+        "ES" to "Spain",
+        "LK" to "Sri Lanka",
+        "SJ" to "Svalbard and Jan Mayen",
+        "SE" to "Sweden",
+        "CH" to "Switzerland",
+        "TW" to "Taiwan",
+        "TZ" to "Tanzania",
+        "TH" to "Thailand",
+        "TN" to "Tunisia",
+        "TR" to "Turkey",
+        "TC" to "Turks and Caicos Islands",
+        "UG" to "Uganda",
+        "UA" to "Ukraine",
+        "AE" to "United Arab Emirates",
+        "GB" to "United Kingdom",
+        "US" to "United States",
+        "VI" to "U.S. Virgin Islands",
+        "UY" to "Uruguay",
+        "VE" to "Venezuela",
+        "VN" to "Vietnam",
+    ).toList().sortedBy { it.second }.toMap()
 
-private fun getThemeNameRes(theme: ThemeMode): Int {
-    return when (theme) {
-        ThemeMode.LIGHT -> io.github.aedev.flow.R.string.theme_name_pure_light
-        ThemeMode.MINT_LIGHT -> io.github.aedev.flow.R.string.theme_name_mint_fresh
-        ThemeMode.ROSE_LIGHT -> io.github.aedev.flow.R.string.theme_name_rose_petal
-        ThemeMode.SKY_LIGHT -> io.github.aedev.flow.R.string.theme_name_sky_blue
-        ThemeMode.CREAM_LIGHT -> io.github.aedev.flow.R.string.theme_name_cream_paper
-        ThemeMode.DARK -> io.github.aedev.flow.R.string.theme_name_classic_dark
-        ThemeMode.OLED -> io.github.aedev.flow.R.string.theme_name_true_black
-        ThemeMode.MIDNIGHT_BLACK -> io.github.aedev.flow.R.string.theme_name_midnight
-        ThemeMode.OCEAN_BLUE -> io.github.aedev.flow.R.string.theme_name_deep_ocean
-        ThemeMode.FOREST_GREEN -> io.github.aedev.flow.R.string.theme_name_forest
-        ThemeMode.LAVENDER_MIST -> io.github.aedev.flow.R.string.theme_name_lavender
-        ThemeMode.SUNSET_ORANGE -> io.github.aedev.flow.R.string.theme_name_sunset
-        ThemeMode.PURPLE_NEBULA -> io.github.aedev.flow.R.string.theme_name_nebula
-        ThemeMode.ROSE_GOLD -> io.github.aedev.flow.R.string.theme_name_rose_gold
-        ThemeMode.ARCTIC_ICE -> io.github.aedev.flow.R.string.theme_name_arctic
-        ThemeMode.MINTY_FRESH -> io.github.aedev.flow.R.string.theme_name_mint_night
-        ThemeMode.CRIMSON_RED -> io.github.aedev.flow.R.string.theme_name_crimson
-        ThemeMode.COSMIC_VOID -> io.github.aedev.flow.R.string.theme_name_cosmic_void
-        ThemeMode.SOLAR_FLARE -> io.github.aedev.flow.R.string.theme_name_solar_flare
-        ThemeMode.CYBERPUNK -> io.github.aedev.flow.R.string.theme_name_cyberpunk
-        ThemeMode.ROYAL_GOLD -> io.github.aedev.flow.R.string.theme_name_royal_gold
-        ThemeMode.NORDIC_HORIZON -> io.github.aedev.flow.R.string.theme_name_nordic
-        ThemeMode.ESPRESSO -> io.github.aedev.flow.R.string.theme_name_espresso
-        ThemeMode.GUNMETAL -> io.github.aedev.flow.R.string.theme_name_gunmetal
-        ThemeMode.SYSTEM -> io.github.aedev.flow.R.string.theme_name_system_default
-        ThemeMode.MONOCHROME -> io.github.aedev.flow.R.string.theme_name_monochrome
-        ThemeMode.CUSTOM -> io.github.aedev.flow.R.string.theme_name_custom
-        ThemeMode.MATERIAL_YOU -> io.github.aedev.flow.R.string.theme_name_material_you
+private fun getThemeNameRes(theme: ThemeMode): Int =
+    when (theme) {
+        ThemeMode.LIGHT -> R.string.theme_name_pure_light
+        ThemeMode.MINT_LIGHT -> R.string.theme_name_mint_fresh
+        ThemeMode.ROSE_LIGHT -> R.string.theme_name_rose_petal
+        ThemeMode.SKY_LIGHT -> R.string.theme_name_sky_blue
+        ThemeMode.CREAM_LIGHT -> R.string.theme_name_cream_paper
+        ThemeMode.DARK -> R.string.theme_name_classic_dark
+        ThemeMode.OLED -> R.string.theme_name_true_black
+        ThemeMode.MIDNIGHT_BLACK -> R.string.theme_name_midnight
+        ThemeMode.OCEAN_BLUE -> R.string.theme_name_deep_ocean
+        ThemeMode.FOREST_GREEN -> R.string.theme_name_forest
+        ThemeMode.LAVENDER_MIST -> R.string.theme_name_lavender
+        ThemeMode.SUNSET_ORANGE -> R.string.theme_name_sunset
+        ThemeMode.PURPLE_NEBULA -> R.string.theme_name_nebula
+        ThemeMode.ROSE_GOLD -> R.string.theme_name_rose_gold
+        ThemeMode.ARCTIC_ICE -> R.string.theme_name_arctic
+        ThemeMode.MINTY_FRESH -> R.string.theme_name_mint_night
+        ThemeMode.CRIMSON_RED -> R.string.theme_name_crimson
+        ThemeMode.COSMIC_VOID -> R.string.theme_name_cosmic_void
+        ThemeMode.SOLAR_FLARE -> R.string.theme_name_solar_flare
+        ThemeMode.CYBERPUNK -> R.string.theme_name_cyberpunk
+        ThemeMode.ROYAL_GOLD -> R.string.theme_name_royal_gold
+        ThemeMode.NORDIC_HORIZON -> R.string.theme_name_nordic
+        ThemeMode.ESPRESSO -> R.string.theme_name_espresso
+        ThemeMode.GUNMETAL -> R.string.theme_name_gunmetal
+        ThemeMode.SYSTEM -> R.string.theme_name_system_default
+        ThemeMode.MONOCHROME -> R.string.theme_name_monochrome
+        ThemeMode.CUSTOM -> R.string.theme_name_custom
+        ThemeMode.MATERIAL_YOU -> R.string.theme_name_material_you
     }
-}
 
 private data class SettingSearchEntry(
     val icon: Any,
     val title: String,
     val subtitle: String,
     val sectionLabel: String,
-    val onClick: () -> Unit
+    val onClick: () -> Unit,
 )
 
 @Composable
 private fun SettingsSearchResultItem(
     entry: SettingSearchEntry,
-    onNavigate: () -> Unit
+    onNavigate: () -> Unit,
 ) {
     Column {
         Text(
             text = entry.sectionLabel.uppercase(),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 72.dp, top = 8.dp, bottom = 2.dp)
+            modifier = Modifier.padding(start = 72.dp, top = 8.dp, bottom = 2.dp),
         )
         when (entry.icon) {
             is ImageVector -> {
@@ -1361,21 +1779,22 @@ private fun SettingsSearchResultItem(
                     icon = entry.icon as ImageVector,
                     title = entry.title,
                     subtitle = entry.subtitle,
-                    onClick = onNavigate
+                    onClick = onNavigate,
                 )
             }
+
             is Int -> {
                 SettingsItem(
                     icon = painterResource(entry.icon as Int),
                     title = entry.title,
                     subtitle = entry.subtitle,
-                    onClick = onNavigate
+                    onClick = onNavigate,
                 )
             }
         }
         HorizontalDivider(
             Modifier.padding(start = 56.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         )
     }
 }

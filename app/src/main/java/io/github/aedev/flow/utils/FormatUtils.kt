@@ -17,9 +17,7 @@ fun formatDuration(seconds: Int): String {
     }
 }
 
-fun formatViewCount(count: Long): String {
-    return compactCountFormatter().format(count)
-}
+fun formatViewCount(count: Long): String = compactCountFormatter().format(count)
 
 fun formatSubscriberCount(count: Long): String {
     if (count <= 0L) return ""
@@ -47,34 +45,58 @@ fun formatYouTubeRelativeTime(
     val years = days / 365L
 
     return when {
-        years > 0L -> formatRelativeTime(years, RelativeDateTimeFormatter.RelativeUnit.YEARS, locale)
-        months > 0L -> formatRelativeTime(months, RelativeDateTimeFormatter.RelativeUnit.MONTHS, locale)
-        weeks > 0L -> formatRelativeTime(weeks, RelativeDateTimeFormatter.RelativeUnit.WEEKS, locale)
-        days > 0L -> formatRelativeTime(days, RelativeDateTimeFormatter.RelativeUnit.DAYS, locale)
-        hours > 0L -> formatRelativeTime(hours, RelativeDateTimeFormatter.RelativeUnit.HOURS, locale)
-        minutes > 0L -> formatRelativeTime(minutes, RelativeDateTimeFormatter.RelativeUnit.MINUTES, locale)
-        else -> RelativeDateTimeFormatter.getInstance(locale).format(
-            RelativeDateTimeFormatter.Direction.PLAIN,
-            RelativeDateTimeFormatter.AbsoluteUnit.NOW
-        )
+        years > 0L -> {
+            formatRelativeTime(years, RelativeDateTimeFormatter.RelativeUnit.YEARS, locale)
+        }
+
+        months > 0L -> {
+            formatRelativeTime(months, RelativeDateTimeFormatter.RelativeUnit.MONTHS, locale)
+        }
+
+        weeks > 0L -> {
+            formatRelativeTime(weeks, RelativeDateTimeFormatter.RelativeUnit.WEEKS, locale)
+        }
+
+        days > 0L -> {
+            formatRelativeTime(days, RelativeDateTimeFormatter.RelativeUnit.DAYS, locale)
+        }
+
+        hours > 0L -> {
+            formatRelativeTime(hours, RelativeDateTimeFormatter.RelativeUnit.HOURS, locale)
+        }
+
+        minutes > 0L -> {
+            formatRelativeTime(minutes, RelativeDateTimeFormatter.RelativeUnit.MINUTES, locale)
+        }
+
+        else -> {
+            RelativeDateTimeFormatter.getInstance(locale).format(
+                RelativeDateTimeFormatter.Direction.PLAIN,
+                RelativeDateTimeFormatter.AbsoluteUnit.NOW,
+            )
+        }
     }
 }
 
-fun formatTimeAgo(dateString: String?, locale: Locale = Locale.getDefault()): String {
+fun formatTimeAgo(
+    dateString: String?,
+    locale: Locale = Locale.getDefault(),
+): String {
     if (dateString.isNullOrBlank()) return ""
-    
+
     normalizeRelativeTimeText(dateString, locale)?.let { return it }
     if (dateString.contains("前")) return dateString
 
-    val formats = listOf(
-        "yyyy-MM-dd'T'HH:mm:ssXXX",
-        "yyyy-MM-dd'T'HH:mm:ssX",
-        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss",
-        "yyyy-MM-dd"
-    )
+    val formats =
+        listOf(
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ssX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd",
+        )
 
     var date: java.util.Date? = null
     for (format in formats) {
@@ -83,9 +105,10 @@ fun formatTimeAgo(dateString: String?, locale: Locale = Locale.getDefault()): St
             sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
             date = sdf.parse(dateString)
             if (date != null) break
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+        }
     }
-    
+
     if (date == null) return dateString
 
     return try {
@@ -95,36 +118,44 @@ fun formatTimeAgo(dateString: String?, locale: Locale = Locale.getDefault()): St
     }
 }
 
-private fun normalizeRelativeTimeText(value: String, locale: Locale): String? {
+private fun normalizeRelativeTimeText(
+    value: String,
+    locale: Locale,
+): String? {
     val text = value.trim()
     val lower = text.lowercase(java.util.Locale.US)
     if (!lower.contains("ago") && !lower.contains("just now")) return null
-    val prefix = when {
-        lower.startsWith("streamed ") -> "Streamed"
-        lower.startsWith("premiered ") -> "Premiered"
-        else -> null
-    }
+    val prefix =
+        when {
+            lower.startsWith("streamed ") -> "Streamed"
+            lower.startsWith("premiered ") -> "Premiered"
+            else -> null
+        }
     if (lower.contains("just now")) {
-        val relative = RelativeDateTimeFormatter.getInstance(locale).format(
-            RelativeDateTimeFormatter.Direction.PLAIN,
-            RelativeDateTimeFormatter.AbsoluteUnit.NOW
-        )
+        val relative =
+            RelativeDateTimeFormatter.getInstance(locale).format(
+                RelativeDateTimeFormatter.Direction.PLAIN,
+                RelativeDateTimeFormatter.AbsoluteUnit.NOW,
+            )
         return if (prefix != null) "$prefix $relative" else relative
     }
 
-    val match = Regex("""(\d+)\s*(mo|sec|secs|second|seconds|min|mins|minute|minutes|hr|hrs|hour|hours|day|days|week|weeks|month|months|year|years|[smhdwy])\b""")
-        .find(lower) ?: return text
+    val match =
+        Regex(
+            """(\d+)\s*(mo|sec|secs|second|seconds|min|mins|minute|minutes|hr|hrs|hour|hours|day|days|week|weeks|month|months|year|years|[smhdwy])\b""",
+        ).find(lower) ?: return text
     val count = match.groupValues[1].toLongOrNull() ?: return text
-    val unit = when (match.groupValues[2]) {
-        "s", "sec", "secs", "second", "seconds" -> RelativeDateTimeFormatter.RelativeUnit.SECONDS
-        "m", "min", "mins", "minute", "minutes" -> RelativeDateTimeFormatter.RelativeUnit.MINUTES
-        "h", "hr", "hrs", "hour", "hours" -> RelativeDateTimeFormatter.RelativeUnit.HOURS
-        "d", "day", "days" -> RelativeDateTimeFormatter.RelativeUnit.DAYS
-        "w", "week", "weeks" -> RelativeDateTimeFormatter.RelativeUnit.WEEKS
-        "mo", "month", "months" -> RelativeDateTimeFormatter.RelativeUnit.MONTHS
-        "y", "year", "years" -> RelativeDateTimeFormatter.RelativeUnit.YEARS
-        else -> return text
-    }
+    val unit =
+        when (match.groupValues[2]) {
+            "s", "sec", "secs", "second", "seconds" -> RelativeDateTimeFormatter.RelativeUnit.SECONDS
+            "m", "min", "mins", "minute", "minutes" -> RelativeDateTimeFormatter.RelativeUnit.MINUTES
+            "h", "hr", "hrs", "hour", "hours" -> RelativeDateTimeFormatter.RelativeUnit.HOURS
+            "d", "day", "days" -> RelativeDateTimeFormatter.RelativeUnit.DAYS
+            "w", "week", "weeks" -> RelativeDateTimeFormatter.RelativeUnit.WEEKS
+            "mo", "month", "months" -> RelativeDateTimeFormatter.RelativeUnit.MONTHS
+            "y", "year", "years" -> RelativeDateTimeFormatter.RelativeUnit.YEARS
+            else -> return text
+        }
     val relative = formatRelativeTime(count, unit, locale)
     return if (prefix != null) "$prefix $relative" else relative
 }
@@ -133,19 +164,19 @@ private fun formatRelativeTime(
     value: Long,
     unit: RelativeDateTimeFormatter.RelativeUnit,
     locale: Locale,
-): String = RelativeDateTimeFormatter.getInstance(locale).format(
-    value.toDouble(),
-    RelativeDateTimeFormatter.Direction.LAST,
-    unit
-)
+): String =
+    RelativeDateTimeFormatter.getInstance(locale).format(
+        value.toDouble(),
+        RelativeDateTimeFormatter.Direction.LAST,
+        unit,
+    )
 
-fun formatLikeCount(count: Int): String {
-    return when {
+fun formatLikeCount(count: Int): String =
+    when {
         count >= 1_000_000 -> "${(count / 1_000_000.0 * 10).roundToInt() / 10.0}M"
         count >= 1_000 -> "${(count / 1_000.0 * 10).roundToInt() / 10.0}K"
         else -> "$count"
     }
-}
 
 /**
  * Formats a scheduled premiere date string (from NewPipe extractor) into YouTube-style:
@@ -161,21 +192,21 @@ fun formatPremiereDate(dateString: String): String? {
     return out.format(date)
 }
 
-fun parsePremiereTimestamp(dateString: String): Long? =
-    parsePremiereDate(dateString)?.time
+fun parsePremiereTimestamp(dateString: String): Long? = parsePremiereDate(dateString)?.time
 
 private fun parsePremiereDate(dateString: String): java.util.Date? {
     if (dateString.isBlank()) return null
-    val formats = listOf(
-        "yyyy-MM-dd HH:mm",
-        "yyyy-MM-dd'T'HH:mm:ssXXX",
-        "yyyy-MM-dd'T'HH:mm:ssX",
-        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss",
-        "yyyy-MM-dd"
-    )
+    val formats =
+        listOf(
+            "yyyy-MM-dd HH:mm",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ssX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd",
+        )
     var date: java.util.Date? = null
     for (fmt in formats) {
         try {
@@ -183,8 +214,8 @@ private fun parsePremiereDate(dateString: String): java.util.Date? {
             sdf.timeZone = java.util.TimeZone.getDefault()
             date = sdf.parse(dateString)
             if (date != null) break
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
     return date
 }
-

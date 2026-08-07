@@ -45,7 +45,6 @@ import coil3.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
-import io.github.aedev.flow.utils.formatViewCount
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.migration.WatchLaterMetadataMigrator
@@ -60,6 +59,7 @@ import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatPremiereDate
+import io.github.aedev.flow.utils.formatViewCount
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

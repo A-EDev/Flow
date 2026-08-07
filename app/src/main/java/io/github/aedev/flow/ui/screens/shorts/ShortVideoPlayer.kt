@@ -1163,7 +1163,7 @@ internal fun ShortVideoPage(
             )
         }
     }
-    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

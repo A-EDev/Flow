@@ -4,15 +4,22 @@ import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.AudioTrackType
 
 object DownloadStreamHelpers {
-
     fun audioBitrateKbps(stream: AudioStream): Int {
         val raw = stream.averageBitrate.takeIf { it > 0 } ?: stream.bitrate
         return if (raw > 1000) raw / 1000 else raw.coerceAtLeast(0)
     }
 
     fun audioFormatLabel(stream: AudioStream): String {
-        val mime = stream.format?.mimeType.orEmpty().lowercase()
-        val name = stream.format?.name.orEmpty().lowercase()
+        val mime =
+            stream.format
+                ?.mimeType
+                .orEmpty()
+                .lowercase()
+        val name =
+            stream.format
+                ?.name
+                .orEmpty()
+                .lowercase()
         return when {
             "opus" in mime || "opus" in name -> "OPUS"
             "webm" in mime || "webm" in name -> "WEBM"
@@ -24,8 +31,16 @@ object DownloadStreamHelpers {
     }
 
     fun audioFileExtension(stream: AudioStream): String {
-        val mime = stream.format?.mimeType.orEmpty().lowercase()
-        val name = stream.format?.name.orEmpty().lowercase()
+        val mime =
+            stream.format
+                ?.mimeType
+                .orEmpty()
+                .lowercase()
+        val name =
+            stream.format
+                ?.name
+                .orEmpty()
+                .lowercase()
         return when {
             "webm" in mime || "webm" in name -> "webm"
             "ogg" in mime || "opus" in name -> "ogg"
@@ -34,39 +49,50 @@ object DownloadStreamHelpers {
         }
     }
 
-    fun audioLanguageLabel(stream: AudioStream): String? {
-        return stream.audioTrackName?.takeIf { it.isNotBlank() }
+    fun audioLanguageLabel(stream: AudioStream): String? =
+        stream.audioTrackName?.takeIf { it.isNotBlank() }
             ?: stream.audioLocale?.displayLanguage?.takeIf { it.isNotBlank() }
             ?: stream.audioTrackId?.takeIf { it.isNotBlank() }
-    }
 
     fun audioTrackTypeLabel(
         stream: AudioStream,
         originalLabel: String,
         dubbedLabel: String,
-    ): String? {
-        return when (stream.audioTrackType) {
-            AudioTrackType.ORIGINAL -> originalLabel
-            AudioTrackType.DUBBED -> dubbedLabel
-            null -> null
-            else -> stream.audioTrackType?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
-        }
-    }
+    ): String? =
+        when (stream.audioTrackType) {
+            AudioTrackType.ORIGINAL -> {
+                originalLabel
+            }
 
-    private fun audioFormatSortRank(stream: AudioStream): Int {
-        return when (audioFormatLabel(stream)) {
+            AudioTrackType.DUBBED -> {
+                dubbedLabel
+            }
+
+            null -> {
+                null
+            }
+
+            else -> {
+                stream.audioTrackType
+                    ?.name
+                    ?.lowercase()
+                    ?.replaceFirstChar { it.uppercase() }
+            }
+        }
+
+    private fun audioFormatSortRank(stream: AudioStream): Int =
+        when (audioFormatLabel(stream)) {
             "OPUS", "WEBM" -> 0
             "M4A" -> 1
             "MP3" -> 2
             else -> 3
         }
-    }
 
     fun mergeAudioDownloadStreams(
         innerTubeStreams: List<AudioStream>,
-        extractorStreams: List<AudioStream>
-    ): List<AudioStream> {
-        return (innerTubeStreams + extractorStreams)
+        extractorStreams: List<AudioStream>,
+    ): List<AudioStream> =
+        (innerTubeStreams + extractorStreams)
             .filter { it.getContent().isNotBlank() }
             .distinctBy { stream ->
                 listOf(
@@ -74,20 +100,18 @@ object DownloadStreamHelpers {
                     audioBitrateKbps(stream).toString(),
                     stream.audioTrackId.orEmpty(),
                     stream.audioLocale?.toLanguageTag().orEmpty(),
-                    stream.audioTrackType?.name.orEmpty()
+                    stream.audioTrackType?.name.orEmpty(),
                 ).joinToString("|")
-            }
-            .sortedWith(
+            }.sortedWith(
                 compareBy<AudioStream> { audioFormatSortRank(it) }
                     .thenByDescending { audioBitrateKbps(it) }
-                    .thenBy { it.audioLocale?.displayLanguage.orEmpty() }
+                    .thenBy { it.audioLocale?.displayLanguage.orEmpty() },
             )
-    }
 
     fun pickCompatibleAudioForVideo(
         videoCodecKey: String,
         allAudio: List<AudioStream>,
-        preferredLang: String?
+        preferredLang: String?,
     ): AudioStream? {
         if (allAudio.isEmpty()) return null
         val isMp4Container = videoCodecKey == "h264" || videoCodecKey == "hevc"
@@ -100,19 +124,23 @@ object DownloadStreamHelpers {
                 !mime.contains("vorbis") && !mime.contains("webm")
         }
 
-        val langFilteredAudio = if (!preferredLang.isNullOrEmpty() && preferredLang != "original") {
-            val langMatches = allAudio.filter {
-                it.audioLocale?.language.equals(preferredLang, ignoreCase = true) ||
-                    it.audioLocale?.toLanguageTag().equals(preferredLang, ignoreCase = true)
+        val langFilteredAudio =
+            if (!preferredLang.isNullOrEmpty() && preferredLang != "original") {
+                val langMatches =
+                    allAudio.filter {
+                        it.audioLocale?.language.equals(preferredLang, ignoreCase = true) ||
+                            it.audioLocale?.toLanguageTag().equals(preferredLang, ignoreCase = true)
+                    }
+                if (langMatches.isNotEmpty()) langMatches else allAudio
+            } else {
+                val originals = allAudio.filter { it.audioTrackType == AudioTrackType.ORIGINAL }
+                if (originals.isNotEmpty()) {
+                    originals
+                } else {
+                    val nonDubbed = allAudio.filter { it.audioTrackType != AudioTrackType.DUBBED }
+                    if (nonDubbed.isNotEmpty()) nonDubbed else allAudio
+                }
             }
-            if (langMatches.isNotEmpty()) langMatches else allAudio
-        } else {
-            val originals = allAudio.filter { it.audioTrackType == AudioTrackType.ORIGINAL }
-            if (originals.isNotEmpty()) originals else {
-                val nonDubbed = allAudio.filter { it.audioTrackType != AudioTrackType.DUBBED }
-                if (nonDubbed.isNotEmpty()) nonDubbed else allAudio
-            }
-        }
 
         return if (isMp4Container) {
             langFilteredAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
