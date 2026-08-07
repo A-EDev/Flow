@@ -1168,7 +1168,8 @@ class EnhancedPlayerManager private constructor() {
         }
 
         val audio = audioStream ?: availableAudioStreams.firstOrNull()
-        if (audioOnly && audio == null) {
+        val hasSabrSession = currentSabrInfo != null
+        if (audioOnly && audio == null && !hasSabrSession) {
             Log.w(TAG, "loadMediaInternal: audio-only load requested without an audio stream")
             return false
         }
@@ -1176,6 +1177,7 @@ class EnhancedPlayerManager private constructor() {
             videoStream != null ||
                 currentVideoStream != null ||
                 availableVideoStreams.isNotEmpty() ||
+                hasSabrSession ||
                 !currentDashManifestUrl.isNullOrEmpty() ||
                 !currentHlsUrl.isNullOrEmpty()
         if (audio == null && !hasPlayableVideo) {

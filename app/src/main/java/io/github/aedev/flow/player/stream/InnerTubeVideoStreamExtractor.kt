@@ -272,7 +272,18 @@ object InnerTubeVideoStreamExtractor {
                 } else {
                     null
                 }
-            val poToken = WebPoTokenSession.mintBounded(videoId)?.playerRequestPoToken
+            // Guarded like [sts] above, and for a much sharper reason: minting is a BotGuard
+            // attestation that creates and runs a WebView on Dispatchers.Main. Requesting one for
+            // clients that do not consume it put JS execution on the main thread on every single
+            // video open — competing with Compose, the player callbacks and first frame — and
+            // serialised behind a mutex, so opening videos back to back queued the mints up.
+            // Neither AUDIO_TRACK_CLIENTS entry sets useWebPoTokens, so today this stays null.
+            val poToken =
+                if (AUDIO_TRACK_CLIENTS.any { it.useWebPoTokens }) {
+                    WebPoTokenSession.mintBounded(videoId)?.playerRequestPoToken
+                } else {
+                    null
+                }
 
             for (client in AUDIO_TRACK_CLIENTS) {
                 try {
