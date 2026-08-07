@@ -13,23 +13,24 @@ import kotlinx.coroutines.flow.map
 
 private val Context.subscriptionsDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "subscriptions")
 
-class SubscriptionRepository private constructor(private val context: Context) {
-    
+class SubscriptionRepository private constructor(
+    private val context: Context,
+) {
     companion object {
         @Volatile
-        private var INSTANCE: SubscriptionRepository? = null
-        
-        fun getInstance(context: Context): SubscriptionRepository {
-            return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: SubscriptionRepository(context.applicationContext).also { INSTANCE = it }
+        private var instance: SubscriptionRepository? = null
+
+        fun getInstance(context: Context): SubscriptionRepository =
+            instance ?: synchronized(this) {
+                instance ?: SubscriptionRepository(context.applicationContext).also { instance = it }
             }
-        }
-        
+
         // Keys format: "channel_{channelId}" -> JSON string with channel info
         private fun channelKey(channelId: String) = stringPreferencesKey("channel_$channelId")
+
         private const val SUBSCRIPTIONS_ORDER_KEY = "subscriptions_order"
     }
-    
+
     /**
      * Subscribe to a channel
      */
@@ -39,15 +40,16 @@ class SubscriptionRepository private constructor(private val context: Context) {
 
             // Save channel data
             preferences[channelKey(safeChannel.channelId)] = serializeChannel(safeChannel)
-            
+
             // Update order list
             val currentOrder = preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] ?: ""
-            val orderList = if (currentOrder.isEmpty()) {
-                mutableListOf()
-            } else {
-                currentOrder.split(",").toMutableList()
-            }
-            
+            val orderList =
+                if (currentOrder.isEmpty()) {
+                    mutableListOf()
+                } else {
+                    currentOrder.split(",").toMutableList()
+                }
+
             if (!orderList.contains(safeChannel.channelId)) {
                 orderList.add(0, safeChannel.channelId)
                 preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] = orderList.joinToString(",")
@@ -59,10 +61,11 @@ class SubscriptionRepository private constructor(private val context: Context) {
         if (channels.isEmpty()) return
 
         context.subscriptionsDataStore.edit { preferences ->
-            val currentOrder = preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)]
-                .orEmpty()
-                .split(",")
-                .filter { it.isNotEmpty() }
+            val currentOrder =
+                preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)]
+                    .orEmpty()
+                    .split(",")
+                    .filter { it.isNotEmpty() }
             val knownIds = currentOrder.toMutableSet()
             val newIds = mutableListOf<String>()
 
@@ -80,14 +83,14 @@ class SubscriptionRepository private constructor(private val context: Context) {
             }
         }
     }
-    
+
     /**
      * Unsubscribe from a channel
      */
     suspend fun unsubscribe(channelId: String) {
         context.subscriptionsDataStore.edit { preferences ->
             preferences.remove(channelKey(channelId))
-            
+
             // Update order list
             val currentOrder = preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] ?: ""
             if (currentOrder.isNotEmpty()) {
@@ -97,25 +100,25 @@ class SubscriptionRepository private constructor(private val context: Context) {
             }
         }
 
-        AppDatabase.getDatabase(context)
+        AppDatabase
+            .getDatabase(context)
             .cacheDao()
             .deleteSubscriptionFeedForChannel(channelId)
     }
-    
+
     /**
      * Check if subscribed to a channel
      */
-    fun isSubscribed(channelId: String): Flow<Boolean> {
-        return context.subscriptionsDataStore.data.map { preferences ->
+    fun isSubscribed(channelId: String): Flow<Boolean> =
+        context.subscriptionsDataStore.data.map { preferences ->
             preferences.contains(channelKey(channelId))
         }
-    }
-    
+
     /**
      * Get all subscriptions
      */
-    fun getAllSubscriptions(): Flow<List<ChannelSubscription>> {
-        return context.subscriptionsDataStore.data.map { preferences ->
+    fun getAllSubscriptions(): Flow<List<ChannelSubscription>> =
+        context.subscriptionsDataStore.data.map { preferences ->
             val orderString = preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] ?: ""
             if (orderString.isEmpty()) {
                 emptyList()
@@ -127,16 +130,17 @@ class SubscriptionRepository private constructor(private val context: Context) {
                 }
             }
         }
-    }
-    
+
     /**
      * Get all subscription IDs as a Set
      */
     suspend fun getAllSubscriptionIds(): Set<String> {
-        val orderString = context.subscriptionsDataStore.data.map { preferences ->
-            preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] ?: ""
-        }.first()
-        
+        val orderString =
+            context.subscriptionsDataStore.data
+                .map { preferences ->
+                    preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] ?: ""
+                }.first()
+
         return if (orderString.isEmpty()) {
             emptySet()
         } else {
@@ -147,28 +151,25 @@ class SubscriptionRepository private constructor(private val context: Context) {
     /**
      * Get subscription by channel ID
      */
-    fun getSubscription(channelId: String): Flow<ChannelSubscription?> {
-        return context.subscriptionsDataStore.data.map { preferences ->
+    fun getSubscription(channelId: String): Flow<ChannelSubscription?> =
+        context.subscriptionsDataStore.data.map { preferences ->
             val channelData = preferences[channelKey(channelId)]
             channelData?.let { deserializeChannel(it) }
         }
-    }
 
-    suspend fun repairVideoThumbnailSubscriptions(
-        fetchChannelThumbnail: suspend (String) -> String
-    ): Int {
+    suspend fun repairVideoThumbnailSubscriptions(fetchChannelThumbnail: suspend (String) -> String): Int {
         val subscriptions = getAllSubscriptions().first()
-        val repairs = subscriptions
-            .filter { ThumbnailUrlResolver.isYoutubeVideoThumbnail(it.channelThumbnail) }
-            .mapNotNull { subscription ->
-                val avatar = fetchChannelThumbnail(subscription.channelId).trim()
-                if (avatar.isNotEmpty() && !ThumbnailUrlResolver.isYoutubeVideoThumbnail(avatar)) {
-                    subscription.channelId to subscription.copy(channelThumbnail = avatar)
-                } else {
-                    null
-                }
-            }
-            .toMap()
+        val repairs =
+            subscriptions
+                .filter { ThumbnailUrlResolver.isYoutubeVideoThumbnail(it.channelThumbnail) }
+                .mapNotNull { subscription ->
+                    val avatar = fetchChannelThumbnail(subscription.channelId).trim()
+                    if (avatar.isNotEmpty() && !ThumbnailUrlResolver.isYoutubeVideoThumbnail(avatar)) {
+                        subscription.channelId to subscription.copy(channelThumbnail = avatar)
+                    } else {
+                        null
+                    }
+                }.toMap()
 
         if (repairs.isEmpty()) return 0
 
@@ -179,14 +180,11 @@ class SubscriptionRepository private constructor(private val context: Context) {
         }
         return repairs.size
     }
-    
-    private fun serializeChannel(channel: ChannelSubscription): String {
-        return "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}|${channel.lastVideoId ?: ""}|${channel.lastCheckTime}|${channel.isNotificationEnabled}|${channel.isMusic}"
-    }
 
-    private fun ChannelSubscription.withPreservedThumbnail(
-        preferences: Preferences
-    ): ChannelSubscription {
+    private fun serializeChannel(channel: ChannelSubscription): String =
+        "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}|${channel.lastVideoId ?: ""}|${channel.lastCheckTime}|${channel.isNotificationEnabled}|${channel.isMusic}|${channel.lastFeedFetchAt}"
+
+    private fun ChannelSubscription.withPreservedThumbnail(preferences: Preferences): ChannelSubscription {
         val existing = preferences[channelKey(channelId)]?.let { deserializeChannel(it) }
         return if (
             ThumbnailUrlResolver.isYoutubeVideoThumbnail(channelThumbnail) &&
@@ -198,9 +196,9 @@ class SubscriptionRepository private constructor(private val context: Context) {
             this
         }
     }
-    
-    private fun deserializeChannel(data: String): ChannelSubscription? {
-        return try {
+
+    private fun deserializeChannel(data: String): ChannelSubscription? =
+        try {
             val parts = data.split("|")
             if (parts.size >= 4) {
                 ChannelSubscription(
@@ -211,7 +209,8 @@ class SubscriptionRepository private constructor(private val context: Context) {
                     lastVideoId = if (parts.size > 4 && parts[4].isNotEmpty()) parts[4] else null,
                     lastCheckTime = if (parts.size > 5 && parts[5].isNotEmpty()) parts[5].toLong() else 0L,
                     isNotificationEnabled = if (parts.size > 6 && parts[6].isNotEmpty()) parts[6].toBoolean() else false,
-                    isMusic = if (parts.size > 7 && parts[7].isNotEmpty()) parts[7].toBoolean() else false
+                    isMusic = if (parts.size > 7 && parts[7].isNotEmpty()) parts[7].toBoolean() else false,
+                    lastFeedFetchAt = if (parts.size > 8 && parts[8].isNotEmpty()) parts[8].toLong() else 0L,
                 )
             } else {
                 null
@@ -219,12 +218,14 @@ class SubscriptionRepository private constructor(private val context: Context) {
         } catch (e: Exception) {
             null
         }
-    }
-    
+
     /**
      * Update the notification state for a channel
      */
-    suspend fun updateNotificationState(channelId: String, enabled: Boolean) {
+    suspend fun updateNotificationState(
+        channelId: String,
+        enabled: Boolean,
+    ) {
         context.subscriptionsDataStore.edit { preferences ->
             val channelData = preferences[channelKey(channelId)]
             if (channelData != null) {
@@ -238,18 +239,45 @@ class SubscriptionRepository private constructor(private val context: Context) {
     }
 
     /**
+     * Record that the subscription feed has just fetched these channels.
+     *
+     * Written in one [DataStore] transaction so a refresh over hundreds of channels does not
+     * produce hundreds of preference commits.
+     */
+    suspend fun markFeedFetched(
+        channelIds: Collection<String>,
+        fetchedAt: Long,
+    ) {
+        if (channelIds.isEmpty()) return
+
+        context.subscriptionsDataStore.edit { preferences ->
+            channelIds.forEach { channelId ->
+                val subscription = preferences[channelKey(channelId)]?.let { deserializeChannel(it) }
+                if (subscription != null) {
+                    preferences[channelKey(channelId)] =
+                        serializeChannel(subscription.copy(lastFeedFetchAt = fetchedAt))
+                }
+            }
+        }
+    }
+
+    /**
      * Update the last seen video for a channel
      */
-    suspend fun updateChannelLatestVideo(channelId: String, videoId: String) {
+    suspend fun updateChannelLatestVideo(
+        channelId: String,
+        videoId: String,
+    ) {
         context.subscriptionsDataStore.edit { preferences ->
             val channelData = preferences[channelKey(channelId)]
             if (channelData != null) {
                 val subscription = deserializeChannel(channelData)
                 if (subscription != null) {
-                    val updated = subscription.copy(
-                        lastVideoId = videoId,
-                        lastCheckTime = System.currentTimeMillis()
-                    )
+                    val updated =
+                        subscription.copy(
+                            lastVideoId = videoId,
+                            lastCheckTime = System.currentTimeMillis(),
+                        )
                     preferences[channelKey(channelId)] = serializeChannel(updated)
                 }
             }
@@ -263,7 +291,10 @@ data class ChannelSubscription(
     val channelThumbnail: String,
     val subscribedAt: Long = System.currentTimeMillis(),
     val lastVideoId: String? = null,
+    /** When the background new-upload check last saw a *new* video for this channel. */
     val lastCheckTime: Long = 0L,
     val isNotificationEnabled: Boolean = false,
-    val isMusic: Boolean = false
+    val isMusic: Boolean = false,
+    /** When the subscription feed last fetched this channel; 0 means never. */
+    val lastFeedFetchAt: Long = 0L,
 )
