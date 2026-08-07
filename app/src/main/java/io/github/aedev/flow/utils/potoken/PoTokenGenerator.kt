@@ -5,6 +5,7 @@ import android.webkit.CookieManager
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -15,8 +16,17 @@ import kotlinx.coroutines.withContext
  * see https://github.com/MetrolistGroup/Metrolist for the original code and license.
  */
 
-class PoTokenGenerator {
-    private val TAG = "PoTokenGenerator"
+/**
+ * Process-wide owner of the single BotGuard WebView.
+ *
+ * A singleton because attestation is expensive and main-thread bound: constructing a WebView and
+ * running the BotGuard challenge both hop to [Dispatchers.Main], so a second instance means a
+ * second WebView doing that work concurrently with the first, competing with Compose and the
+ * player. The video, music and NewPipe paths previously each held their own generator and could
+ * attest three times over; they now share this one, and [webPoTokenGenLock] serialises them.
+ */
+object PoTokenGenerator {
+    private const val TAG = "PoTokenGenerator"
 
     private val webViewSupported by lazy { runCatching { CookieManager.getInstance() }.isSuccess }
     private var webViewBadImpl = false // whether the system has a bad WebView implementation
@@ -115,53 +125,41 @@ class PoTokenGenerator {
         sessionId: String,
         forceRecreate: Boolean
     ): Triple<PoTokenWebView, String, Boolean> = webPoTokenGenLock.withLock {
-        // A low-trust token is never pinned: keep re-attesting until a full-trust one lands.
-        val shouldRecreate = forceRecreate || webPoTokenGenerator == null ||
-            webPoTokenGenerator!!.isExpired || webPoTokenSessionId != sessionId ||
-            webPoTokenStreamingPotLowTrust
+        val shouldRecreate = PoTokenAttestationPolicy.shouldReattest(
+            forceRecreate = forceRecreate,
+            hasSession = webPoTokenGenerator != null,
+            isExpired = webPoTokenGenerator?.isExpired == true,
+            sessionIdChanged = webPoTokenSessionId != sessionId,
+            lastTokenWasLowTrust = webPoTokenStreamingPotLowTrust,
+        )
 
         if (shouldRecreate) {
-            Log.d(TAG, "Creating new PoTokenWebView (forceRecreate=$forceRecreate)")
-            withContext(Dispatchers.Main) {
-                webPoTokenGenerator?.close()
-            }
-            webPoTokenGenerator = null
+            Log.d(TAG, "Re-attesting BotGuard session (forceRecreate=$forceRecreate)")
             webPoTokenStreamingPot = null
             webPoTokenSessionId = null
 
-            var newGenerator: PoTokenWebView? = null
             var newStreamingPot: String? = null
             var lowTrust = true
-            try {
-                // GVS honors cold/low-trust attestations only briefly (the mid-playback 403).
-                // Re-run the full BotGuard challenge until the minted token reaches the
-                // documented 110-128 byte range, like the desktop minter's retry loop.
-                var attempt = 0
-                while (attempt < STREAMING_POT_ATTEMPTS) {
-                    newGenerator?.let { old -> withContext(Dispatchers.Main) { old.close() } }
-                    val generator = PoTokenWebView.getNewPoTokenGenerator(
-                        CipherDeobfuscator.appContext
-                    )
-                    newGenerator = generator
-                    val pot = generator.generatePoToken(sessionId)
-                    newStreamingPot = pot
-                    lowTrust = tokenByteLength(pot) < MIN_TRUSTED_POT_BYTES
-                    if (!lowTrust) break
-                    attempt++
-                    Log.w(
-                        TAG,
-                        "Streaming poToken is low-trust (${tokenByteLength(pot)} bytes, " +
-                            "attempt $attempt/$STREAMING_POT_ATTEMPTS)"
-                    )
-                }
-                if (lowTrust) {
-                    Log.w(TAG, "Accepting low-trust streaming poToken provisionally; will re-attest on next use")
-                }
-            } catch (error: Throwable) {
-                newGenerator?.let { gen -> withContext(Dispatchers.Main) { gen.close() } }
-                throw error
+            // GVS honors cold/low-trust attestations only briefly (the mid-playback 403).
+            // Re-run the full BotGuard challenge until the minted token reaches the
+            // documented 110-128 byte range, like the desktop minter's retry loop.
+            var attempt = 0
+            while (attempt < STREAMING_POT_ATTEMPTS) {
+                val generator = attestedGenerator()
+                val pot = generator.generatePoToken(sessionId)
+                newStreamingPot = pot
+                lowTrust = PoTokenAttestationPolicy.isLowTrust(pot)
+                if (!lowTrust) break
+                attempt++
+                Log.w(
+                    TAG,
+                    "Streaming poToken is low-trust (${PoTokenAttestationPolicy.tokenByteLength(pot)} bytes, " +
+                        "attempt $attempt/$STREAMING_POT_ATTEMPTS)"
+                )
             }
-            webPoTokenGenerator = newGenerator
+            if (lowTrust) {
+                Log.w(TAG, "Accepting low-trust streaming poToken provisionally; will re-attest on next use")
+            }
             webPoTokenStreamingPot = newStreamingPot
             webPoTokenSessionId = sessionId
             webPoTokenStreamingPotLowTrust = lowTrust
@@ -171,13 +169,31 @@ class PoTokenGenerator {
         Triple(webPoTokenGenerator!!, webPoTokenStreamingPot!!, shouldRecreate)
     }
 
-    companion object {
-        // BgUtils documents full-trust content-bound PoTokens at 110-128 bytes; short (~88 byte)
-        // tokens are cold/low-trust attestations that GVS rejects shortly into playback.
-        private const val MIN_TRUSTED_POT_BYTES = 100
-        private const val STREAMING_POT_ATTEMPTS = 3
-
-        internal fun tokenByteLength(base64Token: String): Int =
-            base64Token.trimEnd('=').length * 3 / 4
+    /**
+     * Returns a freshly attested generator, reusing the existing WebView wherever possible.
+     *
+     * Re-attesting reloads the page, which replaces the JS context wholesale — so it is as clean
+     * as a new instance without the main-thread cost of building and destroying a WebView. That
+     * cost used to be paid up to three times per call, because the low-trust retry loop
+     * constructed a new WebView on every attempt and a low-trust token forces a redo on the next
+     * call too. Only a WebView that fails to re-attest is torn down and replaced.
+     */
+    private suspend fun attestedGenerator(): PoTokenWebView {
+        val existing = webPoTokenGenerator?.takeIf { !it.isDestroyed }
+        if (existing != null) {
+            try {
+                existing.attest()
+                return existing
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                Log.w(TAG, "Re-attestation failed on the existing WebView; rebuilding it", e)
+                withContext(NonCancellable + Dispatchers.Main) { existing.close() }
+                webPoTokenGenerator = null
+            }
+        }
+        return PoTokenWebView.create(CipherDeobfuscator.appContext).also { webPoTokenGenerator = it }
     }
+
+    private const val STREAMING_POT_ATTEMPTS = 3
 }

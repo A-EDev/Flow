@@ -16,7 +16,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 object WebPoTokenSession {
     private const val TAG = "WebPoTokenSession"
 
-    private val generator = PoTokenGenerator()
+    private val generator = PoTokenGenerator
     private val visitorMutex = Mutex()
 
     suspend fun sessionVisitorData(): String? {
@@ -45,7 +45,10 @@ object WebPoTokenSession {
     }
 
     // Mint with a bounded wait for the fast extraction path.
-    suspend fun mintBounded(videoId: String, maxWaitMs: Long = 10_000L): PoTokenResult? {
+    suspend fun mintBounded(
+        videoId: String,
+        maxWaitMs: Long = 10_000L,
+    ): PoTokenResult? {
         return withTimeoutOrNull(maxWaitMs) {
             val vd = sessionVisitorData() ?: return@withTimeoutOrNull null
             try {
@@ -60,19 +63,21 @@ object WebPoTokenSession {
     }
 
     /** Mint against the exact visitor identity carried by the corresponding player response. */
-    suspend fun mintForVisitorData(videoId: String, visitorData: String): PoTokenResult? {
-        return mintForVisitorData(videoId, visitorData, forceRefresh = false)
-    }
+    suspend fun mintForVisitorData(
+        videoId: String,
+        visitorData: String,
+    ): PoTokenResult? = mintForVisitorData(videoId, visitorData, forceRefresh = false)
 
     /** Re-run attestation and replace the cached streaming token after a protection boundary. */
-    suspend fun refreshForVisitorData(videoId: String, visitorData: String): PoTokenResult? {
-        return mintForVisitorData(videoId, visitorData, forceRefresh = true)
-    }
+    suspend fun refreshForVisitorData(
+        videoId: String,
+        visitorData: String,
+    ): PoTokenResult? = mintForVisitorData(videoId, visitorData, forceRefresh = true)
 
     private suspend fun mintForVisitorData(
         videoId: String,
         visitorData: String,
-        forceRefresh: Boolean
+        forceRefresh: Boolean,
     ): PoTokenResult? {
         if (visitorData.isBlank()) return null
         return withTimeoutOrNull(90_000L) {
