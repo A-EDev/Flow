@@ -1673,4 +1673,23 @@
     <string name="subtitle_bold_text">Fettgedruckter Text</string>
     <string name="subtitle_reset_default">Auf Standard zurücksetzen</string>
     <string name="check_for_updates_subtitle">Tippen Sie hier, um nach der neuesten Version zu suchen</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="one">Kanal %d konnte nicht geladen werden</item>
+        <item quantity="other">%d Kanäle konnten nicht geladen werden</item>
+    </plurals>
+    <string name="subscriptions_failed_channels_body">Ihre neuesten Videos fehlen in diesem Feed: %1$s</string>
+    <string name="subscriptions_failed_channels_more">%1$s und %2$d mehr</string>
+    <string name="comment_edited">bearbeitet</string>
+    <string name="comment_time_edited_template">%1$s (%2$s)</string>
+    <string name="subtitle_background_opacity_template">Hintergrund-Deckkraft: %1$d%%</string>
+    <string name="export_engine_data_subtitle">Sichern Sie Ihre KI-Persönlichkeit und Ihre Lerndaten</string>
+    <string name="sync_notification_text">Übertragung Ihrer Bibliothek über das lokale WLAN…</string>
+    <string name="sync_collection_playlists">Playlists</string>
+    <string name="sync_collection_likes">Likes</string>
+    <string name="sync_collection_recommendation_profile">Empfehlungsprofil</string>
+    <string name="sync_intro">Synchronisieren Sie Ihre Bibliothek, Ihren Verlauf, Ihre Likes, Ihre Einstellungen und Ihr Empfehlungsprofil über Ihr lokales WLAN mit einem anderen Gerät. Es verlassen keine Daten Ihr Netzwerk.</string>
+    <string name="sync_scan_other_qr">Scannen Sie den QR-Code mit dem anderen Gerät</string>
+    <string name="sync_send_show_qr_hint">Das andere Gerät scannt es. Verwenden Sie diese Option, wenn das andere Gerät über eine Kamera verfügt.</string>
+    <string name="sync_send_scan_hint">Verwenden Sie diese Option, um Daten an ein Gerät ohne Kamera (z. B. einen Desktop-Computer) zu senden, auf dem ein Empfangs-Code angezeigt wird.</string>
+    <string name="sync_receive_scan_hint">Verwenden Sie diese Option, wenn dieses Gerät über eine Kamera verfügt und auf dem anderen Gerät ein Sendecode angezeigt wird.</string>
 </resources>
