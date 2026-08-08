@@ -1807,11 +1807,11 @@
     <string name="profile_import_success">Nhập hồ sơ thành công</string>
     <string name="profile_import_failed">Nhập thất bại - file không hợp lệ</string>
     <string name="learning_stats_title">Tín hiệu học hỏi</string>
-    <string name="learning_stats_subtitle">Những gì động cơ đang ghi nhớ</string>
+    <string name="learning_stats_subtitle">Những gì Flow đang ghi nhớ</string>
     <string name="metric_interactions">Tương tác</string>
     <string name="metric_interactions_detail">nhấp, xem, bỏ qua</string>
     <string name="metric_topics">Chủ đề</string>
-    <string name="metric_topics_detail">sở thích có trọng số</string>
+    <string name="metric_topics_detail">yêu thích</string>
     <string name="metric_evidence">Bằng chứng</string>
     <string name="metric_evidence_detail">chủ đề đã được xác nhận</string>
     <string name="metric_channels">Kênh</string>
@@ -1822,8 +1822,8 @@
     <string name="metric_feed_memory_detail">đã hiển thị gần đây</string>
     <string name="metric_filters">Bộ lọc</string>
     <string name="metric_filters_detail">mục bị chặn</string>
-    <string name="profile_maturity_label">Độ trưởng thành hồ sơ</string>
-    <string name="profile_maturity_detail">Độ trưởng thành cao hơn nghĩa là hồ sơ có đủ tín hiệu ổn định</string>
+    <string name="profile_maturity_label">Tiến trình</string>
+    <string name="profile_maturity_detail">Hoàn thành tiến trình để cá nhân hoá tốt hơn</string>
     <string name="metric_suppressed">Đã triệt tiêu</string>
     <string name="metric_suppressed_detail">mục đang làm mát</string>
     <string name="taste_shape_title">Hình dạng khẩu vị</string>
