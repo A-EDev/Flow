@@ -2145,7 +2145,7 @@
     <string name="ui_sync_lyrics">Đồng bộ lời</string>
     <string name="ui_downloading_playlist">Đang tải danh sách phát</string>
     <string name="ui_no_songs_found">Không tìm thấy bài hát</string>
-    <string name="ui_search_songs_to_add">Tìm bài hát để thêm</string>
+    <string name="ui_search_songs_to_add">Tìm bài hát để thêm…</string>
     <string name="ui_add_songs_to_playlist">Thêm bài hát vào danh sách</string>
     <string name="ui_show_less">Thu gọn</string>
     <string name="ui_show_more">Xem thêm</string>
@@ -2156,7 +2156,7 @@
     <string name="ui_clear_and_continue">Xóa &amp; Tiếp tục</string>
     <string name="ui_crashed_last_session">Flow đã gặp sự cố ở phiên trước</string>
     <string name="ui_copy_log_description">Sao chép nhật ký dưới đây và dán vào issue GitHub để được sửa.</string>
-    <string name="ui_search_settings">Tìm trong cài đặt</string>
+    <string name="ui_search_settings">Tìm trong cài đặt…</string>
     <string name="ui_custom_interest_title">Thêm sở thích tùy chỉnh</string>
     <string name="ui_custom_interest_subtitle">Nhập bất kỳ chủ đề nào bạn quan tâm</string>
     <string name="ui_custom_interest_hint">Sở thích tùy chỉnh (ví dụ: Jazz, Vật lý thiên văn)</string>
@@ -2165,7 +2165,7 @@
     <string name="update_download_prompt">Đã có phiên bản mới của Flow (%1$s). Tải APK?</string>
     <string name="ui_instrumental">G I A I Đ I Ệ U</string>
     <string name="ui_playlist_empty">Danh sách phát trống</string>
-    <string name="ui_downloading_videos">Đang tải %1$d video</string>
+    <string name="ui_downloading_videos">Đang tải %1$d video…</string>
     <string name="ui_playlist_saved_to_library">Đã lưu danh sách phát vào thư viện</string>
     <string name="ui_playlist_removed_from_library">Đã xóa danh sách phát khỏi thư viện</string>
     <string name="ui_download_audio">Đang tải âm thanh: %1$skbps %2$s</string>
@@ -2176,9 +2176,9 @@
     <string name="toast_subscribed_to">Đã đăng ký %1$s</string>
     <string name="toast_removed_from_watch_later">Đã xóa khỏi Xem sau</string>
     <string name="toast_added_to_watch_later">Đã thêm vào Xem sau</string>
-    <string name="toast_fetching_download_links">Đang lấy liên kết tải</string>
+    <string name="toast_fetching_download_links">Đang lấy liên kết tải…</string>
     <string name="toast_download_started">Đã bắt đầu tải: %1$s</string>
-    <string name="toast_trying_sabr_download">Đang thử tải SABR</string>
+    <string name="toast_trying_sabr_download">Đang thử tải SABR…</string>
     <string name="toast_sabr_download_started">Đã bắt đầu tải SABR</string>
     <string name="toast_sabr_download_started_for_video">Đã bắt đầu tải SABR: %1$s</string>
     <string name="toast_no_download_source">Không có nguồn tải</string>
@@ -2186,7 +2186,7 @@
     <string name="toast_copied_to_clipboard">Đã sao chép</string>
     <string name="toast_playlist_deleted">Đã xóa danh sách phát</string>
     <string name="toast_playlist_renamed">Đã đổi tên danh sách phát</string>
-    <string name="toast_starting_playlist_download">Bắt đầu tải %1$s</string>
+    <string name="toast_starting_playlist_download">Bắt đầu tải %1$s…</string>
     <string name="toast_downloaded_tracks_from_playlist">Đã tải %1$d bài hát từ %2$s</string>
     <string name="toast_failed_to_download_playlist">Không tải được danh sách</string>
     <string name="toast_error_downloading_playlist">Lỗi tải danh sách</string>
@@ -2263,7 +2263,7 @@
     <string name="error_playback_retry_hint">Thử lại sau hoặc kiểm tra kết nối mạng.</string>
     <string name="download_waiting_for_wifi">Đang chờ Wi-Fi</string>
     <string name="download_failed_try_again">Tải xuống thất bại. Vui lòng thử lại.</string>
-    <string name="download_merging_audio_video">Đang hợp nhất âm thanh &amp; video</string>
+    <string name="download_merging_audio_video">Đang hợp nhất âm thanh &amp; video…</string>
     <string name="download_muxing_incompatible">Ghép luồng thất bại — định dạng âm thanh không tương thích với container. Thử tải lại.</string>
     <string name="download_muxing_failed_retry">Ghép luồng thất bại — thử tải lại.</string>
     <string name="download_url_expired">URL hết hạn (403). Cần lấy lại.</string>
@@ -2280,9 +2280,9 @@
     <string name="import_other_youtube_clients">Nhập từ ứng dụng YouTube khác</string>
     <string name="imported_count">Đã nhập %1$d %2$s</string>
     <string name="imported_successfully">%1$s đã nhập thành công</string>
-    <string name="importing_label">Đang nhập %1$s</string>
+    <string name="importing_label">Đang nhập %1$s…</string>
     <string name="imported_from_google_takeout">Đã nhập từ Google Takeout</string>
-    <string name="fallback_playing">Đang phát</string>
+    <string name="fallback_playing">Đang phát…</string>
     <string name="fallback_unknown_title">Không rõ tiêu đề</string>
     <string name="fallback_unknown_channel">Kênh không xác định</string>
     <string name="fallback_unknown_playlist">Không rõ danh sách phát</string>
@@ -2301,4 +2301,29 @@
     <string name="topic_score_prefix">Bằng chứng chủ đề</string>
     <string name="notif_background_restricted_title">Tính năng chạy nền bị hạn chế</string>
     <string name="notif_background_restricted_subtitle">Android đang chặn Flow kiểm tra video mới khi ứng dụng đang đóng, nên các cảnh báo chỉ xuất hiện khi bạn mở ứng dụng. Nhấn vào đây để cho phép hoạt động nền không bị hạn chế.</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="other">Không thể tải kênh %d</item>
+    </plurals>
+    <string name="subscriptions_failed_channels_body">Video mới nhất của họ không có trong bảng tin này: %1$s</string>
+    <string name="subscriptions_failed_channels_more">%1$s và %2$d mục khác</string>
+    <string name="comment_edited">đã chỉnh sửa</string>
+    <string name="comment_time_edited_template">%1$s (%2$s)</string>
+    <string name="desc_more">...thêm</string>
+    <string name="deep_flow_duration_hours">%1$d giờ</string>
+    <string name="audio_track_original">Gốc</string>
+    <string name="audio_track_dubbed">Lồng tiếng</string>
+    <string name="empty_saved_shorts">Chưa có Shorts nào được lưu</string>
+    <string name="settings_search_no_results">Không tìm thấy cài đặt cho %1$s</string>
+    <string name="settings_lyrics_provider_order_description">Các nhà cung cấp sẽ được thử theo thứ tự. Nhà cung cấp đầu tiên trả về lời bài hát sẽ được chọn.</string>
+    <string name="import_running_background">Bạn có thể rời khỏi trang — quá trình nhập vẫn tiếp tục trong nền.</string>
+    <string name="donations_cryptocurrency">TIỀN MÃ HÓA</string>
+    <string name="import_no_history_entries">Không tìm thấy lịch sử xem nào trong tệp</string>
+    <string name="import_no_videos">Không tìm thấy video nào trong tệp danh sách phát</string>
+    <string name="import_no_content">Không tìm thấy nội dung nào có thể nhập trong bản sao lưu này</string>
+    <string name="import_invalid_format">Không đọc được bản sao lưu — hãy đảm bảo bạn đã chọn đúng tệp</string>
+    <string name="import_failed_template">Nhập thất bại: %1$s</string>
+    <string name="duration_hours_minutes">%1$d giờ %2$d phút</string>
+    <string name="duration_minutes">%1$d phút</string>
+    <string name="duration_hours_short">%1$dg</string>
+    <string name="duration_minutes_short">%1$dp</string>
 </resources>
