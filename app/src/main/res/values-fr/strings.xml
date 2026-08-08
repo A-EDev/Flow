@@ -2030,7 +2030,7 @@
     <string name="ui_no_songs_found">Aucun titre trouvé</string>
     <string name="content_settings_hide_unplayable_subscriptions_title">Masquer les vidéos non lisibles dans les abonnements</string>
     <string name="content_settings_hide_unplayable_subscriptions_subtitle">Filtrer les vidéos soumises à une restriction d\'âge, privées, réservées aux membres et supprimées lorsqu\'elles ne peuvent pas être lues</string>
-    <string name="ui_search_songs_to_add">Rechercher des titres à ajouter</string>
+    <string name="ui_search_songs_to_add">Rechercher des titres à ajouter…</string>
     <string name="ui_add_songs_to_playlist">Ajouter des titres à la playlist</string>
     <string name="ui_show_less">Afficher moins</string>
     <string name="ui_show_more">Afficher plus</string>
@@ -2041,7 +2041,7 @@
     <string name="ui_clear_and_continue">Effacer et continuer</string>
     <string name="ui_crashed_last_session">Flow a planté lors de la dernière session</string>
     <string name="ui_copy_log_description">Copiez le journal ci-dessous et collez-le dans un ticket GitHub afin que le problème puisse être résolu.</string>
-    <string name="ui_search_settings">Paramètres de recherche</string>
+    <string name="ui_search_settings">Paramètres de recherche…</string>
     <string name="ui_custom_interest_title">Ajouter un centre d\'intérêt personnalisé</string>
     <string name="ui_custom_interest_subtitle">Saisissez le sujet que vous souhaitez suivre</string>
     <string name="ui_custom_interest_hint">Centres d\'intérêt personnels (par exemple : le jazz, l\'astrophysique)</string>
@@ -2053,7 +2053,7 @@
     <string name="equalizer">Égaliseur</string>
     <string name="action_save_preset">Enregistrer le préréglage</string>
     <string name="label_preset_name">Nom du préréglage</string>
-    <string name="ui_downloading_videos">Téléchargement de %1$d vidéos</string>
+    <string name="ui_downloading_videos">Téléchargement de %1$d vidéos…</string>
     <string name="ui_playlist_saved_to_library">Playlist enregistrée dans la bibliothèque</string>
     <string name="ui_playlist_removed_from_library">Playlist supprimée de la bibliothèque</string>
     <string name="ui_download_audio">Téléchargement du fichier audio : %1$skbps %2$s</string>
@@ -2064,9 +2064,9 @@
     <string name="toast_subscribed_to">Abonné à %1$s</string>
     <string name="toast_removed_from_watch_later">Supprimé de la liste « À regarder plus tard »</string>
     <string name="toast_added_to_watch_later">Ajouté à « À regarder plus tard »</string>
-    <string name="toast_fetching_download_links">Récupération des liens de téléchargement</string>
+    <string name="toast_fetching_download_links">Récupération des liens de téléchargement…</string>
     <string name="toast_download_started">Téléchargement lancé : %1$s</string>
-    <string name="toast_trying_sabr_download">Essai du téléchargement SABR</string>
+    <string name="toast_trying_sabr_download">Tentative de téléchargement de SABR…</string>
     <string name="toast_sabr_download_started">Le téléchargement de SABR a commencé</string>
     <string name="toast_sabr_download_started_for_video">Téléchargement SABR lancé : %1$s</string>
     <string name="toast_no_download_source">Aucune source de téléchargement disponible</string>
@@ -2074,7 +2074,7 @@
     <string name="toast_copied_to_clipboard">Copié dans le presse-papiers</string>
     <string name="toast_playlist_deleted">Playlist supprimée</string>
     <string name="toast_playlist_renamed">Playlist renommée</string>
-    <string name="toast_starting_playlist_download">Début du téléchargement de %1$s</string>
+    <string name="toast_starting_playlist_download">Début du téléchargement de %1$s…</string>
     <string name="toast_downloaded_tracks_from_playlist">%1$d titres téléchargés depuis %2$s</string>
     <string name="toast_failed_to_download_playlist">Échec du téléchargement de la playlist</string>
     <string name="toast_error_downloading_playlist">Erreur lors du téléchargement de la playlist</string>
@@ -2186,11 +2186,11 @@
     <string name="error_playback_retry_hint">Réessayez plus tard ou vérifiez votre connexion réseau.</string>
     <string name="download_waiting_for_wifi">En attente de connexion Wi-Fi</string>
     <string name="download_failed_try_again">Le téléchargement a échoué. Veuillez réessayer.</string>
-    <string name="download_merging_audio_video">Fusionner l\'audio et la vidéo</string>
+    <string name="download_merging_audio_video">Fusionner l\'audio et la vidéo…</string>
     <string name="imported_successfully">%1$s a été importé avec succès</string>
-    <string name="importing_label">Importation de %1$s</string>
+    <string name="importing_label">Importation de %1$s…</string>
     <string name="imported_from_google_takeout">Importé depuis Google Takeout</string>
-    <string name="fallback_playing">Lecture</string>
+    <string name="fallback_playing">Lecture…</string>
     <string name="fallback_unknown_title">Titre inconnu</string>
     <string name="fallback_unknown_channel">Chaîne inconnue</string>
     <string name="fallback_unknown_playlist">Playlist inconnue</string>
@@ -2351,4 +2351,30 @@
     <string name="reorder_queue_item">Réorganiser un élément de la file d\'attente</string>
     <string name="notif_background_restricted_subtitle">Android empêche Flow de vérifier la présence de nouvelles vidéos lorsque l\'application est fermée ; les notifications ne s\'affichent donc que lorsque vous ouvrez l\'application. Appuyez ici pour autoriser l\'activité en arrière-plan sans restriction.</string>
     <string name="notif_background_restricted_title">Les vérifications d\'antécédents sont soumises à des restrictions</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="one">Impossible de charger la chaîne %d</item>
+        <item quantity="many">%d chaînes n\'ont pas pu être chargées</item>
+        <item quantity="other">%d chaînes n\'ont pas pu être chargées</item>
+    </plurals>
+    <string name="subscriptions_failed_channels_body">Leurs dernières vidéos ne figurent pas dans ce fil d\'actualité : %1$s</string>
+    <string name="subscriptions_failed_channels_more">%1$s et %2$d de plus</string>
+    <string name="comment_edited">modifié</string>
+    <string name="comment_time_edited_template">%1$s (%2$s)</string>
+    <string name="deep_flow_duration_hours">%1$d heures</string>
+    <string name="audio_track_original">Original</string>
+    <string name="audio_track_dubbed">Surnommé</string>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="duration_minutes">%1$d min</string>
+    <string name="duration_hours_short">%1$dh</string>
+    <string name="duration_minutes_short">%1$dm</string>
+    <string name="empty_saved_shorts">Aucun court métrage enregistré pour l\'instant</string>
+    <string name="settings_search_no_results">Aucun paramètre trouvé pour %1$s</string>
+    <string name="settings_lyrics_provider_order_description">Les fournisseurs sont testés les uns après les autres. Le premier qui renvoie les paroles remporte la mise.</string>
+    <string name="import_running_background">Vous pouvez quitter cette page : l\'importation se poursuit en arrière-plan.</string>
+    <string name="donations_cryptocurrency">CRYPTOMONNAIE</string>
+    <string name="import_no_history_entries">Aucune entrée d\'historique de surveillance n\'a été trouvée dans le fichier</string>
+    <string name="import_no_videos">Aucune vidéo n\'a été trouvée dans le fichier de la playlist</string>
+    <string name="import_no_content">Aucun contenu importable n\'a été détecté dans cette sauvegarde</string>
+    <string name="import_invalid_format">Format de sauvegarde non reconnu — assurez-vous d\'avoir sélectionné le bon fichier</string>
+    <string name="import_failed_template">Échec de l\'importation : %1$s</string>
 </resources>
