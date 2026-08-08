@@ -615,9 +615,6 @@ object InnerTubeVideoStreamExtractor {
         client: YouTubeClient = YouTubeClient.WEB,
     ): VideoExtractionResult? {
         val label = client.clientName
-        if (reloadToken != null && client != YouTubeClient.WEB) {
-            Log.w(TAG, "$label+SABR: reload tokens are WEB-only; resolving a fresh session instead")
-        }
         try {
             val visitorData = WebPoTokenSession.sessionVisitorData()
             if (visitorData.isNullOrEmpty()) {
@@ -637,32 +634,17 @@ object InnerTubeVideoStreamExtractor {
 
             val playerResponse =
                 withTimeoutOrNull(WEB_PLAYER_TIMEOUT_MS) {
-                    if (client == YouTubeClient.WEB) {
-                        YouTube
-                            .playerWeb(
-                                videoId = videoId,
-                                signatureTimestamp = sts,
-                                poToken = poToken.playerRequestPoToken,
-                                visitorData = visitorData,
-                                locale = YouTubeLocale.EXTRACTION,
-                                cpn = cpn,
-                                reloadToken = reloadToken,
-                            ).getOrNull()
-                    } else {
-                        // The generic player endpoint reaches the same www.youtube.com host with the
-                        // same header set, and carries the client's own context — enough for a cold
-                        // SABR resolve. It has no reloadPlaybackContext, though, so a reload demand
-                        // on such a session is answered by resolving cold instead (see below).
-                        YouTube
-                            .player(
-                                videoId = videoId,
-                                client = client,
-                                signatureTimestamp = sts,
-                                poToken = poToken.playerRequestPoToken,
-                                localeOverride = YouTubeLocale.EXTRACTION,
-                                apiUrl = YouTubeClient.API_URL_YOUTUBE,
-                            ).getOrNull()
-                    }
+                    YouTube
+                        .playerWeb(
+                            videoId = videoId,
+                            signatureTimestamp = sts,
+                            poToken = poToken.playerRequestPoToken,
+                            visitorData = visitorData,
+                            locale = YouTubeLocale.EXTRACTION,
+                            cpn = cpn,
+                            reloadToken = reloadToken,
+                            client = client,
+                        ).getOrNull()
                 }
             if (playerResponse == null) {
                 failureReasons.add("$label: timeout or null response")
