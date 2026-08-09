@@ -29,7 +29,6 @@ import io.github.aedev.flow.utils.potoken.PoTokenResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -40,14 +39,6 @@ import kotlin.math.abs
 
 object MusicPlayerUtils {
     private const val TAG = "MusicPlayerUtils"
-
-    private val httpClient: OkHttpClient
-        get() =
-            AppProxyManager
-                .applyTo(OkHttpClient.Builder())
-                .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
 
     @Volatile
     private var cachedSignatureTimestamp: Int? = null
@@ -113,6 +104,19 @@ object MusicPlayerUtils {
         val streamExpiresInSeconds: Int,
         val usedClient: YouTubeClient,
     )
+
+    private data class AudioSelectionPreferences(
+        val preferredAudioLanguage: String,
+        val musicAudioQuality: MusicAudioQuality,
+    )
+
+    private suspend fun loadAudioSelectionPreferences(): AudioSelectionPreferences {
+        val playerPreferences = PlayerPreferences(FlowApplication.appContext)
+        return AudioSelectionPreferences(
+            preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first(),
+            musicAudioQuality = playerPreferences.musicAudioQuality.first(),
+        )
+    }
 
     private fun isLoggedIn(): Boolean = YouTube.cookie != null
 
@@ -191,7 +195,11 @@ object MusicPlayerUtils {
 
             var poToken: PoTokenResult? = null
             var sts: Int? = null
+            var audioPreferences: AudioSelectionPreferences? = null
             val sessionId = if (isLoggedIn()) YouTube.dataSyncId else YouTube.visitorData
+
+            suspend fun audioPreferences(): AudioSelectionPreferences =
+                audioPreferences ?: loadAudioSelectionPreferences().also { audioPreferences = it }
 
             fun getStsForClient(client: YouTubeClient): Int? {
                 if (!client.useSignatureTimestamp) return null
@@ -264,6 +272,7 @@ object MusicPlayerUtils {
                                     response = fallbackResponse,
                                     client = client,
                                     videoId = videoId,
+                                    audioPreferences = audioPreferences(),
                                     validate = true,
                                     requireDirectUrl = true,
                                     allowCipherFallback = false,
@@ -306,6 +315,7 @@ object MusicPlayerUtils {
                             response = mainPlayerResponse,
                             client = MAIN_CLIENT,
                             videoId = videoId,
+                            audioPreferences = audioPreferences(),
                             validate = false,
                             requireDirectUrl = true,
                             allowCipherFallback = false,
@@ -331,6 +341,7 @@ object MusicPlayerUtils {
                             response = mainPlayerResponse,
                             client = MAIN_CLIENT,
                             videoId = videoId,
+                            audioPreferences = audioPreferences(),
                             validate = false,
                             requireDirectUrl = false,
                             allowCipherFallback = true,
@@ -370,6 +381,7 @@ object MusicPlayerUtils {
                                         response = fallbackResponse,
                                         client = client,
                                         videoId = videoId,
+                                        audioPreferences = audioPreferences(),
                                         validate = index != STREAM_FALLBACK_CLIENTS.lastIndex,
                                         requireDirectUrl = false,
                                         allowCipherFallback = true,
@@ -451,6 +463,7 @@ object MusicPlayerUtils {
         response: PlayerResponse?,
         client: YouTubeClient,
         videoId: String,
+        audioPreferences: AudioSelectionPreferences,
         validate: Boolean = true,
         requireDirectUrl: Boolean = false,
         allowCipherFallback: Boolean = true,
@@ -459,7 +472,7 @@ object MusicPlayerUtils {
     ): Pair<PlayerResponse.StreamingData.Format, ResolvedUrl>? {
         if (response?.playabilityStatus?.status != "OK") return null
 
-        val format = findBestAudioFormat(response, requireDirectUrl) ?: return null
+        val format = findBestAudioFormat(response, audioPreferences, requireDirectUrl) ?: return null
 
         val resolved =
             findUrlOrNull(
@@ -553,6 +566,7 @@ object MusicPlayerUtils {
 
     private fun findBestAudioFormat(
         response: PlayerResponse,
+        audioPreferences: AudioSelectionPreferences,
         requireDirectUrl: Boolean = false,
     ): PlayerResponse.StreamingData.Format? {
         val adaptiveFormats = response.streamingData?.adaptiveFormats ?: emptyList()
@@ -569,18 +583,9 @@ object MusicPlayerUtils {
             return null
         }
 
-        val playerPreferences = PlayerPreferences(FlowApplication.appContext)
-        val preferredAudioLanguage =
-            runBlocking {
-                playerPreferences.preferredAudioLanguage.first()
-            }
-        val preferredMusicAudioQuality =
-            runBlocking {
-                playerPreferences.musicAudioQuality.first()
-            }
-        val preferredFormats = preferredAudioFormats(audioFormats, preferredAudioLanguage)
+        val preferredFormats = preferredAudioFormats(audioFormats, audioPreferences.preferredAudioLanguage)
 
-        val bestFormat = selectPreferredMusicFormat(preferredFormats, preferredMusicAudioQuality)
+        val bestFormat = selectPreferredMusicFormat(preferredFormats, audioPreferences.musicAudioQuality)
 
         Log.d(TAG, "Selected format: ${bestFormat?.mimeType}, bitrate: ${bestFormat?.bitrate}")
         return bestFormat

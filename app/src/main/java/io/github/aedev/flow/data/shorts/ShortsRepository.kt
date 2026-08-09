@@ -19,6 +19,7 @@ import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -99,6 +100,13 @@ class ShortsRepository private constructor(
 
     private val preferredCodecKey = MutableStateFlow<String?>(null)
 
+    /**
+     * Completes when some short has had its playback streams resolved, i.e. when the user can
+     * actually watch something. Background feed work waits on this so it cannot compete with the
+     * resolve the user is blocked on.
+     */
+    private val firstPlaybackResolved = CompletableDeferred<Unit>()
+
     init {
         repositoryScope.launch {
             playerPreferences.defaultVideoCodec.collect { preferredCodecKey.value = it.codecKey }
@@ -112,6 +120,16 @@ class ShortsRepository private constructor(
      */
     private suspend fun preferredCodecKey(): String = preferredCodecKey.value ?: preferredCodecKey.filterNotNull().first()
 
+    /**
+     * Waits for the first playable short, but never indefinitely — if resolution fails outright the
+     * background work still has to run, otherwise a feed that could not play anything would also
+     * never discover anything.
+     */
+    private suspend fun awaitFirstPlaybackResolved() {
+        if (firstPlaybackResolved.isCompleted) return
+        withTimeoutOrNull(FIRST_PLAYBACK_GRACE_MS) { firstPlaybackResolved.await() }
+    }
+
     companion object {
         private const val TAG = "ShortsRepository"
         private const val INNERTUBE_TIMEOUT_MS = 8_000L
@@ -121,6 +139,9 @@ class ShortsRepository private constructor(
         private const val MAX_RECENTLY_SHOWN = 100
         private const val MIN_POOL_SIZE = 10
         private const val CACHE_TTL_MS = 5 * 60 * 1000L
+
+        // Upper bound on how long background feed work defers to the first playable short.
+        private const val FIRST_PLAYBACK_GRACE_MS = 6_000L
 
         @Volatile
         private var instance: ShortsRepository? = null
@@ -168,25 +189,27 @@ class ShortsRepository private constructor(
         }
 
     private suspend fun fetchDiscoveryFeed(): ShortsSequenceResult {
-        val userSubs = subscriptionRepository.getAllSubscriptionIds()
-
-        // Discovery starts immediately in the background — never blocks the return path
-        val discJob =
+        // Issued before anything else touches the network or the database. This single
+        // reel_watch_sequence call is what the feed is actually built from; the subscription
+        // lookup below only decides ordering, so it overlaps the round trip instead of delaying it.
+        val innerTubeFeed =
             repositoryScope.async {
                 try {
-                    shortsDiscovery.getDiscoveryShorts(userSubs = userSubs, trending = emptyList())
+                    withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(null) }
                 } catch (e: Exception) {
-                    Log.e(TAG, "ShortsDiscoveryEngine failed", e)
+                    Log.w(TAG, "InnerTube feed failed: ${e.message}")
                     null
                 }
             }
 
-        // InnerTube is the fast path — typically returns in 1–3 s
-        val innerTubeResult =
+        val userSubs = subscriptionRepository.getAllSubscriptionIds()
+        val innerTubeResult = innerTubeFeed.await()
+
+        suspend fun runDiscovery(): List<io.github.aedev.flow.data.model.Video>? =
             try {
-                withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(null) }
+                shortsDiscovery.getDiscoveryShorts(userSubs = userSubs, trending = emptyList())
             } catch (e: Exception) {
-                Log.w(TAG, "InnerTube feed failed: ${e.message}")
+                Log.e(TAG, "ShortsDiscoveryEngine failed", e)
                 null
             }
 
@@ -208,7 +231,13 @@ class ShortsRepository private constructor(
                 Log.i(TAG, "✓ InnerTube fast-path: ${itShorts.size} shorts — returning immediately")
 
                 repositoryScope.launch {
-                    val ranked = discJob.await()
+                    // Held back until the first short can actually play. Discovery is up to eight
+                    // channel fetches plus three NewPipe searches; started here it would contend
+                    // with the stream resolve the user is waiting on, and it only ever *appends*
+                    // to a feed that has already been delivered.
+                    awaitFirstPlaybackResolved()
+
+                    val ranked = runDiscovery()
                     val existingIds = itShorts.map { it.id }.toHashSet()
                     val newCandidates =
                         ranked
@@ -247,9 +276,9 @@ class ShortsRepository private constructor(
             }
         }
 
-        // InnerTube unavailable — await discovery or NewPipe fallback
+        // InnerTube unavailable — discovery becomes the critical path, so run it now
         Log.w(TAG, "InnerTube failed — awaiting discovery result")
-        val rawDiscovery = discJob.await()
+        val rawDiscovery = runDiscovery()
         val discoveryVideos: List<io.github.aedev.flow.data.model.Video> =
             if (!rawDiscovery.isNullOrEmpty()) rawDiscovery else emptyList()
 
@@ -562,7 +591,10 @@ class ShortsRepository private constructor(
                 }
 
             try {
-                inFlight.await()?.also { playbackStreamsCache.put(cacheKey, it) }
+                inFlight.await()?.also {
+                    playbackStreamsCache.put(cacheKey, it)
+                    firstPlaybackResolved.complete(Unit)
+                }
             } finally {
                 streamResolveMutex.withLock {
                     if (playbackStreamsInFlight[cacheKey] === inFlight) {
