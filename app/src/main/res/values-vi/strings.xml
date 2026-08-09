@@ -44,7 +44,7 @@
     <string name="local_media_permission_title">Cần cấp quyền</string>
     <string name="library_local_media_label">Phương tiện cục bộ</string>
     <string name="local_media_grant">Cấp quyền</string>
-    <string name="library_settings_data_header"><![CDATA[Cài đặt &amp; Dữ liệu]]></string>
+    <string name="library_settings_data_header"><![CDATA[Cài đặt và Dữ liệu]]></string>
     <string name="library_manage_data_label">Quản lý dữ liệu</string>
     <string name="library_manage_data_subtitle">Xóa bộ nhớ đệm và lịch sử</string>
     <string name="about">Giới thiệu</string>
