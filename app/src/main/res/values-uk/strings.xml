@@ -2158,7 +2158,7 @@
     <string name="ui_sync_lyrics">Синхронізація тексту</string>
     <string name="ui_downloading_playlist">Завантаження списку відтворення</string>
     <string name="ui_no_songs_found">Жодної пісні не знайдено</string>
-    <string name="ui_search_songs_to_add">Шукайте пісні, щоб додати</string>
+    <string name="ui_search_songs_to_add">Шукайте пісні, щоб додати…</string>
     <string name="ui_add_songs_to_playlist">Додати пісні до списку відтворення</string>
     <string name="ui_show_less">Менше</string>
     <string name="ui_show_more">Більше</string>
@@ -2169,7 +2169,7 @@
     <string name="ui_clear_and_continue">Очистити та продовжити</string>
     <string name="ui_crashed_last_session">Під час останнього сеансу Flow аварійно закрився</string>
     <string name="ui_copy_log_description">Скопіюйте наведений нижче журнал і вставте його в GitHub issue, щоб це можна було виправити.</string>
-    <string name="ui_search_settings">Знайти налаштування</string>
+    <string name="ui_search_settings">Знайти налаштування…</string>
     <string name="ui_custom_interest_title">Додати власне зацікавлення</string>
     <string name="ui_custom_interest_subtitle">Введіть будь-яку тему, за якою ви хочете стежити</string>
     <string name="ui_custom_interest_hint">Власні захоплення (наприклад, джаз, астрофізика)</string>
@@ -2178,7 +2178,7 @@
     <string name="update_download_prompt">Доступна нова версія Flow (%1$s). Завантажити останній APK-файл?</string>
     <string name="ui_instrumental">І Н С Т Р У М Е Н Т А Л</string>
     <string name="ui_playlist_empty">Список відтворення пустий</string>
-    <string name="ui_downloading_videos">Завантаження %1$d відео</string>
+    <string name="ui_downloading_videos">Завантаження %1$d відео…</string>
     <string name="ui_playlist_saved_to_library">Список відтворення збережено до бібліотеки</string>
     <string name="ui_playlist_removed_from_library">Список відтворення вилучено з бібліотеки</string>
     <string name="ui_download_audio">Завантаження аудіо: %1$s кбіт/с %2$s</string>
@@ -2189,9 +2189,9 @@
     <string name="toast_subscribed_to">Підписано на %1$s</string>
     <string name="toast_removed_from_watch_later">Вилучено з \"Переглянути пізніше\"</string>
     <string name="toast_added_to_watch_later">Додано до \"Переглянути пізніше\"</string>
-    <string name="toast_fetching_download_links">Отримання посилань для завантаження</string>
+    <string name="toast_fetching_download_links">Отримання посилань для завантаження…</string>
     <string name="toast_download_started">Завантаження почато: %1$s</string>
-    <string name="toast_trying_sabr_download">Спроба завантаження SABR</string>
+    <string name="toast_trying_sabr_download">Спроба завантаження SABR…</string>
     <string name="toast_sabr_download_started">Завантаження SABR почато</string>
     <string name="toast_sabr_download_started_for_video">Розпочато завантаження SABR: %1$s</string>
     <string name="toast_no_download_source">Немає доступного джерела завантаження</string>
@@ -2199,7 +2199,7 @@
     <string name="toast_copied_to_clipboard">Скопійовано в буфер обміну</string>
     <string name="toast_playlist_deleted">Список відтворення видалено</string>
     <string name="toast_playlist_renamed">Список відтворення перейменовано</string>
-    <string name="toast_starting_playlist_download">Розпочато завантаження для %1$s</string>
+    <string name="toast_starting_playlist_download">Початок завантаження %1$s…</string>
     <string name="toast_downloaded_tracks_from_playlist">Завантажено %1$d треків з %2$s</string>
     <string name="toast_failed_to_download_playlist">Не вдалося завантажити список</string>
     <string name="toast_error_downloading_playlist">Помилка завантаження списку</string>
@@ -2276,7 +2276,7 @@
     <string name="error_playback_retry_hint">Спробуйте ще раз пізніше або перевірте з’єднання з мережею.</string>
     <string name="download_waiting_for_wifi">Очікуємо на Wi-Fi</string>
     <string name="download_failed_try_again">Помилка завантаження. Спробуйте ще раз.</string>
-    <string name="download_merging_audio_video">Об’єднання аудіо та відео</string>
+    <string name="download_merging_audio_video">Об’єднання аудіо та відео…</string>
     <string name="download_muxing_incompatible">Помилка мультиплексування — аудіоформат несумісний із відеоконтейнером. Спробуйте завантажити знову.</string>
     <string name="download_muxing_failed_retry">Помилка мультиплексування: спробуйте завантажити знову.</string>
     <string name="download_url_expired">Термін дії URL-адреси закінчився (403). Потрібно повторно отримати дані.</string>
@@ -2293,9 +2293,9 @@
     <string name="import_other_youtube_clients">Імпорт з інших клієнтів YouTube</string>
     <string name="imported_count">Імпортовано (%2$s): %1$d</string>
     <string name="imported_successfully">%1$s успішно імпортовано</string>
-    <string name="importing_label">Імпортування %1$s</string>
+    <string name="importing_label">Імпортування %1$s…</string>
     <string name="imported_from_google_takeout">Імпортовано з Google Takeout</string>
-    <string name="fallback_playing">Відтворення</string>
+    <string name="fallback_playing">Відтворення…</string>
     <string name="fallback_unknown_title">Невідома назва</string>
     <string name="fallback_unknown_channel">Невідомий канал</string>
     <string name="fallback_unknown_playlist">Невідомий список відтворення</string>
@@ -2313,4 +2313,31 @@
     <string name="reorder_queue_item">Змінити порядок елемента в черзі</string>
     <string name="notif_background_restricted_title">Перевірка біографічних даних обмежена</string>
     <string name="notif_background_restricted_subtitle">Android блокує Flow можливість перевіряти наявність нових відео, коли застосунок закрито, тому сповіщення надходять лише тоді, коли ви його відкриваєте. Натисніть, щоби дозволити необмежену фонову активність.</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="one">Не вдалося завантажити %d канал</item>
+        <item quantity="few">Не вдалося завантажити %d канали</item>
+        <item quantity="many">Не вдалося завантажити %d каналів</item>
+        <item quantity="other">Не вдалося завантажити %d каналів</item>
+    </plurals>
+    <string name="subscriptions_failed_channels_body">Їхніх останніх відео немає в цій стрічці: %1$s</string>
+    <string name="subscriptions_failed_channels_more">%1$s та ще %2$d</string>
+    <string name="comment_edited">редаговано</string>
+    <string name="comment_time_edited_template">%1$s (%2$s)</string>
+    <string name="deep_flow_duration_hours">%1$d годин</string>
+    <string name="audio_track_original">Оригінал</string>
+    <string name="audio_track_dubbed">Дубльовано</string>
+    <string name="empty_saved_shorts">Збережених Shorts ще немає</string>
+    <string name="settings_search_no_results">Налаштувань для %1$s не знайдено</string>
+    <string name="settings_lyrics_provider_order_description">Провайдери перевіряються по черзі. Перемагає той, хто першим поверне текст пісні.</string>
+    <string name="import_running_background">Ви можете переходити на інші сторінки — імпорт триває у фоновому режимі.</string>
+    <string name="donations_cryptocurrency">КРИПТОВАЛЮТА</string>
+    <string name="import_no_history_entries">У файлі не знайдено записів історії переглядів</string>
+    <string name="import_no_videos">У файлі списку відтворення не знайдено жодного відео</string>
+    <string name="import_no_content">У цій резервній копії не знайдено вмісту для імпорту</string>
+    <string name="import_invalid_format">Нерозпізнаний формат резервної копії — переконайтеся, що ви вибрали правильний файл</string>
+    <string name="import_failed_template">Помилка імпорту: %1$s</string>
+    <string name="duration_hours_minutes">%1$d год %2$d хв</string>
+    <string name="duration_minutes">%1$d хв</string>
+    <string name="duration_hours_short">%1$d год</string>
+    <string name="duration_minutes_short">%1$d хв</string>
 </resources>
