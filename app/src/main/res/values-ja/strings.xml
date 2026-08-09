@@ -121,7 +121,6 @@
     <string name="collaborator">コラボレーター</string>
     <string name="library_history_label">履歴</string>
     <string name="library_downloads_label">ダウンロード</string>
-    <string name="library_local_media_label"></string>
     <string name="local_media_permission_title">権限が必要です</string>
     <string name="library_settings_data_header"><![CDATA[設定とデータ]]></string>
     <string name="library_manage_data_label">データを管理</string>
