@@ -1,9 +1,8 @@
 package io.github.aedev.flow.ui.screens.shorts
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import io.github.aedev.flow.data.local.VideoQuality
+import io.github.aedev.flow.utils.NetworkState
 
 /**
  * The height a Short is resolved at.
@@ -23,10 +22,4 @@ internal fun shortsTargetHeight(
  * Reads the active transport synchronously. Callers must not substitute a placeholder while a
  * network callback settles: a wrong answer here silently changes the cache key above.
  */
-internal fun isOnWifi(context: Context): Boolean {
-    val connectivityManager =
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
-    return connectivityManager
-        .getNetworkCapabilities(connectivityManager.activeNetwork)
-        ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-}
+internal fun isOnWifi(context: Context): Boolean = NetworkState.isOnWifi(context)

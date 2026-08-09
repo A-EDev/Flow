@@ -26,6 +26,7 @@ import io.github.aedev.flow.player.PlaybackStartupPolicy
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.player.awaitFirstPlaybackResolver
+import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.player.quality.QualityManager
@@ -269,15 +270,7 @@ class VideoPlayerViewModel @Inject constructor(
      * Detect whether the device is currently on Wi-Fi.
      * Used to select the correct quality preference (Wi-Fi vs cellular).
      */
-    private fun detectIsWifi(): Boolean {
-        return try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return true
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-        } catch (e: Exception) {
-            true 
-        }
-    }
+    private fun detectIsWifi(): Boolean = NetworkState.isOnWifi(context)
     
     init {
         // Re-fetch streams whenever an expired URL is detected (HTTP 403/410 "data changed")
@@ -1343,6 +1336,13 @@ class VideoPlayerViewModel @Inject constructor(
                             savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
                             loadToken = loadToken
                         )
+                    }
+
+                    if (!NetworkState.isOnline(context)) {
+                        Log.d("VideoPlayerViewModel", "Offline with a local copy of $videoId — skipping stream resolution")
+                        streamInfoDeferred.cancel()
+                        innerTubeDeferred.cancel()
+                        return@launch
                     }
                 }
 

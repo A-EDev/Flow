@@ -3,8 +3,7 @@ package io.github.aedev.flow.player
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
+import io.github.aedev.flow.utils.NetworkState
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -2559,14 +2558,7 @@ class EnhancedPlayerManager private constructor() {
 
     private fun extractChannelId(url: String?): String = url?.substringAfterLast("/")?.takeIf { it.isNotBlank() && it != url } ?: ""
 
-    private fun isOnWifi(context: Context): Boolean =
-        try {
-            val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val caps = manager.getNetworkCapabilities(manager.activeNetwork)
-            caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ?: true
-        } catch (e: Exception) {
-            true
-        }
+    private fun isOnWifi(context: Context): Boolean = NetworkState.isOnWifi(context)
 
     // ===== Playback Controls =====
 

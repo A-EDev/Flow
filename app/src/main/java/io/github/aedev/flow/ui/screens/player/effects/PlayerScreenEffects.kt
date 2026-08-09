@@ -4,8 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
@@ -24,6 +22,7 @@ import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.delay
 import android.view.OrientationEventListener
 import android.widget.Toast
@@ -659,12 +658,7 @@ fun VideoLoadEffect(
     LaunchedEffect(videoId) {
         screenState.resetForNewVideo()
 
-        // Detect if on Wifi for preferred quality
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val activeNetwork = connectivityManager.activeNetwork
-        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
-        val isWifi = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ?: true
-        viewModel.loadVideoInfo(videoId, isWifi)
+        viewModel.loadVideoInfo(videoId, NetworkState.isOnWifi(context))
     }
 }
 

@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.util.concurrent.Executor
@@ -53,11 +54,12 @@ class DownloadUtil @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
 
-    private val okHttpClient: OkHttpClient
-        get() = AppProxyManager.applyTo(OkHttpClient.Builder())
+    private val okHttpClient: OkHttpClient by lazy {
+        AppProxyManager.applyTo(OkHttpClient.Builder())
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
+    }
 
     /**
      * DataSource factory for DOWNLOADS - writes to downloadCache.
@@ -295,18 +297,6 @@ class DownloadUtil @Inject constructor(
         }
     }
 
-    fun verifyCacheIntegrity(mediaId: String): Boolean {
-        return try {
-            val spans = downloadCache.getCachedSpans(mediaId)
-            spans.isNotEmpty() && spans.all { span ->
-                span.file?.exists() == true && span.length > 0
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Cache integrity check failed for $mediaId", e)
-            false
-        }
-    }
-
     val downloadNotificationHelper = DownloadNotificationHelper(context, ExoDownloadService.CHANNEL_ID)
 
     val downloadManager: DownloadManager = DownloadManager(
@@ -325,21 +315,30 @@ class DownloadUtil @Inject constructor(
             ) {
                 downloads.update { it.toMutableMap().apply { set(download.request.id, download) } }
             }
+
+            override fun onDownloadRemoved(
+                downloadManager: DownloadManager,
+                download: Download
+            ) {
+                downloads.update { it - download.request.id }
+            }
         })
     }
-    
+
     init {
-        val result = mutableMapOf<String, Download>()
-        try {
-            val cursor = downloadManager.downloadIndex.getDownloads()
-            while (cursor.moveToNext()) {
-                val download = cursor.download
-                result[download.request.id] = download
+        scope.launch {
+            val result = mutableMapOf<String, Download>()
+            try {
+                downloadManager.downloadIndex.getDownloads().use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val download = cursor.download
+                        result[download.request.id] = download
+                    }
+                }
+                downloads.value = result
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load the download index", e)
             }
-            cursor.close()
-            downloads.value = result
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 
