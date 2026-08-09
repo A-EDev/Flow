@@ -29,6 +29,7 @@ import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FlowDescriptionBottomSheet
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -61,7 +62,10 @@ fun ShortsScreen(
         }
     }
 
-    var isWifi by remember { mutableStateOf(false) }
+    // Seeded synchronously rather than defaulting to false: the ViewModel's prefetch reads the
+    // transport synchronously too, and the two must agree or they key the playback-stream cache
+    // differently and the prefetch is wasted.
+    var isWifi by remember { mutableStateOf(isOnWifi(context)) }
     DisposableEffect(context) {
         val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
 
@@ -89,14 +93,19 @@ fun ShortsScreen(
         cm.registerDefaultNetworkCallback(networkCallback)
         onDispose { cm.unregisterNetworkCallback(networkCallback) }
     }
-    val shortsQualityWifi by audioLangPref.shortsQualityWifi.collectAsState(initial = io.github.aedev.flow.data.local.VideoQuality.Q_720p)
-    val shortsQualityCellular by audioLangPref.shortsQualityCellular.collectAsState(
-        initial = io.github.aedev.flow.data.local.VideoQuality.Q_480p,
-    )
-    val shortsTargetHeight by remember(isWifi, shortsQualityWifi, shortsQualityCellular) {
-        derivedStateOf { if (isWifi) shortsQualityWifi.height else shortsQualityCellular.height }
+    // Null until DataStore has actually emitted. Resolving against a placeholder height would key
+    // the playback-stream cache differently from the ViewModel's prefetch (which reads the real
+    // preference), guaranteeing a miss — and the correction would then re-resolve and reload all
+    // three pooled players on every entry to the screen.
+    val shortsQualityPair by remember(audioLangPref) {
+        audioLangPref.shortsQualityWifi.combine(audioLangPref.shortsQualityCellular, ::Pair)
+    }.collectAsState(initial = null)
+    val shortsTargetHeight by remember(isWifi, shortsQualityPair) {
+        derivedStateOf {
+            shortsQualityPair?.let { (wifi, cellular) -> shortsTargetHeight(isWifi, wifi, cellular) }
+        }
     }
-    val prevShortsTargetHeight = remember { mutableStateOf(shortsTargetHeight) }
+    val prevShortsTargetHeight = remember { mutableStateOf<Int?>(null) }
 
     // Bottom sheet states
     var showCommentsSheet by remember { mutableStateOf(false) }
@@ -195,24 +204,15 @@ fun ShortsScreen(
                     }
                 }
 
-                // Pre-resolve lightweight playback streams for the visible page and near neighbors.
-                LaunchedEffect(pagerState.currentPage) {
-                    val currentIdx = pagerState.currentPage
-                    val nextPreloadId = uiState.shorts.getOrNull(currentIdx + 2)?.id
-                    if (nextPreloadId != null) {
-                        val preferredLang = audioLangPref.preferredAudioLanguage.first()
-                        launch {
-                            viewModel.getPlaybackStreams(nextPreloadId, shortsTargetHeight, preferredLang)
-                        }
-                    }
-                }
-
                 // Track settled page for player pool management
-                LaunchedEffect(pagerState.settledPage) {
+                LaunchedEffect(pagerState.settledPage, shortsTargetHeight) {
+                    val targetHeight = shortsTargetHeight ?: return@LaunchedEffect
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()
                     playerPool.initialize(context)
                     playerPool.setCurrentVideo(uiState.shorts.getOrNull(settled))
+
+                    val preferredLang = audioLangPref.preferredAudioLanguage.first()
 
                     suspend fun prepareShort(
                         index: Int,
@@ -220,8 +220,7 @@ fun ShortsScreen(
                         shouldPlay: Boolean,
                     ) {
                         try {
-                            val preferredLang = audioLangPref.preferredAudioLanguage.first()
-                            val streams = viewModel.getPlaybackStreams(short.id, shortsTargetHeight, preferredLang)
+                            val streams = viewModel.getPlaybackStreams(short.id, targetHeight, preferredLang)
                             if (streams != null) {
                                 playerPool.prepare(index, short.id, streams.videoUrl, streams.audioUrl, shouldPlay)
                             } else {
@@ -234,23 +233,40 @@ fun ShortsScreen(
 
                     playerPool.activatePlayer(settled)
 
+                    // Awaited, not launched alongside the neighbours. Each resolve mints a BotGuard
+                    // PoToken, and those serialise on one process-wide WebView — so firing all of
+                    // them at once can leave the short the user is looking at queued behind two it
+                    // cannot see.
                     uiState.shorts.getOrNull(settled)?.let { currentShort ->
-                        launch { prepareShort(settled, currentShort, shouldPlay = true) }
+                        prepareShort(settled, currentShort, shouldPlay = true)
                     }
+
+                    playerPool.releaseUnusedPlayers(settled)
+
                     uiState.shorts.getOrNull(settled + 1)?.let { nextShort ->
                         launch { prepareShort(settled + 1, nextShort, shouldPlay = false) }
                     }
                     uiState.shorts.getOrNull(settled - 1)?.let { prevShort ->
                         launch { prepareShort(settled - 1, prevShort, shouldPlay = false) }
                     }
-
-                    playerPool.releaseUnusedPlayers(settled)
+                    // Two ahead: resolved only, not handed to a player. Last so it never competes
+                    // with the visible short.
+                    uiState.shorts.getOrNull(settled + 2)?.let { preloadShort ->
+                        launch {
+                            runCatching {
+                                viewModel.getPlaybackStreams(preloadShort.id, targetHeight, preferredLang)
+                            }
+                        }
+                    }
                 }
 
                 LaunchedEffect(shortsTargetHeight) {
-                    val newHeight = shortsTargetHeight
-                    if (newHeight == prevShortsTargetHeight.value) return@LaunchedEffect
+                    val newHeight = shortsTargetHeight ?: return@LaunchedEffect
+                    val previous = prevShortsTargetHeight.value
                     prevShortsTargetHeight.value = newHeight
+                    // The first non-null value is the preference loading, not the user changing it.
+                    // The settle effect above already prepares at that height.
+                    if (previous == null || newHeight == previous) return@LaunchedEffect
 
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()

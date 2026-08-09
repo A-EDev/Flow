@@ -21,10 +21,10 @@ import java.io.File
  */
 @UnstableApi
 object SharedPlayerCacheProvider {
-
     private const val TAG = "SharedPlayerCache"
 
     @Volatile private var cache: SimpleCache? = null
+
     @Volatile private var standaloneDb: DatabaseProvider? = null
 
     /**
@@ -37,23 +37,33 @@ object SharedPlayerCacheProvider {
     fun getOrCreate(
         context: Context,
         databaseProvider: DatabaseProvider? = null,
-        maxCacheSizeBytes: Long = PlayerConfig.CACHE_SIZE_BYTES
-    ): SimpleCache {
-        return cache ?: run {
-            val db = databaseProvider ?: run {
-                standaloneDb = StandaloneDatabaseProvider(context.applicationContext)
-                standaloneDb!!
-            }
+        maxCacheSizeBytes: Long = PlayerConfig.CACHE_SIZE_BYTES,
+    ): SimpleCache =
+        cache ?: run {
+            val db =
+                databaseProvider ?: run {
+                    standaloneDb = StandaloneDatabaseProvider(context.applicationContext)
+                    standaloneDb!!
+                }
             val cacheDir = File(context.applicationContext.cacheDir, PlayerConfig.CACHE_DIR_NAME)
-            val evictor = if (maxCacheSizeBytes <= 0) {
-                NoOpCacheEvictor()
-            } else {
-                LeastRecentlyUsedCacheEvictor(maxCacheSizeBytes)
-            }
+            val evictor =
+                if (maxCacheSizeBytes <= 0) {
+                    NoOpCacheEvictor()
+                } else {
+                    LeastRecentlyUsedCacheEvictor(maxCacheSizeBytes)
+                }
             Log.d(TAG, "Creating shared SimpleCache: dir=$cacheDir, maxBytes=$maxCacheSizeBytes")
             SimpleCache(cacheDir, evictor, db).also { cache = it }
         }
-    }
+
+    /**
+     * The shared cache if it already exists, without creating one.
+     *
+     * [getOrCreate] opens a SQLite index and scans the cache directory on first call, so callers
+     * that run on the main thread (the Shorts pool builds its data sources there, as ExoPlayer
+     * requires) must use this and arrange creation elsewhere rather than block.
+     */
+    fun existing(): SimpleCache? = cache
 
     /** Release the cache (call only on full app shutdown / tests). */
     @Synchronized

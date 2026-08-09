@@ -427,15 +427,32 @@ object InnerTubeVideoStreamExtractor {
 
         // Attested player requests yield direct URLs that survive GVS enforcement; unattested
         // ones get cut off roughly a minute in (served briefly, then 403 once the buffer drains).
-        val playerPoToken = WebPoTokenSession.mintBounded(videoId)?.playerRequestPoToken
-        if (playerPoToken == null) {
-            Log.w(TAG, "Direct clients for $videoId running without a player PoToken (mint unavailable in time)")
-            PlayerDiagnostics.logWarning(
-                TAG,
-                "fast-path UNATTESTED $videoId (no player PoToken in time) — direct URLs typically 403 ~60s in",
-            )
-        } else {
-            PlayerDiagnostics.logWarning(TAG, "fast-path attested $videoId (playerPoToken len=${playerPoToken.length})")
+        //
+        // Minted on first use rather than up front. The three ANDROID_VR entries at the head of
+        // [FAST_CLIENTS] must be called WITHOUT a token (see below) and one of them wins nearly
+        // every extraction, so an eager mint paid for a BotGuard attestation — main-thread JS,
+        // serialised process-wide behind one WebView — and then discarded it. Shorts felt that
+        // hardest, resolving four videos per pager settle.
+        var mintedPoToken: String? = null
+        var mintAttempted = false
+
+        suspend fun playerPoToken(): String? {
+            if (mintAttempted) return mintedPoToken
+            mintAttempted = true
+            mintedPoToken = WebPoTokenSession.mintBounded(videoId)?.playerRequestPoToken
+            if (mintedPoToken == null) {
+                Log.w(TAG, "Direct clients for $videoId running without a player PoToken (mint unavailable in time)")
+                PlayerDiagnostics.logWarning(
+                    TAG,
+                    "fast-path UNATTESTED $videoId (no player PoToken in time) — direct URLs typically 403 ~60s in",
+                )
+            } else {
+                PlayerDiagnostics.logWarning(
+                    TAG,
+                    "fast-path attested $videoId (playerPoToken len=${mintedPoToken?.length})",
+                )
+            }
+            return mintedPoToken
         }
 
         for (client in clients) {
@@ -448,7 +465,7 @@ object InnerTubeVideoStreamExtractor {
                 // (non-OK / empty streamingData), which was silently dropping playback onto IOS/IPADOS
                 // direct URLs that GVS cuts off at ~70s. Other fast clients keep the attestation.
                 val isAndroidVr = client.clientName == "ANDROID_VR"
-                val clientPoToken = if (isAndroidVr) null else playerPoToken
+                val clientPoToken = if (isAndroidVr) null else playerPoToken()
 
                 val playerResponse =
                     withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
