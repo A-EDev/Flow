@@ -944,8 +944,8 @@
     <string name="history_delete_shorts_title">Удалить Shorts?</string>
     <string name="player_settings_ambient_mode">Фоновая подсветка</string>
     <string name="library_local_media_subtitle">Воспроизводите видео и музыку с этого устройства</string>
-    <string name="library_local_media_label">На устройстве</string>
-    <string name="local_media_title">На устройстве</string>
+    <string name="library_local_media_label">Медиа на устройстве</string>
+    <string name="local_media_title">Медиа на устройстве</string>
     <string name="player_action_background">Фоновый режим</string>
     <string name="player_action_copy_link">Скопировать ссылку</string>
     <string name="player_action_copy_link_at_time">Скопировать с тайм-кодом</string>
@@ -1023,7 +1023,7 @@
     <string name="recognition_history_empty">Здесь появятся распознанные треки</string>
     <string name="local_media_rescan">Пересканировать</string>
     <string name="local_media_scanning">Сканирование устройства…</string>
-    <string name="local_media_empty_title">%1$s – не обнаружено</string>
+    <string name="local_media_empty_title">Медиафайлы не найдены</string>
     <string name="local_media_permission_body">Разрешите доступ к медиа, чтобы Flow мог находить и воспроизводить локальные видео и музыку.</string>
     <string name="history_tab_local_videos">Видео на устройстве</string>
     <string name="history_tab_local_music">Музыка на устройстве</string>
