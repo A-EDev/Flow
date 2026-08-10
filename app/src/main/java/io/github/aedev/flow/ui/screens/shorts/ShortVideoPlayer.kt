@@ -1807,3 +1807,5 @@ fun formatViewCount(count: Long): String {
         count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
         else -> count.toString()
     }
+}
+

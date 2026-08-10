@@ -1,5 +1,6 @@
 package io.github.aedev.flow.data.local
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room.databaseBuilder
 import androidx.room.RoomDatabase
@@ -30,6 +31,7 @@ import io.github.aedev.flow.data.local.entity.SyncPeerEntity
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.local.migrations.MIGRATIONS
+import io.github.aedev.flow.data.local.migrations.Migration24To25
 
 @Database(
     entities = [
@@ -49,7 +51,10 @@ import io.github.aedev.flow.data.local.migrations.MIGRATIONS
         SyncLogEntity::class,
         SyncPeerEntity::class,
     ],
-    version = 24,
+    autoMigrations = [
+        AutoMigration(from = 24, to = 25, spec = Migration24To25::class),
+    ],
+    version = 25,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
