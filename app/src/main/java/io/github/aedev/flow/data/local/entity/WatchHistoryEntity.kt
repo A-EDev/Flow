@@ -21,8 +21,8 @@ import io.github.aedev.flow.data.model.Video
         Index(value = ["timestamp"]),
         Index(value = ["isMusic"]),
         Index(value = ["isShort"]),
-        Index(value = ["isLocal"])
-    ]
+        Index(value = ["isLocal"]),
+    ],
 )
 data class WatchHistoryEntity(
     @PrimaryKey val videoId: String,
@@ -35,32 +35,34 @@ data class WatchHistoryEntity(
     val channelId: String,
     val isMusic: Boolean,
     val isShort: Boolean = false,
-    val isLocal: Boolean = false
+    val isLocal: Boolean = false,
 ) {
-    fun toDomain() = VideoHistoryEntry(
-        videoId = videoId,
-        position = position,
-        duration = duration,
-        timestamp = timestamp,
-        title = title,
-        thumbnailUrl = thumbnailUrl,
-        channelName = channelName,
-        channelId = channelId,
-        isMusic = isMusic,
-        isShort = isShort,
-        isLocal = isLocal
-    )
+    fun toDomain() =
+        VideoHistoryEntry(
+            videoId = videoId,
+            position = position,
+            duration = duration,
+            timestamp = timestamp,
+            title = title,
+            thumbnailUrl = thumbnailUrl,
+            channelName = channelName,
+            channelId = channelId,
+            isMusic = isMusic,
+            isShort = isShort,
+            isLocal = isLocal,
+        )
 
     /** Reconstruct a lightweight [Video] from history metadata (no stream info). */
-    fun toVideo() = Video(
-        id = videoId,
-        title = title,
-        channelName = channelName,
-        channelId = channelId,
-        thumbnailUrl = thumbnailUrl,
-        duration = if (duration > 0) (duration / 1000).toInt() else 0,
-        viewCount = 0,
-        uploadDate = "",
-        isShort = isShort
-    )
+    fun toVideo() =
+        Video(
+            id = videoId,
+            title = title,
+            channelName = channelName,
+            channelId = channelId,
+            thumbnailUrl = thumbnailUrl,
+            duration = if (duration > 0) (duration / 1000).toInt() else 0,
+            viewCount = 0,
+            uploadDate = "",
+            isShort = isShort,
+        )
 }

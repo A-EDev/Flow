@@ -23,7 +23,7 @@ class SurfaceManager {
     var isSurfaceReady: Boolean = false
         private set
 
-    private val _surfaceReadyFlow = MutableStateFlow(false)
+    private val surfaceReadyFlow = MutableStateFlow(false)
 
     /**
      * Get the current surface holder.
@@ -42,7 +42,11 @@ class SurfaceManager {
      *   Set to false (default) only for the fallback in AndroidView.update, where the purpose
      *   is purely to handle a missed initial callback.
      */
-    fun attachVideoSurface(holder: SurfaceHolder?, player: ExoPlayer?, forceAttach: Boolean = false): Boolean {
+    fun attachVideoSurface(
+        holder: SurfaceHolder?,
+        player: ExoPlayer?,
+        forceAttach: Boolean = false,
+    ): Boolean {
         if (holder == null) {
             Log.w(TAG, "attachVideoSurface called with null holder")
             surfaceHolder = null
@@ -50,7 +54,7 @@ class SurfaceManager {
         }
 
         surfaceHolder = holder
-        Log.d(TAG, "attachVideoSurface: stored holder. Player instance is ${if(player==null) "null" else "not null"}")
+        Log.d(TAG, "attachVideoSurface: stored holder. Player instance is ${if (player == null) "null" else "not null"}")
 
         // A real surface is back, drop any placeholder we were using
         placeholderSurface?.let { placeholder ->
@@ -76,7 +80,7 @@ class SurfaceManager {
                 Log.d(TAG, "Attempting to attach surface ${surface.hashCode()} to player (forceAttach=$forceAttach)")
                 player.setVideoSurface(surface)
                 Log.d(TAG, "Surface attached to player via getSurface() (NewPipe approach)")
-                _surfaceReadyFlow.value = true
+                surfaceReadyFlow.value = true
                 setSurfaceReady(true)
                 true
             } else {
@@ -92,7 +96,11 @@ class SurfaceManager {
     /**
      * Detach the video surface from the player.
      */
-    fun detachVideoSurface(holder: SurfaceHolder?, player: ExoPlayer?, context: Context?) {
+    fun detachVideoSurface(
+        holder: SurfaceHolder?,
+        player: ExoPlayer?,
+        context: Context?,
+    ) {
         // If specific holder provided, check if it matches current
         if (holder != null && holder != surfaceHolder) {
             Log.d(TAG, "detachVideoSurface ignored: holder mismatch (stale surface)")
@@ -110,7 +118,7 @@ class SurfaceManager {
                         try {
                             runCatching { placeholderSurface?.release() }
                             placeholderSurface = PlaceholderSurface.newInstance(context, false)
-                        } catch(e: Exception) {
+                        } catch (e: Exception) {
                             Log.w(TAG, "Failed to create placeholder surface", e)
                         }
                     }
@@ -164,7 +172,7 @@ class SurfaceManager {
      */
     fun setSurfaceReady(ready: Boolean) {
         isSurfaceReady = ready
-        _surfaceReadyFlow.value = ready
+        surfaceReadyFlow.value = ready
         Log.d(TAG, "Surface ready: $ready")
     }
 
@@ -176,7 +184,7 @@ class SurfaceManager {
         if (surfaceHolder == null) {
             Log.d(TAG, "No SurfaceHolder (TextureView mode) — surface assumed ready")
             isSurfaceReady = true
-            _surfaceReadyFlow.value = true
+            surfaceReadyFlow.value = true
             return true
         }
 
@@ -185,7 +193,7 @@ class SurfaceManager {
             val validSurface = runCatching { surfaceHolder?.surface?.isValid == true }.getOrDefault(false)
             if (validSurface) {
                 Log.d(TAG, "Surface already ready, proceeding immediately")
-                _surfaceReadyFlow.value = true
+                surfaceReadyFlow.value = true
                 return true
             } else {
                 Log.d(TAG, "Surface holder exists but surface invalid - waiting for callback")
@@ -194,10 +202,11 @@ class SurfaceManager {
 
         Log.d(TAG, "Waiting for surface to be ready (timeout: ${timeoutMillis}ms)...")
 
-        val result = withTimeoutOrNull(timeoutMillis) {
-            _surfaceReadyFlow.first { it }
-            true
-        }
+        val result =
+            withTimeoutOrNull(timeoutMillis) {
+                surfaceReadyFlow.first { it }
+                true
+            }
 
         return if (result == true) {
             Log.d(TAG, "Surface became ready!")
@@ -207,7 +216,7 @@ class SurfaceManager {
             val nowValid = runCatching { surfaceHolder?.surface?.isValid == true }.getOrDefault(false)
             if (nowValid) {
                 Log.d(TAG, "Surface valid now despite timeout - proceeding")
-                _surfaceReadyFlow.value = true
+                surfaceReadyFlow.value = true
                 return true
             }
             false
@@ -217,9 +226,7 @@ class SurfaceManager {
     /**
      * Check if the current surface is valid and ready for rendering.
      */
-    fun isSurfaceValid(): Boolean {
-        return runCatching { surfaceHolder?.surface?.isValid == true }.getOrDefault(false)
-    }
+    fun isSurfaceValid(): Boolean = runCatching { surfaceHolder?.surface?.isValid == true }.getOrDefault(false)
 
     /**
      * Release all surface resources.
@@ -237,7 +244,7 @@ class SurfaceManager {
         placeholderSurface = null
 
         isSurfaceReady = false
-        _surfaceReadyFlow.value = false
+        surfaceReadyFlow.value = false
         surfaceHolder = null
     }
 }

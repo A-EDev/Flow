@@ -18,13 +18,14 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 enum class SkipDirection {
-    NEXT, PREVIOUS
+    NEXT,
+    PREVIOUS,
 }
 
 @Composable
 fun AnimatedSkipIndicators(
     direction: SkipDirection?,
-    onAnimationComplete: () -> Unit
+    onAnimationComplete: () -> Unit,
 ) {
     direction?.let {
         LaunchedEffect(direction) {
@@ -37,34 +38,39 @@ fun AnimatedSkipIndicators(
         LaunchedEffect(direction) {
             slideIn.animateTo(
                 targetValue = 0f,
-                animationSpec = tween(300, easing = FastOutSlowInEasing)
+                animationSpec = tween(300, easing = FastOutSlowInEasing),
             )
         }
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            contentAlignment = if (direction == SkipDirection.NEXT)
-                Alignment.CenterEnd
-            else
-                Alignment.CenterStart
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+            contentAlignment =
+                if (direction == SkipDirection.NEXT) {
+                    Alignment.CenterEnd
+                } else {
+                    Alignment.CenterStart
+                },
         ) {
             Surface(
                 modifier = Modifier.size(64.dp),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                shadowElevation = 8.dp
+                shadowElevation = 8.dp,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = if (direction == SkipDirection.NEXT)
-                            Icons.Filled.SkipNext
-                        else
-                            Icons.Filled.SkipPrevious,
+                        imageVector =
+                            if (direction == SkipDirection.NEXT) {
+                                Icons.Filled.SkipNext
+                            } else {
+                                Icons.Filled.SkipPrevious
+                            },
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(40.dp),
                     )
                 }
             }
@@ -73,17 +79,20 @@ fun AnimatedSkipIndicators(
 }
 
 @Composable
-fun InfoRow(label: String, value: String) {
+fun InfoRow(
+    label: String,
+    value: String,
+) {
     Column {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }

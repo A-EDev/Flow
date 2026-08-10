@@ -13,27 +13,26 @@ import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.cache.SharedPlayerCacheProvider
 import io.github.aedev.flow.player.config.PlayerConfig
-import java.io.File
-import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import java.io.File
+import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object DownloadModule {
-
     @Provides
     @Singleton
-    fun provideDatabaseProvider(@ApplicationContext context: Context): DatabaseProvider {
-        return StandaloneDatabaseProvider(context)
-    }
+    fun provideDatabaseProvider(
+        @ApplicationContext context: Context,
+    ): DatabaseProvider = StandaloneDatabaseProvider(context)
 
     @Provides
     @Singleton
     @DownloadCache
     fun provideDownloadCache(
         @ApplicationContext context: Context,
-        databaseProvider: DatabaseProvider
+        databaseProvider: DatabaseProvider,
     ): SimpleCache {
         val downloadContentDirectory = File(context.getExternalFilesDir(null), "downloads")
         return SimpleCache(downloadContentDirectory, NoOpCacheEvictor(), databaseProvider)
@@ -44,14 +43,14 @@ object DownloadModule {
     @PlayerCache
     fun providePlayerCache(
         @ApplicationContext context: Context,
-        databaseProvider: DatabaseProvider
+        databaseProvider: DatabaseProvider,
     ): SimpleCache {
         val cacheSizeMb = runBlocking { PlayerPreferences(context).mediaCacheSizeMb.first() }
         val cacheSizeBytes = PlayerConfig.cacheSizeMbToBytes(cacheSizeMb)
         return SharedPlayerCacheProvider.getOrCreate(
             context,
             databaseProvider = databaseProvider,
-            maxCacheSizeBytes = if (cacheSizeBytes <= 0) PlayerConfig.CACHE_SIZE_BYTES else cacheSizeBytes
+            maxCacheSizeBytes = if (cacheSizeBytes <= 0) PlayerConfig.CACHE_SIZE_BYTES else cacheSizeBytes,
         )
     }
 }

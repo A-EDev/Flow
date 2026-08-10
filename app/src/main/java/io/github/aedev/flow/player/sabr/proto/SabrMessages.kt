@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:value-parameter-comment")
+
 package io.github.aedev.flow.player.sabr.proto
 
 import io.github.aedev.flow.utils.protobuf.ProtobufWriter
@@ -5,13 +7,14 @@ import io.github.aedev.flow.utils.protobuf.ProtobufWriter
 data class FormatId(
     val itag: Int = 0,
     val lmt: Long = 0,
-    val xtags: String = ""
+    val xtags: String = "",
 ) {
-    fun encode(): ByteArray = ProtobufWriter.encode {
-        if (itag != 0) writeInt32(1, itag)
-        if (lmt != 0L) writeInt64(2, lmt)
-        if (xtags.isNotEmpty()) writeString(3, xtags)
-    }
+    fun encode(): ByteArray =
+        ProtobufWriter.encode {
+            if (itag != 0) writeInt32(1, itag)
+            if (lmt != 0L) writeInt64(2, lmt)
+            if (xtags.isNotEmpty()) writeString(3, xtags)
+        }
 
     companion object {
         fun decode(data: ByteArray): FormatId {
@@ -50,16 +53,24 @@ data class MediaHeader(
     val timeRangeStartMs: Long = 0,
     val durationMs: Long = 0,
     val formatId: FormatId? = null,
-    val compressionType: Int = 0
+    val compressionType: Int = 0,
 ) {
     companion object {
         fun decode(data: ByteArray): MediaHeader {
             val reader = ProtobufReader(data)
-            var headerId = 0; var videoId = ""; var itag = 0; var lmt = 0L
-            var startDataRange = 0L; var isInitSegment = false; var sequenceNumber = 0
-            var bitrateBps = 0L; var contentLength = 0L
-            var timeRangeStartMs = 0L; var durationMs = 0L
-            var formatId: FormatId? = null; var compressionType = 0
+            var headerId = 0
+            var videoId = ""
+            var itag = 0
+            var lmt = 0L
+            var startDataRange = 0L
+            var isInitSegment = false
+            var sequenceNumber = 0
+            var bitrateBps = 0L
+            var contentLength = 0L
+            var timeRangeStartMs = 0L
+            var durationMs = 0L
+            var formatId: FormatId? = null
+            var compressionType = 0
 
             reader.forEachField { field ->
                 when (field.fieldNumber) {
@@ -78,9 +89,21 @@ data class MediaHeader(
                     14 -> contentLength = field.asLong()
                 }
             }
-            return MediaHeader(headerId, videoId, itag, lmt, startDataRange,
-                isInitSegment, sequenceNumber, bitrateBps, contentLength,
-                timeRangeStartMs, durationMs, formatId, compressionType)
+            return MediaHeader(
+                headerId,
+                videoId,
+                itag,
+                lmt,
+                startDataRange,
+                isInitSegment,
+                sequenceNumber,
+                bitrateBps,
+                contentLength,
+                timeRangeStartMs,
+                durationMs,
+                formatId,
+                compressionType,
+            )
         }
     }
 }
@@ -106,7 +129,7 @@ data class FormatInitializationMetadata(
     val codecs: String = "",
     val width: Int = 0,
     val height: Int = 0,
-    val initData: ByteArray = ByteArray(0)
+    val initData: ByteArray = ByteArray(0),
 ) {
     val isAudio: Boolean get() = mimeType.startsWith("audio/")
     val isVideo: Boolean get() = mimeType.startsWith("video/")
@@ -117,9 +140,13 @@ data class FormatInitializationMetadata(
     companion object {
         fun decode(data: ByteArray): FormatInitializationMetadata {
             val reader = ProtobufReader(data)
-            var videoId = ""; var formatId: FormatId? = null
-            var endTimeMs = 0L; var endSegmentNumber = 0L; var mimeType = ""
-            var durationUnits = 0L; var durationTimescale = 0
+            var videoId = ""
+            var formatId: FormatId? = null
+            var endTimeMs = 0L
+            var endSegmentNumber = 0L
+            var mimeType = ""
+            var durationUnits = 0L
+            var durationTimescale = 0
 
             reader.forEachField { field ->
                 when (field.fieldNumber) {
@@ -132,8 +159,15 @@ data class FormatInitializationMetadata(
                     10 -> durationTimescale = field.asInt()
                 }
             }
-            return FormatInitializationMetadata(videoId, formatId, endTimeMs,
-                endSegmentNumber, mimeType, durationUnits, durationTimescale)
+            return FormatInitializationMetadata(
+                videoId,
+                formatId,
+                endTimeMs,
+                endSegmentNumber,
+                mimeType,
+                durationUnits,
+                durationTimescale,
+            )
         }
     }
 }
@@ -150,7 +184,7 @@ data class NextRequestPolicy(
     val maxTimeSinceLastRequestMs: Long = 0,
     val backoffTimeMs: Long = 0,
     val playbackCookie: ByteArray = ByteArray(0),
-    val videoId: String = ""
+    val videoId: String = "",
 ) {
     companion object {
         fun decode(data: ByteArray): NextRequestPolicy {
@@ -171,13 +205,21 @@ data class NextRequestPolicy(
                     8 -> videoId = field.asString()
                 }
             }
-            return NextRequestPolicy(targetAudioReadaheadMs, targetVideoReadaheadMs,
-                maxTimeSinceLastRequestMs, backoffTimeMs, playbackCookie, videoId)
+            return NextRequestPolicy(
+                targetAudioReadaheadMs,
+                targetVideoReadaheadMs,
+                maxTimeSinceLastRequestMs,
+                backoffTimeMs,
+                playbackCookie,
+                videoId,
+            )
         }
     }
 }
 
-data class SabrRedirect(val url: String = "") {
+data class SabrRedirect(
+    val url: String = "",
+) {
     companion object {
         fun decode(data: ByteArray): SabrRedirect {
             val reader = ProtobufReader(data)
@@ -200,12 +242,13 @@ data class SabrRedirect(val url: String = "") {
 data class SabrError(
     val errorCode: Int = 0,
     val errorMessage: String = "",
-    val isRecoverable: Boolean = true
+    val isRecoverable: Boolean = true,
 ) {
     companion object {
         fun decode(data: ByteArray): SabrError {
             val reader = ProtobufReader(data)
-            var code = 0; var msg = ""
+            var code = 0
+            var msg = ""
             reader.forEachField { field ->
                 when (field.fieldNumber) {
                     1 -> msg = field.asString()
@@ -223,7 +266,7 @@ data class SabrError(
  */
 data class SabrSeek(
     val seekMediaTimeTicks: Long = 0,
-    val timescale: Int = 0
+    val timescale: Int = 0,
 ) {
     val seekTargetMs: Long
         get() = if (timescale > 0) seekMediaTimeTicks * 1000L / timescale else seekMediaTimeTicks
@@ -231,7 +274,8 @@ data class SabrSeek(
     companion object {
         fun decode(data: ByteArray): SabrSeek {
             val reader = ProtobufReader(data)
-            var ticks = 0L; var timescale = 0
+            var ticks = 0L
+            var timescale = 0
             reader.forEachField { field ->
                 when (field.fieldNumber) {
                     1 -> ticks = field.asLong()
@@ -253,15 +297,18 @@ data class SabrContextUpdate(
     val scope: Int = 0,
     val value: ByteArray = ByteArray(0),
     val sendByDefault: Boolean = false,
-    val writePolicy: Int = 0
+    val writePolicy: Int = 0,
 ) {
     companion object {
         const val WRITE_POLICY_KEEP_EXISTING = 2
 
         fun decode(data: ByteArray): SabrContextUpdate {
             val reader = ProtobufReader(data)
-            var type = 0; var scope = 0; var value = ByteArray(0)
-            var sendByDefault = false; var writePolicy = 0
+            var type = 0
+            var scope = 0
+            var value = ByteArray(0)
+            var sendByDefault = false
+            var writePolicy = 0
             reader.forEachField { field ->
                 when (field.fieldNumber) {
                     1 -> type = field.asInt()
@@ -280,7 +327,7 @@ data class SabrContextUpdate(
 data class SabrContextSendingPolicy(
     val startTypes: List<Int> = emptyList(),
     val stopTypes: List<Int> = emptyList(),
-    val discardTypes: List<Int> = emptyList()
+    val discardTypes: List<Int> = emptyList(),
 ) {
     companion object {
         fun decode(data: ByteArray): SabrContextSendingPolicy {
@@ -288,17 +335,22 @@ data class SabrContextSendingPolicy(
             val stop = mutableListOf<Int>()
             val discard = mutableListOf<Int>()
             ProtobufReader(data).forEachField { field ->
-                val destination = when (field.fieldNumber) {
-                    1 -> start
-                    2 -> stop
-                    3 -> discard
-                    else -> null
-                } ?: return@forEachField
+                val destination =
+                    when (field.fieldNumber) {
+                        1 -> start
+                        2 -> stop
+                        3 -> discard
+                        else -> null
+                    } ?: return@forEachField
 
                 when (field.wireType) {
-                    ProtobufReader.WIRE_VARINT -> destination += field.asInt()
-                    ProtobufReader.WIRE_LENGTH_DELIMITED ->
+                    ProtobufReader.WIRE_VARINT -> {
+                        destination += field.asInt()
+                    }
+
+                    ProtobufReader.WIRE_LENGTH_DELIMITED -> {
                         destination += decodePackedVarints(field.asBytes())
+                    }
                 }
             }
             return SabrContextSendingPolicy(start, stop, discard)
@@ -331,7 +383,7 @@ data class SabrContextSendingPolicy(
  */
 data class StreamProtectionStatus(
     val status: Int = 0,
-    val maxRetries: Int = 0
+    val maxRetries: Int = 0,
 ) {
     companion object {
         const val STATUS_OK = 1
@@ -340,7 +392,8 @@ data class StreamProtectionStatus(
 
         fun decode(data: ByteArray): StreamProtectionStatus {
             val reader = ProtobufReader(data)
-            var status = 0; var maxRetries = 0
+            var status = 0
+            var maxRetries = 0
             reader.forEachField { field ->
                 when (field.fieldNumber) {
                     1 -> status = field.asInt()
@@ -352,7 +405,9 @@ data class StreamProtectionStatus(
     }
 }
 
-data class PlaybackStartPolicy(val minBufferBeforePlaybackMs: Long = 0) {
+data class PlaybackStartPolicy(
+    val minBufferBeforePlaybackMs: Long = 0,
+) {
     companion object {
         fun decode(data: ByteArray): PlaybackStartPolicy {
             val reader = ProtobufReader(data)
@@ -377,33 +432,34 @@ data class PlaybackStartPolicy(val minBufferBeforePlaybackMs: Long = 0) {
  * value of `max(selectedVideoHeight, 360)`.
  */
 data class ClientAbrState(
-    val playerTimeMs: Long = 0,            // field 28 (playhead)
-    val bandwidthEstimateBps: Long = 0,    // field 23
-    val viewportWidthPx: Int = 0,          // field 18
-    val viewportHeightPx: Int = 0,         // field 19
+    val playerTimeMs: Long = 0, // field 28 (playhead)
+    val bandwidthEstimateBps: Long = 0, // field 23
+    val viewportWidthPx: Int = 0, // field 18
+    val viewportHeightPx: Int = 0, // field 19
     val lastManualSelectedResolution: Int = 0, // field 16 — user-picked quality height
-    val stickyResolution: Int = 0,         // field 21 — pins server-side ABR to a resolution
-    val timeSinceLastSeekMs: Long = 0,     // field 29
-    val visibility: Int = 1,               // field 34 — 1 = foreground/visible
-    val playbackRate: Float = 1.0f,        // field 35 — playback speed (fixed32/float)
+    val stickyResolution: Int = 0, // field 21 — pins server-side ABR to a resolution
+    val timeSinceLastSeekMs: Long = 0, // field 29
+    val visibility: Int = 1, // field 34 — 1 = foreground/visible
+    val playbackRate: Float = 1.0f, // field 35 — playback speed (fixed32/float)
     val enabledTrackTypesBitfield: Int = -1, // field 40 (-1 = unset → server defaults to audio+video)
-    val drcEnabled: Boolean = false,       // field 46
-    val audioTrackId: String = ""          // field 69 — selects the dub/original audio track
+    val drcEnabled: Boolean = false, // field 46
+    val audioTrackId: String = "", // field 69 — selects the dub/original audio track
 ) {
-    fun encode(): ByteArray = ProtobufWriter.encode {
-        if (lastManualSelectedResolution != 0) writeInt32(16, lastManualSelectedResolution)
-        if (viewportWidthPx != 0) writeInt32(18, viewportWidthPx)
-        if (viewportHeightPx != 0) writeInt32(19, viewportHeightPx)
-        if (stickyResolution != 0) writeInt32(21, stickyResolution)
-        if (bandwidthEstimateBps != 0L) writeInt64(23, bandwidthEstimateBps)
-        if (playerTimeMs != 0L) writeInt64(28, playerTimeMs)
-        if (timeSinceLastSeekMs != 0L) writeInt64(29, timeSinceLastSeekMs)
-        if (visibility != 0) writeInt32(34, visibility)
-        writeFloat(35, playbackRate)
-        if (enabledTrackTypesBitfield >= 0) writeInt32(40, enabledTrackTypesBitfield)
-        if (drcEnabled) writeBool(46, true)
-        if (audioTrackId.isNotEmpty()) writeString(69, audioTrackId)
-    }
+    fun encode(): ByteArray =
+        ProtobufWriter.encode {
+            if (lastManualSelectedResolution != 0) writeInt32(16, lastManualSelectedResolution)
+            if (viewportWidthPx != 0) writeInt32(18, viewportWidthPx)
+            if (viewportHeightPx != 0) writeInt32(19, viewportHeightPx)
+            if (stickyResolution != 0) writeInt32(21, stickyResolution)
+            if (bandwidthEstimateBps != 0L) writeInt64(23, bandwidthEstimateBps)
+            if (playerTimeMs != 0L) writeInt64(28, playerTimeMs)
+            if (timeSinceLastSeekMs != 0L) writeInt64(29, timeSinceLastSeekMs)
+            if (visibility != 0) writeInt32(34, visibility)
+            writeFloat(35, playbackRate)
+            if (enabledTrackTypesBitfield >= 0) writeInt32(40, enabledTrackTypesBitfield)
+            if (drcEnabled) writeBool(46, true)
+            if (audioTrackId.isNotEmpty()) writeString(69, audioTrackId)
+        }
 }
 
 /**
@@ -413,13 +469,14 @@ data class ClientAbrState(
 data class TimeRange(
     val startTicks: Long = 0,
     val durationTicks: Long = 0,
-    val timescale: Int = 1000
+    val timescale: Int = 1000,
 ) {
-    fun encode(): ByteArray = ProtobufWriter.encode {
-        if (startTicks != 0L) writeInt64(1, startTicks)
-        if (durationTicks != 0L) writeInt64(2, durationTicks)
-        if (timescale != 0) writeInt32(3, timescale)
-    }
+    fun encode(): ByteArray =
+        ProtobufWriter.encode {
+            if (startTicks != 0L) writeInt64(1, startTicks)
+            if (durationTicks != 0L) writeInt64(2, durationTicks)
+            if (timescale != 0) writeInt32(3, timescale)
+        }
 }
 
 data class FormatBufferedRange(
@@ -427,18 +484,19 @@ data class FormatBufferedRange(
     val startTimeMs: Long = 0,
     val durationMs: Long = 0,
     val startSequence: Int = 0,
-    val endSequence: Int = 0
+    val endSequence: Int = 0,
 ) {
-    fun encode(): ByteArray = ProtobufWriter.encode {
-        writeBytes(1, formatId.encode())
-        if (startTimeMs != 0L) writeInt64(2, startTimeMs)
-        if (durationMs != 0L) writeInt64(3, durationMs)
-        if (startSequence != 0) writeInt32(4, startSequence)
-        if (endSequence != 0) writeInt32(5, endSequence)
-        if (durationMs > 0L) {
-            writeBytes(6, TimeRange(startTicks = startTimeMs, durationTicks = durationMs, timescale = 1000).encode())
+    fun encode(): ByteArray =
+        ProtobufWriter.encode {
+            writeBytes(1, formatId.encode())
+            if (startTimeMs != 0L) writeInt64(2, startTimeMs)
+            if (durationMs != 0L) writeInt64(3, durationMs)
+            if (startSequence != 0) writeInt32(4, startSequence)
+            if (endSequence != 0) writeInt32(5, endSequence)
+            if (durationMs > 0L) {
+                writeBytes(6, TimeRange(startTicks = startTimeMs, durationTicks = durationMs, timescale = 1000).encode())
+            }
         }
-    }
 }
 
 /**
@@ -446,36 +504,38 @@ data class FormatBufferedRange(
  * LuanRT/googlevideo `streamer_context.proto`. For the WEB client, [clientName] = 1.
  */
 data class ClientInfo(
-    val clientName: Int = 1,          // field 16 (WEB = 1)
-    val clientVersion: String = "",   // field 17
-    val osName: String = "",          // field 18
-    val osVersion: String = "",       // field 19
-    val deviceMake: String = "",      // field 12
-    val deviceModel: String = "",     // field 13
-    val hl: String = "en-US",         // field 21 — locale
-    val gl: String = "US"             // field 22 — region
+    val clientName: Int = 1, // field 16 (WEB = 1)
+    val clientVersion: String = "", // field 17
+    val osName: String = "", // field 18
+    val osVersion: String = "", // field 19
+    val deviceMake: String = "", // field 12
+    val deviceModel: String = "", // field 13
+    val hl: String = "en-US", // field 21 — locale
+    val gl: String = "US", // field 22 — region
 ) {
-    fun encode(): ByteArray = ProtobufWriter.encode {
-        if (deviceMake.isNotEmpty()) writeString(12, deviceMake)
-        if (deviceModel.isNotEmpty()) writeString(13, deviceModel)
-        writeInt32(16, clientName)
-        if (clientVersion.isNotEmpty()) writeString(17, clientVersion)
-        if (osName.isNotEmpty()) writeString(18, osName)
-        if (osVersion.isNotEmpty()) writeString(19, osVersion)
-        if (hl.isNotEmpty()) writeString(21, hl)
-        if (gl.isNotEmpty()) writeString(22, gl)
-    }
+    fun encode(): ByteArray =
+        ProtobufWriter.encode {
+            if (deviceMake.isNotEmpty()) writeString(12, deviceMake)
+            if (deviceModel.isNotEmpty()) writeString(13, deviceModel)
+            writeInt32(16, clientName)
+            if (clientVersion.isNotEmpty()) writeString(17, clientVersion)
+            if (osName.isNotEmpty()) writeString(18, osName)
+            if (osVersion.isNotEmpty()) writeString(19, osVersion)
+            if (hl.isNotEmpty()) writeString(21, hl)
+            if (gl.isNotEmpty()) writeString(22, gl)
+        }
 }
 
 // A single SABR context to send back to the server ({type, value})
 data class SabrContext(
     val type: Int = 0,
-    val value: ByteArray = ByteArray(0)
+    val value: ByteArray = ByteArray(0),
 ) {
-    fun encode(): ByteArray = ProtobufWriter.encode {
-        if (type != 0) writeInt32(1, type)
-        if (value.isNotEmpty()) writeBytes(2, value)
-    }
+    fun encode(): ByteArray =
+        ProtobufWriter.encode {
+            if (type != 0) writeInt32(1, type)
+            if (value.isNotEmpty()) writeBytes(2, value)
+        }
 }
 
 /**
@@ -484,41 +544,43 @@ data class SabrContext(
  * top-level string nor a `&pot=` URL param
  */
 data class StreamerContext(
-    val clientInfo: ClientInfo? = null,            // field 1
-    val poToken: ByteArray = ByteArray(0),         // field 2 (bytes)
-    val playbackCookie: ByteArray = ByteArray(0),  // field 3
+    val clientInfo: ClientInfo? = null, // field 1
+    val poToken: ByteArray = ByteArray(0), // field 2 (bytes)
+    val playbackCookie: ByteArray = ByteArray(0), // field 3
     val sabrContexts: List<SabrContext> = emptyList(), // field 5 (repeated)
-    val unsentSabrContextTypes: List<Int> = emptyList() // field 6 (repeated int32)
+    val unsentSabrContextTypes: List<Int> = emptyList(), // field 6 (repeated int32)
 ) {
-    fun encode(): ByteArray = ProtobufWriter.encode {
-        clientInfo?.let { writeBytes(1, it.encode()) }
-        if (poToken.isNotEmpty()) writeBytes(2, poToken)
-        if (playbackCookie.isNotEmpty()) writeBytes(3, playbackCookie)
-        sabrContexts.forEach { writeBytes(5, it.encode()) }
-        unsentSabrContextTypes.forEach { writeInt32(6, it) }
-    }
+    fun encode(): ByteArray =
+        ProtobufWriter.encode {
+            clientInfo?.let { writeBytes(1, it.encode()) }
+            if (poToken.isNotEmpty()) writeBytes(2, poToken)
+            if (playbackCookie.isNotEmpty()) writeBytes(3, playbackCookie)
+            sabrContexts.forEach { writeBytes(5, it.encode()) }
+            unsentSabrContextTypes.forEach { writeInt32(6, it) }
+        }
 }
 
- // VideoPlaybackAbrRequest — field numbers per LuanRT/googlevideo `video_playback_abr_request.proto`
+// VideoPlaybackAbrRequest — field numbers per LuanRT/googlevideo `video_playback_abr_request.proto`
 
 data class VideoPlaybackAbrRequest(
-    val clientAbrState: ClientAbrState? = null,             // field 1
-    val selectedFormatIds: List<FormatId> = emptyList(),    // field 2 (repeated, server-initialized formats)
+    val clientAbrState: ClientAbrState? = null, // field 1
+    val selectedFormatIds: List<FormatId> = emptyList(), // field 2 (repeated, server-initialized formats)
     val bufferedRanges: List<FormatBufferedRange> = emptyList(), // field 3 (repeated)
-    val playerTimeMs: Long = 0,                             // field 4
+    val playerTimeMs: Long = 0, // field 4
     val videoPlaybackUstreamerConfig: ByteArray = ByteArray(0), // field 5
-    val preferredAudioFormatIds: List<FormatId> = emptyList(),  // field 16 (repeated)
-    val preferredVideoFormatIds: List<FormatId> = emptyList(),  // field 17 (repeated)
-    val streamerContext: StreamerContext? = null            // field 19
+    val preferredAudioFormatIds: List<FormatId> = emptyList(), // field 16 (repeated)
+    val preferredVideoFormatIds: List<FormatId> = emptyList(), // field 17 (repeated)
+    val streamerContext: StreamerContext? = null, // field 19
 ) {
-    fun encode(): ByteArray = ProtobufWriter.encode {
-        clientAbrState?.let { writeBytes(1, it.encode()) }
-        selectedFormatIds.forEach { writeBytes(2, it.encode()) }
-        bufferedRanges.forEach { writeBytes(3, it.encode()) }
-        if (playerTimeMs != 0L) writeInt64(4, playerTimeMs)
-        if (videoPlaybackUstreamerConfig.isNotEmpty()) writeBytes(5, videoPlaybackUstreamerConfig)
-        preferredAudioFormatIds.forEach { writeBytes(16, it.encode()) }
-        preferredVideoFormatIds.forEach { writeBytes(17, it.encode()) }
-        streamerContext?.let { writeBytes(19, it.encode()) }
-    }
+    fun encode(): ByteArray =
+        ProtobufWriter.encode {
+            clientAbrState?.let { writeBytes(1, it.encode()) }
+            selectedFormatIds.forEach { writeBytes(2, it.encode()) }
+            bufferedRanges.forEach { writeBytes(3, it.encode()) }
+            if (playerTimeMs != 0L) writeInt64(4, playerTimeMs)
+            if (videoPlaybackUstreamerConfig.isNotEmpty()) writeBytes(5, videoPlaybackUstreamerConfig)
+            preferredAudioFormatIds.forEach { writeBytes(16, it.encode()) }
+            preferredVideoFormatIds.forEach { writeBytes(17, it.encode()) }
+            streamerContext?.let { writeBytes(19, it.encode()) }
+        }
 }

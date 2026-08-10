@@ -35,21 +35,21 @@ import java.util.concurrent.atomic.AtomicInteger
  * - Load balancing across available cores
  */
 object PerformanceDispatcher {
-
     // Get available processors for optimal thread allocation
     private val availableProcessors = Runtime.getRuntime().availableProcessors()
 
     // Network I/O dispatcher - Optimized for high-concurrency network operations
     // Uses more threads than CPU cores since network ops are I/O bound, but keeps
     // TLS/socket allocation pressure bounded on 256 MB heap devices.
-    private val networkExecutor = Executors.newFixedThreadPool(
-        (availableProcessors * 2).coerceIn(4, 16)
-    ) { runnable ->
-        Thread(runnable, "FlowNetwork-${networkThreadCounter.incrementAndGet()}").apply {
-            isDaemon = true
-            priority = Thread.NORM_PRIORITY
+    private val networkExecutor =
+        Executors.newFixedThreadPool(
+            (availableProcessors * 2).coerceIn(4, 16),
+        ) { runnable ->
+            Thread(runnable, "FlowNetwork-${networkThreadCounter.incrementAndGet()}").apply {
+                isDaemon = true
+                priority = Thread.NORM_PRIORITY
+            }
         }
-    }
     private val networkThreadCounter = AtomicInteger(0)
 
     /**
@@ -86,21 +86,23 @@ object PerformanceDispatcher {
      */
     suspend fun <T> parallelFetch(
         vararg tasks: suspend () -> T?,
-        timeoutMs: Long = 30_000L
-    ): List<T?> = supervisorScope {
-        tasks.map { task ->
-            async(networkIO) {
-                withTimeoutOrNull(timeoutMs) {
-                    try {
-                        task()
-                    } catch (e: Exception) {
-                        android.util.Log.w("PerformanceDispatcher", "Parallel task failed: ${e.message}")
-                        null
+        timeoutMs: Long = 30_000L,
+    ): List<T?> =
+        supervisorScope {
+            tasks
+                .map { task ->
+                    async(networkIO) {
+                        withTimeoutOrNull(timeoutMs) {
+                            try {
+                                task()
+                            } catch (e: Exception) {
+                                android.util.Log.w("PerformanceDispatcher", "Parallel task failed: ${e.message}")
+                                null
+                            }
+                        }
                     }
-                }
-            }
-        }.awaitAll()
-    }
+                }.awaitAll()
+        }
 
     /**
      * Execute multiple network tasks in parallel and collect non-null results
@@ -111,7 +113,7 @@ object PerformanceDispatcher {
      */
     suspend fun <T : Any> parallelFetchNonNull(
         vararg tasks: suspend () -> T?,
-        timeoutMs: Long = 30_000L
+        timeoutMs: Long = 30_000L,
     ): List<T> = parallelFetch(*tasks, timeoutMs = timeoutMs).filterNotNull()
 
     /**
@@ -125,23 +127,26 @@ object PerformanceDispatcher {
     suspend fun <T, R> parallelMap(
         items: List<T>,
         concurrencyLimit: Int = 6,
-        transform: suspend (T) -> R?
-    ): List<R> = supervisorScope {
-        items
-            .chunked(concurrencyLimit)
-            .flatMap { chunk ->
-                chunk.map { item ->
-                    async(networkIO) {
-                        try {
-                            transform(item)
-                        } catch (e: Exception) {
-                            android.util.Log.w("PerformanceDispatcher", "Transform failed: ${e.message}")
-                            null
-                        }
-                    }
-                }.awaitAll().filterNotNull()
-            }
-    }
+        transform: suspend (T) -> R?,
+    ): List<R> =
+        supervisorScope {
+            items
+                .chunked(concurrencyLimit)
+                .flatMap { chunk ->
+                    chunk
+                        .map { item ->
+                            async(networkIO) {
+                                try {
+                                    transform(item)
+                                } catch (e: Exception) {
+                                    android.util.Log.w("PerformanceDispatcher", "Transform failed: ${e.message}")
+                                    null
+                                }
+                            }
+                        }.awaitAll()
+                        .filterNotNull()
+                }
+        }
 
     /**
      * Execute a task with automatic retry on failure
@@ -154,32 +159,34 @@ object PerformanceDispatcher {
         maxAttempts: Int = 3,
         initialDelayMs: Long = 500L,
         maxDelayMs: Long = 5000L,
-        task: suspend () -> T
-    ): T? = withContext(networkIO) {
-        var currentDelay = initialDelayMs
-        repeat(maxAttempts) { attempt ->
-            try {
-                return@withContext task()
-            } catch (e: Exception) {
-                android.util.Log.w("PerformanceDispatcher", "Attempt ${attempt + 1}/$maxAttempts failed: ${e.message}")
-                if (attempt < maxAttempts - 1) {
-                    kotlinx.coroutines.delay(currentDelay)
-                    currentDelay = (currentDelay * 2).coerceAtMost(maxDelayMs)
+        task: suspend () -> T,
+    ): T? =
+        withContext(networkIO) {
+            var currentDelay = initialDelayMs
+            repeat(maxAttempts) { attempt ->
+                try {
+                    return@withContext task()
+                } catch (e: Exception) {
+                    android.util.Log.w("PerformanceDispatcher", "Attempt ${attempt + 1}/$maxAttempts failed: ${e.message}")
+                    if (attempt < maxAttempts - 1) {
+                        kotlinx.coroutines.delay(currentDelay)
+                        currentDelay = (currentDelay * 2).coerceAtMost(maxDelayMs)
+                    }
                 }
             }
+            null
         }
-        null
-    }
 
     /**
      * Execute a task with timeout protection
      */
     suspend fun <T> withTimeout(
         timeoutMs: Long,
-        task: suspend () -> T
-    ): T? = withTimeoutOrNull(timeoutMs) {
-        withContext(networkIO) { task() }
-    }
+        task: suspend () -> T,
+    ): T? =
+        withTimeoutOrNull(timeoutMs) {
+            withContext(networkIO) { task() }
+        }
 
     /**
      * Batch fetch with automatic chunking and parallel execution
@@ -188,23 +195,27 @@ object PerformanceDispatcher {
     suspend fun <T, R> batchFetch(
         items: List<T>,
         chunkSize: Int = 4,
-        fetchFn: suspend (T) -> R?
-    ): List<R> = supervisorScope {
-        val results = mutableListOf<R>()
-        items.chunked(chunkSize).forEach { chunk ->
-            val chunkResults = chunk.map { item ->
-                async(networkIO) {
-                    try {
-                        fetchFn(item)
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-            }.awaitAll().filterNotNull()
-            results.addAll(chunkResults)
+        fetchFn: suspend (T) -> R?,
+    ): List<R> =
+        supervisorScope {
+            val results = mutableListOf<R>()
+            items.chunked(chunkSize).forEach { chunk ->
+                val chunkResults =
+                    chunk
+                        .map { item ->
+                            async(networkIO) {
+                                try {
+                                    fetchFn(item)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                        }.awaitAll()
+                        .filterNotNull()
+                results.addAll(chunkResults)
+            }
+            results
         }
-        results
-    }
 
     /**
      * Race multiple tasks and return the first successful result
@@ -212,31 +223,33 @@ object PerformanceDispatcher {
      */
     suspend fun <T> race(
         vararg tasks: suspend () -> T?,
-        timeoutMs: Long = 10_000L
-    ): T? = supervisorScope {
-        val deferreds = tasks.map { task ->
-            async(networkIO) {
-                withTimeoutOrNull(timeoutMs) {
-                    try {
-                        task()
-                    } catch (e: Exception) {
-                        null
+        timeoutMs: Long = 10_000L,
+    ): T? =
+        supervisorScope {
+            val deferreds =
+                tasks.map { task ->
+                    async(networkIO) {
+                        withTimeoutOrNull(timeoutMs) {
+                            try {
+                                task()
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        // Wait for first non-null result
-        for (deferred in deferreds) {
-            val result = deferred.await()
-            if (result != null) {
-                // Cancel remaining tasks
-                deferreds.forEach { it.cancel() }
-                return@supervisorScope result
+            // Wait for first non-null result
+            for (deferred in deferreds) {
+                val result = deferred.await()
+                if (result != null) {
+                    // Cancel remaining tasks
+                    deferreds.forEach { it.cancel() }
+                    return@supervisorScope result
+                }
             }
+            null
         }
-        null
-    }
 
     /**
      * Cleanup resources when app is destroyed

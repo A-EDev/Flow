@@ -24,32 +24,32 @@ import io.github.aedev.flow.ui.theme.Dimensions
 fun MoodAndGenresButton(
     title: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-
     Box(
-        modifier = modifier
-            .height(56.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(color= MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-            .clickable(onClick = onClick)
+        modifier =
+            modifier
+                .height(56.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-
             // The Text
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.5.sp
-                ),
+                style =
+                    MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.5.sp,
+                    ),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
     }
@@ -63,42 +63,45 @@ fun ContentFilterChip(
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isSelected: Boolean = false
+    isSelected: Boolean = false,
 ) {
-    val backgroundColor = if (isSelected) {
-        MaterialTheme.colorScheme.onSurface
-    } else {
-        // FIXED: Using surface instead of surfaceContainer
-        MaterialTheme.colorScheme.surface
-    }
+    val backgroundColor =
+        if (isSelected) {
+            MaterialTheme.colorScheme.onSurface
+        } else {
+            // FIXED: Using surface instead of surfaceContainer
+            MaterialTheme.colorScheme.surface
+        }
 
-    val textColor = if (isSelected) {
-        MaterialTheme.colorScheme.inverseOnSurface
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val textColor =
+        if (isSelected) {
+            MaterialTheme.colorScheme.inverseOnSurface
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        }
 
     Box(
-        modifier = modifier
-            .height(36.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(backgroundColor)
-            .border(
-                width = 1.dp,
-                color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .height(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(backgroundColor)
+                .border(
+                    width = 1.dp,
+                    color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(12.dp),
+                ).clickable(onClick = onClick)
+                .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.SemiBold
-            ),
+            style =
+                MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                ),
             color = textColor,
-            maxLines = 1
+            maxLines = 1,
         )
     }
 }

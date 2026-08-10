@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material.icons.rounded.Pause
@@ -25,9 +28,6 @@ import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material.icons.filled.PlaylistAdd
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,16 +47,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SliderStyle
+import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.music.player.components.PlayerSliderTrack
 import io.github.aedev.flow.ui.screens.music.player.components.SquigglySlider
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
 
 @Composable
 fun PlayerPlaybackControls(
@@ -65,12 +64,12 @@ fun PlayerPlaybackControls(
     onPreviousClick: () -> Unit,
     onPlayPauseToggle: () -> Unit,
     onNextClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         val previousInteractionSource = remember { MutableInteractionSource() }
         val nextInteractionSource = remember { MutableInteractionSource() }
@@ -82,45 +81,49 @@ fun PlayerPlaybackControls(
         val elasticSpec = spring<Float>(dampingRatio = 0.62f, stiffness = 720f)
 
         val playPauseWeight by animateFloatAsState(
-            targetValue = if (isPressed) {
-                1.9f
-            } else if (isPreviousPressed || isNextPressed) {
-                1.1f
-            } else {
-                1.3f
-            },
+            targetValue =
+                if (isPressed) {
+                    1.9f
+                } else if (isPreviousPressed || isNextPressed) {
+                    1.1f
+                } else {
+                    1.3f
+                },
             animationSpec = elasticSpec,
-            label = "playPauseWeight"
+            label = "playPauseWeight",
         )
         val previousWeight by animateFloatAsState(
-            targetValue = if (isPreviousPressed) {
-                0.65f
-            } else if (isPressed) {
-                0.35f
-            } else {
-                0.45f
-            },
+            targetValue =
+                if (isPreviousPressed) {
+                    0.65f
+                } else if (isPressed) {
+                    0.35f
+                } else {
+                    0.45f
+                },
             animationSpec = elasticSpec,
-            label = "previousWeight"
+            label = "previousWeight",
         )
         val nextWeight by animateFloatAsState(
-            targetValue = if (isNextPressed) {
-                0.65f
-            } else if (isPressed) {
-                0.35f
-            } else {
-                0.45f
-            },
+            targetValue =
+                if (isNextPressed) {
+                    0.65f
+                } else if (isPressed) {
+                    0.35f
+                } else {
+                    0.45f
+                },
             animationSpec = elasticSpec,
-            label = "nextWeight"
+            label = "nextWeight",
         )
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(68.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(68.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             ElasticControlButton(
                 weight = previousWeight,
@@ -131,7 +134,7 @@ fun PlayerPlaybackControls(
                 onPressedChange = { isPreviousPressed = it },
                 containerColor = Color.White.copy(alpha = 0.12f),
                 contentColor = Color.White,
-                iconSize = 30.dp
+                iconSize = 30.dp,
             )
 
             ElasticControlButton(
@@ -144,7 +147,7 @@ fun PlayerPlaybackControls(
                 containerColor = Color.White,
                 contentColor = Color.Black,
                 iconSize = 36.dp,
-                isBuffering = isBuffering
+                isBuffering = isBuffering,
             )
 
             ElasticControlButton(
@@ -156,7 +159,7 @@ fun PlayerPlaybackControls(
                 onPressedChange = { isNextPressed = it },
                 containerColor = Color.White.copy(alpha = 0.12f),
                 contentColor = Color.White,
-                iconSize = 30.dp
+                iconSize = 30.dp,
             )
         }
     }
@@ -174,19 +177,19 @@ fun PlayerSecondaryActions(
     onRepeatClick: () -> Unit,
     onQueueClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         SecondaryActionButton(
             icon = Icons.Outlined.Lyrics,
             contentDescription = stringResource(R.string.lyrics),
             isActive = lyricsActive,
             activeColor = accentColor,
-            onClick = onLyricsClick
+            onClick = onLyricsClick,
         )
         Spacer(modifier = Modifier.width(8.dp))
         SecondaryActionButton(
@@ -194,19 +197,20 @@ fun PlayerSecondaryActions(
             contentDescription = stringResource(R.string.shuffle),
             isActive = shuffleEnabled,
             activeColor = accentColor,
-            onClick = onShuffleClick
+            onClick = onShuffleClick,
         )
         Spacer(modifier = Modifier.width(8.dp))
         SecondaryActionButton(
-            icon = when (repeatMode) {
-                RepeatMode.ONE -> Icons.Rounded.RepeatOne
-                RepeatMode.ALL -> Icons.Rounded.Repeat
-                else -> Icons.Rounded.Repeat
-            },
+            icon =
+                when (repeatMode) {
+                    RepeatMode.ONE -> Icons.Rounded.RepeatOne
+                    RepeatMode.ALL -> Icons.Rounded.Repeat
+                    else -> Icons.Rounded.Repeat
+                },
             contentDescription = stringResource(R.string.repeat),
             isActive = repeatMode != RepeatMode.OFF,
             activeColor = accentColor,
-            onClick = onRepeatClick
+            onClick = onRepeatClick,
         )
         Spacer(modifier = Modifier.width(8.dp))
         SecondaryActionButton(
@@ -214,7 +218,7 @@ fun PlayerSecondaryActions(
             contentDescription = stringResource(R.string.playlist_queue),
             isActive = false,
             activeColor = accentColor,
-            onClick = onQueueClick
+            onClick = onQueueClick,
         )
         Spacer(modifier = Modifier.width(8.dp))
         SecondaryActionButton(
@@ -222,7 +226,7 @@ fun PlayerSecondaryActions(
             contentDescription = stringResource(R.string.sleep_timer),
             isActive = sleepTimerActive,
             activeColor = accentColor,
-            onClick = onSleepTimerClick
+            onClick = onSleepTimerClick,
         )
     }
 }
@@ -233,33 +237,35 @@ private fun SecondaryActionButton(
     contentDescription: String?,
     isActive: Boolean,
     activeColor: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.82f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 420f),
-        label = "secondaryActionScale"
+        label = "secondaryActionScale",
     )
     IconButton(
         onClick = onClick,
         interactionSource = interactionSource,
-        colors = IconButtonDefaults.iconButtonColors(
-            containerColor = if (isActive) activeColor.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f),
-            contentColor = if (isActive) activeColor else Color.White.copy(alpha = 0.68f)
-        ),
-        modifier = Modifier
-            .size(48.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+        colors =
+            IconButtonDefaults.iconButtonColors(
+                containerColor = if (isActive) activeColor.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f),
+                contentColor = if (isActive) activeColor else Color.White.copy(alpha = 0.68f),
+            ),
+        modifier =
+            Modifier
+                .size(48.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(23.dp)
+            modifier = Modifier.size(23.dp),
         )
     }
 }
@@ -275,43 +281,43 @@ private fun RowScope.ElasticControlButton(
     containerColor: Color,
     contentColor: Color,
     iconSize: Dp,
-    isBuffering: Boolean = false
+    isBuffering: Boolean = false,
 ) {
     Box(
-        modifier = Modifier
-            .weight(weight)
-            .fillMaxHeight()
-            .clip(RoundedCornerShape(50))
-            .background(containerColor)
-            .pointerInput(onPressedChange) {
-                awaitEachGesture {
-                    try {
-                        awaitFirstDown(requireUnconsumed = false)
-                        onPressedChange(true)
-                        waitForUpOrCancellation()
-                    } finally {
-                        onPressedChange(false)
+        modifier =
+            Modifier
+                .weight(weight)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(50))
+                .background(containerColor)
+                .pointerInput(onPressedChange) {
+                    awaitEachGesture {
+                        try {
+                            awaitFirstDown(requireUnconsumed = false)
+                            onPressedChange(true)
+                            waitForUpOrCancellation()
+                        } finally {
+                            onPressedChange(false)
+                        }
                     }
-                }
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) { onClick() },
-        contentAlignment = Alignment.Center
+                }.clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                ) { onClick() },
+        contentAlignment = Alignment.Center,
     ) {
         if (isBuffering) {
             CircularProgressIndicator(
                 modifier = Modifier.size(28.dp),
                 color = contentColor,
-                strokeWidth = 3.dp
+                strokeWidth = 3.dp,
             )
         } else {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = contentColor,
-                modifier = Modifier.size(iconSize)
+                modifier = Modifier.size(iconSize),
             )
         }
     }
@@ -324,7 +330,7 @@ fun PlayerProgressSlider(
     duration: Long,
     onSeekTo: (Long) -> Unit,
     isPlaying: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val currentPosition = positionProvider()
     val interactionSource = remember { MutableInteractionSource() }
@@ -336,11 +342,12 @@ fun PlayerProgressSlider(
     var clearSeekPreviewJob by remember { mutableStateOf<Job?>(null) }
     val sliderEnd = duration.toFloat().coerceAtPositive(1f)
     val isInteracting = isDragged || isPressed || isSeeking
-    val displayedPosition = if (isInteracting) {
-        seekPreviewPosition.coerceIn(0f, sliderEnd)
-    } else {
-        currentPosition.toFloat().coerceIn(0f, sliderEnd)
-    }
+    val displayedPosition =
+        if (isInteracting) {
+            seekPreviewPosition.coerceIn(0f, sliderEnd)
+        } else {
+            currentPosition.toFloat().coerceIn(0f, sliderEnd)
+        }
     val displayedPositionMs = displayedPosition.toLong()
 
     LaunchedEffect(currentPosition, sliderEnd, isInteracting) {
@@ -352,12 +359,12 @@ fun PlayerProgressSlider(
     val animatedTrackHeight by animateDpAsState(
         targetValue = if (isInteracting) 16.dp else 12.dp,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "trackHeight"
+        label = "trackHeight",
     )
 
     val thumbAlpha by animateFloatAsState(
         targetValue = if (isInteracting) 1f else 0f,
-        label = "thumbAlpha"
+        label = "thumbAlpha",
     )
 
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -366,10 +373,11 @@ fun PlayerProgressSlider(
     val squigglyEnabled by preferences.squigglySliderEnabled.collectAsState(initial = false)
 
     Column(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Box(contentAlignment = Alignment.Center) {
             val haptic = LocalHapticFeedback.current
+
             fun handleSeekPreview(value: Float) {
                 clearSeekPreviewJob?.cancel()
                 seekPreviewPosition = value.coerceIn(0f, sliderEnd)
@@ -382,10 +390,11 @@ fun PlayerProgressSlider(
                     onSeekTo(seekPreviewPosition.toLong())
                 }
                 clearSeekPreviewJob?.cancel()
-                clearSeekPreviewJob = seekPreviewScope.launch {
-                    delay(200)
-                    isSeeking = false
-                }
+                clearSeekPreviewJob =
+                    seekPreviewScope.launch {
+                        delay(200)
+                        isSeeking = false
+                    }
             }
 
             when (sliderStyle) {
@@ -397,50 +406,58 @@ fun PlayerProgressSlider(
                         onValueChangeFinished = { commitSeekPreview() },
                         valueRange = 0f..sliderEnd,
                         interactionSource = interactionSource,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
+                        colors =
+                            SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                            ),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
                     )
                 }
+
                 SliderStyle.METROLIST_SLIM -> {
                     // Metrolist Slim Style
-                     Slider(
+                    Slider(
                         value = displayedPosition,
                         onValueChange = { handleSeekPreview(it) },
                         onValueChangeFinished = { commitSeekPreview() },
                         valueRange = 0f..sliderEnd,
                         interactionSource = interactionSource,
-                         colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(24.dp)
+                        colors =
+                            SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                            ),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(24.dp),
                     )
                 }
+
                 SliderStyle.SQUIGGLY -> {
-                     SquigglySlider(
+                    SquigglySlider(
                         value = displayedPosition,
                         onValueChange = { handleSeekPreview(it) },
                         onValueChangeFinished = { commitSeekPreview() },
                         valueRange = 0f..sliderEnd,
-                        colors = SliderDefaults.colors(
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.3f),
-                            thumbColor = Color.White
-                        ),
-                        isPlaying = isPlaying
+                        colors =
+                            SliderDefaults.colors(
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                                thumbColor = Color.White,
+                            ),
+                        isPlaying = isPlaying,
                     )
                 }
+
                 SliderStyle.SLIM -> {
-                     Slider(
+                    Slider(
                         value = displayedPosition,
                         onValueChange = { handleSeekPreview(it) },
                         onValueChangeFinished = { commitSeekPreview() },
@@ -450,18 +467,21 @@ fun PlayerProgressSlider(
                         track = { sliderState ->
                             PlayerSliderTrack(
                                 sliderState = sliderState,
-                                colors = SliderDefaults.colors(
-                                    activeTrackColor = Color.White,
-                                    inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                                ),
-                                trackHeight = 4.dp
+                                colors =
+                                    SliderDefaults.colors(
+                                        activeTrackColor = Color.White,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                                    ),
+                                trackHeight = 4.dp,
                             )
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(12.dp)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(12.dp),
                     )
                 }
+
                 SliderStyle.DEFAULT -> {
                     Slider(
                         value = displayedPosition,
@@ -469,50 +489,55 @@ fun PlayerProgressSlider(
                         onValueChangeFinished = { commitSeekPreview() },
                         valueRange = 0f..sliderEnd,
                         interactionSource = interactionSource,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.Transparent,
-                            activeTrackColor = Color.Transparent,
-                            inactiveTrackColor = Color.Transparent
-                        ),
+                        colors =
+                            SliderDefaults.colors(
+                                thumbColor = Color.Transparent,
+                                activeTrackColor = Color.Transparent,
+                                inactiveTrackColor = Color.Transparent,
+                            ),
                         thumb = {
                             Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .graphicsLayer { alpha = thumbAlpha }
-                                    .shadow(8.dp, CircleShape)
-                                    .background(Color.White, CircleShape)
+                                modifier =
+                                    Modifier
+                                        .size(24.dp)
+                                        .graphicsLayer { alpha = thumbAlpha }
+                                        .shadow(8.dp, CircleShape)
+                                        .background(Color.White, CircleShape),
                             )
                         },
                         track = {
                             val fraction = if (duration > 0) displayedPosition / sliderEnd else 0f
 
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(animatedTrackHeight)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color.White.copy(alpha = 0.15f))
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(animatedTrackHeight)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color.White.copy(alpha = 0.15f)),
                             ) {
                                 // Active Track
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(fraction)
-                                        .fillMaxHeight()
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(
-                                            Brush.horizontalGradient(
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.8f),
-                                                    Color.White
-                                                )
-                                            )
-                                        )
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth(fraction)
+                                            .fillMaxHeight()
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(
+                                                Brush.horizontalGradient(
+                                                    listOf(
+                                                        Color.White.copy(alpha = 0.8f),
+                                                        Color.White,
+                                                    ),
+                                                ),
+                                            ),
                                 )
                             }
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(24.dp)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(24.dp),
                     )
                 }
             }
@@ -522,27 +547,25 @@ fun PlayerProgressSlider(
 
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 formatTime(displayedPositionMs),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (isInteracting) Color.White else Color.White.copy(alpha = 0.5f),
-                fontWeight = if (isInteracting) FontWeight.Bold else FontWeight.Medium
+                fontWeight = if (isInteracting) FontWeight.Bold else FontWeight.Medium,
             )
             Text(
                 formatTime(duration),
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.White.copy(alpha = 0.5f),
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
             )
         }
     }
 }
 
-private fun Float.coerceAtPositive(minimumValue: Float): Float {
-    return if (this < minimumValue) minimumValue else this
-}
+private fun Float.coerceAtPositive(minimumValue: Float): Float = if (this < minimumValue) minimumValue else this
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -553,32 +576,32 @@ fun PlayerMainActionButtons(
     onDownloadClick: () -> Unit,
     onAddToPlaylist: () -> Unit,
     accentColor: Color = MaterialTheme.colorScheme.primary,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(32.dp))
-            .background(Color.White.copy(alpha = 0.08f))
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(32.dp)
-            )
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(32.dp))
+                .background(Color.White.copy(alpha = 0.08f))
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(32.dp),
+                ).padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // Download Button
         val downloadInteractionSource = remember { MutableInteractionSource() }
         IconButton(
             onClick = onDownloadClick,
             modifier = Modifier.size(40.dp).pressScale(downloadInteractionSource),
-            interactionSource = downloadInteractionSource
+            interactionSource = downloadInteractionSource,
         ) {
             Icon(
                 imageVector = if (isDownloaded) Icons.Rounded.OfflinePin else Icons.Outlined.Download,
                 contentDescription = stringResource(R.string.download),
                 tint = if (isDownloaded) accentColor else Color.White,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
         }
 
@@ -586,10 +609,11 @@ fun PlayerMainActionButtons(
 
         // Divider
         Box(
-            modifier = Modifier
-                .width(1.dp)
-                .height(16.dp)
-                .background(Color.White.copy(alpha = 0.2f))
+            modifier =
+                Modifier
+                    .width(1.dp)
+                    .height(16.dp)
+                    .background(Color.White.copy(alpha = 0.2f)),
         )
 
         Spacer(modifier = Modifier.width(2.dp))
@@ -598,34 +622,41 @@ fun PlayerMainActionButtons(
         val likeInteractionSource = remember { MutableInteractionSource() }
         val isLikePressed by likeInteractionSource.collectIsPressedAsState()
         val likeScale by animateFloatAsState(
-            targetValue = if (isLikePressed) 0.8f else if (isLiked) 1.2f else 1f,
+            targetValue =
+                if (isLikePressed) {
+                    0.8f
+                } else if (isLiked) {
+                    1.2f
+                } else {
+                    1f
+                },
             animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-            label = "likeScale"
+            label = "likeScale",
         )
         // Reset the bounce effect
         val finalLikeScale = if (likeScale > 1f) 1f else likeScale
 
         Box(
-            modifier = Modifier
-                .size(40.dp)
-                .graphicsLayer {
-                    scaleX = likeScale
-                    scaleY = likeScale
-                }
-                .clip(CircleShape)
-                .combinedClickable(
-                    interactionSource = likeInteractionSource,
-                    indication = LocalIndication.current,
-                    onClick = onLikeClick,
-                    onLongClick = onAddToPlaylist
-                ),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .size(40.dp)
+                    .graphicsLayer {
+                        scaleX = likeScale
+                        scaleY = likeScale
+                    }.clip(CircleShape)
+                    .combinedClickable(
+                        interactionSource = likeInteractionSource,
+                        indication = LocalIndication.current,
+                        onClick = onLikeClick,
+                        onLongClick = onAddToPlaylist,
+                    ),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                 contentDescription = stringResource(R.string.like),
                 tint = if (isLiked) accentColor else Color.White,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
         }
     }
@@ -636,7 +667,7 @@ fun PlayerLyricsRefreshButton(
     isLoading: Boolean,
     accentColor: Color,
     onRefresh: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val rotation = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
@@ -647,7 +678,7 @@ fun PlayerLyricsRefreshButton(
                 rotation.snapTo(0f)
                 rotation.animateTo(
                     targetValue = 360f,
-                    animationSpec = tween(durationMillis = 900, easing = LinearEasing)
+                    animationSpec = tween(durationMillis = 900, easing = LinearEasing),
                 )
             }
         } else {
@@ -658,16 +689,16 @@ fun PlayerLyricsRefreshButton(
     val interactionSource = remember { MutableInteractionSource() }
 
     Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(32.dp))
-            .background(Color.White.copy(alpha = 0.08f))
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(32.dp)
-            )
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(32.dp))
+                .background(Color.White.copy(alpha = 0.08f))
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(32.dp),
+                ).padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(
             onClick = {
@@ -676,24 +707,26 @@ fun PlayerLyricsRefreshButton(
                         rotation.snapTo(0f)
                         rotation.animateTo(
                             targetValue = 360f,
-                            animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing)
+                            animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
                         )
                     }
                     onRefresh()
                 }
             },
-            modifier = Modifier
-                .size(40.dp)
-                .pressScale(interactionSource),
-            interactionSource = interactionSource
+            modifier =
+                Modifier
+                    .size(40.dp)
+                    .pressScale(interactionSource),
+            interactionSource = interactionSource,
         ) {
             Icon(
                 imageVector = Icons.Rounded.Refresh,
                 contentDescription = stringResource(R.string.refresh_lyrics),
                 tint = if (isLoading) accentColor else Color.White,
-                modifier = Modifier
-                    .size(22.dp)
-                    .graphicsLayer { rotationZ = rotation.value }
+                modifier =
+                    Modifier
+                        .size(22.dp)
+                        .graphicsLayer { rotationZ = rotation.value },
             )
         }
     }
