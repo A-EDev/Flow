@@ -1222,6 +1222,8 @@ class VideoPlayerViewModel @Inject constructor(
                                 Log.w("VideoPlayerViewModel", "Stream info fetch failed (attempt $attempt), retrying in ${attempt * 300}ms...")
                                 delay(attempt * 300L)
                             }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
                         } catch (e: org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException) {
                             Log.e("VideoPlayerViewModel", "Content restriction for $videoId: ${e.javaClass.simpleName}: ${e.message}")
                             lastError = e

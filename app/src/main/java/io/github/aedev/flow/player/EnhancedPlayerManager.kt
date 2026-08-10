@@ -3298,9 +3298,10 @@ class EnhancedPlayerManager private constructor() {
 
     fun clearCache() = cacheManager?.clearCache()
 
-    fun clearCacheForCurrentVideo() {
+
+    suspend fun clearCacheForCurrentVideo() {
         Log.d(TAG, "Clearing media cache due to persistent stream errors")
-        cacheManager?.clearCache()
+        withContext(Dispatchers.IO) { cacheManager?.clearCache() }
     }
 
     fun startBackgroundService(

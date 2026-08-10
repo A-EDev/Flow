@@ -38,6 +38,8 @@ object SabrMediaSourceFactory {
                 this.selectedVideoItag = info.videoItag
                 this.selectedVideoLmt = info.videoLmt
                 this.audioTrackId = info.audioTrackId
+                this.selectedAudioXtags = info.audioXtags
+                this.selectedVideoXtags = info.videoXtags
                 // stickyResolution = the user's explicit pick (0 in auto); selectedVideoHeight is
                 // the actual chosen format height, used to floor sticky_resolution so auto mode
                 // still asks the server for full quality instead of dropping to 360p.

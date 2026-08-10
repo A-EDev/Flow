@@ -12,6 +12,8 @@ data class SabrStreamInfo(
     val audioLmt: Long,
     val videoItag: Int,
     val videoLmt: Long,
+    val audioXtags: String = "",
+    val videoXtags: String = "",
     val durationMs: Long,
     val poToken: String = "",
     val visitorId: String = "",
@@ -111,6 +113,16 @@ object SabrUrlResolver {
             "Resolved SABR: audioItag=${selectedAudio.itag}, videoItag=${selectedVideo.itag}, " +
                 "video=${selectedVideo.width}x${selectedVideo.height}, duration=${durationMs}ms, ustreamer=${ustreamerConfig.size}B",
         )
+        // Auto-dubbed videos repeat one audio itag per language, so an empty xtags here means the
+        // FormatId we send GVS is ambiguous and the session will die on sabr.no_audio_selected.
+        val dubsSharingItag = audioFormats.count { it.itag == selectedAudio.itag }
+        if (dubsSharingItag > 1 && selectedAudio.xtags.isNullOrEmpty()) {
+            Log.w(
+                TAG,
+                "Audio itag ${selectedAudio.itag} is shared by $dubsSharingItag formats but carries no " +
+                    "xtags — GVS cannot identify the selection",
+            )
+        }
 
         return SabrStreamInfo(
             streamingUrl = sabrUrl,
@@ -118,6 +130,8 @@ object SabrUrlResolver {
             audioLmt = selectedAudio.lastModified ?: 0L,
             videoItag = selectedVideo.itag,
             videoLmt = selectedVideo.lastModified ?: 0L,
+            audioXtags = selectedAudio.xtags.orEmpty(),
+            videoXtags = selectedVideo.xtags.orEmpty(),
             durationMs = durationMs,
             poToken = poToken,
             visitorId = visitorId,
@@ -174,6 +188,8 @@ object SabrUrlResolver {
             audioLmt = selectedAudio.lastModified ?: 0L,
             videoItag = selectedVideo.itag,
             videoLmt = selectedVideo.lastModified ?: 0L,
+            audioXtags = selectedAudio.xtags.orEmpty(),
+            videoXtags = selectedVideo.xtags.orEmpty(),
             durationMs = durationMs,
             poToken = poToken,
             visitorId = visitorId,
