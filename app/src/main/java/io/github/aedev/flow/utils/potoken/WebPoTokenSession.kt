@@ -2,8 +2,11 @@ package io.github.aedev.flow.utils.potoken
 
 import android.util.Log
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -44,20 +47,27 @@ object WebPoTokenSession {
         return mintForVisitorData(videoId, vd)
     }
 
+    private val mintCoalescer =
+        InFlightRequestCoalescer<String, PoTokenResult?>(
+            CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        )
+
     // Mint with a bounded wait for the fast extraction path.
     suspend fun mintBounded(
         videoId: String,
         maxWaitMs: Long = 10_000L,
     ): PoTokenResult? {
         return withTimeoutOrNull(maxWaitMs) {
-            val vd = sessionVisitorData() ?: return@withTimeoutOrNull null
-            try {
-                generator.getWebClientPoTokenSuspend(videoId, vd)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Bounded PoToken mint failed for $videoId: ${e.message}")
-                null
+            mintCoalescer.run(videoId) {
+                val vd = sessionVisitorData() ?: return@run null
+                try {
+                    generator.getWebClientPoTokenSuspend(videoId, vd)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Bounded PoToken mint failed for $videoId: ${e.message}")
+                    null
+                }
             }
         }
     }

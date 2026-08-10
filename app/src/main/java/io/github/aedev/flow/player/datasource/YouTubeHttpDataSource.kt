@@ -1,6 +1,7 @@
 package io.github.aedev.flow.player.datasource
 
 import android.net.Uri
+import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
@@ -10,6 +11,7 @@ import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.player.error.PlayerDiagnostics
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -47,6 +49,7 @@ class YouTubeHttpDataSource private constructor(
     }
 
     companion object {
+        private const val TAG = "YouTubeHttpDataSource"
         private val clientLock = Any()
 
         @Volatile
@@ -103,7 +106,35 @@ class YouTubeHttpDataSource private constructor(
         }
 
         dataSource = factory.createDataSource()
-        return dataSource!!.open(dataSpec)
+        return try {
+            dataSource!!.open(dataSpec)
+        } catch (e: HttpDataSource.InvalidResponseCodeException) {
+            if (e.responseCode == 403) logForbidden(dataSpec)
+            throw e
+        }
+    }
+
+    private fun logForbidden(dataSpec: DataSpec) {
+        val uri = dataSpec.uri
+        val expire = uri.getQueryParameter("expire")?.toLongOrNull()
+        val nowSec = System.currentTimeMillis() / 1000
+        val expiry =
+            when {
+                expire == null -> "expire=absent"
+                expire < nowSec -> "expire=PASSED ${nowSec - expire}s ago"
+                else -> "expire=valid ${expire - nowSec}s left"
+            }
+        Log.w(
+            TAG,
+            "HTTP 403 c=${uri.getQueryParameter("c")} itag=${uri.getQueryParameter("itag")} " +
+                "mime=${uri.getQueryParameter("mime")} pot=${uri.getQueryParameter("pot") != null} " +
+                "range=${dataSpec.position}+${dataSpec.length} $expiry",
+        )
+        PlayerDiagnostics.logWarning(
+            TAG,
+            "403 c=${uri.getQueryParameter("c")} itag=${uri.getQueryParameter("itag")} " +
+                "pot=${uri.getQueryParameter("pot") != null} range=${dataSpec.position}+${dataSpec.length} $expiry",
+        )
     }
 
     override fun read(

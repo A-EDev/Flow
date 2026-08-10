@@ -671,7 +671,7 @@ class ShortsRepository private constructor(
             try {
                 val result =
                     withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                        InnerTubeVideoStreamExtractor.extract(videoId, enumerateAudioTracks = false)
+                        InnerTubeVideoStreamExtractor.extract(videoId)
                     }
                 val formats = result?.videoFormats?.filter { !it.url.isNullOrBlank() }.orEmpty()
                 if (formats.isNotEmpty()) {
@@ -730,7 +730,7 @@ class ShortsRepository private constructor(
                 val empty = emptyList<PlayerResponse.StreamingData.Format>() to emptyList<PlayerResponse.StreamingData.Format>()
                 val result =
                     withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                        InnerTubeVideoStreamExtractor.extract(videoId, enumerateAudioTracks = false)
+                        InnerTubeVideoStreamExtractor.extract(videoId)
                     } ?: return@withContext empty
                 val video = result.videoFormats.filter { !it.url.isNullOrBlank() }
                 val audio = result.audioFormats.filter { !it.url.isNullOrBlank() }
@@ -822,7 +822,7 @@ class ShortsRepository private constructor(
         return try {
             val result =
                 withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                    InnerTubeVideoStreamExtractor.extract(videoId, enumerateAudioTracks = false)
+                    InnerTubeVideoStreamExtractor.extract(videoId)
                 } ?: return null
 
             val videoFormats = result.videoFormats.filter { !it.url.isNullOrBlank() }

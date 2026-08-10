@@ -16,10 +16,10 @@ import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import io.github.aedev.flow.utils.cipher.PipePipeNsigDecoder
+import io.github.aedev.flow.utils.potoken.PoTokenResult
 import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -32,12 +32,15 @@ object InnerTubeVideoStreamExtractor {
     private const val PER_CLIENT_TIMEOUT_MS = 6000L
     private const val WEB_PLAYER_TIMEOUT_MS = 10000L
 
-    // How long a playable ladder will wait for the dubbed-audio list before giving up on it. The
-    // probe runs alongside the client ladder, so by the time this budget starts it has already had
-    // the whole extraction to finish in; this only bounds the tail (a PoToken mint that stalls, a
-    // slow network) so an optional track selector can never hold up first frame indefinitely.
-    private const val AUDIO_TRACK_TOPUP_GRACE_MS = 1200L
+    // How long a confirmed winner will wait for the streaming pot before shipping its
+    // URLs pot-less. The mint starts alongside the ladder, so a warm session is ready well before
+    // any winner and pays nothing here; this only bounds the slow tail (cold WebView, the
+    // low-trust re-attest loop) so first frame is never held open by BotGuard. A pot-less ship is
+    // the pre-fix behavior: the URLs still start instantly, and if GVS cuts them ~60s in the
+    // existing 403 -> reload path re-extracts with the (by then cached) token and recovers.
+    private const val STREAM_POT_ATTACH_GRACE_MS = 2500L
     private val N_PARAM_REGEX = Regex("""(?:^|[?&])n=([^&]+)""")
+    private val POT_PARAM_REGEX = Regex("""[?&]pot=""")
     private val extractionCoalescer =
         InFlightRequestCoalescer<ExtractionKey, VideoExtractionResult?>(
             CoroutineScope(SupervisorJob() + Dispatchers.IO),
@@ -46,7 +49,6 @@ object InnerTubeVideoStreamExtractor {
     private data class ExtractionKey(
         val videoId: String,
         val forceSabr: Boolean,
-        val enumerateAudioTracks: Boolean,
     )
 
     // * Fast, token-free clients tried first. They return direct adaptive URLs (played via normal DASH/progressive) when not bot-walled
@@ -70,14 +72,6 @@ object InnerTubeVideoStreamExtractor {
         listOf(
             YouTubeClient.MOBILE,
             YouTubeClient.ANDROID_CREATOR,
-        )
-
-    // Clients that enumerate every dubbed audio track (with direct URLs), used only to top up a
-    // winner that reported just the default track. See [withCompleteAudioTracks].
-    private val AUDIO_TRACK_CLIENTS: List<YouTubeClient> =
-        listOf(
-            YouTubeClient.IPADOS,
-            YouTubeClient.IOS,
         )
 
     private val SABR_CLIENTS: List<YouTubeClient> =
@@ -105,46 +99,16 @@ object InnerTubeVideoStreamExtractor {
         val liveDashUrl: String? = null,
     )
 
-    /**
-     * @param enumerateAudioTracks whether a track-poor result should be topped up with the full
-     *   dub list ([withCompleteAudioTracks]). Pass false for surfaces with no audio-track selector
-     *   (Shorts), where the extra request would never be used.
-     */
     @OptIn(UnstableApi::class)
     suspend fun extract(
         videoId: String,
         forceSabr: Boolean = false,
-        enumerateAudioTracks: Boolean = true,
     ): VideoExtractionResult? {
-        val key = ExtractionKey(videoId, forceSabr, enumerateAudioTracks)
+        val key = ExtractionKey(videoId, forceSabr)
         return extractionCoalescer.run(key) {
-            extractUnshared(videoId, forceSabr, enumerateAudioTracks)
+            selectStreams(videoId, forceSabr)
         }
     }
-
-    private suspend fun extractUnshared(
-        videoId: String,
-        forceSabr: Boolean,
-        enumerateAudioTracks: Boolean,
-    ): VideoExtractionResult? =
-        coroutineScope {
-            // Launched alongside the client ladder rather than after it: the probe is only needed when
-            // the winner turns out to be track-poor, and overlapping it keeps that discovery off the
-            // critical path to first frame. Cancelled unused in the common case.
-            val audioTrackProbe =
-                if (forceSabr || !enumerateAudioTracks) {
-                    null
-                } else {
-                    async { fetchAudioTrackFormats(videoId) }
-                }
-
-            val result = selectStreams(videoId, forceSabr)
-            if (result == null) {
-                audioTrackProbe?.cancel()
-                return@coroutineScope null
-            }
-            withCompleteAudioTracks(result, audioTrackProbe)
-        }
 
     private suspend fun selectStreams(
         videoId: String,
@@ -206,139 +170,6 @@ object InnerTubeVideoStreamExtractor {
             PlayerDiagnostics.logError(TAG, "ALL clients failed $videoId: ${failureReasons.joinToString(" | ")}")
             null
         }
-
-    /**
-     * Re-sources audio from a track-enumerating client when the winning client exposed only the
-     * default track.
-     *
-     * ANDROID_VR — first in [FAST_CLIENTS] and therefore the usual winner — serves no dubbed audio
-     * formats at all, so a video with 20+ dubs surfaces a single-entry track selector. Reordering
-     * the ladder would fix that but the order is load-bearing (AV1 availability, and direct URLs
-     * that survive GVS enforcement past ~70s), so instead the winner keeps its video ladder and
-     * only its audio list is replaced.
-     *
-     * Replacement rather than merge is deliberate: the winner's untagged formats would otherwise
-     * collapse into an unlabelled extra row alongside the real tracks, and sourcing every track
-     * from one client keeps switching between them homogeneous.
-     *
-     * Fail-open — a timeout, an error, or a probe that is no richer than what we already have
-     * leaves the result untouched, so a video that plays today cannot regress.
-     */
-    private suspend fun withCompleteAudioTracks(
-        result: VideoExtractionResult,
-        probe: Deferred<List<PlayerResponse.StreamingData.Format>>?,
-    ): VideoExtractionResult {
-        if (probe == null) return result
-
-        val exposedTracks = distinctAudioTrackCount(result.audioFormats)
-        val needsTopUp =
-            !result.isLive &&
-                result.usedClient !in AUDIO_TRACK_CLIENTS &&
-                exposedTracks < 2
-        if (!needsTopUp) {
-            probe.cancel()
-            return result
-        }
-
-        val formats =
-            try {
-                awaitWithinGrace(probe, AUDIO_TRACK_TOPUP_GRACE_MS)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Audio track probe failed: ${e.message}")
-                emptyList()
-            }
-        if (formats == null) {
-            // Timed out. The ladder in hand already plays, and the winner's default audio track is
-            // the one that will be selected anyway, so shipping first frame beats a fuller selector.
-            Log.w(
-                TAG,
-                "Audio track probe exceeded ${AUDIO_TRACK_TOPUP_GRACE_MS}ms; " +
-                    "keeping ${result.usedClient.clientName}'s $exposedTracks track(s)",
-            )
-            PlayerDiagnostics.logWarning(TAG, "audio top-up timed out after ${AUDIO_TRACK_TOPUP_GRACE_MS}ms")
-            return result
-        }
-        if (formats.isEmpty()) return result
-
-        val topUpTracks = distinctAudioTrackCount(formats)
-        Log.w(TAG, "Audio top-up: ${result.usedClient.clientName} exposed $exposedTracks track(s), replaced with $topUpTracks")
-        PlayerDiagnostics.logWarning(
-            TAG,
-            "audio top-up ${result.usedClient.clientName}: $exposedTracks -> $topUpTracks tracks",
-        )
-        return result.copy(audioFormats = formats)
-    }
-
-    /** Playable audio formats from the first client that enumerates more than one track. */
-    private suspend fun fetchAudioTrackFormats(videoId: String): List<PlayerResponse.StreamingData.Format> =
-        withContext(Dispatchers.IO) {
-            val sts: Int? =
-                if (AUDIO_TRACK_CLIENTS.any { it.useSignatureTimestamp }) {
-                    NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
-                } else {
-                    null
-                }
-            // Guarded like [sts] above, and for a much sharper reason: minting is a BotGuard
-            // attestation that creates and runs a WebView on Dispatchers.Main. Requesting one for
-            // clients that do not consume it put JS execution on the main thread on every single
-            // video open — competing with Compose, the player callbacks and first frame — and
-            // serialised behind a mutex, so opening videos back to back queued the mints up.
-            // Neither AUDIO_TRACK_CLIENTS entry sets useWebPoTokens, so today this stays null.
-            val poToken =
-                if (AUDIO_TRACK_CLIENTS.any { it.useWebPoTokens }) {
-                    WebPoTokenSession.mintBounded(videoId)?.playerRequestPoToken
-                } else {
-                    null
-                }
-
-            for (client in AUDIO_TRACK_CLIENTS) {
-                try {
-                    val playerResponse =
-                        withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
-                            YouTube
-                                .player(
-                                    videoId,
-                                    client = client,
-                                    signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
-                                    poToken = poToken,
-                                    localeOverride = YouTubeLocale.EXTRACTION,
-                                    apiUrl = YouTubeClient.API_URL_YOUTUBE,
-                                ).getOrNull()
-                        } ?: continue
-
-                    if (playerResponse.playabilityStatus.status != "OK") continue
-
-                    val audioFormats =
-                        playerResponse.streamingData
-                            ?.adaptiveFormats
-                            ?.filter { it.isAudio }
-                            .orEmpty()
-                    if (distinctAudioTrackCount(audioFormats) < 2) continue
-
-                    val playable =
-                        audioFormats.mapNotNull {
-                            it.toPlayableFormat(videoId, allowUntransformedN = false)
-                        }
-                    if (distinctAudioTrackCount(playable) < 2) continue
-
-                    Log.d(TAG, "Audio track probe: ${client.clientName} yielded ${distinctAudioTrackCount(playable)} tracks")
-                    return@withContext playable
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w(TAG, "Audio track probe via ${client.clientName} failed: ${e.message}")
-                }
-            }
-            emptyList()
-        }
-
-    private fun distinctAudioTrackCount(formats: List<PlayerResponse.StreamingData.Format>): Int =
-        formats
-            .mapNotNullTo(mutableSetOf()) {
-                it.audioTrack?.id
-            }.size
 
     private fun resultMode(r: VideoExtractionResult): String =
         when {
@@ -417,180 +248,195 @@ object InnerTubeVideoStreamExtractor {
         failureReasons: MutableList<String>,
         allowUntransformedN: Boolean = false,
         liveDetected: BooleanArray? = null,
-    ): VideoExtractionResult? {
-        val sts: Int? =
-            if (clients.any { it.useSignatureTimestamp }) {
-                NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
-            } else {
-                null
-            }
-
-        // Attested player requests yield direct URLs that survive GVS enforcement; unattested
-        // ones get cut off roughly a minute in (served briefly, then 403 once the buffer drains).
-        //
-        // Minted on first use rather than up front. The three ANDROID_VR entries at the head of
-        // [FAST_CLIENTS] must be called WITHOUT a token (see below) and one of them wins nearly
-        // every extraction, so an eager mint paid for a BotGuard attestation — main-thread JS,
-        // serialised process-wide behind one WebView — and then discarded it. Shorts felt that
-        // hardest, resolving four videos per pager settle.
-        var mintedPoToken: String? = null
-        var mintAttempted = false
-
-        suspend fun playerPoToken(): String? {
-            if (mintAttempted) return mintedPoToken
-            mintAttempted = true
-            mintedPoToken = WebPoTokenSession.mintBounded(videoId)?.playerRequestPoToken
-            if (mintedPoToken == null) {
-                Log.w(TAG, "Direct clients for $videoId running without a player PoToken (mint unavailable in time)")
-                PlayerDiagnostics.logWarning(
-                    TAG,
-                    "fast-path UNATTESTED $videoId (no player PoToken in time) — direct URLs typically 403 ~60s in",
-                )
-            } else {
-                PlayerDiagnostics.logWarning(
-                    TAG,
-                    "fast-path attested $videoId (playerPoToken len=${mintedPoToken?.length})",
-                )
-            }
-            return mintedPoToken
-        }
-
-        for (client in clients) {
-            try {
-                Log.d(TAG, "Trying ${client.clientName} v${client.clientVersion}")
-
-                // ANDROID_VR returns clean direct adaptive formats (that survive GVS past ~70s) ONLY
-                // when called without a PoToken — matching the desktop client (po_token_present=false).
-                // Injecting the WEB-bound BotGuard token makes YT reject the ANDROID_VR request
-                // (non-OK / empty streamingData), which was silently dropping playback onto IOS/IPADOS
-                // direct URLs that GVS cuts off at ~70s. Other fast clients keep the attestation.
-                val isAndroidVr = client.clientName == "ANDROID_VR"
-                val clientPoToken = if (isAndroidVr) null else playerPoToken()
-
-                val playerResponse =
-                    withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
-                        // Force en-US extraction locale so the response is deterministic across regions.
-                        // Route video extraction to www.youtube.com (not the music host): the main site
-                        // serves usable ANDROID_VR direct adaptive formats that survive GVS enforcement,
-                        // instead of the SABR-only responses the music endpoint returns for these clients.
-                        YouTube
-                            .player(
-                                videoId,
-                                client = client,
-                                signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
-                                poToken = clientPoToken,
-                                localeOverride = YouTubeLocale.EXTRACTION,
-                                apiUrl = YouTubeClient.API_URL_YOUTUBE,
-                            ).getOrNull()
-                    }
-
-                if (playerResponse == null) {
-                    failureReasons.add("${client.clientName}: timeout or null response")
-                    PlayerDiagnostics.logWarning(
-                        TAG,
-                        "skip ${client.clientName} v${client.clientVersion}: null/timeout pot=${clientPoToken != null}",
-                    )
-                    continue
+    ): VideoExtractionResult? =
+        coroutineScope {
+            val sts: Int? =
+                if (clients.any { it.useSignatureTimestamp }) {
+                    NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
+                } else {
+                    null
                 }
 
-                val status = playerResponse.playabilityStatus.status
-                if (status != "OK") {
-                    val reason = playerResponse.playabilityStatus.reason
-                    val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
-                    failureReasons.add("${client.clientName}: $tag, reason=$reason")
-                    Log.w(TAG, "${client.clientName}: $tag, reason=$reason")
-                    PlayerDiagnostics.logWarning(
-                        TAG,
-                        "skip ${client.clientName} v${client.clientVersion}: $tag reason=$reason pot=${clientPoToken != null}",
-                    )
-                    continue
-                }
+            // Attested player requests yield direct URLs that survive GVS enforcement; unattested
+            // ones get cut off roughly a minute in (served briefly, then 403 once the buffer drains).
+            val mint = async { WebPoTokenSession.mintBounded(videoId) }
+            var mintLogged = false
 
-                if (playerResponse.isLiveNow()) {
-                    // A genuine live manifest wins outright.
-                    playerResponse.toLiveResultOrNull(client)?.let { return it }
-
-                    if (playerResponse.videoDetails?.isLive == true) {
-                        liveDetected?.set(0, true)
-                        failureReasons.add("${client.clientName}: live but no hls/dash manifest")
+            suspend fun awaitMint(): PoTokenResult? {
+                val result = mint.await()
+                if (!mintLogged) {
+                    mintLogged = true
+                    if (result == null) {
+                        Log.w(TAG, "Direct clients for $videoId running without a PoToken (mint unavailable in time)")
                         PlayerDiagnostics.logWarning(
                             TAG,
-                            "skip ${client.clientName} v${client.clientVersion}: live (broadcasting), no hls/dash pot=${clientPoToken != null}",
+                            "fast-path UNATTESTED $videoId (no PoToken in time) — direct URLs typically 403 ~60s in",
+                        )
+                    } else {
+                        PlayerDiagnostics.logWarning(
+                            TAG,
+                            "fast-path attested $videoId (playerPot len=${result.playerRequestPoToken.length}, " +
+                                "streamingPot len=${result.streamingDataPoToken.length})",
+                        )
+                    }
+                }
+                return result
+            }
+
+            for (client in clients) {
+                try {
+                    Log.d(TAG, "Trying ${client.clientName} v${client.clientVersion}")
+
+                    // ANDROID_VR's /player request must be called WITHOUT a PoToken: injecting the
+                    // WEB-bound BotGuard token makes YT reject the request (non-OK / empty
+                    // streamingData), which was silently dropping playback onto the slower clients.
+                    // Its URLs still need GVS protection — that is the `pot=` URL param attached to
+                    // the winner's formats below, not the /player token. Other fast clients keep the
+                    // /player attestation.
+                    val isAndroidVr = client.clientName == "ANDROID_VR"
+                    val clientPoToken = if (isAndroidVr) null else awaitMint()?.playerRequestPoToken
+
+                    val playerResponse =
+                        withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
+                            // Force en-US extraction locale so the response is deterministic across regions.
+                            // Route video extraction to www.youtube.com (not the music host): the main site
+                            // serves usable ANDROID_VR direct adaptive formats that survive GVS enforcement,
+                            // instead of the SABR-only responses the music endpoint returns for these clients.
+                            YouTube
+                                .player(
+                                    videoId,
+                                    client = client,
+                                    signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
+                                    poToken = clientPoToken,
+                                    localeOverride = YouTubeLocale.EXTRACTION,
+                                    apiUrl = YouTubeClient.API_URL_YOUTUBE,
+                                ).getOrNull()
+                        }
+
+                    if (playerResponse == null) {
+                        failureReasons.add("${client.clientName}: timeout or null response")
+                        PlayerDiagnostics.logWarning(
+                            TAG,
+                            "skip ${client.clientName} v${client.clientVersion}: null/timeout pot=${clientPoToken != null}",
                         )
                         continue
                     }
+
+                    val status = playerResponse.playabilityStatus.status
+                    if (status != "OK") {
+                        val reason = playerResponse.playabilityStatus.reason
+                        val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
+                        failureReasons.add("${client.clientName}: $tag, reason=$reason")
+                        Log.w(TAG, "${client.clientName}: $tag, reason=$reason")
+                        PlayerDiagnostics.logWarning(
+                            TAG,
+                            "skip ${client.clientName} v${client.clientVersion}: $tag reason=$reason pot=${clientPoToken != null}",
+                        )
+                        continue
+                    }
+
+                    if (playerResponse.isLiveNow()) {
+                        // A genuine live manifest wins outright. Live playback never consumes the
+                        // mint, so cancel it rather than letting coroutineScope wait it out.
+                        playerResponse.toLiveResultOrNull(client)?.let {
+                            mint.cancel()
+                            return@coroutineScope it
+                        }
+
+                        if (playerResponse.videoDetails?.isLive == true) {
+                            liveDetected?.set(0, true)
+                            failureReasons.add("${client.clientName}: live but no hls/dash manifest")
+                            PlayerDiagnostics.logWarning(
+                                TAG,
+                                "skip ${client.clientName} v${client.clientVersion}: live (broadcasting), no hls/dash pot=${clientPoToken != null}",
+                            )
+                            continue
+                        }
+                        PlayerDiagnostics.logWarning(
+                            TAG,
+                            "${client.clientName} v${client.clientVersion}: live-flag but VOD (post-live-DVR/premiere) — using adaptive formats",
+                        )
+                    }
+
+                    val adaptiveFormats = playerResponse.streamingData?.adaptiveFormats
+                    if (adaptiveFormats.isNullOrEmpty()) {
+                        failureReasons.add("${client.clientName}: no adaptive formats")
+                        PlayerDiagnostics.logWarning(
+                            TAG,
+                            "skip ${client.clientName} v${client.clientVersion}: no adaptive formats pot=${clientPoToken != null}",
+                        )
+                        continue
+                    }
+
+                    primeRemoteNsigIfNeeded(videoId, adaptiveFormats)
+
+                    val formatsWithUrl = adaptiveFormats.mapNotNull { it.toPlayableFormat(videoId, allowUntransformedN) }
+                    // Capability probe : logs, per client,
+                    // how many adaptive formats carried a direct URL vs how many resolved to a playable
+                    // stream, plus whether the response is SABR-capable. Makes "why was this client skipped"
+                    // visible in the in-app diagnostics instead of only when every client fails.
+                    val rawUrlCount = adaptiveFormats.count { !it.url.isNullOrEmpty() }
+                    val sabrPresent = !playerResponse.streamingData?.serverAbrStreamingUrl.isNullOrEmpty()
                     PlayerDiagnostics.logWarning(
                         TAG,
-                        "${client.clientName} v${client.clientVersion}: live-flag but VOD (post-live-DVR/premiere) — using adaptive formats",
+                        "probe ${client.clientName} v${client.clientVersion}: adaptive=${adaptiveFormats.size} " +
+                            "hasUrl=$rawUrlCount resolvable=${formatsWithUrl.size} sabr=$sabrPresent pot=${clientPoToken != null}",
                     )
-                }
+                    if (formatsWithUrl.isEmpty()) {
+                        failureReasons.add("${client.clientName}: ${adaptiveFormats.size} formats, none resolvable (SABR-only)")
+                        continue
+                    }
 
-                val adaptiveFormats = playerResponse.streamingData?.adaptiveFormats
-                if (adaptiveFormats.isNullOrEmpty()) {
-                    failureReasons.add("${client.clientName}: no adaptive formats")
+                    val videoFormats = formatsWithUrl.filter { !it.isAudio && it.height != null && it.width != null }
+                    val audioFormats = formatsWithUrl.filter { it.isAudio }
+                    if (videoFormats.isEmpty()) {
+                        failureReasons.add("${client.clientName}: no video formats with direct URLs")
+                        continue
+                    }
+                    if (audioFormats.isEmpty()) {
+                        failureReasons.add("${client.clientName}: no audio formats with direct URLs")
+                        continue
+                    }
+
+                    val heights = videoFormats.mapNotNull { it.height }.distinct().sorted()
+                    Log.i(
+                        TAG,
+                        "Success with ${client.clientName}: ${videoFormats.size} video (${heights.joinToString()}p), ${audioFormats.size} audio (direct URLs)",
+                    )
+
+                    val urlPot =
+                        withTimeoutOrNull(STREAM_POT_ATTACH_GRACE_MS) { awaitMint() }?.streamingDataPoToken
+                    if (urlPot == null) {
+                        PlayerDiagnostics.logWarning(
+                            TAG,
+                            "${client.clientName} winner for $videoId shipping pot-less (mint not ready in " +
+                                "${STREAM_POT_ATTACH_GRACE_MS}ms) — direct URLs may 403 ~60s in",
+                        )
+                    }
+
+                    mint.cancel()
+
+                    return@coroutineScope VideoExtractionResult(
+                        videoFormats = if (urlPot != null) videoFormats.map { it.withUrlPoToken(urlPot) } else videoFormats,
+                        audioFormats = if (urlPot != null) audioFormats.map { it.withUrlPoToken(urlPot) } else audioFormats,
+                        playerResponse = playerResponse,
+                        usedClient = client,
+                        sabrInfo = null,
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    failureReasons.add("${client.clientName}: exception=${e.javaClass.simpleName}: ${e.message}")
+                    Log.w(TAG, "${client.clientName} failed: ${e.message}")
                     PlayerDiagnostics.logWarning(
                         TAG,
-                        "skip ${client.clientName} v${client.clientVersion}: no adaptive formats pot=${clientPoToken != null}",
+                        "skip ${client.clientName} v${client.clientVersion}: exception=${e.javaClass.simpleName}: ${e.message}",
                     )
-                    continue
                 }
-
-                primeRemoteNsigIfNeeded(videoId, adaptiveFormats)
-
-                val formatsWithUrl = adaptiveFormats.mapNotNull { it.toPlayableFormat(videoId, allowUntransformedN) }
-                // Capability probe : logs, per client,
-                // how many adaptive formats carried a direct URL vs how many resolved to a playable
-                // stream, plus whether the response is SABR-capable. Makes "why was this client skipped"
-                // visible in the in-app diagnostics instead of only when every client fails.
-                val rawUrlCount = adaptiveFormats.count { !it.url.isNullOrEmpty() }
-                val sabrPresent = !playerResponse.streamingData?.serverAbrStreamingUrl.isNullOrEmpty()
-                PlayerDiagnostics.logWarning(
-                    TAG,
-                    "probe ${client.clientName} v${client.clientVersion}: adaptive=${adaptiveFormats.size} " +
-                        "hasUrl=$rawUrlCount resolvable=${formatsWithUrl.size} sabr=$sabrPresent pot=${clientPoToken != null}",
-                )
-                if (formatsWithUrl.isEmpty()) {
-                    failureReasons.add("${client.clientName}: ${adaptiveFormats.size} formats, none resolvable (SABR-only)")
-                    continue
-                }
-
-                val videoFormats = formatsWithUrl.filter { !it.isAudio && it.height != null && it.width != null }
-                val audioFormats = formatsWithUrl.filter { it.isAudio }
-                if (videoFormats.isEmpty()) {
-                    failureReasons.add("${client.clientName}: no video formats with direct URLs")
-                    continue
-                }
-                if (audioFormats.isEmpty()) {
-                    failureReasons.add("${client.clientName}: no audio formats with direct URLs")
-                    continue
-                }
-
-                val heights = videoFormats.mapNotNull { it.height }.distinct().sorted()
-                Log.i(
-                    TAG,
-                    "Success with ${client.clientName}: ${videoFormats.size} video (${heights.joinToString()}p), ${audioFormats.size} audio (direct URLs)",
-                )
-
-                return VideoExtractionResult(
-                    videoFormats = videoFormats,
-                    audioFormats = audioFormats,
-                    playerResponse = playerResponse,
-                    usedClient = client,
-                    sabrInfo = null,
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failureReasons.add("${client.clientName}: exception=${e.javaClass.simpleName}: ${e.message}")
-                Log.w(TAG, "${client.clientName} failed: ${e.message}")
-                PlayerDiagnostics.logWarning(
-                    TAG,
-                    "skip ${client.clientName} v${client.clientVersion}: exception=${e.javaClass.simpleName}: ${e.message}",
-                )
             }
+            mint.cancel()
+            null
         }
-        return null
-    }
 
     /**
      * Walks [SABR_CLIENTS] until one resolves a SABR session, so a bot wall on WEB alone does not
@@ -856,6 +702,18 @@ object InnerTubeVideoStreamExtractor {
             return if (!resolved.isNullOrEmpty()) copy(url = resolved).withPlayableUrl(videoId, allowUntransformedN) else null
         }
         return null
+    }
+
+    /**
+     * GVS's non-SABR stream protection: the streaming (visitor-bound) PoToken rides on the
+     * direct URL as the `pot` query param. Appended after the n-transform so the transform
+     * never sees or reorders it.
+     */
+    private fun PlayerResponse.StreamingData.Format.withUrlPoToken(pot: String): PlayerResponse.StreamingData.Format {
+        val rawUrl = url ?: return this
+        if (POT_PARAM_REGEX.containsMatchIn(rawUrl)) return this
+        val separator = if ("?" in rawUrl) "&" else "?"
+        return copy(url = "$rawUrl${separator}pot=${Uri.encode(pot)}")
     }
 
     private suspend fun PlayerResponse.StreamingData.Format.withPlayableUrl(
