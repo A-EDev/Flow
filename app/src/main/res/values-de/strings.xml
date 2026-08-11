@@ -1709,4 +1709,9 @@
     <string name="resize_fill">Füllung</string>
     <string name="resize_zoom">Zoom</string>
     <string name="shorts_quality_settings_title">Shorts Video Qualität</string>
+    <string name="desc_more">...mehr</string>
+    <string name="auto_backup_no_folder">Es wurde kein Ordner ausgewählt</string>
+    <string name="auto_backup_last_run">Letztes Backup: %s</string>
+    <string name="auto_backup_last_run_label">Letztes Backup</string>
+    <string name="auto_backup_never_run">Noch kein Backup</string>
 </resources>
