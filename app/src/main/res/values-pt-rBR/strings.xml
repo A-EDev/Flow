@@ -1901,4 +1901,12 @@
     <string name="channel_affinity_balanced">Balanceado</string>
     <string name="channel_affinity_score">pontuação de afinidade</string>
     <string name="discovery_status_title">Estado de descoberta</string>
+    <string name="blocked_content_title">Filtros</string>
+    <string name="blocked_content_subtitle">Tópicos e canais excluídos das recomendações</string>
+    <string name="blocked_topics_header">Tópicos bloqueados</string>
+    <string name="blocked_channels_header">Canais bloqueados</string>
+    <string name="blocked_item_unblock_topic">Desbloquear tópico</string>
+    <string name="blocked_item_unblock_channel">Desbloquear canal</string>
+    <string name="blocked_item_showing_count">Mostrando %1$d de %2$d</string>
+    <string name="profile_data_title">Dados do Perfil</string>
 </resources>
