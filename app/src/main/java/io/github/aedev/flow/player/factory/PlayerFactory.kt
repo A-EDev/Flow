@@ -150,6 +150,7 @@ class PlayerFactory {
 
         return ExoPlayer
             .Builder(context, renderersFactory)
+            .experimentalSetDynamicSchedulingEnabled(PlayerConfig.ENABLE_DYNAMIC_SCHEDULING)
             .setTrackSelector(trackSelector)
             .setAudioAttributes(
                 AudioAttributes

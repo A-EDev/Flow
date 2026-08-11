@@ -158,6 +158,10 @@ object PlayerConfig {
     /** Delay before retry after error in milliseconds */
     const val ERROR_RETRY_DELAY_MS = 1000L
 
+    // ===== Renderer Scheduling (experiment) =====
+
+    const val ENABLE_DYNAMIC_SCHEDULING = false
+
     // ===== Video Size Constraints =====
     const val MAX_VIDEO_WIDTH = 3840
 
