@@ -3,7 +3,6 @@ package io.github.aedev.flow.player
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import io.github.aedev.flow.utils.NetworkState
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -53,12 +52,16 @@ import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
 import io.github.aedev.flow.player.state.queuePresence
+import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
+import io.github.aedev.flow.player.stream.StreamInfoFetcher
+import io.github.aedev.flow.player.stream.StreamInfoVideoMapper
 import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
 import io.github.aedev.flow.player.surface.VideoSurfacePolicy
 import io.github.aedev.flow.player.tracker.PlaybackTracker
+import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -1790,7 +1793,7 @@ class EnhancedPlayerManager private constructor() {
                         }
 
                     val streamInfo =
-                        fetchStreamInfoForPlayback(video.id) ?: run {
+                        StreamInfoFetcher.fetchForPlayback(video.id) ?: run {
                             autoNextLog("playVideoFromServiceLayer streamInfo failed video=${video.id}")
                             _playerState.value =
                                 _playerState.value.copy(
@@ -1806,7 +1809,7 @@ class EnhancedPlayerManager private constructor() {
                         return@launch
                     }
                     val sabrInfo = extraction?.sabrInfo
-                    val enrichedVideo = videoFromStreamInfo(video.id, streamInfo, fallback = video)
+                    val enrichedVideo = StreamInfoVideoMapper.videoFromStreamInfo(video.id, streamInfo, fallback = video)
                     GlobalPlayerState.setCurrentVideo(enrichedVideo)
                     startBackgroundService(
                         videoId = enrichedVideo.id,
@@ -1816,13 +1819,13 @@ class EnhancedPlayerManager private constructor() {
                     )
                     setAutoplayCandidates(
                         sourceVideoId = enrichedVideo.id,
-                        videos = relatedVideosFromStreamInfo(streamInfo),
+                        videos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
                         enabled = autoplayEnabled,
                     )
 
                     val prefs = PlayerPreferences(context)
                     val preferredQuality =
-                        if (isOnWifi(context)) {
+                        if (NetworkState.isOnWifi(context)) {
                             prefs.defaultQualityWifi.first()
                         } else {
                             prefs.defaultQualityCellular.first()
@@ -1861,7 +1864,7 @@ class EnhancedPlayerManager private constructor() {
                     }
 
                     val selected =
-                        selectStreamsForServicePlayback(
+                        ServicePlaybackStreamSelector.selectStreams(
                             videoCandidates = mergedVideoStreams,
                             audioCandidatesAll = mergedAudioStreams,
                             preferredQuality = preferredQuality,
@@ -1992,14 +1995,22 @@ class EnhancedPlayerManager private constructor() {
                     }
                 }
             val streamInfo =
-                fetchStreamInfoForPlayback(video.id) ?: run {
+                StreamInfoFetcher.fetchForPlayback(video.id) ?: run {
                     extractionDeferred.cancel()
                     return@coroutineScope null
                 }
             val extraction = extractionDeferred.await()
-            val enrichedVideo = videoFromStreamInfo(video.id, streamInfo, fallback = video)
+            val enrichedVideo = StreamInfoVideoMapper.videoFromStreamInfo(video.id, streamInfo, fallback = video)
             val prefs = PlayerPreferences(context)
-            val preferredQuality = if (isOnWifi(context)) prefs.defaultQualityWifi.first() else prefs.defaultQualityCellular.first()
+            val preferredQuality =
+                if (NetworkState.isOnWifi(
+                        context,
+                    )
+                ) {
+                    prefs.defaultQualityWifi.first()
+                } else {
+                    prefs.defaultQualityCellular.first()
+                }
             val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
             val preferredCodecKey = prefs.defaultVideoCodec.first().codecKey
             val innerTubeVideoStreams =
@@ -2028,7 +2039,7 @@ class EnhancedPlayerManager private constructor() {
                     streamInfo.audioStreams,
                 )
             val selected =
-                selectStreamsForServicePlayback(
+                ServicePlaybackStreamSelector.selectStreams(
                     videoCandidates = mergedVideoStreams,
                     audioCandidatesAll = mergedAudioStreams,
                     preferredQuality = preferredQuality,
@@ -2045,7 +2056,7 @@ class EnhancedPlayerManager private constructor() {
                 durationSeconds = streamInfo.duration,
                 dashManifestUrl = streamInfo.dashMpdUrl,
                 streamType = streamInfo.streamType,
-                relatedVideos = relatedVideosFromStreamInfo(streamInfo),
+                relatedVideos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
                 preferredCodec = preferredCodecKey,
                 itVideoFormats = extraction?.videoFormats ?: emptyList(),
                 itAudioFormats = extraction?.audioFormats ?: emptyList(),
@@ -2372,193 +2383,6 @@ class EnhancedPlayerManager private constructor() {
         preloadRetryCount = 0
         schedulePreloadNext()
     }
-
-    private suspend fun fetchStreamInfoForPlayback(videoId: String): StreamInfo? =
-        withContext(Dispatchers.IO) {
-            var lastError: Throwable? = null
-            repeat(3) { attempt ->
-                val info =
-                    try {
-                        val url =
-                            if (attempt == 1) {
-                                "https://youtu.be/$videoId"
-                            } else {
-                                "https://www.youtube.com/watch?v=$videoId"
-                            }
-                        withTimeoutOrNull(12_000L) {
-                            StreamInfo.getInfo(ServiceList.YouTube, url)
-                        }
-                    } catch (e: Exception) {
-                        lastError = e
-                        null
-                    }
-                if (info != null) return@withContext info
-                if (attempt < 2) delay((attempt + 1) * 300L)
-            }
-            Log.e(TAG, "Failed to fetch stream info for $videoId", lastError)
-            null
-        }
-
-    private fun selectStreamsForServicePlayback(
-        videoCandidates: List<VideoStream>,
-        audioCandidatesAll: List<AudioStream>,
-        preferredQuality: VideoQuality,
-        preferredAudioLanguage: String,
-        preferredCodecKey: String = "auto",
-    ): Pair<VideoStream?, AudioStream?> {
-        val audioCandidates =
-            audioCandidatesAll
-                .distinctBy { it.url ?: it.content }
-                .sortedByDescending { it.bitrate }
-
-        val audioStream =
-            when (preferredAudioLanguage) {
-                "original", "" -> {
-                    audioCandidates.firstOrNull {
-                        it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                    } ?: audioCandidates.firstOrNull {
-                        it.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
-                    } ?: audioCandidates.firstOrNull()
-                }
-
-                else -> {
-                    audioCandidates.firstOrNull { audio ->
-                        val lang = audio.audioLocale?.language ?: ""
-                        lang.startsWith(preferredAudioLanguage, ignoreCase = true)
-                    } ?: audioCandidates.firstOrNull {
-                        it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                    } ?: audioCandidates.firstOrNull()
-                }
-            }
-
-        val videoStreams =
-            videoCandidates
-                .filter {
-                    val mime = it.format?.mimeType
-                    mime?.contains("mp4", ignoreCase = true) == true ||
-                        mime?.contains("webm", ignoreCase = true) == true
-                }
-
-        val selectedVideoStream =
-            when (preferredQuality) {
-                VideoQuality.AUTO -> {
-                    null
-                }
-
-                else -> {
-                    videoStreams
-                        .sortedWith(
-                            compareBy<VideoStream> {
-                                kotlin.math.abs(
-                                    QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) -
-                                        preferredQuality.height,
-                                )
-                            }.thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
-                                .thenByDescending { it.bitrate },
-                        ).firstOrNull()
-                }
-            }
-        val videoStream =
-            if (audioStream == null && selectedVideoStream == null) {
-                videoStreams
-                    .sortedWith(
-                        compareBy<VideoStream> { if (it.isVideoOnly) 1 else 0 }
-                            .thenByDescending { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
-                            .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
-                            .thenByDescending { it.bitrate },
-                    ).firstOrNull()
-            } else {
-                selectedVideoStream
-            }
-        return videoStream to audioStream
-    }
-
-    private fun relatedVideosFromStreamInfo(info: StreamInfo): List<Video> =
-        info.relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
-            runCatching { item.toFlowVideo() }.getOrNull()
-        }
-
-    private fun videoFromStreamInfo(
-        videoId: String,
-        info: StreamInfo,
-        fallback: Video,
-    ): Video {
-        val thumbnail =
-            info.thumbnails
-                .sortedByDescending { it.height }
-                .map { it.url }
-                .firstOrNull()
-                .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
-        return fallback.copy(
-            title = info.name?.takeIf { it.isNotBlank() } ?: fallback.title,
-            channelName = info.uploaderName?.takeIf { it.isNotBlank() } ?: fallback.channelName,
-            channelId = extractChannelId(info.uploaderUrl).ifBlank { fallback.channelId },
-            thumbnailUrl = thumbnail.ifBlank { fallback.thumbnailUrl },
-            duration = info.duration.toInt().takeIf { it > 0 } ?: fallback.duration,
-            viewCount = info.viewCount.takeIf { it > 0L } ?: fallback.viewCount,
-            uploadDate = info.textualUploadDate ?: fallback.uploadDate,
-            description = info.description?.content ?: fallback.description,
-            tags = info.tags ?: fallback.tags,
-        )
-    }
-
-    private fun StreamInfoItem.toFlowVideo(): Video {
-        val rawUrl = url ?: ""
-        val videoId =
-            when {
-                rawUrl.contains("watch?v=") -> rawUrl.substringAfter("watch?v=").substringBefore("&")
-                rawUrl.contains("youtu.be/") -> rawUrl.substringAfter("youtu.be/").substringBefore("?")
-                rawUrl.contains("/shorts/") -> rawUrl.substringAfter("/shorts/").substringBefore("?")
-                else -> rawUrl.substringAfterLast("/")
-            }.trim()
-        if (videoId.isBlank()) throw IllegalArgumentException("Blank related video id")
-
-        val bestThumbnail =
-            thumbnails
-                .sortedByDescending { it.height }
-                .map { it.url }
-                .firstOrNull()
-                .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
-
-        val isShortUrl = rawUrl.contains("/shorts/")
-        val isLiveStream = streamType == StreamType.LIVE_STREAM
-        val durationSecs =
-            when {
-                isLiveStream -> 0
-                duration > 0 -> duration.toInt()
-                isShortUrl -> 60
-                else -> 0
-            }
-        val nameLower = name?.lowercase() ?: ""
-        val uploaderLower = uploaderName?.lowercase() ?: ""
-        val isMusicCandidate =
-            uploaderLower.contains("vevo") ||
-                uploaderLower.contains(" - topic") ||
-                nameLower.contains("official music video") ||
-                nameLower.contains("official video") ||
-                nameLower.contains("official audio") ||
-                nameLower.contains("(official)")
-
-        return Video(
-            id = videoId,
-            title = name ?: "Unknown Title",
-            channelName = uploaderName ?: "Unknown Channel",
-            channelId = extractChannelId(uploaderUrl),
-            thumbnailUrl = bestThumbnail,
-            duration = durationSecs,
-            viewCount = viewCount,
-            uploadDate = textualUploadDate ?: "Unknown",
-            channelThumbnailUrl = uploaderAvatars.sortedByDescending { it.height }.firstOrNull()?.url ?: "",
-            isUpcoming = streamType == StreamType.NONE,
-            isLive = isLiveStream,
-            isShort = isShortUrl,
-            isMusic = isMusicCandidate,
-        )
-    }
-
-    private fun extractChannelId(url: String?): String = url?.substringAfterLast("/")?.takeIf { it.isNotBlank() && it != url } ?: ""
-
-    private fun isOnWifi(context: Context): Boolean = NetworkState.isOnWifi(context)
 
     // ===== Playback Controls =====
 
@@ -3297,7 +3121,6 @@ class EnhancedPlayerManager private constructor() {
     fun getCacheSize(): Long = cacheManager?.getCacheSize() ?: 0L
 
     fun clearCache() = cacheManager?.clearCache()
-
 
     suspend fun clearCacheForCurrentVideo() {
         Log.d(TAG, "Clearing media cache due to persistent stream errors")
