@@ -11,6 +11,7 @@ import android.os.PowerManager
 import android.os.Process
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -45,12 +46,11 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
+import io.github.aedev.flow.player.factory.LoadControlFactory
 import io.github.aedev.flow.utils.MusicPlayerUtils
 import io.github.aedev.flow.utils.NetworkConnectivityObserver
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -117,7 +117,6 @@ class Media3MusicService : MediaLibraryService() {
      */
     private var lockReleaseJob: Job? = null
 
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var automixJob: Job? = null
 
     private val retryCountMap = mutableMapOf<String, Int>()
@@ -157,7 +156,7 @@ class Media3MusicService : MediaLibraryService() {
             Log.e(TAG, "Failed to acquire locks", e)
         }
 
-        serviceScope.launch {
+        lifecycleScope.launch {
             connectivityObserver.isConnected.collectLatest { isConnected ->
                 if (isConnected && waitingForNetwork) {
                     Log.d(TAG, "Network restored, triggering retry")
@@ -167,7 +166,7 @@ class Media3MusicService : MediaLibraryService() {
             }
         }
 
-        serviceScope.launch {
+        lifecycleScope.launch {
             io.github.aedev.flow.player.EnhancedMusicPlayerManager.isLiked.collectLatest {
                 updateNotification()
                 if (::player.isInitialized) widgetPublisher.publish(player)
@@ -177,7 +176,7 @@ class Media3MusicService : MediaLibraryService() {
         val prefs =
             io.github.aedev.flow.data.local
                 .PlayerPreferences(this@Media3MusicService)
-        serviceScope.launch {
+        lifecycleScope.launch {
             var lastQuality: io.github.aedev.flow.data.local.MusicAudioQuality? = null
             prefs.musicAudioQuality.collect { quality ->
                 val previous = lastQuality
@@ -191,7 +190,7 @@ class Media3MusicService : MediaLibraryService() {
         initializePlayer()
         initializeSession()
 
-        serviceScope.launch {
+        lifecycleScope.launch {
             prefs.playDuringCalls
                 .distinctUntilChanged()
                 .collectLatest(::applyPlayDuringCallsPreference)
@@ -252,17 +251,7 @@ class Media3MusicService : MediaLibraryService() {
                         .build()
             }.setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
-        // OPTIMIZED: Aggressive buffering for faster music startup
-        val loadControl =
-            androidx.media3.exoplayer.DefaultLoadControl
-                .Builder()
-                .setBufferDurationsMs(
-                    2500, // Min buffer (2.5s)
-                    30000, // Max buffer (30s)
-                    1000, // Buffer for playback (1s) - faster start
-                    1500, // Buffer for rebuffer (1.5s)
-                ).setPrioritizeTimeOverSizeThresholds(true)
-                .build()
+        val loadControl = LoadControlFactory.forMusic()
 
         player =
             ExoPlayer
@@ -324,7 +313,7 @@ class Media3MusicService : MediaLibraryService() {
                         }
 
                         if (!videoId.isNullOrBlank() && !title.isNullOrBlank() && !artist.isNullOrBlank()) {
-                            serviceScope.launch(Dispatchers.IO) {
+                            lifecycleScope.launch(Dispatchers.IO) {
                                 try {
                                     Log.d(TAG, "Pre-warming lyrics cache in background for: $videoId - \"$title\"")
                                     val helper =
@@ -500,7 +489,7 @@ class Media3MusicService : MediaLibraryService() {
         retryCountMap[mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
-            serviceScope.launch {
+            lifecycleScope.launch {
                 try {
                     player.pause()
                     delay(BASE_RETRY_DELAY_MS * 3)
@@ -525,7 +514,7 @@ class Media3MusicService : MediaLibraryService() {
         retryCountMap[mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
-            serviceScope.launch {
+            lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS)
                 try {
                     val currentIndex = player.currentMediaItemIndex
@@ -547,7 +536,7 @@ class Media3MusicService : MediaLibraryService() {
         retryCountMap[mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
-            serviceScope.launch {
+            lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS * 2)
                 try {
                     val currentIndex = player.currentMediaItemIndex
@@ -570,7 +559,7 @@ class Media3MusicService : MediaLibraryService() {
         retryCountMap[mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
-            serviceScope.launch {
+            lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS)
                 try {
                     val currentIndex = player.currentMediaItemIndex
@@ -618,7 +607,7 @@ class Media3MusicService : MediaLibraryService() {
         retryCountMap[mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
-            serviceScope.launch {
+            lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS)
                 try {
                     val currentIndex = player.currentMediaItemIndex
@@ -672,7 +661,7 @@ class Media3MusicService : MediaLibraryService() {
 
         retryJobCancel()
         pendingRetryJob =
-            serviceScope.launch {
+            lifecycleScope.launch {
                 delay(delay)
                 try {
                     val currentIndex = player.currentMediaItemIndex
@@ -743,7 +732,7 @@ class Media3MusicService : MediaLibraryService() {
             Log.d(TAG, "Triggering retry after network restore for $mediaId")
             performAggressiveCacheClear(mediaId)
 
-            serviceScope.launch {
+            lifecycleScope.launch {
                 delay(1000)
                 try {
                     val currentIndex = player.currentMediaItemIndex
@@ -860,7 +849,7 @@ class Media3MusicService : MediaLibraryService() {
         }
 
         lockReleaseJob =
-            serviceScope.launch {
+            lifecycleScope.launch {
                 delay(12_000L)
                 if (!isPlaybackActive()) {
                     releaseLocks()
@@ -903,7 +892,7 @@ class Media3MusicService : MediaLibraryService() {
     private fun resolveAutomix(trackId: String) {
         automixJob?.cancel()
         automixJob =
-            serviceScope.launch(Dispatchers.IO) {
+            lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     Log.d(TAG, "Resolving automix for trackId: $trackId")
                     val primaryResult = YouTube.next(WatchEndpoint(playlistId = "RDAMVM$trackId"))
@@ -975,43 +964,43 @@ class Media3MusicService : MediaLibraryService() {
 
         val likeButton =
             CommandButton
-                .Builder()
-                .setDisplayName(if (isLiked) "Unlike" else "Like")
-                .setIconResId(if (isLiked) R.drawable.ic_like_filled else R.drawable.ic_like)
+                .Builder(if (isLiked) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED)
+                .setDisplayName(getString(if (isLiked) R.string.unlike else R.string.like))
+                .setCustomIconResId(if (isLiked) R.drawable.ic_like_filled else R.drawable.ic_like)
                 .setSessionCommand(CommandToggleLike)
                 .setEnabled(true)
                 .build()
 
-        val shuffleIcon = if (player.shuffleModeEnabled) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle
+        val shuffleOn = player.shuffleModeEnabled
 
-        val repeatIcon =
+        val (repeatIcon, repeatIconResId) =
             when (player.repeatMode) {
-                Player.REPEAT_MODE_ONE -> R.drawable.ic_repeat_one_on
-                Player.REPEAT_MODE_ALL -> R.drawable.ic_repeat_on
-                else -> R.drawable.ic_repeat
+                Player.REPEAT_MODE_ONE -> CommandButton.ICON_REPEAT_ONE to R.drawable.ic_repeat_one_on
+                Player.REPEAT_MODE_ALL -> CommandButton.ICON_REPEAT_ALL to R.drawable.ic_repeat_on
+                else -> CommandButton.ICON_REPEAT_OFF to R.drawable.ic_repeat
             }
 
         val shuffleButton =
             CommandButton
-                .Builder()
-                .setDisplayName("Shuffle")
-                .setIconResId(shuffleIcon)
+                .Builder(if (shuffleOn) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF)
+                .setDisplayName(getString(R.string.shuffle))
+                .setCustomIconResId(if (shuffleOn) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle)
                 .setSessionCommand(CommandToggleShuffle)
                 .build()
 
         val repeatButton =
             CommandButton
-                .Builder()
-                .setDisplayName("Repeat")
-                .setIconResId(repeatIcon)
+                .Builder(repeatIcon)
+                .setDisplayName(getString(R.string.repeat))
+                .setCustomIconResId(repeatIconResId)
                 .setSessionCommand(CommandToggleRepeat)
                 .build()
 
         val closeButton =
             CommandButton
-                .Builder()
+                .Builder(CommandButton.ICON_STOP)
                 .setDisplayName(getString(R.string.close))
-                .setIconResId(R.drawable.ic_close)
+                .setCustomIconResId(R.drawable.ic_close)
                 .setSessionCommand(CommandStop)
                 .setEnabled(true)
                 .build()
@@ -1221,28 +1210,28 @@ class Media3MusicService : MediaLibraryService() {
         ): ImmutableList<CommandButton> {
             val playPauseButton =
                 CommandButton
-                    .Builder()
+                    .Builder(if (showPauseButton) CommandButton.ICON_PAUSE else CommandButton.ICON_PLAY)
                     .setPlayerCommand(Player.COMMAND_PLAY_PAUSE)
-                    .setIconResId(if (showPauseButton) R.drawable.ic_pause else R.drawable.ic_play)
-                    .setDisplayName(if (showPauseButton) "Pause" else "Play")
+                    .setCustomIconResId(if (showPauseButton) R.drawable.ic_pause else R.drawable.ic_play)
+                    .setDisplayName(getString(if (showPauseButton) R.string.pause else R.string.play))
                     .setEnabled(playerCommands.contains(Player.COMMAND_PLAY_PAUSE))
                     .build()
 
             val prevButton =
                 CommandButton
-                    .Builder()
+                    .Builder(CommandButton.ICON_PREVIOUS)
                     .setPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS)
-                    .setIconResId(R.drawable.ic_previous)
-                    .setDisplayName("Previous")
+                    .setCustomIconResId(R.drawable.ic_previous)
+                    .setDisplayName(getString(R.string.previous))
                     .setEnabled(playerCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS))
                     .build()
 
             val nextButton =
                 CommandButton
-                    .Builder()
+                    .Builder(CommandButton.ICON_NEXT)
                     .setPlayerCommand(Player.COMMAND_SEEK_TO_NEXT)
-                    .setIconResId(R.drawable.ic_next)
-                    .setDisplayName("Next")
+                    .setCustomIconResId(R.drawable.ic_next)
+                    .setDisplayName(getString(R.string.next))
                     .setEnabled(playerCommands.contains(Player.COMMAND_SEEK_TO_NEXT))
                     .build()
 

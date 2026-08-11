@@ -13,7 +13,6 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -21,7 +20,6 @@ import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.exoplayer.upstream.DefaultAllocator
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
@@ -29,6 +27,7 @@ import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.cache.SharedPlayerCacheProvider
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
+import io.github.aedev.flow.player.factory.LoadControlFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -63,12 +62,6 @@ class ShortsPlayerPool private constructor() {
     companion object {
         private const val TAG = "ShortsPlayerPool"
         private const val POOL_SIZE = 3
-
-        private const val MIN_BUFFER_MS = 1_500
-        private const val MAX_BUFFER_MS = 8_000
-        private const val BUFFER_FOR_PLAYBACK_MS = 250
-        private const val BUFFER_FOR_REBUFFER_MS = 750
-        private const val BACK_BUFFER_MS = 2_000
 
         @Volatile
         private var instance: ShortsPlayerPool? = null
@@ -221,22 +214,9 @@ class ShortsPlayerPool private constructor() {
     }
 
     private fun createShortsPlayer(context: Context): ExoPlayer {
-        val allocator = DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE)
         val (maxVideoWidth, maxVideoHeight) = maxVideoSizeForHeap(context)
 
-        val loadControl =
-            DefaultLoadControl
-                .Builder()
-                .setAllocator(allocator)
-                .setBufferDurationsMs(
-                    MIN_BUFFER_MS,
-                    MAX_BUFFER_MS,
-                    BUFFER_FOR_PLAYBACK_MS,
-                    BUFFER_FOR_REBUFFER_MS,
-                ).setBackBuffer(BACK_BUFFER_MS, true)
-                .setPrioritizeTimeOverSizeThresholds(true)
-                .setTargetBufferBytes(PlayerConfig.SHORTS_TARGET_BUFFER_BYTES)
-                .build()
+        val loadControl = LoadControlFactory.forShorts()
 
         val trackSelector =
             DefaultTrackSelector(

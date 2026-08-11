@@ -16,9 +16,7 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.exoplayer.upstream.DefaultAllocator
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
-import io.github.aedev.flow.data.local.BufferDurations
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.config.PlayerConfig
@@ -111,62 +109,14 @@ class PlayerFactory {
     }
 
     fun createLoadControl(context: Context): DefaultLoadControl {
-        val allocator = DefaultAllocator(true, PlayerConfig.ALLOCATOR_BUFFER_SIZE)
-        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-        val memoryClassMb = activityManager?.memoryClass ?: 256
-        val isLowMemoryDevice = activityManager?.isLowRamDevice == true || memoryClassMb <= 256
-        val isConstrainedHeap = isLowMemoryDevice || memoryClassMb <= 384
-        val maxSafeMinBufferMs =
-            if (isLowMemoryDevice) {
-                PlayerConfig.LOW_MEMORY_MAX_SAFE_MAIN_MIN_BUFFER_MS
-            } else {
-                PlayerConfig.MAX_SAFE_MAIN_MIN_BUFFER_MS
-            }
-        val maxSafeBufferMs =
-            if (isLowMemoryDevice) {
-                PlayerConfig.LOW_MEMORY_MAX_SAFE_MAIN_BUFFER_MS
-            } else {
-                PlayerConfig.MAX_SAFE_MAIN_BUFFER_MS
-            }
-        val targetBufferBytes =
-            when {
-                isLowMemoryDevice -> PlayerConfig.LOW_MEMORY_MAIN_TARGET_BUFFER_BYTES
-                isConstrainedHeap -> PlayerConfig.MID_MEMORY_MAIN_TARGET_BUFFER_BYTES
-                else -> PlayerConfig.MAIN_TARGET_BUFFER_BYTES
-            }
-        val backBufferMs =
-            if (isConstrainedHeap) {
-                PlayerConfig.LOW_MEMORY_BACK_BUFFER_DURATION_MS
-            } else {
-                PlayerConfig.BACK_BUFFER_DURATION_MS
-            }
-
         val prefs = ensurePrefs(context)
-        val buffers =
-            BufferDurations.sanitize(
-                minMs = prefs.minBufferMs,
-                maxMs = prefs.maxBufferMs,
-                playbackMs = prefs.bufferForPlaybackMs,
-                rebufferMs = prefs.bufferRebufferMs,
-                maxSafeMinMs = maxSafeMinBufferMs,
-                maxSafeMaxMs = maxSafeBufferMs,
-            )
-
-        Log.d(
-            TAG,
-            "Buffer config: min=${buffers.minMs}ms, max=${buffers.maxMs}ms, playback=${buffers.playbackMs}ms, " +
-                "rebuffer=${buffers.rebufferMs}ms, target=${targetBufferBytes / 1024 / 1024}MB, " +
-                "back=${backBufferMs}ms, heap=${memoryClassMb}MB",
+        return LoadControlFactory.forVideo(
+            context = context,
+            minMs = prefs.minBufferMs,
+            maxMs = prefs.maxBufferMs,
+            playbackMs = prefs.bufferForPlaybackMs,
+            rebufferMs = prefs.bufferRebufferMs,
         )
-
-        return DefaultLoadControl
-            .Builder()
-            .setAllocator(allocator)
-            .setBufferDurationsMs(buffers.minMs, buffers.maxMs, buffers.playbackMs, buffers.rebufferMs)
-            .setBackBuffer(backBufferMs, true)
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .setTargetBufferBytes(targetBufferBytes)
-            .build()
     }
 
     private fun maxVideoSizeForHeap(context: Context): Pair<Int, Int> {
