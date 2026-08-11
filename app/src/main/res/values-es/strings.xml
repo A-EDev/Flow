@@ -17,7 +17,7 @@
     <string name="library_history_label">Historial</string>
     <string name="library_music_playlists_label">Listas de música</string>
     <string name="library_music_playlists_subtitle">Tus colecciones de música</string>
-    <string name="library_liked_videos_label">Video que Me Gustan</string>
+    <string name="library_liked_videos_label">Vídeos que Me Gustan</string>
     <string name="library_saved_shorts_label">Shorts guardados</string>
     <string name="library_watch_later_label">Ver más tarde</string>
     <string name="library_downloads_label">Descargas</string>
@@ -1957,7 +1957,7 @@
     <string name="widget_previous">Pista anterior</string>
     <string name="widget_like">Me gusta</string>
     <string name="widget_artwork">Portada del álbum</string>
-    <string name="ui_search_settings">Configuración de búsqueda</string>
+    <string name="ui_search_settings">Configuración de búsqueda…</string>
     <string name="widget_open_downloads">Abrir descargas</string>
     <string name="widget_open_history">Abrir historial</string>
     <string name="widget_no_recent">Los vídeos que veas aparecerán aquí</string>
@@ -2019,7 +2019,7 @@
     <string name="toast_added_to_watch_later">Agregado a \"Ver mas tarde\"</string>
     <string name="toast_fetching_download_links">Obteniendo enlaces de descarga…</string>
     <string name="toast_download_started">Descarga iniciada: %1$s</string>
-    <string name="toast_trying_sabr_download">Intentando descarga SABR</string>
+    <string name="toast_trying_sabr_download">Intentando descarga SABR…</string>
     <string name="toast_sabr_download_started">Descarga SABR iniciada</string>
     <string name="toast_sabr_download_started_for_video">Descarga SABR iniciada: %1$s</string>
     <string name="toast_no_download_source">No hay fuente de descarga disponible</string>
@@ -2306,6 +2306,7 @@
     <plurals name="subscriptions_failed_channels_title">
         <item quantity="one">%d canal no ha podido ser cargado</item>
         <item quantity="many">%d canales no han podido ser cargados</item>
+        <item quantity="other">%d canales no han podido ser cargados</item>
     </plurals>
     <string name="subscriptions_failed_channels_body">Sus últimos vídeos no aparecen en este feed: %1$s</string>
     <string name="subscriptions_failed_channels_more">%1$s y %2$d más</string>
@@ -2317,7 +2318,7 @@
     <string name="audio_track_dubbed">Doblado</string>
     <string name="empty_saved_shorts">Aún no tienes Shorts guardados</string>
     <string name="settings_search_no_results">No se encontraron ajustes para %1$s</string>
-    <string name="settings_lyrics_provider_order_description">Los proveedores se prueban en orden. El primero que devuelva la letra de la canción gana</string>
+    <string name="settings_lyrics_provider_order_description">Los proveedores se prueban en orden. El primero que devuelva la letra de la canción gana.</string>
     <string name="import_running_background">Puedes salir de esta pantalla; la importación continuará en segundo plano.</string>
     <string name="donations_cryptocurrency">Criptomonedas</string>
     <string name="import_no_history_entries">No se encontraron entradas de historial de reproducción en el archivo</string>
@@ -2329,7 +2330,8 @@
     <string name="duration_minutes">%1$d min</string>
     <string name="duration_hours_short">%1$d h</string>
     <string name="duration_minutes_short">%1$dm</string>
-    <string name="remove_from_queue">Quitar de la fila</string>
-    <string name="remove_from_queue_confirmation">¿De verdad quieres quitar este video de la fila?</string>
-    <string name="reorder_queue_item">Reordenar elemento de la fila</string>
+    <string name="remove_from_queue">Quitar de la cola</string>
+    <string name="remove_from_queue_confirmation">¿Estás seguro de que quieres eliminar este video de la cola?</string>
+    <string name="reorder_queue_item">Reordenar elemento de la cola</string>
+    <string name="comment_time_edited_template">%1$s (%2$s)</string>
 </resources>
