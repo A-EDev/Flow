@@ -24,6 +24,12 @@ PERFORMANCE
 - Add stable list keys across feeds and search
 - Load thumbnails at display size
 - Draw waveform and mini-player progress instead of laying them out
+- Start videos sooner by keeping remote signature decoding off the path to first frame
+- Reuse one attestation session across videos instead of re-running it on every open
+- Skip stream resolution for downloaded videos while offline
+- Stop paying for work Shorts never uses
+- Read audio preferences once per video instead of once per client attempt
+- Load the Shorts and music feeds before the work that only appends to them
 
 BUILD AND CI
 - Add automated Kotlin formatting checks with ktlint and Spotless
@@ -39,6 +45,12 @@ FIXES AND STABILITY
 - Fix missing channel avatars in comments and replies with cached channel-avatar fallback
 - Fix a crash when playback notification artwork finished loading in the background
 - Fix the playback notification disappearing when the queue auto-advanced in the background
+- Fix videos cutting out around the one-minute mark on auto-dubbed titles
+- Fix the wrong audio track being requested on auto-dubbed videos
+- Fix the mini player expanding back to the full player while metadata was still loading
+- Fix playback on videos that only offer a server-side adaptive stream
+- Fix downloaded videos failing to play when offline
+- Add a mobile web fallback and a newer VR client for stream extraction
 - Fix crash issues
 
 DEPENDENCY
