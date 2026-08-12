@@ -129,7 +129,7 @@ class ServicePlaybackStreamSelectorTest {
             select(
                 videos = streams,
                 audio = listOf(audio("a", trackType = AudioTrackType.ORIGINAL)),
-                quality = VideoQuality.Q_480p,
+                quality = VideoQuality.Q_480P,
             ).first
 
         assertEquals("v480", picked?.id)

@@ -14,25 +14,25 @@ class ShortsPlaybackTargetTest {
     fun `wifi and cellular select their own configured quality`() {
         assertEquals(
             1080,
-            shortsTargetHeight(isWifi = true, wifiQuality = VideoQuality.Q_1080p, cellularQuality = VideoQuality.Q_480p),
+            shortsTargetHeight(isWifi = true, wifiQuality = VideoQuality.Q_1080P, cellularQuality = VideoQuality.Q_480P),
         )
         assertEquals(
             480,
-            shortsTargetHeight(isWifi = false, wifiQuality = VideoQuality.Q_1080p, cellularQuality = VideoQuality.Q_480p),
+            shortsTargetHeight(isWifi = false, wifiQuality = VideoQuality.Q_1080P, cellularQuality = VideoQuality.Q_480P),
         )
     }
 
     @Test
     fun `the transport is what decides, not which quality is higher`() {
         val onCellular =
-            shortsTargetHeight(isWifi = false, wifiQuality = VideoQuality.Q_360p, cellularQuality = VideoQuality.Q_1080p)
+            shortsTargetHeight(isWifi = false, wifiQuality = VideoQuality.Q_360P, cellularQuality = VideoQuality.Q_1080P)
 
         assertEquals(1080, onCellular)
     }
 
     @Test
     fun `auto resolves to the unconstrained height both paths agree on`() {
-        val wifi = shortsTargetHeight(isWifi = true, wifiQuality = VideoQuality.AUTO, cellularQuality = VideoQuality.Q_480p)
+        val wifi = shortsTargetHeight(isWifi = true, wifiQuality = VideoQuality.AUTO, cellularQuality = VideoQuality.Q_480P)
 
         // 0 means "no cap" downstream; the point here is that it is a single stable value rather
         // than each caller substituting its own placeholder.

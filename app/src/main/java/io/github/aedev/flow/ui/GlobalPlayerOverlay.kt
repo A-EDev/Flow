@@ -162,6 +162,7 @@ fun GlobalPlayerOverlay(
     val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
     val rememberedBrightnessLevel by playerPreferences.rememberedBrightnessLevel.collectAsState(initial = -1f)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
+    val seekSwipeGesturesEnabled by playerPreferences.seekSwipeGesturesEnabled.collectAsState(initial = true)
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
@@ -443,6 +444,13 @@ fun GlobalPlayerOverlay(
         derivedStateOf { playerSheetState.fraction > 0.5f }
     }
 
+    // Any of these tears down the gesture modifier (or restarts its pointer coroutine) without an
+    // onDragCancel, so a drag in flight would otherwise strand the seek preview on screen and keep
+    // the controls from ever auto-hiding again.
+    LaunchedEffect(screenState.isFullscreen, screenState.isTouchLocked, isMinimized, localIsInPipMode) {
+        screenState.isSeekDragging = false
+    }
+
     PositionTrackingEffect(
         isPlaying = playerState.playWhenReady,
         screenState = screenState,
@@ -462,7 +470,7 @@ fun GlobalPlayerOverlay(
         hasEnded = playerState.hasEnded,
         lastInteractionTimestamp = screenState.lastInteractionTimestamp,
         isTouchLocked = screenState.isTouchLocked,
-        isScrubbing = screenState.isScrubbing,
+        isScrubbing = screenState.isScrubbing || screenState.isSeekDragging,
         onHideControls = { screenState.showControls = false },
     )
 
@@ -877,6 +885,14 @@ fun GlobalPlayerOverlay(
                                         .setVolumeBoost(if (level > 1f) level else 1f)
                                 },
                                 onShowVolumeChange = { screenState.showVolumeOverlay = it },
+                                onSeekDragChange = { dragging ->
+                                    screenState.isSeekDragging = dragging
+                                    screenState.onInteraction()
+                                },
+                                onSeekDragUpdate = { targetMs, deltaMs ->
+                                    screenState.seekDragTargetMs = targetMs
+                                    screenState.seekDragDeltaMs = deltaMs
+                                },
                                 brightnessLevel = { screenState.brightnessLevel },
                                 volumeLevel = { screenState.volumeLevel },
                                 maxVolume = audioSystemInfo.maxVolume,
@@ -884,6 +900,7 @@ fun GlobalPlayerOverlay(
                                 activity = activity,
                                 brightnessSwipeGesturesEnabled = brightnessSwipeGesturesEnabled,
                                 volumeSwipeGesturesEnabled = volumeSwipeGesturesEnabled,
+                                seekSwipeGesturesEnabled = seekSwipeGesturesEnabled,
                                 allowVolumeBoost = allowVolumeBoost,
                                 doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
                                 longPressPlaybackSpeed = longPressPlaybackSpeed,

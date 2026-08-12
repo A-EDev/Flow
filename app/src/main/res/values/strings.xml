@@ -645,6 +645,8 @@
     <string name="player_appearance_remember_brightness_subtitle">Reuse your last player brightness level for the next videos</string>
     <string name="player_appearance_volume_gesture_title">Volume Gesture</string>
     <string name="player_appearance_volume_gesture_subtitle">Swipe the right edge in fullscreen to adjust volume</string>
+    <string name="player_appearance_seek_gesture_title">Seek Gesture</string>
+    <string name="player_appearance_seek_gesture_subtitle">Swipe horizontally in fullscreen to scrub through the video</string>
     <string name="player_appearance_controls_while_loading_title">Controls While Loading</string>
     <string name="player_appearance_controls_while_loading_subtitle">Show the player controls before the video finishes loading so you can adjust volume right away</string>
     <string name="player_appearance_long_press_speed_title">Long-press Playback Speed</string>
@@ -1847,6 +1849,8 @@
     <string name="player_brightness_auto">Auto</string>
     <string name="player_gesture_level_percent">%1$d%%</string>
     <string name="player_replay">Replay</string>
+    <string name="player_seek_delta_forward">+%1$s</string>
+    <string name="player_seek_delta_back">-%1$s</string>
     <!-- New Video Player Strings -->
     <string name="player_settings_overlay_controls">Overlay Controls</string>
     <string name="player_settings_overlay_cast">Cast Button</string>

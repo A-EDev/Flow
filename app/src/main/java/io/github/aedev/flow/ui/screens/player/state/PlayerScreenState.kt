@@ -17,6 +17,10 @@ class PlayerScreenState {
 
     var isScrubbing by mutableStateOf(false)
 
+    var isSeekDragging by mutableStateOf(false)
+    var seekDragTargetMs by mutableLongStateOf(0L)
+    var seekDragDeltaMs by mutableLongStateOf(0L)
+
     // Playback Position
     var currentPosition by mutableLongStateOf(0L)
     var bufferedPosition by mutableLongStateOf(0L)
@@ -87,6 +91,9 @@ class PlayerScreenState {
         lastInteractionTimestamp = System.currentTimeMillis()
         showControls = true
         isScrubbing = false
+        isSeekDragging = false
+        seekDragTargetMs = 0L
+        seekDragDeltaMs = 0L
         isFullscreenPortrait = false
         isTouchLocked = false
         lockOverlayRevealSignal = 0

@@ -5,7 +5,8 @@ import android.media.AudioManager
 import android.os.SystemClock
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -14,8 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.media3.common.Player
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -34,6 +37,19 @@ private const val ZONE_LEFT = -1
 private const val ZONE_CENTER = 0
 private const val ZONE_RIGHT = 1
 
+private const val SEEK_DRAG_SPAN_MS = 90_000L
+
+/** Target movement between haptic ticks while dragging to seek. */
+private const val SEEK_DRAG_HAPTIC_STEP_MS = 5_000L
+
+/** Distance from the top and bottom edges where drags are left to the controls beneath them. */
+private const val DRAG_EDGE_IGNORE_PX = 120f
+
+/** Downward travel in the centre zone that commits to leaving fullscreen. */
+private const val EXIT_FULLSCREEN_DRAG_PX = 80f
+
+private const val VERTICAL_DRAG_SENSITIVITY = 1.5f
+
 fun Modifier.videoPlayerControls(
     isSpeedBoostActive: Boolean,
     onSpeedBoostChange: (Boolean) -> Unit,
@@ -51,6 +67,8 @@ fun Modifier.videoPlayerControls(
     onShowBrightnessChange: (Boolean) -> Unit,
     onVolumeChange: (Float) -> Unit,
     onShowVolumeChange: (Boolean) -> Unit,
+    onSeekDragChange: (Boolean) -> Unit = {},
+    onSeekDragUpdate: (targetMs: Long, deltaMs: Long) -> Unit = { _, _ -> },
     brightnessLevel: () -> Float,
     volumeLevel: () -> Float,
     maxVolume: Int,
@@ -58,6 +76,7 @@ fun Modifier.videoPlayerControls(
     activity: Activity?,
     brightnessSwipeGesturesEnabled: Boolean = true,
     volumeSwipeGesturesEnabled: Boolean = true,
+    seekSwipeGesturesEnabled: Boolean = true,
     allowVolumeBoost: Boolean = false,
     doubleTapSeekMs: Long = 10_000L,
     longPressPlaybackSpeed: Float = 2.0f,
@@ -80,6 +99,8 @@ fun Modifier.videoPlayerControls(
         val currentOnShowBrightnessChange by rememberUpdatedState(onShowBrightnessChange)
         val currentOnVolumeChange by rememberUpdatedState(onVolumeChange)
         val currentOnShowVolumeChange by rememberUpdatedState(onShowVolumeChange)
+        val currentOnSeekDragChange by rememberUpdatedState(onSeekDragChange)
+        val currentOnSeekDragUpdate by rememberUpdatedState(onSeekDragUpdate)
         val currentBrightnessLevel by rememberUpdatedState(brightnessLevel)
         val currentVolumeLevel by rememberUpdatedState(volumeLevel)
         val currentMaxVolume by rememberUpdatedState(maxVolume)
@@ -87,6 +108,7 @@ fun Modifier.videoPlayerControls(
         val currentActivity by rememberUpdatedState(activity)
         val currentBrightnessSwipeGesturesEnabled by rememberUpdatedState(brightnessSwipeGesturesEnabled)
         val currentVolumeSwipeGesturesEnabled by rememberUpdatedState(volumeSwipeGesturesEnabled)
+        val currentSeekSwipeGesturesEnabled by rememberUpdatedState(seekSwipeGesturesEnabled)
         val currentAllowVolumeBoost by rememberUpdatedState(allowVolumeBoost)
         val currentDoubleTapSeekMs by rememberUpdatedState(doubleTapSeekMs)
         val currentLongPressPlaybackSpeed by rememberUpdatedState(longPressPlaybackSpeed)
@@ -254,164 +276,225 @@ fun Modifier.videoPlayerControls(
                     },
                 )
             }.pointerInput(currentIsFullscreen) {
-                var totalDragY = 0f
-                var totalDragX = 0f
-                var isDraggingVertical = false
-                var shouldIgnoreGesture = false
-                val dragThreshold = 20f
-                val edgeIgnoreThreshold = 120f
-                var startTouchX = 0f
+                if (!currentIsFullscreen) return@pointerInput
+
                 var isCenterZone = false
                 var exitDragAccum = 0f
                 var lastVolumeStep = -1
                 var lastBrightnessEdge = 0
 
-                if (currentIsFullscreen) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            totalDragY = 0f
-                            totalDragX = 0f
-                            isDraggingVertical = false
-                            exitDragAccum = 0f
-                            lastVolumeStep = -1
-                            lastBrightnessEdge = 0
+                var seekDragStarted = false
+                var seekDragBaseMs = 0L
+                var seekDragTargetMs = 0L
+                var seekDragTravelPx = 0f
+                var lastSeekHapticMs = 0L
 
-                            val distanceFromTop = offset.y
-                            val distanceFromBottom = size.height - offset.y
+                fun applyBrightnessDrag(dy: Float) {
+                    val screenHeight = size.height.toFloat()
+                    if (screenHeight <= 0f) return
 
-                            shouldIgnoreGesture = distanceFromTop < edgeIgnoreThreshold ||
-                                distanceFromBottom < edgeIgnoreThreshold
+                    val delta = -dy / screenHeight * VERTICAL_DRAG_SENSITIVITY
+                    val level = currentBrightnessLevel()
+                    val startLevel = if (level < 0) 0f else level
+                    val rawNewLevel = startLevel + delta
 
-                            if (shouldIgnoreGesture) return@detectDragGestures
+                    // Auto brightness logic: if dragging down past -5%
+                    val newBrightness =
+                        if (rawNewLevel < -0.05f) {
+                            -1.0f // Auto mode
+                        } else {
+                            rawNewLevel.coerceIn(0f, 1f)
+                        }
 
-                            startTouchX = offset.x
-                            val screenWidth = size.width
-                            isCenterZone = startTouchX > screenWidth * 0.33f && startTouchX < screenWidth * 0.67f
-                        },
-                        onDragEnd = {
-                            shouldIgnoreGesture = false
-                            if (isCenterZone && exitDragAccum > 80f) {
-                                currentOnExitFullscreen?.invoke()
+                    currentOnBrightnessChange(newBrightness)
+
+                    val edge =
+                        when {
+                            newBrightness < 0f -> -1
+                            newBrightness >= 1f -> 1
+                            else -> 0
+                        }
+                    if (edge != lastBrightnessEdge) {
+                        if (edge != 0) haptics.playerTick()
+                        lastBrightnessEdge = edge
+                    }
+
+                    val now = SystemClock.uptimeMillis()
+                    val brightnessDelta = abs(newBrightness - lastBrightnessApplied[0])
+                    val timeDelta = now - lastBrightnessAppliedAt[0]
+                    // Apply window brightness only when the change is perceptible
+                    // or 16 ms has elapsed; this keeps WindowManager relayouts off
+                    // every drag tick so the video pipeline doesn't drop frames.
+                    if (brightnessDelta > 0.004f || timeDelta >= 16L) {
+                        try {
+                            currentActivity?.window?.let { window ->
+                                val layoutParams = window.attributes
+                                layoutParams.screenBrightness = newBrightness
+                                window.attributes = layoutParams
                             }
-                            isCenterZone = false
-                            exitDragAccum = 0f
-                            scope.launch {
-                                delay(500) // Delay hiding controls
-                                currentOnShowBrightnessChange(false)
-                                currentOnShowVolumeChange(false)
-                            }
-                            isDraggingVertical = false
-                        },
-                        onDragCancel = {
-                            shouldIgnoreGesture = false
-                            isCenterZone = false
-                            exitDragAccum = 0f
-                            scope.launch {
-                                currentOnShowBrightnessChange(false)
-                                currentOnShowVolumeChange(false)
-                            }
-                            isDraggingVertical = false
-                        },
-                        onDrag = { change, dragAmount ->
-                            if (shouldIgnoreGesture) return@detectDragGestures
-
-                            change.consume()
-                            totalDragX += dragAmount.x
-                            totalDragY += dragAmount.y
-
-                            if (!isDraggingVertical) {
-                                if (abs(totalDragY) > dragThreshold && abs(totalDragY) > abs(totalDragX)) {
-                                    isDraggingVertical = true
-                                }
-                            }
-
-                            if (isDraggingVertical) {
-                                val screenHeight = size.height.toFloat()
-                                val screenWidth = size.width
-                                val dragPosition = change.position.x
-
-                                if (isCenterZone) {
-                                    if (dragAmount.y > 0) {
-                                        exitDragAccum += dragAmount.y
-                                    }
-                                } else if (screenHeight > 0) {
-                                    if (dragPosition < screenWidth / 2 && currentBrightnessSwipeGesturesEnabled) {
-                                        // Left side - brightness
-                                        val sensitivity = 1.5f
-                                        val delta = -dragAmount.y / screenHeight * sensitivity
-
-                                        val level = currentBrightnessLevel()
-                                        val startLevel = if (level < 0) 0f else level
-                                        val rawNewLevel = startLevel + delta
-
-                                        // Auto brightness logic: if dragging down past -5%
-                                        val newBrightness =
-                                            if (rawNewLevel < -0.05f) {
-                                                -1.0f // Auto mode
-                                            } else {
-                                                rawNewLevel.coerceIn(0f, 1f)
-                                            }
-
-                                        currentOnBrightnessChange(newBrightness)
-
-                                        val edge =
-                                            when {
-                                                newBrightness < 0f -> -1
-                                                newBrightness >= 1f -> 1
-                                                else -> 0
-                                            }
-                                        if (edge != lastBrightnessEdge) {
-                                            if (edge != 0) haptics.playerTick()
-                                            lastBrightnessEdge = edge
-                                        }
-
-                                        val now = SystemClock.uptimeMillis()
-                                        val brightnessDelta = abs(newBrightness - lastBrightnessApplied[0])
-                                        val timeDelta = now - lastBrightnessAppliedAt[0]
-                                        // Apply window brightness only when the change is perceptible
-                                        // or 16 ms has elapsed; this keeps WindowManager relayouts off
-                                        // every drag tick so the video pipeline doesn't drop frames.
-                                        if (brightnessDelta > 0.004f || timeDelta >= 16L) {
-                                            try {
-                                                currentActivity?.window?.let { window ->
-                                                    val layoutParams = window.attributes
-                                                    layoutParams.screenBrightness = newBrightness
-                                                    window.attributes = layoutParams
-                                                }
-                                                lastBrightnessApplied[0] = newBrightness
-                                                lastBrightnessAppliedAt[0] = now
-                                            } catch (e: Exception) {
-                                            }
-                                        }
-                                        currentOnShowBrightnessChange(true)
-                                    } else if (dragPosition >= screenWidth / 2 && currentVolumeSwipeGesturesEnabled) {
-                                        // Right side - volume
-                                        val sensitivity = 1.5f
-                                        val delta = -dragAmount.y / screenHeight * sensitivity
-
-                                        val ceiling = if (currentAllowVolumeBoost) 2.0f else 1.0f
-                                        val newVolumeLevel = (currentVolumeLevel() + delta).coerceIn(0f, ceiling)
-                                        currentOnVolumeChange(newVolumeLevel)
-
-                                        if (newVolumeLevel <= 1.0f) {
-                                            val newVolume = (newVolumeLevel * currentMaxVolume).toInt()
-                                            currentAudioManager?.setStreamVolume(
-                                                AudioManager.STREAM_MUSIC,
-                                                newVolume,
-                                                0,
-                                            )
-                                            if (newVolume != lastVolumeStep) {
-                                                if (lastVolumeStep >= 0) haptics.playerTick()
-                                                lastVolumeStep = newVolume
-                                            }
-                                        }
-                                        currentOnShowVolumeChange(true)
-                                    }
-                                }
-                            }
-                        },
-                    )
+                            lastBrightnessApplied[0] = newBrightness
+                            lastBrightnessAppliedAt[0] = now
+                        } catch (e: Exception) {
+                        }
+                    }
+                    currentOnShowBrightnessChange(true)
                 }
+
+                fun applyVolumeDrag(dy: Float) {
+                    val screenHeight = size.height.toFloat()
+                    if (screenHeight <= 0f) return
+
+                    val delta = -dy / screenHeight * VERTICAL_DRAG_SENSITIVITY
+                    val ceiling = if (currentAllowVolumeBoost) 2.0f else 1.0f
+                    val newVolumeLevel = (currentVolumeLevel() + delta).coerceIn(0f, ceiling)
+                    currentOnVolumeChange(newVolumeLevel)
+
+                    if (newVolumeLevel <= 1.0f) {
+                        val newVolume = (newVolumeLevel * currentMaxVolume).toInt()
+                        currentAudioManager?.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+                        if (newVolume != lastVolumeStep) {
+                            if (lastVolumeStep >= 0) haptics.playerTick()
+                            lastVolumeStep = newVolume
+                        }
+                    }
+                    currentOnShowVolumeChange(true)
+                }
+
+                fun beginSeekDrag() {
+                    val manager = EnhancedPlayerManager.getInstance()
+                    seekDragBaseMs = manager.getPlayer()?.currentPosition ?: currentPositionProvider()
+                    seekDragTargetMs = seekDragBaseMs
+                    lastSeekHapticMs = seekDragBaseMs
+                    seekDragTravelPx = 0f
+                    currentOnSeekDragUpdate(seekDragTargetMs, 0L)
+                    currentOnSeekDragChange(true)
+                }
+
+                fun updateSeekDrag(dx: Float) {
+                    val width = size.width.toFloat()
+                    if (width <= 0f || currentDuration <= 0L) return
+
+                    seekDragTravelPx += dx
+                    val spanMs = minOf(SEEK_DRAG_SPAN_MS, currentDuration)
+                    val rawTarget = seekDragBaseMs + (seekDragTravelPx / width * spanMs).toLong()
+                    val clamped = rawTarget.coerceIn(0L, currentDuration)
+                    if (clamped != rawTarget) {
+                        seekDragTravelPx = (clamped - seekDragBaseMs).toFloat() / spanMs * width
+                    }
+                    seekDragTargetMs = clamped
+
+                    currentOnSeekDragUpdate(clamped, clamped - seekDragBaseMs)
+
+                    if (abs(clamped - lastSeekHapticMs) >= SEEK_DRAG_HAPTIC_STEP_MS) {
+                        lastSeekHapticMs = clamped
+                        haptics.playerTick()
+                    }
+                }
+
+                fun endSeekDrag(commit: Boolean) {
+                    if (commit && seekDragTargetMs != seekDragBaseMs) {
+                        val manager = EnhancedPlayerManager.getInstance()
+                        val player = manager.getPlayer()
+                        val isLive = manager.playerState.value.isLive || player?.isCurrentMediaItemLive == true
+                        if (isLive) {
+                            manager.seekToLiveTimeline(seekDragTargetMs)
+                        } else {
+                            manager.seekTo(seekDragTargetMs)
+                        }
+                    }
+                    seekDragStarted = false
+                    currentOnSeekDragChange(false)
+                }
+
+                detectPlayerDrags(
+                    onDragStart = { offset ->
+                        exitDragAccum = 0f
+                        lastVolumeStep = -1
+                        lastBrightnessEdge = 0
+                        seekDragStarted = false
+
+                        val nearEdge =
+                            offset.y < DRAG_EDGE_IGNORE_PX ||
+                                size.height - offset.y < DRAG_EDGE_IGNORE_PX
+                        if (nearEdge) {
+                            false
+                        } else {
+                            val width = size.width
+                            isCenterZone = offset.x > width * 0.33f && offset.x < width * 0.67f
+                            true
+                        }
+                    },
+                    onAxisAccepted = { axis ->
+                        when (axis) {
+                            PlayerDragAxis.HORIZONTAL -> currentSeekSwipeGesturesEnabled && currentDuration > 0L
+                            PlayerDragAxis.VERTICAL -> true
+                        }
+                    },
+                    onDrag = { change, delta, axis ->
+                        when (axis) {
+                            PlayerDragAxis.HORIZONTAL -> {
+                                if (!seekDragStarted) {
+                                    seekDragStarted = true
+                                    beginSeekDrag()
+                                }
+                                updateSeekDrag(delta.x)
+                            }
+
+                            PlayerDragAxis.VERTICAL -> {
+                                val width = size.width
+                                when {
+                                    isCenterZone -> {
+                                        if (delta.y > 0) exitDragAccum += delta.y
+                                    }
+
+                                    change.position.x < width / 2 -> {
+                                        if (currentBrightnessSwipeGesturesEnabled) applyBrightnessDrag(delta.y)
+                                    }
+
+                                    else -> {
+                                        if (currentVolumeSwipeGesturesEnabled) applyVolumeDrag(delta.y)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    onDragEnd = { axis ->
+                        when (axis) {
+                            PlayerDragAxis.HORIZONTAL -> {
+                                if (seekDragStarted) endSeekDrag(commit = true)
+                            }
+
+                            PlayerDragAxis.VERTICAL -> {
+                                if (isCenterZone && exitDragAccum > EXIT_FULLSCREEN_DRAG_PX) {
+                                    currentOnExitFullscreen?.invoke()
+                                }
+                                scope.launch {
+                                    delay(500) // Delay hiding controls
+                                    currentOnShowBrightnessChange(false)
+                                    currentOnShowVolumeChange(false)
+                                }
+                            }
+                        }
+                        isCenterZone = false
+                        exitDragAccum = 0f
+                    },
+                    onDragCancel = { axis ->
+                        when (axis) {
+                            PlayerDragAxis.HORIZONTAL -> {
+                                if (seekDragStarted) endSeekDrag(commit = false)
+                            }
+
+                            PlayerDragAxis.VERTICAL -> {
+                                scope.launch {
+                                    currentOnShowBrightnessChange(false)
+                                    currentOnShowVolumeChange(false)
+                                }
+                            }
+                        }
+                        isCenterZone = false
+                        exitDragAccum = 0f
+                    },
+                )
             }
     }
 
@@ -450,5 +533,60 @@ private suspend fun PointerInputScope.detectPlayerTaps(
 
         onDoubleTap(secondDown.position)
         waitForUpOrCancellation()
+    }
+}
+
+internal enum class PlayerDragAxis { HORIZONTAL, VERTICAL }
+
+/**
+ * Axis-locked drag detection.
+ *
+ * `detectDragGestures` cannot express this: it consumes the pointer the moment any drag begins, so
+ * it claimed horizontal movement the player had no use for, and it resolved the axis from a running
+ * total that could flip mid-gesture. Here the axis is decided once, at the instant touch slop is
+ * crossed, and the pointer is only consumed when [onAxisAccepted] wants that axis — a drag we do
+ * not handle stays unconsumed and remains available to the parent (the draggable player sheet).
+ *
+ * [onDragStart] returns false to ignore the gesture entirely, which is how the edge exclusion zones
+ * keep their hands off the controls sitting under them.
+ */
+private suspend fun PointerInputScope.detectPlayerDrags(
+    onDragStart: (Offset) -> Boolean,
+    onAxisAccepted: (PlayerDragAxis) -> Boolean,
+    onDrag: (change: PointerInputChange, delta: Offset, axis: PlayerDragAxis) -> Unit,
+    onDragEnd: (PlayerDragAxis) -> Unit,
+    onDragCancel: (PlayerDragAxis) -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        if (!onDragStart(down.position)) return@awaitEachGesture
+
+        var axis: PlayerDragAxis? = null
+        val dragStart =
+            awaitTouchSlopOrCancellation(down.id) { change, overSlop ->
+                val candidate =
+                    if (abs(overSlop.x) > abs(overSlop.y)) {
+                        PlayerDragAxis.HORIZONTAL
+                    } else {
+                        PlayerDragAxis.VERTICAL
+                    }
+                // Consuming is what claims the gesture. Leaving it unconsumed makes
+                // awaitTouchSlopOrCancellation keep waiting, so a rejected axis neither steals the
+                // pointer nor ends the gesture.
+                if (onAxisAccepted(candidate)) {
+                    axis = candidate
+                    change.consume()
+                }
+            } ?: return@awaitEachGesture
+
+        val lockedAxis = axis ?: return@awaitEachGesture
+
+        val completed =
+            drag(dragStart.id) { change ->
+                onDrag(change, change.positionChange(), lockedAxis)
+                change.consume()
+            }
+
+        if (completed) onDragEnd(lockedAxis) else onDragCancel(lockedAxis)
     }
 }

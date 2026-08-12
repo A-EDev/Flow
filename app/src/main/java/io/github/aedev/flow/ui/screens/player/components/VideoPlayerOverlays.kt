@@ -37,6 +37,7 @@ import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 @Composable
 fun PlayerGestureOverlays(
@@ -69,6 +70,13 @@ fun PlayerGestureOverlays(
                 modifier =
                     Modifier
                         .align(Alignment.Center),
+            )
+
+            SeekDragOverlay(
+                isVisible = screenState.isSeekDragging,
+                targetMs = { screenState.seekDragTargetMs },
+                deltaMs = { screenState.seekDragDeltaMs },
+                modifier = Modifier.align(Alignment.Center),
             )
 
             SpeedBoostOverlay(
@@ -335,6 +343,56 @@ fun VolumeOverlay(
         indicatorColor = indicatorColor,
         modifier = modifier,
     )
+}
+
+/**
+ * Target-time preview shown while dragging horizontally to seek.
+ *
+ * The drag only commits on release, so this is the sole feedback the gesture gives: the absolute
+ * time it will land on, and how far that is from where playback currently sits.
+ */
+@Composable
+fun SeekDragOverlay(
+    isVisible: Boolean,
+    targetMs: () -> Long,
+    deltaMs: () -> Long,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(tween(120)) + scaleIn(animationSpec = tween(120), initialScale = 0.92f),
+        exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.94f),
+        modifier = modifier,
+    ) {
+        val target = targetMs()
+        val delta = deltaMs()
+        Column(
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color.Black.copy(alpha = 0.58f))
+                    .padding(horizontal = 22.dp, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = VideoPlayerUtils.formatTime(target, padMinutes = true),
+                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text =
+                    stringResource(
+                        if (delta < 0L) R.string.player_seek_delta_back else R.string.player_seek_delta_forward,
+                        VideoPlayerUtils.formatTime(abs(delta)),
+                    ),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
 }
 
 @Composable

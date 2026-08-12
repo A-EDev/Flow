@@ -13,9 +13,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -49,32 +49,30 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.local.VideoCodec
+import io.github.aedev.flow.data.local.VideoQuality
 import kotlinx.coroutines.launch
 import java.io.File
 
 private enum class DownloadLocationTarget {
     VIDEO,
-    MUSIC
+    MUSIC,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DownloadSettingsScreen(
-    onNavigateBack: () -> Unit
-) {
+fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val coroutineScope = rememberCoroutineScope()
     val preferences = remember { PlayerPreferences(context) }
     val maxDialogHeight = (configuration.screenHeightDp.dp - 48.dp).coerceAtMost(560.dp)
     val maxDialogListHeight = (configuration.screenHeightDp.dp * 0.55f).coerceAtMost(360.dp)
-    
+
     val parallelEnabled by preferences.parallelDownloadEnabled.collectAsState(initial = true)
     val threadCount by preferences.downloadThreads.collectAsState(initial = 3)
     val wifiOnly by preferences.downloadOverWifiOnly.collectAsState(initial = false)
-    val defaultQuality by preferences.defaultDownloadQuality.collectAsState(initial = VideoQuality.Q_720p)
+    val defaultQuality by preferences.defaultDownloadQuality.collectAsState(initial = VideoQuality.Q_720P)
     val defaultCodec by preferences.defaultDownloadCodec.collectAsState(initial = VideoCodec.AUTO)
     val downloadLocation by preferences.downloadLocation.collectAsState(initial = null)
     val musicDownloadLocation by preferences.musicDownloadLocation.collectAsState(initial = null)
@@ -88,150 +86,177 @@ fun DownloadSettingsScreen(
     // Permission states (Android 11+ only)
     var hasAllFilesAccess by remember {
         mutableStateOf(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 Environment.isExternalStorageManager()
-            else true
+            } else {
+                true
+            },
         )
     }
     var mediaVideoGranted by remember {
         mutableStateOf(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
-            else true
+            } else {
+                true
+            },
         )
     }
     var mediaAudioGranted by remember {
         mutableStateOf(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED
-            else true
+            } else {
+                true
+            },
         )
     }
 
     // Re-check permission states when returning from system settings
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    hasAllFilesAccess = Environment.isExternalStorageManager()
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    mediaVideoGranted = ContextCompat.checkSelfPermission(
-                        context, Manifest.permission.READ_MEDIA_VIDEO
-                    ) == PackageManager.PERMISSION_GRANTED
-                    mediaAudioGranted = ContextCompat.checkSelfPermission(
-                        context, Manifest.permission.READ_MEDIA_AUDIO
-                    ) == PackageManager.PERMISSION_GRANTED
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        hasAllFilesAccess = Environment.isExternalStorageManager()
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        mediaVideoGranted = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.READ_MEDIA_VIDEO,
+                        ) == PackageManager.PERMISSION_GRANTED
+                        mediaAudioGranted = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.READ_MEDIA_AUDIO,
+                        ) == PackageManager.PERMISSION_GRANTED
+                    }
                 }
             }
-        }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // Launcher for MANAGE_EXTERNAL_STORAGE (opens system settings page)
-    val allFilesLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            hasAllFilesAccess = Environment.isExternalStorageManager()
-        }
-    }
-
-    // Launcher for READ_MEDIA_VIDEO
-    val mediaVideoLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        mediaVideoGranted = granted
-    }
-
-    // Launcher for READ_MEDIA_AUDIO
-    val mediaAudioLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        mediaAudioGranted = granted
-    }
-
-    // Runtime permission launcher
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        val granted = results.values.all { it }
-        Log.d("DownloadSettings", "Storage permissions granted=$granted")
-    }
-
-    val folderPickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            try { context.contentResolver.takePersistableUriPermission(uri, flags) } catch (_: Exception) {}
-            val path: String? = runCatching {
-                val docId = DocumentsContract.getTreeDocumentId(uri)
-                val parts = docId.split(":")
-                if (parts.size == 2) {
-                    val volume = parts[0]
-                    val relativePath = parts[1]
-                    if (volume.equals("primary", ignoreCase = true)) {
-                        "${Environment.getExternalStorageDirectory().absolutePath}/$relativePath"
-                    } else {
-                        "/storage/$volume/$relativePath"
-                    }
-                } else null
-            }.getOrNull() ?: uri.path
-            coroutineScope.launch {
-                if (!path.isNullOrBlank()) {
-                    try { File(path).mkdirs() } catch (_: Exception) {}
-                    when (locationDialogTarget) {
-                        DownloadLocationTarget.MUSIC -> preferences.setMusicDownloadLocation(path)
-                        else -> preferences.setDownloadLocation(path)
-                    }
-                }
-                locationDialogTarget = null
+    val allFilesLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                hasAllFilesAccess = Environment.isExternalStorageManager()
             }
         }
-    }
+
+    // Launcher for READ_MEDIA_VIDEO
+    val mediaVideoLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            mediaVideoGranted = granted
+        }
+
+    // Launcher for READ_MEDIA_AUDIO
+    val mediaAudioLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            mediaAudioGranted = granted
+        }
+
+    // Runtime permission launcher
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) { results ->
+            val granted = results.values.all { it }
+            Log.d("DownloadSettings", "Storage permissions granted=$granted")
+        }
+
+    val folderPickerLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocumentTree(),
+        ) { uri: Uri? ->
+            if (uri != null) {
+                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                try {
+                    context.contentResolver.takePersistableUriPermission(uri, flags)
+                } catch (_: Exception) {
+                }
+                val path: String? =
+                    runCatching {
+                        val docId = DocumentsContract.getTreeDocumentId(uri)
+                        val parts = docId.split(":")
+                        if (parts.size == 2) {
+                            val volume = parts[0]
+                            val relativePath = parts[1]
+                            if (volume.equals("primary", ignoreCase = true)) {
+                                "${Environment.getExternalStorageDirectory().absolutePath}/$relativePath"
+                            } else {
+                                "/storage/$volume/$relativePath"
+                            }
+                        } else {
+                            null
+                        }
+                    }.getOrNull() ?: uri.path
+                coroutineScope.launch {
+                    if (!path.isNullOrBlank()) {
+                        try {
+                            File(path).mkdirs()
+                        } catch (_: Exception) {
+                        }
+                        when (locationDialogTarget) {
+                            DownloadLocationTarget.MUSIC -> preferences.setMusicDownloadLocation(path)
+                            else -> preferences.setDownloadLocation(path)
+                        }
+                    }
+                    locationDialogTarget = null
+                }
+            }
+        }
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            val writeGranted = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
+            val writeGranted =
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                ) == PackageManager.PERMISSION_GRANTED
             if (!writeGranted) {
                 permissionLauncher.launch(
                     arrayOf(
                         Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                        Manifest.permission.READ_EXTERNAL_STORAGE
-                    )
+                        Manifest.permission.READ_EXTERNAL_STORAGE,
+                    ),
                 )
             }
         }
     }
-    
-    val defaultVideoPath = remember {
-        try {
-            File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
-                "Flow"
-            ).absolutePath
-        } catch (e: Exception) {
-            "Internal App Storage"
+
+    val defaultVideoPath =
+        remember {
+            try {
+                File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
+                    "Flow",
+                ).absolutePath
+            } catch (e: Exception) {
+                "Internal App Storage"
+            }
         }
-    }
-    val defaultMusicPath = remember {
-        try {
-            File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                "Flow"
-            ).absolutePath
-        } catch (e: Exception) {
-            "Internal App Storage"
+    val defaultMusicPath =
+        remember {
+            try {
+                File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                    "Flow",
+                ).absolutePath
+            } catch (e: Exception) {
+                "Internal App Storage"
+            }
         }
-    }
     val displayPath = downloadLocation ?: defaultVideoPath
     val musicDisplayPath = musicDownloadLocation ?: defaultMusicPath
-    
+
     // Storage Info
     var freeSpace by remember { mutableStateOf(context.getString(R.string.loading_ellipsis)) }
     var totalSpace by remember { mutableStateOf("") }
@@ -239,21 +264,22 @@ fun DownloadSettingsScreen(
 
     LaunchedEffect(downloadLocation, musicDownloadLocation) {
         try {
-            val statsPath = downloadLocation 
-                ?: Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).path
+            val statsPath =
+                downloadLocation
+                    ?: Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).path
             val file = File(statsPath)
             if (!file.exists()) file.mkdirs()
-            
+
             val stat = android.os.StatFs(file.path)
             val available = stat.availableBlocksLong * stat.blockSizeLong
             val total = stat.blockCountLong * stat.blockSizeLong
-            
+
             val availableGB = available / (1024f * 1024f * 1024f)
             val totalGB = total / (1024f * 1024f * 1024f)
-            
+
             freeSpace = String.format("%.1f GB", availableGB)
             totalSpace = String.format("%.1f GB", totalGB)
-            
+
             if (total > 0) {
                 usedSpacePercentage = (total - available).toFloat() / total.toFloat()
             }
@@ -263,16 +289,17 @@ fun DownloadSettingsScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
     ) {
         TopAppBar(
             title = {
                 Text(
                     text = stringResource(R.string.download_settings_title),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             },
             navigationIcon = {
@@ -280,19 +307,19 @@ fun DownloadSettingsScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back))
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.background,
-                titleContentColor = MaterialTheme.colorScheme.onBackground
-            ),
-            windowInsets = WindowInsets(0.dp)
+            colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                ),
+            windowInsets = WindowInsets(0.dp),
         )
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-
             // ==================== PERMISSIONS (Android 11+) ====================
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 item {
@@ -301,7 +328,7 @@ fun DownloadSettingsScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 16.dp)
+                        modifier = Modifier.padding(start = 16.dp),
                     )
                 }
 
@@ -310,55 +337,63 @@ fun DownloadSettingsScreen(
                         SettingsItem(
                             icon = Icons.Outlined.FolderOpen,
                             title = stringResource(R.string.files_access_title),
-                            subtitle = if (hasAllFilesAccess)
-                                stringResource(R.string.files_access_granted_subtitle)
-                            else
-                                stringResource(R.string.files_access_denied_subtitle),
+                            subtitle =
+                                if (hasAllFilesAccess) {
+                                    stringResource(R.string.files_access_granted_subtitle)
+                                } else {
+                                    stringResource(R.string.files_access_denied_subtitle)
+                                },
                             onClick = {
                                 if (!hasAllFilesAccess) {
                                     try {
-                                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                            data = Uri.parse("package:${context.packageName}")
-                                        }
+                                        val intent =
+                                            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                                data = Uri.parse("package:${context.packageName}")
+                                            }
                                         allFilesLauncher.launch(intent)
                                     } catch (_: Exception) {
                                         try {
                                             allFilesLauncher.launch(
-                                                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
                                             )
-                                        } catch (_: Exception) {}
+                                        } catch (_: Exception) {
+                                        }
                                     }
                                 }
-                            }
+                            },
                         )
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                             SettingsItem(
                                 icon = Icons.Outlined.VideoLibrary,
                                 title = stringResource(R.string.media_access_title),
-                                subtitle = if (mediaVideoGranted)
-                                    stringResource(R.string.media_access_granted_subtitle)
-                                else
-                                    stringResource(R.string.media_access_denied_subtitle),
+                                subtitle =
+                                    if (mediaVideoGranted) {
+                                        stringResource(R.string.media_access_granted_subtitle)
+                                    } else {
+                                        stringResource(R.string.media_access_denied_subtitle)
+                                    },
                                 onClick = {
                                     if (!mediaVideoGranted) {
                                         mediaVideoLauncher.launch(Manifest.permission.READ_MEDIA_VIDEO)
                                     }
-                                }
+                                },
                             )
                             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                             SettingsItem(
                                 icon = Icons.Outlined.MusicNote,
                                 title = stringResource(R.string.audio_access_title),
-                                subtitle = if (mediaAudioGranted)
-                                    stringResource(R.string.audio_access_granted_subtitle)
-                                else
-                                    stringResource(R.string.audio_access_denied_subtitle),
+                                subtitle =
+                                    if (mediaAudioGranted) {
+                                        stringResource(R.string.audio_access_granted_subtitle)
+                                    } else {
+                                        stringResource(R.string.audio_access_denied_subtitle)
+                                    },
                                 onClick = {
                                     if (!mediaAudioGranted) {
                                         mediaAudioLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
                                     }
-                                }
+                                },
                             )
                         }
                     }
@@ -372,7 +407,7 @@ fun DownloadSettingsScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 16.dp)
+                    modifier = Modifier.padding(start = 16.dp),
                 )
             }
 
@@ -381,26 +416,27 @@ fun DownloadSettingsScreen(
                     Column(Modifier.padding(16.dp)) {
                         Row(
                             Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(
                                 stringResource(R.string.internal_storage_label),
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 stringResource(R.string.free_space_template, freeSpace),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                         Spacer(Modifier.height(8.dp))
                         LinearProgressIndicator(
                             progress = { usedSpacePercentage },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant,
                         )
@@ -408,7 +444,7 @@ fun DownloadSettingsScreen(
                         Text(
                             stringResource(R.string.total_space_template, totalSpace),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
@@ -418,14 +454,14 @@ fun DownloadSettingsScreen(
                         icon = Icons.Outlined.VideoLibrary,
                         title = stringResource(R.string.video_download_location_label),
                         subtitle = displayPath,
-                        onClick = { locationDialogTarget = DownloadLocationTarget.VIDEO }
+                        onClick = { locationDialogTarget = DownloadLocationTarget.VIDEO },
                     )
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     SettingsItem(
                         icon = Icons.Outlined.MusicNote,
                         title = stringResource(R.string.music_download_location_label),
                         subtitle = musicDisplayPath,
-                        onClick = { locationDialogTarget = DownloadLocationTarget.MUSIC }
+                        onClick = { locationDialogTarget = DownloadLocationTarget.MUSIC },
                     )
                 }
             }
@@ -437,7 +473,7 @@ fun DownloadSettingsScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 16.dp)
+                    modifier = Modifier.padding(start = 16.dp),
                 )
             }
 
@@ -447,28 +483,28 @@ fun DownloadSettingsScreen(
                         icon = Icons.Outlined.HighQuality,
                         title = stringResource(R.string.default_video_quality_label),
                         subtitle = defaultQuality.label,
-                        onClick = { showQualityDialog = true }
+                        onClick = { showQualityDialog = true },
                     )
                     HorizontalDivider(
                         Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
                     SettingsItem(
                         icon = Icons.Outlined.VideoSettings,
                         title = stringResource(R.string.default_download_codec_label),
                         subtitle = defaultCodec.label,
-                        onClick = { showCodecDialog = true }
+                        onClick = { showCodecDialog = true },
                     )
                     HorizontalDivider(
                         Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Wifi,
                         title = stringResource(R.string.download_over_wifi_only),
                         subtitle = stringResource(R.string.reduce_data_usage_subtitle),
                         checked = wifiOnly,
-                        onCheckedChange = { coroutineScope.launch { preferences.setDownloadOverWifiOnly(it) } }
+                        onCheckedChange = { coroutineScope.launch { preferences.setDownloadOverWifiOnly(it) } },
                     )
                 }
             }
@@ -480,7 +516,7 @@ fun DownloadSettingsScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 16.dp)
+                    modifier = Modifier.padding(start = 16.dp),
                 )
             }
 
@@ -491,18 +527,18 @@ fun DownloadSettingsScreen(
                         title = stringResource(R.string.parallel_downloading_title),
                         subtitle = stringResource(R.string.parallel_downloading_subtitle),
                         checked = parallelEnabled,
-                        onCheckedChange = { coroutineScope.launch { preferences.setParallelDownloadEnabled(it) } }
+                        onCheckedChange = { coroutineScope.launch { preferences.setParallelDownloadEnabled(it) } },
                     )
                     if (parallelEnabled) {
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 56.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         )
                         SettingsItem(
                             icon = Icons.Outlined.Speed,
                             title = stringResource(R.string.concurrent_threads_title),
                             subtitle = stringResource(R.string.threads_per_download_template, threadCount),
-                            onClick = { showThreadDialog = true }
+                            onClick = { showThreadDialog = true },
                         )
                     }
                 }
@@ -513,7 +549,7 @@ fun DownloadSettingsScreen(
                     stringResource(R.string.performance_optimization_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
         }
@@ -531,7 +567,7 @@ fun DownloadSettingsScreen(
                     Text(
                         text = stringResource(R.string.select_threads_count_desc),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(24.dp))
                     Slider(
@@ -539,21 +575,21 @@ fun DownloadSettingsScreen(
                         onValueChange = { coroutineScope.launch { preferences.setDownloadThreads(it.toInt()) } },
                         valueRange = 1f..8f,
                         steps = 6,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
-                        text = stringResource(R.string.threads_count_label, threadCount), 
+                        text = stringResource(R.string.threads_count_label, threadCount),
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             },
-            confirmButton = { 
-                TextButton(onClick = { showThreadDialog = false }) { 
-                    Text(stringResource(R.string.close)) 
-                } 
+            confirmButton = {
+                TextButton(onClick = { showThreadDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
             },
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -561,48 +597,56 @@ fun DownloadSettingsScreen(
     }
 
     if (showQualityDialog) {
-        val qualities = listOf(
-            VideoQuality.Q_144p, VideoQuality.Q_240p, VideoQuality.Q_360p,
-            VideoQuality.Q_480p, VideoQuality.Q_720p,
-            VideoQuality.Q_1080p, VideoQuality.Q_1440p, VideoQuality.Q_2160p
-        )
+        val qualities =
+            listOf(
+                VideoQuality.Q_144P,
+                VideoQuality.Q_240P,
+                VideoQuality.Q_360P,
+                VideoQuality.Q_480P,
+                VideoQuality.Q_720P,
+                VideoQuality.Q_1080P,
+                VideoQuality.Q_1440P,
+                VideoQuality.Q_2160P,
+            )
         AlertDialog(
             onDismissRequest = { showQualityDialog = false },
             icon = { Icon(Icons.Outlined.HighQuality, null) },
             title = { Text(stringResource(R.string.quality)) },
             text = {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = maxDialogListHeight)
-                        .verticalScroll(rememberScrollState())
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = maxDialogListHeight)
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     qualities.forEach { quality ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    coroutineScope.launch {
-                                        preferences.setDefaultDownloadQuality(quality)
-                                        showQualityDialog = false
-                                    }
-                                }
-                                .padding(horizontal = 12.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        coroutineScope.launch {
+                                            preferences.setDefaultDownloadQuality(quality)
+                                            showQualityDialog = false
+                                        }
+                                    }.padding(horizontal = 12.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(
                                 selected = defaultQuality == quality,
                                 onClick = null,
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = MaterialTheme.colorScheme.primary
-                                )
+                                colors =
+                                    RadioButtonDefaults.colors(
+                                        selectedColor = MaterialTheme.colorScheme.primary,
+                                    ),
                             )
                             Spacer(Modifier.width(16.dp))
                             Text(
                                 text = quality.label,
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }
@@ -613,7 +657,7 @@ fun DownloadSettingsScreen(
                     Text(stringResource(R.string.cancel))
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface,
         )
     }
 
@@ -624,44 +668,46 @@ fun DownloadSettingsScreen(
             title = { Text(stringResource(R.string.default_download_codec_label)) },
             text = {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = maxDialogListHeight)
-                        .verticalScroll(rememberScrollState())
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = maxDialogListHeight)
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     VideoCodec.values().forEach { codec ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    coroutineScope.launch {
-                                        preferences.setDefaultDownloadCodec(codec)
-                                        showCodecDialog = false
-                                    }
-                                }
-                                .padding(horizontal = 12.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        coroutineScope.launch {
+                                            preferences.setDefaultDownloadCodec(codec)
+                                            showCodecDialog = false
+                                        }
+                                    }.padding(horizontal = 12.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(
                                 selected = defaultCodec == codec,
                                 onClick = null,
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = MaterialTheme.colorScheme.primary
-                                )
+                                colors =
+                                    RadioButtonDefaults.colors(
+                                        selectedColor = MaterialTheme.colorScheme.primary,
+                                    ),
                             )
                             Spacer(Modifier.width(16.dp))
                             Column {
                                 Text(
                                     text = codec.label,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 if (codec == VideoCodec.AUTO) {
                                     Text(
                                         text = stringResource(R.string.default_download_codec_auto_subtitle),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -674,32 +720,45 @@ fun DownloadSettingsScreen(
                     Text(stringResource(R.string.cancel))
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface,
         )
     }
 
     locationDialogTarget?.let { dialogTarget ->
-        val selectedLocation = when (dialogTarget) {
-            DownloadLocationTarget.VIDEO -> downloadLocation
-            DownloadLocationTarget.MUSIC -> musicDownloadLocation
-        }
-        val dialogTitle = when (dialogTarget) {
-            DownloadLocationTarget.VIDEO -> stringResource(R.string.video_download_location_label)
-            DownloadLocationTarget.MUSIC -> stringResource(R.string.music_download_location_label)
-        }
-        val downloadsPath = remember {
-            try { File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Flow").absolutePath }
-            catch (_: Exception) { null }
-        }
-        val secondaryPath = remember(dialogTarget) {
-            try {
-                val baseDir = if (dialogTarget == DownloadLocationTarget.MUSIC)
-                    Environment.DIRECTORY_MUSIC
-                else
-                    Environment.DIRECTORY_MOVIES
-                File(Environment.getExternalStoragePublicDirectory(baseDir), "Flow").absolutePath
-            } catch (_: Exception) { null }
-        }
+        val selectedLocation =
+            when (dialogTarget) {
+                DownloadLocationTarget.VIDEO -> downloadLocation
+                DownloadLocationTarget.MUSIC -> musicDownloadLocation
+            }
+        val dialogTitle =
+            when (dialogTarget) {
+                DownloadLocationTarget.VIDEO -> stringResource(R.string.video_download_location_label)
+                DownloadLocationTarget.MUSIC -> stringResource(R.string.music_download_location_label)
+            }
+        val downloadsPath =
+            remember {
+                try {
+                    File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Flow").absolutePath
+                } catch (
+                    _: Exception,
+                ) {
+                    null
+                }
+            }
+        val secondaryPath =
+            remember(dialogTarget) {
+                try {
+                    val baseDir =
+                        if (dialogTarget == DownloadLocationTarget.MUSIC) {
+                            Environment.DIRECTORY_MUSIC
+                        } else {
+                            Environment.DIRECTORY_MOVIES
+                        }
+                    File(Environment.getExternalStoragePublicDirectory(baseDir), "Flow").absolutePath
+                } catch (_: Exception) {
+                    null
+                }
+            }
         val internalPath = remember { File(context.filesDir, "downloads").absolutePath }
 
         val presetPaths = listOfNotNull(downloadsPath, secondaryPath, internalPath)
@@ -715,25 +774,25 @@ fun DownloadSettingsScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = maxDialogHeight)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = maxDialogHeight),
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
-                    
                     // HEADER
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Outlined.FolderOpen,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
                         )
                         Spacer(Modifier.width(16.dp))
                         Text(
                             dialogTitle,
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
@@ -741,21 +800,30 @@ fun DownloadSettingsScreen(
                     Text(
                         stringResource(R.string.location_dialog_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
                     // HELPER COMPOSABLE FOR ROWS
                     @Composable
-                    fun PresetRow(label: String, path: String?, isRecommended: Boolean = false) {
-                        val isSelected = path != null && path == selectedLocation || (path == null && selectedLocation == null)
-                        
+                    fun PresetRow(
+                        label: String,
+                        path: String?,
+                        isRecommended: Boolean = false,
+                    ) {
+                        val isSelected = (path != null && path == selectedLocation) || (path == null && selectedLocation == null)
+
                         val bgColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else Color.Transparent
                         val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
 
                         Surface(
                             onClick = {
                                 coroutineScope.launch {
-                                    path?.let { p -> try { File(p).mkdirs() } catch (_: Exception) {} }
+                                    path?.let { p ->
+                                        try {
+                                            File(p).mkdirs()
+                                        } catch (_: Exception) {
+                                        }
+                                    }
                                     when (dialogTarget) {
                                         DownloadLocationTarget.VIDEO -> preferences.setDownloadLocation(path)
                                         DownloadLocationTarget.MUSIC -> preferences.setMusicDownloadLocation(path)
@@ -766,42 +834,42 @@ fun DownloadSettingsScreen(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             shape = RoundedCornerShape(12.dp),
                             color = bgColor,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+                            border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 RadioButton(
-                                    selected = isSelected, 
+                                    selected = isSelected,
                                     onClick = null,
-                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary),
                                 )
                                 Spacer(Modifier.width(16.dp))
-                                
+
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            text = label, 
-                                            style = MaterialTheme.typography.bodyLarge, 
+                                            text = label,
+                                            style = MaterialTheme.typography.bodyLarge,
                                             fontWeight = FontWeight.Medium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.weight(1f, fill = false) 
+                                            modifier = Modifier.weight(1f, fill = false),
                                         )
-                                        
+
                                         if (isRecommended) {
                                             Spacer(Modifier.width(8.dp))
                                             Surface(
                                                 color = MaterialTheme.colorScheme.primary,
-                                                shape = RoundedCornerShape(4.dp)
+                                                shape = RoundedCornerShape(4.dp),
                                             ) {
                                                 Text(
                                                     text = stringResource(R.string.location_badge_recommended),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                     color = MaterialTheme.colorScheme.onPrimary,
-                                                    maxLines = 1
+                                                    maxLines = 1,
                                                 )
                                             }
                                         }
@@ -813,7 +881,7 @@ fun DownloadSettingsScreen(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
+                                            overflow = TextOverflow.Ellipsis,
                                         )
                                     }
                                 }
@@ -822,9 +890,10 @@ fun DownloadSettingsScreen(
                     }
 
                     Column(
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .verticalScroll(rememberScrollState())
+                        modifier =
+                            Modifier
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState()),
                     ) {
                         Spacer(Modifier.height(24.dp))
 
@@ -833,15 +902,23 @@ fun DownloadSettingsScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
+                            modifier = Modifier.padding(bottom = 12.dp, start = 8.dp),
                         )
 
-                        downloadsPath?.let { PresetRow(stringResource(R.string.location_downloads_label), it, isRecommended = dialogTarget == DownloadLocationTarget.VIDEO) }
+                        downloadsPath?.let {
+                            PresetRow(
+                                stringResource(R.string.location_downloads_label),
+                                it,
+                                isRecommended = dialogTarget == DownloadLocationTarget.VIDEO,
+                            )
+                        }
                         secondaryPath?.let {
-                            val label = if (dialogTarget == DownloadLocationTarget.MUSIC)
-                                stringResource(R.string.music_download_location_label)
-                            else
-                                stringResource(R.string.location_movies_label)
+                            val label =
+                                if (dialogTarget == DownloadLocationTarget.MUSIC) {
+                                    stringResource(R.string.music_download_location_label)
+                                } else {
+                                    stringResource(R.string.location_movies_label)
+                                }
                             PresetRow(label, it, isRecommended = dialogTarget == DownloadLocationTarget.MUSIC)
                         }
                         PresetRow(stringResource(R.string.location_internal_app_label), internalPath)
@@ -852,11 +929,16 @@ fun DownloadSettingsScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
+                            modifier = Modifier.padding(bottom = 12.dp, start = 8.dp),
                         )
 
                         // SAF PICKER ROW
-                        val safBg = if (isSafCustomSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else Color.Transparent
+                        val safBg =
+                            if (isSafCustomSelected) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                            } else {
+                                Color.Transparent
+                            }
                         val safBorder = if (isSafCustomSelected) MaterialTheme.colorScheme.primary else Color.Transparent
 
                         Surface(
@@ -864,32 +946,38 @@ fun DownloadSettingsScreen(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             shape = RoundedCornerShape(12.dp),
                             color = safBg,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, safBorder)
+                            border = androidx.compose.foundation.BorderStroke(1.dp, safBorder),
                         ) {
                             Row(
                                 Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
                                     Icons.Outlined.FolderOpen,
                                     contentDescription = null,
-                                    tint = if (isSafCustomSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint =
+                                        if (isSafCustomSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
                                 )
                                 Spacer(Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         stringResource(R.string.location_custom_saf_label),
                                         style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Medium,
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        text = if (isSafCustomSelected) selectedLocation ?: stringResource(R.string.location_custom_saf_desc)
-                                               else stringResource(R.string.location_custom_saf_desc),
+                                        text =
+                                            selectedLocation.takeIf { isSafCustomSelected }
+                                                ?: stringResource(R.string.location_custom_saf_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 }
                             }
@@ -900,29 +988,29 @@ fun DownloadSettingsScreen(
                             onClick = { showManualDialog = true },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            color = Color.Transparent
+                            color = Color.Transparent,
                         ) {
                             Row(
                                 Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
                                     Icons.Outlined.Edit,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Spacer(Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         stringResource(R.string.location_custom_manual_label),
                                         style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Medium,
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         stringResource(R.string.location_custom_manual_desc),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -949,7 +1037,7 @@ fun DownloadSettingsScreen(
                         Text(
                             stringResource(R.string.location_custom_manual_desc),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.height(16.dp))
                         OutlinedTextField(
@@ -958,7 +1046,7 @@ fun DownloadSettingsScreen(
                             label = { Text(stringResource(R.string.location_manual_hint)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
                         )
                     }
                 },
@@ -968,7 +1056,10 @@ fun DownloadSettingsScreen(
                             val trimmed = manualPathInput.trim()
                             if (trimmed.isNotBlank()) {
                                 coroutineScope.launch {
-                                    try { File(trimmed).mkdirs() } catch (_: Exception) {}
+                                    try {
+                                        File(trimmed).mkdirs()
+                                    } catch (_: Exception) {
+                                    }
                                     when (dialogTarget) {
                                         DownloadLocationTarget.VIDEO -> preferences.setDownloadLocation(trimmed)
                                         DownloadLocationTarget.MUSIC -> preferences.setMusicDownloadLocation(trimmed)
@@ -978,7 +1069,7 @@ fun DownloadSettingsScreen(
                                 }
                             }
                         },
-                        enabled = manualPathInput.trim().isNotBlank()
+                        enabled = manualPathInput.trim().isNotBlank(),
                     ) {
                         Text(stringResource(R.string.location_manual_confirm))
                     }
@@ -988,9 +1079,8 @@ fun DownloadSettingsScreen(
                         Text(stringResource(R.string.cancel))
                     }
                 },
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surface,
             )
         }
     }
 }
-

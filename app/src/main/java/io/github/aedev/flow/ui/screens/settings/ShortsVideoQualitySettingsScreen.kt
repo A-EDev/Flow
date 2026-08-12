@@ -20,64 +20,65 @@ import io.github.aedev.flow.data.local.VideoQuality
 import kotlinx.coroutines.launch
 
 @Composable
-fun ShortsVideoQualitySettingsScreen(
-    onNavigateBack: () -> Unit
-) {
+fun ShortsVideoQualitySettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val playerPreferences = remember { PlayerPreferences(context) }
 
-    val wifiQuality by playerPreferences.shortsQualityWifi.collectAsState(initial = VideoQuality.Q_720p)
-    val cellularQuality by playerPreferences.shortsQualityCellular.collectAsState(initial = VideoQuality.Q_480p)
+    val wifiQuality by playerPreferences.shortsQualityWifi.collectAsState(initial = VideoQuality.Q_720P)
+    val cellularQuality by playerPreferences.shortsQualityCellular.collectAsState(initial = VideoQuality.Q_480P)
 
-    val qualities = listOf(
-        VideoQuality.AUTO,
-        VideoQuality.Q_1080p,
-        VideoQuality.Q_720p,
-        VideoQuality.Q_480p,
-        VideoQuality.Q_360p,
-        VideoQuality.Q_240p,
-        VideoQuality.Q_144p
-    )
+    val qualities =
+        listOf(
+            VideoQuality.AUTO,
+            VideoQuality.Q_1080P,
+            VideoQuality.Q_720P,
+            VideoQuality.Q_480P,
+            VideoQuality.Q_360P,
+            VideoQuality.Q_240P,
+            VideoQuality.Q_144P,
+        )
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.background,
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                     }
                     Text(
                         text = stringResource(R.string.shorts_quality_settings_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     )
                 }
             }
-        }
+        },
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item {
                 Text(
                     text = stringResource(R.string.shorts_quality_warning),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
 
@@ -96,12 +97,12 @@ fun ShortsVideoQualitySettingsScreen(
                                 coroutineScope.launch {
                                     playerPreferences.setShortsQualityWifi(quality)
                                 }
-                            }
+                            },
                         )
                         if (index < qualities.size - 1) {
                             HorizontalDivider(
                                 Modifier.padding(start = 56.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             )
                         }
                     }
@@ -123,12 +124,12 @@ fun ShortsVideoQualitySettingsScreen(
                                 coroutineScope.launch {
                                     playerPreferences.setShortsQualityCellular(quality)
                                 }
-                            }
+                            },
                         )
                         if (index < qualities.size - 1) {
                             HorizontalDivider(
                                 Modifier.padding(start = 56.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             )
                         }
                     }
@@ -142,38 +143,38 @@ fun ShortsVideoQualitySettingsScreen(
 private fun ShortsQualitySelectionItem(
     quality: VideoQuality,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(
             selected = isSelected,
-            onClick = null
+            onClick = null,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = stringResource(getShortsQualityNameRes(quality)),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
 
-private fun getShortsQualityNameRes(quality: VideoQuality): Int {
-    return when (quality) {
+private fun getShortsQualityNameRes(quality: VideoQuality): Int =
+    when (quality) {
         VideoQuality.AUTO -> R.string.quality_auto
-        VideoQuality.Q_144p -> R.string.quality_144p
-        VideoQuality.Q_240p -> R.string.quality_240p
-        VideoQuality.Q_360p -> R.string.quality_360p
-        VideoQuality.Q_480p -> R.string.quality_480p
-        VideoQuality.Q_720p -> R.string.quality_720p_hd
-        VideoQuality.Q_1080p -> R.string.quality_1080p_full_hd
-        VideoQuality.Q_1440p -> R.string.quality_1440p_qhd
-        VideoQuality.Q_2160p -> R.string.quality_2160p_4k
+        VideoQuality.Q_144P -> R.string.quality_144p
+        VideoQuality.Q_240P -> R.string.quality_240p
+        VideoQuality.Q_360P -> R.string.quality_360p
+        VideoQuality.Q_480P -> R.string.quality_480p
+        VideoQuality.Q_720P -> R.string.quality_720p_hd
+        VideoQuality.Q_1080P -> R.string.quality_1080p_full_hd
+        VideoQuality.Q_1440P -> R.string.quality_1440p_qhd
+        VideoQuality.Q_2160P -> R.string.quality_2160p_4k
     }
-}
