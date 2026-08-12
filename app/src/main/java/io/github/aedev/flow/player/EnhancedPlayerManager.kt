@@ -151,10 +151,7 @@ class EnhancedPlayerManager private constructor() {
     private var currentSabrInfo: SabrStreamInfo? = null
     private var sabrPreferred = false
 
-    private var isAudioOnlyMode = false
-    private var videoTracksDisabled = false
-
-    @Volatile private var videoSurfaceRestorePending = false
+    private val audioOnlyMode = AudioOnlyMode()
     private var currentLocalFilePath: String? = null
     private val clearedMediaRecoveryState = ClearedMediaRecoveryState()
     private var pendingSurfaceFirstFrameStartedAtMs = 0L
@@ -263,7 +260,8 @@ class EnhancedPlayerManager private constructor() {
             "autoplay=$autoplayEnabled candidates=${autoplayCandidates.size} target=$nextTarget " +
             "preloaded=${preloadedNext?.data?.enrichedVideo?.id} " +
             "attempt=$preloadAttemptVideoId->$preloadAttemptNextVideoId retry=$preloadRetryCount " +
-            "audioOnly=$isAudioOnlyMode tracksDisabled=$videoTracksDisabled surface=$isSurfaceReady live=$currentIsLiveStream"
+            "audioOnly=${audioOnlyMode.isActive} tracksDisabled=${audioOnlyMode.tracksDisabled} " +
+            "surface=$isSurfaceReady live=$currentIsLiveStream"
     }
 
     private fun autoNextLog(message: String) {
@@ -918,7 +916,7 @@ class EnhancedPlayerManager private constructor() {
         sabrPreferred = preferSabr
         innerTubeVideoFormats = itVideoFormats
         innerTubeAudioFormats = itAudioFormats
-        isAudioOnlyMode = keepAudioOnly
+        audioOnlyMode.applyStreams(keepAudioOnly)
         setVideoTracksDisabled(keepAudioOnly)
 
         // Reset and load SponsorBlock
@@ -1134,7 +1132,7 @@ class EnhancedPlayerManager private constructor() {
     ): Boolean {
         autoNextLog("loadMediaInternal audioOnly=$audioOnly preserve=$preservePosition local=${localFilePath != null}")
         clearPreload()
-        if (audioOnly || isAudioOnlyMode) {
+        if (audioOnly || audioOnlyMode.isActive) {
             setVideoTracksDisabled(true)
         } else if (videoStream != null || localFilePath != null) {
             setVideoTracksDisabled(false)
@@ -1216,9 +1214,8 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun setVideoTracksDisabled(disabled: Boolean) {
-        if (videoTracksDisabled == disabled) return
+        if (!audioOnlyMode.setTracksDisabled(disabled)) return
         autoNextLog("setVideoTracksDisabled disabled=$disabled")
-        videoTracksDisabled = disabled
         trackSelector?.let { selector ->
             selector.setParameters(
                 selector
@@ -1589,7 +1586,7 @@ class EnhancedPlayerManager private constructor() {
         reason: String,
     ) {
         val context = appContext ?: return
-        val resumeInAudioOnly = isAudioOnlyMode
+        val resumeInAudioOnly = audioOnlyMode.isActive
         acquireAdvanceWakeLock()
         clearPreload()
         autoNextLog("playVideoFromServiceLayer start video=${video.id} reason=$reason resumeAudioOnly=$resumeInAudioOnly")
@@ -2223,7 +2220,7 @@ class EnhancedPlayerManager private constructor() {
     // ===== Playback Controls =====
 
     fun play() {
-        if (isAudioOnlyMode || videoSurfaceRestorePending) {
+        if (audioOnlyMode.needsVideoRestore) {
             restoreVideoOutput()
         }
         val p = player ?: return
@@ -2420,7 +2417,7 @@ class EnhancedPlayerManager private constructor() {
         clearPreload()
         currentLocalFilePath = null
         clearedMediaRecoveryState.clear()
-        isAudioOnlyMode = false
+        audioOnlyMode.reset()
         pendingInitialLiveEdgeSeek = false
         setVideoTracksDisabled(false)
         updateLivePlaybackMode(isLive = false)
@@ -2670,7 +2667,7 @@ class EnhancedPlayerManager private constructor() {
             currentAudioStream = availableAudioStreams[index]
             val position = player?.currentPosition ?: 0L
             val wasPlaying = player?.isPlaying ?: false
-            if (isAudioOnlyMode) {
+            if (audioOnlyMode.isActive) {
                 loadMediaInternal(null, currentAudioStream, audioOnly = true)
             } else {
                 loadMediaInternal(currentVideoStream, currentAudioStream)
@@ -2802,7 +2799,7 @@ class EnhancedPlayerManager private constructor() {
             }
             val p = player
             val resyncPausedVideo =
-                p != null && !wasSurfaceValid && !isAudioOnlyMode &&
+                p != null && !wasSurfaceValid && !audioOnlyMode.isActive &&
                     p.currentMediaItem != null &&
                     VideoSurfacePolicy.shouldResyncOnSurfaceReattach(
                         playWhenReady = p.playWhenReady,
@@ -2810,7 +2807,7 @@ class EnhancedPlayerManager private constructor() {
                         playbackState = p.playbackState,
                     )
             if (p != null && currentVideoStream != null) {
-                if (isAudioOnlyMode) {
+                if (audioOnlyMode.isActive) {
                     Log.d(TAG, "attachVideoSurface: was in audio-only mode — restoring video stream")
                     restoreVideoOutput()
                 } else if (p.currentMediaItem == null) {
@@ -2855,16 +2852,18 @@ class EnhancedPlayerManager private constructor() {
         val current = GlobalPlayerState.currentVideo.value
         val state = _playerState.value
         if (current != null &&
-            state.currentVideoId == current.id &&
-            (p?.currentMediaItem == null || p.playbackState == Player.STATE_IDLE || !state.isPrepared)
+            BackgroundHandoffPolicy.needsServiceLayerReload(
+                isSameVideo = state.currentVideoId == current.id,
+                hasMediaItem = p?.currentMediaItem != null,
+                playbackState = p?.playbackState,
+                isPrepared = state.isPrepared,
+            )
         ) {
             autoNextLog("continueVideoPlaybackInBackground service-load current=${current.id}")
             playVideoFromServiceLayer(current, reason = "background-handoff-unprepared")
             return
         }
-        if (p?.playWhenReady == true && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
-            p.play()
-        }
+        resumePlaybackIfStalled(p)
     }
 
     fun handleCriticalMemoryPressure() {
@@ -2891,12 +2890,10 @@ class EnhancedPlayerManager private constructor() {
     fun switchToAudioOnly() {
         val p = player ?: return
         autoNextLog("switchToAudioOnly")
-        isAudioOnlyMode = true
+        audioOnlyMode.enter()
         setVideoTracksDisabled(true)
         p.setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK)
-        if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
-            p.play()
-        }
+        resumePlaybackIfStalled(p)
         schedulePreloadNext()
     }
 
@@ -2910,26 +2907,27 @@ class EnhancedPlayerManager private constructor() {
                 isDisplayInteractive = displayInteractive,
                 isSurfaceValid = surfaceValid,
             )
-        if (!canRestore) {
+        if (!audioOnlyMode.restore(canRestore)) {
             autoNextLog(
                 "restoreVideoOutput deferred interactive=$displayInteractive surfaceValid=$surfaceValid",
             )
-            videoSurfaceRestorePending = true
             return
         }
         autoNextLog("restoreVideoOutput")
-        isAudioOnlyMode = false
-        videoSurfaceRestorePending = false
         setVideoTracksDisabled(false)
         p.setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
-        if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
+        resumePlaybackIfStalled(p)
+    }
+
+    private fun resumePlaybackIfStalled(p: Player?) {
+        if (p != null && p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
             p.play()
         }
     }
 
-    fun isInAudioOnlyMode(): Boolean = isAudioOnlyMode
+    fun isInAudioOnlyMode(): Boolean = audioOnlyMode.isActive
 
-    fun isVideoSurfaceRestorePending(): Boolean = videoSurfaceRestorePending
+    fun isVideoSurfaceRestorePending(): Boolean = audioOnlyMode.restorePending
 
     fun setSurfaceReady(ready: Boolean) {
         surfaceManager?.setSurfaceReady(ready)
@@ -2998,7 +2996,7 @@ class EnhancedPlayerManager private constructor() {
 
     fun clearCurrentVideo() {
         clearPreload()
-        isAudioOnlyMode = false
+        audioOnlyMode.reset()
         setVideoTracksDisabled(false)
         updateLivePlaybackMode(isLive = false)
         mediaLoader?.releaseSabr()
