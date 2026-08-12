@@ -94,7 +94,6 @@ import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
 import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
 import io.github.aedev.flow.ui.screens.player.components.resolvePlayerQualityLabel
 import io.github.aedev.flow.ui.screens.player.components.videoPlayerControls
-import io.github.aedev.flow.ui.screens.player.content.PlayerContent
 import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
@@ -463,6 +462,7 @@ fun GlobalPlayerOverlay(
         hasEnded = playerState.hasEnded,
         lastInteractionTimestamp = screenState.lastInteractionTimestamp,
         isTouchLocked = screenState.isTouchLocked,
+        isScrubbing = screenState.isScrubbing,
         onHideControls = { screenState.showControls = false },
     )
 
@@ -486,7 +486,9 @@ fun GlobalPlayerOverlay(
         activity = activity,
         videoAspectRatio = effectiveVideoAspectRatio,
         lifecycleOwner = lifecycleOwner,
-        fullscreenBrightnessLevel = if (rememberBrightnessEnabled) screenState.brightnessLevel else null,
+        fullscreenBrightnessLevel = {
+            if (rememberBrightnessEnabled) screenState.brightnessLevel else null
+        },
         suppressFullscreenRequest = pipForcedFullscreen,
         isPortrait = screenState.isFullscreenPortrait,
     )
@@ -864,7 +866,6 @@ fun GlobalPlayerOverlay(
                                 onSeekAccumulate = { screenState.seekAccumulation = kotlin.math.abs(it) },
                                 currentPosition = { screenState.currentPosition },
                                 duration = screenState.duration,
-                                normalSpeed = screenState.normalSpeed,
                                 scope = scope,
                                 isFullscreen = screenState.isFullscreen,
                                 onBrightnessChange = updateBrightnessLevel,
@@ -876,13 +877,8 @@ fun GlobalPlayerOverlay(
                                         .setVolumeBoost(if (level > 1f) level else 1f)
                                 },
                                 onShowVolumeChange = { screenState.showVolumeOverlay = it },
-                                onBack = {
-                                    screenState.isFullscreen = false
-                                    screenState.isFullscreenPortrait = false
-                                    playerSheetState.collapse()
-                                },
-                                brightnessLevel = screenState.brightnessLevel,
-                                volumeLevel = screenState.volumeLevel,
+                                brightnessLevel = { screenState.brightnessLevel },
+                                volumeLevel = { screenState.volumeLevel },
                                 maxVolume = audioSystemInfo.maxVolume,
                                 audioManager = audioSystemInfo.audioManager,
                                 activity = activity,
@@ -1159,6 +1155,10 @@ fun GlobalPlayerOverlay(
                                 } else {
                                     manager.seekTo(newPosition)
                                 }
+                            },
+                            onScrubbingChange = { scrubbing ->
+                                screenState.isScrubbing = scrubbing
+                                screenState.onInteraction()
                             },
                             onBack = { playerSheetState.collapse() },
                             onSettingsClick = { screenState.showSettingsMenu = true },

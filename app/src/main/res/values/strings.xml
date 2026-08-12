@@ -1844,6 +1844,9 @@
     <string name="music_playback_warning_generic">Music playback failed. Try again or switch networks if this keeps happening.</string>
     <string name="player_lock_controls">Lock controls</string>
     <string name="player_unlock_controls">Unlock controls</string>
+    <string name="player_brightness_auto">Auto</string>
+    <string name="player_gesture_level_percent">%1$d%%</string>
+    <string name="player_replay">Replay</string>
     <!-- New Video Player Strings -->
     <string name="player_settings_overlay_controls">Overlay Controls</string>
     <string name="player_settings_overlay_cast">Cast Button</string>

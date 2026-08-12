@@ -23,31 +23,32 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
+import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.model.SponsorBlockSegment
+import io.github.aedev.flow.player.CastHelper
+import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.quality.QualityManager
+import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
 import io.github.aedev.flow.ui.screens.player.components.PlayerTimePill
 import io.github.aedev.flow.ui.screens.player.components.PortraitFullscreenEdgeScrims
 import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
-import io.github.aedev.flow.player.EnhancedPlayerManager
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.zIndex
-import io.github.aedev.flow.R
-import io.github.aedev.flow.player.CastHelper
-import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
-import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.model.SponsorBlockSegment
-import io.github.aedev.flow.player.quality.QualityManager
-import io.github.aedev.flow.ui.components.pressScale
 import org.schabi.newpipe.extractor.stream.StreamSegment
 import kotlin.math.abs
 
@@ -121,19 +122,21 @@ fun PremiumControlsOverlay(
     lockModeEnabled: Boolean = false,
     lockOverlayRevealSignal: Int = 0,
     onTouchLockToggle: () -> Unit = {},
+    onScrubbingChange: (Boolean) -> Unit = {},
     isPortraitFullscreen: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val livePosition by rememberUpdatedState(currentPosition)
 
     val primaryColor = MaterialTheme.colorScheme.primary
-    val resizeModes = listOf(
-        stringResource(R.string.resize_fit),
-        stringResource(R.string.resize_fill),
-        stringResource(R.string.resize_zoom)
-    )
+    val resizeModes =
+        listOf(
+            stringResource(R.string.resize_fit),
+            stringResource(R.string.resize_fill),
+            stringResource(R.string.resize_zoom),
+        )
     val scrubScope = rememberCoroutineScope()
-    
+
     var scrubPosition by remember { mutableStateOf<Long?>(null) }
     var isScrubbing by remember { mutableStateOf(false) }
     var lastScrubSeekAt by remember { mutableLongStateOf(0L) }
@@ -174,6 +177,7 @@ fun PremiumControlsOverlay(
     DisposableEffect(Unit) {
         onDispose {
             pendingScrubSeekJob?.cancel()
+            onScrubbingChange(false)
             EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
         }
     }
@@ -194,7 +198,7 @@ fun PremiumControlsOverlay(
             chapters.lastOrNull { it.startTimeSeconds <= positionSeconds }
         }
     }
-    
+
     val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsState()
 
     val context = LocalContext.current
@@ -208,34 +212,35 @@ fun PremiumControlsOverlay(
     val overlayCommentsEnabled by playerPreferences.overlayCommentsEnabled.collectAsState(initial = true)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
     val fullscreenSeekbarHorizontalPaddingDp by playerPreferences.fullscreenSeekbarHorizontalPaddingDp.collectAsState(
-        initial = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
+        initial = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP,
     )
     val portraitSeekbarHorizontalPaddingDp by playerPreferences.portraitSeekbarHorizontalPaddingDp.collectAsState(
-        initial = 0
+        initial = 0,
     )
     val fullscreenSeekbarBottomPadding = if (isFullscreen) 30.dp else 0.dp
     val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 12.dp
     val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
     val topControlVerticalPadding = if (isFullscreen) 8.dp else 4.dp
-    val portraitFullscreenTopPadding = if (isFullscreen && isPortraitFullscreen) {
-        WindowInsets.displayCutout
-            .asPaddingValues()
-            .calculateTopPadding()
-            .coerceAtLeast(16.dp)
-    } else {
-        0.dp
-    }
+    val portraitFullscreenTopPadding =
+        if (isFullscreen && isPortraitFullscreen) {
+            WindowInsets.displayCutout
+                .asPaddingValues()
+                .calculateTopPadding()
+                .coerceAtLeast(16.dp)
+        } else {
+            0.dp
+        }
     val bottomControlsSeekbarOverlap = 0.dp
-    val seekbarHorizontalPadding = if (isFullscreen) {
-        fullscreenSeekbarHorizontalPaddingDp.dp
-    } else {
-        portraitSeekbarHorizontalPaddingDp.dp
-    }
+    val seekbarHorizontalPadding =
+        if (isFullscreen) {
+            fullscreenSeekbarHorizontalPaddingDp.dp
+        } else {
+            portraitSeekbarHorizontalPaddingDp.dp
+        }
     val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
     val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
     val compactQualityLabel = remember(qualityLabel) { qualityLabel?.toCompactQualityLabel() }
     val speedIndicatorLabel = remember(playbackSpeed) { VideoPlayerUtils.formatSpeedLabel(playbackSpeed) }
-
 
     val showControlsWhileLoading by playerPreferences.showControlsWhileLoading.collectAsState(initial = false)
     val isInitialLoading by remember(isBuffering, duration) {
@@ -246,64 +251,82 @@ fun PremiumControlsOverlay(
     val hideControlsForLoading = isInitialLoading && !showControlsWhileLoading
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .windowInsetsPadding(windowInsets)
+        modifier =
+            modifier
+                .fillMaxSize()
+                .windowInsetsPadding(windowInsets),
     ) {
         if (isFullscreen && isPortraitFullscreen) {
             PortraitFullscreenEdgeScrims(modifier = Modifier.matchParentSize())
         }
 
-        AnimatedVisibility(
-            visible = isVisible,
-            enter = fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)),
-            exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-            modifier = Modifier.matchParentSize()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
+        val controlsAlpha = remember { Animatable(if (isVisible) 1f else 0f) }
+        var controlsPlaced by remember { mutableStateOf(isVisible) }
+        LaunchedEffect(isVisible) {
+            if (isVisible) controlsPlaced = true
+            controlsAlpha.animateTo(
+                targetValue = if (isVisible) 1f else 0f,
+                animationSpec =
+                    tween(
+                        durationMillis = if (isVisible) 350 else 300,
+                        easing = FastOutSlowInEasing,
+                    ),
+            )
+            if (!isVisible) controlsPlaced = false
+        }
+
+        Box(
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .graphicsLayer { alpha = controlsAlpha.value }
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        layout(placeable.width, placeable.height) {
+                            if (controlsPlaced) placeable.place(0, 0)
+                        }
+                    }.background(
                         when {
                             isTouchLocked -> Color.Transparent
                             isInitialLoading -> Color.Black
                             else -> Color.Black.copy(alpha = 0.24f)
-                        }
-                    )
-            ) {
+                        },
+                    ),
+        ) {
             if (isTouchLocked) {
                 LockModeTouchShield(
                     onRevealUnlock = revealLockOverlay,
                     onUnlock = onTouchLockToggle,
-                    modifier = Modifier.matchParentSize()
+                    modifier = Modifier.matchParentSize(),
                 )
 
                 AnimatedVisibility(
                     visible = isLockOverlayVisible,
                     enter = fadeIn(animationSpec = tween(300)),
                     exit = fadeOut(animationSpec = tween(300)),
-                    modifier = Modifier.align(Alignment.TopEnd)
+                    modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     Surface(
                         color = Color.Black.copy(alpha = 0.42f),
                         shape = CircleShape,
-                        modifier = Modifier
-                            .padding(top = portraitFullscreenTopPadding)
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(color = Color.White),
-                                onClick = onTouchLockToggle
-                            )
+                        modifier =
+                            Modifier
+                                .padding(top = portraitFullscreenTopPadding)
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(color = Color.White),
+                                    onClick = onTouchLockToggle,
+                                ),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Rounded.LockOpen,
                                 contentDescription = stringResource(R.string.player_unlock_controls),
                                 tint = Color.White,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                     }
@@ -313,14 +336,15 @@ fun PremiumControlsOverlay(
                     visible = isLockOverlayVisible,
                     enter = fadeIn(animationSpec = tween(300)),
                     exit = fadeOut(animationSpec = tween(300)),
-                    modifier = Modifier.align(Alignment.BottomCenter)
+                    modifier = Modifier.align(Alignment.BottomCenter),
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = seekbarHorizontalPadding)
-                            .padding(bottom = fullscreenSeekbarBottomPadding),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = seekbarHorizontalPadding)
+                                .padding(bottom = fullscreenSeekbarBottomPadding),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         PlayerTimePill(
                             positionProvider = displayedPosition,
@@ -328,9 +352,10 @@ fun PremiumControlsOverlay(
                             isLive = isLive,
                             showRemainingTime = showRemainingTime,
                             onClick = null,
-                            modifier = Modifier
-                                .height(OverlayPillHeight)
-                                .align(Alignment.Start)
+                            modifier =
+                                Modifier
+                                    .height(OverlayPillHeight)
+                                    .align(Alignment.Start),
                         )
                         LockedSeekbar(
                             positionProvider = displayedPosition,
@@ -340,582 +365,611 @@ fun PremiumControlsOverlay(
                             bufferedPercentage = bufferedPercentage,
                             chapters = chapters,
                             sponsorSegments = sponsorSegments,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
             } else {
                 // Top Bar
-            if (!hideControlsForLoading) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopStart)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(Color.Black.copy(alpha = 0.38f), Color.Transparent)
-                            )
-                        )
-                        .padding(top = portraitFullscreenTopPadding)
-                ) {
-                Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = OverlayControlRowMinHeight)
-                    .padding(horizontal = topControlHorizontalPadding, vertical = topControlVerticalPadding),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(OverlayActionSpacing)
-                ) {
-                    // Down Arrow (Minimize/Back)
-                    Box(
-                        modifier = Modifier
-                            .size(OverlayActionButtonSize)
-                            .clip(CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(),
-                                onClick = { onBack() }
-                            ),
-                        contentAlignment = Alignment.Center
+                if (!hideControlsForLoading) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.TopStart)
+                                .background(
+                                    brush =
+                                        Brush.verticalGradient(
+                                            colors = listOf(Color.Black.copy(alpha = 0.38f), Color.Transparent),
+                                        ),
+                                ).padding(top = portraitFullscreenTopPadding),
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.KeyboardArrowDown,
-                            contentDescription = stringResource(R.string.btn_minimize),
-                            tint = Color.White,
-                            modifier = Modifier.size(OverlayActionIconSize)
-                        )
-                    }
-
-                    if (isFullscreen && showFullscreenTitle && !videoTitle.isNullOrBlank()) {
-                        Text(
-                            text = videoTitle,
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp)
-                        )
-                    }
-
-                    // PiP Button
-                    if (isPipSupported && overlayPipEnabled) {
-                        IconButton(
-                            onClick = onPipClick,
-                            modifier = Modifier.size(OverlayActionButtonSize)
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = OverlayControlRowMinHeight)
+                                    .padding(horizontal = topControlHorizontalPadding, vertical = topControlVerticalPadding),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.PictureInPicture,
-                                contentDescription = stringResource(R.string.pip_mode),
-                                tint = Color.White,
-                                modifier = Modifier.size(OverlayActionIconSize)
-                            )
-                        }
-                    }
-
-                    // SponsorBlock Submit Button
-                    if (sbSubmitEnabled) {
-                        IconButton(
-                            onClick = onSbSubmitClick,
-                            modifier = Modifier.size(OverlayActionButtonSize)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_upload_segment),
-                                contentDescription = stringResource(R.string.sb_submit_dialog_title),
-                                tint = Color.White,
-                                modifier = Modifier.size(OverlayActionIconSize)
-                            )
-                        }
-                    }
-                }
-
-                // Right Actions: Cast, CC, Autoplay, Settings
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(OverlayActionSpacing)
-                ) {
-                    if (overlaySpeedIndicatorEnabled) {
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .height(OverlayPillHeight)
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable { onSpeedClick() }
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.padding(horizontal = 10.dp)
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(OverlayActionSpacing),
                             ) {
-                                Text(
-                                    text = speedIndicatorLabel,
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
+                                // Down Arrow (Minimize/Back)
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(OverlayActionButtonSize)
+                                            .clip(CircleShape)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = ripple(),
+                                                onClick = { onBack() },
+                                            ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                                        contentDescription = stringResource(R.string.btn_minimize),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(OverlayActionIconSize),
+                                    )
+                                }
+
+                                if (isFullscreen && showFullscreenTitle && !videoTitle.isNullOrBlank()) {
+                                    Text(
+                                        text = videoTitle,
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier =
+                                            Modifier
+                                                .weight(1f)
+                                                .padding(end = 8.dp),
+                                    )
+                                }
+
+                                // PiP Button
+                                if (isPipSupported && overlayPipEnabled) {
+                                    IconButton(
+                                        onClick = onPipClick,
+                                        modifier = Modifier.size(OverlayActionButtonSize),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.PictureInPicture,
+                                            contentDescription = stringResource(R.string.pip_mode),
+                                            tint = Color.White,
+                                            modifier = Modifier.size(OverlayActionIconSize),
+                                        )
+                                    }
+                                }
+
+                                // SponsorBlock Submit Button
+                                if (sbSubmitEnabled) {
+                                    IconButton(
+                                        onClick = onSbSubmitClick,
+                                        modifier = Modifier.size(OverlayActionButtonSize),
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_upload_segment),
+                                            contentDescription = stringResource(R.string.sb_submit_dialog_title),
+                                            tint = Color.White,
+                                            modifier = Modifier.size(OverlayActionIconSize),
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Right Actions: Cast, CC, Autoplay, Settings
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(OverlayActionSpacing),
+                            ) {
+                                if (overlaySpeedIndicatorEnabled) {
+                                    Surface(
+                                        color = Color.Black.copy(alpha = 0.4f),
+                                        shape = RoundedCornerShape(14.dp),
+                                        modifier =
+                                            Modifier
+                                                .height(OverlayPillHeight)
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .clickable { onSpeedClick() },
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                        ) {
+                                            Text(
+                                                text = speedIndicatorLabel,
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Resize Button (Only in Fullscreen)
+                                if (isFullscreen) {
+                                    IconButton(
+                                        onClick = onResizeClick,
+                                        modifier = Modifier.size(OverlayActionButtonSize),
+                                    ) {
+                                        Icon(
+                                            imageVector =
+                                                when (resizeMode) {
+                                                    0 -> Icons.Rounded.AspectRatio
+                                                    1 -> Icons.Rounded.Fullscreen
+                                                    else -> Icons.Rounded.ZoomIn
+                                                },
+                                            contentDescription = stringResource(R.string.resize_to, resizeModes[resizeMode]),
+                                            tint = Color.White,
+                                            modifier = Modifier.size(OverlayActionIconSize),
+                                        )
+                                    }
+                                }
+
+                                // Cast button
+                                if (overlayCastEnabled) {
+                                    IconButton(
+                                        onClick = onCastClick,
+                                        modifier = Modifier.size(OverlayActionButtonSize),
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isCasting) Icons.Rounded.Cast else Icons.Outlined.Cast,
+                                            contentDescription = stringResource(R.string.cast_to_tv),
+                                            tint = if (isCasting) primaryColor else Color.White,
+                                            modifier = Modifier.size(OverlayActionIconSize),
+                                        )
+                                    }
+                                }
+
+                                // CC Icon
+                                if (overlayCcEnabled) {
+                                    IconButton(
+                                        onClick = onSubtitleClick,
+                                        modifier = Modifier.size(OverlayActionButtonSize),
+                                    ) {
+                                        val captionsIcon =
+                                            if (isSubtitlesEnabled) {
+                                                Icons.Rounded.ClosedCaption
+                                            } else {
+                                                Icons.Outlined.ClosedCaption
+                                            }
+                                        Icon(
+                                            imageVector = captionsIcon,
+                                            contentDescription = stringResource(R.string.captions),
+                                            tint = if (isSubtitlesEnabled) primaryColor else Color.White,
+                                            modifier = Modifier.size(OverlayActionIconSize),
+                                        )
+                                    }
+                                }
+
+                                // Autoplay Toggle Icon
+                                if (overlayAutoplayEnabled) {
+                                    IconButton(
+                                        onClick = { if (!isLooping) onAutoplayToggle(!autoplayEnabled) },
+                                        enabled = !isLooping,
+                                        modifier = Modifier.size(OverlayActionButtonSize),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.SlowMotionVideo,
+                                            contentDescription = stringResource(R.string.autoplay),
+                                            tint =
+                                                when {
+                                                    isLooping -> Color.White.copy(alpha = 0.35f)
+                                                    autoplayEnabled -> primaryColor
+                                                    else -> Color.White.copy(alpha = 0.7f)
+                                                },
+                                            modifier = Modifier.size(OverlayActionIconSize),
+                                        )
+                                    }
+                                }
+
+                                // Sleep Timer
+                                if (overlaySleepTimerEnabled) {
+                                    IconButton(
+                                        onClick = onSleepTimerClick,
+                                        modifier = Modifier.size(OverlayActionButtonSize),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Bedtime,
+                                            contentDescription = stringResource(R.string.sleep_timer),
+                                            tint = if (isSleepTimerActive) primaryColor else Color.White,
+                                            modifier = Modifier.size(OverlayActionIconSize),
+                                        )
+                                    }
+                                }
+
+                                if (lockModeEnabled) {
+                                    IconButton(
+                                        onClick = onTouchLockToggle,
+                                        modifier = Modifier.size(OverlayActionButtonSize),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Lock,
+                                            contentDescription = stringResource(R.string.player_lock_controls),
+                                            tint = Color.White,
+                                            modifier = Modifier.size(OverlayActionIconSize),
+                                        )
+                                    }
+                                }
+
+                                if (isLiveChatAvailable && isFullscreen) {
+                                    IconButton(
+                                        onClick = onLiveChatClick,
+                                        modifier = Modifier.size(OverlayActionButtonSize),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.ChatBubbleOutline,
+                                            contentDescription = stringResource(R.string.live_chat),
+                                            tint = Color.White,
+                                            modifier = Modifier.size(OverlayActionIconSize),
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = onSettingsClick,
+                                    modifier = Modifier.size(OverlayActionButtonSize),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Settings,
+                                        contentDescription = stringResource(R.string.settings),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(OverlayActionIconSize),
+                                    )
+                                }
                             }
                         }
                     }
-
-                    // Resize Button (Only in Fullscreen)
-                    if (isFullscreen) {
-                        IconButton(
-                            onClick = onResizeClick,
-                            modifier = Modifier.size(OverlayActionButtonSize)
-                        ) {
-                            Icon(
-                                imageVector = when (resizeMode) {
-                                    0 -> Icons.Rounded.AspectRatio 
-                                    1 -> Icons.Rounded.Fullscreen 
-                                    else -> Icons.Rounded.ZoomIn 
-                                },
-                                contentDescription = stringResource(R.string.resize_to, resizeModes[resizeMode]),
-                                tint = Color.White,
-                                modifier = Modifier.size(OverlayActionIconSize)
-                            )
-                        }
-                    }
-
-                    // Cast button
-                    if (overlayCastEnabled) {
-                        IconButton(
-                            onClick = onCastClick,
-                            modifier = Modifier.size(OverlayActionButtonSize)
-                        ) {
-                            Icon(
-                                imageVector = if (isCasting) Icons.Rounded.Cast else Icons.Outlined.Cast,
-                                contentDescription = stringResource(R.string.cast_to_tv),
-                                tint = if (isCasting) primaryColor else Color.White,
-                                modifier = Modifier.size(OverlayActionIconSize)
-                            )
-                        }
-                    }
-
-                    // CC Icon
-                    if (overlayCcEnabled) {
-                        IconButton(
-                            onClick = onSubtitleClick,
-                            modifier = Modifier.size(OverlayActionButtonSize)
-                        ) {
-                            Icon(
-                                imageVector = if (isSubtitlesEnabled) Icons.Rounded.ClosedCaption else Icons.Outlined.ClosedCaption,
-                                contentDescription = stringResource(R.string.captions),
-                                tint = if (isSubtitlesEnabled) primaryColor else Color.White,
-                                modifier = Modifier.size(OverlayActionIconSize)
-                            )
-                        }
-                    }
-
-                    // Autoplay Toggle Icon
-                    if (overlayAutoplayEnabled) {
-                        IconButton(
-                            onClick = { if (!isLooping) onAutoplayToggle(!autoplayEnabled) },
-                            enabled = !isLooping,
-                            modifier = Modifier.size(OverlayActionButtonSize)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.SlowMotionVideo,
-                                contentDescription = stringResource(R.string.autoplay),
-                                tint = when {
-                                    isLooping -> Color.White.copy(alpha = 0.35f)
-                                    autoplayEnabled -> primaryColor
-                                    else -> Color.White.copy(alpha = 0.7f)
-                                },
-                                modifier = Modifier.size(OverlayActionIconSize)
-                            )
-                        }
-                    }
-
-                    // Sleep Timer
-                    if (overlaySleepTimerEnabled) {
-                        IconButton(
-                            onClick = onSleepTimerClick,
-                            modifier = Modifier.size(OverlayActionButtonSize)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Bedtime,
-                                contentDescription = stringResource(R.string.sleep_timer),
-                                tint = if (isSleepTimerActive) primaryColor else Color.White,
-                                modifier = Modifier.size(OverlayActionIconSize)
-                            )
-                        }
-                    }
-
-                    if (lockModeEnabled) {
-                        IconButton(
-                            onClick = onTouchLockToggle,
-                            modifier = Modifier.size(OverlayActionButtonSize)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Lock,
-                                contentDescription = stringResource(R.string.player_lock_controls),
-                                tint = Color.White,
-                                modifier = Modifier.size(OverlayActionIconSize)
-                            )
-                        }
-                    }
-
-                    if (isLiveChatAvailable && isFullscreen) {
-                        IconButton(
-                            onClick = onLiveChatClick,
-                            modifier = Modifier.size(OverlayActionButtonSize)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ChatBubbleOutline,
-                                contentDescription = stringResource(R.string.live_chat),
-                                tint = Color.White,
-                                modifier = Modifier.size(OverlayActionIconSize)
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = onSettingsClick,
-                        modifier = Modifier.size(OverlayActionButtonSize)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = stringResource(R.string.settings),
-                            tint = Color.White,
-                            modifier = Modifier.size(OverlayActionIconSize)
-                        )
-                    }
                 }
-            }
-                }
-        }
 
-        // Center Controls
-            Box(
-                modifier = Modifier.align(Alignment.Center),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(48.dp)
-                ) {
-                    // Previous Video
-                    if (!hideControlsForLoading) {
-                        val prevInteractionSource = remember { MutableInteractionSource() }
-                        IconButton(
-                            onClick = onPrevious,
-                            enabled = hasPrevious,
-                            modifier = Modifier.size(48.dp).pressScale(prevInteractionSource, pressedScale = 0.82f),
-                            interactionSource = prevInteractionSource
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.SkipPrevious,
-                                contentDescription = stringResource(R.string.previous_video),
-                                tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.3f),
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
-                    }
-
-                    // Play/Pause
-                    val playPauseInteractionSource = remember { MutableInteractionSource() }
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(62.dp)
-                            .pressScale(playPauseInteractionSource, pressedScale = 0.88f)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.4f))
-                            .clickable(
-                                interactionSource = playPauseInteractionSource,
-                                indication = ripple(color = Color.White)
-                            ) { onPlayPause() }
-                    ) {
-                        if ((isBuffering || isInitialLoading) && !isScrubbing) {
-                            SleekLoadingAnimation(modifier = Modifier.size(48.dp))
-                        } else {
-                            Icon(
-                                imageVector = when {
-                                    hasEnded -> Icons.Rounded.Replay
-                                    isPlaying -> Icons.Rounded.Pause
-                                    else -> Icons.Rounded.PlayArrow
-                                },
-                                contentDescription = when {
-                                    hasEnded -> "Replay"
-                                    isPlaying -> stringResource(R.string.pause)
-                                    else -> stringResource(R.string.play)
-                                },
-                                tint = Color.White,
-                                modifier = Modifier.size(54.dp)
-                            )
-                        }
-                    }
-
-                    // Next Video
-                    if (!hideControlsForLoading) {
-                        val nextInteractionSource = remember { MutableInteractionSource() }
-                        IconButton(
-                            onClick = onNext,
-                            enabled = hasNext,
-                            modifier = Modifier.size(48.dp).pressScale(nextInteractionSource, pressedScale = 0.82f),
-                            interactionSource = nextInteractionSource
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.SkipNext,
-                                contentDescription = stringResource(R.string.next_video),
-                                tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.3f),
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Bottom Bar
-            if (!hideControlsForLoading) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.44f))
-                            )
-                        )
-                        .padding(start = 0.dp, end = 0.dp, top = 0.dp, bottom = fullscreenSeekbarBottomPadding)
-                ) {
-                // Duration and Chapter pills row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = pillsRowMinHeight)
-                        .zIndex(1f)
-                        .offset(y = bottomControlsSeekbarOverlap)
-                        .padding(
-                            start = bottomControlHorizontalPadding,
-                            end = bottomControlHorizontalPadding,
-                            top = if (isFullscreen) 4.dp else 0.dp,
-                            bottom = 0.dp
-                        ),
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
+                // Center Controls
+                Box(
+                    modifier = Modifier.align(Alignment.Center),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(OverlayActionSpacing),
-                        modifier = Modifier.weight(1f)
+                        horizontalArrangement = Arrangement.spacedBy(48.dp),
                     ) {
-                        if (overlayCommentsEnabled && isCommentsAvailable && isFullscreen) {
-                            Box(
-                                modifier = Modifier
-                                    .size(OverlayPillHeight)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.4f))
-                                    .clickable(onClick = onCommentsClick),
-                                contentAlignment = Alignment.Center
+                        // Previous Video
+                        if (!hideControlsForLoading) {
+                            val prevInteractionSource = remember { MutableInteractionSource() }
+                            IconButton(
+                                onClick = onPrevious,
+                                enabled = hasPrevious,
+                                modifier = Modifier.size(48.dp).pressScale(prevInteractionSource, pressedScale = 0.82f),
+                                interactionSource = prevInteractionSource,
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.ChatBubbleOutline,
-                                    contentDescription = stringResource(R.string.comments),
-                                    tint = if (isCommentsPanelOpen) primaryColor else Color.White,
-                                    modifier = Modifier.size(OverlayExpandIconSize)
+                                    imageVector = Icons.Rounded.SkipPrevious,
+                                    contentDescription = stringResource(R.string.previous_video),
+                                    tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(36.dp),
                                 )
                             }
                         }
 
-                        PlayerTimePill(
-                            positionProvider = displayedPosition,
-                            duration = duration,
-                            isLive = isLive,
-                            showRemainingTime = showRemainingTime,
-                            onClick = { if (isLive) onLiveClick() else onToggleRemainingTime() },
-                            modifier = Modifier.height(OverlayPillHeight)
-                        )
-
-                        // Chapter Display Pill
-                        val chapter = currentChapter
-                        if (chapter != null) {
-                            Surface(
-                                color = Color.Black.copy(alpha = 0.4f),
-                                shape = CircleShape,
-                                modifier = Modifier
-                                    .height(OverlayPillHeight)
+                        // Play/Pause
+                        val playPauseInteractionSource = remember { MutableInteractionSource() }
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier =
+                                Modifier
+                                    .size(62.dp)
+                                    .pressScale(playPauseInteractionSource, pressedScale = 0.88f)
                                     .clip(CircleShape)
-                                    .clickable { onChapterClick() }
+                                    .background(Color.Black.copy(alpha = 0.4f))
+                                    .clickable(
+                                        interactionSource = playPauseInteractionSource,
+                                        indication = ripple(color = Color.White),
+                                    ) { onPlayPause() },
+                        ) {
+                            if ((isBuffering || isInitialLoading) && !isScrubbing) {
+                                SleekLoadingAnimation(modifier = Modifier.size(48.dp))
+                            } else {
+                                Icon(
+                                    imageVector =
+                                        when {
+                                            hasEnded -> Icons.Rounded.Replay
+                                            isPlaying -> Icons.Rounded.Pause
+                                            else -> Icons.Rounded.PlayArrow
+                                        },
+                                    contentDescription =
+                                        when {
+                                            hasEnded -> stringResource(R.string.player_replay)
+                                            isPlaying -> stringResource(R.string.pause)
+                                            else -> stringResource(R.string.play)
+                                        },
+                                    tint = Color.White,
+                                    modifier = Modifier.size(54.dp),
+                                )
+                            }
+                        }
+
+                        // Next Video
+                        if (!hideControlsForLoading) {
+                            val nextInteractionSource = remember { MutableInteractionSource() }
+                            IconButton(
+                                onClick = onNext,
+                                enabled = hasNext,
+                                modifier = Modifier.size(48.dp).pressScale(nextInteractionSource, pressedScale = 0.82f),
+                                interactionSource = nextInteractionSource,
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .padding(horizontal = 12.dp)
-                                ) {
-                                    Text(
-                                        text = chapter.title,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                        modifier = Modifier.widthIn(max = chapterMaxWidth)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.Rounded.ChevronRight,
-                                        contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.6f),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Rounded.SkipNext,
+                                    contentDescription = stringResource(R.string.next_video),
+                                    tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(36.dp),
+                                )
                             }
                         }
                     }
+                }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(OverlayActionSpacing)
+                // Bottom Bar
+                if (!hideControlsForLoading) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.BottomCenter)
+                                .background(
+                                    brush =
+                                        Brush.verticalGradient(
+                                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.44f)),
+                                        ),
+                                ).padding(start = 0.dp, end = 0.dp, top = 0.dp, bottom = fullscreenSeekbarBottomPadding),
                     ) {
-                        if (compactQualityLabel != null) {
-                            Surface(
-                                color = Color.Black.copy(alpha = 0.4f),
-                                shape = CircleShape,
-                                modifier = Modifier
-                                    .height(OverlayPillHeight)
-                                    .widthIn(min = OverlayPillHeight)
-                                    .clip(CircleShape)
-                                    .clickable { onQualityClick() }
+                        // Duration and Chapter pills row
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = pillsRowMinHeight)
+                                    .zIndex(1f)
+                                    .offset(y = bottomControlsSeekbarOverlap)
+                                    .padding(
+                                        start = bottomControlHorizontalPadding,
+                                        end = bottomControlHorizontalPadding,
+                                        top = if (isFullscreen) 4.dp else 0.dp,
+                                        bottom = 0.dp,
+                                    ),
+                            horizontalArrangement = Arrangement.Start,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(OverlayActionSpacing),
+                                modifier = Modifier.weight(1f),
                             ) {
+                                if (overlayCommentsEnabled && isCommentsAvailable && isFullscreen) {
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .size(OverlayPillHeight)
+                                                .clip(CircleShape)
+                                                .background(Color.Black.copy(alpha = 0.4f))
+                                                .clickable(onClick = onCommentsClick),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.ChatBubbleOutline,
+                                            contentDescription = stringResource(R.string.comments),
+                                            tint = if (isCommentsPanelOpen) primaryColor else Color.White,
+                                            modifier = Modifier.size(OverlayExpandIconSize),
+                                        )
+                                    }
+                                }
+
+                                PlayerTimePill(
+                                    positionProvider = displayedPosition,
+                                    duration = duration,
+                                    isLive = isLive,
+                                    showRemainingTime = showRemainingTime,
+                                    onClick = { if (isLive) onLiveClick() else onToggleRemainingTime() },
+                                    modifier = Modifier.height(OverlayPillHeight),
+                                )
+
+                                // Chapter Display Pill
+                                val chapter = currentChapter
+                                if (chapter != null) {
+                                    Surface(
+                                        color = Color.Black.copy(alpha = 0.4f),
+                                        shape = CircleShape,
+                                        modifier =
+                                            Modifier
+                                                .height(OverlayPillHeight)
+                                                .clip(CircleShape)
+                                                .clickable { onChapterClick() },
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier =
+                                                Modifier
+                                                    .padding(horizontal = 12.dp),
+                                        ) {
+                                            Text(
+                                                text = chapter.title,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                modifier = Modifier.widthIn(max = chapterMaxWidth),
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                imageVector = Icons.Rounded.ChevronRight,
+                                                contentDescription = null,
+                                                tint = Color.White.copy(alpha = 0.6f),
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(OverlayActionSpacing),
+                            ) {
+                                if (compactQualityLabel != null) {
+                                    Surface(
+                                        color = Color.Black.copy(alpha = 0.4f),
+                                        shape = CircleShape,
+                                        modifier =
+                                            Modifier
+                                                .height(OverlayPillHeight)
+                                                .widthIn(min = OverlayPillHeight)
+                                                .clip(CircleShape)
+                                                .clickable { onQualityClick() },
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.padding(horizontal = 12.dp),
+                                        ) {
+                                            Text(
+                                                text = compactQualityLabel,
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                    }
+                                }
+
                                 Box(
+                                    modifier =
+                                        Modifier
+                                            .size(OverlayPillHeight)
+                                            .clip(CircleShape)
+                                            .background(Color.Black.copy(alpha = 0.4f))
+                                            .clickable(onClick = onFullscreenClick),
                                     contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(horizontal = 12.dp)
                                 ) {
-                                    Text(
-                                        text = compactQualityLabel,
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1
+                                    Icon(
+                                        imageVector = if (isFullscreen) Icons.Rounded.CloseFullscreen else Icons.Rounded.OpenInFull,
+                                        contentDescription = stringResource(R.string.fullscreen),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(OverlayExpandIconSize),
                                     )
                                 }
                             }
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .size(OverlayPillHeight)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.4f))
-                                .clickable(onClick = onFullscreenClick),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isFullscreen) Icons.Rounded.CloseFullscreen else Icons.Rounded.OpenInFull,
-                                contentDescription = stringResource(R.string.fullscreen),
-                                tint = Color.White,
-                                modifier = Modifier.size(OverlayExpandIconSize)
+                        if (isLive && duration <= 0L) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(3.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(Color.Red),
+                            )
+                        } else {
+                            val seekDuration = if (isLive) duration.coerceAtLeast(displayedPosition()) else duration
+                            SeekbarWithPreview(
+                                value = {
+                                    if (seekDuration > 0) {
+                                        (displayedPosition().toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
+                                    } else {
+                                        0f
+                                    }
+                                },
+                                onValueChange = { progress ->
+                                    val newPosition = (progress * seekDuration).toLong()
+                                    val playerManager = EnhancedPlayerManager.getInstance()
+
+                                    scrubPosition = newPosition
+
+                                    if (!isScrubbing) {
+                                        isScrubbing = true
+                                        onScrubbingChange(true)
+                                        playerManager.setScrubbingModeEnabled(true)
+                                    }
+
+                                    if (isLive) {
+                                        return@SeekbarWithPreview
+                                    }
+
+                                    pendingScrubSeekJob?.cancel()
+
+                                    val now = SystemClock.elapsedRealtime()
+                                    val remainingDelay = (LIVE_SCRUB_SEEK_INTERVAL_MS - (now - lastScrubSeekAt)).coerceAtLeast(0L)
+                                    val movedFarEnough =
+                                        lastScrubSeekPosition == Long.MIN_VALUE ||
+                                            abs(newPosition - lastScrubSeekPosition) >= LIVE_SCRUB_IMMEDIATE_DELTA_MS
+
+                                    if (remainingDelay == 0L || movedFarEnough) {
+                                        onSeek(newPosition)
+                                        lastScrubSeekAt = now
+                                        lastScrubSeekPosition = newPosition
+                                    } else {
+                                        pendingScrubSeekJob =
+                                            scrubScope.launch {
+                                                delay(remainingDelay)
+                                                val targetPosition = scrubPosition ?: return@launch
+                                                onSeek(targetPosition)
+                                                lastScrubSeekAt = SystemClock.elapsedRealtime()
+                                                lastScrubSeekPosition = targetPosition
+                                            }
+                                    }
+                                },
+                                onValueChangeFinished = {
+                                    pendingScrubSeekJob?.cancel()
+                                    pendingScrubSeekJob = null
+                                    scrubPosition?.let { targetPosition ->
+                                        onSeek(targetPosition)
+                                        lastScrubSeekPosition = targetPosition
+                                    }
+                                    lastScrubSeekAt = 0L
+                                    lastScrubSeekPosition = Long.MIN_VALUE
+                                    isScrubbing = false
+                                    onScrubbingChange(false)
+                                    EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
+                                },
+                                chapters = chapters,
+                                sponsorSegments = sponsorSegments,
+                                duration = seekDuration,
+                                bufferedValue = bufferedPercentage,
+                                edgeAligned = !isFullscreen,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .zIndex(2f)
+                                        .padding(horizontal = seekbarHorizontalPadding),
                             )
                         }
                     }
                 }
-
-                if (isLive && duration <= 0L) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(Color.Red)
-                    )
-                } else {
-                    val seekDuration = if (isLive) duration.coerceAtLeast(displayedPosition()) else duration
-                    SeekbarWithPreview(
-                        value = {
-                            if (seekDuration > 0) {
-                                (displayedPosition().toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
-                            } else {
-                                0f
-                            }
-                        },
-                        onValueChange = { progress ->
-                            val newPosition = (progress * seekDuration).toLong()
-                            val playerManager = EnhancedPlayerManager.getInstance()
-
-                            scrubPosition = newPosition
-
-                            if (!isScrubbing) {
-                                isScrubbing = true
-                                playerManager.setScrubbingModeEnabled(true)
-                            }
-
-                            if (isLive) {
-                                return@SeekbarWithPreview
-                            }
-
-                            pendingScrubSeekJob?.cancel()
-
-                            val now = SystemClock.elapsedRealtime()
-                            val remainingDelay = (LIVE_SCRUB_SEEK_INTERVAL_MS - (now - lastScrubSeekAt)).coerceAtLeast(0L)
-                            val movedFarEnough = lastScrubSeekPosition == Long.MIN_VALUE ||
-                                abs(newPosition - lastScrubSeekPosition) >= LIVE_SCRUB_IMMEDIATE_DELTA_MS
-
-                            if (remainingDelay == 0L || movedFarEnough) {
-                                onSeek(newPosition)
-                                lastScrubSeekAt = now
-                                lastScrubSeekPosition = newPosition
-                            } else {
-                                pendingScrubSeekJob = scrubScope.launch {
-                                    delay(remainingDelay)
-                                    val targetPosition = scrubPosition ?: return@launch
-                                    onSeek(targetPosition)
-                                    lastScrubSeekAt = SystemClock.elapsedRealtime()
-                                    lastScrubSeekPosition = targetPosition
-                                }
-                            }
-                        },
-                        onValueChangeFinished = {
-                            pendingScrubSeekJob?.cancel()
-                            pendingScrubSeekJob = null
-                            scrubPosition?.let { targetPosition ->
-                                onSeek(targetPosition)
-                                lastScrubSeekPosition = targetPosition
-                            }
-                            lastScrubSeekAt = 0L
-                            lastScrubSeekPosition = Long.MIN_VALUE
-                            isScrubbing = false
-                            EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
-                        },
-                        chapters = chapters,
-                        sponsorSegments = sponsorSegments,
-                        duration = seekDuration,
-                        bufferedValue = bufferedPercentage,
-                        edgeAligned = !isFullscreen,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .zIndex(2f)
-                            .padding(horizontal = seekbarHorizontalPadding)
-                    )
-                }
             }
-        }
-            }
-        }
         }
 
         AnimatedVisibility(
             visible = !isVisible && !isFullscreen && !isInitialLoading && !isTouchLocked,
             enter = fadeIn(tween(300, easing = FastOutSlowInEasing)),
             exit = fadeOut(tween(350, easing = FastOutSlowInEasing)),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 if (isLive && duration <= 0L) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(Color.Red)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(Color.Red),
                     )
                 } else {
                     val seekDuration = if (isLive) duration.coerceAtLeast(displayedPosition()) else duration
@@ -935,6 +989,7 @@ fun PremiumControlsOverlay(
 
                             if (!isScrubbing) {
                                 isScrubbing = true
+                                onScrubbingChange(true)
                                 playerManager.setScrubbingModeEnabled(true)
                             }
 
@@ -946,21 +1001,23 @@ fun PremiumControlsOverlay(
 
                             val now = SystemClock.elapsedRealtime()
                             val remainingDelay = (LIVE_SCRUB_SEEK_INTERVAL_MS - (now - lastScrubSeekAt)).coerceAtLeast(0L)
-                            val movedFarEnough = lastScrubSeekPosition == Long.MIN_VALUE ||
-                                abs(newPosition - lastScrubSeekPosition) >= LIVE_SCRUB_IMMEDIATE_DELTA_MS
+                            val movedFarEnough =
+                                lastScrubSeekPosition == Long.MIN_VALUE ||
+                                    abs(newPosition - lastScrubSeekPosition) >= LIVE_SCRUB_IMMEDIATE_DELTA_MS
 
                             if (remainingDelay == 0L || movedFarEnough) {
                                 onSeek(newPosition)
                                 lastScrubSeekAt = now
                                 lastScrubSeekPosition = newPosition
                             } else {
-                                pendingScrubSeekJob = scrubScope.launch {
-                                    delay(remainingDelay)
-                                    val targetPosition = scrubPosition ?: return@launch
-                                    onSeek(targetPosition)
-                                    lastScrubSeekAt = SystemClock.elapsedRealtime()
-                                    lastScrubSeekPosition = targetPosition
-                                }
+                                pendingScrubSeekJob =
+                                    scrubScope.launch {
+                                        delay(remainingDelay)
+                                        val targetPosition = scrubPosition ?: return@launch
+                                        onSeek(targetPosition)
+                                        lastScrubSeekAt = SystemClock.elapsedRealtime()
+                                        lastScrubSeekPosition = targetPosition
+                                    }
                             }
                         },
                         onValueChangeFinished = {
@@ -973,6 +1030,7 @@ fun PremiumControlsOverlay(
                             lastScrubSeekAt = 0L
                             lastScrubSeekPosition = Long.MIN_VALUE
                             isScrubbing = false
+                            onScrubbingChange(false)
                             EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
                         },
                         chapters = chapters,
@@ -980,9 +1038,10 @@ fun PremiumControlsOverlay(
                         duration = seekDuration,
                         bufferedValue = bufferedPercentage,
                         edgeAligned = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = seekbarHorizontalPadding)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = seekbarHorizontalPadding),
                     )
                 }
             }
@@ -997,7 +1056,7 @@ fun SleekLoadingAnimation(modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.primary,
         trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
         strokeWidth = 4.dp,
-        strokeCap = StrokeCap.Round
+        strokeCap = StrokeCap.Round,
     )
 }
 
@@ -1010,20 +1069,22 @@ private fun LockedSeekbar(
     bufferedPercentage: Float,
     chapters: List<StreamSegment>,
     sponsorSegments: List<SponsorBlockSegment>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val seekDuration = if (isLive) {
-        duration.coerceAtLeast(positionProvider())
-    } else {
-        duration
-    }
+    val seekDuration =
+        if (isLive) {
+            duration.coerceAtLeast(positionProvider())
+        } else {
+            duration
+        }
 
     if (isLive && duration <= 0L) {
         Box(
-            modifier = modifier
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(Color.Red)
+            modifier =
+                modifier
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.Red),
         )
         return
     }
@@ -1043,13 +1104,17 @@ private fun LockedSeekbar(
         duration = seekDuration,
         bufferedValue = bufferedPercentage,
         edgeAligned = !isFullscreen,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
 private fun String.toCompactQualityLabel(): String {
-    val height = Regex("""\d+""").find(this)?.value?.toIntOrNull()
-        ?.let(QualityManager::normalizeQualityHeight)
+    val height =
+        Regex("""\d+""")
+            .find(this)
+            ?.value
+            ?.toIntOrNull()
+            ?.let(QualityManager::normalizeQualityHeight)
     return when (height) {
         2160 -> "4K"
         1440 -> "QHD"
@@ -1063,4 +1128,3 @@ private fun String.toCompactQualityLabel(): String {
         else -> "${height}p"
     }
 }
-
