@@ -160,12 +160,7 @@ class EnhancedPlayerManager private constructor() {
     private var pendingSurfaceFirstFrameStartedAtMs = 0L
 
     // Queue management
-    private var playbackQueue: List<io.github.aedev.flow.data.model.Video> = emptyList()
-    private var originalPlaybackQueue: List<io.github.aedev.flow.data.model.Video> = emptyList()
-    private var currentQueueIndex: Int = -1
-    private var queueTitle: String? = null
-    private var queueLoopEnabled: Boolean = false
-    private var queueShuffleEnabled: Boolean = false
+    private val queue = PlaybackQueueController()
     private var manualLoopEnabled: Boolean = false
     private var globalLoopEnabled: Boolean = false
 
@@ -254,7 +249,7 @@ class EnhancedPlayerManager private constructor() {
             val nextTarget = runCatching { nextPreloadTarget()?.first?.id }.getOrNull()
             return "thread=${Thread.currentThread().name} main=false playerSnapshot=skipped " +
                 "stateVideo=${_playerState.value.currentVideoId} managerVideo=$currentVideoId " +
-                "queue=$currentQueueIndex/${playbackQueue.size} hasNext=${hasNext()} " +
+                "queue=${queue.currentIndex}/${queue.size} hasNext=${hasNext()} " +
                 "autoplay=$autoplayEnabled candidates=${autoplayCandidates.size} target=$nextTarget " +
                 "preloaded=${preloadedNext?.data?.enrichedVideo?.id} " +
                 "attempt=$preloadAttemptVideoId->$preloadAttemptNextVideoId retry=$preloadRetryCount"
@@ -264,7 +259,7 @@ class EnhancedPlayerManager private constructor() {
         return "video=$currentVideoId exo=${playerStateName(p?.playbackState)} " +
             "pwr=${p?.playWhenReady} playing=${p?.isPlaying} " +
             "pos=${p?.currentPosition}/${p?.duration} idx=${p?.currentMediaItemIndex} count=${p?.mediaItemCount} " +
-            "queue=$currentQueueIndex/${playbackQueue.size} hasNext=${hasNext()} " +
+            "queue=${queue.currentIndex}/${queue.size} hasNext=${hasNext()} " +
             "autoplay=$autoplayEnabled candidates=${autoplayCandidates.size} target=$nextTarget " +
             "preloaded=${preloadedNext?.data?.enrichedVideo?.id} " +
             "attempt=$preloadAttemptVideoId->$preloadAttemptNextVideoId retry=$preloadRetryCount " +
@@ -401,11 +396,8 @@ class EnhancedPlayerManager private constructor() {
     private var mediaLoader: MediaLoader? = null
 
     // Public Queue State
-    private val _queueVideos = MutableStateFlow<List<Video>>(emptyList())
-    val queueVideos: StateFlow<List<Video>> = _queueVideos.asStateFlow()
-
-    private val currentQueueIndexFlow = MutableStateFlow<Int>(-1)
-    val currentQueueIndexState: StateFlow<Int> = currentQueueIndexFlow.asStateFlow()
+    val queueVideos: StateFlow<List<Video>> = queue.videos
+    val currentQueueIndexState: StateFlow<Int> = queue.currentIndexState
 
     // Public surface ready state
     val isSurfaceReady: Boolean
@@ -1264,87 +1256,51 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { setQueue(videos, startIndex, title) }
             return
         }
-        originalPlaybackQueue = videos
-        val normalizedStartIndex = startIndex.coerceIn(0, videos.lastIndex.coerceAtLeast(0))
-        val orderedQueue =
-            if (queueShuffleEnabled && videos.size > 1) {
-                PlaylistQueueOrder.shuffleFromCurrent(videos, normalizedStartIndex)
-            } else {
-                ReorderedQueue(videos, normalizedStartIndex)
-            }
-        playbackQueue = orderedQueue.items
-        currentQueueIndex = if (videos.isEmpty()) -1 else orderedQueue.currentIndex
-        queueTitle = title
-        autoNextLog("setQueue size=${videos.size} start=$currentQueueIndex title=$title")
-
-        _queueVideos.value = videos
-        currentQueueIndexFlow.value = currentQueueIndex
+        val startVideo = queue.setQueue(videos, startIndex, title)
+        autoNextLog("setQueue size=${videos.size} start=${queue.currentIndex} title=$title")
 
         updateQueueState()
 
-        if (videos.isNotEmpty()) {
-            val video = videos[currentQueueIndex]
-            startPlaybackFromQueue(video, loadStreamsInPlayer = false)
+        if (startVideo != null) {
+            startPlaybackFromQueue(startVideo, loadStreamsInPlayer = false)
             requestPreloadNext("queue-set")
         }
     }
 
     fun playNext(loadStreamsInPlayer: Boolean = true): Boolean {
         val nextIndex =
-            nextQueueIndex() ?: run {
+            queue.nextIndex() ?: run {
                 autoNextLog("playNext queue unavailable")
                 return false
             }
-        if (nextIndex == currentQueueIndex) {
+        if (nextIndex == queue.currentIndex) {
             replay()
             return true
         }
-        if (nextIndex in playbackQueue.indices) {
-            val nextVideo = playbackQueue[nextIndex]
-            if (advanceToPreloadedItem(nextVideo.id)) {
-                autoNextLog("playNext using preloaded window next=${nextVideo.id}")
-                return true
-            }
-            autoNextLog("playNext queue loadStreams=$loadStreamsInPlayer")
-            currentQueueIndex = nextIndex
-            currentQueueIndexFlow.value = currentQueueIndex
-            startPlaybackFromQueue(nextVideo, loadStreamsInPlayer)
-            updateQueueState()
+        val nextVideo = queue.videoAt(nextIndex) ?: return false
+        if (advanceToPreloadedItem(nextVideo.id)) {
+            autoNextLog("playNext using preloaded window next=${nextVideo.id}")
             return true
         }
-        return false
+        autoNextLog("playNext queue loadStreams=$loadStreamsInPlayer")
+        queue.moveTo(nextIndex)
+        startPlaybackFromQueue(nextVideo, loadStreamsInPlayer)
+        updateQueueState()
+        return true
     }
 
     fun playPrevious(loadStreamsInPlayer: Boolean = true): Boolean {
-        if (currentQueueIndex > 0) {
-            currentQueueIndex--
-            currentQueueIndexFlow.value = currentQueueIndex
-            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer)
-            updateQueueState()
-            return true
-        }
-        return false
+        val previousVideo = queue.movePrevious() ?: return false
+        startPlaybackFromQueue(previousVideo, loadStreamsInPlayer)
+        updateQueueState()
+        return true
     }
 
-    fun hasNext(): Boolean = nextQueueIndex() != null
+    fun hasNext(): Boolean = queue.hasNext
 
-    private fun nextQueueIndex(): Int? =
-        PlaylistQueueOrder.nextIndex(
-            itemCount = playbackQueue.size,
-            currentIndex = currentQueueIndex,
-            loopEnabled = queueLoopEnabled,
-        )
+    fun hasPrevious(): Boolean = queue.hasPrevious || (player?.currentPosition ?: 0) > 3000
 
-    private fun nextQueueVideo(): Video? = nextQueueIndex()?.let(playbackQueue::getOrNull)
-
-    fun hasPrevious(): Boolean = currentQueueIndex > 0 || (player?.currentPosition ?: 0) > 3000
-
-    /**
-     * Returns true if there is an active queue with at least one video.
-     */
-    fun hasActiveQueue(): Boolean = playbackQueue.isNotEmpty()
-
-    fun isCurrentQueueVideo(videoId: String): Boolean = playbackQueue.getOrNull(currentQueueIndex)?.id == videoId
+    fun isCurrentQueueVideo(videoId: String): Boolean = queue.isCurrent(videoId)
 
     /**
      * Insert [video] immediately after the current position (Play Next).
@@ -1359,39 +1315,11 @@ class EnhancedPlayerManager private constructor() {
             return
         }
         autoNextLog("addVideoToQueueNext ${video.id}")
-        if (playbackQueue.isEmpty()) {
-            val current = GlobalPlayerState.currentVideo.value
-            if (current != null) {
-                playbackQueue = listOf(current, video)
-                originalPlaybackQueue = playbackQueue
-                currentQueueIndex = 0
-                _queueVideos.value = playbackQueue
-                currentQueueIndexFlow.value = 0
-                updateQueueState()
-                requestPreloadNext("queue-created-play-next")
-            } else {
-                setQueue(listOf(video), 0)
-            }
-            return
+        when (queue.addNext(video, GlobalPlayerState.currentVideo.value)) {
+            QueueAddOutcome.NoActiveQueue -> setQueue(listOf(video), 0)
+            QueueAddOutcome.QueueCreated -> onQueueMutated("queue-created-play-next")
+            QueueAddOutcome.Inserted -> onQueueMutated("queue-play-next")
         }
-        val insertAt = currentQueueIndex + 1
-        val mutableQueue = playbackQueue.toMutableList()
-        mutableQueue.add(insertAt, video)
-        playbackQueue = mutableQueue
-        val currentVideo = playbackQueue.getOrNull(currentQueueIndex)
-        val originalInsertAt =
-            originalPlaybackQueue
-                .indexOfFirst { it.id == currentVideo?.id }
-                .takeIf { it >= 0 }
-                ?.plus(1)
-                ?: originalPlaybackQueue.size
-        originalPlaybackQueue =
-            originalPlaybackQueue.toMutableList().apply {
-                add(originalInsertAt.coerceIn(0, size), video)
-            }
-        _queueVideos.value = mutableQueue
-        updateQueueState()
-        requestPreloadNext("queue-play-next")
     }
 
     /**
@@ -1407,40 +1335,21 @@ class EnhancedPlayerManager private constructor() {
             return
         }
         autoNextLog("addVideoToQueue ${video.id}")
-        if (playbackQueue.isEmpty()) {
-            val current = GlobalPlayerState.currentVideo.value
-            if (current != null) {
-                playbackQueue = listOf(current, video)
-                originalPlaybackQueue = playbackQueue
-                currentQueueIndex = 0
-                _queueVideos.value = playbackQueue
-                currentQueueIndexFlow.value = 0
-                updateQueueState()
-                requestPreloadNext("queue-created-add")
-            } else {
-                setQueue(listOf(video), 0)
-            }
-            return
+        when (queue.append(video, GlobalPlayerState.currentVideo.value)) {
+            QueueAddOutcome.NoActiveQueue -> setQueue(listOf(video), 0)
+            QueueAddOutcome.QueueCreated -> onQueueMutated("queue-created-add")
+            QueueAddOutcome.Inserted -> onQueueMutated("queue-add")
         }
-        val mutableQueue = playbackQueue.toMutableList()
-        mutableQueue.add(video)
-        playbackQueue = mutableQueue
-        originalPlaybackQueue = originalPlaybackQueue + video
-        _queueVideos.value = mutableQueue
-        updateQueueState()
-        requestPreloadNext("queue-add")
     }
 
     fun playVideoAtIndex(
         index: Int,
         loadStreamsInPlayer: Boolean = true,
     ) {
-        if (index in playbackQueue.indices && index != currentQueueIndex) {
-            currentQueueIndex = index
-            currentQueueIndexFlow.value = currentQueueIndex
-            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer)
-            updateQueueState()
-        }
+        if (index == queue.currentIndex) return
+        val video = queue.moveTo(index) ?: return
+        startPlaybackFromQueue(video, loadStreamsInPlayer)
+        updateQueueState()
     }
 
     fun removeVideoAtIndex(index: Int) {
@@ -1448,18 +1357,10 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { removeVideoAtIndex(index) }
             return
         }
-        val removal = PlaylistQueueOrder.removeAt(playbackQueue, currentQueueIndex, index) ?: return
+        if (!queue.removeAt(index)) return
 
         clearPreload()
-        playbackQueue = removal.queue.items
-        originalPlaybackQueue =
-            PlaylistQueueOrder.removeMatching(
-                items = originalPlaybackQueue,
-                target = removal.removedItem,
-                keySelector = Video::id,
-            )
-        currentQueueIndex = removal.queue.currentIndex
-        publishQueueMutation("queue-remove")
+        onQueueMutated("queue-remove")
     }
 
     fun moveVideoAtIndex(
@@ -1470,26 +1371,13 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { moveVideoAtIndex(fromIndex, toIndex) }
             return
         }
-        val reordered =
-            PlaylistQueueOrder.move(
-                items = playbackQueue,
-                currentIndex = currentQueueIndex,
-                fromIndex = fromIndex,
-                toIndex = toIndex,
-            ) ?: return
+        if (!queue.move(fromIndex, toIndex)) return
 
         clearPreload()
-        playbackQueue = reordered.items
-        currentQueueIndex = reordered.currentIndex
-        if (!queueShuffleEnabled) {
-            originalPlaybackQueue = playbackQueue
-        }
-        publishQueueMutation("queue-move")
+        onQueueMutated("queue-move")
     }
 
-    private fun publishQueueMutation(reason: String) {
-        _queueVideos.value = playbackQueue
-        currentQueueIndexFlow.value = currentQueueIndex
+    private fun onQueueMutated(reason: String) {
         updateQueueState()
         requestPreloadNext(reason)
     }
@@ -1526,10 +1414,10 @@ class EnhancedPlayerManager private constructor() {
             _playerState.value.copy(
                 hasNext = hasNext(),
                 hasPrevious = hasPrevious(),
-                queueTitle = queueTitle,
-                queueSize = playbackQueue.size,
-                isQueueLooping = queueLoopEnabled,
-                isQueueShuffled = queueShuffleEnabled,
+                queueTitle = queue.title,
+                queueSize = queue.size,
+                isQueueLooping = queue.loopEnabled,
+                isQueueShuffled = queue.shuffleEnabled,
             )
     }
 
@@ -1538,10 +1426,9 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { toggleQueueLoop(enabled) }
             return
         }
-        queueLoopEnabled = enabled
+        queue.setLoopEnabled(enabled)
         clearPreload()
-        updateQueueState()
-        requestPreloadNext("queue-loop-toggle")
+        onQueueMutated("queue-loop-toggle")
     }
 
     fun toggleQueueShuffle(enabled: Boolean) {
@@ -1549,27 +1436,10 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { toggleQueueShuffle(enabled) }
             return
         }
-        if (queueShuffleEnabled == enabled || playbackQueue.isEmpty()) return
+        if (!queue.setShuffleEnabled(enabled)) return
 
         clearPreload()
-        val reordered =
-            if (enabled) {
-                originalPlaybackQueue = playbackQueue
-                PlaylistQueueOrder.shuffleFromCurrent(playbackQueue, currentQueueIndex)
-            } else {
-                PlaylistQueueOrder.restoreOriginal(
-                    original = originalPlaybackQueue,
-                    currentItem = playbackQueue.getOrNull(currentQueueIndex),
-                    keySelector = Video::id,
-                )
-            }
-        playbackQueue = reordered.items
-        currentQueueIndex = reordered.currentIndex
-        queueShuffleEnabled = enabled
-        _queueVideos.value = playbackQueue
-        currentQueueIndexFlow.value = currentQueueIndex
-        updateQueueState()
-        requestPreloadNext("queue-shuffle-toggle")
+        onQueueMutated("queue-shuffle-toggle")
     }
 
     fun setAutoplayCandidates(
@@ -1652,7 +1522,7 @@ class EnhancedPlayerManager private constructor() {
 
     private fun nextSessionVideo(): Video? =
         when {
-            hasNext() -> if (queueAutoplayEnabled) nextQueueVideo() else null
+            hasNext() -> if (queueAutoplayEnabled) queue.nextVideo() else null
             autoplayEnabled -> autoplayCandidates.firstOrNull()
             else -> null
         }
@@ -2037,7 +1907,7 @@ class EnhancedPlayerManager private constructor() {
         val fromQueue = hasNext()
         val nextVideo =
             when {
-                fromQueue -> if (queueAutoplayEnabled) nextQueueVideo() else null
+                fromQueue -> if (queueAutoplayEnabled) queue.nextVideo() else null
                 autoplayEnabled && autoplayCandidates.isNotEmpty() -> autoplayCandidates.first()
                 else -> null
             } ?: return null
@@ -2254,10 +2124,7 @@ class EnhancedPlayerManager private constructor() {
         sabrPreferred = false
 
         if (pre.fromQueue) {
-            nextQueueIndex()?.let { nextIndex ->
-                currentQueueIndex = nextIndex
-                currentQueueIndexFlow.value = currentQueueIndex
-            }
+            queue.nextIndex()?.let { nextIndex -> queue.moveTo(nextIndex) }
         } else {
             autoplayCandidates = autoplayCandidates.filter { it.id != data.enrichedVideo.id }
         }
@@ -3164,14 +3031,7 @@ class EnhancedPlayerManager private constructor() {
         manualLoopEnabled = false
         autoplayCandidates = emptyList()
         autoplaySourceVideoId = null
-        playbackQueue = emptyList()
-        originalPlaybackQueue = emptyList()
-        currentQueueIndex = -1
-        _queueVideos.value = emptyList()
-        currentQueueIndexFlow.value = -1
-        queueTitle = null
-        queueLoopEnabled = false
-        queueShuffleEnabled = false
+        queue.clear()
         _playerState.value =
             _playerState.value.copy(
                 hasNext = false,
@@ -3183,8 +3043,6 @@ class EnhancedPlayerManager private constructor() {
                 isLooping = globalLoopEnabled,
             )
     }
-
-    fun isQueueActive(): Boolean = playbackQueue.isNotEmpty()
 
     private fun updateLiveEdgeState(player: ExoPlayer) {
         if (!currentIsLiveStream && !player.isCurrentMediaItemLive) return
