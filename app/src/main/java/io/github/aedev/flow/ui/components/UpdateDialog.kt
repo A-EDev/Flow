@@ -123,7 +123,7 @@ fun UpdateDialog(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Version ${updateInfo.version}", 
+                        text = stringResource(R.string.ui_version, updateInfo.version),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.LightGray.copy(alpha = 0.7f)
                     )

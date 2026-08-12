@@ -106,7 +106,8 @@ fun MoodsAndGenresScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = error ?: stringResource(R.string.unknown_error),
+                            text = error?.takeIf { it.isNotBlank() }
+                                ?: stringResource(R.string.error_occurred),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )

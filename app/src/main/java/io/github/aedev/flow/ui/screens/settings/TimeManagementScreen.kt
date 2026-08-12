@@ -1059,7 +1059,13 @@ private fun FrequencyPickerDialog(
                                 )
                                 if (minutes >= 60) {
                                     Text(
-                                        "${minutes / 60}h${if (minutes % 60 > 0) " ${minutes % 60}m" else ""}",
+                                        buildString {
+                                            append(stringResource(R.string.duration_hours_short, minutes / 60))
+                                            if (minutes % 60 > 0) {
+                                                append(" ")
+                                                append(stringResource(R.string.duration_minutes_short, minutes % 60))
+                                            }
+                                        },
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 11.sp,

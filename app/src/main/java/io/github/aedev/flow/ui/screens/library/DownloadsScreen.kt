@@ -679,7 +679,7 @@ private fun ActiveVideoDownloadCard(
             )
             // Percentage label centered
             Text(
-                text = "$pct%",
+                text = stringResource(R.string.percentage_template, pct),
                 color = Color.White,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,

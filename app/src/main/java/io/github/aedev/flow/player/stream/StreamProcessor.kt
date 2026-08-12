@@ -141,9 +141,9 @@ object StreamProcessor {
     /**
      * Convert subtitle streams to UI options.
      */
-    fun toSubtitleOptions(subtitles: List<SubtitlesStream>): List<SubtitleOption> {
+    fun toSubtitleOptions(subtitles: List<SubtitlesStream>, unknownLabel: String = ""): List<SubtitleOption> {
         return subtitles.map {
-            val language = it.languageTag ?: it.locale?.toLanguageTag() ?: "Unknown"
+            val language = it.languageTag ?: it.locale?.toLanguageTag() ?: unknownLabel
             val baseLabel = localizedLanguageName(language)
                 ?: it.displayLanguageName
                 ?: language

@@ -503,7 +503,7 @@ fun SettingsScreen(
                             isSearchActive = false
                             searchQuery = ""
                         }) {
-                            Icon(Icons.Default.ArrowBack, "Close search")
+                            Icon(Icons.Default.ArrowBack, stringResource(R.string.close_search))
                         }
                         OutlinedTextField(
                             value = searchQuery,
@@ -524,7 +524,7 @@ fun SettingsScreen(
                         )
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Outlined.Close, "Clear search")
+                                Icon(Icons.Outlined.Close, stringResource(R.string.clear_search))
                             }
                         }
                     }
@@ -1567,7 +1567,7 @@ fun BrainTraitRow(
     Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-            Text("${(value * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.percentage_template, (value * 100).toInt()), style = MaterialTheme.typography.labelMedium)
         }
         Spacer(Modifier.height(4.dp))
         LinearProgressIndicator(

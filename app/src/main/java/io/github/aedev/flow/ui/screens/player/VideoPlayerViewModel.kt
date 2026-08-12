@@ -422,7 +422,7 @@ class VideoPlayerViewModel @Inject constructor(
                             }
                             EnhancedPlayerManager.getInstance().startBackgroundService(
                                 videoId = currentVideo.id,
-                                title = currentVideo.title.ifEmpty { "Flow Player" },
+                                title = currentVideo.title.ifEmpty { context.getString(R.string.fallback_player_title) },
                                 channel = currentVideo.channelName,
                                 thumbnail = currentVideo.thumbnailUrl
                             )
@@ -535,7 +535,7 @@ class VideoPlayerViewModel @Inject constructor(
         val video = _uiState.value.cachedVideo ?: return
         EnhancedPlayerManager.getInstance().startBackgroundService(
             videoId   = video.id,
-            title     = video.title.ifEmpty { "Flow Player" },
+            title     = video.title.ifEmpty { context.getString(R.string.fallback_player_title) },
             channel   = video.channelName,
             thumbnail = video.thumbnailUrl
         )
@@ -801,7 +801,7 @@ class VideoPlayerViewModel @Inject constructor(
         saveHistoryEntry(video)
         playerManager.startBackgroundService(
             videoId   = video.id,
-            title     = video.title.ifEmpty { "Flow Player" },
+            title     = video.title.ifEmpty { context.getString(R.string.fallback_player_title) },
             channel   = video.channelName,
             thumbnail = video.thumbnailUrl
         )
@@ -853,7 +853,7 @@ class VideoPlayerViewModel @Inject constructor(
         GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
         EnhancedPlayerManager.getInstance().startBackgroundService(
             videoId   = video.id,
-            title     = video.title.ifEmpty { "Flow Player" },
+            title     = video.title.ifEmpty { context.getString(R.string.fallback_player_title) },
             channel   = video.channelName,
             thumbnail = video.thumbnailUrl
         )
@@ -1041,7 +1041,7 @@ class VideoPlayerViewModel @Inject constructor(
         saveHistoryEntry(startVideo)
         EnhancedPlayerManager.getInstance().startBackgroundService(
             videoId   = startVideo.id,
-            title     = startVideo.title.ifEmpty { "Flow Player" },
+            title     = startVideo.title.ifEmpty { context.getString(R.string.fallback_player_title) },
             channel   = startVideo.channelName,
             thumbnail = startVideo.thumbnailUrl
         )
@@ -1647,7 +1647,8 @@ class VideoPlayerViewModel @Inject constructor(
                                 videoId = videoId,
                                 fallbackVideo = Video(
                                     id = videoId,
-                                    title = streamInfo.name ?: _uiState.value.cachedVideo?.title ?: "Live",
+                                    title = streamInfo.name ?: _uiState.value.cachedVideo?.title
+                                        ?: context.getString(R.string.tv_filter_live),
                                     channelName = streamInfo.uploaderName ?: _uiState.value.cachedVideo?.channelName ?: "",
                                     channelId = streamInfo.uploaderUrl?.substringAfterLast("/")
                                         ?: _uiState.value.cachedVideo?.channelId ?: "",
@@ -1997,7 +1998,8 @@ class VideoPlayerViewModel @Inject constructor(
 
         val details = result.playerResponse.videoDetails
         val cached = _uiState.value.cachedVideo
-        val title = details?.title?.takeIf { it.isNotBlank() } ?: cached?.title ?: "Live"
+        val title = details?.title?.takeIf { it.isNotBlank() } ?: cached?.title
+            ?: context.getString(R.string.tv_filter_live)
         val channel = details?.author?.takeIf { it.isNotBlank() } ?: cached?.channelName ?: ""
         val channelId = details?.channelId?.takeIf { it.isNotBlank() } ?: cached?.channelId ?: ""
         val thumbnail = details?.thumbnail?.thumbnails?.maxByOrNull { it.height ?: 0 }?.url

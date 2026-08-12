@@ -53,11 +53,17 @@ fun TvVideoCard(
     } else {
         null
     }
-    val metadata = remember(video.id, video.channelName, viewsTemplate, video.uploadDate) {
+    val streamedPrefix = stringResource(R.string.streamed_label)
+    val premieredPrefix = stringResource(R.string.premiered_label)
+    val metadata = remember(video.id, video.channelName, viewsTemplate, video.uploadDate, streamedPrefix, premieredPrefix) {
         listOfNotNull(
             video.channelName.takeIf { it.isNotBlank() },
             viewsTemplate,
-            formatTimeAgo(video.uploadDate).takeIf { it.isNotBlank() },
+            formatTimeAgo(
+                video.uploadDate,
+                streamedPrefix = streamedPrefix,
+                premieredPrefix = premieredPrefix,
+            ).takeIf { it.isNotBlank() },
         ).joinToString(separator = " • ")
     }
 

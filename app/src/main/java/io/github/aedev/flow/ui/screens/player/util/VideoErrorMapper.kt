@@ -230,7 +230,7 @@ object VideoErrorMapper {
             throwable != null ->
                 VideoError(
                     message = context.getString(R.string.error_generic),
-                    hint = buildFallbackHint(throwable),
+                    hint = buildFallbackHint(context, throwable),
                     isRetryable = true,
                     isUserActionable = false
                 )
@@ -309,13 +309,13 @@ object VideoErrorMapper {
     private fun isExoError(t: Throwable): Boolean =
         t.javaClass.simpleName == "ExoPlaybackException"
 
-    private fun buildFallbackHint(t: Throwable): String {
+    private fun buildFallbackHint(context: Context, t: Throwable): String {
         // Provide a minimal technical hint without leaking a raw stack trace.
         val type = t.javaClass.simpleName
         val msg  = t.message?.take(120)?.let { if (it.isNotBlank()) it else null }
         return when {
             msg != null -> "$type: $msg"
-            else        -> "Error type: $type. Please try again or restart the app."
+            else        -> context.getString(R.string.error_type_retry_hint, type)
         }
     }
 }

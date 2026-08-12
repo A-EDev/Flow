@@ -92,6 +92,8 @@ internal fun ShortVideoPage(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val displayTitle = video.title.ifBlank { stringResource(R.string.fallback_unknown_title) }
+    val displayChannelName = video.channelName.ifBlank { stringResource(R.string.fallback_unknown_channel) }
     val playerPreferences =
         remember {
             io.github.aedev.flow.data.local
@@ -629,7 +631,7 @@ internal fun ShortVideoPage(
                     ) {
                         ChannelAvatarImage(
                             url = video.channelThumbnailUrl,
-                            contentDescription = video.channelName,
+                            contentDescription = displayChannelName,
                             modifier =
                                 Modifier
                                     .size(36.dp)
@@ -638,7 +640,7 @@ internal fun ShortVideoPage(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = video.channelName,
+                            text = displayChannelName,
                             style =
                                 MaterialTheme.typography.titleMedium.copy(
                                     shadow = shortsOverlayTextShadow,
@@ -663,15 +665,15 @@ internal fun ShortVideoPage(
                                     scope.launch {
                                         viewModel.toggleSubscription(
                                             video.channelId,
-                                            video.channelName,
+                                            displayChannelName,
                                             video.channelThumbnailUrl,
                                         )
                                     }
                                     val toastText =
                                         if (isSubscribed) {
-                                            context.getString(R.string.unsubscribed_from, video.channelName)
+                                            context.getString(R.string.unsubscribed_from, displayChannelName)
                                         } else {
-                                            context.getString(R.string.subscribed_to, video.channelName)
+                                            context.getString(R.string.subscribed_to, displayChannelName)
                                         }
                                     Toast.makeText(context, toastText, Toast.LENGTH_SHORT).show()
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -719,7 +721,7 @@ internal fun ShortVideoPage(
                                     scope.launch {
                                         viewModel.toggleSubscription(
                                             video.channelId,
-                                            video.channelName,
+                                            displayChannelName,
                                             video.channelThumbnailUrl,
                                         )
                                     }
@@ -744,7 +746,7 @@ internal fun ShortVideoPage(
                                     scope.launch {
                                         viewModel.toggleSubscription(
                                             video.channelId,
-                                            video.channelName,
+                                            displayChannelName,
                                             video.channelThumbnailUrl,
                                         )
                                     }
@@ -777,7 +779,7 @@ internal fun ShortVideoPage(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = video.title,
+                        text = displayTitle,
                         style =
                             MaterialTheme.typography.bodyMedium.copy(
                                 shadow = shortsOverlayTextShadow,
@@ -928,7 +930,7 @@ internal fun ShortVideoPage(
                     ) {
                         ChannelAvatarImage(
                             url = video.channelThumbnailUrl,
-                            contentDescription = video.channelName,
+                            contentDescription = displayChannelName,
                             modifier =
                                 Modifier
                                     .fillMaxSize()

@@ -808,7 +808,8 @@ class MainActivity : ComponentActivity() {
             val video = GlobalPlayerState.currentVideo.value
             playerManager.startBackgroundService(
                 videoId = video?.id ?: playerState.currentVideoId,
-                title = video?.title?.ifEmpty { "Playing..." } ?: "Playing...",
+                title = video?.title?.ifEmpty { getString(R.string.fallback_playing) }
+                    ?: getString(R.string.fallback_playing),
                 channel = video?.channelName ?: "",
                 thumbnail = video?.thumbnailUrl ?: "",
             )

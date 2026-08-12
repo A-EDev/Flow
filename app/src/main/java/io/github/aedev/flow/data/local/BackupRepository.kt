@@ -326,7 +326,7 @@ class BackupRepository(private val context: Context) {
                     ?.let { "https://www.youtube.com/channel/$it" }
                     ?: "https://www.youtube.com/"
                 YouTubeTakeoutHistoryEntryOut(
-                    title = "Watched ${entry.title}",
+                    title = context.getString(R.string.backup_watched_title, entry.title),
                     titleUrl = "https://www.youtube.com/watch?v=$videoId",
                     subtitles = listOf(
                         YouTubeTakeoutSubtitleOut(
@@ -960,7 +960,7 @@ class BackupRepository(private val context: Context) {
                             id           = playlistId,
                             name         = finalName,
                             description  = if (isWatchLater) "Your watch later list"
-                                           else "Imported from YouTube Takeout",
+                                           else context.getString(R.string.backup_imported_from_youtube_takeout),
                             thumbnailUrl = firstThumb,
                             isPrivate    = isWatchLater,
                             createdAt    = System.currentTimeMillis(),
@@ -1168,7 +1168,7 @@ class BackupRepository(private val context: Context) {
                             PlaylistEntity(
                                 id           = newPlId,
                                 name         = plName,
-                                description  = "Imported from Metrolist",
+                                description  = context.getString(R.string.backup_imported_from_metrolist),
                                 thumbnailUrl = thumbUrl,
                                 isPrivate    = false,
                                 createdAt    = System.currentTimeMillis(),
@@ -1538,7 +1538,7 @@ class BackupRepository(private val context: Context) {
                         PlaylistEntity(
                             id           = playlistId,
                             name         = playlist.name,
-                            description  = "Imported from NewPipe",
+                            description  = context.getString(R.string.backup_imported_from_newpipe),
                             thumbnailUrl = firstThumb,
                             isPrivate    = false,
                             createdAt    = System.currentTimeMillis(),
@@ -1638,7 +1638,7 @@ class BackupRepository(private val context: Context) {
                             PlaylistEntity(
                                 id           = playlistId,
                                 name         = name,
-                                description  = "Imported from LibreTube",
+                                description  = context.getString(R.string.backup_imported_from_libretube),
                                 thumbnailUrl = firstThumb,
                                 isPrivate    = false,
                                 createdAt    = System.currentTimeMillis(),
@@ -1701,7 +1701,7 @@ class BackupRepository(private val context: Context) {
                             PlaylistEntity(
                                 id           = playlistId,
                                 name         = name,
-                                description  = "Imported from LibreTube",
+                                description  = context.getString(R.string.backup_imported_from_libretube),
                                 thumbnailUrl = firstThumb,
                                 isPrivate    = false,
                                 createdAt    = System.currentTimeMillis(),

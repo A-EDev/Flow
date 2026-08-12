@@ -95,7 +95,7 @@ class ShortsViewModel
                         val updated =
                             current.map { existing ->
                                 enrichedMap[existing.id]?.let { enriched ->
-                                    if (enriched.title != "Short" || enriched.channelName != "Unknown") {
+                                    if (enriched.title.isNotBlank() || enriched.channelName.isNotBlank()) {
                                         enriched
                                     } else {
                                         existing
@@ -565,7 +565,7 @@ class ShortsViewModel
                         video,
                         InteractionType.LIKED,
                     )
-                    _snackbarMessage.value = "We'll show more like this"
+                    _snackbarMessage.value = context.getString(R.string.i_like_this_toast)
                     Log.d(TAG, "Want more like this: ${short.title}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error signaling want more", e)
@@ -592,7 +592,7 @@ class ShortsViewModel
                                 ),
                         )
 
-                    _snackbarMessage.value = "Got it, showing less of this"
+                    _snackbarMessage.value = context.getString(R.string.not_interested_toast)
                     Log.d(TAG, "Not interested: ${short.title}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error marking not interested", e)

@@ -635,7 +635,11 @@ class ChannelViewModel
             val displayUploadDate =
                 textualDate
                     ?: io.github.aedev.flow.utils
-                        .formatTimeAgo(uploadDate?.offsetDateTime()?.toString())
+                        .formatTimeAgo(
+                            uploadDate?.offsetDateTime()?.toString(),
+                            streamedPrefix = appContext.getString(io.github.aedev.flow.R.string.streamed_label),
+                            premieredPrefix = appContext.getString(io.github.aedev.flow.R.string.premiered_label),
+                        )
             val uploadTimestamp =
                 absoluteUploadTimestamp
                     ?: parseRelativeUploadDate(textualDate)

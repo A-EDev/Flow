@@ -1,11 +1,14 @@
 package io.github.aedev.flow.ui.screens.music
 
 import android.util.Log
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +16,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class MoodsAndGenresViewModel @Inject constructor() : ViewModel() {
+class MoodsAndGenresViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+) : ViewModel() {
     
     private val _moodAndGenres = MutableStateFlow<List<MoodAndGenres>?>(null)
     val moodAndGenres: StateFlow<List<MoodAndGenres>?> = _moodAndGenres.asStateFlow()
@@ -42,12 +47,12 @@ class MoodsAndGenresViewModel @Inject constructor() : ViewModel() {
                     }
                     .onFailure { exception ->
                         Log.e("MoodsGenresVM", "Failed to load moods and genres", exception)
-                        _error.value = exception.message ?: "Failed to load moods & genres"
+                        _error.value = exception.message ?: context.getString(R.string.error_occurred)
                         _isLoading.value = false
                     }
             } catch (e: Exception) {
                 Log.e("MoodsGenresVM", "Exception loading moods and genres", e)
-                _error.value = e.message ?: "An error occurred"
+                _error.value = e.message ?: context.getString(R.string.error_occurred)
                 _isLoading.value = false
             }
         }

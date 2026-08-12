@@ -947,7 +947,7 @@ class ShortsRepository private constructor(
         supervisorScope {
             val needsEnrichment =
                 shorts.filter {
-                    it.title == "Short" || it.channelName == "Unknown" || it.channelName.isBlank()
+                    it.title.isBlank() || it.channelName.isBlank()
                 }
 
             if (needsEnrichment.isEmpty()) return@supervisorScope shorts

@@ -354,7 +354,8 @@ object YouTubeMusicService {
                         id = playlistId,
                         title = albumPage.album.title,
                         thumbnailUrl = albumPage.album.thumbnail,
-                        author = albumPage.album.artists?.firstOrNull()?.name ?: "Unknown Artist",
+                        author = albumPage.album.artists?.firstOrNull()?.name
+                            ?: FlowApplication.appContext.getString(io.github.aedev.flow.R.string.fallback_unknown_artist),
                         authorId = albumPage.album.artists?.firstOrNull()?.id,
                         authorAvatarUrl = null,
                         trackCount = tracks.size,
@@ -382,7 +383,7 @@ object YouTubeMusicService {
                 id = playlistId,
                 title = playlistInfo.name,
                 thumbnailUrl = playlistInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
-                author = playlistInfo.uploaderName ?: "Unknown",
+                author = playlistInfo.uploaderName ?: FlowApplication.appContext.getString(io.github.aedev.flow.R.string.unknown),
                 authorId = playlistInfo.uploaderUrl?.substringAfterLast("/"),
                 authorAvatarUrl = null,
                 trackCount = tracks.size,
@@ -422,7 +423,8 @@ object YouTubeMusicService {
         return MusicTrack(
             videoId = item.id,
             title = item.title,
-            artist = item.artists.firstOrNull()?.name ?: "Unknown Artist",
+            artist = item.artists.firstOrNull()?.name
+                ?: FlowApplication.appContext.getString(io.github.aedev.flow.R.string.fallback_unknown_artist),
             thumbnailUrl = item.thumbnail,
             duration = item.duration ?: 0,
             views = 0,
@@ -532,7 +534,8 @@ object YouTubeMusicService {
                         title = item.name,
                         thumbnailUrl = item.thumbnails.maxByOrNull { it.height }?.url ?: "",
                         trackCount = item.streamCount.toInt(),
-                        author = item.uploaderName ?: "Unknown Artist"
+                        author = item.uploaderName
+                            ?: FlowApplication.appContext.getString(io.github.aedev.flow.R.string.fallback_unknown_artist)
                     )
                 }
         } catch (e: Exception) {
@@ -621,7 +624,8 @@ object YouTubeMusicService {
             if (videoId.length < 11) return null
             
             val rawTitle = item.name
-            val uploader = item.uploaderName ?: "Unknown Artist"
+            val uploader = item.uploaderName
+                ?: FlowApplication.appContext.getString(io.github.aedev.flow.R.string.fallback_unknown_artist)
             
             // Improved artist extraction
             val (cleanedTitle, extractedArtist) = parseTitleAndArtist(rawTitle, uploader)

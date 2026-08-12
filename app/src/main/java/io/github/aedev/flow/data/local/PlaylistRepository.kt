@@ -1,5 +1,8 @@
 package io.github.aedev.flow.data.local
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.dao.PlaylistDao
 import io.github.aedev.flow.data.local.dao.PlaylistWithCount
 import io.github.aedev.flow.data.local.dao.VideoDao
@@ -17,10 +20,12 @@ import javax.inject.Singleton
 
 @Singleton
 class PlaylistRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val playlistDao: PlaylistDao,
     private val videoDao: VideoDao
 ) {
     constructor(context: android.content.Context) : this(
+        context.applicationContext,
         AppDatabase.getDatabase(context).playlistDao(),
         AppDatabase.getDatabase(context).videoDao()
     )
@@ -64,8 +69,8 @@ class PlaylistRepository @Inject constructor(
             playlistDao.insertPlaylist(
                 PlaylistEntity(
                     id = SAVED_SHORTS_ID,
-                    name = "Saved Shorts",
-                    description = "Your saved shorts",
+                    name = context.getString(R.string.playlist_saved_shorts_name),
+                    description = context.getString(R.string.playlist_saved_shorts_description),
                     thumbnailUrl = "",
                     isPrivate = true,
                     createdAt = System.currentTimeMillis()
@@ -113,8 +118,8 @@ class PlaylistRepository @Inject constructor(
                 playlistDao.insertPlaylist(
                     PlaylistEntity(
                         id = WATCH_LATER_ID,
-                        name = "Watch Later",
-                        description = "Your watch later list",
+                        name = context.getString(R.string.playlist_watch_later_name),
+                        description = context.getString(R.string.playlist_watch_later_description),
                         thumbnailUrl = "",
                         isPrivate = true,
                         createdAt = System.currentTimeMillis()

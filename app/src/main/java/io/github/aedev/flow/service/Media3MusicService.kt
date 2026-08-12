@@ -1037,8 +1037,8 @@ class Media3MusicService : MediaLibraryService() {
                 when (parentId) {
                     AUTO_ROOT_ID -> {
                         listOf(
-                            browsableMediaItem(AUTO_QUEUE_ID, "Queue"),
-                            browsableMediaItem(AUTO_CURRENT_ID, "Now playing"),
+                            browsableMediaItem(AUTO_QUEUE_ID, getString(R.string.tv_player_queue)),
+                            browsableMediaItem(AUTO_CURRENT_ID, getString(R.string.widget_now_playing_label)),
                         )
                     }
 
@@ -1072,8 +1072,8 @@ class Media3MusicService : MediaLibraryService() {
             val item =
                 when {
                     mediaId == AUTO_ROOT_ID -> browsableMediaItem(AUTO_ROOT_ID, getString(R.string.app_name))
-                    mediaId == AUTO_QUEUE_ID -> browsableMediaItem(AUTO_QUEUE_ID, "Queue")
-                    mediaId == AUTO_CURRENT_ID -> browsableMediaItem(AUTO_CURRENT_ID, "Now playing")
+                    mediaId == AUTO_QUEUE_ID -> browsableMediaItem(AUTO_QUEUE_ID, getString(R.string.tv_player_queue))
+                    mediaId == AUTO_CURRENT_ID -> browsableMediaItem(AUTO_CURRENT_ID, getString(R.string.widget_now_playing_label))
                     track != null -> track.toAutoMediaItem()
                     else -> null
                 }

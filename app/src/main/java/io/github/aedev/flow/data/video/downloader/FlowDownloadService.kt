@@ -274,7 +274,7 @@ class FlowDownloadService : Service() {
                     stopServiceIfIdle()
                     return START_NOT_STICKY
                 }
-                val title = intent.getStringExtra("video_title") ?: "Unknown Video"
+                val title = intent.getStringExtra("video_title") ?: getString(R.string.fallback_unknown_video)
                 val url = intent.getStringExtra("video_url")
                 if (url == null) {
                     Log.e(TAG, "onStartCommand: url is null for START_DOWNLOAD")
@@ -285,7 +285,7 @@ class FlowDownloadService : Service() {
                 val audioUrl = intent.getStringExtra("video_audio_url")
                 val quality = intent.getStringExtra("video_quality") ?: "720p"
                 val thumbnail = intent.getStringExtra("video_thumbnail") ?: ""
-                val channel = intent.getStringExtra("video_channel") ?: "Unknown"
+                val channel = intent.getStringExtra("video_channel") ?: getString(R.string.unknown)
                 val duration = intent.getIntExtra("video_duration", 0)
                 val userAgent = intent.getStringExtra("video_user_agent")
                 val audioOnly = intent.getBooleanExtra(EXTRA_AUDIO_ONLY, false)

@@ -41,7 +41,15 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
     val sampleTimestamp = remember { System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 215 }
     val sampleRelative = stringResource(R.string.datetime_sample_relative)
 
-    val settings = DateDisplaySettings(globalMode, formatStyle, listsMode, watchMode, descriptionMode)
+    val settings = DateDisplaySettings(
+        globalMode,
+        formatStyle,
+        listsMode,
+        watchMode,
+        descriptionMode,
+        streamedPrefix = stringResource(R.string.streamed_label),
+        premieredPrefix = stringResource(R.string.premiered_label),
+    )
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),

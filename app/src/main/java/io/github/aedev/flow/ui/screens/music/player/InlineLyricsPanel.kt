@@ -715,7 +715,7 @@ private fun IntervalIndicator(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "I N S T R U M E N T A L",
+                text = stringResource(R.string.ui_instrumental),
                 color = color.copy(alpha = 0.8f * (1f - animatedProgress)),
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,

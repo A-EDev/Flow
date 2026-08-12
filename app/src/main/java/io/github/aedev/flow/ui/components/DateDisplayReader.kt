@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
+import io.github.aedev.flow.R
 import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.utils.DateContextMode
@@ -20,5 +22,13 @@ fun rememberDateDisplaySettings(): DateDisplaySettings {
     val listsMode by prefs.dateModeLists.collectAsState(initial = DateContextMode.DEFAULT)
     val watchMode by prefs.dateModeWatch.collectAsState(initial = DateContextMode.DEFAULT)
     val descriptionMode by prefs.dateModeDescription.collectAsState(initial = DateContextMode.DEFAULT)
-    return DateDisplaySettings(globalMode, formatStyle, listsMode, watchMode, descriptionMode)
+    return DateDisplaySettings(
+        globalMode,
+        formatStyle,
+        listsMode,
+        watchMode,
+        descriptionMode,
+        streamedPrefix = stringResource(R.string.streamed_label),
+        premieredPrefix = stringResource(R.string.premiered_label),
+    )
 }

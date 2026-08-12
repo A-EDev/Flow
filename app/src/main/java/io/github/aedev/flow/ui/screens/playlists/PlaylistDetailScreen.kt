@@ -790,7 +790,10 @@ private fun PlaylistHeader(
                 exit = fadeOut(),
             ) {
                 Text(
-                    text = "Downloading: ${currentDownloadingTitle ?: ""}",
+                    text = stringResource(
+                        R.string.ui_downloading_title,
+                        currentDownloadingTitle.orEmpty(),
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -1567,9 +1570,9 @@ class PlaylistDetailViewModel
 
                 val msg =
                     if (successCount > 0) {
-                        "Queued $successCount/$total downloads"
+                        context.getString(R.string.playlist_downloads_queued, successCount, total)
                     } else {
-                        "Could not queue any downloads from this playlist"
+                        context.getString(R.string.playlist_downloads_none_queued)
                     }
                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 

@@ -64,6 +64,8 @@ fun MusicSearchScreen(
     initialQuery: String? = null,
     viewModel: MusicSearchViewModel = hiltViewModel(),
 ) {
+    val fallbackTopResultTitle = stringResource(R.string.search_fallback_top_result)
+    val fallbackOtherResultsTitle = stringResource(R.string.search_fallback_other_results)
     val query by viewModel.query.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -279,16 +281,21 @@ fun MusicSearchScreen(
                             if (uiState.activeFilter == null && uiState.searchSummary != null) {
                                 // Summary view (Top Result + Sections)
                                 uiState.searchSummary?.summaries?.forEach { summary ->
+                                    val localizedSummaryTitle = when (summary.title) {
+                                        "__top_result__" -> fallbackTopResultTitle
+                                        "__other_results__" -> fallbackOtherResultsTitle
+                                        else -> summary.title
+                                    }
                                     item {
                                         Text(
-                                            text = summary.title,
+                                            text = localizedSummaryTitle,
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                             color = MaterialTheme.colorScheme.onBackground,
                                         )
                                     }
 
-                                    if (summary.title == topResultTarget) {
+                                    if (summary.title == topResultTarget || summary.title == "__top_result__") {
                                         item {
                                             TopResultCard(
                                                 item = summary.items.first(),
@@ -1004,7 +1011,7 @@ internal fun convertSongToMusicTrack(item: SongItem): MusicTrack =
         duration = item.duration ?: 0,
         views = 0, // View count text is a string in SongItem
         sourceUrl = "https://www.youtube.com/watch?v=${item.id}",
-        album = item.album?.name ?: "Unknown Album",
+        album = item.album?.name ?: io.github.aedev.flow.FlowApplication.appContext.getString(R.string.fallback_unknown_album),
         channelId = item.artists.firstOrNull()?.id ?: "",
         isExplicit = item.explicit,
         isVideoSong = item.isVideoSong,

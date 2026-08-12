@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.recommendation
 import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.innertube.YouTube
@@ -375,7 +376,7 @@ class MusicRecommendationAlgorithm
                         duration = 0,
                         channelId = "",
                         views = 0L,
-                        album = "Album",
+                        album = context.getString(R.string.album_label),
                         isExplicit = item.explicit,
                         itemType = MusicItemType.ALBUM,
                     )

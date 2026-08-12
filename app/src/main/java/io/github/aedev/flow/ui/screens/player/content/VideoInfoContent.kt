@@ -99,7 +99,8 @@ fun VideoInfoContent(
         val isArchivedLivestream = streamInfo.streamType == StreamType.POST_LIVE_STREAM
         when {
             rawDate.isNullOrBlank() -> null
-            isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true) -> "Streamed $rawDate"
+            isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true) ->
+                stringResource(R.string.streamed_prefix, rawDate)
             else -> rawDate
         }
     }

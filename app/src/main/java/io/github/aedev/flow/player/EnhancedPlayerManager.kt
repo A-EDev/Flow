@@ -1013,7 +1013,7 @@ class EnhancedPlayerManager private constructor() {
                         ?: 0,
                 availableQualities = buildAvailableQualityOptions(),
                 availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
-                availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
+                availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles, appContext?.getString(io.github.aedev.flow.R.string.unknown).orEmpty()),
                 currentQuality =
                     if (isAutoMode) {
                         0
@@ -1683,7 +1683,12 @@ class EnhancedPlayerManager private constructor() {
                     )
                     setAutoplayCandidates(
                         sourceVideoId = enrichedVideo.id,
-                        videos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
+                        videos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(
+                            streamInfo,
+                            unknownTitle = appContext?.getString(io.github.aedev.flow.R.string.fallback_unknown_title).orEmpty(),
+                            unknownChannel = appContext?.getString(io.github.aedev.flow.R.string.fallback_unknown_channel).orEmpty(),
+                            unknownDate = appContext?.getString(io.github.aedev.flow.R.string.unknown).orEmpty(),
+                        ),
                         enabled = autoplayEnabled,
                     )
 
@@ -1892,7 +1897,12 @@ class EnhancedPlayerManager private constructor() {
                 durationSeconds = streamInfo.duration,
                 dashManifestUrl = streamInfo.dashMpdUrl,
                 streamType = streamInfo.streamType,
-                relatedVideos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
+                    relatedVideos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(
+                        streamInfo,
+                        unknownTitle = appContext?.getString(io.github.aedev.flow.R.string.fallback_unknown_title).orEmpty(),
+                        unknownChannel = appContext?.getString(io.github.aedev.flow.R.string.fallback_unknown_channel).orEmpty(),
+                        unknownDate = appContext?.getString(io.github.aedev.flow.R.string.unknown).orEmpty(),
+                    ),
                 preferredCodec = preferredCodecKey,
                 itVideoFormats = extraction?.videoFormats ?: emptyList(),
                 itAudioFormats = extraction?.audioFormats ?: emptyList(),
@@ -1987,7 +1997,7 @@ class EnhancedPlayerManager private constructor() {
                         ?: 0,
                 availableQualities = buildAvailableQualityOptions(),
                 availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
-                availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
+                availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles, appContext?.getString(io.github.aedev.flow.R.string.unknown).orEmpty()),
                 currentQuality =
                     if (isAutoMode) {
                         0

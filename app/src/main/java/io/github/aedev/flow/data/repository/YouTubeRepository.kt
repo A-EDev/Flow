@@ -1,7 +1,10 @@
 package io.github.aedev.flow.data.repository
 
+import android.content.Context
 import android.util.Log
 import android.util.LruCache
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
@@ -46,6 +49,7 @@ import javax.inject.Singleton
 class YouTubeRepository
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val playerPreferences: PlayerPreferences,
     ) {
         private val service = ServiceList.YouTube
@@ -602,13 +606,13 @@ class YouTubeRepository
 
                     Video(
                         id = videoId,
-                        title = info.name ?: "Unknown Title",
-                        channelName = info.uploaderName ?: "Unknown Channel",
+                        title = info.name ?: context.getString(R.string.fallback_unknown_title),
+                        channelName = info.uploaderName ?: context.getString(R.string.fallback_unknown_channel),
                         channelId = extractChannelId(info.uploaderUrl),
                         thumbnailUrl = bestThumbnail,
                         duration = info.duration.toInt(),
                         viewCount = info.viewCount,
-                        uploadDate = info.textualUploadDate ?: "Unknown",
+                        uploadDate = info.textualUploadDate ?: context.getString(R.string.unknown),
                         timestamp =
                             resolveUploadTimestamp(
                                 info.uploadDate
@@ -1069,7 +1073,7 @@ class YouTubeRepository
                     val uploaderReference = uploaderReferences[index]
                     Comment(
                         id = item.commentId ?: "",
-                        author = item.uploaderName ?: "Unknown",
+                        author = item.uploaderName ?: context.getString(R.string.unknown),
                         authorThumbnail =
                             selectCommentAuthorThumbnail(
                                 embeddedAvatar = embeddedAvatars[index],
@@ -1132,7 +1136,7 @@ class YouTubeRepository
 
                     io.github.aedev.flow.data.model.Playlist(
                         id = playlistId,
-                        name = playlistInfo.name ?: "Unknown Playlist",
+                        name = playlistInfo.name ?: context.getString(R.string.fallback_unknown_playlist),
                         thumbnailUrl = bestThumbnail,
                         videoCount = playlistVideos.size,
                         description = playlistInfo.description?.content ?: "",
@@ -1372,8 +1376,8 @@ class YouTubeRepository
 
             return Video(
                 id = videoId,
-                title = name ?: "Unknown Title",
-                channelName = uploaderName ?: "Unknown Channel",
+                title = name ?: context.getString(R.string.fallback_unknown_title),
+                channelName = uploaderName ?: context.getString(R.string.fallback_unknown_channel),
                 channelId = extractChannelId(uploaderUrl),
                 thumbnailUrl = bestThumbnail,
                 duration = durationSecs,
@@ -1392,12 +1396,12 @@ class YouTubeRepository
                                     val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
                                     sdf.format(d)
                                 } catch (e: Exception) {
-                                    "Unknown"
+                                    context.getString(R.string.unknown)
                                 }
                             }
 
                             else -> {
-                                "Unknown"
+                                context.getString(R.string.unknown)
                             }
                         }
                     },
@@ -1437,7 +1441,7 @@ class YouTubeRepository
 
             return io.github.aedev.flow.data.model.Channel(
                 id = channelId,
-                name = name ?: "Unknown Channel",
+                name = name ?: context.getString(R.string.fallback_unknown_channel),
                 thumbnailUrl = bestThumbnail,
                 subscriberCount = subscriberCount,
                 description = description ?: "",
@@ -1459,7 +1463,7 @@ class YouTubeRepository
 
             return io.github.aedev.flow.data.model.Playlist(
                 id = playlistId,
-                name = name ?: "Unknown Playlist",
+                name = name ?: context.getString(R.string.fallback_unknown_playlist),
                 thumbnailUrl = bestThumbnail,
                 videoCount = streamCount.toInt(),
                 isLocal = false,
@@ -1584,9 +1588,12 @@ class YouTubeRepository
             @Volatile
             private var instance: YouTubeRepository? = null
 
-            fun getInstance(playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences): YouTubeRepository =
+            fun getInstance(
+                playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
+                context: Context,
+            ): YouTubeRepository =
                 instance ?: synchronized(this) {
-                    instance ?: YouTubeRepository(playerPreferences).also { instance = it }
+                    instance ?: YouTubeRepository(context, playerPreferences).also { instance = it }
                 }
 
             fun getInstance(): YouTubeRepository =

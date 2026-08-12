@@ -244,7 +244,7 @@ class FlowApplication :
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val repository = SubscriptionRepository.getInstance(this@FlowApplication)
-                val youtubeRepository = YouTubeRepository.getInstance(playerPreferences)
+                val youtubeRepository = YouTubeRepository.getInstance(playerPreferences, this@FlowApplication)
                 val repaired =
                     repository.repairVideoThumbnailSubscriptions { channelId ->
                         withTimeoutOrNull(6_000L) {

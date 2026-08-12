@@ -12,15 +12,15 @@ class ReminderReceiver : BroadcastReceiver() {
             "bedtime" -> {
                 NotificationHelper.showReminderNotification(
                     context,
-                    "It's bedtime! 😴",
-                    "Time to wind down based on your schedule."
+                    context.getString(io.github.aedev.flow.R.string.reminder_bedtime_title),
+                    context.getString(io.github.aedev.flow.R.string.reminder_bedtime_message)
                 )
             }
             "break" -> {
                  NotificationHelper.showReminderNotification(
                     context,
-                    "Take a break! ☕",
-                    "You've been watching for a while."
+                    context.getString(io.github.aedev.flow.R.string.reminder_break_title),
+                    context.getString(io.github.aedev.flow.R.string.reminder_break_message)
                 )
                 
                 // Reschedule if it's a repeating break reminder

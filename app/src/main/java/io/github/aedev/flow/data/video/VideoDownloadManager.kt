@@ -59,7 +59,7 @@ data class DownloadedVideo(
     val downloadedAt: Long = System.currentTimeMillis(),
     val fileSize: Long = 0,
     val downloadId: Long = -1,
-    val quality: String = "Unknown",
+    val quality: String = "",
     val isAudioOnly: Boolean = false
 )
 
@@ -557,7 +557,7 @@ class VideoDownloadManager @Inject constructor(
             downloadedAt = dwi.download.createdAt,
             fileSize = dwi.totalSize,
             downloadId = dwi.download.createdAt,
-            quality = dwi.items.firstOrNull()?.quality ?: "Unknown",
+            quality = dwi.items.firstOrNull()?.quality ?: context.getString(R.string.unknown),
             isAudioOnly = dwi.isAudioOnly
         )
     }

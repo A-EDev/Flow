@@ -312,7 +312,7 @@ fun DownloadQualityDialog(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Audio Only",
+                                text = stringResource(R.string.ui_audio_only),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -386,12 +386,16 @@ fun DownloadQualityDialog(
 
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "$audioFormat ${bitrate}kbps",
+                                            text = "$audioFormat ${bitrate}${stringResource(R.string.kbps)}",
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.SemiBold,
                                         )
                                         Text(
-                                            text = listOfNotNull(languageLabel, trackTypeLabel, "Audio only").joinToString(" • "),
+                                            text = listOfNotNull(
+                                                languageLabel,
+                                                trackTypeLabel,
+                                                stringResource(R.string.ui_audio_only),
+                                            ).joinToString(" • "),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )

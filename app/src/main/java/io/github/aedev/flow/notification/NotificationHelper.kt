@@ -233,7 +233,7 @@ object NotificationHelper {
         total: Int,
     ) {
         if (!hasNotificationPermission(context)) return
-        val contentText = if (total > 0) "$current / $total" else "Starting…"
+        val contentText = if (total > 0) "$current / $total" else context.getString(R.string.notification_starting)
         val builder =
             NotificationCompat
                 .Builder(context, CHANNEL_IMPORTS)

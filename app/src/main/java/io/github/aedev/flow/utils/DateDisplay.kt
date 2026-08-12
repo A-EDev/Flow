@@ -55,6 +55,8 @@ data class DateDisplaySettings(
     val listsMode: DateContextMode = DateContextMode.DEFAULT,
     val watchMode: DateContextMode = DateContextMode.DEFAULT,
     val descriptionMode: DateContextMode = DateContextMode.DEFAULT,
+    val streamedPrefix: String,
+    val premieredPrefix: String,
 ) {
     fun resolve(context: DateContext): DateDisplayMode {
         val override = when (context) {
@@ -70,7 +72,15 @@ data class DateDisplaySettings(
         context: DateContext,
         timestampFallbackMs: Long = 0L,
         locale: Locale = Locale.getDefault(),
-    ): String = formatUploadDateConfigured(date, resolve(context), formatStyle, timestampFallbackMs, locale)
+    ): String = formatUploadDateConfigured(
+        date,
+        resolve(context),
+        formatStyle,
+        timestampFallbackMs,
+        locale,
+        streamedPrefix,
+        premieredPrefix,
+    )
 }
 
 fun formatExactDate(
@@ -95,12 +105,14 @@ fun formatUploadDateConfigured(
     style: DateFormatStyle,
     timestampFallbackMs: Long = 0L,
     locale: Locale = Locale.getDefault(),
+    streamedPrefix: String,
+    premieredPrefix: String,
 ): String {
     if (date?.trim().equals("live", ignoreCase = true)) return "LIVE"
 
     val timestamp = resolveDisplayUploadTimestamp(date, timestampFallbackMs)
-    val prefix = relativePrefix(date)
-    val relative = applyRelativePrefix(relativeString(date, timestamp, locale), prefix)
+    val prefix = relativePrefix(date, streamedPrefix, premieredPrefix)
+    val relative = applyRelativePrefix(relativeString(date, timestamp, locale, streamedPrefix, premieredPrefix), prefix)
     val exact = if (timestamp != null && timestamp > 0L) formatExactDate(timestamp, style, locale) else ""
     val exactWithPrefix = applyExactPrefix(exact, prefix)
     return when (mode) {
@@ -114,20 +126,26 @@ fun formatUploadDateConfigured(
     }
 }
 
-private fun relativeString(date: String?, timestamp: Long?, locale: Locale): String {
+private fun relativeString(
+    date: String?,
+    timestamp: Long?,
+    locale: Locale,
+    streamedPrefix: String,
+    premieredPrefix: String,
+): String {
     val s = date?.trim().orEmpty()
     if (s.equals("live", ignoreCase = true)) return "LIVE"
     if (timestamp != null && timestamp > 0L) {
         return formatYouTubeRelativeTime(timestamp, locale = locale)
     }
-    return formatTimeAgo(date, locale)
+    return formatTimeAgo(date, locale, streamedPrefix, premieredPrefix)
 }
 
-private fun relativePrefix(date: String?): String? {
+private fun relativePrefix(date: String?, streamedPrefix: String, premieredPrefix: String): String? {
     val text = date?.trim().orEmpty().lowercase(Locale.US)
     return when {
-        text.startsWith("streamed ") -> "Streamed"
-        text.startsWith("premiered ") -> "Premiered"
+        text.startsWith("streamed ") -> streamedPrefix
+        text.startsWith("premiered ") -> premieredPrefix
         else -> null
     }
 }

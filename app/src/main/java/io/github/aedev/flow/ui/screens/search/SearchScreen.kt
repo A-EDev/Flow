@@ -173,7 +173,10 @@ fun SearchScreen(
                     android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                     android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
                 )
-                putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Speak to search…")
+                putExtra(
+                    android.speech.RecognizerIntent.EXTRA_PROMPT,
+                    context.getString(R.string.voice_search_prompt),
+                )
             }
         try {
             voiceSearchLauncher.launch(intent)
@@ -298,8 +301,8 @@ fun SearchScreen(
                         navigateToVideo(
                             Video(
                                 id = videoId,
-                                title = "Shared Video",
-                                channelName = "Shared Video",
+                                title = context.getString(R.string.search_shared_video),
+                                channelName = context.getString(R.string.search_shared_video),
                                 channelId = "",
                                 thumbnailUrl = "https://img.youtube.com/vi/$videoId/maxresdefault.jpg",
                                 duration = 0,
@@ -350,8 +353,8 @@ fun SearchScreen(
                         navigateToVideo(
                             Video(
                                 id = videoId,
-                                title = "Shared Video",
-                                channelName = "Shared Video",
+                                title = context.getString(R.string.search_shared_video),
+                                channelName = context.getString(R.string.search_shared_video),
                                 channelId = "",
                                 thumbnailUrl = "https://img.youtube.com/vi/$videoId/maxresdefault.jpg",
                                 duration = 0,
@@ -445,7 +448,7 @@ fun SearchScreen(
                         val err =
                             (pagingItems.loadState.refresh as LoadState.Error).error
                         SearchErrorState(
-                            message = err.localizedMessage ?: "Search failed",
+                            message = err.localizedMessage ?: stringResource(R.string.search_failed),
                             onRetry = pagingItems::retry,
                         )
                     }
@@ -1236,7 +1239,7 @@ private fun PagingFooter(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        "Loading more\u2026",
+                        stringResource(R.string.search_loading_more),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1251,7 +1254,7 @@ private fun PagingFooter(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    appendState.error.localizedMessage ?: "Load failed",
+                    appendState.error.localizedMessage ?: stringResource(R.string.load_more_failed),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     maxLines = 2,
@@ -1272,7 +1275,7 @@ private fun PagingFooter(
                 ) {
                     HorizontalDivider(Modifier.weight(1f))
                     Text(
-                        "End of results",
+                        stringResource(R.string.end_of_results),
                         style = MaterialTheme.typography.bodySmall,
                         color =
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(
@@ -1651,7 +1654,7 @@ private fun SearchVideoCard(
                     color = Color(0xFF1565C0),
                 ) {
                     Text(
-                        "SHORT",
+                        stringResource(R.string.search_short_badge),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
@@ -1673,7 +1676,7 @@ private fun SearchVideoCard(
                     color = Color(0xFFD32F2F),
                 ) {
                     Text(
-                        "\u25CF LIVE",
+                        stringResource(R.string.search_live_badge, stringResource(R.string.status_live)),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
@@ -1986,7 +1989,7 @@ private fun SearchPlaylistCardCompact(
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            "${playlist.videoCount} videos",
+            stringResource(R.string.videos_count_template, playlist.videoCount),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -2010,7 +2013,7 @@ private fun SearchErrorState(
                 modifier = Modifier.size(48.dp),
             )
             Text(
-                "Search Failed",
+                stringResource(R.string.search_failed),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground,

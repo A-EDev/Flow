@@ -1,6 +1,9 @@
 package io.github.aedev.flow.data.innertube
 
+import android.content.Context
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.subscriptions.ChannelRssClient
 import io.github.aedev.flow.data.subscriptions.ChannelRssEntry
@@ -53,6 +56,7 @@ data class SubscriptionFeedChunk(
 class RssSubscriptionService
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val rssClient: ChannelRssClient,
     ) {
         fun fetchSubscriptionVideos(
@@ -347,7 +351,7 @@ class RssSubscriptionService
             return Video(
                 id = videoId,
                 title = title,
-                channelName = channelName.orEmpty().ifBlank { UNKNOWN_LABEL },
+                channelName = channelName.orEmpty().ifBlank { context.getString(R.string.unknown) },
                 channelId = channelId,
                 thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, thumbnailUrl),
                 duration = 0,
@@ -521,12 +525,12 @@ class RssSubscriptionService
 
                     uploadTimeMillis > 0L -> {
                         formatRelativeTime(uploadTimeMillis)
-                            .let { if (isArchivedLivestream) "Streamed $it" else it }
+                            .let { if (isArchivedLivestream) context.getString(R.string.streamed_prefix, it) else it }
                     }
 
                     rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> {
                         if (isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true)) {
-                            "Streamed $rawDate"
+                            context.getString(R.string.streamed_prefix, rawDate)
                         } else {
                             rawDate
                         }
@@ -539,8 +543,8 @@ class RssSubscriptionService
 
             return Video(
                 id = videoId,
-                title = item.name ?: UNKNOWN_LABEL,
-                channelName = item.uploaderName ?: UNKNOWN_LABEL,
+                title = item.name ?: context.getString(R.string.unknown),
+                channelName = item.uploaderName ?: context.getString(R.string.unknown),
                 channelId = channelId,
                 thumbnailUrl = thumbnail,
                 duration = item.duration.toInt().coerceAtLeast(0),
@@ -644,7 +648,6 @@ class RssSubscriptionService
         private companion object {
             const val TAG = "InnertubeSubs"
             const val YOUTUBE_URL = "https://www.youtube.com"
-            const val UNKNOWN_LABEL = "Unknown"
 
             const val RSS_CHUNK_SIZE = 20
             const val CHANNEL_CHUNK_SIZE = 3

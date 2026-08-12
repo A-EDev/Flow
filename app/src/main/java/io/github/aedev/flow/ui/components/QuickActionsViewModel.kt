@@ -460,7 +460,7 @@ class QuickActionsViewModel @Inject constructor(
 
                     val fullVideo = Video(
                         id = video.id,
-                        title = video.title.ifBlank { streamInfo.name ?: "Unknown" },
+                        title = video.title.ifBlank { streamInfo.name ?: context.getString(R.string.unknown) },
                         channelName = video.channelName.ifBlank { streamInfo.uploaderName ?: "" },
                         channelId = video.channelId.ifBlank { streamInfo.uploaderUrl?.substringAfterLast("/") ?: "local" },
                         thumbnailUrl = video.thumbnailUrl.ifBlank { streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "" },

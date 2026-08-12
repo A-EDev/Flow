@@ -85,7 +85,7 @@ object VideoPlayerUtils {
                 prefs.edit().putBoolean("storage_permission_asked", true).apply()
                 Toast.makeText(
                     context,
-                    "Grant storage access to save downloads in public folders (optional)",
+                    context.getString(R.string.download_storage_access_optional),
                     Toast.LENGTH_LONG
                 ).show()
                 try {

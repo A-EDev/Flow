@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.notification.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,7 +67,7 @@ class ImportViewModel @Inject constructor(
 
     fun importNewPipe(uri: Uri) {
         if (isRunning) return
-        val label = "NewPipe subscriptions"
+        val label = context.getString(R.string.import_from_newpipe)
         viewModelScope.launch {
             startProgress(label, 0, 0)
             val result = backupRepo.importNewPipe(uri) { current, total ->
@@ -78,7 +79,7 @@ class ImportViewModel @Inject constructor(
 
     fun importYouTube(uri: Uri) {
         if (isRunning) return
-        val label = "YouTube subscriptions"
+        val label = context.getString(R.string.import_from_youtube)
         viewModelScope.launch {
             startProgress(label, 0, 0)
             val result = backupRepo.importYouTube(uri) { current, total ->
@@ -93,12 +94,12 @@ class ImportViewModel @Inject constructor(
     }
 
     fun importFreeTubeWatchHistory(uri: Uri) {
-        importWatchHistory(uri, "FreeTube watch history")
+        importWatchHistory(uri, context.getString(R.string.import_freetube_history))
     }
 
     fun importNewPipeWatchHistory(uri: Uri) {
         if (isRunning) return
-        val label = "NewPipe watch history"
+        val label = context.getString(R.string.import_newpipe_history)
         viewModelScope.launch {
             startProgress(label, 0, 0)
             val result = backupRepo.importNewPipeWatchHistory(uri)
@@ -108,7 +109,7 @@ class ImportViewModel @Inject constructor(
 
     fun importLibreTube(uri: Uri) {
         if (isRunning) return
-        val label = "LibreTube subscriptions"
+        val label = context.getString(R.string.import_from_libretube)
         viewModelScope.launch {
             startProgress(label, 0, 0)
             val result = backupRepo.importLibreTube(uri) { current, total ->
@@ -120,7 +121,7 @@ class ImportViewModel @Inject constructor(
 
     fun importMetrolist(uri: Uri) {
         if (isRunning) return
-        val label = "Metrolist music playlists"
+        val label = context.getString(R.string.import_from_metrolist)
         viewModelScope.launch {
             startProgress(label, 0, 0)
             val result = backupRepo.importMetrolist(uri) { current, total ->
@@ -132,7 +133,7 @@ class ImportViewModel @Inject constructor(
 
     fun importNewPipePlaylists(uri: Uri) {
         if (isRunning) return
-        val label = "NewPipe playlists"
+        val label = context.getString(R.string.import_newpipe_playlists)
         viewModelScope.launch {
             startProgress(label, 0, 0)
             val result = backupRepo.importNewPipePlaylists(uri) { current, total ->
@@ -144,7 +145,7 @@ class ImportViewModel @Inject constructor(
 
     fun importLibreTubePlaylists(uri: Uri) {
         if (isRunning) return
-        val label = "LibreTube playlists"
+        val label = context.getString(R.string.import_libretube_playlists)
         viewModelScope.launch {
             startProgress(label, 0, 0)
             val result = backupRepo.importLibreTubePlaylists(uri) { current, total ->
@@ -156,7 +157,7 @@ class ImportViewModel @Inject constructor(
 
     fun importYouTubeTakeout(uri: Uri) {
         if (isRunning) return
-        val label = "YouTube Takeout"
+        val label = context.getString(R.string.import_yt_takeout_all)
         viewModelScope.launch {
             startProgress(label, 0, 0)
             try {
@@ -170,13 +171,13 @@ class ImportViewModel @Inject constructor(
                         NotificationHelper.showImportComplete(context, label, 0, summary)
                     }
                 } else {
-                    val msg = result.exceptionOrNull()?.message ?: "Unknown error"
+                    val msg = result.exceptionOrNull()?.message ?: context.getString(R.string.unknown_error)
                     _state.value = State.Error(label, msg)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = State.Error(label, e.message ?: "Unknown error")
+                _state.value = State.Error(label, e.message ?: context.getString(R.string.unknown_error))
             } finally {
                 NotificationHelper.cancelImportNotification(context)
             }
@@ -185,8 +186,8 @@ class ImportViewModel @Inject constructor(
 
     fun importMasterBackup(uri: Uri) {
         if (isRunning) return
-        val label = "Master backup"
-        val successMessage = "Master backup restored successfully"
+        val label = context.getString(R.string.master_backup_title)
+        val successMessage = context.getString(R.string.import_master_backup_success)
         viewModelScope.launch {
             startProgress(label, 0, 0)
             try {
@@ -197,13 +198,13 @@ class ImportViewModel @Inject constructor(
                         NotificationHelper.showImportComplete(context, label, 0, successMessage)
                     }
                 } else {
-                    val msg = result.exceptionOrNull()?.message ?: "Unknown error"
+                    val msg = result.exceptionOrNull()?.message ?: context.getString(R.string.unknown_error)
                     _state.value = State.Error(label, msg)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = State.Error(label, e.message ?: "Unknown error")
+                _state.value = State.Error(label, e.message ?: context.getString(R.string.unknown_error))
             } finally {
                 NotificationHelper.cancelImportNotification(context)
             }
@@ -249,7 +250,7 @@ class ImportViewModel @Inject constructor(
                 NotificationHelper.showImportComplete(context, label, count)
             }
         } else {
-            val msg = result.exceptionOrNull()?.message ?: "Unknown error"
+            val msg = result.exceptionOrNull()?.message ?: context.getString(R.string.unknown_error)
             _state.value = State.Error(label, msg)
         }
     }

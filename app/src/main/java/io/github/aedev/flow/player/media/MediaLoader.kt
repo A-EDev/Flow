@@ -413,7 +413,7 @@ class MediaLoader(
             subtitleStreams.mapIndexedNotNull { index, subtitleStream ->
                 val subtitleUrl = subtitleStream.getContent().takeIf { it.isNotBlank() } ?: return@mapIndexedNotNull null
                 val language = subtitleStream.languageTag ?: subtitleStream.locale?.toLanguageTag()
-                val label = subtitleStream.displayLanguageName ?: language ?: "Unknown"
+                val label = subtitleStream.displayLanguageName ?: language ?: appContext.getString(R.string.unknown)
                 val subtitleConfig =
                     MediaItem.SubtitleConfiguration
                         .Builder(Uri.parse(subtitleUrl))

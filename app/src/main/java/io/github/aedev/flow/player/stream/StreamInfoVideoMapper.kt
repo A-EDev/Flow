@@ -42,13 +42,22 @@ object StreamInfoVideoMapper {
     }
 
     /** Related items that fail to map are dropped rather than failing the whole list. */
-    fun relatedVideosFromStreamInfo(info: StreamInfo): List<Video> =
+    fun relatedVideosFromStreamInfo(
+        info: StreamInfo,
+        unknownTitle: String = "",
+        unknownChannel: String = "",
+        unknownDate: String = "",
+    ): List<Video> =
         info.relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
-            runCatching { item.toFlowVideo() }.getOrNull()
+            runCatching { item.toFlowVideo(unknownTitle, unknownChannel, unknownDate) }.getOrNull()
         }
 
     /** @throws IllegalArgumentException when no video id can be parsed out of the item's URL. */
-    fun StreamInfoItem.toFlowVideo(): Video {
+    fun StreamInfoItem.toFlowVideo(
+        unknownTitle: String = "",
+        unknownChannel: String = "",
+        unknownDate: String = "",
+    ): Video {
         val rawUrl = url ?: ""
         val videoId =
             when {
@@ -91,13 +100,13 @@ object StreamInfoVideoMapper {
 
         return Video(
             id = videoId,
-            title = name ?: "Unknown Title",
-            channelName = uploaderName ?: "Unknown Channel",
+            title = name ?: unknownTitle,
+            channelName = uploaderName ?: unknownChannel,
             channelId = extractChannelId(uploaderUrl),
             thumbnailUrl = bestThumbnail,
             duration = durationSecs,
             viewCount = viewCount,
-            uploadDate = textualUploadDate ?: "Unknown",
+            uploadDate = textualUploadDate ?: unknownDate,
             channelThumbnailUrl = uploaderAvatars.sortedByDescending { it.height }.firstOrNull()?.url ?: "",
             isUpcoming = streamType == StreamType.NONE,
             isLive = isLiveStream,

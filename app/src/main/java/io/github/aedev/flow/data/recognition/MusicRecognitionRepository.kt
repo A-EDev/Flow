@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.media.AudioFormat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.recognition.audio.AudioRecorder
 import io.github.aedev.flow.data.recognition.audio.AudioResampler
 import io.github.aedev.flow.data.recognition.audio.DecodedAudio
@@ -77,9 +78,9 @@ class MusicRecognitionRepository @Inject constructor(
             shazamClient.recognize(signature, sampleDurationMs).fold(
                 onSuccess = { _status.value = RecognitionStatus.Success(it) },
                 onFailure = { error ->
-                    val message = error.message ?: "Unknown error"
+                    val message = error.message ?: context.getString(R.string.unknown_error)
                     _status.value = if (message.contains("No match", ignoreCase = true)) {
-                        RecognitionStatus.NoMatch("No match found. Try again with clearer audio.")
+                        RecognitionStatus.NoMatch(context.getString(R.string.recognition_no_match_details))
                     } else {
                         RecognitionStatus.Error(mapError(message))
                     }

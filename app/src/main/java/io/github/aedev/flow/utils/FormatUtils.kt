@@ -81,10 +81,12 @@ fun formatYouTubeRelativeTime(
 fun formatTimeAgo(
     dateString: String?,
     locale: Locale = Locale.getDefault(),
+    streamedPrefix: String? = null,
+    premieredPrefix: String? = null,
 ): String {
     if (dateString.isNullOrBlank()) return ""
 
-    normalizeRelativeTimeText(dateString, locale)?.let { return it }
+    normalizeRelativeTimeText(dateString, locale, streamedPrefix, premieredPrefix)?.let { return it }
     if (dateString.contains("前")) return dateString
 
     val formats =
@@ -121,14 +123,16 @@ fun formatTimeAgo(
 private fun normalizeRelativeTimeText(
     value: String,
     locale: Locale,
+    streamedPrefix: String? = null,
+    premieredPrefix: String? = null,
 ): String? {
     val text = value.trim()
     val lower = text.lowercase(java.util.Locale.US)
     if (!lower.contains("ago") && !lower.contains("just now")) return null
     val prefix =
         when {
-            lower.startsWith("streamed ") -> "Streamed"
-            lower.startsWith("premiered ") -> "Premiered"
+            lower.startsWith("streamed ") -> streamedPrefix
+            lower.startsWith("premiered ") -> premieredPrefix
             else -> null
         }
     if (lower.contains("just now")) {

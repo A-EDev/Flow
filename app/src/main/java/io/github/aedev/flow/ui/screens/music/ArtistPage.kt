@@ -94,7 +94,13 @@ fun ArtistPage(
             },
             onViewAlbum = {
                 selectedTrack!!.albumId?.let { albumId ->
-                    onAlbumClick(MusicPlaylist(id = albumId, title = selectedTrack!!.album ?: "Album", thumbnailUrl = ""))
+                    onAlbumClick(
+                        MusicPlaylist(
+                            id = albumId,
+                            title = selectedTrack!!.album,
+                            thumbnailUrl = "",
+                        ),
+                    )
                 }
             },
             onShare = {

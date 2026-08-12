@@ -76,9 +76,9 @@ fun ReelWatchSequenceResponse.toShortsPage(): ShortsPage {
         
         ShortsItem(
             id = videoId,
-            title = title ?: "Short",
+            title = title.orEmpty(),
             thumbnail = thumbnail,
-            channelName = channelName ?: "Unknown",
+            channelName = channelName.orEmpty(),
             channelId = channelId,
             channelThumbnailUrl = channelThumbnail,
             viewCountText = viewCountText,

@@ -914,7 +914,11 @@ fun FlowReplyItem(
 private fun localizedCommentPublishedTime(publishedTime: String): String {
     val editedSuffix = Regex("\\s*\\(?edited\\)?\\s*$", RegexOption.IGNORE_CASE)
     val isEdited = editedSuffix.containsMatchIn(publishedTime)
-    val time = formatTimeAgo(publishedTime.replace(editedSuffix, "").trim())
+    val time = formatTimeAgo(
+        publishedTime.replace(editedSuffix, "").trim(),
+        streamedPrefix = stringResource(R.string.streamed_label),
+        premieredPrefix = stringResource(R.string.premiered_label),
+    )
     return if (isEdited) {
         stringResource(R.string.comment_time_edited_template, time, stringResource(R.string.comment_edited))
     } else {

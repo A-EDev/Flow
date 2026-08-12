@@ -1,5 +1,6 @@
 package io.github.aedev.flow.data.newmusic
 
+import io.github.aedev.flow.FlowApplication
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.YTItem
@@ -273,7 +274,8 @@ object InnertubeMusicService {
             }
             
             io.github.aedev.flow.ui.screens.music.ArtistDetails(
-                name = artistItem.title ?: "Unknown Artist",
+                name = artistItem.title
+                    ?: FlowApplication.appContext.getString(io.github.aedev.flow.R.string.fallback_unknown_artist),
                 channelId = artistItem.id ?: channelId,
                 thumbnailUrl = artistItem.thumbnail ?: "",
                 subscriberCount = 0L, // Innertube artist endpoint often doesn't give exact sub count in header

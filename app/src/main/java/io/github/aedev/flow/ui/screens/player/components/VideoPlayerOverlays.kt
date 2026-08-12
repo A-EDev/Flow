@@ -193,7 +193,8 @@ fun BrightnessOverlay(
     CircularGestureLevelOverlay(
         isVisible = isVisible,
         icon = iconVector,
-        valueLabel = if (isAuto) "Auto" else "${(brightnessLevel.coerceIn(0f, 1f) * 100).toInt()}%",
+        valueLabel = if (isAuto) stringResource(R.string.music_quality_auto)
+        else "${(brightnessLevel.coerceIn(0f, 1f) * 100).toInt()}%",
         progress = animatedBrightness,
         indicatorColor = MaterialTheme.colorScheme.primary,
         modifier = modifier

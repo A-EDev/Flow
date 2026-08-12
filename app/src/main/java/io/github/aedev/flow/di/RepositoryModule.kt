@@ -16,8 +16,11 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideYouTubeRepository(playerPreferences: PlayerPreferences): YouTubeRepository {
-        return YouTubeRepository.getInstance(playerPreferences)
+    fun provideYouTubeRepository(
+        @ApplicationContext context: Context,
+        playerPreferences: PlayerPreferences,
+    ): YouTubeRepository {
+        return YouTubeRepository.getInstance(playerPreferences, context)
     }
 
     @Provides
