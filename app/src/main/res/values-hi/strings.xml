@@ -94,7 +94,7 @@
     <string name="undo">अन-डू करें</string>
     <string name="subscribed_to">%s को सब्सक्राइब किया</string>
     <string name="unsubscribed_from">%s से अनसब्सक्राइब किया</string>
-    <string name="unsubscribe">सदस्यता समाप्त करें</string>
+    <string name="unsubscribe">अनसब्सक्राइब करें</string>
     <string name="share_video">वीडियो सांझा करें</string>
     <string name="check_out_video_template">यह वीडियो देखें: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="related_videos">संबंधित वीडियो</string>
