@@ -2335,4 +2335,14 @@
     <string name="duration_hours_minutes">%1$d ساعة و %2$d دقيقة</string>
     <string name="duration_hours_short">%1$dساعة</string>
     <string name="duration_minutes_short">%1$dدقيقة</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="zero">تعذر تحميل %d قناة</item>
+        <item quantity="one">تعذر تحميل %d قناة</item>
+        <item quantity="two">تعذر تحميل %d قناة</item>
+        <item quantity="few">تعذر تحميل %d قنوات</item>
+        <item quantity="many">تعذر تحميل %d قناة</item>
+        <item quantity="other">تعذر تحميل %d قناة</item>
+    </plurals>
+    <string name="subscriptions_failed_channels_body">أحدث فيديوهاتهم غير موجودة في هذه الصفحة: %1$s</string>
+    <string name="subscriptions_failed_channels_more">%1$s و %2$d أخرين</string>
 </resources>

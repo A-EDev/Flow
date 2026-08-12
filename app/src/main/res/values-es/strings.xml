@@ -17,7 +17,7 @@
     <string name="library_history_label">Historial</string>
     <string name="library_music_playlists_label">Listas de música</string>
     <string name="library_music_playlists_subtitle">Tus colecciones de música</string>
-    <string name="library_liked_videos_label">Video que Me Gustan</string>
+    <string name="library_liked_videos_label">Vídeos que Me Gustan</string>
     <string name="library_saved_shorts_label">Shorts guardados</string>
     <string name="library_watch_later_label">Ver más tarde</string>
     <string name="library_downloads_label">Descargas</string>
@@ -147,7 +147,7 @@
     <string name="itag">iTag</string>
     <string name="mime_type">Tipo de Mime</string>
     <string name="status_upcoming">PRÓXIMAMENTE</string>
-    <string name="status_live">EN DIRECTO</string>
+    <string name="status_live">EN VIVO</string>
     <string name="premiere_soon">Próximos estrenos</string>
     <string name="premiere_date_prefix">Estreno %1$s</string>
     <string name="file_size">Tamaño del archivo</string>
@@ -354,7 +354,7 @@
     <string name="tab_about">Acerca de</string>
     <string name="channel_default_title">Canal</string>
     <string name="tab_playlists">Listas</string>
-    <string name="tab_live">En Directo</string>
+    <string name="tab_live">En Vivo</string>
     <string name="no_videos_found">No se encontraron vídeos</string>
     <string name="end_of_queue">Fin de la cola</string>
     <string name="no_shorts_found">No se encontraron shorts</string>
@@ -493,7 +493,7 @@
     <string name="player_settings_rytd_subtitle">Obtener recuentos de \"No me gusta\" del servicio \"Return YouTube Dislike\"</string>
     <string name="content_settings_comments_preview_title">Vista previa de comentarios</string>
     <string name="content_settings_comments_enabled_subtitle">Cargar y mostrar la sección de comentarios en la pantalla del reproductor de video</string>
-    <string name="content_settings_subs_show_live_subtitle">Mostrar transmisiones en directo y recién finalizadas en el feed de suscripciones</string>
+    <string name="content_settings_subs_show_live_subtitle">Mostrar transmisiones en Vivo y recién finalizadas en el feed de suscripciones</string>
     <string name="playlist_sort_date_published_newest">Fecha de publicación (más reciente)</string>
     <string name="player_appearance_remember_brightness_title">Recuerda el brillo</string>
     <string name="section_from_the_community">De la comunidad</string>
@@ -663,7 +663,7 @@
     <string name="categories_switch_to_list">Cambiar a vista de lista</string>
     <string name="category_trending">Tendencia</string>
     <string name="category_movies">Cine</string>
-    <string name="category_live">En Directo</string>
+    <string name="category_live">En Vivo</string>
     <string name="player_settings_mini_player_continue_watching_title">Mini Reproductor de Continuar viendo</string>
     <string name="settings_continue_watching_subtitle">Muestra una estantería de videos en progreso en la pantalla de inicio.</string>
     <string name="continue_watching_title">Continuar Viendo</string>
@@ -1253,7 +1253,7 @@
     <string name="player_action_copy_link_at_time">Copiar en el momento</string>
     <string name="player_action_dislike">Aversión</string>
     <string name="link_with_timestamp_copied">Enlace con marca de tiempo copiada</string>
-    <string name="player_live_label">EN DIRECTO</string>
+    <string name="player_live_label">EN VIVO</string>
     <string name="action_want_more">Ver más contenido como este</string>
     <string name="action_not_interested">No interesado</string>
     <string name="diagnostics_tab_session">Registros de sesión</string>
@@ -1387,7 +1387,7 @@
     <string name="proxy_settings_port">Puerto</string>
     <string name="proxy_settings_username">Nombre de usuario</string>
     <string name="proxy_settings_optional_auth">Deje el nombre de usuario y la contraseña vacíos para servidores proxy no autenticados.</string>
-    <string name="proxy_settings_restart_notice">Es posible que sea necesario reiniciar las descargas activas o las solicitudes de reproducción de larga duración antes de que adopten por completo una nueva ruta de proxy.</string>
+    <string name="proxy_settings_restart_notice">Es posible que debas reiniciar las descargas activas o las reproducciones de larga duración antes de que adopten por completo la nueva ruta del proxy.</string>
     <string name="proxy_type_socks5">SOCKS5</string>
     <string name="proxy_settings_invalid_host">Ingrese un servidor proxy antes de habilitar el proxy.</string>
     <string name="proxy_type_http">HTTP</string>
@@ -1533,7 +1533,7 @@
     <string name="content_settings_subs_show_videos_subtitle">Mostrar videos regulares en el feed de suscripciones</string>
     <string name="content_settings_subs_show_shorts_title">Shorts de suscripciones</string>
     <string name="content_settings_comments_enabled_title">Comentarios</string>
-    <string name="content_settings_subs_show_live_title">Emisiones en directo de suscripciones</string>
+    <string name="content_settings_subs_show_live_title">En vivo de tus suscripciones</string>
     <string name="hide_channel_shorts">Ocultar Shorts de este canal</string>
     <string name="content_settings_subs_show_shorts_subtitle">Mostrar Shorts en el feed de suscripciones</string>
     <string name="player_settings_shorts_playback_mode_auto_interval_summary">Desplazamiento automático cada %1$d segundos</string>
@@ -1957,7 +1957,7 @@
     <string name="widget_previous">Pista anterior</string>
     <string name="widget_like">Me gusta</string>
     <string name="widget_artwork">Portada del álbum</string>
-    <string name="ui_search_settings">Configuración de búsqueda</string>
+    <string name="ui_search_settings">Configuración de búsqueda…</string>
     <string name="widget_open_downloads">Abrir descargas</string>
     <string name="widget_open_history">Abrir historial</string>
     <string name="widget_no_recent">Los vídeos que veas aparecerán aquí</string>
@@ -1987,7 +1987,7 @@
     <string name="ui_sync_lyrics">Sincronizar letras</string>
     <string name="ui_downloading_playlist">Descargando lista</string>
     <string name="ui_no_songs_found">No se encontraron canciones</string>
-    <string name="ui_search_songs_to_add">Buscar canciones para agregar</string>
+    <string name="ui_search_songs_to_add">Buscar canciones para añadir…</string>
     <string name="ui_add_songs_to_playlist">Agregar canciones a la lista</string>
     <string name="ui_show_less">Mostrar menos</string>
     <string name="ui_show_more">Mostrar más</string>
@@ -2006,7 +2006,7 @@
     <string name="update_download_prompt">Hay una nueva versión de Flow disponible (%1$s). ¿Descargar el APK más reciente?</string>
     <string name="ui_instrumental">I N S T R U M E N T A L</string>
     <string name="ui_playlist_empty">La lista está vacía</string>
-    <string name="ui_downloading_videos">Descargando %1$d vídeos</string>
+    <string name="ui_downloading_videos">Descargando %1$d vídeos…</string>
     <string name="ui_playlist_saved_to_library">Lista guardada en la biblioteca</string>
     <string name="ui_playlist_removed_from_library">Lista borrada de la biblioteca</string>
     <string name="ui_download_audio">Descargando audio: %1$skbps %2$s</string>
@@ -2017,9 +2017,9 @@
     <string name="toast_subscribed_to">Suscrito a %1$s</string>
     <string name="toast_removed_from_watch_later">Borrado de \"Ver mas tarde\"</string>
     <string name="toast_added_to_watch_later">Agregado a \"Ver mas tarde\"</string>
-    <string name="toast_fetching_download_links">Obteniendo enlaces de descarga</string>
+    <string name="toast_fetching_download_links">Obteniendo enlaces de descarga…</string>
     <string name="toast_download_started">Descarga iniciada: %1$s</string>
-    <string name="toast_trying_sabr_download">Intentando descarga SABR</string>
+    <string name="toast_trying_sabr_download">Intentando descarga SABR…</string>
     <string name="toast_sabr_download_started">Descarga SABR iniciada</string>
     <string name="toast_sabr_download_started_for_video">Descarga SABR iniciada: %1$s</string>
     <string name="toast_no_download_source">No hay fuente de descarga disponible</string>
@@ -2027,7 +2027,7 @@
     <string name="toast_copied_to_clipboard">Copiado al portapapeles</string>
     <string name="toast_playlist_deleted">Lista borrada</string>
     <string name="toast_playlist_renamed">Lista renombrada</string>
-    <string name="toast_starting_playlist_download">Iniciando descarga de %1$s</string>
+    <string name="toast_starting_playlist_download">Iniciando descarga de %1$s…</string>
     <string name="toast_downloaded_tracks_from_playlist">%1$d pistas descargadas de %2$s</string>
     <string name="toast_failed_to_download_playlist">No se pudo descargar la lista</string>
     <string name="toast_error_downloading_playlist">Error descargando la lista</string>
@@ -2109,7 +2109,7 @@
     <string name="error_playback_retry_hint">Inténtalo de nuevo más tarde o comprueba tu conexión de red.</string>
     <string name="download_waiting_for_wifi">Esperando conexión Wi-Fi</string>
     <string name="download_failed_try_again">Error de descarga. Inténtalo de nuevo.</string>
-    <string name="download_merging_audio_video">Fusionando audio y vídeo</string>
+    <string name="download_merging_audio_video">Combinando audio y video…</string>
     <string name="download_muxing_incompatible">Error al combinar â€” el formato de audio no es compatible con el contenedor de vídeo. Intenta volver a descargarlo.</string>
     <string name="download_muxing_failed_retry">Error al combinar — intenta volver a descargarlo.</string>
     <string name="download_url_expired">URL caducada (403). Es necesario volver a obtenerla.</string>
@@ -2288,9 +2288,9 @@
     <string name="import_other_youtube_clients">Importar desde otros clientes de YouTube</string>
     <string name="imported_count">Importados %1$d %2$s</string>
     <string name="imported_successfully">%1$s importado correctamente</string>
-    <string name="importing_label">Importando %1$s</string>
+    <string name="importing_label">Importando %1$s…</string>
     <string name="imported_from_google_takeout">Importado desde Google Takeout</string>
-    <string name="fallback_playing">Reproduciendo</string>
+    <string name="fallback_playing">Reproduciendo…</string>
     <string name="fallback_unknown_title">Título desconocido</string>
     <string name="fallback_unknown_channel">Canal desconocido</string>
     <string name="fallback_unknown_playlist">Lista desconocida</string>
@@ -2303,4 +2303,35 @@
     <string name="fallback_your_watch_later_list">Tu lista de \"Ver más tarde\"</string>
     <string name="fallback_downloaded_locally">Descargado localmente</string>
     <string name="fallback_more_results">Más resultados</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="one">%d canal no ha podido ser cargado</item>
+        <item quantity="many">%d canales no han podido ser cargados</item>
+        <item quantity="other">%d canales no han podido ser cargados</item>
+    </plurals>
+    <string name="subscriptions_failed_channels_body">Sus últimos vídeos no aparecen en este feed: %1$s</string>
+    <string name="subscriptions_failed_channels_more">%1$s y %2$d más</string>
+    <string name="comment_edited">Editado</string>
+    <string name="deep_flow_duration_hours">%1$d horas</string>
+    <string name="notif_background_restricted_title">Las verificaciones en segundo plano están restringidas</string>
+    <string name="notif_background_restricted_subtitle">Android impide que Flow busque videos nuevos mientras está cerrada, por lo que las alertas solo llegarán al abrir la aplicación. Toca para permitir la actividad en segundo plano sin restricciones.</string>
+    <string name="audio_track_original">Original</string>
+    <string name="audio_track_dubbed">Doblado</string>
+    <string name="empty_saved_shorts">Aún no tienes Shorts guardados</string>
+    <string name="settings_search_no_results">No se encontraron ajustes para %1$s</string>
+    <string name="settings_lyrics_provider_order_description">Los proveedores se prueban en orden. El primero que devuelva la letra de la canción gana.</string>
+    <string name="import_running_background">Puedes salir de esta pantalla; la importación continuará en segundo plano.</string>
+    <string name="donations_cryptocurrency">Criptomonedas</string>
+    <string name="import_no_history_entries">No se encontraron entradas de historial de reproducción en el archivo</string>
+    <string name="import_no_videos">El archivo de la lista de reproducción no contiene videos</string>
+    <string name="import_no_content">No se encontró contenido importable en este respaldo</string>
+    <string name="import_invalid_format">Formato de respaldo no reconocido; asegúrate de haber seleccionado el archivo correcto</string>
+    <string name="import_failed_template">Error de importación: %1$s</string>
+    <string name="duration_hours_minutes">%1$d hr %2$d min</string>
+    <string name="duration_minutes">%1$d min</string>
+    <string name="duration_hours_short">%1$d h</string>
+    <string name="duration_minutes_short">%1$dm</string>
+    <string name="remove_from_queue">Quitar de la cola</string>
+    <string name="remove_from_queue_confirmation">¿Estás seguro de que quieres eliminar este video de la cola?</string>
+    <string name="reorder_queue_item">Reordenar elemento de la cola</string>
+    <string name="comment_time_edited_template">%1$s (%2$s)</string>
 </resources>

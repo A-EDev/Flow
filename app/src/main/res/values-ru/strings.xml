@@ -388,11 +388,11 @@
     <string name="skip_button_subtitle">Показывать кнопки перемотки на 10 сек в мини-плеере</string>
     <string name="player_nav_btn_title">Кнопки переключения</string>
     <string name="player_nav_btn_subtitle">Показывать кнопки переключения видео в мини-плеере</string>
-    <string name="lyrics_provider_title">Поставщик текстов песен</string>
-    <string name="lyrics_provider_subtitle">Выберите предпочитаемый источник текстов песен</string>
-    <string name="lyrics_provider_lrclib">Библиотека LrcLib</string>
-    <string name="lyrics_provider_better_lyrics">Лучшие тексты песен</string>
-    <string name="lyrics_provider_simpmusic">Простая музыка (SimpMusic)</string>
+    <string name="lyrics_provider_title">Источник текстов песен</string>
+    <string name="lyrics_provider_subtitle">Выбор основного источника текстов песен</string>
+    <string name="lyrics_provider_lrclib">LrcLib</string>
+    <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
+    <string name="lyrics_provider_simpmusic">SimpMusic</string>
     <string name="theme_name_system_default">Системная тема</string>
     <string name="theme_desc_system_default">Синхронизация с темой устройства</string>
     <string name="theme_name_pure_light">Чистый светлый</string>
@@ -944,8 +944,8 @@
     <string name="history_delete_shorts_title">Удалить Shorts?</string>
     <string name="player_settings_ambient_mode">Фоновая подсветка</string>
     <string name="library_local_media_subtitle">Воспроизводите видео и музыку с этого устройства</string>
-    <string name="library_local_media_label">На устройстве</string>
-    <string name="local_media_title">На устройстве</string>
+    <string name="library_local_media_label">Медиа на устройстве</string>
+    <string name="local_media_title">Медиа на устройстве</string>
     <string name="player_action_background">Фоновый режим</string>
     <string name="player_action_copy_link">Скопировать ссылку</string>
     <string name="player_action_copy_link_at_time">Скопировать с тайм-кодом</string>
@@ -1023,7 +1023,7 @@
     <string name="recognition_history_empty">Здесь появятся распознанные треки</string>
     <string name="local_media_rescan">Пересканировать</string>
     <string name="local_media_scanning">Сканирование устройства…</string>
-    <string name="local_media_empty_title">%1$s – не обнаружено</string>
+    <string name="local_media_empty_title">Медиафайлы не найдены</string>
     <string name="local_media_permission_body">Разрешите доступ к медиа, чтобы Flow мог находить и воспроизводить локальные видео и музыку.</string>
     <string name="history_tab_local_videos">Видео на устройстве</string>
     <string name="history_tab_local_music">Музыка на устройстве</string>
@@ -1078,7 +1078,7 @@
     <string name="days_count_template">%1$d дней</string>
     <string name="import_data_title">Импорт данных</string>
     <string name="import_flow_backup_success">Резервная копия Flow импортирована</string>
-    <string name="import_flow_backup_failed_template">Ошибка импорта бэкапа Flow: %1$s</string>
+    <string name="import_flow_backup_failed_template">Ошибка импорта резервной копии Flow: %1$s</string>
     <string name="import_newpipe_success_template">Импортировано %1$d подписок из NewPipe</string>
     <string name="import_newpipe_failed_template">Ошибка импорта резервной копии NewPipe: %1$s»</string>
     <string name="import_youtube_success_template">Импортировано подписок из YouTube: %1$d»</string>
@@ -2132,7 +2132,7 @@
     <string name="ui_sync_lyrics">Синхронизация текста</string>
     <string name="ui_downloading_playlist">Скачивание плейлиста</string>
     <string name="ui_no_songs_found">Треки не найдены</string>
-    <string name="ui_search_songs_to_add">Искать треки для добавления</string>
+    <string name="ui_search_songs_to_add">Поиск треков для добавления…</string>
     <string name="ui_add_songs_to_playlist">Добавить треки в плейлист</string>
     <string name="ui_try_sabr_download">Попробуйте скачать через SABR</string>
     <string name="ui_audio_only">Только аудио</string>
@@ -2141,7 +2141,7 @@
     <string name="ui_clear_and_continue">Очистить и продолжить</string>
     <string name="ui_crashed_last_session">Произошел сбой Flow во время прошлого сеанса</string>
     <string name="ui_copy_log_description">Скопируйте журнал ниже и вставьте в описание проблемы на GitHub, чтобы мы могли ее исправить.</string>
-    <string name="ui_search_settings">Поиск по настройкам</string>
+    <string name="ui_search_settings">Поиск настроек…</string>
     <string name="ui_custom_interest_title">Добавить свое предпочтение</string>
     <string name="ui_custom_interest_subtitle">Введите тему для отслеживания</string>
     <string name="ui_custom_interest_hint">например: джаз, астрофизика</string>
@@ -2149,7 +2149,7 @@
     <string name="ui_version">Версия %1$s</string>
     <string name="update_download_prompt">Доступна новая версия Flow (%1$s). Скачать последнюю версию APK?</string>
     <string name="ui_playlist_empty">Плейлист пуст</string>
-    <string name="ui_downloading_videos">Скачивается %1$d видео</string>
+    <string name="ui_downloading_videos">Скачивается %1$d видео…</string>
     <string name="ui_playlist_saved_to_library">Плейлист добавлен в библиотеку</string>
     <string name="ui_playlist_removed_from_library">Плейлист удален из библиотеки</string>
     <string name="ui_download_audio">Скачивание аудио: %1$s кбит/с (%2$s)</string>
@@ -2160,9 +2160,9 @@
     <string name="toast_subscribed_to">Вы подписались на %1$s</string>
     <string name="toast_removed_from_watch_later">Удалено из «Смотреть позже»</string>
     <string name="toast_added_to_watch_later">Добавлено в «Смотреть позже»</string>
-    <string name="toast_fetching_download_links">Получение ссылок на скачивание</string>
+    <string name="toast_fetching_download_links">Получение ссылок на скачивание…</string>
     <string name="toast_download_started">Скачивание началось: %1$s</string>
-    <string name="toast_trying_sabr_download">Попытка скачать через SABR</string>
+    <string name="toast_trying_sabr_download">Попытка скачать через SABR…</string>
     <string name="toast_sabr_download_started">Началось скачивание через SABR</string>
     <string name="toast_sabr_download_started_for_video">Началось скачивание через SABR: %1$s</string>
     <string name="toast_sabr_download_failed">Не удалось скачать через SABR: %1$s</string>
@@ -2172,7 +2172,7 @@
     <string name="toast_copied_to_clipboard">Скопировано в буфер обмена</string>
     <string name="toast_playlist_deleted">Плейлист удален</string>
     <string name="toast_playlist_renamed">Плейлист переименован</string>
-    <string name="toast_starting_playlist_download">Начинается скачивание: %1$s</string>
+    <string name="toast_starting_playlist_download">Начинается скачивание: %1$s…</string>
     <string name="toast_downloaded_tracks_from_playlist">Из плейлиста «%2$s» скачано треков: %1$d</string>
     <string name="toast_failed_to_download_playlist">Не удалось скачать плейлист</string>
     <string name="toast_error_downloading_playlist">Ошибка скачивания плейлиста</string>
@@ -2250,7 +2250,7 @@
     <string name="error_playback_retry_hint">Повторите попытку позже или проверьте подключение к сети.</string>
     <string name="download_waiting_for_wifi">Ожидание сети Wi-Fi</string>
     <string name="download_failed_try_again">Сбой скачивания. Повторите попытку.</string>
-    <string name="download_merging_audio_video">Объединение аудио и видео</string>
+    <string name="download_merging_audio_video">Объединение аудио и видео…</string>
     <string name="download_muxing_incompatible">Не удалось объединить аудио и видео – форматы несовместимы. Попробуйте скачать заново.</string>
     <string name="download_muxing_failed_retry">Не удалось объединить аудио и видео – попробуйте скачать заново.</string>
     <string name="download_url_expired">Ссылка устарела (403). Требуется повторный запрос.</string>
@@ -2265,9 +2265,9 @@
     <string name="import_other_youtube_clients">Импорт из других клиентов YouTube</string>
     <string name="imported_count">Импорт (%2$s): %1$d</string>
     <string name="imported_successfully">Успешно импортировано: %1$s</string>
-    <string name="importing_label">Импорт: %1$s</string>
+    <string name="importing_label">Импорт: %1$s…</string>
     <string name="imported_from_google_takeout">Импортировано из Google Архиватора</string>
-    <string name="fallback_playing">Воспроизведение</string>
+    <string name="fallback_playing">Воспроизведение…</string>
     <string name="fallback_unknown_title">Название неизвестно</string>
     <string name="fallback_unknown_channel">Неизвестный автор</string>
     <string name="fallback_unknown_playlist">Неизвестный плейлист</string>
@@ -2310,4 +2310,31 @@
     <string name="reorder_queue_item">Изменение порядка в очереди</string>
     <string name="notif_background_restricted_title">Фоновые проверки ограничены</string>
     <string name="notif_background_restricted_subtitle">Android блокирует проверку новых видео, когда Flow закрыт, поэтому уведомления приходят только при открытии приложения. Нажмите, чтобы снять ограничения на фоновую активность.</string>
+    <string name="subscriptions_failed_channels_more">%1$s и еще %2$d</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="one">Не удалось загрузить %d канал</item>
+        <item quantity="few">Не удалось загрузить %d канала</item>
+        <item quantity="many">Не удалось загрузить %d каналов</item>
+        <item quantity="other">Не удалось загрузить %d каналов</item>
+    </plurals>
+    <string name="subscriptions_failed_channels_body">Не удалось загрузить новые видео с этих каналов: %1$s</string>
+    <string name="comment_edited">изменено</string>
+    <string name="comment_time_edited_template">%1$s (%2$s)</string>
+    <string name="deep_flow_duration_hours">%1$d ч</string>
+    <string name="audio_track_original">Оригинал</string>
+    <string name="audio_track_dubbed">Дубляж</string>
+    <string name="empty_saved_shorts">Нет сохраненных Shorts</string>
+    <string name="settings_search_no_results">Ничего не найдено по запросу: %1$s</string>
+    <string name="settings_lyrics_provider_order_description">Источники проверяются по очереди. Текст берется из первого успешного ответа.</string>
+    <string name="import_running_background">Вы можете закрыть этот экран – импорт продолжится в фоновом режиме.</string>
+    <string name="donations_cryptocurrency">КРИПТОВАЛЮТА</string>
+    <string name="import_no_history_entries">В файле не найдена история просмотра</string>
+    <string name="import_no_videos">В файле плейлиста не найдены видео</string>
+    <string name="import_no_content">В резервной копии не найдены данные для импорта</string>
+    <string name="import_invalid_format">Неподдерживаемый формат – убедитесь, что выбрали корректный файл</string>
+    <string name="import_failed_template">Ошибка импорта: %1$s</string>
+    <string name="duration_hours_minutes">%1$d ч %2$d мин</string>
+    <string name="duration_minutes">%1$d мин</string>
+    <string name="duration_hours_short">%1$dч</string>
+    <string name="duration_minutes_short">%1$dмин</string>
 </resources>
