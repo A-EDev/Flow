@@ -179,15 +179,20 @@ class EnhancedPlayerManager private constructor() {
     private var autoplayJob: Job? = null
 
     @Volatile private var autoplayCountdownSeconds: Int = 0
-    private var autoplayCountdownJob: Job? = null
-    private val _autoplayCountdown = MutableStateFlow(AutoplayCountdownState())
-    val autoplayCountdown: StateFlow<AutoplayCountdownState> = _autoplayCountdown.asStateFlow()
 
     // Application context
     private var appContext: Context? = null
 
     // Coroutine scope
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private val autoplayCountdownController =
+        AutoplayCountdownController(
+            scope = scope,
+            onElapsed = { performAutoAdvance() },
+            log = { autoNextLog(it) },
+        )
+    val autoplayCountdown: StateFlow<AutoplayCountdownState> = autoplayCountdownController.state
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingReloadJob: Job? = null
     private var advanceWakeLock: PowerManager.WakeLock? = null
@@ -1682,54 +1687,23 @@ class EnhancedPlayerManager private constructor() {
         totalSeconds: Int,
         nextVideo: Video,
     ) {
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob =
-            scope.launch {
-                var remaining = totalSeconds
-                _autoplayCountdown.value =
-                    AutoplayCountdownState(
-                        isActive = true,
-                        secondsRemaining = remaining,
-                        totalSeconds = totalSeconds,
-                        nextVideoTitle = nextVideo.title,
-                        nextVideoChannel = nextVideo.channelName,
-                        nextVideoThumbnailUrl = nextVideo.thumbnailUrl,
-                    )
-                autoNextLog("autoplay countdown start ${totalSeconds}s next=${nextVideo.id}")
-                while (remaining > 0) {
-                    delay(1000L)
-                    remaining--
-                    _autoplayCountdown.value = _autoplayCountdown.value.copy(secondsRemaining = remaining)
-                }
-                _autoplayCountdown.value = AutoplayCountdownState()
-                autoplayCountdownJob = null
-                autoNextLog("autoplay countdown elapsed -> advance")
-                performAutoAdvance()
-            }
+        autoplayCountdownController.start(totalSeconds, nextVideo)
     }
 
     fun skipAutoplayCountdown() {
-        if (!_autoplayCountdown.value.isActive) return
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob = null
-        _autoplayCountdown.value = AutoplayCountdownState()
+        if (!autoplayCountdownController.stop()) return
         autoNextLog("autoplay countdown skipped -> advance now")
         performAutoAdvance()
     }
 
     fun cancelAutoplayCountdown() {
-        if (!_autoplayCountdown.value.isActive) return
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob = null
-        _autoplayCountdown.value = AutoplayCountdownState()
+        if (!autoplayCountdownController.stop()) return
         releaseAdvanceWakeLock()
         autoNextLog("autoplay countdown cancelled")
     }
 
     fun restartFromAutoplayCountdown() {
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob = null
-        _autoplayCountdown.value = AutoplayCountdownState()
+        autoplayCountdownController.stop()
         releaseAdvanceWakeLock()
         player?.seekTo(0)
         player?.play()
@@ -1737,12 +1711,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun clearAutoplayCountdownInternal() {
-        if (autoplayCountdownJob == null && !_autoplayCountdown.value.isActive) return
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob = null
-        if (_autoplayCountdown.value.isActive) {
-            _autoplayCountdown.value = AutoplayCountdownState()
-        }
+        autoplayCountdownController.stop()
     }
 
     private fun playVideoFromServiceLayer(
