@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Flow</string>
-    <string name="subscriptions_search_placeholder">सदस्यताएँ खोजें..।</string>
-    <string name="top_bar_subscriptions_title">सदस्यताएँ</string>
+    <string name="subscriptions_search_placeholder">सब्सक्रिप्शनें खोजें..।</string>
+    <string name="top_bar_subscriptions_title">सब्सक्रिप्शनें</string>
     <string name="view_all_button_label">सभी</string>
     <string name="subscribed">सब्सक्राइबड</string>
     <string name="no_subscriptions_yet">कोई सब्सक्रिप्शन नहीं ली</string>
@@ -38,7 +38,7 @@
         <item quantity="one">%d चैनल</item>
         <item quantity="other">%d चैनल</item>
     </plurals>
-    <string name="empty_subscriptions_body">चैनलों की सदस्यता लें ताकि उनके\nनवीनतम वीडियो यहाँ दिखें</string>
+    <string name="empty_subscriptions_body">चैनलों को सब्सक्राइब करें ताकि उनके\nनवीनतम वीडियो यहाँ दिखें</string>
     <string name="library">लाइब्रेरी</string>
     <string name="library_section_header">आपकी सामग्री</string>
     <string name="clear_watch_history_alert_title">देखने का इतिहास साफ़ करें?</string>
@@ -92,8 +92,8 @@
     <string name="channels_label">चैनल</string>
     <string name="audio_info_not_available">ऑडियो स्ट्रीम जानकारी अभी उपलब्ध नहीं है।</string>
     <string name="undo">अन-डू करें</string>
-    <string name="subscribed_to">%s की सदस्यता ली गई</string>
-    <string name="unsubscribed_from">%s से सदस्यता समाप्त की गई</string>
+    <string name="subscribed_to">%s को सब्सक्राइब किया</string>
+    <string name="unsubscribed_from">%s से अनसब्सक्राइब किया</string>
     <string name="unsubscribe">सदस्यता समाप्त करें</string>
     <string name="share_video">वीडियो सांझा करें</string>
     <string name="check_out_video_template">यह वीडियो देखें: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
