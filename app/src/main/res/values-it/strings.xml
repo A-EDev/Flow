@@ -2077,4 +2077,26 @@
     <string name="tv_settings_sync">Sincronizzazione dispositivi</string>
     <string name="tv_sync_qr_session_active">Questo codice rimane attivo mentre questa schermata è aperta.</string>
     <string name="tv_remote_guide_title">Guida al telecomando e alla tastiera</string>
+    <string name="tv_music_expand">Apri player intero</string>
+    <string name="tv_remote_guide_subtitle">Guida rapida per navigare su Flow dal divano</string>
+    <string name="tv_remote_guide_back">Torna alle impostazioni</string>
+    <string name="tv_guide_navigation_title">Navigazione</string>
+    <string name="tv_guide_search_title">Cerca e sfoglia</string>
+    <string name="tv_guide_playback_title">Riproduzione</string>
+    <string name="tv_guide_key_dpad">D-pad</string>
+    <string name="tv_guide_key_ok">OK</string>
+    <string name="tv_guide_key_back">Indietro</string>
+    <string name="tv_guide_key_left_edge">Lato sinistro</string>
+    <string name="tv_guide_key_rail">Pannello laterale</string>
+    <string name="tv_guide_key_edit">Modifica tasti</string>
+    <string name="tv_guide_key_voice">Mic</string>
+    <string name="tv_guide_key_right">Destro</string>
+    <string name="tv_guide_key_left_right">Sinistro / Destro</string>
+    <string name="tv_guide_key_hold">Mantieni</string>
+    <string name="tv_guide_key_up">Su</string>
+    <string name="tv_guide_key_down">Giù</string>
+    <string name="tv_guide_key_media">Tasti multimediali</string>
+    <string name="tv_guide_dpad">Sposta l\'evidenziazione della selezione tra righe, griglie, pulsanti e menu.</string>
+    <string name="tv_guide_ok">Apri l\'elemento selezionato, scegli un\'opzione o conferma un\'azione.</string>
+    <string name="tv_guide_back">Choudi il pannello attivo, torna alla schermata precedente o spostati nella schermata Home prima di uscire.</string>
 </resources>
