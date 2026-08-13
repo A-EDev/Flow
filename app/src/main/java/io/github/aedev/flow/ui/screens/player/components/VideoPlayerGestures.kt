@@ -3,6 +3,9 @@ package io.github.aedev.flow.ui.screens.player.components
 import android.app.Activity
 import android.media.AudioManager
 import android.os.SystemClock
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
@@ -23,6 +26,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.media3.common.Player
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -48,7 +52,14 @@ private const val DRAG_EDGE_IGNORE_PX = 120f
 /** Downward travel in the centre zone that commits to leaving fullscreen. */
 private const val EXIT_FULLSCREEN_DRAG_PX = 80f
 
+private const val EXIT_FULLSCREEN_OVERSHOOT_PX = 140f
+
 private const val VERTICAL_DRAG_SENSITIVITY = 1.5f
+
+private fun resistedTravel(
+    distance: Float,
+    limit: Float,
+): Float = limit * distance / (limit + distance)
 
 fun Modifier.videoPlayerControls(
     isSpeedBoostActive: Boolean,
@@ -81,6 +92,7 @@ fun Modifier.videoPlayerControls(
     doubleTapSeekMs: Long = 10_000L,
     longPressPlaybackSpeed: Float = 2.0f,
     onExitFullscreen: (() -> Unit)? = null,
+    onExitFullscreenDrag: (offsetPx: Float, progress: Float) -> Unit = { _, _ -> },
     isSeekForwardActive: Boolean = false,
     isSeekBackActive: Boolean = false,
 ): Modifier =
@@ -114,6 +126,7 @@ fun Modifier.videoPlayerControls(
         val currentLongPressPlaybackSpeed by rememberUpdatedState(longPressPlaybackSpeed)
         val currentOnSeekAccumulate by rememberUpdatedState(onSeekAccumulate)
         val currentOnExitFullscreen by rememberUpdatedState(onExitFullscreen)
+        val currentOnExitFullscreenDrag by rememberUpdatedState(onExitFullscreenDrag)
         val currentIsSeekForwardActive by rememberUpdatedState(isSeekForwardActive)
         val currentIsSeekBackActive by rememberUpdatedState(isSeekBackActive)
 
@@ -279,7 +292,9 @@ fun Modifier.videoPlayerControls(
                 if (!currentIsFullscreen) return@pointerInput
 
                 var isCenterZone = false
-                var exitDragAccum = 0f
+                var exitDragTravel = 0f
+                var exitDragPastCommit = false
+                var exitSettleJob: Job? = null
                 var lastVolumeStep = -1
                 var lastBrightnessEdge = 0
 
@@ -360,6 +375,66 @@ fun Modifier.videoPlayerControls(
                     currentOnShowVolumeChange(true)
                 }
 
+                fun publishExitDrag() {
+                    val offset =
+                        if (exitDragTravel > EXIT_FULLSCREEN_DRAG_PX) {
+                            EXIT_FULLSCREEN_DRAG_PX +
+                                resistedTravel(
+                                    exitDragTravel - EXIT_FULLSCREEN_DRAG_PX,
+                                    EXIT_FULLSCREEN_OVERSHOOT_PX,
+                                )
+                        } else {
+                            exitDragTravel
+                        }
+                    currentOnExitFullscreenDrag(
+                        offset,
+                        (exitDragTravel / EXIT_FULLSCREEN_DRAG_PX).coerceAtMost(1f),
+                    )
+                }
+
+                fun applyExitDrag(dy: Float) {
+                    exitSettleJob?.cancel()
+                    exitDragTravel = (exitDragTravel + dy).coerceAtLeast(0f)
+
+                    val pastCommit = exitDragTravel >= EXIT_FULLSCREEN_DRAG_PX
+                    if (pastCommit != exitDragPastCommit) {
+                        exitDragPastCommit = pastCommit
+                        haptics.playerTick()
+                    }
+                    publishExitDrag()
+                }
+
+                fun endExitDrag(commit: Boolean) {
+                    val exiting = commit && exitDragPastCommit
+                    exitDragPastCommit = false
+
+                    if (exiting) {
+                        exitSettleJob?.cancel()
+                        exitDragTravel = 0f
+                        publishExitDrag()
+                        currentOnExitFullscreen?.invoke()
+                        return
+                    }
+                    if (exitDragTravel == 0f || exitSettleJob?.isActive == true) return
+
+                    val from = exitDragTravel
+                    exitSettleJob =
+                        scope.launch {
+                            animate(
+                                initialValue = from,
+                                targetValue = 0f,
+                                animationSpec =
+                                    spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessMediumLow,
+                                    ),
+                            ) { travel, _ ->
+                                exitDragTravel = travel
+                                publishExitDrag()
+                            }
+                        }
+                }
+
                 fun beginSeekDrag() {
                     val manager = EnhancedPlayerManager.getInstance()
                     seekDragBaseMs = manager.getPlayer()?.currentPosition ?: currentPositionProvider()
@@ -408,7 +483,6 @@ fun Modifier.videoPlayerControls(
 
                 detectPlayerDrags(
                     onDragStart = { offset ->
-                        exitDragAccum = 0f
                         lastVolumeStep = -1
                         lastBrightnessEdge = 0
                         seekDragStarted = false
@@ -444,7 +518,7 @@ fun Modifier.videoPlayerControls(
                                 val width = size.width
                                 when {
                                     isCenterZone -> {
-                                        if (delta.y > 0) exitDragAccum += delta.y
+                                        applyExitDrag(delta.y)
                                     }
 
                                     change.position.x < width / 2 -> {
@@ -462,12 +536,11 @@ fun Modifier.videoPlayerControls(
                         when (axis) {
                             PlayerDragAxis.HORIZONTAL -> {
                                 if (seekDragStarted) endSeekDrag(commit = true)
+                                endExitDrag(commit = false)
                             }
 
                             PlayerDragAxis.VERTICAL -> {
-                                if (isCenterZone && exitDragAccum > EXIT_FULLSCREEN_DRAG_PX) {
-                                    currentOnExitFullscreen?.invoke()
-                                }
+                                endExitDrag(commit = isCenterZone)
                                 scope.launch {
                                     delay(500) // Delay hiding controls
                                     currentOnShowBrightnessChange(false)
@@ -476,9 +549,9 @@ fun Modifier.videoPlayerControls(
                             }
                         }
                         isCenterZone = false
-                        exitDragAccum = 0f
                     },
                     onDragCancel = { axis ->
+                        endExitDrag(commit = false)
                         when (axis) {
                             PlayerDragAxis.HORIZONTAL -> {
                                 if (seekDragStarted) endSeekDrag(commit = false)
@@ -492,7 +565,6 @@ fun Modifier.videoPlayerControls(
                             }
                         }
                         isCenterZone = false
-                        exitDragAccum = 0f
                     },
                 )
             }

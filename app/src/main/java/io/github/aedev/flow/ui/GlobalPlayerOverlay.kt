@@ -14,8 +14,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,7 +38,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
@@ -54,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -94,6 +92,7 @@ import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
 import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
 import io.github.aedev.flow.ui.screens.player.components.resolvePlayerQualityLabel
 import io.github.aedev.flow.ui.screens.player.components.videoPlayerControls
+import io.github.aedev.flow.ui.screens.player.components.videoPlayerZoom
 import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
@@ -101,8 +100,11 @@ import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Locale
+
+private const val EXIT_DRAG_MIN_SCALE = 0.94f
 
 /**
  * GlobalPlayerOverlay - The main video player overlay that sits above everything.
@@ -339,13 +341,17 @@ fun GlobalPlayerOverlay(
 
     LaunchedEffect(screenState.isFullscreen) {
         screenState.dismissMediaSheets()
+        screenState.exitDragOffsetY = 0f
+        screenState.exitDragProgress = 0f
     }
 
-    LaunchedEffect(screenState.zoomIndicatorSequence) {
-        if (screenState.showZoomIndicator) {
-            delay(if (screenState.zoomScale > 1.02f) 900 else 600)
-            screenState.showZoomIndicator = false
-        }
+    LaunchedEffect(screenState) {
+        snapshotFlow { screenState.zoomIndicatorSequence }
+            .collectLatest {
+                if (!screenState.showZoomIndicator) return@collectLatest
+                delay(if (screenState.zoomScale > 1.02f) 900 else 600)
+                screenState.showZoomIndicator = false
+            }
     }
 
     val config = LocalConfiguration.current
@@ -908,66 +914,30 @@ fun GlobalPlayerOverlay(
                                     screenState.isFullscreen = false
                                     screenState.isFullscreenPortrait = false
                                 },
+                                onExitFullscreenDrag = { offsetPx, progress ->
+                                    screenState.exitDragOffsetY = offsetPx
+                                    screenState.exitDragProgress = progress
+                                },
                                 isSeekForwardActive = screenState.showSeekForwardAnimation,
                                 isSeekBackActive = screenState.showSeekBackAnimation,
-                            )
-                            // Two-finger pinch-to-zoom gesture. Only activates for 2+ pointers,
-                            // so single-finger gestures (brightness/volume swipe, tap) are unaffected.
-                            .pointerInput("pinchZoom") {
-                                awaitEachGesture {
-                                    val firstDown = awaitFirstDown(requireUnconsumed = false)
-                                    var secondPtr: PointerInputChange? = null
-                                    while (secondPtr == null) {
-                                        val event = awaitPointerEvent()
-                                        secondPtr =
-                                            event.changes.firstOrNull {
-                                                it.id != firstDown.id && it.pressed && !it.previousPressed
-                                            }
-                                        val p1 = event.changes.firstOrNull { it.id == firstDown.id }
-                                        if (p1 == null || !p1.pressed) return@awaitEachGesture
-                                    }
-                                    val p2 = secondPtr!!
-                                    p2.consume()
-                                    val dx0 = firstDown.position.x - p2.position.x
-                                    val dy0 = firstDown.position.y - p2.position.y
-                                    var prevDist = kotlin.math.sqrt(dx0 * dx0 + dy0 * dy0).coerceAtLeast(1f)
-                                    var prevCentroidX = (firstDown.position.x + p2.position.x) / 2f
-                                    var prevCentroidY = (firstDown.position.y + p2.position.y) / 2f
-                                    val p1Id = firstDown.id
-                                    val p2Id = p2.id
-                                    do {
-                                        val event = awaitPointerEvent()
-                                        val tp1 = event.changes.firstOrNull { it.id == p1Id }
-                                        val tp2 = event.changes.firstOrNull { it.id == p2Id }
-                                        if (tp1 == null || tp2 == null || !tp1.pressed || !tp2.pressed) break
-                                        tp1.consume()
-                                        tp2.consume()
-                                        val dx = tp1.position.x - tp2.position.x
-                                        val dy = tp1.position.y - tp2.position.y
-                                        val dist = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
-                                        val centroidX = (tp1.position.x + tp2.position.x) / 2f
-                                        val centroidY = (tp1.position.y + tp2.position.y) / 2f
-                                        val panX = centroidX - prevCentroidX
-                                        val panY = centroidY - prevCentroidY
-                                        val factor = dist / prevDist
-                                        val newScale = (screenState.zoomScale * factor).coerceIn(1f, 6f)
-                                        if (newScale <= 1.02f) {
-                                            screenState.zoomScale = 1f
-                                            screenState.zoomOffsetX = 0f
-                                            screenState.zoomOffsetY = 0f
-                                        } else {
-                                            screenState.zoomScale = newScale
-                                            val maxPanX = (newScale - 1f) * size.width / 2f
-                                            val maxPanY = (newScale - 1f) * size.height / 2f
-                                            screenState.zoomOffsetX = (screenState.zoomOffsetX + panX).coerceIn(-maxPanX, maxPanX)
-                                            screenState.zoomOffsetY = (screenState.zoomOffsetY + panY).coerceIn(-maxPanY, maxPanY)
-                                        }
-                                        screenState.showZoomIndicator = true
-                                        screenState.zoomIndicatorSequence += 1
-                                        prevDist = dist
-                                        prevCentroidX = centroidX
-                                        prevCentroidY = centroidY
-                                    } while (true)
+                            ).videoPlayerZoom(
+                                scope = scope,
+                                scale = { screenState.zoomScale },
+                                offsetX = { screenState.zoomOffsetX },
+                                offsetY = { screenState.zoomOffsetY },
+                                onTransform = { newScale, newOffsetX, newOffsetY ->
+                                    screenState.zoomScale = newScale
+                                    screenState.zoomOffsetX = newOffsetX
+                                    screenState.zoomOffsetY = newOffsetY
+                                    screenState.showZoomIndicator = true
+                                    screenState.zoomIndicatorSequence += 1
+                                },
+                            ).graphicsLayer {
+                                if (screenState.isFullscreen) {
+                                    translationY = screenState.exitDragOffsetY
+                                    val shrink = lerp(1f, EXIT_DRAG_MIN_SCALE, screenState.exitDragProgress)
+                                    scaleX = shrink
+                                    scaleY = shrink
                                 }
                             }
                     } else {
