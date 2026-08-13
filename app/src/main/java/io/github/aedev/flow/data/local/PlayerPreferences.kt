@@ -12,6 +12,7 @@ import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
 import io.github.aedev.flow.utils.DateFormatStyle
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -560,15 +561,56 @@ class PlayerPreferences(
      * once, so collecting [sbColorForCategory] per category there would mean nine separate
      * collectors over the same DataStore.
      */
-    val sponsorBlockCategoryColors: Flow<Map<String, Int>> =
-        context.playerPreferencesDataStore.data
-            .map { prefs ->
-                buildMap {
-                    sbColorKeys.forEach { (category, key) ->
-                        prefs[key]?.let { put(category, it) }
-                    }
-                }
-            }
+    private fun Preferences.readSponsorCategoryColors(): Map<String, Int> {
+        val colors = mutableMapOf<String, Int>()
+        sbColorKeys.forEach { (category, key) -> this[key]?.let { colors[category] = it } }
+        return colors
+    }
+
+    private val overlayDefaults = PlayerOverlayPreferences()
+
+    private fun Preferences.toOverlayPreferences(): PlayerOverlayPreferences {
+        val fullscreenPaddingMode =
+            this[Keys.FULLSCREEN_SEEKBAR_PADDING_MODE]
+                ?.let { storedMode -> runCatching { SeekbarPaddingMode.valueOf(storedMode) }.getOrNull() }
+                ?: SeekbarPaddingMode.DEFAULT
+
+        return PlayerOverlayPreferences(
+            castEnabled = this[Keys.OVERLAY_CAST_ENABLED] ?: overlayDefaults.castEnabled,
+            captionsEnabled = this[Keys.OVERLAY_CC_ENABLED] ?: overlayDefaults.captionsEnabled,
+            pipEnabled = this[Keys.OVERLAY_PIP_ENABLED] ?: overlayDefaults.pipEnabled,
+            autoplayEnabled = this[Keys.OVERLAY_AUTOPLAY_ENABLED] ?: overlayDefaults.autoplayEnabled,
+            sleepTimerEnabled = this[Keys.OVERLAY_SLEEPTIMER_ENABLED] ?: overlayDefaults.sleepTimerEnabled,
+            speedIndicatorEnabled =
+                this[Keys.OVERLAY_SPEED_INDICATOR_ENABLED] ?: overlayDefaults.speedIndicatorEnabled,
+            commentsEnabled = this[Keys.OVERLAY_COMMENTS_ENABLED] ?: overlayDefaults.commentsEnabled,
+            fullscreenTitleEnabled = this[Keys.SHOW_FULLSCREEN_TITLE] ?: overlayDefaults.fullscreenTitleEnabled,
+            showControlsWhileLoading =
+                this[Keys.SHOW_CONTROLS_WHILE_LOADING] ?: overlayDefaults.showControlsWhileLoading,
+            fullscreenSeekbarHorizontalPaddingDp =
+                resolveSeekbarHorizontalPaddingDp(
+                    mode = fullscreenPaddingMode,
+                    customPaddingDp =
+                        (this[Keys.FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP] ?: DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP)
+                            .coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP),
+                    defaultPaddingDp = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP,
+                    maxPaddingDp = MAX_FULLSCREEN_SEEKBAR_PADDING_DP,
+                ),
+            portraitSeekbarHorizontalPaddingDp =
+                resolveSeekbarHorizontalPaddingDp(
+                    mode = resolvePortraitSeekbarPaddingMode(this[Keys.PORTRAIT_SEEKBAR_PADDING_MODE]),
+                    customPaddingDp =
+                        (this[Keys.PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP] ?: DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP)
+                            .coerceIn(0, MAX_PORTRAIT_SEEKBAR_PADDING_DP),
+                    defaultPaddingDp = DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP,
+                    maxPaddingDp = MAX_PORTRAIT_SEEKBAR_PADDING_DP,
+                ),
+            sponsorCategoryColors = readSponsorCategoryColors(),
+        )
+    }
+
+    val overlayPreferences: Flow<PlayerOverlayPreferences> =
+        context.playerPreferencesDataStore.data.map { preferences -> preferences.toOverlayPreferences() }
 
     suspend fun setSbColorForCategory(
         category: String,
@@ -1051,10 +1093,7 @@ class PlayerPreferences(
     }
 
     val showControlsWhileLoading: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.SHOW_CONTROLS_WHILE_LOADING] ?: false
-            }
+        overlayPreferences.map { it.showControlsWhileLoading }.distinctUntilChanged()
 
     suspend fun setShowControlsWhileLoading(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1218,8 +1257,7 @@ class PlayerPreferences(
     // ========== OVERLAY CONTROLS PREFERENCES ==========
 
     val overlayCastEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences -> preferences[Keys.OVERLAY_CAST_ENABLED] ?: true }
+        overlayPreferences.map { it.castEnabled }.distinctUntilChanged()
 
     suspend fun setOverlayCastEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1228,8 +1266,7 @@ class PlayerPreferences(
     }
 
     val overlayCommentsEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences -> preferences[Keys.OVERLAY_COMMENTS_ENABLED] ?: true }
+        overlayPreferences.map { it.commentsEnabled }.distinctUntilChanged()
 
     suspend fun setOverlayCommentsEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1238,8 +1275,7 @@ class PlayerPreferences(
     }
 
     val overlayCcEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences -> preferences[Keys.OVERLAY_CC_ENABLED] ?: false }
+        overlayPreferences.map { it.captionsEnabled }.distinctUntilChanged()
 
     suspend fun setOverlayCcEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1248,8 +1284,7 @@ class PlayerPreferences(
     }
 
     val overlayPipEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences -> preferences[Keys.OVERLAY_PIP_ENABLED] ?: false }
+        overlayPreferences.map { it.pipEnabled }.distinctUntilChanged()
 
     suspend fun setOverlayPipEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1258,8 +1293,7 @@ class PlayerPreferences(
     }
 
     val overlayAutoplayEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences -> preferences[Keys.OVERLAY_AUTOPLAY_ENABLED] ?: false }
+        overlayPreferences.map { it.autoplayEnabled }.distinctUntilChanged()
 
     suspend fun setOverlayAutoplayEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1268,8 +1302,7 @@ class PlayerPreferences(
     }
 
     val overlaySleepTimerEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences -> preferences[Keys.OVERLAY_SLEEPTIMER_ENABLED] ?: true }
+        overlayPreferences.map { it.sleepTimerEnabled }.distinctUntilChanged()
 
     suspend fun setOverlaySleepTimerEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1288,8 +1321,7 @@ class PlayerPreferences(
     }
 
     val overlaySpeedIndicatorEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences -> preferences[Keys.OVERLAY_SPEED_INDICATOR_ENABLED] ?: false }
+        overlayPreferences.map { it.speedIndicatorEnabled }.distinctUntilChanged()
 
     suspend fun setOverlaySpeedIndicatorEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1299,8 +1331,7 @@ class PlayerPreferences(
 
     //  FULLSCREEN PLAYER PREFERENCES
     val showFullscreenTitle: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences -> preferences[Keys.SHOW_FULLSCREEN_TITLE] ?: false }
+        overlayPreferences.map { it.fullscreenTitleEnabled }.distinctUntilChanged()
 
     suspend fun setShowFullscreenTitle(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1344,22 +1375,6 @@ class PlayerPreferences(
         }
     }
 
-    val portraitSeekbarHorizontalPaddingDp: Flow<Int> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                val mode = resolvePortraitSeekbarPaddingMode(preferences[Keys.PORTRAIT_SEEKBAR_PADDING_MODE])
-                val customPadding =
-                    (preferences[Keys.PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP] ?: DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP)
-                        .coerceIn(0, MAX_PORTRAIT_SEEKBAR_PADDING_DP)
-
-                resolveSeekbarHorizontalPaddingDp(
-                    mode = mode,
-                    customPaddingDp = customPadding,
-                    defaultPaddingDp = DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP,
-                    maxPaddingDp = MAX_PORTRAIT_SEEKBAR_PADDING_DP,
-                )
-            }
-
     val fullscreenSeekbarPaddingMode: Flow<SeekbarPaddingMode> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
@@ -1387,25 +1402,6 @@ class PlayerPreferences(
                 paddingDp.coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP)
         }
     }
-
-    val fullscreenSeekbarHorizontalPaddingDp: Flow<Int> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                val mode =
-                    preferences[Keys.FULLSCREEN_SEEKBAR_PADDING_MODE]
-                        ?.let { storedMode -> runCatching { SeekbarPaddingMode.valueOf(storedMode) }.getOrNull() }
-                        ?: SeekbarPaddingMode.DEFAULT
-                val customPadding =
-                    (preferences[Keys.FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP] ?: DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP)
-                        .coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP)
-
-                resolveSeekbarHorizontalPaddingDp(
-                    mode = mode,
-                    customPaddingDp = customPadding,
-                    defaultPaddingDp = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP,
-                    maxPaddingDp = MAX_FULLSCREEN_SEEKBAR_PADDING_DP,
-                )
-            }
 
     // Subtitles
     val subtitlesEnabled: Flow<Boolean> =

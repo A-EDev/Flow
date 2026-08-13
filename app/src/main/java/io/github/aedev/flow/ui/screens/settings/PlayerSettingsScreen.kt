@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.lyrics.LyricsProviderRegistry
@@ -136,15 +137,18 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     val playerPreferences = remember { PlayerPreferences(context) }
 
-    val overlayCastEnabled by playerPreferences.overlayCastEnabled.collectAsState(initial = true)
-    val overlayCcEnabled by playerPreferences.overlayCcEnabled.collectAsState(initial = false)
-    val overlayPipEnabled by playerPreferences.overlayPipEnabled.collectAsState(initial = false)
+    val overlayDefaults = remember { PlayerOverlayPreferences() }
+    val overlayCastEnabled by playerPreferences.overlayCastEnabled.collectAsState(overlayDefaults.castEnabled)
+    val overlayCcEnabled by playerPreferences.overlayCcEnabled.collectAsState(overlayDefaults.captionsEnabled)
+    val overlayPipEnabled by playerPreferences.overlayPipEnabled.collectAsState(overlayDefaults.pipEnabled)
     val autoPipEnabled by playerPreferences.autoPipEnabled.collectAsState(initial = false)
-    val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
-    val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = true)
+    val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(overlayDefaults.autoplayEnabled)
+    val overlaySleepTimerEnabled by
+        playerPreferences.overlaySleepTimerEnabled.collectAsState(overlayDefaults.sleepTimerEnabled)
     val overlayLockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
-    val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
-    val overlayCommentsEnabled by playerPreferences.overlayCommentsEnabled.collectAsState(initial = true)
+    val overlaySpeedIndicatorEnabled by
+        playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(overlayDefaults.speedIndicatorEnabled)
+    val overlayCommentsEnabled by playerPreferences.overlayCommentsEnabled.collectAsState(overlayDefaults.commentsEnabled)
 
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
     val queueAutoplayEnabled by playerPreferences.queueAutoplayEnabled.collectAsState(initial = true)

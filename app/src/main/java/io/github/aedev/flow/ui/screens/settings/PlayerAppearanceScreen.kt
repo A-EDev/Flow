@@ -41,6 +41,7 @@ import io.github.aedev.flow.data.local.DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MAX_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MAX_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
+import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SeekbarPaddingMode
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
@@ -87,9 +88,12 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val seekSwipeGesturesEnabled by playerPreferences.seekSwipeGesturesEnabled.collectAsState(initial = true)
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
-    val showControlsWhileLoading by playerPreferences.showControlsWhileLoading.collectAsState(initial = false)
+    val overlayDefaults = remember { PlayerOverlayPreferences() }
+    val showControlsWhileLoading by
+        playerPreferences.showControlsWhileLoading.collectAsState(overlayDefaults.showControlsWhileLoading)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
-    val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
+    val showFullscreenTitle by
+        playerPreferences.showFullscreenTitle.collectAsState(overlayDefaults.fullscreenTitleEnabled)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
     val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val portraitSeekbarPaddingMode by playerPreferences.portraitSeekbarPaddingMode.collectAsState(

@@ -34,7 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
+import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.player.CastHelper
@@ -257,27 +257,23 @@ fun PremiumControlsOverlay(
 
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context) }
-    // Custom per-category segment colours. Until now these were written by SponsorBlock settings and
-    // read back by nothing, so picking a colour had no visible effect on the seek bar.
-    val sponsorColorOverrides by playerPreferences.sponsorBlockCategoryColors.collectAsState(initial = emptyMap())
+    val overlayPreferences by playerPreferences.overlayPreferences.collectAsState(
+        initial = remember { PlayerOverlayPreferences() },
+    )
     val sponsorSegmentColors =
-        remember(sponsorColorOverrides) {
-            sponsorColorOverrides.mapValues { (_, argb) -> Color(argb) }
+        remember(overlayPreferences.sponsorCategoryColors) {
+            overlayPreferences.sponsorCategoryColors.mapValues { (_, argb) -> Color(argb) }
         }
-    val overlayCastEnabled by playerPreferences.overlayCastEnabled.collectAsState(initial = false)
-    val overlayCcEnabled by playerPreferences.overlayCcEnabled.collectAsState(initial = false)
-    val overlayPipEnabled by playerPreferences.overlayPipEnabled.collectAsState(initial = false)
-    val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
-    val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = false)
-    val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
-    val overlayCommentsEnabled by playerPreferences.overlayCommentsEnabled.collectAsState(initial = true)
-    val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
-    val fullscreenSeekbarHorizontalPaddingDp by playerPreferences.fullscreenSeekbarHorizontalPaddingDp.collectAsState(
-        initial = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP,
-    )
-    val portraitSeekbarHorizontalPaddingDp by playerPreferences.portraitSeekbarHorizontalPaddingDp.collectAsState(
-        initial = 0,
-    )
+    val overlayCastEnabled = overlayPreferences.castEnabled
+    val overlayCcEnabled = overlayPreferences.captionsEnabled
+    val overlayPipEnabled = overlayPreferences.pipEnabled
+    val overlayAutoplayEnabled = overlayPreferences.autoplayEnabled
+    val overlaySleepTimerEnabled = overlayPreferences.sleepTimerEnabled
+    val overlaySpeedIndicatorEnabled = overlayPreferences.speedIndicatorEnabled
+    val overlayCommentsEnabled = overlayPreferences.commentsEnabled
+    val showFullscreenTitle = overlayPreferences.fullscreenTitleEnabled
+    val fullscreenSeekbarHorizontalPaddingDp = overlayPreferences.fullscreenSeekbarHorizontalPaddingDp
+    val portraitSeekbarHorizontalPaddingDp = overlayPreferences.portraitSeekbarHorizontalPaddingDp
     val fullscreenSeekbarBottomPadding = if (isFullscreen) 30.dp else 0.dp
     val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 12.dp
     val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
@@ -303,7 +299,7 @@ fun PremiumControlsOverlay(
     val compactQualityLabel = remember(qualityLabel) { qualityLabel?.toCompactQualityLabel() }
     val speedIndicatorLabel = remember(playbackSpeed) { VideoPlayerUtils.formatSpeedLabel(playbackSpeed) }
 
-    val showControlsWhileLoading by playerPreferences.showControlsWhileLoading.collectAsState(initial = false)
+    val showControlsWhileLoading = overlayPreferences.showControlsWhileLoading
     val isInitialLoading by remember(isBuffering, duration) {
         derivedStateOf { isBuffering && duration <= 0L && displayedPosition() <= 0L }
     }
