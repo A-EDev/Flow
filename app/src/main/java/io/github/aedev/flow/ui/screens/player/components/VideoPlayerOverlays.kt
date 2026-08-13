@@ -92,9 +92,9 @@ fun PlayerGestureOverlays(
                             if (screenState.isFullscreen) {
                                 Modifier
                                     .windowInsetsPadding(WindowInsets.displayCutout)
-                                    .padding(top = 8.dp)
+                                    .padding(top = 12.dp)
                             } else {
-                                Modifier
+                                Modifier.padding(top = 12.dp)
                             },
                         ),
             )
@@ -493,11 +493,11 @@ fun SpeedBoostOverlay(
     ) {
         Surface(
             color = PlayerScrim.copy(alpha = 0.6f),
-            shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+            shape = CircleShape,
             modifier = Modifier.wrapContentSize(),
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {

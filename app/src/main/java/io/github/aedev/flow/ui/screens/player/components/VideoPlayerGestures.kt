@@ -25,6 +25,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.media3.common.Player
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -273,7 +274,12 @@ fun Modifier.videoPlayerControls(
                         speedBeforeLongPress = restoreSpeed
                         currentOnNormalSpeedChange(restoreSpeed)
                         currentOnSpeedBoostChange(true)
-                        manager.setPlaybackSpeed(currentLongPressPlaybackSpeed.coerceIn(0.1f, 4.0f))
+                        manager.setPlaybackSpeed(
+                            VideoPlayerUtils.boostedPlaybackSpeed(
+                                currentSpeed = restoreSpeed,
+                                targetSpeed = currentLongPressPlaybackSpeed,
+                            ),
+                        )
                         haptics.playerPress()
                     }
                 },

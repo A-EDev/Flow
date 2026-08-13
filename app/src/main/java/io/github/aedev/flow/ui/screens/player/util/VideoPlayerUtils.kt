@@ -62,6 +62,20 @@ object VideoPlayerUtils {
      * Format a playback speed as a compact label, e.g. `2x`, `1.5x`, `0.75x`.
      * Trailing zeros are trimmed and the value is clamped to `0.1..maxSpeed`.
      */
+    const val MAX_BOOST_SPEED = 4.0f
+
+    private const val BOOST_STEP = 0.5f
+
+    fun boostedPlaybackSpeed(currentSpeed: Float, targetSpeed: Float): Float {
+        val target = targetSpeed.coerceIn(0.1f, MAX_BOOST_SPEED)
+        val current = currentSpeed.takeIf { it > 0f } ?: 1.0f
+        return if (current < target) {
+            target
+        } else {
+            (current + BOOST_STEP).coerceAtMost(MAX_BOOST_SPEED)
+        }
+    }
+
     fun formatSpeedLabel(speed: Float, maxSpeed: Float = 10.0f): String {
         val clamped = speed.coerceIn(0.1f, maxSpeed)
         return if (kotlin.math.abs(clamped - clamped.toInt()) < 0.01f) {

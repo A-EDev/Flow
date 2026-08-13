@@ -99,6 +99,7 @@ import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
 import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
+import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import kotlinx.coroutines.delay
@@ -1015,7 +1016,11 @@ fun GlobalPlayerOverlay(
                         PlayerGestureOverlays(
                             screenState = screenState,
                             allowVolumeBoost = allowVolumeBoost,
-                            speedBoostSpeed = longPressPlaybackSpeed,
+                            speedBoostSpeed =
+                                VideoPlayerUtils.boostedPlaybackSpeed(
+                                    currentSpeed = screenState.normalSpeed,
+                                    targetSpeed = longPressPlaybackSpeed,
+                                ),
                         )
 
                         AnimatedVisibility(
