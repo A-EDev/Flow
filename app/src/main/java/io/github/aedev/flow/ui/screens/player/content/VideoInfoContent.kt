@@ -30,22 +30,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
+import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.components.rememberDeArrowResult
+import io.github.aedev.flow.player.error.PlayerDiagnostics
+import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.CommentsPreview
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.VideoInfoSection
+import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
-import io.github.aedev.flow.data.model.Comment
-import io.github.aedev.flow.ui.components.AddToPlaylistDialog
-import io.github.aedev.flow.ui.components.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -63,7 +63,7 @@ fun VideoInfoContent(
     context: Context,
     scope: CoroutineScope,
     snackbarHostState: SnackbarHostState,
-    onChannelClick: (String) -> Unit
+    onChannelClick: (String) -> Unit,
 ) {
     var showAddToPlaylistDialog by remember(video.id) { mutableStateOf(false) }
     val playerPrefs = remember { PlayerPreferences(context) }
@@ -78,99 +78,107 @@ fun VideoInfoContent(
         key2 = video.collaborators,
         key3 = needsCollaboratorResolution,
     ) {
-        value = if (needsCollaboratorResolution) {
-            VideoCollaboratorResolver.resolve(video.id)
-        } else {
-            video.collaborators
+        value =
+            if (needsCollaboratorResolution) {
+                VideoCollaboratorResolver.resolve(video.id)
+            } else {
+                video.collaborators
+            }
+    }
+    val resolvedChannelName =
+        remember(video.channelName, uiState.streamInfo?.uploaderName, resolvedCollaborators) {
+            resolvedCollaborators
+                .map { it.name }
+                .filter { it.isNotBlank() }
+                .takeIf { it.size > 1 }
+                ?.joinToString(" and ")
+                ?: uiState.streamInfo?.uploaderName
+                ?: video.channelName
         }
-    }
-    val resolvedChannelName = remember(video.channelName, uiState.streamInfo?.uploaderName, resolvedCollaborators) {
-        resolvedCollaborators
-            .map { it.name }
-            .filter { it.isNotBlank() }
-            .takeIf { it.size > 1 }
-            ?.joinToString(" and ")
-            ?: uiState.streamInfo?.uploaderName
-            ?: video.channelName
-    }
-    val streamUploadDate = uiState.streamInfo?.let { streamInfo ->
-        val rawDate = streamInfo.textualUploadDate?.takeIf { it.isNotBlank() }
-            ?: streamInfo.uploadDate?.toString()
-        val isArchivedLivestream = streamInfo.streamType == StreamType.POST_LIVE_STREAM
-        when {
-            rawDate.isNullOrBlank() -> null
-            isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true) -> "Streamed $rawDate"
-            else -> rawDate
-        }
-    }
-    val dialogVideo = remember(video, uiState.streamInfo, uiState.channelAvatarUrl, resolvedVideoTitle) {
+    val streamUploadDate =
         uiState.streamInfo?.let { streamInfo ->
-            Video(
-                id = streamInfo.id ?: video.id,
-                title = resolvedVideoTitle,
-                channelName = streamInfo.uploaderName ?: video.channelName,
-                channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
-                thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
-                duration = streamInfo.duration.toInt(),
-                viewCount = streamInfo.viewCount,
-                likeCount = streamInfo.likeCount,
-                uploadDate = streamUploadDate ?: streamInfo.uploadDate?.run {
-                    try {
-                        val date = java.util.Date.from(offsetDateTime().toInstant())
-                        val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-                        sdf.format(date)
-                    } catch (e: Exception) {
-                        video.uploadDate
-                    }
-                } ?: video.uploadDate,
-                description = streamInfo.description?.content ?: video.description,
-                channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
-                timestamp = video.timestamp,
-                isMusic = video.isMusic
-            )
-        } ?: video
-    }
+            val rawDate =
+                streamInfo.textualUploadDate?.takeIf { it.isNotBlank() }
+                    ?: streamInfo.uploadDate?.toString()
+            val isArchivedLivestream = streamInfo.streamType == StreamType.POST_LIVE_STREAM
+            when {
+                rawDate.isNullOrBlank() -> null
+                isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true) -> "Streamed $rawDate"
+                else -> rawDate
+            }
+        }
+    val dialogVideo =
+        remember(video, uiState.streamInfo, uiState.channelAvatarUrl, resolvedVideoTitle) {
+            uiState.streamInfo?.let { streamInfo ->
+                Video(
+                    id = streamInfo.id ?: video.id,
+                    title = resolvedVideoTitle,
+                    channelName = streamInfo.uploaderName ?: video.channelName,
+                    channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
+                    thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
+                    duration = streamInfo.duration.toInt(),
+                    viewCount = streamInfo.viewCount,
+                    likeCount = streamInfo.likeCount,
+                    uploadDate =
+                        streamUploadDate ?: streamInfo.uploadDate?.run {
+                            try {
+                                val date = java.util.Date.from(offsetDateTime().toInstant())
+                                val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+                                sdf.format(date)
+                            } catch (e: Exception) {
+                                video.uploadDate
+                            }
+                        } ?: video.uploadDate,
+                    description = streamInfo.description?.content ?: video.description,
+                    channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
+                    timestamp = video.timestamp,
+                    isMusic = video.isMusic,
+                )
+            } ?: video
+        }
 
     // ── Error details panel ─────────────────────────────────────────────────
     if (uiState.error != null) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
-            tonalElevation = 0.dp
+            tonalElevation = 0.dp,
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (!uiState.errorHint.isNullOrBlank()) {
                     Text(
                         text = uiState.errorHint,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
                     )
                 }
                 // Row 1: Retry + Copy Logs
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Button(
                         onClick = { viewModel.retryLoadVideo() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF0000),
-                            contentColor = Color.White
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError,
+                            ),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(stringResource(R.string.retry), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -178,20 +186,21 @@ fun VideoInfoContent(
                     OutlinedButton(
                         onClick = {
                             val ok = PlayerDiagnostics.copyToClipboard(context)
-                            Toast.makeText(
-                                context,
-                                if (ok) context.getString(R.string.logs_copied) else context.getString(R.string.logs_copy_failed),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast
+                                .makeText(
+                                    context,
+                                    if (ok) context.getString(R.string.logs_copied) else context.getString(R.string.logs_copy_failed),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
                         },
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ContentCopy,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(stringResource(R.string.copy_logs), fontSize = 13.sp)
@@ -200,20 +209,21 @@ fun VideoInfoContent(
                 // Row 2: Open in YouTube (full width)
                 OutlinedButton(
                     onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://www.youtube.com/watch?v=${video.id}")
-                        )
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://www.youtube.com/watch?v=${video.id}"),
+                            )
                         context.startActivity(intent)
                     },
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.OpenInBrowser,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.ui_open_in_youtube), fontSize = 13.sp)
@@ -230,7 +240,7 @@ fun VideoInfoContent(
     if (showAddToPlaylistDialog) {
         AddToPlaylistDialog(
             video = dialogVideo,
-            onDismiss = { showAddToPlaylistDialog = false }
+            onDismiss = { showAddToPlaylistDialog = false },
         )
     }
 
@@ -254,15 +264,20 @@ fun VideoInfoContent(
         onLikeClick = {
             val streamInfo = uiState.streamInfo
             val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url ?: video.thumbnailUrl
-            
+
             when (uiState.likeState) {
-                "LIKED" -> viewModel.removeLikeState(video.id)
-                else -> viewModel.likeVideo(
-                    video.id,
-                    resolvedVideoTitle,
-                    thumbnailUrl,
-                    streamInfo?.uploaderName ?: video.channelName
-                )
+                "LIKED" -> {
+                    viewModel.removeLikeState(video.id)
+                }
+
+                else -> {
+                    viewModel.likeVideo(
+                        video.id,
+                        resolvedVideoTitle,
+                        thumbnailUrl,
+                        streamInfo?.uploaderName ?: video.channelName,
+                    )
+                }
             }
         },
         onDislikeClick = {
@@ -275,25 +290,29 @@ fun VideoInfoContent(
             uiState.streamInfo?.let { streamInfo ->
                 val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
                 val channelNameSafe = streamInfo.uploaderName ?: video.channelName
-                // Use the fetched channel avatar URL if available, otherwise fallback to existing video thumbnail as last resort 
+                // Use the fetched channel avatar URL if available, otherwise fallback to existing video thumbnail as last resort
                 // but checking for uploaderUrl is wrong as it is a web link.
-                val channelThumbSafe = uiState.channelAvatarUrl?.takeIf { it.isNotEmpty() } 
-                    ?: video.channelThumbnailUrl?.takeIf { it.isNotEmpty() }
-                    ?: ""
-                
+                val channelThumbSafe =
+                    uiState.channelAvatarUrl?.takeIf { it.isNotEmpty() }
+                        ?: video.channelThumbnailUrl?.takeIf { it.isNotEmpty() }
+                        ?: ""
+
                 viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
-                
+
                 scope.launch {
-                    val message = if (uiState.isSubscribed) 
-                        context.getString(R.string.unsubscribed_from, channelNameSafe) 
-                    else 
-                        context.getString(R.string.subscribed_to, channelNameSafe)
-                        
-                    val result = snackbarHostState.showSnackbar(
-                        message, 
-                        actionLabel = if (uiState.isSubscribed) context.getString(R.string.undo) else null
-                    )
-                    
+                    val message =
+                        if (uiState.isSubscribed) {
+                            context.getString(R.string.unsubscribed_from, channelNameSafe)
+                        } else {
+                            context.getString(R.string.subscribed_to, channelNameSafe)
+                        }
+
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message,
+                            actionLabel = if (uiState.isSubscribed) context.getString(R.string.undo) else null,
+                        )
+
                     if (result == SnackbarResult.ActionPerformed && uiState.isSubscribed) {
                         viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
                     }
@@ -304,13 +323,14 @@ fun VideoInfoContent(
             uiState.streamInfo?.let { streamInfo ->
                 val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
                 val channelNameSafe = streamInfo.uploaderName ?: video.channelName
-                val channelThumbSafe = uiState.channelAvatarUrl?.takeIf { it.isNotEmpty() }
-                    ?: video.channelThumbnailUrl?.takeIf { it.isNotEmpty() }
-                    ?: ""
+                val channelThumbSafe =
+                    uiState.channelAvatarUrl?.takeIf { it.isNotEmpty() }
+                        ?: video.channelThumbnailUrl?.takeIf { it.isNotEmpty() }
+                        ?: ""
                 viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        context.getString(R.string.unsubscribed_from, channelNameSafe)
+                        context.getString(R.string.unsubscribed_from, channelNameSafe),
                     )
                 }
             }
@@ -328,16 +348,18 @@ fun VideoInfoContent(
         onCollaboratorClick = onChannelClick,
         onSaveClick = { showAddToPlaylistDialog = true },
         onShareClick = {
-            val shareText = if (shareWithoutText) {
-                context.getString(R.string.share_link_only_template, video.id)
-            } else {
-                context.getString(R.string.check_out_video_template, resolvedVideoTitle, video.id)
-            }
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, resolvedVideoTitle)
-                putExtra(Intent.EXTRA_TEXT, shareText)
-            }
+            val shareText =
+                if (shareWithoutText) {
+                    context.getString(R.string.share_link_only_template, video.id)
+                } else {
+                    context.getString(R.string.check_out_video_template, resolvedVideoTitle, video.id)
+                }
+            val shareIntent =
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, resolvedVideoTitle)
+                    putExtra(Intent.EXTRA_TEXT, shareText)
+                }
             context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
         },
         onDownloadClick = { screenState.showDownloadDialog = true },
@@ -358,12 +380,12 @@ fun VideoInfoContent(
             clipboard.setPrimaryClip(ClipData.newPlainText("video_link_at_time", url))
             Toast.makeText(context, context.getString(R.string.link_with_timestamp_copied), Toast.LENGTH_SHORT).show()
         },
-        onDescriptionClick = { screenState.showDescriptionSheet = true }
+        onDescriptionClick = { screenState.showDescriptionSheet = true },
     )
 
     if (uiState.isLiveChatAvailable) {
         io.github.aedev.flow.ui.components.LiveChatPreview(
-            onClick = { screenState.showLiveChatSheet = true }
+            onClick = { screenState.showLiveChatSheet = true },
         )
     }
 
@@ -372,7 +394,7 @@ fun VideoInfoContent(
             latestComment = if (showCommentsPreview) comments.firstOrNull()?.text else null,
             authorAvatar = if (showCommentsPreview) comments.firstOrNull()?.authorThumbnail else null,
             showPreviewText = showCommentsPreview,
-            onClick = { screenState.showCommentsSheet = true }
+            onClick = { screenState.showCommentsSheet = true },
         )
     }
 }
@@ -384,25 +406,30 @@ fun LazyListScope.relatedVideosContent(
     relatedVideos: List<Video>,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
-    cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH
+    cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH,
 ) {
     // Video items
     items(
         count = relatedVideos.size,
-        key = { index -> relatedVideos[index].id }
+        key = { index -> relatedVideos[index].id },
     ) { index ->
         val relatedVideo = relatedVideos[index]
         when (cardStyle) {
-            PlayerRelatedCardStyle.COMPACT -> CompactVideoCard(
-                video = relatedVideo,
-                onClick = { onVideoClick(relatedVideo) },
-                onChannelClick = onChannelClick
-            )
-            PlayerRelatedCardStyle.FULL_WIDTH -> VideoCardFullWidth(
-                video = relatedVideo,
-                onClick = { onVideoClick(relatedVideo) },
-                onChannelClick = onChannelClick
-            )
+            PlayerRelatedCardStyle.COMPACT -> {
+                CompactVideoCard(
+                    video = relatedVideo,
+                    onClick = { onVideoClick(relatedVideo) },
+                    onChannelClick = onChannelClick,
+                )
+            }
+
+            PlayerRelatedCardStyle.FULL_WIDTH -> {
+                VideoCardFullWidth(
+                    video = relatedVideo,
+                    onClick = { onVideoClick(relatedVideo) },
+                    onChannelClick = onChannelClick,
+                )
+            }
         }
     }
 }
@@ -415,32 +442,37 @@ fun LazyListScope.relatedVideosGridContent(
     columns: Int,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
-    cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH
+    cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH,
 ) {
     val chunkedVideos = relatedVideos.chunked(columns)
-    
+
     items(
         count = chunkedVideos.size,
-        key = { index -> chunkedVideos[index].joinToString { it.id } }
+        key = { index -> chunkedVideos[index].joinToString { it.id } },
     ) { index ->
         val rowVideos = chunkedVideos[index]
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             for (video in rowVideos) {
                 Box(modifier = Modifier.weight(1f)) {
                     when (cardStyle) {
-                        PlayerRelatedCardStyle.COMPACT -> CompactVideoCard(
-                            video = video,
-                            onClick = { onVideoClick(video) },
-                            onChannelClick = onChannelClick
-                        )
-                        PlayerRelatedCardStyle.FULL_WIDTH -> VideoCardFullWidth(
-                            video = video,
-                            onClick = { onVideoClick(video) },
-                            onChannelClick = onChannelClick
-                        )
+                        PlayerRelatedCardStyle.COMPACT -> {
+                            CompactVideoCard(
+                                video = video,
+                                onClick = { onVideoClick(video) },
+                                onChannelClick = onChannelClick,
+                            )
+                        }
+
+                        PlayerRelatedCardStyle.FULL_WIDTH -> {
+                            VideoCardFullWidth(
+                                video = video,
+                                onClick = { onVideoClick(video) },
+                                onChannelClick = onChannelClick,
+                            )
+                        }
                     }
                 }
             }
@@ -457,7 +489,7 @@ fun LazyListScope.relatedVideosGridContent(
  */
 fun createCompleteVideo(
     video: Video,
-    uiState: VideoPlayerUiState
+    uiState: VideoPlayerUiState,
 ): Video {
     val streamInfo = uiState.streamInfo
     return if (streamInfo != null) {
@@ -471,7 +503,7 @@ fun createCompleteVideo(
             viewCount = streamInfo.viewCount,
             uploadDate = streamInfo.uploadDate?.toString() ?: video.uploadDate,
             description = streamInfo.description?.content ?: video.description,
-            channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl
+            channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
         )
     } else {
         video
@@ -484,9 +516,8 @@ fun createCompleteVideo(
 @Composable
 fun rememberCompleteVideo(
     video: Video,
-    uiState: VideoPlayerUiState
-): Video {
-    return remember(uiState.streamInfo, video) {
+    uiState: VideoPlayerUiState,
+): Video =
+    remember(uiState.streamInfo, video) {
         createCompleteVideo(video, uiState)
     }
-}
