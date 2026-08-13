@@ -1,8 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -33,22 +32,31 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
-import io.github.aedev.flow.data.model.SponsorBlockSegment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
+import io.github.aedev.flow.data.model.SponsorBlockSegment
+import io.github.aedev.flow.ui.theme.SPONSOR_BLOCK_SEGMENT_ALPHA
+import io.github.aedev.flow.ui.theme.defaultSponsorBlockColor
 import org.schabi.newpipe.extractor.stream.StreamSegment
 import kotlin.math.abs
 import kotlin.math.roundToInt
+
+private val RestTrackHeight = 5.dp
+private val ActiveTrackHeight = 10.dp
+private val EdgeAlignedHeight = 14.dp
+private val ExpandedRowHeight = 32.dp
 
 // Custom seekbar drawing buffer, SponsorBlock segments and chapter gaps over the progress track.
 @Composable
@@ -68,9 +76,14 @@ fun SeekbarWithPreview(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     chapters: List<StreamSegment> = emptyList(),
     sponsorSegments: List<SponsorBlockSegment> = emptyList(),
+    /**
+     * Per-category colour overrides chosen by the user in SponsorBlock settings. Categories absent
+     * from the map fall back to the shared defaults.
+     */
+    sponsorColors: Map<String, Color> = emptyMap(),
     duration: Long = 0L,
     bufferedValue: Float = 0f,
-    edgeAligned: Boolean = false
+    edgeAligned: Boolean = false,
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.32f)
@@ -86,320 +99,359 @@ fun SeekbarWithPreview(
 
     val progress = value()
 
-    // Internal value to keep the thumb following the finger smoothly
-    var internalValue by remember { mutableFloatStateOf(progress) }
+    // While the thumb is held the component shows the dragged position; otherwise it follows the
+    // playhead directly. `isScrubbing` is only ever set in the same handler that writes
+    // `scrubValue`, so the displayed value can never be a stale leftover from a previous drag.
+    var scrubValue by remember { mutableFloatStateOf(progress) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    val displayValue = if (isScrubbing) scrubValue else progress
 
-    // Sync internal value with external value when not interacting
-    LaunchedEffect(progress) {
-        if (!isInteracting) {
-            internalValue = progress
-        }
+    // Animated in the draw phase rather than through Modifier.height: the track used to grow by
+    // animating a layout constraint, which forced a layout pass on every frame of the touch
+    // response. The Canvas is now a fixed box and only the painted band changes size.
+    val trackExpansion = remember { Animatable(0f) }
+    val thumbScale = remember { Animatable(0f) }
+
+    LaunchedEffect(isInteracting) {
+        trackExpansion.animateTo(
+            targetValue = if (isInteracting) 1f else 0f,
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+        )
     }
 
-    val trackHeight by animateDpAsState(
-        targetValue = if (isInteracting) 10.dp else 5.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "trackHeight"
-    )
-
-    val thumbScale by animateFloatAsState(
-        targetValue = if (isInteracting) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "thumbScale"
-    )
+    LaunchedEffect(isInteracting) {
+        thumbScale.animateTo(
+            targetValue = if (isInteracting) 1f else 0f,
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+        )
+    }
 
     Box(
-        modifier = modifier
-            .fillMaxWidth(),
-        contentAlignment = if (edgeAligned) Alignment.BottomCenter else Alignment.TopStart
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = if (edgeAligned) Alignment.BottomCenter else Alignment.TopStart,
     ) {
-
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(if (edgeAligned) 14.dp else 32.dp),
-            contentAlignment = if (edgeAligned) Alignment.BottomCenter else Alignment.Center
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(if (edgeAligned) EdgeAlignedHeight else ExpandedRowHeight),
+            contentAlignment = if (edgeAligned) Alignment.BottomCenter else Alignment.Center,
         ) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(if (edgeAligned) 14.dp else trackHeight)
-        ) {
-            val trackHeightPx = trackHeight.toPx()
-            val width = size.width
-            val trackTop = if (edgeAligned) size.height - trackHeightPx else 0f
-            val trackBottom = trackTop + trackHeightPx
-            val trackCenterY = trackTop + trackHeightPx / 2f
-            val capRadius = CornerRadius(trackHeightPx / 2f)
-
-            val gapWidth = if (isInteracting) 3.dp.toPx() else 2.dp.toPx()
-            val boundaries = if (chapters.isNotEmpty() && duration > 0) {
-                chapters.asSequence()
-                    .map { it.startTimeSeconds }
-                    .filter { it > 0 }
-                    .map { (it * 1000f) / duration.toFloat() }
-                    .filter { it in 0f..1f }
-                    .map { it * width }
-                    .sorted()
-                    .toList()
-            } else {
-                emptyList()
-            }
-
-            val segments = buildList {
-                var segStart = 0f
-                for (boundary in boundaries) {
-                    val segEnd = boundary - gapWidth / 2f
-                    if (segEnd > segStart) {
-                        add(segStart to segEnd)
+            Canvas(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(if (edgeAligned) EdgeAlignedHeight else ActiveTrackHeight),
+            ) {
+                val expansion = trackExpansion.value
+                val trackHeightPx = lerp(RestTrackHeight.toPx(), ActiveTrackHeight.toPx(), expansion)
+                val width = size.width
+                val trackTop =
+                    if (edgeAligned) {
+                        size.height - trackHeightPx
+                    } else {
+                        (size.height - trackHeightPx) / 2f
                     }
-                    segStart = (boundary + gapWidth / 2f).coerceAtMost(width)
-                }
-                if (width > segStart) {
-                    add(segStart to width)
-                }
-            }
+                val trackBottom = trackTop + trackHeightPx
+                val trackCenterY = trackTop + trackHeightPx / 2f
+                val capRadius = CornerRadius(trackHeightPx / 2f)
 
-            val trackPath = Path().apply {
-                segments.forEachIndexed { index, (segStart, segEnd) ->
-                    val startRadius = if (index == 0) capRadius else CornerRadius.Zero
-                    val endRadius = if (index == segments.lastIndex) capRadius else CornerRadius.Zero
-                    addRoundRect(
-                        RoundRect(
-                            rect = Rect(segStart, trackTop, segEnd, trackBottom),
-                            topLeft = startRadius,
-                            topRight = endRadius,
-                            bottomRight = endRadius,
-                            bottomLeft = startRadius
-                        )
-                    )
-                }
-            }
+                val gapWidth = lerp(2.dp.toPx(), 3.dp.toPx(), expansion)
+                val boundaries =
+                    if (chapters.isNotEmpty() && duration > 0) {
+                        chapters
+                            .asSequence()
+                            .map { it.startTimeSeconds }
+                            .filter { it > 0 }
+                            .map { (it * 1000f) / duration.toFloat() }
+                            .filter { it in 0f..1f }
+                            .map { it * width }
+                            .sorted()
+                            .toList()
+                    } else {
+                        emptyList()
+                    }
 
-            clipPath(trackPath) {
-                drawRect(
-                    color = trackColor,
-                    topLeft = Offset(0f, trackTop),
-                    size = Size(width, trackHeightPx)
-                )
+                val segments =
+                    buildList {
+                        var segStart = 0f
+                        for (boundary in boundaries) {
+                            val segEnd = boundary - gapWidth / 2f
+                            if (segEnd > segStart) {
+                                add(segStart to segEnd)
+                            }
+                            segStart = (boundary + gapWidth / 2f).coerceAtMost(width)
+                        }
+                        if (width > segStart) {
+                            add(segStart to width)
+                        }
+                    }
 
-                if (bufferedValue > 0f) {
-                    drawRect(
-                        color = bufferedTrackColor,
-                        topLeft = Offset(0f, trackTop),
-                        size = Size(width * bufferedValue.coerceIn(0f, 1f), trackHeightPx)
-                    )
-                }
-
-                // Active track (progress)
-                drawRect(
-                    color = primaryColor,
-                    topLeft = Offset(0f, trackTop),
-                    size = Size(width * internalValue, trackHeightPx)
-                )
-
-                // SponsorBlock segments above progress so they remain visible after playback passes them.
-                if (duration > 0) {
-                    sponsorSegments.forEach { segment ->
-                        val startRatio = (segment.startTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
-                        val endRatio = (segment.endTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
-
-                        if (endRatio > startRatio) {
-                            val startX = startRatio * width
-                            val segWidth = (endRatio * width) - startX
-
-                            val segmentColor = when (segment.category) {
-                                "sponsor" -> Color(0xFF00D100) // Green
-                                "selfpromo" -> Color(0xFFFFFF00) // Yellow
-                                "interaction" -> Color(0xFFFF00FF) // Magenta
-                                "intro" -> Color(0xFF00FFFF) // Cyan
-                                "outro" -> Color(0xFF00FFFF) // Cyan
-                                "music_offtopic" -> Color(0xFFFF8000) // Orange
-                                else -> Color(0xFF00D100)
-                            }.copy(alpha = 0.78f)
-
-                            drawRect(
-                                color = segmentColor,
-                                topLeft = Offset(startX, trackTop),
-                                size = Size(segWidth, trackHeightPx)
+                val trackPath =
+                    Path().apply {
+                        segments.forEachIndexed { index, (segStart, segEnd) ->
+                            val startRadius = if (index == 0) capRadius else CornerRadius.Zero
+                            val endRadius = if (index == segments.lastIndex) capRadius else CornerRadius.Zero
+                            addRoundRect(
+                                RoundRect(
+                                    rect = Rect(segStart, trackTop, segEnd, trackBottom),
+                                    topLeft = startRadius,
+                                    topRight = endRadius,
+                                    bottomRight = endRadius,
+                                    bottomLeft = startRadius,
+                                ),
                             )
                         }
                     }
 
-                    val currentTimeSeconds = internalValue.coerceIn(0f, 1f) * duration / 1000f
-                    val isInsideSponsorSegment = sponsorSegments.any { segment ->
-                        currentTimeSeconds >= segment.startTime && currentTimeSeconds < segment.endTime
-                    }
-                    if (isInsideSponsorSegment) {
-                        val playheadX = width * internalValue.coerceIn(0f, 1f)
-                        val outerWidth = minOf(4.dp.toPx(), width)
-                        val innerWidth = minOf(2.dp.toPx(), width)
+                clipPath(trackPath) {
+                    drawRect(
+                        color = trackColor,
+                        topLeft = Offset(0f, trackTop),
+                        size = Size(width, trackHeightPx),
+                    )
+
+                    if (bufferedValue > 0f) {
                         drawRect(
-                            color = thumbFillColor,
-                            topLeft = Offset(
-                                x = (playheadX - outerWidth / 2f).coerceIn(0f, width - outerWidth),
-                                y = trackTop
-                            ),
-                            size = Size(outerWidth, trackHeightPx)
-                        )
-                        drawRect(
-                            color = primaryColor,
-                            topLeft = Offset(
-                                x = (playheadX - innerWidth / 2f).coerceIn(0f, width - innerWidth),
-                                y = trackTop
-                            ),
-                            size = Size(innerWidth, trackHeightPx)
+                            color = bufferedTrackColor,
+                            topLeft = Offset(0f, trackTop),
+                            size = Size(width * bufferedValue.coerceIn(0f, 1f), trackHeightPx),
                         )
                     }
+
+                    // Active track (progress)
+                    drawRect(
+                        color = primaryColor,
+                        topLeft = Offset(0f, trackTop),
+                        size = Size(width * displayValue, trackHeightPx),
+                    )
+
+                    // SponsorBlock segments above progress so they remain visible after playback passes them.
+                    if (duration > 0) {
+                        sponsorSegments.forEach { segment ->
+                            val startRatio = (segment.startTime * 1000f / duration.toFloat()).coerceIn(0f, 1f)
+                            val endRatio = (segment.endTime * 1000f / duration.toFloat()).coerceIn(0f, 1f)
+
+                            if (endRatio > startRatio) {
+                                val startX = startRatio * width
+                                val segWidth = (endRatio * width) - startX
+                                val segmentColor =
+                                    (
+                                        sponsorColors[segment.category]
+                                            ?: defaultSponsorBlockColor(segment.category)
+                                    ).copy(alpha = SPONSOR_BLOCK_SEGMENT_ALPHA)
+
+                                drawRect(
+                                    color = segmentColor,
+                                    topLeft = Offset(startX, trackTop),
+                                    size = Size(segWidth, trackHeightPx),
+                                )
+                            }
+                        }
+
+                        val currentTimeSeconds = displayValue.coerceIn(0f, 1f) * duration / 1000f
+                        val isInsideSponsorSegment =
+                            sponsorSegments.any { segment ->
+                                currentTimeSeconds >= segment.startTime && currentTimeSeconds < segment.endTime
+                            }
+                        if (isInsideSponsorSegment) {
+                            val playheadX = width * displayValue.coerceIn(0f, 1f)
+                            val outerWidth = minOf(4.dp.toPx(), width)
+                            val innerWidth = minOf(2.dp.toPx(), width)
+                            drawRect(
+                                color = thumbFillColor,
+                                topLeft =
+                                    Offset(
+                                        x = (playheadX - outerWidth / 2f).coerceIn(0f, width - outerWidth),
+                                        y = trackTop,
+                                    ),
+                                size = Size(outerWidth, trackHeightPx),
+                            )
+                            drawRect(
+                                color = primaryColor,
+                                topLeft =
+                                    Offset(
+                                        x = (playheadX - innerWidth / 2f).coerceIn(0f, width - innerWidth),
+                                        y = trackTop,
+                                    ),
+                                size = Size(innerWidth, trackHeightPx),
+                            )
+                        }
+                    }
+                }
+
+                val scale = thumbScale.value
+                if (edgeAligned && scale > 0f) {
+                    val thumbRadius = 7.dp.toPx() * scale
+                    val thumbX =
+                        if (width > thumbRadius * 2f) {
+                            (width * displayValue).coerceIn(thumbRadius, width - thumbRadius)
+                        } else {
+                            width * displayValue
+                        }
+                    drawCircle(
+                        color = primaryColor.copy(alpha = 0.24f),
+                        radius = thumbRadius + 8.dp.toPx(),
+                        center = Offset(thumbX, trackCenterY),
+                    )
+                    drawCircle(
+                        color = thumbFillColor,
+                        radius = thumbRadius,
+                        center = Offset(thumbX, trackCenterY),
+                    )
+                    drawCircle(
+                        color = primaryColor,
+                        radius = thumbRadius,
+                        center = Offset(thumbX, trackCenterY),
+                        style = Stroke(width = 3.dp.toPx()),
+                    )
                 }
             }
 
-            if (edgeAligned && thumbScale > 0f) {
-                val thumbRadius = 7.dp.toPx() * thumbScale
-                val thumbX = if (width > thumbRadius * 2f) {
-                    (width * internalValue).coerceIn(thumbRadius, width - thumbRadius)
-                } else {
-                    width * internalValue
-                }
-                drawCircle(
-                    color = primaryColor.copy(alpha = 0.24f),
-                    radius = thumbRadius + 8.dp.toPx(),
-                    center = Offset(thumbX, trackCenterY)
-                )
-                drawCircle(
-                    color = Color.White,
-                    radius = thumbRadius,
-                    center = Offset(thumbX, trackCenterY)
-                )
-                drawCircle(
-                    color = primaryColor,
-                    radius = thumbRadius,
-                    center = Offset(thumbX, trackCenterY),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
-                )
-            }
-        }
+            // The actual slider
+            @OptIn(ExperimentalMaterial3Api::class)
+            Slider(
+                value = displayValue,
+                onValueChange = { newValue ->
+                    scrubValue = newValue
+                    isScrubbing = true
+                    onValueChange(newValue)
+                },
+                onValueChangeFinished = {
+                    isScrubbing = false
+                    onValueChangeFinished?.invoke()
+                },
+                modifier = if (edgeAligned) Modifier.fillMaxSize() else Modifier.fillMaxWidth(),
+                enabled = enabled,
+                valueRange = valueRange,
+                steps = steps,
+                interactionSource = interactionSource,
+                colors =
+                    SliderDefaults.colors(
+                        thumbColor = thumbFillColor,
+                        activeTrackColor = Color.Transparent,
+                        inactiveTrackColor = Color.Transparent,
+                        activeTickColor = Color.Transparent,
+                        inactiveTickColor = Color.Transparent,
+                        disabledThumbColor = Color.Transparent,
+                        disabledActiveTrackColor = Color.Transparent,
+                        disabledInactiveTrackColor = Color.Transparent,
+                        disabledActiveTickColor = Color.Transparent,
+                        disabledInactiveTickColor = Color.Transparent,
+                    ),
+                thumb = {
+                    if (edgeAligned) {
+                        Spacer(modifier = Modifier.size(0.dp))
+                    } else {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(16.dp)
+                                    .graphicsLayer {
+                                        val scale = thumbScale.value
+                                        scaleX = scale
+                                        scaleY = scale
+                                    }.drawBehind {
+                                        if (isInteracting) {
+                                            drawCircle(
+                                                color = thumbStateLayerColor,
+                                                radius = 20.dp.toPx(),
+                                            )
+                                        }
+                                    },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .matchParentSize()
+                                        .background(thumbFillColor, CircleShape)
+                                        .border(3.dp, primaryColor, CircleShape),
+                            )
+                        }
+                    }
+                },
+            )
 
-        // The actual slider
-        @OptIn(ExperimentalMaterial3Api::class)
-        Slider(
-            value = internalValue,
-            onValueChange = { newValue ->
-                internalValue = newValue
-                onValueChange(newValue)
-            },
-            onValueChangeFinished = {
-                onValueChangeFinished?.invoke()
-            },
-            modifier = if (edgeAligned) Modifier.fillMaxSize() else Modifier.fillMaxWidth(),
-            enabled = enabled,
-            valueRange = valueRange,
-            steps = steps,
-            interactionSource = interactionSource,
-            colors = SliderDefaults.colors(
-                thumbColor = thumbFillColor,
-                activeTrackColor = Color.Transparent,
-                inactiveTrackColor = Color.Transparent,
-                activeTickColor = Color.Transparent,
-                inactiveTickColor = Color.Transparent,
-                disabledThumbColor = Color.Transparent,
-                disabledActiveTrackColor = Color.Transparent,
-                disabledInactiveTrackColor = Color.Transparent,
-                disabledActiveTickColor = Color.Transparent,
-                disabledInactiveTickColor = Color.Transparent
-            ),
-            thumb = {
-                if (edgeAligned) {
-                    Spacer(modifier = Modifier.size(0.dp))
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .scale(thumbScale)
-                            .drawBehind {
-                                if (isInteracting) {
-                                    drawCircle(
-                                        color = thumbStateLayerColor,
-                                        radius = 20.dp.toPx()
-                                    )
+            if (edgeAligned) {
+                Box(
+                    modifier =
+                        Modifier
+                            .matchParentSize()
+                            .pointerInput(enabled, valueRange, steps) {
+                                if (!enabled) return@pointerInput
+
+                                fun valueForX(x: Float): Float {
+                                    val width = size.width.toFloat().coerceAtLeast(1f)
+                                    val fraction = (x / width).coerceIn(0f, 1f)
+                                    val steppedFraction =
+                                        if (steps > 0) {
+                                            val intervals = steps + 1
+                                            (fraction * intervals)
+                                                .roundToInt()
+                                                .coerceIn(0, intervals)
+                                                .toFloat() / intervals.toFloat()
+                                        } else {
+                                            fraction
+                                        }
+                                    return valueRange.start +
+                                        (valueRange.endInclusive - valueRange.start) * steppedFraction
+                                }
+
+                                fun updateValueFromX(x: Float) {
+                                    val newValue = valueForX(x)
+                                    if (abs(newValue - scrubValue) > 0.0001f) {
+                                        scrubValue = newValue
+                                        isScrubbing = true
+                                        onValueChange(newValue)
+                                    }
+                                }
+
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    edgePointerActive = true
+                                    down.consume()
+                                    scrubValue = valueForX(down.position.x)
+                                    isScrubbing = true
+                                    onValueChange(scrubValue)
+
+                                    try {
+                                        var activePointerId = down.id
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val change =
+                                                event.changes.firstOrNull { it.id == activePointerId }
+                                                    ?: event.changes.firstOrNull { it.pressed }
+                                                    ?: break
+
+                                            activePointerId = change.id
+                                            if (!change.pressed) {
+                                                change.consume()
+                                                break
+                                            }
+
+                                            if (change.positionChange() != Offset.Zero) {
+                                                updateValueFromX(change.position.x)
+                                            }
+                                            change.consume()
+                                        }
+                                    } finally {
+                                        edgePointerActive = false
+                                        isScrubbing = false
+                                        onValueChangeFinished?.invoke()
+                                    }
                                 }
                             },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(thumbFillColor, CircleShape)
-                                .border(3.dp, primaryColor, CircleShape)
-                        )
-                    }
-                }
+                )
             }
-        )
-
-        if (edgeAligned) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .pointerInput(enabled, valueRange, steps) {
-                        if (!enabled) return@pointerInput
-
-                        fun valueForX(x: Float): Float {
-                            val width = size.width.toFloat().coerceAtLeast(1f)
-                            val fraction = (x / width).coerceIn(0f, 1f)
-                            val steppedFraction = if (steps > 0) {
-                                val intervals = steps + 1
-                                (fraction * intervals).roundToInt()
-                                    .coerceIn(0, intervals)
-                                    .toFloat() / intervals.toFloat()
-                            } else {
-                                fraction
-                            }
-                            return valueRange.start +
-                                (valueRange.endInclusive - valueRange.start) * steppedFraction
-                        }
-
-                        fun updateValueFromX(x: Float) {
-                            val newValue = valueForX(x)
-                            if (abs(newValue - internalValue) > 0.0001f) {
-                                internalValue = newValue
-                                onValueChange(newValue)
-                            }
-                        }
-
-                        awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
-                            edgePointerActive = true
-                            down.consume()
-                            updateValueFromX(down.position.x)
-
-                            try {
-                                var activePointerId = down.id
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    val change = event.changes.firstOrNull { it.id == activePointerId }
-                                        ?: event.changes.firstOrNull { it.pressed }
-                                        ?: break
-
-                                    activePointerId = change.id
-                                    if (!change.pressed) {
-                                        change.consume()
-                                        break
-                                    }
-
-                                    if (change.positionChange() != Offset.Zero) {
-                                        updateValueFromX(change.position.x)
-                                    }
-                                    change.consume()
-                                }
-                            } finally {
-                                edgePointerActive = false
-                                onValueChangeFinished?.invoke()
-                            }
-                        }
-                    }
-            )
-        }
         }
     }
 }

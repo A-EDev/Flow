@@ -535,40 +535,46 @@ class PlayerPreferences(
     }
 
     // SponsorBlock per-category color preferences (stored as ARGB Int)
+    private val sbColorKeys: Map<String, Preferences.Key<Int>> =
+        mapOf(
+            "sponsor" to Keys.SB_COLOR_SPONSOR,
+            "intro" to Keys.SB_COLOR_INTRO,
+            "outro" to Keys.SB_COLOR_OUTRO,
+            "selfpromo" to Keys.SB_COLOR_SELFPROMO,
+            "interaction" to Keys.SB_COLOR_INTERACTION,
+            "music_offtopic" to Keys.SB_COLOR_MUSIC_OFFTOPIC,
+            "filler" to Keys.SB_COLOR_FILLER,
+            "preview" to Keys.SB_COLOR_PREVIEW,
+            "exclusive_access" to Keys.SB_COLOR_EXCLUSIVE_ACCESS,
+        )
+
+    private fun sbColorKey(category: String): Preferences.Key<Int> = sbColorKeys[category] ?: Keys.SB_COLOR_SPONSOR
+
     fun sbColorForCategory(category: String): Flow<Int?> {
-        val key =
-            when (category) {
-                "sponsor" -> Keys.SB_COLOR_SPONSOR
-                "intro" -> Keys.SB_COLOR_INTRO
-                "outro" -> Keys.SB_COLOR_OUTRO
-                "selfpromo" -> Keys.SB_COLOR_SELFPROMO
-                "interaction" -> Keys.SB_COLOR_INTERACTION
-                "music_offtopic" -> Keys.SB_COLOR_MUSIC_OFFTOPIC
-                "filler" -> Keys.SB_COLOR_FILLER
-                "preview" -> Keys.SB_COLOR_PREVIEW
-                "exclusive_access" -> Keys.SB_COLOR_EXCLUSIVE_ACCESS
-                else -> Keys.SB_COLOR_SPONSOR
-            }
+        val key = sbColorKey(category)
         return context.playerPreferencesDataStore.data.map { prefs -> prefs[key] }
     }
+
+    /**
+     * Every user-chosen category colour in a single read. The seek bar paints all categories at
+     * once, so collecting [sbColorForCategory] per category there would mean nine separate
+     * collectors over the same DataStore.
+     */
+    val sponsorBlockCategoryColors: Flow<Map<String, Int>> =
+        context.playerPreferencesDataStore.data
+            .map { prefs ->
+                buildMap {
+                    sbColorKeys.forEach { (category, key) ->
+                        prefs[key]?.let { put(category, it) }
+                    }
+                }
+            }
 
     suspend fun setSbColorForCategory(
         category: String,
         colorArgb: Int?,
     ) {
-        val key =
-            when (category) {
-                "sponsor" -> Keys.SB_COLOR_SPONSOR
-                "intro" -> Keys.SB_COLOR_INTRO
-                "outro" -> Keys.SB_COLOR_OUTRO
-                "selfpromo" -> Keys.SB_COLOR_SELFPROMO
-                "interaction" -> Keys.SB_COLOR_INTERACTION
-                "music_offtopic" -> Keys.SB_COLOR_MUSIC_OFFTOPIC
-                "filler" -> Keys.SB_COLOR_FILLER
-                "preview" -> Keys.SB_COLOR_PREVIEW
-                "exclusive_access" -> Keys.SB_COLOR_EXCLUSIVE_ACCESS
-                else -> Keys.SB_COLOR_SPONSOR
-            }
+        val key = sbColorKey(category)
         context.playerPreferencesDataStore.edit { prefs ->
             if (colorArgb != null) prefs[key] = colorArgb else prefs.remove(key)
         }
