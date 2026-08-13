@@ -74,7 +74,7 @@
     <string name="quality_auto_template">Automática (%1$dp)</string>
     <string name="failed_to_load_channel">Ocorreu um erro ao carregar o canal</string>
     <string name="stats">Status</string>
-    <string name="library_playlists_label">Playlists</string>
+    <string name="library_playlists_label">Lista de reprodução</string>
     <string name="downloaded">Baixado</string>
     <string name="up_next">A SEGUIR</string>
     <string name="related">RELACIONADOS</string>
@@ -135,7 +135,7 @@
     <string name="channel_id">ID do canal</string>
     <string name="uploaded">Enviado</string>
     <string name="mime_type">Tipo mime</string>
-    <string name="status_live">Ao vivo</string>
+    <string name="status_live">AO VIVO</string>
     <string name="premiere_soon">Estreia em breve</string>
     <string name="premiere_date_prefix">Estreias %1$s</string>
     <string name="file_size">Tamanho do arquivo</string>
@@ -180,7 +180,7 @@
     <string name="more_header">Mais</string>
     <string name="view_artist">Ver artista</string>
     <string name="view_album">Ver álbum</string>
-    <string name="album_art">Capa do álbum</string>
+    <string name="album_art">Arte do álbum</string>
     <string name="views_template">%1$s visualizações</string>
     <string name="chapters">Capítulos</string>
     <string name="artist">Artista</string>
@@ -232,7 +232,7 @@
     <string name="channel_avatar">Avatar do canal</string>
     <string name="subscribe">Inscreva-se</string>
     <string name="tab_live">Ao vivo</string>
-    <string name="tab_playlists">Playlists</string>
+    <string name="tab_playlists">Listas de Reprodução</string>
     <string name="tab_about">Sobre</string>
     <string name="end_of_queue">Fim da fila</string>
     <string name="no_videos_found">Nenhum vídeo encontrado</string>
@@ -654,10 +654,10 @@
     <string name="upcoming_waiting_count">%1$s aguardando</string>
     <string name="upcoming_video_starts_in">Começa em</string>
     <string name="subscriptions_video_section_title">Vídeos das inscrições</string>
-    <string name="subscriptions_music_section_title">Músicas das inscrições</string>
+    <string name="subscriptions_music_section_title">Inscrições de músicas</string>
     <string name="subscriptions_compact_header">Acesse rapidamente os canais que você assinou recentemente.</string>
     <string name="subscriptions_compact_header_with_music">Os canais de música são marcados juntos para manter o feed compacto.</string>
-    <string name="subscriptions_music_badge_cd">Músicas das inscrições</string>
+    <string name="subscriptions_music_badge_cd">Inscrição de música</string>
     <string name="add_comment_placeholder">Adicione um comentário...</string>
     <string name="sb_skip_segment">Pular %1$s</string>
     <string name="playlist_visibility_metadata">%1$s • %2$s</string>
@@ -1175,7 +1175,7 @@
     <string name="import_from_newpipe_desc">Importar inscrições de um arquivo de exportação do NewPipe (JSON).</string>
     <string name="import_from_libretube">Importar do LibreTube</string>
     <string name="import_from_libretube_desc">Importar inscrições de um arquivo de backup do LibreTube (JSON).</string>
-    <string name="import_playlists_section_title">Playlists</string>
+    <string name="import_playlists_section_title">Listas de reprodução</string>
     <string name="import_playlists_section_subtitle">Importe playlists de vídeo de outros aplicativos</string>
     <string name="import_newpipe_playlists">Importar playlists do NewPipe</string>
     <string name="import_newpipe_playlists_desc">Importe suas playlists locais do NewPipe a partir de um arquivo ZIP de backup.</string>
@@ -1492,7 +1492,7 @@
     <string name="subtitle_similar_to">Com base no seu histórico de reprodução</string>
     <string name="section_vibe_vibes">%1$s Vibes</string>
     <string name="subtitle_community_playlists">Playlists da comunidade</string>
-    <string name="playlist_author_community">Playlist da comunidade</string>
+    <string name="playlist_author_community">Lista de reprodução da comunidade</string>
     <string name="playlist_description_community">Playlist selecionada de músicas %1$s da nossa comunidade</string>
     <string name="radio">Rádio</string>
     <string name="audio_settings_title">Configurações de áudio</string>
@@ -1517,7 +1517,7 @@
     <string name="voice_search_cd">Pesquisa de voz</string>
     <string name="filter_albums">Álbuns</string>
     <string name="filter_songs">Músicas</string>
-    <string name="filter_community_playlists">Playlists da comunidade</string>
+    <string name="filter_community_playlists">Listas de reprodução da comunidade</string>
     <string name="section_top_result">Melhor resultado</string>
     <string name="subtitle_song_prefix">Música • %1$s</string>
     <string name="subtitle_artist">Artista</string>
@@ -1653,7 +1653,7 @@
     <string name="sync_notification_title">Sincronizando dispositivos</string>
     <string name="sync_notification_text">Transferir a sua biblioteca usando Wi-Fi local…</string>
     <string name="sync_notification_channel">Sincronização do dispositivo</string>
-    <string name="sync_collection_playlists">Playlists</string>
+    <string name="sync_collection_playlists">Listas de reprodução</string>
     <string name="sync_collection_watch_history">Histórico de assistido</string>
     <string name="sync_collection_likes">Likes</string>
     <string name="sync_collection_subscriptions">Inscrições</string>
@@ -2069,7 +2069,7 @@
     <string name="tv_search_no_results">Nenhum vídeo encontrado</string>
     <string name="tv_library_history">Histórico</string>
     <string name="tv_library_liked">Vídeos curtidos</string>
-    <string name="tv_library_playlists">Playlists</string>
+    <string name="tv_library_playlists">Listas de reprodução</string>
     <string name="tv_library_empty">Sua biblioteca está vazia</string>
     <string name="tv_player_rewind">Retroceder 10 segundos</string>
     <string name="tv_player_fast_forward">Avançar 10 segundas</string>
@@ -2092,12 +2092,13 @@
     <string name="tv_filter_all">Todos</string>
     <string name="tv_filter_videos">Vídeos</string>
     <string name="tv_filter_channels">Canais</string>
-    <string name="tv_filter_playlists">Playlists</string>
+    <string name="tv_filter_playlists">Listas de reprodução</string>
     <string name="tv_filter_artists">Artistas</string>
     <string name="tv_filter_live">Ao vivo</string>
     <string name="tv_channel_videos">Vídeos</string>
     <string name="tv_subscriptions_all">Todos os canais</string>
     <plurals name="tv_playlist_video_count">
+        <item quantity="one">%1$d vídeo</item>
         <item quantity="many">%1$d de vídeos</item>
         <item quantity="other">%1$d vídeos</item>
     </plurals>
@@ -2180,14 +2181,14 @@
     <string name="audio_track_original">Original</string>
     <string name="audio_track_dubbed">Dublado</string>
     <string name="ui_skipped_segment">%1$s pulado</string>
-    <string name="ui_started_download">Download iniciado: %1$s</string>
+    <string name="ui_started_download">Baixado iniciado: %1$s</string>
     <string name="ui_download_start_failed">Falha ao iniciar download:%1$s</string>
     <string name="toast_unsubscribed_from">Inscrição em %1$s cancelada</string>
     <string name="toast_subscribed_to">Inscreveu-se em %1$s</string>
     <string name="toast_removed_from_watch_later">Removido de Assistir Mais Tarde</string>
     <string name="toast_added_to_watch_later">Adicionada à Assistir Mais Tarde</string>
     <string name="toast_fetching_download_links">Buscando links para download…</string>
-    <string name="toast_download_started">Download iniciado: %1$s</string>
+    <string name="toast_download_started">Baixado iniciado: %1$s</string>
     <string name="toast_trying_sabr_download">Tentando SABR Download…</string>
     <string name="toast_sabr_download_started">SABR Download iniciado</string>
     <string name="toast_sabr_download_started_for_video">SABR download iniciado: %1$s</string>
@@ -2307,4 +2308,29 @@
     <string name="duration_minutes_short">%1$dm</string>
     <string name="fallback_unknown_title">Título desconhecido</string>
     <string name="remove_from_queue">Remover da fila</string>
+    <string name="discovery_query_memory">Consultar memória</string>
+    <string name="discovery_shorts_seen_detail">guarda repetida</string>
+    <string name="interface_mode_mobile">Móvel</string>
+    <string name="tv_music_charts">Gráficos</string>
+    <string name="tv_guide_key_rail">Ferroviário</string>
+    <string name="tv_guide_player_seek">Procure para trás ou para a frente; a barra de busca mostra a posição pendente.</string>
+    <string name="download_muxing_incompatible">Mixagem falhou â€” formato de áudio incompatível com conteúdo de vídeo. Tente baixar novamente.</string>
+    <string name="download_muxing_failed_retry">Mixagem falhou — tente baixar novamente.</string>
+    <string name="taste_shape_title">Moldando gostos</string>
+    <string name="channel_affinity_cooling">Congelando</string>
+    <string name="discovery_status_subtitle">Consultas e filtros de segurança atualmente moldando a exploração</string>
+    <string name="discovery_queries">Consultas</string>
+    <string name="discovery_queries_detail">pronto</string>
+    <string name="discovery_query_memory_detail">conjuntos de token recentes</string>
+    <string name="discovery_rejections">Rejeições</string>
+    <string name="discovery_rejections_detail">padrões de tópico</string>
+    <string name="datetime_format_iso_hint">ISO 8601</string>
+    <string name="discord_error_heartbeat_unacknowledged">Sinal de atividade do Discord Gateway não foi reconhecido.</string>
+    <string name="discord_error_heartbeat_failed">Sinal de atividade do Discord Gateway falhou.</string>
+    <string name="settings_item_interface_mode_subtitle">Escolha layout automático, móvel ou TV</string>
+    <string name="interface_mode_tv_summary">Sempre use a interface remotamente amigável de televisão</string>
+    <string name="tv_more_replies">Mais respostas</string>
+    <string name="tv_music_expand">Abrir reprodutor completo</string>
+    <string name="notification_video_live">Vídeo é ao vivo</string>
+    <string name="topic_score_prefix">Evidências do tópico</string>
 </resources>
