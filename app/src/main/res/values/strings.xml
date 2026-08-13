@@ -998,6 +998,13 @@
     <string name="player_settings_audio_language_dialog_body">Select your preferred audio track language. If not available, the original language will be used.</string>
     <string name="player_settings_audio_original">Original (Native)</string>
     <string name="player_settings_audio_original_desc">Uses the video\'s native audio track</string>
+    <string name="player_settings_subtitle_language">Preferred Subtitle Language</string>
+    <string name="player_settings_subtitle_language_dialog_title">Subtitle Language</string>
+    <string name="player_settings_subtitle_language_dialog_body">Captions open in this language when available. If the video has no track in it, Flow uses YouTube\'s translation of an existing track. Picking a caption during playback updates this too.</string>
+    <string name="player_settings_subtitle_language_none">No preference</string>
+    <string name="player_settings_subtitle_language_none_desc">Use the first caption track the video offers</string>
+    <string name="player_settings_auto_enable_subtitles">Turn Captions On Automatically</string>
+    <string name="player_settings_auto_enable_subtitles_subtitle">Start every video with captions in your preferred language</string>
     <string name="player_settings_video_codec">Default Video Codec</string>
     <string name="player_settings_video_codec_dialog_title">Default Video Codec</string>
     <string name="player_settings_video_codec_dialog_body">Choose which codec is used by default at the selected resolution. This does not change which qualities are listed — you can still pick any codec from the quality selector. H.264 is the most compatible and smoothest on most devices; AV1/VP9 save data at higher resolutions but need more decoding power.</string>
@@ -1651,6 +1658,7 @@
     <string name="audio_track">Audio Track</string>
     <string name="audio_track_number_template">%1$s %2$d</string>
     <string name="subtitle_auto_generated_template">%1$s (%2$s)</string>
+    <string name="subtitle_translated">translated</string>
     <string name="off">Off</string>
     <string name="on">On</string>
     <string name="player_settings">Player Settings</string>

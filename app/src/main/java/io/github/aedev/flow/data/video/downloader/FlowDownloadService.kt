@@ -27,6 +27,7 @@ import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.video.DownloadProgressUpdate
+import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.player.sabr.integration.SabrDownloadEngine
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
@@ -63,6 +64,9 @@ class FlowDownloadService : Service() {
 
     @Inject
     lateinit var sponsorBlockRepository: SponsorBlockRepository
+
+    @Inject
+    lateinit var offlineSubtitleStore: OfflineSubtitleStore
 
     private val gson = Gson()
 
@@ -491,6 +495,13 @@ class FlowDownloadService : Service() {
                     Log.d(TAG, "Saving to database...")
                     downloadManager.saveDownload(video, items)
                     Log.d(TAG, "Saved to database.")
+
+                    // Caption URLs expire within hours, so the tracks are copied to disk now
+                    // rather than re-resolved at playback time. Best effort — never blocks or
+                    // fails the media download.
+                    if (!audioOnly) {
+                        serviceScope.launch { offlineSubtitleStore.saveForVideo(videoId) }
+                    }
 
                     val download = downloadManager.getDownloadWithItems(videoId)
                     val ids = download?.items?.map { it.id }?.toMutableList() ?: mutableListOf()

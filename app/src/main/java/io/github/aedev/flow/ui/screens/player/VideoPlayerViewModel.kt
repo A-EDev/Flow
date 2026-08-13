@@ -89,6 +89,7 @@ class VideoPlayerViewModel @Inject constructor(
     private val playlistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
     private val playerPreferences: PlayerPreferences,
     private val videoDownloadManager: VideoDownloadManager,
+    private val offlineSubtitleStore: io.github.aedev.flow.data.video.OfflineSubtitleStore,
     private val sponsorBlockRepository: SponsorBlockRepository,
     private val liveChatRepository: io.github.aedev.flow.data.repository.LiveChatRepository
 ) : ViewModel() {
@@ -271,8 +272,15 @@ class VideoPlayerViewModel @Inject constructor(
      * Used to select the correct quality preference (Wi-Fi vs cellular).
      */
     private fun detectIsWifi(): Boolean = NetworkState.isOnWifi(context)
+
+    @Volatile
+    private var preferredSubtitleLanguage: String = CaptionTrackResolver.NO_PREFERRED_LANGUAGE
     
     init {
+        viewModelScope.launch {
+            playerPreferences.preferredSubtitleLanguage.collect { preferredSubtitleLanguage = it }
+        }
+
         // Re-fetch streams whenever an expired URL is detected (HTTP 403/410 "data changed")
         viewModelScope.launch {
             EnhancedPlayerManager.getInstance().streamExpiredEvent.collect {
@@ -1522,7 +1530,7 @@ class VideoPlayerViewModel @Inject constructor(
                         } else null
 
                         val captionStreams = innerTubeResult?.playerResponse
-                            ?.let { CaptionTrackResolver.resolve(it) }.orEmpty()
+                            ?.let { CaptionTrackResolver.resolve(it, preferredSubtitleLanguage) }.orEmpty()
                         val mergedSubtitleStreams = StreamProcessor.processSubtitleStreams(
                             streamInfo.subtitles.orEmpty() + captionStreams
                         )
@@ -1941,7 +1949,8 @@ class VideoPlayerViewModel @Inject constructor(
                 videoId = videoId,
                 filePath = localFilePath,
                 savedSegments = offlineSegments,
-                preservePosition = resumePosition.takeIf { it > 0L }
+                preservePosition = resumePosition.takeIf { it > 0L },
+                subtitles = subtitles.ifEmpty { offlineSubtitleStore.load(videoId) }
             )
         } else {
             val effectiveDashUrl = dashManifestUrl?.takeIf { it.isNotEmpty() } ?: streamInfo.dashMpdUrl
@@ -2028,7 +2037,7 @@ class VideoPlayerViewModel @Inject constructor(
         manager.setAutoplayCandidates(sourceVideoId = videoId, videos = relatedVideos, enabled = autoplay)
 
         val liveCaptionStreams = StreamProcessor.processSubtitleStreams(
-            CaptionTrackResolver.resolve(result.playerResponse)
+            CaptionTrackResolver.resolve(result.playerResponse, preferredSubtitleLanguage)
         )
 
         _uiState.update {
@@ -2419,7 +2428,7 @@ class VideoPlayerViewModel @Inject constructor(
         )
 
         val captionStreams = StreamProcessor.processSubtitleStreams(
-            CaptionTrackResolver.resolve(result.playerResponse)
+            CaptionTrackResolver.resolve(result.playerResponse, preferredSubtitleLanguage)
         )
 
         val autoplay = playerPreferences.autoplayEnabled.first()
@@ -2585,27 +2594,44 @@ class VideoPlayerViewModel @Inject constructor(
         offlineSegments: List<SponsorBlockSegment>?,
         savedPosition: Long,
         loadToken: Long
-    ) = withContext(Dispatchers.Main) {
-        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-        val manager = EnhancedPlayerManager.getInstance()
-        if (manager.isPreparedForPlayback(videoId)) return@withContext
+    ) {
+        val offlineSubtitles = offlineSubtitlesFor(videoId)
+        withContext(Dispatchers.Main) {
+            if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+            val manager = EnhancedPlayerManager.getInstance()
+            if (manager.isPreparedForPlayback(videoId)) return@withContext
 
-        manager.initialize(context)
-        val startPosition = PlaybackResumePolicy.resolveStartPosition(
-            savedPosition = savedPosition,
-            durationMs = 0L,
-            resumeAllowed = !manager.isCurrentQueueVideo(videoId)
-        )
-        manager.playLocalFile(
-            videoId = videoId,
-            filePath = localFilePath,
-            savedSegments = offlineSegments,
-            preservePosition = startPosition.takeIf { it > 0L }
-        )
-        applyRememberedPlaybackSpeed(isLive = false, manager = manager)
+            manager.initialize(context)
+            val startPosition = PlaybackResumePolicy.resolveStartPosition(
+                savedPosition = savedPosition,
+                durationMs = 0L,
+                resumeAllowed = !manager.isCurrentQueueVideo(videoId)
+            )
+            manager.playLocalFile(
+                videoId = videoId,
+                filePath = localFilePath,
+                savedSegments = offlineSegments,
+                preservePosition = startPosition.takeIf { it > 0L },
+                subtitles = offlineSubtitles
+            )
+            if (offlineSubtitles.isNotEmpty()) {
+                _uiState.update { it.copy(subtitles = extractSubtitles(offlineSubtitles)) }
+            }
+            applyRememberedPlaybackSpeed(isLive = false, manager = manager)
 
-        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-        manager.play()
+            if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+            manager.play()
+        }
+    }
+
+    private suspend fun offlineSubtitlesFor(videoId: String): List<SubtitlesStream> {
+        val stored = offlineSubtitleStore.load(videoId)
+        if (stored.isEmpty() && NetworkState.isOnline(context)) {
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                offlineSubtitleStore.saveForVideo(videoId)
+            }
+        }
+        return stored
     }
 
     private suspend fun applyRememberedPlaybackSpeed(
@@ -2917,14 +2943,6 @@ class VideoPlayerViewModel @Inject constructor(
     
     fun toggleSubtitles(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(subtitlesEnabled = enabled)
-    }
-    
-    fun selectSubtitleTrack(subtitle: SubtitleInfo) {
-        _uiState.value = _uiState.value.copy(selectedSubtitle = subtitle)
-        val idx = _uiState.value.subtitles.indexOfFirst { it.languageCode == subtitle.languageCode && it.url == subtitle.url }
-        if (idx >= 0) {
-            EnhancedPlayerManager.getInstance().selectSubtitle(idx)
-        }
     }
     
     fun setMiniPlayerMode(enabled: Boolean) {
@@ -3266,7 +3284,6 @@ data class VideoPlayerUiState(
     val availableQualities: List<VideoQuality> = emptyList(),
     val selectedQuality: VideoQuality = VideoQuality.AUTO,
     val subtitles: List<SubtitleInfo> = emptyList(),
-    val selectedSubtitle: SubtitleInfo? = null,
     val subtitlesEnabled: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,

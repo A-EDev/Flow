@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.player.controls
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -248,6 +251,7 @@ internal fun PlayerTopBar(
                             },
                         contentDescription = stringResource(R.string.captions),
                         tint = if (isSubtitlesEnabled) accentColor else PlayerScrimContent,
+                        onLongClick = actions.onSubtitleLongClick,
                     )
                 }
 
@@ -322,10 +326,40 @@ private fun TopBarIconButton(
     icon: ImageVector,
     contentDescription: String,
     tint: Color = PlayerScrimContent,
+    onLongClick: (() -> Unit)? = null,
 ) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(buttonSize),
+    if (onLongClick == null) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(buttonSize),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = tint,
+                modifier = Modifier.size(iconSize),
+            )
+        }
+        return
+    }
+
+    val haptics = LocalHapticFeedback.current
+    Box(
+        modifier =
+            Modifier
+                .size(buttonSize)
+                .clip(CircleShape)
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = ripple(bounded = false, radius = buttonSize / 2),
+                    onClick = onClick,
+                    onLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    },
+                    onClickLabel = contentDescription,
+                ),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,

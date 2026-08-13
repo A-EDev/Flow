@@ -54,6 +54,8 @@ import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
 import io.github.aedev.flow.player.state.queuePresence
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
+import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.ResolvedStreamData
 import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
 import io.github.aedev.flow.player.stream.StreamInfoFetcher
@@ -851,6 +853,7 @@ class EnhancedPlayerManager private constructor() {
         filePath: String,
         savedSegments: List<SponsorBlockSegment>? = null,
         preservePosition: Long? = null,
+        subtitles: List<SubtitlesStream> = emptyList(),
     ) {
         Log.d(TAG, "playLocalFile: videoId=$videoId, path=$filePath, offlineSegments=${savedSegments?.size}, resumePos=$preservePosition")
         resetPlaybackStateForNewVideo(videoId)
@@ -858,6 +861,11 @@ class EnhancedPlayerManager private constructor() {
         configureTrackSelectorForLocalFile()
         currentVideoId = videoId
         currentLocalFilePath = filePath
+        availableSubtitles = StreamProcessor.processSubtitleStreams(subtitles)
+        _playerState.value =
+            _playerState.value.copy(
+                availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
+            )
         startPlaybackTracker()
 
         // Apply SponsorBlock: use offline-saved segments if present, otherwise fall back to API.
@@ -1059,6 +1067,7 @@ class EnhancedPlayerManager private constructor() {
         currentDashManifestUrl = null
         currentHlsUrl = null
         selectedSubtitleIndex = null
+        availableSubtitles = emptyList()
         disableTextTracks()
         pendingLiveDisplaySeekPositionMs = null
         pendingLiveDisplaySeekAtMs = 0L
@@ -1080,6 +1089,7 @@ class EnhancedPlayerManager private constructor() {
                 playWhenReady = player?.playWhenReady ?: true,
                 isAtLiveEdge = false,
                 liveDurationMs = 0L,
+                availableSubtitles = emptyList(),
             )
     }
 
@@ -1744,7 +1754,7 @@ class EnhancedPlayerManager private constructor() {
                         audioStream = selected.second,
                         videoStreams = mergedVideoStreams,
                         audioStreams = mergedAudioStreams,
-                        subtitles = streamInfo.subtitles ?: emptyList(),
+                        subtitles = mergedSubtitles(streamInfo, extraction),
                         durationSeconds = streamInfo.duration,
                         dashManifestUrl = streamInfo.dashMpdUrl,
                         hlsUrl = streamInfo.hlsUrl,
@@ -1888,7 +1898,7 @@ class EnhancedPlayerManager private constructor() {
                 audioStream = selected.second,
                 videoStreams = mergedVideoStreams,
                 audioStreams = mergedAudioStreams,
-                subtitles = streamInfo.subtitles ?: emptyList(),
+                subtitles = mergedSubtitles(streamInfo, extraction),
                 durationSeconds = streamInfo.duration,
                 dashManifestUrl = streamInfo.dashMpdUrl,
                 streamType = streamInfo.streamType,
@@ -1898,6 +1908,13 @@ class EnhancedPlayerManager private constructor() {
                 itAudioFormats = extraction?.audioFormats ?: emptyList(),
             )
         }
+
+    private fun mergedSubtitles(
+        streamInfo: StreamInfo,
+        extraction: InnerTubeVideoStreamExtractor.VideoExtractionResult?,
+    ): List<SubtitlesStream> =
+        streamInfo.subtitles.orEmpty() +
+            extraction?.playerResponse?.let { CaptionTrackResolver.resolve(it) }.orEmpty()
 
     private fun nextPreloadTarget(): PreloadTarget? {
         if (autoplayCountdownSeconds > 0) return null

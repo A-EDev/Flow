@@ -17,6 +17,7 @@ data class PlayerControlActions(
     val onPipClick: () -> Unit = {},
     val onChapterClick: () -> Unit = {},
     val onSubtitleClick: () -> Unit = {},
+    val onSubtitleLongClick: () -> Unit = {},
     val onAutoplayToggle: (Boolean) -> Unit = {},
     val onSbSubmitClick: () -> Unit = {},
     val onCastClick: () -> Unit = {},

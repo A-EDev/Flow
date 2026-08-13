@@ -70,7 +70,8 @@ data class DownloadedVideo(
 @Singleton
 class VideoDownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val downloadDao: DownloadDao
+    private val downloadDao: DownloadDao,
+    private val offlineSubtitleStore: OfflineSubtitleStore
 ) {
     companion object {
         private const val TAG = "VideoDownloadManager"
@@ -464,6 +465,7 @@ class VideoDownloadManager @Inject constructor(
                 thumbPath?.let { tp ->
                     try { File(tp).takeIf { it.exists() }?.delete() } catch (_: Exception) {}
                 }
+                offlineSubtitleStore.delete(videoId)
             }
             true
         } catch (e: Exception) {

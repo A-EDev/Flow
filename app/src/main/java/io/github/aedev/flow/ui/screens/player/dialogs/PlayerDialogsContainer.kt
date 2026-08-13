@@ -15,6 +15,7 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.components.*
 import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -115,15 +116,17 @@ fun PlayerDialogsContainer(
                 }
             },
             selectedSubtitleUrl = screenState.selectedSubtitleUrl,
-            onSubtitleSelected = { index, url ->
-                screenState.selectedSubtitleUrl = url
-                EnhancedPlayerManager.getInstance().selectSubtitle(index)
-                screenState.subtitlesEnabled = true
+            onSubtitleSelected = { index, _ ->
+                SubtitleSelection.applyAt(
+                    screenState = screenState,
+                    subtitles = playerState.availableSubtitles,
+                    index = index,
+                    rememberLanguage = { language ->
+                        coroutineScope.launch { playerPreferences.setPreferredSubtitleLanguage(language) }
+                    }
+                )
             },
-            onDisableSubtitles = {
-                EnhancedPlayerManager.getInstance().selectSubtitle(null)
-                screenState.disableSubtitles()
-            },
+            onDisableSubtitles = { SubtitleSelection.disable(screenState) },
             onAutoplayToggle = { viewModel.toggleAutoplay(it) },
             onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
             onStableVolumeToggle = { viewModel.toggleStableVolume(it) },

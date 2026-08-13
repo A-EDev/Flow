@@ -7,6 +7,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.components.SubtitleStyle
 import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
@@ -103,6 +104,9 @@ class PlayerPreferences(
         // Audio track preference
         val PREFERRED_AUDIO_LANGUAGE = stringPreferencesKey("preferred_audio_language")
         val MUSIC_AUDIO_QUALITY = stringPreferencesKey("music_audio_quality")
+
+        // Subtitle preferences
+        val AUTO_ENABLE_SUBTITLES = booleanPreferencesKey("auto_enable_subtitles")
 
         // Shorts quality preferences
         val SHORTS_QUALITY_WIFI = stringPreferencesKey("shorts_quality_wifi")
@@ -1416,18 +1420,6 @@ class PlayerPreferences(
         }
     }
 
-    val preferredSubtitleLanguage: Flow<String> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.PREFERRED_SUBTITLE_LANGUAGE] ?: "en"
-            }
-
-    suspend fun setPreferredSubtitleLanguage(language: String) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PREFERRED_SUBTITLE_LANGUAGE] = language
-        }
-    }
-
     val subtitleStyle: Flow<SubtitleStyle> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
@@ -1464,6 +1456,36 @@ class PlayerPreferences(
     suspend fun setPreferredAudioLanguage(language: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PREFERRED_AUDIO_LANGUAGE] = language
+        }
+    }
+
+    /**
+     * Caption language the player reaches for, as a BCP-47 tag or
+     * [CaptionTrackResolver.NO_PREFERRED_LANGUAGE]. Written from the player whenever a caption
+     * track is picked, so turning captions off and on again returns to the same language.
+     */
+    val preferredSubtitleLanguage: Flow<String> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.PREFERRED_SUBTITLE_LANGUAGE] ?: CaptionTrackResolver.NO_PREFERRED_LANGUAGE
+            }.distinctUntilChanged()
+
+    suspend fun setPreferredSubtitleLanguage(language: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PREFERRED_SUBTITLE_LANGUAGE] = language
+        }
+    }
+
+    /** Turn captions on by themselves whenever the preferred language is available. */
+    val autoEnableSubtitles: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.AUTO_ENABLE_SUBTITLES] ?: false
+            }.distinctUntilChanged()
+
+    suspend fun setAutoEnableSubtitles(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.AUTO_ENABLE_SUBTITLES] = enabled
         }
     }
 
