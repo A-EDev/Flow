@@ -2051,7 +2051,6 @@
     <string name="recognition_clear_history">Clear history?</string>
     <string name="recognition_clear_history_body">This removes all recognized songs. This cannot be undone.</string>
     <string name="close_popup_player">Close popup player</string>
-
     <!-- Discord Rich Presence -->
     <string name="discord_presence_title">Discord Rich Presence</string>
     <string name="discord_presence_enable">Share playback activity</string>
@@ -2101,7 +2100,6 @@
     <string name="discord_account_fallback">Discord user</string>
     <string name="discord_presence_playing_fallback">Playing in Flow</string>
     <string name="discord_presence_by_creator">by %1$s</string>
-
     <!-- Android TV -->
     <string name="settings_item_interface_mode">Interface mode</string>
     <string name="settings_item_interface_mode_subtitle">Choose automatic, mobile, or TV layout</string>
@@ -2211,7 +2209,6 @@
     <string name="tv_theme_variant_dark">Dark</string>
     <string name="tv_theme_variant_amoled">AMOLED</string>
     <string name="tv_about_version">Version %1$s</string>
-
     <!-- Home-screen widgets -->
     <string name="widget_now_playing_label">Now Playing</string>
     <string name="widget_now_playing_description">Control the music that\'s playing in Flow</string>
@@ -2238,7 +2235,6 @@
     <string name="widget_open_history">Open history</string>
     <string name="widget_no_recent">Videos you watch will appear here</string>
     <string name="widget_no_downloads">Your downloads will appear here</string>
-
     <!-- Localization follow-up (#738) -->
     <string name="ui_open_in_youtube">Open in YouTube</string>
     <string name="ui_playback_error">Playback error</string>
@@ -2294,7 +2290,6 @@
     <string name="ui_skipped_segment">Skipped %1$s</string>
     <string name="ui_started_download">Started download: %1$s</string>
     <string name="ui_download_start_failed">Download failed to start: %1$s</string>
-
     <!-- Localization follow-up: toasts and feedback (#738) -->
     <string name="toast_unsubscribed_from">Unsubscribed from %1$s</string>
     <string name="toast_subscribed_to">Subscribed to %1$s</string>
@@ -2323,7 +2318,6 @@
     <string name="toast_failed_to_save_playlist">Failed to save playlist</string>
     <string name="toast_removed_playlist_from_library">Playlist removed from library</string>
     <string name="toast_failed_to_merge_playlist">Failed to merge playlist</string>
-
     <!-- Localization follow-up: notifications (#738) -->
     <string name="notification_importing">Importing %1$s</string>
     <string name="notification_import_complete">Import complete</string>
@@ -2356,7 +2350,6 @@
     <string name="notification_channel_reminders">Reminders</string>
     <string name="notification_channel_updates">App Updates</string>
     <string name="notification_channel_imports">Data Import</string>
-
     <!-- Localization follow-up: errors and import screens (#738) -->
     <string name="error_no_internet_found">No internet connection found</string>
     <string name="error_no_videos_for_category">No videos found for this category.</string>
@@ -2410,11 +2403,10 @@
     <string name="imported_successfully">%1$s imported successfully</string>
     <string name="importing_label">Importing %1$s…</string>
     <string name="imported_from_google_takeout">Imported from Google Takeout</string>
-
     <!-- Localization follow-up: fallback labels (#738) -->
     <string name="fallback_playing">Playing…</string>
     <string name="empty_saved_shorts">No saved shorts yet</string>
-    <string name="settings_search_no_results">No settings found for &quot;%1$s&quot;</string>
+    <string name="settings_search_no_results">No settings found for "%1$s"</string>
     <string name="settings_lyrics_provider_order_description">Providers are tried in order. The first one that returns lyrics wins.</string>
     <string name="import_running_background">You can navigate away — the import continues in the background.</string>
     <string name="donations_cryptocurrency">CRYPTOCURRENCY</string>
