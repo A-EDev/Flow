@@ -37,6 +37,7 @@ import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
+import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimGestureHud
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -202,7 +203,7 @@ private fun SeekZoneRipple(
 
         clipRect(left = 0f, top = 0f, right = w, bottom = h) {
             drawCircle(
-                color = Color.White,
+                color = PlayerScrimContent,
                 radius = radius,
                 center = Offset(centerX, h / 2f),
             )
@@ -245,7 +246,7 @@ private fun SeekChevronLabel(
         if (!forward) {
             Text(
                 text = "<",
-                color = Color.White.copy(alpha = chevronAlpha),
+                color = PlayerScrimContent.copy(alpha = chevronAlpha),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.offset(x = chevronOffset.dp),
@@ -253,14 +254,14 @@ private fun SeekChevronLabel(
         }
         Text(
             text = if (forward) "+$seconds" else "-$seconds",
-            color = Color.White,
+            color = PlayerScrimContent,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
         )
         if (forward) {
             Text(
                 text = ">",
-                color = Color.White.copy(alpha = chevronAlpha),
+                color = PlayerScrimContent.copy(alpha = chevronAlpha),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.offset(x = chevronOffset.dp),
@@ -378,7 +379,7 @@ fun SeekDragOverlay(
         ) {
             Text(
                 text = VideoPlayerUtils.formatTime(target, padMinutes = true),
-                color = Color.White,
+                color = PlayerScrimContent,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
@@ -452,7 +453,7 @@ private fun CircularGestureLevelOverlay(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = PlayerScrimContent,
                         modifier = Modifier.size(28.dp),
                     )
                 }
@@ -469,7 +470,7 @@ private fun CircularGestureLevelOverlay(
             ) {
                 Text(
                     text = valueLabel,
-                    color = Color.White,
+                    color = PlayerScrimContent,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -502,7 +503,7 @@ fun SpeedBoostOverlay(
             ) {
                 Text(
                     text = VideoPlayerUtils.formatSpeedLabel(speed, maxSpeed = 4.0f),
-                    color = Color.White,
+                    color = PlayerScrimContent,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -510,7 +511,7 @@ fun SpeedBoostOverlay(
                 Icon(
                     imageVector = Icons.Rounded.FastForward,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = PlayerScrimContent,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -609,7 +610,7 @@ fun SponsorBlockSkipButton(
                 onSkipClick((seg.endTime * 1000L).toLong())
             },
             color = PlayerScrim.copy(alpha = 0.5f),
-            contentColor = Color.White,
+            contentColor = PlayerScrimContent,
             shape = RoundedCornerShape(50),
             tonalElevation = 0.dp,
             modifier = Modifier.alpha(buttonAlpha),
@@ -621,7 +622,7 @@ fun SponsorBlockSkipButton(
             ) {
                 Text(
                     text = skipLabel,
-                    color = Color.White,
+                    color = PlayerScrimContent,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -629,7 +630,7 @@ fun SponsorBlockSkipButton(
                 Icon(
                     imageVector = Icons.Rounded.SkipNext,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = PlayerScrimContent,
                     modifier = Modifier.size(16.dp),
                 )
             }

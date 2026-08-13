@@ -100,6 +100,7 @@ import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import io.github.aedev.flow.ui.theme.PlayerScrim
+import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -1076,7 +1077,7 @@ fun GlobalPlayerOverlay(
                                     )
                                     Text(
                                         text = errorMsg,
-                                        color = Color.White,
+                                        color = PlayerScrimContent,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         textAlign = TextAlign.Center,
@@ -1356,13 +1357,13 @@ fun GlobalPlayerOverlay(
                         Text(
                             text = stringResource(R.string.player_mini_player_continue_watching_label),
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
+                            color = PlayerScrimContent,
                             modifier =
                                 Modifier
                                     .align(Alignment.TopCenter)
                                     .padding(top = 4.dp)
                                     .background(
-                                        Color(0xBB000000),
+                                        PlayerScrim.copy(alpha = 0.73f),
                                         RoundedCornerShape(3.dp),
                                     ).padding(horizontal = 6.dp, vertical = 2.dp),
                         )

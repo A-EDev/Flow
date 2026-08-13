@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
+import io.github.aedev.flow.ui.theme.PlayerScrimContent
 
 @Composable
 fun PlayerTimePill(
@@ -67,7 +68,7 @@ fun PlayerTimePill(
                 Text(
                     text = VideoPlayerUtils.formatTime(currentPosition, padMinutes = true),
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.White,
+                    color = PlayerScrimContent,
                     fontWeight = FontWeight.Bold,
                 )
                 TimeSeparator()
@@ -105,14 +106,14 @@ fun PlayerTimePill(
                             VideoPlayerUtils.formatTime(currentPosition, padMinutes = true)
                         },
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.White,
+                    color = PlayerScrimContent,
                     fontWeight = FontWeight.Bold,
                 )
                 TimeSeparator()
                 Text(
                     text = VideoPlayerUtils.formatTime(duration, padMinutes = true),
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = PlayerScrimContent.copy(alpha = 0.7f),
                 )
             }
         }
@@ -124,7 +125,7 @@ private fun TimeSeparator() {
     Text(
         text = " / ",
         style = MaterialTheme.typography.labelMedium,
-        color = Color.White.copy(alpha = 0.5f),
+        color = PlayerScrimContent.copy(alpha = 0.5f),
         modifier = Modifier.padding(horizontal = 2.dp),
     )
 }

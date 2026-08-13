@@ -12,3 +12,9 @@ val PlayerScrimGestureHud = PlayerScrim.copy(alpha = 0.54f)
 
 /** Top and bottom edge gradients behind the portrait-fullscreen controls. */
 val PlayerScrimEdgeGradient = PlayerScrim.copy(alpha = 0.72f)
+
+val PlayerScrimContent = Color.White
+
+val PlayerScrimContentDisabled = PlayerScrimContent.copy(alpha = 0.3f)
+
+val PlayerLiveIndicator = Color.Red

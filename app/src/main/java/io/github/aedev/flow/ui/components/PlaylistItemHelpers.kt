@@ -26,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -48,11 +47,12 @@ fun rememberVideoWatchProgress(videoId: String): Float? {
     val context = androidx.compose.ui.platform.LocalContext.current
     val progress by produceState<Float?>(initialValue = null, key1 = videoId) {
         ViewHistory.getInstance(context).getVideoHistory(videoId).collectLatest { entry ->
-            value = if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
-                if (entry.progressPercentage >= 90f) 1f else entry.progressPercentage / 100f
-            } else {
-                null
-            }
+            value =
+                if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
+                    if (entry.progressPercentage >= 90f) 1f else entry.progressPercentage / 100f
+                } else {
+                    null
+                }
         }
     }
     return progress
@@ -61,7 +61,7 @@ fun rememberVideoWatchProgress(videoId: String): Float? {
 @Composable
 fun ThumbnailWatchProgress(
     videoId: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val progress = rememberVideoWatchProgress(videoId)
     if (progress != null) {
@@ -69,7 +69,7 @@ fun ThumbnailWatchProgress(
             progress = { progress },
             modifier = modifier,
             color = MaterialTheme.colorScheme.primary,
-            trackColor = Color.Black.copy(alpha = 0.4f)
+            trackColor = Color.Black.copy(alpha = 0.4f),
         )
     }
 }
@@ -77,25 +77,27 @@ fun ThumbnailWatchProgress(
 @Composable
 fun ReorderHandle(
     modifier: Modifier = Modifier,
-    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
 ) {
     Column(
         modifier = modifier.size(width = 20.dp, height = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .clip(MaterialTheme.shapes.extraSmall)
-                .background(tint)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(tint),
         )
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .clip(MaterialTheme.shapes.extraSmall)
-                .background(tint)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(tint),
         )
     }
 }
@@ -106,7 +108,7 @@ class ReorderableLazyListState internal constructor(
     private val haptic: HapticFeedback,
     private val itemIndexOffset: Int,
     private val onMove: (Int, Int) -> Unit,
-    private val onDragStopped: () -> Unit
+    private val onDragStopped: () -> Unit,
 ) {
     var draggingIndex by mutableIntStateOf(-1)
         private set
@@ -139,7 +141,6 @@ class ReorderableLazyListState internal constructor(
         performSwapIfNeeded()
     }
 
-   
     fun performSwapIfNeeded() {
         if (draggingIndex == -1) return
         val visibleItems = listState.layoutInfo.visibleItemsInfo
@@ -148,20 +149,22 @@ class ReorderableLazyListState internal constructor(
         val translation = visualTranslation
         val draggingCenter = currentItem.offset + currentItem.size / 2f + translation
 
-        val neighborLocalIndex = when {
-            translation > 0f -> draggingIndex + 1
-            translation < 0f -> draggingIndex - 1
-            else -> return
-        }
+        val neighborLocalIndex =
+            when {
+                translation > 0f -> draggingIndex + 1
+                translation < 0f -> draggingIndex - 1
+                else -> return
+            }
         if (neighborLocalIndex < 0) return
         val neighborItem = visibleItems.firstOrNull { it.index == neighborLocalIndex + itemIndexOffset } ?: return
         val neighborMidpoint = neighborItem.offset + neighborItem.size / 2f
 
-        val shouldSwap = when {
-            translation > 0f -> draggingCenter > neighborMidpoint
-            translation < 0f -> draggingCenter < neighborMidpoint
-            else -> false
-        }
+        val shouldSwap =
+            when {
+                translation > 0f -> draggingCenter > neighborMidpoint
+                translation < 0f -> draggingCenter < neighborMidpoint
+                else -> false
+            }
         if (!shouldSwap) return
 
         layoutShiftOffset += neighborItem.offset - currentItem.offset
@@ -186,11 +189,15 @@ class ReorderableLazyListState internal constructor(
                 val ratio = (viewportStart + edgeThresholdPx - itemTop) / edgeThresholdPx
                 -(ratio * MAX_SCROLL_PX_PER_FRAME).coerceAtLeast(MIN_SCROLL_PX)
             }
+
             itemBottom > viewportEnd - edgeThresholdPx -> {
                 val ratio = (itemBottom - (viewportEnd - edgeThresholdPx)) / edgeThresholdPx
                 (ratio * MAX_SCROLL_PX_PER_FRAME).coerceAtLeast(MIN_SCROLL_PX)
             }
-            else -> 0f
+
+            else -> {
+                0f
+            }
         }
     }
 
@@ -210,13 +217,13 @@ class ReorderableLazyListState internal constructor(
                 scaleX = if (isDragging) 1.03f else 1f
                 scaleY = if (isDragging) 1.03f else 1f
                 shadowElevation = if (isDragging) 12f else 0f
-            }
-            .zIndex(if (isDragging) 1f else 0f)
+            }.zIndex(if (isDragging) 1f else 0f)
     }
 
-    fun handleModifier(index: Int): Modifier = Modifier.composed {
+    @Composable
+    fun handleModifier(index: Int): Modifier {
         val latestIndex by rememberUpdatedState(index)
-        pointerInput(this@ReorderableLazyListState) {
+        return Modifier.pointerInput(this@ReorderableLazyListState) {
             awaitEachGesture {
                 // A gesture that begins on the drag handle belongs exclusively to reordering.
                 // Consuming the initial down claims the pointer, so the parent row's
@@ -247,22 +254,23 @@ fun rememberReorderableLazyListState(
     listState: LazyListState,
     itemIndexOffset: Int = 0,
     onMove: (Int, Int) -> Unit,
-    onDragStopped: () -> Unit
+    onDragStopped: () -> Unit,
 ): ReorderableLazyListState {
     val haptic = LocalHapticFeedback.current
     val edgeThresholdPx = with(LocalDensity.current) { 80.dp.toPx() }
     val onMoveState = rememberUpdatedState(onMove)
     val onDragStoppedState = rememberUpdatedState(onDragStopped)
 
-    val state = remember(listState, itemIndexOffset) {
-        ReorderableLazyListState(
-            listState = listState,
-            haptic = haptic,
-            itemIndexOffset = itemIndexOffset,
-            onMove = { from, to -> onMoveState.value(from, to) },
-            onDragStopped = { onDragStoppedState.value() }
-        )
-    }
+    val state =
+        remember(listState, itemIndexOffset) {
+            ReorderableLazyListState(
+                listState = listState,
+                haptic = haptic,
+                itemIndexOffset = itemIndexOffset,
+                onMove = { from, to -> onMoveState.value(from, to) },
+                onDragStopped = { onDragStoppedState.value() },
+            )
+        }
 
     LaunchedEffect(state) {
         while (isActive) {
@@ -274,7 +282,7 @@ fun rememberReorderableLazyListState(
                     state.performSwapIfNeeded()
                 }
             }
-            delay(16L) 
+            delay(16L)
         }
     }
 
