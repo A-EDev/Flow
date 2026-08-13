@@ -6,6 +6,7 @@ STATUS: PRE-RELEASE
 NEW FEATURES
 - Discord RPC support by @PastaHimself
 - TV UI support by @PastaHimself
+- Drag left or right on the video to seek, with a toggle in Player Appearance settings
 
 IMPROVEMENTS
 - Slimmer player seekbar segment gaps #786
@@ -13,6 +14,14 @@ IMPROVEMENTS
 - Improve EQ and add it for video player #781
 - Improve playback speed
 - Use standard media icons so Android Auto, Wear and system controls render them correctly
+- Show the player controls the moment you tap instead of waiting to see if a second tap follows
+- Add haptic feedback to seeking, the speed boost and the gesture controls
+- Follow your finger when swiping down to leave fullscreen, springing back if you let go early
+- Zoom the video as you drag up to enter fullscreen
+- Let pinch-to-zoom stretch past its limits and settle back when released
+- Scale the long-press speed boost from the current speed so it can never slow playback down #867
+- Restyle the long-press speed indicator as a pill showing the speed it will actually apply
+- Ripple the tapped side of the screen when double-tap seeking
 
 PERFORMANCE
 - Faster cold start and smoother scrolling
@@ -31,6 +40,11 @@ PERFORMANCE
 - Stop paying for work Shorts never uses
 - Read audio preferences once per video instead of once per client attempt
 - Load the Shorts and music feeds before the work that only appends to them
+- Animate the seek bar without re-measuring it on every frame
+- Read the player overlay settings in a single pass instead of twelve
+- Stop pinch-to-zoom redrawing the whole player overlay on every frame
+- Keep the playhead from recomposing the controls several times a second
+- Draw the seek bar through one system instead of three overlapping ones
 
 BUILD AND CI
 - Add automated Kotlin formatting checks with ktlint and Spotless
@@ -54,6 +68,10 @@ FIXES AND STABILITY
 - Add a mobile web fallback and a newer VR client for stream extraction
 - Fix crash issues
 - Stop music background tasks from running after the player is closed
+- Fix custom SponsorBlock category colours having no effect on the seek bar
+- Fix the cast and sleep timer buttons appearing a moment after the rest of the controls
+- Fix the brightness readout vanishing while you were still adjusting it
+- Fix swiping down to leave fullscreen committing even after you dragged back up
 
 DEPENDENCY
 - Bump NewPipeExtractor to v0.26.4
