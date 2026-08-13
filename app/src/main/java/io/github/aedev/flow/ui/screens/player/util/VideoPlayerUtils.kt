@@ -8,20 +8,15 @@ import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import android.widget.Toast
-import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 object VideoPlayerUtils {
+    fun codecKeyFromMimeType(mimeType: String): String = VideoCodecUtils.codecKeyFromMimeType(mimeType)
 
-    fun codecKeyFromMimeType(mimeType: String): String {
-        return VideoCodecUtils.codecKeyFromMimeType(mimeType)
-    }
-
-    fun codecKeyFromStream(stream: VideoStream): String {
-        return VideoCodecUtils.codecKeyFromStream(stream)
-    }
+    fun codecKeyFromStream(stream: VideoStream): String = VideoCodecUtils.codecKeyFromStream(stream)
 
     fun codecLabelFromKey(key: String): String = VideoCodecUtils.codecLabelFromKey(key)
 
@@ -35,15 +30,22 @@ object VideoPlayerUtils {
      *
      * Format: `"${height}_${codecKey}"`, e.g., `"2160_av1"`, `"1080_vp9"`.
      */
-    fun streamSizeKey(height: Int, codecKey: String): String = "${height}_${codecKey}"
+    fun streamSizeKey(
+        height: Int,
+        codecKey: String,
+    ): String = "${height}_$codecKey"
 
     // ─────────────────────────────────────────────────────────────────────────
+
     /**
      * Format a millisecond duration as `H:MM:SS` or `M:SS`.
      * @param padMinutes when true the no-hours form is zero-padded (`MM:SS`), matching the
      *   look used by the main on-video controls; otherwise minutes are unpadded (`M:SS`).
      */
-    fun formatTime(timeMs: Long, padMinutes: Boolean = false): String {
+    fun formatTime(
+        timeMs: Long,
+        padMinutes: Boolean = false,
+    ): String {
         val totalSeconds = timeMs / 1000
         val hours = totalSeconds / 3600
         val minutes = (totalSeconds % 3600) / 60
@@ -66,7 +68,10 @@ object VideoPlayerUtils {
 
     private const val BOOST_STEP = 0.5f
 
-    fun boostedPlaybackSpeed(currentSpeed: Float, targetSpeed: Float): Float {
+    fun boostedPlaybackSpeed(
+        currentSpeed: Float,
+        targetSpeed: Float,
+    ): Float {
         val target = targetSpeed.coerceIn(0.1f, MAX_BOOST_SPEED)
         val current = currentSpeed.takeIf { it > 0f } ?: 1.0f
         return if (current < target) {
@@ -76,7 +81,10 @@ object VideoPlayerUtils {
         }
     }
 
-    fun formatSpeedLabel(speed: Float, maxSpeed: Float = 10.0f): String {
+    fun formatSpeedLabel(
+        speed: Float,
+        maxSpeed: Float = 10.0f,
+    ): String {
         val clamped = speed.coerceIn(0.1f, maxSpeed)
         return if (kotlin.math.abs(clamped - clamped.toInt()) < 0.01f) {
             "${clamped.toInt()}x"
@@ -97,15 +105,17 @@ object VideoPlayerUtils {
             val alreadyAsked = prefs.getBoolean("storage_permission_asked", false)
             if (!alreadyAsked) {
                 prefs.edit().putBoolean("storage_permission_asked", true).apply()
-                Toast.makeText(
-                    context,
-                    "Grant storage access to save downloads in public folders (optional)",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast
+                    .makeText(
+                        context,
+                        "Grant storage access to save downloads in public folders (optional)",
+                        Toast.LENGTH_LONG,
+                    ).show()
                 try {
-                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = Uri.parse("package:${context.packageName}")
-                    }
+                    val intent =
+                        Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.parse("package:${context.packageName}")
+                        }
                     if (context is Activity) {
                         context.startActivity(intent)
                     }
@@ -115,7 +125,8 @@ object VideoPlayerUtils {
                         if (context is Activity) {
                             context.startActivity(intent)
                         }
-                    } catch (_: Exception) { }
+                    } catch (_: Exception) {
+                    }
                 }
             }
         }
@@ -132,7 +143,7 @@ object VideoPlayerUtils {
         fallbackUrl: String? = null,
         fallbackAudioUrl: String? = null,
         fallbackCodec: String? = null,
-        fallbackQuality: String? = null
+        fallbackQuality: String? = null,
     ) {
         try {
             promptStoragePermissionIfNeeded(context)
@@ -149,7 +160,7 @@ object VideoPlayerUtils {
                 fallbackUrl = fallbackUrl,
                 fallbackAudioUrl = fallbackAudioUrl,
                 fallbackCodec = fallbackCodec,
-                fallbackQuality = fallbackQuality
+                fallbackQuality = fallbackQuality,
             )
 
             Toast.makeText(context, context.getString(R.string.ui_started_download, video.title), Toast.LENGTH_SHORT).show()

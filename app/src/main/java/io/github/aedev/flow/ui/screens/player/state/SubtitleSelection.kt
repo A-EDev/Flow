@@ -5,7 +5,6 @@ import io.github.aedev.flow.player.state.SubtitleOption
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 
 object SubtitleSelection {
-
     fun indexOfLanguage(
         subtitles: List<SubtitleOption>,
         languageTag: String?,

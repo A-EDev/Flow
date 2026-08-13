@@ -6,6 +6,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -16,9 +19,6 @@ import io.github.aedev.flow.ui.screens.player.components.*
 import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 @Composable
@@ -31,7 +31,7 @@ fun PlayerDialogsContainer(
     renderSettingsMenu: Boolean = true,
     mediaSheetExpandedHeight: Dp? = null,
     mediaSheetCollapsedHeight: Dp = 0.dp,
-    onMediaSheetProgressChange: (Float) -> Unit = {}
+    onMediaSheetProgressChange: (Float) -> Unit = {},
 ) {
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context) }
@@ -52,7 +52,7 @@ fun PlayerDialogsContainer(
     val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(initial = null)
     if (screenState.showDownloadDialog) {
         when (downloadDialogStyle) {
-            io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT ->
+            io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT -> {
                 DownloadQualityDialogCompact(
                     streamInfo = uiState.streamInfo,
                     streamSizes = uiState.streamSizes,
@@ -60,33 +60,39 @@ fun PlayerDialogsContainer(
                     innerTubeAudioFormats = uiState.innerTubeAudioFormats,
                     video = video,
                     currentPlayingHeight = playerState.effectiveQuality,
-                    onDismiss = { screenState.showDownloadDialog = false }
+                    onDismiss = { screenState.showDownloadDialog = false },
                 )
-            io.github.aedev.flow.data.local.DownloadDialogStyle.FULL ->
+            }
+
+            io.github.aedev.flow.data.local.DownloadDialogStyle.FULL -> {
                 DownloadQualityDialog(
                     streamInfo = uiState.streamInfo,
                     streamSizes = uiState.streamSizes,
                     innerTubeVideoFormats = uiState.innerTubeVideoFormats,
                     innerTubeAudioFormats = uiState.innerTubeAudioFormats,
                     video = video,
-                    onDismiss = { screenState.showDownloadDialog = false }
+                    onDismiss = { screenState.showDownloadDialog = false },
                 )
+            }
+
             null -> { }
         }
     }
 
-    val settingsInitialPage = when {
-        screenState.showQualitySelector -> PlayerSettingsPage.Quality
-        screenState.showAudioTrackSelector -> PlayerSettingsPage.Audio
-        screenState.showPlaybackSpeedSelector -> PlayerSettingsPage.Speed
-        screenState.showSubtitleSelector -> PlayerSettingsPage.Subtitles
-        else -> PlayerSettingsPage.Main
-    }
-    val showSettingsSurface = screenState.showSettingsMenu ||
-        screenState.showQualitySelector ||
-        screenState.showAudioTrackSelector ||
-        screenState.showPlaybackSpeedSelector ||
-        screenState.showSubtitleSelector
+    val settingsInitialPage =
+        when {
+            screenState.showQualitySelector -> PlayerSettingsPage.Quality
+            screenState.showAudioTrackSelector -> PlayerSettingsPage.Audio
+            screenState.showPlaybackSpeedSelector -> PlayerSettingsPage.Speed
+            screenState.showSubtitleSelector -> PlayerSettingsPage.Subtitles
+            else -> PlayerSettingsPage.Main
+        }
+    val showSettingsSurface =
+        screenState.showSettingsMenu ||
+            screenState.showQualitySelector ||
+            screenState.showAudioTrackSelector ||
+            screenState.showPlaybackSpeedSelector ||
+            screenState.showSubtitleSelector
 
     // Settings menu
     if (showSettingsSurface && renderSettingsMenu) {
@@ -123,32 +129,35 @@ fun PlayerDialogsContainer(
                     index = index,
                     rememberLanguage = { language ->
                         coroutineScope.launch { playerPreferences.setPreferredSubtitleLanguage(language) }
-                    }
+                    },
                 )
             },
             onDisableSubtitles = { SubtitleSelection.disable(screenState) },
             onAutoplayToggle = { viewModel.toggleAutoplay(it) },
             onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
             onStableVolumeToggle = { viewModel.toggleStableVolume(it) },
-            onShowSubtitleStyle = { 
+            onShowSubtitleStyle = {
                 screenState.showSettingsMenu = false
-                screenState.showSubtitleStyleCustomizer = true 
+                screenState.showSubtitleStyleCustomizer = true
             },
             onLoopToggle = { viewModel.toggleLoop(it) },
             ambientModeEnabled = ambientModeEnabled,
             onAmbientModeToggle = { coroutineScope.launch { playerPreferences.setVideoAmbientModeEnabled(it) } },
             onCastClick = {
-                io.github.aedev.flow.player.dlna.DlnaCastManager.startDiscovery(context)
+                io.github.aedev.flow.player.dlna.DlnaCastManager
+                    .startDiscovery(context)
                 screenState.showSettingsMenu = false
                 screenState.showDlnaDialog = true
             },
             onPipClick = {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
-                    io.github.aedev.flow.player.PictureInPictureHelper.isPlayerPopupSupported(context)) {
+                    io.github.aedev.flow.player.PictureInPictureHelper
+                        .isPlayerPopupSupported(context)
+                ) {
                     screenState.showSettingsMenu = false
                     io.github.aedev.flow.player.PictureInPictureHelper.requestPlayerPipMode(
                         activity = context as androidx.activity.ComponentActivity,
-                        isPlaying = playerState.isPlaying
+                        isPlaying = playerState.isPlaying,
                     )
                 }
             },
@@ -159,7 +168,7 @@ fun PlayerDialogsContainer(
             expandedHeight = mediaSheetExpandedHeight,
             collapsedHeight = mediaSheetCollapsedHeight,
             useGroupedQualitySelector = groupedQualitySelectorEnabled,
-            onSheetProgressChange = onMediaSheetProgressChange
+            onSheetProgressChange = onMediaSheetProgressChange,
         )
     }
 
@@ -175,7 +184,7 @@ fun PlayerDialogsContainer(
             onBack = {
                 screenState.showSubtitleStyleCustomizer = false
                 screenState.showSettingsMenu = true
-            }
+            },
         )
     }
 }

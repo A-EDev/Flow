@@ -19,13 +19,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * Used by Media3MusicService to pause/resume retries based on network availability.
  */
 class NetworkConnectivityObserver(
-    private val context: Context
+    private val context: Context,
 ) {
     companion object {
         private const val TAG = "NetworkConnectivity"
     }
 
-    private val connectivityManager = 
+    private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     private val _isConnected = MutableStateFlow(checkCurrentConnectivity())
@@ -41,12 +41,11 @@ class NetworkConnectivityObserver(
     /**
      * Check if the network is metered (e.g., mobile data).
      */
-    fun isNetworkMetered(): Boolean {
-        return connectivityManager.isActiveNetworkMetered
-    }
+    fun isNetworkMetered(): Boolean = connectivityManager.isActiveNetworkMetered
 
     private fun networkRequest(): NetworkRequest =
-        NetworkRequest.Builder()
+        NetworkRequest
+            .Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
             .build()
@@ -70,7 +69,7 @@ class NetworkConnectivityObserver(
 
             override fun onCapabilitiesChanged(
                 network: Network,
-                networkCapabilities: NetworkCapabilities
+                networkCapabilities: NetworkCapabilities,
             ) {
                 emit(networkCapabilities.hasInternet())
             }
@@ -86,10 +85,11 @@ class NetworkConnectivityObserver(
     fun startObserving() {
         if (networkCallback != null) return
 
-        val callback = connectivityCallback { connected ->
-            Log.d(TAG, "Connectivity: $connected")
-            _isConnected.value = connected
-        }
+        val callback =
+            connectivityCallback { connected ->
+                Log.d(TAG, "Connectivity: $connected")
+                _isConnected.value = connected
+            }
         networkCallback = callback
 
         try {
@@ -119,14 +119,15 @@ class NetworkConnectivityObserver(
     /**
      * Get network connectivity as a Flow for reactive observation.
      */
-    fun observeConnectivity(): Flow<Boolean> = callbackFlow {
-        val callback = connectivityCallback { trySend(it) }
+    fun observeConnectivity(): Flow<Boolean> =
+        callbackFlow {
+            val callback = connectivityCallback { trySend(it) }
 
-        trySend(checkCurrentConnectivity())
-        connectivityManager.registerNetworkCallback(networkRequest(), callback)
+            trySend(checkCurrentConnectivity())
+            connectivityManager.registerNetworkCallback(networkRequest(), callback)
 
-        awaitClose {
-            connectivityManager.unregisterNetworkCallback(callback)
-        }
-    }.distinctUntilChanged()
+            awaitClose {
+                connectivityManager.unregisterNetworkCallback(callback)
+            }
+        }.distinctUntilChanged()
 }

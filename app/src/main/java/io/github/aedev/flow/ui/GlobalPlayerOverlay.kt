@@ -68,7 +68,6 @@ import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.player.dlna.DlnaDevice
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
-import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import io.github.aedev.flow.ui.components.CommentSortFilterChips
 import io.github.aedev.flow.ui.components.DraggablePlayerLayout
 import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
@@ -99,6 +98,7 @@ import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
 import io.github.aedev.flow.ui.screens.player.effects.*
+import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
