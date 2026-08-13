@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 
 @Composable
 fun PlayerTimePill(
@@ -43,45 +44,49 @@ fun PlayerTimePill(
     isLive: Boolean,
     showRemainingTime: Boolean,
     onClick: (() -> Unit)?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val currentPosition = positionProvider()
 
     Surface(
-        color = Color.Black.copy(alpha = 0.4f),
+        color = PlayerScrimAffordance,
         shape = CircleShape,
-        modifier = modifier
-            .clip(CircleShape)
-            .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier)
+        modifier =
+            modifier
+                .clip(CircleShape)
+                .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier),
     ) {
         Row(
-            modifier = Modifier
-                .wrapContentWidth()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .wrapContentWidth()
+                    .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             if (isLive) {
                 Text(
                     text = VideoPlayerUtils.formatTime(currentPosition, padMinutes = true),
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 TimeSeparator()
                 val dotAlpha by rememberInfiniteTransition(label = "liveDot").animateFloat(
                     initialValue = 1f,
                     targetValue = 0.2f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(800, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "dotAlpha"
+                    animationSpec =
+                        infiniteRepeatable(
+                            animation = tween(800, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse,
+                        ),
+                    label = "dotAlpha",
                 )
                 Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(Color.Red.copy(alpha = dotAlpha))
+                    modifier =
+                        Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color.Red.copy(alpha = dotAlpha)),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
@@ -89,24 +94,25 @@ fun PlayerTimePill(
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.Red,
                     fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp
+                    letterSpacing = 1.sp,
                 )
             } else {
                 Text(
-                    text = if (showRemainingTime) {
-                        "-${VideoPlayerUtils.formatTime((duration - currentPosition).coerceAtLeast(0), padMinutes = true)}"
-                    } else {
-                        VideoPlayerUtils.formatTime(currentPosition, padMinutes = true)
-                    },
+                    text =
+                        if (showRemainingTime) {
+                            "-${VideoPlayerUtils.formatTime((duration - currentPosition).coerceAtLeast(0), padMinutes = true)}"
+                        } else {
+                            VideoPlayerUtils.formatTime(currentPosition, padMinutes = true)
+                        },
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 TimeSeparator()
                 Text(
                     text = VideoPlayerUtils.formatTime(duration, padMinutes = true),
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.7f),
                 )
             }
         }
@@ -119,6 +125,6 @@ private fun TimeSeparator() {
         text = " / ",
         style = MaterialTheme.typography.labelMedium,
         color = Color.White.copy(alpha = 0.5f),
-        modifier = Modifier.padding(horizontal = 2.dp)
+        modifier = Modifier.padding(horizontal = 2.dp),
     )
 }

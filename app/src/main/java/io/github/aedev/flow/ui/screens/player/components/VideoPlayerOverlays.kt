@@ -36,6 +36,8 @@ import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import io.github.aedev.flow.ui.theme.PlayerScrim
+import io.github.aedev.flow.ui.theme.PlayerScrimGestureHud
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
@@ -370,7 +372,7 @@ fun SeekDragOverlay(
             modifier =
                 Modifier
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color.Black.copy(alpha = 0.58f))
+                    .background(PlayerScrim.copy(alpha = 0.58f))
                     .padding(horizontal = 22.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -436,7 +438,7 @@ private fun CircularGestureLevelOverlay(
                     modifier = Modifier.fillMaxSize(),
                     color = indicatorColor,
                     strokeWidth = 8.dp,
-                    trackColor = Color.Black.copy(alpha = 0.42f),
+                    trackColor = PlayerScrim.copy(alpha = 0.42f),
                     strokeCap = StrokeCap.Round,
                 )
                 Box(
@@ -444,7 +446,7 @@ private fun CircularGestureLevelOverlay(
                         Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.54f)),
+                            .background(PlayerScrimGestureHud),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -461,7 +463,7 @@ private fun CircularGestureLevelOverlay(
                     Modifier
                         .height(28.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color.Black.copy(alpha = 0.54f))
+                        .background(PlayerScrimGestureHud)
                         .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -489,7 +491,7 @@ fun SpeedBoostOverlay(
         modifier = modifier,
     ) {
         Surface(
-            color = Color.Black.copy(alpha = 0.6f),
+            color = PlayerScrim.copy(alpha = 0.6f),
             shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
             modifier = Modifier.wrapContentSize(),
         ) {
@@ -606,7 +608,7 @@ fun SponsorBlockSkipButton(
                 skippedUuids = skippedUuids + seg.uuid
                 onSkipClick((seg.endTime * 1000L).toLong())
             },
-            color = Color.Black.copy(alpha = 0.5f),
+            color = PlayerScrim.copy(alpha = 0.5f),
             contentColor = Color.White,
             shape = RoundedCornerShape(50),
             tonalElevation = 0.dp,

@@ -46,6 +46,8 @@ import io.github.aedev.flow.ui.screens.player.components.PlayerTimePill
 import io.github.aedev.flow.ui.screens.player.components.PortraitFullscreenEdgeScrims
 import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import io.github.aedev.flow.ui.theme.PlayerScrim
+import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -345,8 +347,8 @@ fun PremiumControlsOverlay(
                     }.background(
                         when {
                             isTouchLocked -> Color.Transparent
-                            isInitialLoading -> Color.Black
-                            else -> Color.Black.copy(alpha = 0.24f)
+                            isInitialLoading -> PlayerScrim
+                            else -> PlayerScrim.copy(alpha = 0.24f)
                         },
                     ),
         ) {
@@ -364,7 +366,7 @@ fun PremiumControlsOverlay(
                     modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     Surface(
-                        color = Color.Black.copy(alpha = 0.42f),
+                        color = PlayerScrim.copy(alpha = 0.42f),
                         shape = CircleShape,
                         modifier =
                             Modifier
@@ -438,7 +440,7 @@ fun PremiumControlsOverlay(
                                 .background(
                                     brush =
                                         Brush.verticalGradient(
-                                            colors = listOf(Color.Black.copy(alpha = 0.38f), Color.Transparent),
+                                            colors = listOf(PlayerScrim.copy(alpha = 0.38f), Color.Transparent),
                                         ),
                                 ).padding(top = portraitFullscreenTopPadding),
                     ) {
@@ -530,7 +532,7 @@ fun PremiumControlsOverlay(
                             ) {
                                 if (overlaySpeedIndicatorEnabled) {
                                     Surface(
-                                        color = Color.Black.copy(alpha = 0.4f),
+                                        color = PlayerScrimAffordance,
                                         shape = RoundedCornerShape(14.dp),
                                         modifier =
                                             Modifier
@@ -725,7 +727,7 @@ fun PremiumControlsOverlay(
                                     .size(62.dp)
                                     .pressScale(playPauseInteractionSource, pressedScale = 0.88f)
                                     .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.4f))
+                                    .background(PlayerScrimAffordance)
                                     .clickable(
                                         interactionSource = playPauseInteractionSource,
                                         indication = ripple(color = Color.White),
@@ -783,7 +785,7 @@ fun PremiumControlsOverlay(
                                 .background(
                                     brush =
                                         Brush.verticalGradient(
-                                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.44f)),
+                                            colors = listOf(Color.Transparent, PlayerScrim.copy(alpha = 0.44f)),
                                         ),
                                 ).padding(start = 0.dp, end = 0.dp, top = 0.dp, bottom = fullscreenSeekbarBottomPadding),
                     ) {
@@ -815,7 +817,7 @@ fun PremiumControlsOverlay(
                                             Modifier
                                                 .size(OverlayPillHeight)
                                                 .clip(CircleShape)
-                                                .background(Color.Black.copy(alpha = 0.4f))
+                                                .background(PlayerScrimAffordance)
                                                 .clickable(onClick = onCommentsClick),
                                         contentAlignment = Alignment.Center,
                                     ) {
@@ -841,7 +843,7 @@ fun PremiumControlsOverlay(
                                 val chapter = currentChapter
                                 if (chapter != null) {
                                     Surface(
-                                        color = Color.Black.copy(alpha = 0.4f),
+                                        color = PlayerScrimAffordance,
                                         shape = CircleShape,
                                         modifier =
                                             Modifier
@@ -882,7 +884,7 @@ fun PremiumControlsOverlay(
                             ) {
                                 if (compactQualityLabel != null) {
                                     Surface(
-                                        color = Color.Black.copy(alpha = 0.4f),
+                                        color = PlayerScrimAffordance,
                                         shape = CircleShape,
                                         modifier =
                                             Modifier
@@ -911,7 +913,7 @@ fun PremiumControlsOverlay(
                                         Modifier
                                             .size(OverlayPillHeight)
                                             .clip(CircleShape)
-                                            .background(Color.Black.copy(alpha = 0.4f))
+                                            .background(PlayerScrimAffordance)
                                             .clickable(onClick = onFullscreenClick),
                                     contentAlignment = Alignment.Center,
                                 ) {

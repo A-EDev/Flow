@@ -99,6 +99,7 @@ import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
 import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
+import io.github.aedev.flow.ui.theme.PlayerScrim
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -1056,7 +1057,7 @@ fun GlobalPlayerOverlay(
                                 modifier =
                                     Modifier
                                         .fillMaxSize()
-                                        .background(Color.Black.copy(alpha = 0.82f)),
+                                        .background(PlayerScrim.copy(alpha = 0.82f)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(
@@ -1070,7 +1071,7 @@ fun GlobalPlayerOverlay(
                                     Icon(
                                         imageVector = Icons.Rounded.ErrorOutline,
                                         contentDescription = stringResource(R.string.ui_playback_error),
-                                        tint = Color(0xFFFF6B6B),
+                                        tint = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.size(48.dp),
                                     )
                                     Text(
