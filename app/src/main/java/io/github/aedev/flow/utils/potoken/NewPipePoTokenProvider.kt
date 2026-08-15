@@ -4,29 +4,30 @@ import android.util.Log
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.services.youtube.InnertubeClientRequestInfo
 import org.schabi.newpipe.extractor.services.youtube.PoTokenProvider
-import org.schabi.newpipe.extractor.services.youtube.PoTokenResult as ExtractorPoTokenResult
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
+import org.schabi.newpipe.extractor.services.youtube.PoTokenResult as ExtractorPoTokenResult
 
 object NewPipePoTokenProvider : PoTokenProvider {
     private const val TAG = "NewPipePoTokenProvider"
 
-    private val poTokenGenerator = PoTokenGenerator()
+    private val poTokenGenerator = PoTokenGenerator
     private val visitorDataLock = Any()
     private var webPoTokenVisitorData: String? = null
 
     override fun getWebClientPoToken(videoId: String): ExtractorPoTokenResult? {
         val visitorData = ensureVisitorData() ?: return null
-        val poTokenResult = try {
-            poTokenGenerator.getWebClientPoToken(videoId, visitorData)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to generate extractor poToken for $videoId: ${e.message}", e)
-            null
-        } ?: return null
+        val poTokenResult =
+            try {
+                poTokenGenerator.getWebClientPoToken(videoId, visitorData)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to generate extractor poToken for $videoId: ${e.message}", e)
+                null
+            } ?: return null
 
         return ExtractorPoTokenResult(
             visitorData,
             poTokenResult.playerRequestPoToken,
-            poTokenResult.streamingDataPoToken
+            poTokenResult.streamingDataPoToken,
         )
     }
 
@@ -50,7 +51,7 @@ object NewPipePoTokenProvider : PoTokenProvider {
                     YoutubeParsingHelper.getYouTubeHeaders(),
                     YoutubeParsingHelper.YOUTUBEI_V1_URL,
                     null,
-                    false
+                    false,
                 )
             }.onFailure { e ->
                 Log.w(TAG, "Failed to fetch extractor visitor data: ${e.message}", e)

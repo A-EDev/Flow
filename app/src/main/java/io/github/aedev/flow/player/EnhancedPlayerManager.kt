@@ -3,8 +3,6 @@ package io.github.aedev.flow.player
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -45,6 +43,8 @@ import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.PlayerErrorHandler
 import io.github.aedev.flow.player.factory.PlayerFactory
 import io.github.aedev.flow.player.media.MediaLoader
+import io.github.aedev.flow.player.preload.GaplessPreloadController
+import io.github.aedev.flow.player.preload.PreloadTarget
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.recovery.ClearedMediaRecoveryState
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
@@ -54,12 +54,19 @@ import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
 import io.github.aedev.flow.player.state.queuePresence
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
+import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.ResolvedStreamData
+import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
+import io.github.aedev.flow.player.stream.StreamInfoFetcher
+import io.github.aedev.flow.player.stream.StreamInfoVideoMapper
 import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
 import io.github.aedev.flow.player.surface.VideoSurfacePolicy
 import io.github.aedev.flow.player.tracker.PlaybackTracker
+import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -95,8 +102,6 @@ class EnhancedPlayerManager private constructor() {
         private const val LIVE_EDGE_THRESHOLD_MS = 700L
         private const val SABR_QUALITY_KEY_PREFIX = "sabr:"
         private const val LIVE_QUALITY_KEY_PREFIX = "live:"
-        private const val PRELOAD_RETRY_DELAY_MS = 10_000L
-        private const val MAX_PRELOAD_RETRIES = 3
         private const val AUTO_NEXT_TAG = "FlowVideoAutoNext"
         private val QUALITY_HEIGHT_REGEX = Regex("""(\d+)p""")
 
@@ -149,21 +154,13 @@ class EnhancedPlayerManager private constructor() {
     private var currentSabrInfo: SabrStreamInfo? = null
     private var sabrPreferred = false
 
-    private var isAudioOnlyMode = false
-    private var videoTracksDisabled = false
-
-    @Volatile private var videoSurfaceRestorePending = false
+    private val audioOnlyMode = AudioOnlyMode()
     private var currentLocalFilePath: String? = null
     private val clearedMediaRecoveryState = ClearedMediaRecoveryState()
     private var pendingSurfaceFirstFrameStartedAtMs = 0L
 
     // Queue management
-    private var playbackQueue: List<io.github.aedev.flow.data.model.Video> = emptyList()
-    private var originalPlaybackQueue: List<io.github.aedev.flow.data.model.Video> = emptyList()
-    private var currentQueueIndex: Int = -1
-    private var queueTitle: String? = null
-    private var queueLoopEnabled: Boolean = false
-    private var queueShuffleEnabled: Boolean = false
+    private val queue = PlaybackQueueController()
     private var manualLoopEnabled: Boolean = false
     private var globalLoopEnabled: Boolean = false
 
@@ -177,15 +174,49 @@ class EnhancedPlayerManager private constructor() {
     private var autoplayJob: Job? = null
 
     @Volatile private var autoplayCountdownSeconds: Int = 0
-    private var autoplayCountdownJob: Job? = null
-    private val _autoplayCountdown = MutableStateFlow(AutoplayCountdownState())
-    val autoplayCountdown: StateFlow<AutoplayCountdownState> = _autoplayCountdown.asStateFlow()
 
     // Application context
     private var appContext: Context? = null
 
     // Coroutine scope
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private val autoplayCountdownController =
+        AutoplayCountdownController(
+            scope = scope,
+            onElapsed = { performAutoAdvance() },
+            log = { autoNextLog(it) },
+        )
+    val autoplayCountdown: StateFlow<AutoplayCountdownState> = autoplayCountdownController.state
+
+    private val preload =
+        GaplessPreloadController(
+            scope = scope,
+            player = { player },
+            context = { appContext },
+            currentVideoId = { currentVideoId },
+            nextTarget = { nextPreloadTarget() },
+            isLooping = { _playerState.value.isLooping },
+            isLiveStream = { currentIsLiveStream },
+            resolveStreams = { video, ctx -> resolveStreamsForVideo(video, ctx) },
+            buildMediaSource = { resolved, ctx ->
+                mediaLoader?.buildPreloadMediaSource(
+                    context = ctx,
+                    videoStream = resolved.videoStream,
+                    audioStream = resolved.audioStream,
+                    availableVideoStreams = StreamProcessor.processVideoStreams(resolved.videoStreams),
+                    dashManifestUrl = resolved.dashManifestUrl,
+                    durationSeconds = resolved.durationSeconds,
+                    subtitleStreams = StreamProcessor.processSubtitleStreams(resolved.subtitles),
+                    mediaId = resolved.enrichedVideo.id,
+                    mediaMetadata =
+                        resolved.enrichedVideo
+                            .toVideoSessionMetadata()
+                            .toMedia3Metadata(),
+                )
+            },
+            log = { autoNextLog(it) },
+        )
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingReloadJob: Job? = null
     private var advanceWakeLock: PowerManager.WakeLock? = null
@@ -244,24 +275,23 @@ class EnhancedPlayerManager private constructor() {
 
     private fun autoNextSnapshot(): String {
         if (!isOnMainThread()) {
-            val nextTarget = runCatching { nextPreloadTarget()?.first?.id }.getOrNull()
+            val nextTarget = runCatching { nextPreloadTarget()?.video?.id }.getOrNull()
             return "thread=${Thread.currentThread().name} main=false playerSnapshot=skipped " +
                 "stateVideo=${_playerState.value.currentVideoId} managerVideo=$currentVideoId " +
-                "queue=$currentQueueIndex/${playbackQueue.size} hasNext=${hasNext()} " +
+                "queue=${queue.currentIndex}/${queue.size} hasNext=${hasNext()} " +
                 "autoplay=$autoplayEnabled candidates=${autoplayCandidates.size} target=$nextTarget " +
-                "preloaded=${preloadedNext?.data?.enrichedVideo?.id} " +
-                "attempt=$preloadAttemptVideoId->$preloadAttemptNextVideoId retry=$preloadRetryCount"
+                preload.diagnostics
         }
         val p = player
-        val nextTarget = runCatching { nextPreloadTarget()?.first?.id }.getOrNull()
+        val nextTarget = runCatching { nextPreloadTarget()?.video?.id }.getOrNull()
         return "video=$currentVideoId exo=${playerStateName(p?.playbackState)} " +
             "pwr=${p?.playWhenReady} playing=${p?.isPlaying} " +
             "pos=${p?.currentPosition}/${p?.duration} idx=${p?.currentMediaItemIndex} count=${p?.mediaItemCount} " +
-            "queue=$currentQueueIndex/${playbackQueue.size} hasNext=${hasNext()} " +
+            "queue=${queue.currentIndex}/${queue.size} hasNext=${hasNext()} " +
             "autoplay=$autoplayEnabled candidates=${autoplayCandidates.size} target=$nextTarget " +
-            "preloaded=${preloadedNext?.data?.enrichedVideo?.id} " +
-            "attempt=$preloadAttemptVideoId->$preloadAttemptNextVideoId retry=$preloadRetryCount " +
-            "audioOnly=$isAudioOnlyMode tracksDisabled=$videoTracksDisabled surface=$isSurfaceReady live=$currentIsLiveStream"
+            "${preload.diagnostics} " +
+            "audioOnly=${audioOnlyMode.isActive} tracksDisabled=${audioOnlyMode.tracksDisabled} " +
+            "surface=$isSurfaceReady live=$currentIsLiveStream"
     }
 
     private fun autoNextLog(message: String) {
@@ -394,11 +424,8 @@ class EnhancedPlayerManager private constructor() {
     private var mediaLoader: MediaLoader? = null
 
     // Public Queue State
-    private val _queueVideos = MutableStateFlow<List<Video>>(emptyList())
-    val queueVideos: StateFlow<List<Video>> = _queueVideos.asStateFlow()
-
-    private val currentQueueIndexFlow = MutableStateFlow<Int>(-1)
-    val currentQueueIndexState: StateFlow<Int> = currentQueueIndexFlow.asStateFlow()
+    val queueVideos: StateFlow<List<Video>> = queue.videos
+    val currentQueueIndexState: StateFlow<Int> = queue.currentIndexState
 
     // Public surface ready state
     val isSurfaceReady: Boolean
@@ -636,9 +663,9 @@ class EnhancedPlayerManager private constructor() {
                 val previousSeconds = autoplayCountdownSeconds
                 autoplayCountdownSeconds = seconds
                 if (seconds > 0) {
-                    clearPreload()
+                    preload.clear()
                 } else if (previousSeconds > 0 && player?.playbackState == Player.STATE_READY) {
-                    requestPreloadNext("autoplay-countdown-disabled")
+                    preload.request("autoplay-countdown-disabled")
                 }
             }
         }
@@ -721,7 +748,7 @@ class EnhancedPlayerManager private constructor() {
                     if (playbackState == Player.STATE_READY) {
                         releaseAdvanceWakeLock()
                         autoNextLog("STATE_READY scheduling preload")
-                        schedulePreloadNext()
+                        preload.schedule()
                     }
 
                     if (playbackState == Player.STATE_READY && pendingInitialLiveEdgeSeek) {
@@ -753,7 +780,7 @@ class EnhancedPlayerManager private constructor() {
                         reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
                     ) {
                         val idx = player?.currentMediaItemIndex ?: 0
-                        if (idx >= 1 && preloadedNext != null) {
+                        if (idx >= 1 && preload.preloaded != null) {
                             releaseAdvanceWakeLock()
                             promotePreloadedItem()
                         }
@@ -826,6 +853,7 @@ class EnhancedPlayerManager private constructor() {
         filePath: String,
         savedSegments: List<SponsorBlockSegment>? = null,
         preservePosition: Long? = null,
+        subtitles: List<SubtitlesStream> = emptyList(),
     ) {
         Log.d(TAG, "playLocalFile: videoId=$videoId, path=$filePath, offlineSegments=${savedSegments?.size}, resumePos=$preservePosition")
         resetPlaybackStateForNewVideo(videoId)
@@ -833,6 +861,11 @@ class EnhancedPlayerManager private constructor() {
         configureTrackSelectorForLocalFile()
         currentVideoId = videoId
         currentLocalFilePath = filePath
+        availableSubtitles = StreamProcessor.processSubtitleStreams(subtitles)
+        _playerState.value =
+            _playerState.value.copy(
+                availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
+            )
         startPlaybackTracker()
 
         // Apply SponsorBlock: use offline-saved segments if present, otherwise fall back to API.
@@ -919,7 +952,7 @@ class EnhancedPlayerManager private constructor() {
         sabrPreferred = preferSabr
         innerTubeVideoFormats = itVideoFormats
         innerTubeAudioFormats = itAudioFormats
-        isAudioOnlyMode = keepAudioOnly
+        audioOnlyMode.applyStreams(keepAudioOnly)
         setVideoTracksDisabled(keepAudioOnly)
 
         // Reset and load SponsorBlock
@@ -1034,6 +1067,7 @@ class EnhancedPlayerManager private constructor() {
         currentDashManifestUrl = null
         currentHlsUrl = null
         selectedSubtitleIndex = null
+        availableSubtitles = emptyList()
         disableTextTracks()
         pendingLiveDisplaySeekPositionMs = null
         pendingLiveDisplaySeekAtMs = 0L
@@ -1055,6 +1089,7 @@ class EnhancedPlayerManager private constructor() {
                 playWhenReady = player?.playWhenReady ?: true,
                 isAtLiveEdge = false,
                 liveDurationMs = 0L,
+                availableSubtitles = emptyList(),
             )
     }
 
@@ -1134,8 +1169,8 @@ class EnhancedPlayerManager private constructor() {
         playWhenReady: Boolean,
     ): Boolean {
         autoNextLog("loadMediaInternal audioOnly=$audioOnly preserve=$preservePosition local=${localFilePath != null}")
-        clearPreload()
-        if (audioOnly || isAudioOnlyMode) {
+        preload.clear()
+        if (audioOnly || audioOnlyMode.isActive) {
             setVideoTracksDisabled(true)
         } else if (videoStream != null || localFilePath != null) {
             setVideoTracksDisabled(false)
@@ -1168,7 +1203,8 @@ class EnhancedPlayerManager private constructor() {
         }
 
         val audio = audioStream ?: availableAudioStreams.firstOrNull()
-        if (audioOnly && audio == null) {
+        val hasSabrSession = currentSabrInfo != null
+        if (audioOnly && audio == null && !hasSabrSession) {
             Log.w(TAG, "loadMediaInternal: audio-only load requested without an audio stream")
             return false
         }
@@ -1176,6 +1212,7 @@ class EnhancedPlayerManager private constructor() {
             videoStream != null ||
                 currentVideoStream != null ||
                 availableVideoStreams.isNotEmpty() ||
+                hasSabrSession ||
                 !currentDashManifestUrl.isNullOrEmpty() ||
                 !currentHlsUrl.isNullOrEmpty()
         if (audio == null && !hasPlayableVideo) {
@@ -1215,9 +1252,8 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun setVideoTracksDisabled(disabled: Boolean) {
-        if (videoTracksDisabled == disabled) return
+        if (!audioOnlyMode.setTracksDisabled(disabled)) return
         autoNextLog("setVideoTracksDisabled disabled=$disabled")
-        videoTracksDisabled = disabled
         trackSelector?.let { selector ->
             selector.setParameters(
                 selector
@@ -1255,87 +1291,51 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { setQueue(videos, startIndex, title) }
             return
         }
-        originalPlaybackQueue = videos
-        val normalizedStartIndex = startIndex.coerceIn(0, videos.lastIndex.coerceAtLeast(0))
-        val orderedQueue =
-            if (queueShuffleEnabled && videos.size > 1) {
-                PlaylistQueueOrder.shuffleFromCurrent(videos, normalizedStartIndex)
-            } else {
-                ReorderedQueue(videos, normalizedStartIndex)
-            }
-        playbackQueue = orderedQueue.items
-        currentQueueIndex = if (videos.isEmpty()) -1 else orderedQueue.currentIndex
-        queueTitle = title
-        autoNextLog("setQueue size=${videos.size} start=$currentQueueIndex title=$title")
-
-        _queueVideos.value = videos
-        currentQueueIndexFlow.value = currentQueueIndex
+        val startVideo = queue.setQueue(videos, startIndex, title)
+        autoNextLog("setQueue size=${videos.size} start=${queue.currentIndex} title=$title")
 
         updateQueueState()
 
-        if (videos.isNotEmpty()) {
-            val video = videos[currentQueueIndex]
-            startPlaybackFromQueue(video, loadStreamsInPlayer = false)
-            requestPreloadNext("queue-set")
+        if (startVideo != null) {
+            startPlaybackFromQueue(startVideo, loadStreamsInPlayer = false)
+            preload.request("queue-set")
         }
     }
 
     fun playNext(loadStreamsInPlayer: Boolean = true): Boolean {
         val nextIndex =
-            nextQueueIndex() ?: run {
+            queue.nextIndex() ?: run {
                 autoNextLog("playNext queue unavailable")
                 return false
             }
-        if (nextIndex == currentQueueIndex) {
+        if (nextIndex == queue.currentIndex) {
             replay()
             return true
         }
-        if (nextIndex in playbackQueue.indices) {
-            val nextVideo = playbackQueue[nextIndex]
-            if (advanceToPreloadedItem(nextVideo.id)) {
-                autoNextLog("playNext using preloaded window next=${nextVideo.id}")
-                return true
-            }
-            autoNextLog("playNext queue loadStreams=$loadStreamsInPlayer")
-            currentQueueIndex = nextIndex
-            currentQueueIndexFlow.value = currentQueueIndex
-            startPlaybackFromQueue(nextVideo, loadStreamsInPlayer)
-            updateQueueState()
+        val nextVideo = queue.videoAt(nextIndex) ?: return false
+        if (advanceToPreloadedItem(nextVideo.id)) {
+            autoNextLog("playNext using preloaded window next=${nextVideo.id}")
             return true
         }
-        return false
+        autoNextLog("playNext queue loadStreams=$loadStreamsInPlayer")
+        queue.moveTo(nextIndex)
+        startPlaybackFromQueue(nextVideo, loadStreamsInPlayer)
+        updateQueueState()
+        return true
     }
 
     fun playPrevious(loadStreamsInPlayer: Boolean = true): Boolean {
-        if (currentQueueIndex > 0) {
-            currentQueueIndex--
-            currentQueueIndexFlow.value = currentQueueIndex
-            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer)
-            updateQueueState()
-            return true
-        }
-        return false
+        val previousVideo = queue.movePrevious() ?: return false
+        startPlaybackFromQueue(previousVideo, loadStreamsInPlayer)
+        updateQueueState()
+        return true
     }
 
-    fun hasNext(): Boolean = nextQueueIndex() != null
+    fun hasNext(): Boolean = queue.hasNext
 
-    private fun nextQueueIndex(): Int? =
-        PlaylistQueueOrder.nextIndex(
-            itemCount = playbackQueue.size,
-            currentIndex = currentQueueIndex,
-            loopEnabled = queueLoopEnabled,
-        )
+    fun hasPrevious(): Boolean = queue.hasPrevious || (player?.currentPosition ?: 0) > 3000
 
-    private fun nextQueueVideo(): Video? = nextQueueIndex()?.let(playbackQueue::getOrNull)
-
-    fun hasPrevious(): Boolean = currentQueueIndex > 0 || (player?.currentPosition ?: 0) > 3000
-
-    /**
-     * Returns true if there is an active queue with at least one video.
-     */
-    fun hasActiveQueue(): Boolean = playbackQueue.isNotEmpty()
-
-    fun isCurrentQueueVideo(videoId: String): Boolean = playbackQueue.getOrNull(currentQueueIndex)?.id == videoId
+    fun isCurrentQueueVideo(videoId: String): Boolean = queue.isCurrent(videoId)
 
     /**
      * Insert [video] immediately after the current position (Play Next).
@@ -1350,39 +1350,11 @@ class EnhancedPlayerManager private constructor() {
             return
         }
         autoNextLog("addVideoToQueueNext ${video.id}")
-        if (playbackQueue.isEmpty()) {
-            val current = GlobalPlayerState.currentVideo.value
-            if (current != null) {
-                playbackQueue = listOf(current, video)
-                originalPlaybackQueue = playbackQueue
-                currentQueueIndex = 0
-                _queueVideos.value = playbackQueue
-                currentQueueIndexFlow.value = 0
-                updateQueueState()
-                requestPreloadNext("queue-created-play-next")
-            } else {
-                setQueue(listOf(video), 0)
-            }
-            return
+        when (queue.addNext(video, GlobalPlayerState.currentVideo.value)) {
+            QueueAddOutcome.NoActiveQueue -> setQueue(listOf(video), 0)
+            QueueAddOutcome.QueueCreated -> onQueueMutated("queue-created-play-next")
+            QueueAddOutcome.Inserted -> onQueueMutated("queue-play-next")
         }
-        val insertAt = currentQueueIndex + 1
-        val mutableQueue = playbackQueue.toMutableList()
-        mutableQueue.add(insertAt, video)
-        playbackQueue = mutableQueue
-        val currentVideo = playbackQueue.getOrNull(currentQueueIndex)
-        val originalInsertAt =
-            originalPlaybackQueue
-                .indexOfFirst { it.id == currentVideo?.id }
-                .takeIf { it >= 0 }
-                ?.plus(1)
-                ?: originalPlaybackQueue.size
-        originalPlaybackQueue =
-            originalPlaybackQueue.toMutableList().apply {
-                add(originalInsertAt.coerceIn(0, size), video)
-            }
-        _queueVideos.value = mutableQueue
-        updateQueueState()
-        requestPreloadNext("queue-play-next")
     }
 
     /**
@@ -1398,40 +1370,21 @@ class EnhancedPlayerManager private constructor() {
             return
         }
         autoNextLog("addVideoToQueue ${video.id}")
-        if (playbackQueue.isEmpty()) {
-            val current = GlobalPlayerState.currentVideo.value
-            if (current != null) {
-                playbackQueue = listOf(current, video)
-                originalPlaybackQueue = playbackQueue
-                currentQueueIndex = 0
-                _queueVideos.value = playbackQueue
-                currentQueueIndexFlow.value = 0
-                updateQueueState()
-                requestPreloadNext("queue-created-add")
-            } else {
-                setQueue(listOf(video), 0)
-            }
-            return
+        when (queue.append(video, GlobalPlayerState.currentVideo.value)) {
+            QueueAddOutcome.NoActiveQueue -> setQueue(listOf(video), 0)
+            QueueAddOutcome.QueueCreated -> onQueueMutated("queue-created-add")
+            QueueAddOutcome.Inserted -> onQueueMutated("queue-add")
         }
-        val mutableQueue = playbackQueue.toMutableList()
-        mutableQueue.add(video)
-        playbackQueue = mutableQueue
-        originalPlaybackQueue = originalPlaybackQueue + video
-        _queueVideos.value = mutableQueue
-        updateQueueState()
-        requestPreloadNext("queue-add")
     }
 
     fun playVideoAtIndex(
         index: Int,
         loadStreamsInPlayer: Boolean = true,
     ) {
-        if (index in playbackQueue.indices && index != currentQueueIndex) {
-            currentQueueIndex = index
-            currentQueueIndexFlow.value = currentQueueIndex
-            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer)
-            updateQueueState()
-        }
+        if (index == queue.currentIndex) return
+        val video = queue.moveTo(index) ?: return
+        startPlaybackFromQueue(video, loadStreamsInPlayer)
+        updateQueueState()
     }
 
     fun removeVideoAtIndex(index: Int) {
@@ -1439,18 +1392,10 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { removeVideoAtIndex(index) }
             return
         }
-        val removal = PlaylistQueueOrder.removeAt(playbackQueue, currentQueueIndex, index) ?: return
+        if (!queue.removeAt(index)) return
 
-        clearPreload()
-        playbackQueue = removal.queue.items
-        originalPlaybackQueue =
-            PlaylistQueueOrder.removeMatching(
-                items = originalPlaybackQueue,
-                target = removal.removedItem,
-                keySelector = Video::id,
-            )
-        currentQueueIndex = removal.queue.currentIndex
-        publishQueueMutation("queue-remove")
+        preload.clear()
+        onQueueMutated("queue-remove")
     }
 
     fun moveVideoAtIndex(
@@ -1461,28 +1406,15 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { moveVideoAtIndex(fromIndex, toIndex) }
             return
         }
-        val reordered =
-            PlaylistQueueOrder.move(
-                items = playbackQueue,
-                currentIndex = currentQueueIndex,
-                fromIndex = fromIndex,
-                toIndex = toIndex,
-            ) ?: return
+        if (!queue.move(fromIndex, toIndex)) return
 
-        clearPreload()
-        playbackQueue = reordered.items
-        currentQueueIndex = reordered.currentIndex
-        if (!queueShuffleEnabled) {
-            originalPlaybackQueue = playbackQueue
-        }
-        publishQueueMutation("queue-move")
+        preload.clear()
+        onQueueMutated("queue-move")
     }
 
-    private fun publishQueueMutation(reason: String) {
-        _queueVideos.value = playbackQueue
-        currentQueueIndexFlow.value = currentQueueIndex
+    private fun onQueueMutated(reason: String) {
         updateQueueState()
-        requestPreloadNext(reason)
+        preload.request(reason)
     }
 
     private fun startPlaybackFromQueue(
@@ -1517,10 +1449,10 @@ class EnhancedPlayerManager private constructor() {
             _playerState.value.copy(
                 hasNext = hasNext(),
                 hasPrevious = hasPrevious(),
-                queueTitle = queueTitle,
-                queueSize = playbackQueue.size,
-                isQueueLooping = queueLoopEnabled,
-                isQueueShuffled = queueShuffleEnabled,
+                queueTitle = queue.title,
+                queueSize = queue.size,
+                isQueueLooping = queue.loopEnabled,
+                isQueueShuffled = queue.shuffleEnabled,
             )
     }
 
@@ -1529,10 +1461,9 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { toggleQueueLoop(enabled) }
             return
         }
-        queueLoopEnabled = enabled
-        clearPreload()
-        updateQueueState()
-        requestPreloadNext("queue-loop-toggle")
+        queue.setLoopEnabled(enabled)
+        preload.clear()
+        onQueueMutated("queue-loop-toggle")
     }
 
     fun toggleQueueShuffle(enabled: Boolean) {
@@ -1540,27 +1471,10 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { toggleQueueShuffle(enabled) }
             return
         }
-        if (queueShuffleEnabled == enabled || playbackQueue.isEmpty()) return
+        if (!queue.setShuffleEnabled(enabled)) return
 
-        clearPreload()
-        val reordered =
-            if (enabled) {
-                originalPlaybackQueue = playbackQueue
-                PlaylistQueueOrder.shuffleFromCurrent(playbackQueue, currentQueueIndex)
-            } else {
-                PlaylistQueueOrder.restoreOriginal(
-                    original = originalPlaybackQueue,
-                    currentItem = playbackQueue.getOrNull(currentQueueIndex),
-                    keySelector = Video::id,
-                )
-            }
-        playbackQueue = reordered.items
-        currentQueueIndex = reordered.currentIndex
-        queueShuffleEnabled = enabled
-        _queueVideos.value = playbackQueue
-        currentQueueIndexFlow.value = currentQueueIndex
-        updateQueueState()
-        requestPreloadNext("queue-shuffle-toggle")
+        preload.clear()
+        onQueueMutated("queue-shuffle-toggle")
     }
 
     fun setAutoplayCandidates(
@@ -1592,7 +1506,7 @@ class EnhancedPlayerManager private constructor() {
         Log.d(TAG, "Autoplay candidates for $sourceVideoId: ${autoplayCandidates.size}, enabled=$enabled")
         autoNextLog("setAutoplayCandidates source=$sourceVideoId input=${videos.size} filtered=${autoplayCandidates.size} enabled=$enabled")
         if (sourceVideoId == currentVideoId) {
-            requestPreloadNext("autoplay-candidates")
+            preload.request("autoplay-candidates")
         }
     }
 
@@ -1609,7 +1523,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun advanceToPreloadedItem(expectedVideoId: String): Boolean {
-        val preloaded = preloadedNext ?: return false
+        val preloaded = preload.preloaded ?: return false
         if (preloaded.data.enrichedVideo.id != expectedVideoId) return false
         val p = player ?: return false
         if (p.currentMediaItemIndex >= p.mediaItemCount - 1) return false
@@ -1643,7 +1557,7 @@ class EnhancedPlayerManager private constructor() {
 
     private fun nextSessionVideo(): Video? =
         when {
-            hasNext() -> if (queueAutoplayEnabled) nextQueueVideo() else null
+            hasNext() -> if (queueAutoplayEnabled) queue.nextVideo() else null
             autoplayEnabled -> autoplayCandidates.firstOrNull()
             else -> null
         }
@@ -1678,54 +1592,23 @@ class EnhancedPlayerManager private constructor() {
         totalSeconds: Int,
         nextVideo: Video,
     ) {
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob =
-            scope.launch {
-                var remaining = totalSeconds
-                _autoplayCountdown.value =
-                    AutoplayCountdownState(
-                        isActive = true,
-                        secondsRemaining = remaining,
-                        totalSeconds = totalSeconds,
-                        nextVideoTitle = nextVideo.title,
-                        nextVideoChannel = nextVideo.channelName,
-                        nextVideoThumbnailUrl = nextVideo.thumbnailUrl,
-                    )
-                autoNextLog("autoplay countdown start ${totalSeconds}s next=${nextVideo.id}")
-                while (remaining > 0) {
-                    delay(1000L)
-                    remaining--
-                    _autoplayCountdown.value = _autoplayCountdown.value.copy(secondsRemaining = remaining)
-                }
-                _autoplayCountdown.value = AutoplayCountdownState()
-                autoplayCountdownJob = null
-                autoNextLog("autoplay countdown elapsed -> advance")
-                performAutoAdvance()
-            }
+        autoplayCountdownController.start(totalSeconds, nextVideo)
     }
 
     fun skipAutoplayCountdown() {
-        if (!_autoplayCountdown.value.isActive) return
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob = null
-        _autoplayCountdown.value = AutoplayCountdownState()
+        if (!autoplayCountdownController.stop()) return
         autoNextLog("autoplay countdown skipped -> advance now")
         performAutoAdvance()
     }
 
     fun cancelAutoplayCountdown() {
-        if (!_autoplayCountdown.value.isActive) return
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob = null
-        _autoplayCountdown.value = AutoplayCountdownState()
+        if (!autoplayCountdownController.stop()) return
         releaseAdvanceWakeLock()
         autoNextLog("autoplay countdown cancelled")
     }
 
     fun restartFromAutoplayCountdown() {
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob = null
-        _autoplayCountdown.value = AutoplayCountdownState()
+        autoplayCountdownController.stop()
         releaseAdvanceWakeLock()
         player?.seekTo(0)
         player?.play()
@@ -1733,12 +1616,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun clearAutoplayCountdownInternal() {
-        if (autoplayCountdownJob == null && !_autoplayCountdown.value.isActive) return
-        autoplayCountdownJob?.cancel()
-        autoplayCountdownJob = null
-        if (_autoplayCountdown.value.isActive) {
-            _autoplayCountdown.value = AutoplayCountdownState()
-        }
+        autoplayCountdownController.stop()
     }
 
     private fun playVideoFromServiceLayer(
@@ -1746,9 +1624,9 @@ class EnhancedPlayerManager private constructor() {
         reason: String,
     ) {
         val context = appContext ?: return
-        val resumeInAudioOnly = isAudioOnlyMode
+        val resumeInAudioOnly = audioOnlyMode.isActive
         acquireAdvanceWakeLock()
-        clearPreload()
+        preload.clear()
         autoNextLog("playVideoFromServiceLayer start video=${video.id} reason=$reason resumeAudioOnly=$resumeInAudioOnly")
         autoplayJob?.cancel()
         autoplayJob =
@@ -1789,7 +1667,7 @@ class EnhancedPlayerManager private constructor() {
                         }
 
                     val streamInfo =
-                        fetchStreamInfoForPlayback(video.id) ?: run {
+                        StreamInfoFetcher.fetchForPlayback(video.id) ?: run {
                             autoNextLog("playVideoFromServiceLayer streamInfo failed video=${video.id}")
                             _playerState.value =
                                 _playerState.value.copy(
@@ -1805,7 +1683,7 @@ class EnhancedPlayerManager private constructor() {
                         return@launch
                     }
                     val sabrInfo = extraction?.sabrInfo
-                    val enrichedVideo = videoFromStreamInfo(video.id, streamInfo, fallback = video)
+                    val enrichedVideo = StreamInfoVideoMapper.videoFromStreamInfo(video.id, streamInfo, fallback = video)
                     GlobalPlayerState.setCurrentVideo(enrichedVideo)
                     startBackgroundService(
                         videoId = enrichedVideo.id,
@@ -1815,13 +1693,13 @@ class EnhancedPlayerManager private constructor() {
                     )
                     setAutoplayCandidates(
                         sourceVideoId = enrichedVideo.id,
-                        videos = relatedVideosFromStreamInfo(streamInfo),
+                        videos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
                         enabled = autoplayEnabled,
                     )
 
                     val prefs = PlayerPreferences(context)
                     val preferredQuality =
-                        if (isOnWifi(context)) {
+                        if (NetworkState.isOnWifi(context)) {
                             prefs.defaultQualityWifi.first()
                         } else {
                             prefs.defaultQualityCellular.first()
@@ -1860,7 +1738,7 @@ class EnhancedPlayerManager private constructor() {
                     }
 
                     val selected =
-                        selectStreamsForServicePlayback(
+                        ServicePlaybackStreamSelector.selectStreams(
                             videoCandidates = mergedVideoStreams,
                             audioCandidatesAll = mergedAudioStreams,
                             preferredQuality = preferredQuality,
@@ -1876,7 +1754,7 @@ class EnhancedPlayerManager private constructor() {
                         audioStream = selected.second,
                         videoStreams = mergedVideoStreams,
                         audioStreams = mergedAudioStreams,
-                        subtitles = streamInfo.subtitles ?: emptyList(),
+                        subtitles = mergedSubtitles(streamInfo, extraction),
                         durationSeconds = streamInfo.duration,
                         dashManifestUrl = streamInfo.dashMpdUrl,
                         hlsUrl = streamInfo.hlsUrl,
@@ -1939,38 +1817,10 @@ class EnhancedPlayerManager private constructor() {
         return true
     }
 
-    private data class ResolvedStreamData(
-        val enrichedVideo: Video,
-        val videoStream: VideoStream?,
-        val audioStream: AudioStream?,
-        val videoStreams: List<VideoStream>,
-        val audioStreams: List<AudioStream>,
-        val subtitles: List<SubtitlesStream>,
-        val durationSeconds: Long,
-        val dashManifestUrl: String?,
-        val streamType: StreamType?,
-        val relatedVideos: List<Video>,
-        val preferredCodec: String,
-        val itVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format>,
-        val itAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format>,
-    )
-
-    private data class PreloadedNext(
-        val data: ResolvedStreamData,
-        val fromQueue: Boolean,
-    )
-
     private data class RelatedCandidatesSnapshot(
         val sourceVideoId: String? = null,
         val videos: List<Video> = emptyList(),
     )
-
-    @Volatile private var preloadedNext: PreloadedNext? = null
-    private var preloadJob: Job? = null
-    private var preloadAttemptVideoId: String? = null
-    private var preloadAttemptNextVideoId: String? = null
-    private var preloadRetryJob: Job? = null
-    private var preloadRetryCount: Int = 0
 
     private suspend fun resolveStreamsForVideo(
         video: Video,
@@ -1991,14 +1841,22 @@ class EnhancedPlayerManager private constructor() {
                     }
                 }
             val streamInfo =
-                fetchStreamInfoForPlayback(video.id) ?: run {
+                StreamInfoFetcher.fetchForPlayback(video.id) ?: run {
                     extractionDeferred.cancel()
                     return@coroutineScope null
                 }
             val extraction = extractionDeferred.await()
-            val enrichedVideo = videoFromStreamInfo(video.id, streamInfo, fallback = video)
+            val enrichedVideo = StreamInfoVideoMapper.videoFromStreamInfo(video.id, streamInfo, fallback = video)
             val prefs = PlayerPreferences(context)
-            val preferredQuality = if (isOnWifi(context)) prefs.defaultQualityWifi.first() else prefs.defaultQualityCellular.first()
+            val preferredQuality =
+                if (NetworkState.isOnWifi(
+                        context,
+                    )
+                ) {
+                    prefs.defaultQualityWifi.first()
+                } else {
+                    prefs.defaultQualityCellular.first()
+                }
             val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
             val preferredCodecKey = prefs.defaultVideoCodec.first().codecKey
             val innerTubeVideoStreams =
@@ -2027,7 +1885,7 @@ class EnhancedPlayerManager private constructor() {
                     streamInfo.audioStreams,
                 )
             val selected =
-                selectStreamsForServicePlayback(
+                ServicePlaybackStreamSelector.selectStreams(
                     videoCandidates = mergedVideoStreams,
                     audioCandidatesAll = mergedAudioStreams,
                     preferredQuality = preferredQuality,
@@ -2040,231 +1898,40 @@ class EnhancedPlayerManager private constructor() {
                 audioStream = selected.second,
                 videoStreams = mergedVideoStreams,
                 audioStreams = mergedAudioStreams,
-                subtitles = streamInfo.subtitles ?: emptyList(),
+                subtitles = mergedSubtitles(streamInfo, extraction),
                 durationSeconds = streamInfo.duration,
                 dashManifestUrl = streamInfo.dashMpdUrl,
                 streamType = streamInfo.streamType,
-                relatedVideos = relatedVideosFromStreamInfo(streamInfo),
+                relatedVideos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
                 preferredCodec = preferredCodecKey,
                 itVideoFormats = extraction?.videoFormats ?: emptyList(),
                 itAudioFormats = extraction?.audioFormats ?: emptyList(),
             )
         }
 
-    private fun nextPreloadTarget(): Pair<Video, Boolean>? {
+    private fun mergedSubtitles(
+        streamInfo: StreamInfo,
+        extraction: InnerTubeVideoStreamExtractor.VideoExtractionResult?,
+    ): List<SubtitlesStream> =
+        streamInfo.subtitles.orEmpty() +
+            extraction?.playerResponse?.let { CaptionTrackResolver.resolve(it) }.orEmpty()
+
+    private fun nextPreloadTarget(): PreloadTarget? {
         if (autoplayCountdownSeconds > 0) return null
         val fromQueue = hasNext()
         val nextVideo =
             when {
-                fromQueue -> if (queueAutoplayEnabled) nextQueueVideo() else null
+                fromQueue -> if (queueAutoplayEnabled) queue.nextVideo() else null
                 autoplayEnabled && autoplayCandidates.isNotEmpty() -> autoplayCandidates.first()
                 else -> null
             } ?: return null
         if (nextVideo.isLive || nextVideo.isUpcoming) return null
-        return nextVideo to fromQueue
-    }
-
-    private fun requestPreloadNext(reason: String) {
-        val (targetVideo, fromQueue) =
-            nextPreloadTarget() ?: run {
-                autoNextLog("requestPreloadNext no target reason=$reason")
-                return
-            }
-        autoNextLog("requestPreloadNext reason=$reason target=${targetVideo.id} fromQueue=$fromQueue")
-
-        val existing = preloadedNext
-        if (existing != null && existing.data.enrichedVideo.id != targetVideo.id) {
-            Log.d(TAG, "Gapless: replacing stale preload ${existing.data.enrichedVideo.id} with ${targetVideo.id} ($reason)")
-            clearPreload()
-        }
-
-        if (preloadJob?.isActive == true && preloadAttemptNextVideoId != targetVideo.id) {
-            Log.d(TAG, "Gapless: cancelling stale preload attempt for $preloadAttemptNextVideoId; next is ${targetVideo.id} ($reason)")
-            preloadJob?.cancel()
-            preloadJob = null
-            preloadAttemptVideoId = null
-            preloadAttemptNextVideoId = null
-            preloadRetryCount = 0
-        }
-
-        schedulePreloadNext()
-    }
-
-    private fun schedulePreloadNext() {
-        if (_playerState.value.isLooping) {
-            autoNextLog("schedulePreloadNext skipped looping")
-            return
-        }
-        val p =
-            player ?: run {
-                autoNextLog("schedulePreloadNext skipped no player")
-                return
-            }
-        if (currentIsLiveStream) {
-            autoNextLog("schedulePreloadNext skipped live")
-            return
-        }
-        if (preloadedNext != null || preloadJob?.isActive == true) {
-            autoNextLog("schedulePreloadNext skipped already busy")
-            return
-        }
-        if (p.currentMediaItem == null || p.mediaItemCount == 0) {
-            autoNextLog("schedulePreloadNext skipped no current media item")
-            return
-        }
-        if (p.mediaItemCount > 1) {
-            autoNextLog("schedulePreloadNext skipped mediaItemCount=${p.mediaItemCount}")
-            return
-        }
-        val currentId =
-            currentVideoId ?: run {
-                autoNextLog("schedulePreloadNext skipped no currentId")
-                return
-            }
-        val (nextVideo, fromQueue) =
-            nextPreloadTarget() ?: run {
-                autoNextLog("schedulePreloadNext skipped no target")
-                return
-            }
-        if (preloadAttemptVideoId == currentId && preloadAttemptNextVideoId == nextVideo.id) {
-            autoNextLog("schedulePreloadNext skipped duplicate attempt next=${nextVideo.id}")
-            return
-        }
-
-        preloadAttemptVideoId = currentId
-        preloadAttemptNextVideoId = nextVideo.id
-        preloadRetryJob?.cancel()
-        preloadRetryJob = null
-        autoNextLog("schedulePreloadNext start next=${nextVideo.id} fromQueue=$fromQueue")
-        preloadJob =
-            scope.launch {
-                var success = false
-                var shouldRetry = false
-                try {
-                    val ctx = appContext ?: return@launch
-                    val resolved =
-                        resolveStreamsForVideo(nextVideo, ctx) ?: run {
-                            shouldRetry = true
-                            autoNextLog("schedulePreloadNext resolve failed next=${nextVideo.id}")
-                            return@launch
-                        }
-                    if (resolved.streamType == StreamType.LIVE_STREAM) {
-                        autoNextLog("schedulePreloadNext resolved live next=${nextVideo.id}; skip")
-                        return@launch
-                    }
-                    val pl = player ?: return@launch
-                    val latestTarget = nextPreloadTarget()
-                    if (currentVideoId != currentId ||
-                        latestTarget == null ||
-                        latestTarget.first.id != nextVideo.id ||
-                        latestTarget.second != fromQueue ||
-                        pl.mediaItemCount > 1 ||
-                        _playerState.value.isLooping
-                    ) {
-                        autoNextLog("schedulePreloadNext stale before append next=${nextVideo.id}")
-                        return@launch
-                    }
-                    val source =
-                        mediaLoader?.buildPreloadMediaSource(
-                            context = ctx,
-                            videoStream = resolved.videoStream,
-                            audioStream = resolved.audioStream,
-                            availableVideoStreams = StreamProcessor.processVideoStreams(resolved.videoStreams),
-                            dashManifestUrl = resolved.dashManifestUrl,
-                            durationSeconds = resolved.durationSeconds,
-                            subtitleStreams = StreamProcessor.processSubtitleStreams(resolved.subtitles),
-                            mediaId = resolved.enrichedVideo.id,
-                            mediaMetadata =
-                                resolved.enrichedVideo
-                                    .toVideoSessionMetadata()
-                                    .toMedia3Metadata(),
-                        ) ?: run {
-                            shouldRetry = true
-                            autoNextLog("schedulePreloadNext mediaSource failed next=${nextVideo.id}")
-                            return@launch
-                        }
-                    pl.addMediaSource(source)
-                    preloadedNext = PreloadedNext(resolved, fromQueue)
-                    preloadRetryCount = 0
-                    success = true
-                    autoNextLog("schedulePreloadNext appended next=${resolved.enrichedVideo.id} fromQueue=$fromQueue")
-                    Log.d(
-                        TAG,
-                        "Gapless: preloaded next ${resolved.enrichedVideo.id} (fromQueue=$fromQueue) as window ${pl.mediaItemCount - 1}",
-                    )
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    shouldRetry = true
-                    Log.w(TAG, "Gapless preload failed", e)
-                } finally {
-                    preloadJob = null
-                    if (!success && currentVideoId == currentId && preloadedNext == null) {
-                        preloadAttemptVideoId = null
-                        preloadAttemptNextVideoId = null
-                        if (shouldRetry) schedulePreloadRetry(currentId, nextVideo.id)
-                    }
-                }
-            }
-    }
-
-    private fun schedulePreloadRetry(
-        anchorVideoId: String,
-        nextVideoId: String,
-    ) {
-        if (preloadRetryCount >= MAX_PRELOAD_RETRIES) {
-            autoNextLog("schedulePreloadRetry giving up next=$nextVideoId")
-            Log.w(TAG, "Gapless: giving up preloading $nextVideoId after $preloadRetryCount retries")
-            return
-        }
-        preloadRetryCount++
-        autoNextLog("schedulePreloadRetry scheduled next=$nextVideoId count=$preloadRetryCount")
-        preloadRetryJob?.cancel()
-        preloadRetryJob =
-            scope.launch {
-                delay(PRELOAD_RETRY_DELAY_MS)
-                if (currentVideoId == anchorVideoId &&
-                    preloadedNext == null &&
-                    preloadJob?.isActive != true &&
-                    nextPreloadTarget()?.first?.id == nextVideoId
-                ) {
-                    autoNextLog("schedulePreloadRetry firing next=$nextVideoId count=$preloadRetryCount")
-                    schedulePreloadNext()
-                } else {
-                    autoNextLog("schedulePreloadRetry stale next=$nextVideoId")
-                }
-            }
-    }
-
-    private fun clearPreload() {
-        autoNextLog("clearPreload")
-        preloadJob?.cancel()
-        preloadJob = null
-        preloadRetryJob?.cancel()
-        preloadRetryJob = null
-        preloadAttemptVideoId = null
-        preloadAttemptNextVideoId = null
-        preloadRetryCount = 0
-        if (preloadedNext != null) {
-            preloadedNext = null
-            val p = player
-            if (p != null && p.mediaItemCount > 1) {
-                val current = p.currentMediaItemIndex
-                for (i in p.mediaItemCount - 1 downTo current + 1) {
-                    runCatching { p.removeMediaItem(i) }
-                }
-            }
-        }
+        return PreloadTarget(nextVideo, fromQueue)
     }
 
     private fun promotePreloadedItem() {
-        val pre = preloadedNext ?: return
+        val pre = preload.consume() ?: return
         autoNextLog("promotePreloadedItem ${pre.data.enrichedVideo.id} fromQueue=${pre.fromQueue}")
-        preloadedNext = null
-        preloadJob?.cancel()
-        preloadJob = null
-        preloadRetryJob?.cancel()
-        preloadRetryJob = null
         val data = pre.data
         Log.d(TAG, "Gapless: promoting auto-advanced item ${data.enrichedVideo.id} (fromQueue=${pre.fromQueue})")
 
@@ -2273,10 +1940,7 @@ class EnhancedPlayerManager private constructor() {
         sabrPreferred = false
 
         if (pre.fromQueue) {
-            nextQueueIndex()?.let { nextIndex ->
-                currentQueueIndex = nextIndex
-                currentQueueIndexFlow.value = currentQueueIndex
-            }
+            queue.nextIndex()?.let { nextIndex -> queue.moveTo(nextIndex) }
         } else {
             autoplayCandidates = autoplayCandidates.filter { it.id != data.enrichedVideo.id }
         }
@@ -2366,210 +2030,13 @@ class EnhancedPlayerManager private constructor() {
             }
         }
 
-        preloadAttemptVideoId = null
-        preloadAttemptNextVideoId = null
-        preloadRetryCount = 0
-        schedulePreloadNext()
+        preload.restartAfterAdvance()
     }
-
-    private suspend fun fetchStreamInfoForPlayback(videoId: String): StreamInfo? =
-        withContext(Dispatchers.IO) {
-            var lastError: Throwable? = null
-            repeat(3) { attempt ->
-                val info =
-                    try {
-                        val url =
-                            if (attempt == 1) {
-                                "https://youtu.be/$videoId"
-                            } else {
-                                "https://www.youtube.com/watch?v=$videoId"
-                            }
-                        withTimeoutOrNull(12_000L) {
-                            StreamInfo.getInfo(ServiceList.YouTube, url)
-                        }
-                    } catch (e: Exception) {
-                        lastError = e
-                        null
-                    }
-                if (info != null) return@withContext info
-                if (attempt < 2) delay((attempt + 1) * 300L)
-            }
-            Log.e(TAG, "Failed to fetch stream info for $videoId", lastError)
-            null
-        }
-
-    private fun selectStreamsForServicePlayback(
-        videoCandidates: List<VideoStream>,
-        audioCandidatesAll: List<AudioStream>,
-        preferredQuality: VideoQuality,
-        preferredAudioLanguage: String,
-        preferredCodecKey: String = "auto",
-    ): Pair<VideoStream?, AudioStream?> {
-        val audioCandidates =
-            audioCandidatesAll
-                .distinctBy { it.url ?: it.content }
-                .sortedByDescending { it.bitrate }
-
-        val audioStream =
-            when (preferredAudioLanguage) {
-                "original", "" -> {
-                    audioCandidates.firstOrNull {
-                        it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                    } ?: audioCandidates.firstOrNull {
-                        it.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
-                    } ?: audioCandidates.firstOrNull()
-                }
-
-                else -> {
-                    audioCandidates.firstOrNull { audio ->
-                        val lang = audio.audioLocale?.language ?: ""
-                        lang.startsWith(preferredAudioLanguage, ignoreCase = true)
-                    } ?: audioCandidates.firstOrNull {
-                        it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                    } ?: audioCandidates.firstOrNull()
-                }
-            }
-
-        val videoStreams =
-            videoCandidates
-                .filter {
-                    val mime = it.format?.mimeType
-                    mime?.contains("mp4", ignoreCase = true) == true ||
-                        mime?.contains("webm", ignoreCase = true) == true
-                }
-
-        val selectedVideoStream =
-            when (preferredQuality) {
-                VideoQuality.AUTO -> {
-                    null
-                }
-
-                else -> {
-                    videoStreams
-                        .sortedWith(
-                            compareBy<VideoStream> {
-                                kotlin.math.abs(
-                                    QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) -
-                                        preferredQuality.height,
-                                )
-                            }.thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
-                                .thenByDescending { it.bitrate },
-                        ).firstOrNull()
-                }
-            }
-        val videoStream =
-            if (audioStream == null && selectedVideoStream == null) {
-                videoStreams
-                    .sortedWith(
-                        compareBy<VideoStream> { if (it.isVideoOnly) 1 else 0 }
-                            .thenByDescending { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
-                            .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
-                            .thenByDescending { it.bitrate },
-                    ).firstOrNull()
-            } else {
-                selectedVideoStream
-            }
-        return videoStream to audioStream
-    }
-
-    private fun relatedVideosFromStreamInfo(info: StreamInfo): List<Video> =
-        info.relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
-            runCatching { item.toFlowVideo() }.getOrNull()
-        }
-
-    private fun videoFromStreamInfo(
-        videoId: String,
-        info: StreamInfo,
-        fallback: Video,
-    ): Video {
-        val thumbnail =
-            info.thumbnails
-                .sortedByDescending { it.height }
-                .map { it.url }
-                .firstOrNull()
-                .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
-        return fallback.copy(
-            title = info.name?.takeIf { it.isNotBlank() } ?: fallback.title,
-            channelName = info.uploaderName?.takeIf { it.isNotBlank() } ?: fallback.channelName,
-            channelId = extractChannelId(info.uploaderUrl).ifBlank { fallback.channelId },
-            thumbnailUrl = thumbnail.ifBlank { fallback.thumbnailUrl },
-            duration = info.duration.toInt().takeIf { it > 0 } ?: fallback.duration,
-            viewCount = info.viewCount.takeIf { it > 0L } ?: fallback.viewCount,
-            uploadDate = info.textualUploadDate ?: fallback.uploadDate,
-            description = info.description?.content ?: fallback.description,
-            tags = info.tags ?: fallback.tags,
-        )
-    }
-
-    private fun StreamInfoItem.toFlowVideo(): Video {
-        val rawUrl = url ?: ""
-        val videoId =
-            when {
-                rawUrl.contains("watch?v=") -> rawUrl.substringAfter("watch?v=").substringBefore("&")
-                rawUrl.contains("youtu.be/") -> rawUrl.substringAfter("youtu.be/").substringBefore("?")
-                rawUrl.contains("/shorts/") -> rawUrl.substringAfter("/shorts/").substringBefore("?")
-                else -> rawUrl.substringAfterLast("/")
-            }.trim()
-        if (videoId.isBlank()) throw IllegalArgumentException("Blank related video id")
-
-        val bestThumbnail =
-            thumbnails
-                .sortedByDescending { it.height }
-                .map { it.url }
-                .firstOrNull()
-                .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
-
-        val isShortUrl = rawUrl.contains("/shorts/")
-        val isLiveStream = streamType == StreamType.LIVE_STREAM
-        val durationSecs =
-            when {
-                isLiveStream -> 0
-                duration > 0 -> duration.toInt()
-                isShortUrl -> 60
-                else -> 0
-            }
-        val nameLower = name?.lowercase() ?: ""
-        val uploaderLower = uploaderName?.lowercase() ?: ""
-        val isMusicCandidate =
-            uploaderLower.contains("vevo") ||
-                uploaderLower.contains(" - topic") ||
-                nameLower.contains("official music video") ||
-                nameLower.contains("official video") ||
-                nameLower.contains("official audio") ||
-                nameLower.contains("(official)")
-
-        return Video(
-            id = videoId,
-            title = name ?: "Unknown Title",
-            channelName = uploaderName ?: "Unknown Channel",
-            channelId = extractChannelId(uploaderUrl),
-            thumbnailUrl = bestThumbnail,
-            duration = durationSecs,
-            viewCount = viewCount,
-            uploadDate = textualUploadDate ?: "Unknown",
-            channelThumbnailUrl = uploaderAvatars.sortedByDescending { it.height }.firstOrNull()?.url ?: "",
-            isUpcoming = streamType == StreamType.NONE,
-            isLive = isLiveStream,
-            isShort = isShortUrl,
-            isMusic = isMusicCandidate,
-        )
-    }
-
-    private fun extractChannelId(url: String?): String = url?.substringAfterLast("/")?.takeIf { it.isNotBlank() && it != url } ?: ""
-
-    private fun isOnWifi(context: Context): Boolean =
-        try {
-            val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val caps = manager.getNetworkCapabilities(manager.activeNetwork)
-            caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ?: true
-        } catch (e: Exception) {
-            true
-        }
 
     // ===== Playback Controls =====
 
     fun play() {
-        if (isAudioOnlyMode || videoSurfaceRestorePending) {
+        if (audioOnlyMode.needsVideoRestore) {
             restoreVideoOutput()
         }
         val p = player ?: return
@@ -2763,10 +2230,10 @@ class EnhancedPlayerManager private constructor() {
         autoplayJob?.cancel()
         autoplayJob = null
         releaseAdvanceWakeLock()
-        clearPreload()
+        preload.clear()
         currentLocalFilePath = null
         clearedMediaRecoveryState.clear()
-        isAudioOnlyMode = false
+        audioOnlyMode.reset()
         pendingInitialLiveEdgeSeek = false
         setVideoTracksDisabled(false)
         updateLivePlaybackMode(isLive = false)
@@ -3016,7 +2483,7 @@ class EnhancedPlayerManager private constructor() {
             currentAudioStream = availableAudioStreams[index]
             val position = player?.currentPosition ?: 0L
             val wasPlaying = player?.isPlaying ?: false
-            if (isAudioOnlyMode) {
+            if (audioOnlyMode.isActive) {
                 loadMediaInternal(null, currentAudioStream, audioOnly = true)
             } else {
                 loadMediaInternal(currentVideoStream, currentAudioStream)
@@ -3148,7 +2615,7 @@ class EnhancedPlayerManager private constructor() {
             }
             val p = player
             val resyncPausedVideo =
-                p != null && !wasSurfaceValid && !isAudioOnlyMode &&
+                p != null && !wasSurfaceValid && !audioOnlyMode.isActive &&
                     p.currentMediaItem != null &&
                     VideoSurfacePolicy.shouldResyncOnSurfaceReattach(
                         playWhenReady = p.playWhenReady,
@@ -3156,7 +2623,7 @@ class EnhancedPlayerManager private constructor() {
                         playbackState = p.playbackState,
                     )
             if (p != null && currentVideoStream != null) {
-                if (isAudioOnlyMode) {
+                if (audioOnlyMode.isActive) {
                     Log.d(TAG, "attachVideoSurface: was in audio-only mode — restoring video stream")
                     restoreVideoOutput()
                 } else if (p.currentMediaItem == null) {
@@ -3201,16 +2668,18 @@ class EnhancedPlayerManager private constructor() {
         val current = GlobalPlayerState.currentVideo.value
         val state = _playerState.value
         if (current != null &&
-            state.currentVideoId == current.id &&
-            (p?.currentMediaItem == null || p.playbackState == Player.STATE_IDLE || !state.isPrepared)
+            BackgroundHandoffPolicy.needsServiceLayerReload(
+                isSameVideo = state.currentVideoId == current.id,
+                hasMediaItem = p?.currentMediaItem != null,
+                playbackState = p?.playbackState,
+                isPrepared = state.isPrepared,
+            )
         ) {
             autoNextLog("continueVideoPlaybackInBackground service-load current=${current.id}")
             playVideoFromServiceLayer(current, reason = "background-handoff-unprepared")
             return
         }
-        if (p?.playWhenReady == true && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
-            p.play()
-        }
+        resumePlaybackIfStalled(p)
     }
 
     fun handleCriticalMemoryPressure() {
@@ -3237,13 +2706,11 @@ class EnhancedPlayerManager private constructor() {
     fun switchToAudioOnly() {
         val p = player ?: return
         autoNextLog("switchToAudioOnly")
-        isAudioOnlyMode = true
+        audioOnlyMode.enter()
         setVideoTracksDisabled(true)
         p.setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK)
-        if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
-            p.play()
-        }
-        schedulePreloadNext()
+        resumePlaybackIfStalled(p)
+        preload.schedule()
     }
 
     fun restoreVideoOutput() {
@@ -3256,26 +2723,27 @@ class EnhancedPlayerManager private constructor() {
                 isDisplayInteractive = displayInteractive,
                 isSurfaceValid = surfaceValid,
             )
-        if (!canRestore) {
+        if (!audioOnlyMode.restore(canRestore)) {
             autoNextLog(
                 "restoreVideoOutput deferred interactive=$displayInteractive surfaceValid=$surfaceValid",
             )
-            videoSurfaceRestorePending = true
             return
         }
         autoNextLog("restoreVideoOutput")
-        isAudioOnlyMode = false
-        videoSurfaceRestorePending = false
         setVideoTracksDisabled(false)
         p.setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
-        if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
+        resumePlaybackIfStalled(p)
+    }
+
+    private fun resumePlaybackIfStalled(p: Player?) {
+        if (p != null && p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
             p.play()
         }
     }
 
-    fun isInAudioOnlyMode(): Boolean = isAudioOnlyMode
+    fun isInAudioOnlyMode(): Boolean = audioOnlyMode.isActive
 
-    fun isVideoSurfaceRestorePending(): Boolean = videoSurfaceRestorePending
+    fun isVideoSurfaceRestorePending(): Boolean = audioOnlyMode.restorePending
 
     fun setSurfaceReady(ready: Boolean) {
         surfaceManager?.setSurfaceReady(ready)
@@ -3304,9 +2772,9 @@ class EnhancedPlayerManager private constructor() {
 
     fun clearCache() = cacheManager?.clearCache()
 
-    fun clearCacheForCurrentVideo() {
+    suspend fun clearCacheForCurrentVideo() {
         Log.d(TAG, "Clearing media cache due to persistent stream errors")
-        cacheManager?.clearCache()
+        withContext(Dispatchers.IO) { cacheManager?.clearCache() }
     }
 
     fun startBackgroundService(
@@ -3343,8 +2811,8 @@ class EnhancedPlayerManager private constructor() {
     // ===== Clear & Release =====
 
     fun clearCurrentVideo() {
-        clearPreload()
-        isAudioOnlyMode = false
+        preload.clear()
+        audioOnlyMode.reset()
         setVideoTracksDisabled(false)
         updateLivePlaybackMode(isLive = false)
         mediaLoader?.releaseSabr()
@@ -3377,14 +2845,7 @@ class EnhancedPlayerManager private constructor() {
         manualLoopEnabled = false
         autoplayCandidates = emptyList()
         autoplaySourceVideoId = null
-        playbackQueue = emptyList()
-        originalPlaybackQueue = emptyList()
-        currentQueueIndex = -1
-        _queueVideos.value = emptyList()
-        currentQueueIndexFlow.value = -1
-        queueTitle = null
-        queueLoopEnabled = false
-        queueShuffleEnabled = false
+        queue.clear()
         _playerState.value =
             _playerState.value.copy(
                 hasNext = false,
@@ -3396,8 +2857,6 @@ class EnhancedPlayerManager private constructor() {
                 isLooping = globalLoopEnabled,
             )
     }
-
-    fun isQueueActive(): Boolean = playbackQueue.isNotEmpty()
 
     private fun updateLiveEdgeState(player: ExoPlayer) {
         if (!currentIsLiveStream && !player.isCurrentMediaItemLive) return
@@ -3439,7 +2898,7 @@ class EnhancedPlayerManager private constructor() {
         Log.d(TAG, "release() called")
         releaseAdvanceWakeLock()
         advanceWakeLock = null
-        clearPreload()
+        preload.clear()
         releaseVideoMediaSession()
         pendingReloadJob?.cancel()
         pendingReloadJob = null
@@ -3536,7 +2995,7 @@ class EnhancedPlayerManager private constructor() {
 
     private fun onPlaybackShutdown() {
         clearAutoplayCountdownInternal()
-        clearPreload()
+        preload.clear()
         releaseAdvanceWakeLock()
         errorHandler?.handlePlaybackShutdown(player)
     }

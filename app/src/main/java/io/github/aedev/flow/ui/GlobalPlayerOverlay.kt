@@ -14,8 +14,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,7 +38,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
@@ -54,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,6 +67,7 @@ import io.github.aedev.flow.player.PlayerHardwareController
 import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.player.dlna.DlnaDevice
 import io.github.aedev.flow.player.error.PlayerDiagnostics
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.components.CommentSortFilterChips
 import io.github.aedev.flow.ui.components.DraggablePlayerLayout
 import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
@@ -94,16 +93,23 @@ import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
 import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
 import io.github.aedev.flow.ui.screens.player.components.resolvePlayerQualityLabel
 import io.github.aedev.flow.ui.screens.player.components.videoPlayerControls
-import io.github.aedev.flow.ui.screens.player.content.PlayerContent
+import io.github.aedev.flow.ui.screens.player.components.videoPlayerZoom
 import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
 import io.github.aedev.flow.ui.screens.player.effects.*
+import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
+import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import io.github.aedev.flow.ui.theme.PlayerScrim
+import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Locale
+
+private const val EXIT_DRAG_MIN_SCALE = 0.94f
 
 /**
  * GlobalPlayerOverlay - The main video player overlay that sits above everything.
@@ -163,6 +169,7 @@ fun GlobalPlayerOverlay(
     val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
     val rememberedBrightnessLevel by playerPreferences.rememberedBrightnessLevel.collectAsState(initial = -1f)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
+    val seekSwipeGesturesEnabled by playerPreferences.seekSwipeGesturesEnabled.collectAsState(initial = true)
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
@@ -176,6 +183,12 @@ fun GlobalPlayerOverlay(
     val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
     val lockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
     val commentsEnabled by playerPreferences.commentsEnabled.collectAsState(initial = true)
+    val preferredSubtitleLanguage by playerPreferences.preferredSubtitleLanguage
+        .collectAsState(initial = CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
+    val autoEnableSubtitles by playerPreferences.autoEnableSubtitles.collectAsState(initial = false)
+    val rememberSubtitleLanguage: (String) -> Unit = { language ->
+        scope.launch { playerPreferences.setPreferredSubtitleLanguage(language) }
+    }
     val isCommentsAvailable = commentsEnabled && playerUiState.hlsUrl.isNullOrEmpty()
     val sortedComments =
         remember(comments, screenState.commentSortFilter) {
@@ -288,6 +301,20 @@ fun GlobalPlayerOverlay(
         }
     }
 
+    var autoEnabledCaptionsFor by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(video.id, playerState.availableSubtitles, autoEnableSubtitles, preferredSubtitleLanguage) {
+        if (!autoEnableSubtitles || autoEnabledCaptionsFor == video.id) return@LaunchedEffect
+        if (screenState.subtitlesEnabled || playerState.availableSubtitles.isEmpty()) return@LaunchedEffect
+        val enabled =
+            SubtitleSelection.enable(
+                screenState = screenState,
+                subtitles = playerState.availableSubtitles,
+                languageTag = preferredSubtitleLanguage,
+                rememberLanguage = rememberSubtitleLanguage,
+            )
+        if (enabled) autoEnabledCaptionsFor = video.id
+    }
+
     LaunchedEffect(rememberBrightnessEnabled, rememberedBrightnessLevel) {
         if (rememberBrightnessEnabled) {
             screenState.brightnessLevel =
@@ -339,13 +366,17 @@ fun GlobalPlayerOverlay(
 
     LaunchedEffect(screenState.isFullscreen) {
         screenState.dismissMediaSheets()
+        screenState.exitDragOffsetY = 0f
+        screenState.exitDragProgress = 0f
     }
 
-    LaunchedEffect(screenState.zoomIndicatorSequence) {
-        if (screenState.showZoomIndicator) {
-            delay(if (screenState.zoomScale > 1.02f) 900 else 600)
-            screenState.showZoomIndicator = false
-        }
+    LaunchedEffect(screenState) {
+        snapshotFlow { screenState.zoomIndicatorSequence }
+            .collectLatest {
+                if (!screenState.showZoomIndicator) return@collectLatest
+                delay(if (screenState.zoomScale > 1.02f) 900 else 600)
+                screenState.showZoomIndicator = false
+            }
     }
 
     val config = LocalConfiguration.current
@@ -444,6 +475,13 @@ fun GlobalPlayerOverlay(
         derivedStateOf { playerSheetState.fraction > 0.5f }
     }
 
+    // Any of these tears down the gesture modifier (or restarts its pointer coroutine) without an
+    // onDragCancel, so a drag in flight would otherwise strand the seek preview on screen and keep
+    // the controls from ever auto-hiding again.
+    LaunchedEffect(screenState.isFullscreen, screenState.isTouchLocked, isMinimized, localIsInPipMode) {
+        screenState.isSeekDragging = false
+    }
+
     PositionTrackingEffect(
         isPlaying = playerState.playWhenReady,
         screenState = screenState,
@@ -463,6 +501,7 @@ fun GlobalPlayerOverlay(
         hasEnded = playerState.hasEnded,
         lastInteractionTimestamp = screenState.lastInteractionTimestamp,
         isTouchLocked = screenState.isTouchLocked,
+        isScrubbing = screenState.isScrubbing || screenState.isSeekDragging,
         onHideControls = { screenState.showControls = false },
     )
 
@@ -486,7 +525,9 @@ fun GlobalPlayerOverlay(
         activity = activity,
         videoAspectRatio = effectiveVideoAspectRatio,
         lifecycleOwner = lifecycleOwner,
-        fullscreenBrightnessLevel = if (rememberBrightnessEnabled) screenState.brightnessLevel else null,
+        fullscreenBrightnessLevel = {
+            if (rememberBrightnessEnabled) screenState.brightnessLevel else null
+        },
         suppressFullscreenRequest = pipForcedFullscreen,
         isPortrait = screenState.isFullscreenPortrait,
     )
@@ -864,7 +905,6 @@ fun GlobalPlayerOverlay(
                                 onSeekAccumulate = { screenState.seekAccumulation = kotlin.math.abs(it) },
                                 currentPosition = { screenState.currentPosition },
                                 duration = screenState.duration,
-                                normalSpeed = screenState.normalSpeed,
                                 scope = scope,
                                 isFullscreen = screenState.isFullscreen,
                                 onBrightnessChange = updateBrightnessLevel,
@@ -876,18 +916,22 @@ fun GlobalPlayerOverlay(
                                         .setVolumeBoost(if (level > 1f) level else 1f)
                                 },
                                 onShowVolumeChange = { screenState.showVolumeOverlay = it },
-                                onBack = {
-                                    screenState.isFullscreen = false
-                                    screenState.isFullscreenPortrait = false
-                                    playerSheetState.collapse()
+                                onSeekDragChange = { dragging ->
+                                    screenState.isSeekDragging = dragging
+                                    screenState.onInteraction()
                                 },
-                                brightnessLevel = screenState.brightnessLevel,
-                                volumeLevel = screenState.volumeLevel,
+                                onSeekDragUpdate = { targetMs, deltaMs ->
+                                    screenState.seekDragTargetMs = targetMs
+                                    screenState.seekDragDeltaMs = deltaMs
+                                },
+                                brightnessLevel = { screenState.brightnessLevel },
+                                volumeLevel = { screenState.volumeLevel },
                                 maxVolume = audioSystemInfo.maxVolume,
                                 audioManager = audioSystemInfo.audioManager,
                                 activity = activity,
                                 brightnessSwipeGesturesEnabled = brightnessSwipeGesturesEnabled,
                                 volumeSwipeGesturesEnabled = volumeSwipeGesturesEnabled,
+                                seekSwipeGesturesEnabled = seekSwipeGesturesEnabled,
                                 allowVolumeBoost = allowVolumeBoost,
                                 doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
                                 longPressPlaybackSpeed = longPressPlaybackSpeed,
@@ -895,66 +939,30 @@ fun GlobalPlayerOverlay(
                                     screenState.isFullscreen = false
                                     screenState.isFullscreenPortrait = false
                                 },
+                                onExitFullscreenDrag = { offsetPx, progress ->
+                                    screenState.exitDragOffsetY = offsetPx
+                                    screenState.exitDragProgress = progress
+                                },
                                 isSeekForwardActive = screenState.showSeekForwardAnimation,
                                 isSeekBackActive = screenState.showSeekBackAnimation,
-                            )
-                            // Two-finger pinch-to-zoom gesture. Only activates for 2+ pointers,
-                            // so single-finger gestures (brightness/volume swipe, tap) are unaffected.
-                            .pointerInput("pinchZoom") {
-                                awaitEachGesture {
-                                    val firstDown = awaitFirstDown(requireUnconsumed = false)
-                                    var secondPtr: PointerInputChange? = null
-                                    while (secondPtr == null) {
-                                        val event = awaitPointerEvent()
-                                        secondPtr =
-                                            event.changes.firstOrNull {
-                                                it.id != firstDown.id && it.pressed && !it.previousPressed
-                                            }
-                                        val p1 = event.changes.firstOrNull { it.id == firstDown.id }
-                                        if (p1 == null || !p1.pressed) return@awaitEachGesture
-                                    }
-                                    val p2 = secondPtr!!
-                                    p2.consume()
-                                    val dx0 = firstDown.position.x - p2.position.x
-                                    val dy0 = firstDown.position.y - p2.position.y
-                                    var prevDist = kotlin.math.sqrt(dx0 * dx0 + dy0 * dy0).coerceAtLeast(1f)
-                                    var prevCentroidX = (firstDown.position.x + p2.position.x) / 2f
-                                    var prevCentroidY = (firstDown.position.y + p2.position.y) / 2f
-                                    val p1Id = firstDown.id
-                                    val p2Id = p2.id
-                                    do {
-                                        val event = awaitPointerEvent()
-                                        val tp1 = event.changes.firstOrNull { it.id == p1Id }
-                                        val tp2 = event.changes.firstOrNull { it.id == p2Id }
-                                        if (tp1 == null || tp2 == null || !tp1.pressed || !tp2.pressed) break
-                                        tp1.consume()
-                                        tp2.consume()
-                                        val dx = tp1.position.x - tp2.position.x
-                                        val dy = tp1.position.y - tp2.position.y
-                                        val dist = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
-                                        val centroidX = (tp1.position.x + tp2.position.x) / 2f
-                                        val centroidY = (tp1.position.y + tp2.position.y) / 2f
-                                        val panX = centroidX - prevCentroidX
-                                        val panY = centroidY - prevCentroidY
-                                        val factor = dist / prevDist
-                                        val newScale = (screenState.zoomScale * factor).coerceIn(1f, 6f)
-                                        if (newScale <= 1.02f) {
-                                            screenState.zoomScale = 1f
-                                            screenState.zoomOffsetX = 0f
-                                            screenState.zoomOffsetY = 0f
-                                        } else {
-                                            screenState.zoomScale = newScale
-                                            val maxPanX = (newScale - 1f) * size.width / 2f
-                                            val maxPanY = (newScale - 1f) * size.height / 2f
-                                            screenState.zoomOffsetX = (screenState.zoomOffsetX + panX).coerceIn(-maxPanX, maxPanX)
-                                            screenState.zoomOffsetY = (screenState.zoomOffsetY + panY).coerceIn(-maxPanY, maxPanY)
-                                        }
-                                        screenState.showZoomIndicator = true
-                                        screenState.zoomIndicatorSequence += 1
-                                        prevDist = dist
-                                        prevCentroidX = centroidX
-                                        prevCentroidY = centroidY
-                                    } while (true)
+                            ).videoPlayerZoom(
+                                scope = scope,
+                                scale = { screenState.zoomScale },
+                                offsetX = { screenState.zoomOffsetX },
+                                offsetY = { screenState.zoomOffsetY },
+                                onTransform = { newScale, newOffsetX, newOffsetY ->
+                                    screenState.zoomScale = newScale
+                                    screenState.zoomOffsetX = newOffsetX
+                                    screenState.zoomOffsetY = newOffsetY
+                                    screenState.showZoomIndicator = true
+                                    screenState.zoomIndicatorSequence += 1
+                                },
+                            ).graphicsLayer {
+                                if (screenState.isFullscreen) {
+                                    translationY = screenState.exitDragOffsetY
+                                    val shrink = lerp(1f, EXIT_DRAG_MIN_SCALE, screenState.exitDragProgress)
+                                    scaleX = shrink
+                                    scaleY = shrink
                                 }
                             }
                     } else {
@@ -1030,7 +1038,11 @@ fun GlobalPlayerOverlay(
                         PlayerGestureOverlays(
                             screenState = screenState,
                             allowVolumeBoost = allowVolumeBoost,
-                            speedBoostSpeed = longPressPlaybackSpeed,
+                            speedBoostSpeed =
+                                VideoPlayerUtils.boostedPlaybackSpeed(
+                                    currentSpeed = screenState.normalSpeed,
+                                    targetSpeed = longPressPlaybackSpeed,
+                                ),
                         )
 
                         AnimatedVisibility(
@@ -1073,7 +1085,7 @@ fun GlobalPlayerOverlay(
                                 modifier =
                                     Modifier
                                         .fillMaxSize()
-                                        .background(Color.Black.copy(alpha = 0.82f)),
+                                        .background(PlayerScrim.copy(alpha = 0.82f)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(
@@ -1087,12 +1099,12 @@ fun GlobalPlayerOverlay(
                                     Icon(
                                         imageVector = Icons.Rounded.ErrorOutline,
                                         contentDescription = stringResource(R.string.ui_playback_error),
-                                        tint = Color(0xFFFF6B6B),
+                                        tint = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.size(48.dp),
                                     )
                                     Text(
                                         text = errorMsg,
-                                        color = Color.White,
+                                        color = PlayerScrimContent,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         textAlign = TextAlign.Center,
@@ -1160,6 +1172,10 @@ fun GlobalPlayerOverlay(
                                     manager.seekTo(newPosition)
                                 }
                             },
+                            onScrubbingChange = { scrubbing ->
+                                screenState.isScrubbing = scrubbing
+                                screenState.onInteraction()
+                            },
                             onBack = { playerSheetState.collapse() },
                             onSettingsClick = { screenState.showSettingsMenu = true },
                             onQualityClick = { screenState.showQualitySelector = true },
@@ -1182,35 +1198,19 @@ fun GlobalPlayerOverlay(
                             onChapterClick = { screenState.showChaptersSheet = true },
                             onSubtitleClick = {
                                 if (screenState.subtitlesEnabled) {
-                                    EnhancedPlayerManager.getInstance().selectSubtitle(null)
-                                    screenState.disableSubtitles()
+                                    SubtitleSelection.disable(screenState)
                                 } else {
-                                    if (screenState.selectedSubtitleUrl == null && playerState.availableSubtitles.isNotEmpty()) {
-                                        val targetSub =
-                                            playerState.availableSubtitles.firstOrNull { !it.isAutoGenerated }
-                                                ?: playerState.availableSubtitles.first()
-                                        val index = playerState.availableSubtitles.indexOf(targetSub)
-
-                                        screenState.selectedSubtitleUrl = targetSub.url
-                                        EnhancedPlayerManager.getInstance().selectSubtitle(index)
-                                        screenState.subtitlesEnabled = true
-                                    } else if (screenState.selectedSubtitleUrl == null) {
-                                        screenState.showSubtitleSelector = true
-                                    } else {
-                                        val index =
-                                            playerState.availableSubtitles.indexOfFirst {
-                                                it.url ==
-                                                    screenState.selectedSubtitleUrl
-                                            }
-                                        if (index >= 0) {
-                                            EnhancedPlayerManager.getInstance().selectSubtitle(index)
-                                            screenState.subtitlesEnabled = true
-                                        } else {
-                                            screenState.showSubtitleSelector = true
-                                        }
-                                    }
+                                    val enabled =
+                                        SubtitleSelection.enable(
+                                            screenState = screenState,
+                                            subtitles = playerState.availableSubtitles,
+                                            languageTag = preferredSubtitleLanguage,
+                                            rememberLanguage = rememberSubtitleLanguage,
+                                        )
+                                    if (!enabled) screenState.showSubtitleSelector = true
                                 }
                             },
+                            onSubtitleLongClick = { screenState.showSubtitleSelector = true },
                             isSubtitlesEnabled = screenState.subtitlesEnabled,
                             autoplayEnabled = playerUiState.autoplayEnabled,
                             isLooping = playerState.isLooping,
@@ -1368,13 +1368,13 @@ fun GlobalPlayerOverlay(
                         Text(
                             text = stringResource(R.string.player_mini_player_continue_watching_label),
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
+                            color = PlayerScrimContent,
                             modifier =
                                 Modifier
                                     .align(Alignment.TopCenter)
                                     .padding(top = 4.dp)
                                     .background(
-                                        Color(0xBB000000),
+                                        PlayerScrim.copy(alpha = 0.73f),
                                         RoundedCornerShape(3.dp),
                                     ).padding(horizontal = 6.dp, vertical = 2.dp),
                         )
@@ -1456,15 +1456,15 @@ fun GlobalPlayerOverlay(
                             }
                         },
                         selectedSubtitleUrl = screenState.selectedSubtitleUrl,
-                        onSubtitleSelected = { index, url ->
-                            screenState.selectedSubtitleUrl = url
-                            EnhancedPlayerManager.getInstance().selectSubtitle(index)
-                            screenState.subtitlesEnabled = true
+                        onSubtitleSelected = { index, _ ->
+                            SubtitleSelection.applyAt(
+                                screenState = screenState,
+                                subtitles = playerState.availableSubtitles,
+                                index = index,
+                                rememberLanguage = rememberSubtitleLanguage,
+                            )
                         },
-                        onDisableSubtitles = {
-                            EnhancedPlayerManager.getInstance().selectSubtitle(null)
-                            screenState.disableSubtitles()
-                        },
+                        onDisableSubtitles = { SubtitleSelection.disable(screenState) },
                         onAutoplayToggle = { playerViewModel.toggleAutoplay(it) },
                         onSkipSilenceToggle = { playerViewModel.toggleSkipSilence(it) },
                         onStableVolumeToggle = { playerViewModel.toggleStableVolume(it) },

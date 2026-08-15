@@ -64,6 +64,22 @@ private val playerExpandSpringSpec = spring<Float>(dampingRatio = 0.86f, stiffne
 private val miniSnapSpringSpec = spring<Float>(dampingRatio = 0.82f, stiffness = 500f)
 private val miniResizeSpringSpec = spring<Float>(dampingRatio = 0.72f, stiffness = 280f)
 private val miniDismissSpringSpec = spring<Float>(dampingRatio = 0.9f, stiffness = 340f)
+
+/** Upward travel that commits to fullscreen; mirrors the release check below. */
+private const val EXPAND_DRAG_COMMIT_PX = 80f
+
+/** How hard the zoom resists — smaller reaches the ceiling sooner. */
+private const val EXPAND_DRAG_SOFTNESS_PX = 60f
+
+/** Ceiling the zoom approaches but never reaches, so the drag always has somewhere to go. */
+private const val EXPAND_DRAG_MAX_ZOOM = 1.06f
+
+private fun expandDragZoomFor(travelPx: Float): Float {
+    if (travelPx <= 0f) return 1f
+    val progress = travelPx / (travelPx + EXPAND_DRAG_SOFTNESS_PX)
+    return 1f + (EXPAND_DRAG_MAX_ZOOM - 1f) * progress
+}
+
 private val dragPressSpringSpec = spring<Float>(dampingRatio = 0.7f, stiffness = 600f)
 private val dragReleaseSpringSpec = spring<Float>(dampingRatio = 0.55f, stiffness = 500f)
 private val portraitFsSettleSpec = spring<Float>(dampingRatio = 1f, stiffness = 360f)
@@ -90,6 +106,13 @@ class PlayerDraggableState(
     var corner by mutableStateOf(MiniPlayerCorner.BottomRight)
     var isDragging by mutableStateOf(false)
     val dragScale = Animatable(1f)
+
+    /**
+     * Zoom applied while dragging up to enter fullscreen. Separate from [dragScale] so the
+     * mini-player's press effect and this cannot overwrite each other; they apply at opposite ends
+     * of [expandFraction] and are read in the draw phase only.
+     */
+    val expandDragScale = Animatable(1f)
 
     var cachedTargetX by mutableFloatStateOf(0f)
     var cachedTargetY by mutableFloatStateOf(0f)
@@ -847,7 +870,12 @@ fun DraggablePlayerLayout(
                                             liveMiniWidth / expandedVideoWidth.coerceAtLeast(1f),
                                             fraction,
                                         )
-                                    val drag = if (fraction > 0.6f) state.dragScale.value else 1f
+                                    val drag =
+                                        if (fraction > 0.6f) {
+                                            state.dragScale.value
+                                        } else {
+                                            state.expandDragScale.value
+                                        }
                                     transformOrigin = TransformOrigin(0f, 0f)
                                     scaleX = visualScale * drag
                                     scaleY = visualScale * drag
@@ -1131,14 +1159,23 @@ fun DraggablePlayerLayout(
                                             var pendingX = state.offsetX.value
                                             var pendingY = state.offsetY.value
                                             var pendingMode = 0
+                                            var pendingExpandScale = 1f
                                             val snapDriver =
                                                 state.scope.launch {
                                                     for (ignored in snapSignal) {
-                                                        if (pendingMode == 0) {
-                                                            state.expandFraction.snapTo(pendingFraction)
-                                                        } else {
-                                                            state.offsetX.snapTo(pendingX)
-                                                            state.offsetY.snapTo(pendingY)
+                                                        when (pendingMode) {
+                                                            0 -> {
+                                                                state.expandFraction.snapTo(pendingFraction)
+                                                            }
+
+                                                            2 -> {
+                                                                state.expandDragScale.snapTo(pendingExpandScale)
+                                                            }
+
+                                                            else -> {
+                                                                state.offsetX.snapTo(pendingX)
+                                                                state.offsetY.snapTo(pendingY)
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -1171,6 +1208,10 @@ fun DraggablePlayerLayout(
                                                     ) {
                                                         change.consume()
                                                         totalUpwardDrag += -delta.y
+                                                        pendingExpandScale =
+                                                            expandDragZoomFor(totalUpwardDrag)
+                                                        pendingMode = 2
+                                                        snapSignal.trySend(Unit)
                                                     } else if (isMiniDrag) {
                                                         if (totalMovement >
                                                             viewConfiguration.touchSlop * 0.5f
@@ -1211,6 +1252,12 @@ fun DraggablePlayerLayout(
                                                 state.isDragging = false
                                                 state.scope.launch {
                                                     state.dragScale.animateTo(
+                                                        1f,
+                                                        dragReleaseSpringSpec,
+                                                    )
+                                                }
+                                                state.scope.launch {
+                                                    state.expandDragScale.animateTo(
                                                         1f,
                                                         dragReleaseSpringSpec,
                                                     )

@@ -12,6 +12,7 @@ import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -22,6 +23,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -33,75 +36,115 @@ import kotlin.coroutines.resumeWithException
 
 class PoTokenWebView private constructor(
     context: Context,
-    // to be used exactly once only during initialization!
-    private val continuation: Continuation<PoTokenWebView>,
 ) {
     private val webView = WebView(context)
     private val scope = MainScope()
     private val poTokenContinuations =
         Collections.synchronizedMap(HashMap<String, Continuation<String>>())
-    private val exceptionHandler = CoroutineExceptionHandler { _, t ->
-        onInitializationErrorCloseAndCancel(t)
-    }
+    private val exceptionHandler =
+        CoroutineExceptionHandler { _, t ->
+            onAttestationError(t)
+        }
     private lateinit var expirationInstant: Instant
 
-    // The init continuation must be resumed exactly once; console errors can arrive after
-    // onMinterCreated() and must then only fail pending mints, not re-resume initialization.
-    private val initResumed = java.util.concurrent.atomic.AtomicBoolean(false)
+    // Resumed exactly once per [attest] run. Errors arriving with no attestation in flight only
+    // fail pending mints, and a console error after a successful attestation must not re-resume it.
+    private val attestationContinuation = AtomicReference<Continuation<Unit>?>(null)
+
+    // Reloading the page cannot cancel an already-dispatched BotGuard HTTP request, so each
+    // attestation is stamped and late responses from a superseded run are dropped rather than
+    // evaluated against the page that replaced them.
+    private val attestationGeneration = AtomicInteger(0)
 
     @Volatile
     private var broken = false
+
+    @Volatile
+    var isDestroyed = false
+        private set
 
     //region Initialization
     init {
         val webViewSettings = webView.settings
         webViewSettings.javaScriptEnabled = true
         webViewSettings.userAgentString = USER_AGENT
-        webViewSettings.blockNetworkLoads = true 
+        webViewSettings.blockNetworkLoads = true
 
         webView.addJavascriptInterface(this, JS_INTERFACE)
 
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onConsoleMessage(m: ConsoleMessage): Boolean {
-                val msg = m.message()
-                // Log all console messages for debugging
-                when (m.messageLevel()) {
-                    ConsoleMessage.MessageLevel.ERROR -> Log.e(TAG, "JS: $msg")
-                    ConsoleMessage.MessageLevel.WARNING -> Log.w(TAG, "JS: $msg")
-                    else -> Log.d(TAG, "JS: $msg")
-                }
+        webView.webChromeClient =
+            object : WebChromeClient() {
+                override fun onConsoleMessage(m: ConsoleMessage): Boolean {
+                    val msg = m.message()
+                    // Log all console messages for debugging
+                    when (m.messageLevel()) {
+                        ConsoleMessage.MessageLevel.ERROR -> Log.e(TAG, "JS: $msg")
+                        ConsoleMessage.MessageLevel.WARNING -> Log.w(TAG, "JS: $msg")
+                        else -> Log.d(TAG, "JS: $msg")
+                    }
 
-                if (msg.contains("Uncaught")) {
-                    val fmt = "\"$msg\", source: ${m.sourceId()} (${m.lineNumber()})"
-                    val exception = BadWebViewException(fmt)
-                    Log.e(TAG, "Uncaught JS error in BotGuard WebView: $fmt")
+                    if (msg.contains("Uncaught")) {
+                        val fmt = "\"$msg\", source: ${m.sourceId()} (${m.lineNumber()})"
+                        val exception = BadWebViewException(fmt)
+                        Log.e(TAG, "Uncaught JS error in BotGuard WebView: $fmt")
 
-                    broken = true
-                    if (initResumed.get()) {
-                        // Post-init: fail in-flight mints and let isExpired trigger recreation.
-                        popAllPoTokenContinuations().forEach { (_, cont) -> cont.resumeWithException(exception) }
-                    } else {
-                        onInitializationErrorCloseAndCancel(exception)
+                        broken = true
+                        // No-ops when nothing is attesting, so a post-attestation error only fails
+                        // in-flight mints and leaves isExpired to trigger the next re-attestation.
+                        failAttestation(exception)
                         popAllPoTokenContinuations().forEach { (_, cont) -> cont.resumeWithException(exception) }
                     }
+                    return super.onConsoleMessage(m)
                 }
-                return super.onConsoleMessage(m)
+            }
+    }
+
+    /**
+     * Runs a full BotGuard attestation — load the page, run BotGuard, obtain an `integrityToken`,
+     * create the minter — and suspends until it completes.
+     *
+     * Safe to call repeatedly on the same instance. Reloading the page through
+     * [loadHtmlAndObtainBotguard] replaces the JS context wholesale, so a re-attestation starts as
+     * clean as a brand-new instance would, without paying for WebView construction and teardown on
+     * the main thread. That matters because attestation is re-run often: a low-trust token is never
+     * pinned, and every expiry, session change or 403 recovery needs a fresh one.
+     */
+    suspend fun attest() {
+        check(!isDestroyed) { "attest() called on a destroyed PoTokenWebView" }
+        withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine { cont ->
+                attestationGeneration.incrementAndGet()
+                broken = false
+                attestationContinuation.set(cont)
+                cont.invokeOnCancellation { attestationContinuation.compareAndSet(cont, null) }
+                loadHtmlAndObtainBotguard()
             }
         }
     }
 
+    private fun resumeAttestation() {
+        attestationContinuation.getAndSet(null)?.resume(Unit)
+    }
+
+    private fun failAttestation(error: Throwable) {
+        attestationContinuation.getAndSet(null)?.resumeWithException(error)
+    }
+
     /**
-     * Must be called right after instantiating [PoTokenWebView] to perform the actual
-     * initialization. This will asynchronously go through all the steps needed to load BotGuard,
-     * run it, and obtain an `integrityToken`.
+     * Asynchronously goes through all the steps needed to load BotGuard, run it, and obtain an
+     * `integrityToken`. Driven by [attest], which is what callers should use.
      */
     private fun loadHtmlAndObtainBotguard() {
         Log.d(TAG, "loadHtmlAndObtainBotguard() called")
 
         scope.launch(exceptionHandler) {
-            val html = withContext(Dispatchers.IO) {
-                webView.context.assets.open("po_token.html").bufferedReader().use { it.readText() }
-            }
+            val html =
+                withContext(Dispatchers.IO) {
+                    webView.context.assets
+                        .open("po_token.html")
+                        .bufferedReader()
+                        .use { it.readText() }
+                }
 
             // calls downloadAndRunBotguard() when the page has finished loading
             val data = html.replaceFirst("</script>", "\n$JS_INTERFACE.downloadAndRunBotguard()</script>")
@@ -134,7 +177,7 @@ class PoTokenWebView private constructor(
                 } catch (error) {
                     $JS_INTERFACE.onJsInitializationError(error + "\n" + error.stack)
                 }""",
-                null
+                null,
             )
         }
     }
@@ -148,7 +191,7 @@ class PoTokenWebView private constructor(
         if (BuildConfig.DEBUG) {
             Log.e(TAG, "Initialization error from JavaScript: $error")
         }
-        onInitializationErrorCloseAndCancel(buildExceptionForJsError(error))
+        onAttestationError(buildExceptionForJsError(error))
     }
 
     /**
@@ -188,11 +231,11 @@ class PoTokenWebView private constructor(
                         console.log('[JS] createPoTokenMinter SYNC error: ' + error);
                         $JS_INTERFACE.onJsInitializationError(error + "\n" + error.stack)
                     }""",
-                    null
+                    null,
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to parse integrity token data: ${e.message}", e)
-                onInitializationErrorCloseAndCancel(PoTokenException("parseIntegrityTokenData failed: ${e.message}"))
+                onAttestationError(PoTokenException("parseIntegrityTokenData failed: ${e.message}"))
             }
         }
     }
@@ -202,15 +245,13 @@ class PoTokenWebView private constructor(
      */
     @JavascriptInterface
     fun onMinterCreated() {
-        Log.d(TAG, "poToken minter created successfully, initialization complete")
-        if (initResumed.compareAndSet(false, true)) {
-            continuation.resume(this)
-        }
+        Log.d(TAG, "poToken minter created successfully, attestation complete")
+        resumeAttestation()
     }
 
     //region Obtaining poTokens
-    suspend fun generatePoToken(identifier: String): String {
-        return withContext(Dispatchers.Main) {
+    suspend fun generatePoToken(identifier: String): String =
+        withContext(Dispatchers.Main) {
             suspendCancellableCoroutine { cont ->
                 Log.d(TAG, "generatePoToken() called with identifier $identifier")
                 addPoTokenEmitter(identifier, cont)
@@ -228,18 +269,20 @@ class PoTokenWebView private constructor(
                     } catch (error) {
                         $JS_INTERFACE.onObtainPoTokenError(identifier, error + "\n" + error.stack)
                     }""",
-                    null
+                    null,
                 )
             }
         }
-    }
 
     /**
      * Called by the JavaScript snippet from [generatePoToken] when an error occurs in calling the
      * JavaScript `obtainPoToken()` function.
      */
     @JavascriptInterface
-    fun onObtainPoTokenError(identifier: String, error: String) {
+    fun onObtainPoTokenError(
+        identifier: String,
+        error: String,
+    ) {
         if (BuildConfig.DEBUG) {
             Log.e(TAG, "obtainPoToken error from JavaScript: $error")
         }
@@ -251,32 +294,38 @@ class PoTokenWebView private constructor(
      * result of the JavaScript `obtainPoToken()` function.
      */
     @JavascriptInterface
-    fun onObtainPoTokenResult(identifier: String, poTokenU8: String) {
+    fun onObtainPoTokenResult(
+        identifier: String,
+        poTokenU8: String,
+    ) {
         Log.d(TAG, "Generated poToken (before decoding): identifier=$identifier poTokenU8=$poTokenU8")
-        val poToken = try {
-            u8ToBase64(poTokenU8)
-        } catch (t: Throwable) {
-            popPoTokenContinuation(identifier)?.resumeWithException(t)
-            return
-        }
+        val poToken =
+            try {
+                u8ToBase64(poTokenU8)
+            } catch (t: Throwable) {
+                popPoTokenContinuation(identifier)?.resumeWithException(t)
+                return
+            }
 
         Log.d(TAG, "Generated poToken: identifier=$identifier poToken=$poToken")
         popPoTokenContinuation(identifier)?.resume(poToken)
     }
 
     val isExpired: Boolean
-        get() = broken ||
-            !::expirationInstant.isInitialized ||
-            Instant.now().isAfter(expirationInstant)
+        get() =
+            broken ||
+                !::expirationInstant.isInitialized ||
+                Instant.now().isAfter(expirationInstant)
 
     //region Handling multiple emitters
-    private fun addPoTokenEmitter(identifier: String, continuation: Continuation<String>) {
+    private fun addPoTokenEmitter(
+        identifier: String,
+        continuation: Continuation<String>,
+    ) {
         poTokenContinuations[identifier] = continuation
     }
 
-    private fun popPoTokenContinuation(identifier: String): Continuation<String>? {
-        return poTokenContinuations.remove(identifier)
-    }
+    private fun popPoTokenContinuation(identifier: String): Continuation<String>? = poTokenContinuations.remove(identifier)
 
     private fun popAllPoTokenContinuations(): Map<String, Continuation<String>> {
         val result = poTokenContinuations.toMap()
@@ -290,42 +339,55 @@ class PoTokenWebView private constructor(
         data: String,
         handleResponseBody: (String) -> Unit,
     ) {
+        val generation = attestationGeneration.get()
         scope.launch(exceptionHandler) {
-            val requestBuilder = okhttp3.Request.Builder()
-                .post(data.toRequestBody())
-                .headers(mapOf(
-                    "User-Agent" to USER_AGENT,
-                    "Accept" to "application/json",
-                    "Content-Type" to "application/json+protobuf",
-                    "x-goog-api-key" to GOOGLE_API_KEY,
-                    "x-user-agent" to "grpc-web-javascript/0.1",
-                ).toHeaders())
-                .url(url)
-            val response = withContext(Dispatchers.IO) {
-                httpClient.newCall(requestBuilder.build()).execute()
-            }
+            val requestBuilder =
+                okhttp3.Request
+                    .Builder()
+                    .post(data.toRequestBody())
+                    .headers(
+                        mapOf(
+                            "User-Agent" to USER_AGENT,
+                            "Accept" to "application/json",
+                            "Content-Type" to "application/json+protobuf",
+                            "x-goog-api-key" to GOOGLE_API_KEY,
+                            "x-user-agent" to "grpc-web-javascript/0.1",
+                        ).toHeaders(),
+                    ).url(url)
+            val response =
+                withContext(Dispatchers.IO) {
+                    httpClient.newCall(requestBuilder.build()).execute()
+                }
             val httpCode = response.code
             if (httpCode != 200) {
-                onInitializationErrorCloseAndCancel(PoTokenException("Invalid response code: $httpCode"))
+                onAttestationError(PoTokenException("Invalid response code: $httpCode"))
             } else {
-                val body = withContext(Dispatchers.IO) {
-                    response.body!!.string()
+                val body =
+                    withContext(Dispatchers.IO) {
+                        response.body!!.string()
+                    }
+                if (generation != attestationGeneration.get()) {
+                    Log.d(TAG, "Dropping BotGuard response from a superseded attestation")
+                    return@launch
                 }
                 handleResponseBody(body)
             }
         }
     }
 
-    private fun onInitializationErrorCloseAndCancel(error: Throwable) {
+    /**
+     * Marks the attestation failed without tearing the WebView down, so the instance stays
+     * reusable and [attest] can simply be run again on it. Only [close] destroys the WebView.
+     */
+    private fun onAttestationError(error: Throwable) {
         broken = true
-        close()
-        if (initResumed.compareAndSet(false, true)) {
-            continuation.resumeWithException(error)
-        }
+        failAttestation(error)
     }
 
     @MainThread
     fun close() {
+        if (isDestroyed) return
+        isDestroyed = true
         scope.cancel()
 
         webView.clearHistory()
@@ -342,23 +404,27 @@ class PoTokenWebView private constructor(
         private const val TAG = "PoTokenWebView"
         private const val GOOGLE_API_KEY = "AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw"
         private const val REQUEST_KEY = "O43z0dpjhgX20SCx4KAo"
-        private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+        private const val USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.3"
         private const val JS_INTERFACE = "PoTokenWebView"
 
         private val httpClient: OkHttpClient
             get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
 
-        suspend fun getNewPoTokenGenerator(context: Context): PoTokenWebView {
-            return withContext(Dispatchers.Main) {
-                suspendCancellableCoroutine { cont ->
-                    val potWv = PoTokenWebView(context, cont)
-                    cont.invokeOnCancellation {
-                        potWv.scope.launch { potWv.close() }
-                    }
-                    potWv.loadHtmlAndObtainBotguard()
-                }
+        /**
+         * Builds a WebView and runs its first attestation. Callers should hold on to the result
+         * and [attest] it again rather than building another one — see [attest].
+         */
+        suspend fun create(context: Context): PoTokenWebView {
+            val instance = withContext(Dispatchers.Main) { PoTokenWebView(context) }
+            try {
+                instance.attest()
+            } catch (t: Throwable) {
+                withContext(NonCancellable + Dispatchers.Main) { instance.close() }
+                throw t
             }
+            return instance
         }
     }
 }

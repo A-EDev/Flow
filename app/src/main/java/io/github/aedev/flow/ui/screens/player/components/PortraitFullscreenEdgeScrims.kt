@@ -9,31 +9,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import io.github.aedev.flow.ui.theme.PlayerScrimEdgeGradient
 
 @Composable
 internal fun PortraitFullscreenEdgeScrims(modifier: Modifier = Modifier) {
     Box(modifier = modifier) {
         Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .fillMaxHeight(0.24f)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Black.copy(alpha = 0.72f), Color.Transparent)
-                    )
-                )
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.24f)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(PlayerScrimEdgeGradient, Color.Transparent),
+                        ),
+                    ),
         )
         Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .fillMaxHeight(0.24f)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))
-                    )
-                )
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.24f)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, PlayerScrimEdgeGradient),
+                        ),
+                    ),
         )
     }
 }

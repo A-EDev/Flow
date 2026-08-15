@@ -6,6 +6,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -18,11 +19,7 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.PopupPlayerWindow
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.utils.FlowCrashHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -40,8 +37,6 @@ class VideoPlayerService : MediaSessionService() {
         const val EXTRA_VIDEO_CHANNEL = "video_channel"
         const val EXTRA_VIDEO_THUMBNAIL = "video_thumbnail"
     }
-
-    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
@@ -105,7 +100,7 @@ class VideoPlayerService : MediaSessionService() {
 
         EnhancedPlayerManager.getInstance().initialize(applicationContext)
 
-        serviceScope.launch {
+        lifecycleScope.launch {
             EnhancedPlayerManager.getInstance().playerState.collectLatest {
                 serviceLog("playerState collect update")
                 updateLocks(isPlaybackActiveForLocks())
@@ -164,7 +159,7 @@ class VideoPlayerService : MediaSessionService() {
         lockReleaseJob?.cancel()
         lockReleaseJob = null
         releaseLocks()
-        serviceScope.cancel()
+        // lifecycleScope is cancelled by super.onDestroy() dispatching ON_DESTROY.
         super.onDestroy()
     }
 
@@ -199,7 +194,7 @@ class VideoPlayerService : MediaSessionService() {
         }
 
         lockReleaseJob =
-            serviceScope.launch {
+            lifecycleScope.launch {
                 delay(LOCK_RELEASE_DELAY_MS)
                 releaseLocks()
             }

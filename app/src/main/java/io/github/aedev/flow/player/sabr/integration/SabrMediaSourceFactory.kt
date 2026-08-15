@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.player.sabr.core.SabrCpn
 import io.github.aedev.flow.player.sabr.core.SabrSessionState
 import io.github.aedev.flow.player.sabr.core.SabrStreamController
@@ -37,6 +38,8 @@ object SabrMediaSourceFactory {
                 this.selectedVideoItag = info.videoItag
                 this.selectedVideoLmt = info.videoLmt
                 this.audioTrackId = info.audioTrackId
+                this.selectedAudioXtags = info.audioXtags
+                this.selectedVideoXtags = info.videoXtags
                 // stickyResolution = the user's explicit pick (0 in auto); selectedVideoHeight is
                 // the actual chosen format height, used to floor sticky_resolution so auto mode
                 // still asks the server for full quality instead of dropping to 360p.
@@ -47,9 +50,9 @@ object SabrMediaSourceFactory {
                 this.visitorId = info.visitorId
                 this.ustreamerConfig = info.ustreamerConfig
                 this.durationMs = durationMs
-                this.clientNameId = WEB_CLIENT_NAME_ID
-                this.clientVersion = io.github.aedev.flow.innertube.models.YouTubeClient.WEB.clientVersion
-                // A real WEB streamer_context carries no OS fields — the browser client reports
+                this.clientNameId = info.clientNameId
+                this.clientVersion = info.clientVersion.ifEmpty { YouTubeClient.WEB.clientVersion }
+                // A real web streamer_context carries no OS fields — the browser client reports
                 // clientName/version + hl/gl only. Sending osName/osVersion made our streaming
                 // request fingerprint-inconsistent with the player response, a RELOAD_PLAYER_RESPONSE
                 // trigger.
@@ -59,8 +62,9 @@ object SabrMediaSourceFactory {
             }
         if (startPositionMs > 0) sessionState.lastSeekAtMs = System.currentTimeMillis()
 
-        // WEB user-agent so the GVS/SABR request matches the WEB-minted PoToken
-        val userAgent = io.github.aedev.flow.innertube.models.YouTubeClient.USER_AGENT_WEB
+        // The GVS/SABR request must be made as the same client that minted the PoToken, so the
+        // user-agent comes from the session rather than being assumed to be WEB.
+        val userAgent = info.clientUserAgent.ifEmpty { YouTubeClient.USER_AGENT_WEB }
         val dataSource = SabrDataSource(userAgent)
         val controller = SabrStreamController(dataSource, sessionState)
         val reloadHeight = info.targetHeight.takeIf { it > 0 } ?: info.videoHeight
@@ -68,6 +72,7 @@ object SabrMediaSourceFactory {
         // Keep the content-playback nonce stable across reloads — a fresh cpn each reload reads
         // as a new playback session and re-triggers the server's RELOAD_PLAYER_RESPONSE demand.
         val sessionCpn = sessionState.cpn
+        val reloadClient = SabrClientIdentity.sabrClientFor(info.clientNameId)
         val orchestrator =
             SabrOrchestrator(controller) { event ->
                 InnerTubeVideoStreamExtractor.resolveSabrDownload(
@@ -76,6 +81,7 @@ object SabrMediaSourceFactory {
                     preferredCodec = reloadCodec,
                     reloadToken = event.reloadToken,
                     cpn = sessionCpn.ifEmpty(SabrCpn::generate),
+                    client = reloadClient,
                 )
             }
 
@@ -135,8 +141,6 @@ object SabrMediaSourceFactory {
             orchestrator = orchestrator,
         )
     }
-
-    private const val WEB_CLIENT_NAME_ID = 1
 
     /**
      * Map a YouTube format mimeType (e.g. `audio/webm; codecs="opus"`) to an ExoPlayer

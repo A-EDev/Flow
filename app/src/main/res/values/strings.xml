@@ -645,6 +645,8 @@
     <string name="player_appearance_remember_brightness_subtitle">Reuse your last player brightness level for the next videos</string>
     <string name="player_appearance_volume_gesture_title">Volume Gesture</string>
     <string name="player_appearance_volume_gesture_subtitle">Swipe the right edge in fullscreen to adjust volume</string>
+    <string name="player_appearance_seek_gesture_title">Seek Gesture</string>
+    <string name="player_appearance_seek_gesture_subtitle">Swipe horizontally in fullscreen to scrub through the video</string>
     <string name="player_appearance_controls_while_loading_title">Controls While Loading</string>
     <string name="player_appearance_controls_while_loading_subtitle">Show the player controls before the video finishes loading so you can adjust volume right away</string>
     <string name="player_appearance_long_press_speed_title">Long-press Playback Speed</string>
@@ -996,6 +998,13 @@
     <string name="player_settings_audio_language_dialog_body">Select your preferred audio track language. If not available, the original language will be used.</string>
     <string name="player_settings_audio_original">Original (Native)</string>
     <string name="player_settings_audio_original_desc">Uses the video\'s native audio track</string>
+    <string name="player_settings_subtitle_language">Preferred Subtitle Language</string>
+    <string name="player_settings_subtitle_language_dialog_title">Subtitle Language</string>
+    <string name="player_settings_subtitle_language_dialog_body">Captions open in this language when available. If the video has no track in it, Flow uses YouTube\'s translation of an existing track. Picking a caption during playback updates this too.</string>
+    <string name="player_settings_subtitle_language_none">No preference</string>
+    <string name="player_settings_subtitle_language_none_desc">Use the first caption track the video offers</string>
+    <string name="player_settings_auto_enable_subtitles">Turn Captions On Automatically</string>
+    <string name="player_settings_auto_enable_subtitles_subtitle">Start every video with captions in your preferred language</string>
     <string name="player_settings_video_codec">Default Video Codec</string>
     <string name="player_settings_video_codec_dialog_title">Default Video Codec</string>
     <string name="player_settings_video_codec_dialog_body">Choose which codec is used by default at the selected resolution. This does not change which qualities are listed — you can still pick any codec from the quality selector. H.264 is the most compatible and smoothest on most devices; AV1/VP9 save data at higher resolutions but need more decoding power.</string>
@@ -1649,6 +1658,7 @@
     <string name="audio_track">Audio Track</string>
     <string name="audio_track_number_template">%1$s %2$d</string>
     <string name="subtitle_auto_generated_template">%1$s (%2$s)</string>
+    <string name="subtitle_translated">translated</string>
     <string name="off">Off</string>
     <string name="on">On</string>
     <string name="player_settings">Player Settings</string>
@@ -1844,6 +1854,11 @@
     <string name="music_playback_warning_generic">Music playback failed. Try again or switch networks if this keeps happening.</string>
     <string name="player_lock_controls">Lock controls</string>
     <string name="player_unlock_controls">Unlock controls</string>
+    <string name="player_brightness_auto">Auto</string>
+    <string name="player_gesture_level_percent">%1$d%%</string>
+    <string name="player_replay">Replay</string>
+    <string name="player_seek_delta_forward">+%1$s</string>
+    <string name="player_seek_delta_back">-%1$s</string>
     <!-- New Video Player Strings -->
     <string name="player_settings_overlay_controls">Overlay Controls</string>
     <string name="player_settings_overlay_cast">Cast Button</string>

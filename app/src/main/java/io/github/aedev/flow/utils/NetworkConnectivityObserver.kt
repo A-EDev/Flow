@@ -19,13 +19,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * Used by Media3MusicService to pause/resume retries based on network availability.
  */
 class NetworkConnectivityObserver(
-    private val context: Context
+    private val context: Context,
 ) {
     companion object {
         private const val TAG = "NetworkConnectivity"
     }
 
-    private val connectivityManager = 
+    private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     private val _isConnected = MutableStateFlow(checkCurrentConnectivity())
@@ -36,19 +36,48 @@ class NetworkConnectivityObserver(
     /**
      * Check current network connectivity status.
      */
-    fun checkCurrentConnectivity(): Boolean {
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-               capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-    }
+    fun checkCurrentConnectivity(): Boolean = NetworkState.isOnline(context)
 
     /**
      * Check if the network is metered (e.g., mobile data).
      */
-    fun isNetworkMetered(): Boolean {
-        return connectivityManager.isActiveNetworkMetered
-    }
+    fun isNetworkMetered(): Boolean = connectivityManager.isActiveNetworkMetered
+
+    private fun networkRequest(): NetworkRequest =
+        NetworkRequest
+            .Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            .build()
+
+    /**
+     * One callback shape for both entry points below, so the polled and the pushed answer agree.
+     *
+     * [onAvailable] deliberately re-reads capabilities rather than emitting `true`: a network can be
+     * available and still not reach the internet (captive portal), which is the case a media app
+     * most needs to get right.
+     */
+    private fun connectivityCallback(emit: (Boolean) -> Unit) =
+        object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                emit(checkCurrentConnectivity())
+            }
+
+            override fun onLost(network: Network) {
+                emit(checkCurrentConnectivity())
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities,
+            ) {
+                emit(networkCapabilities.hasInternet())
+            }
+
+            override fun onUnavailable() {
+                emit(false)
+            }
+        }
 
     /**
      * Start observing network changes.
@@ -56,43 +85,19 @@ class NetworkConnectivityObserver(
     fun startObserving() {
         if (networkCallback != null) return
 
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-            .build()
-
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                Log.d(TAG, "Network available")
-                _isConnected.value = true
+        val callback =
+            connectivityCallback { connected ->
+                Log.d(TAG, "Connectivity: $connected")
+                _isConnected.value = connected
             }
-
-            override fun onLost(network: Network) {
-                Log.d(TAG, "Network lost")
-                _isConnected.value = checkCurrentConnectivity()
-            }
-
-            override fun onCapabilitiesChanged(
-                network: Network,
-                networkCapabilities: NetworkCapabilities
-            ) {
-                val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                val isValidated = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                Log.d(TAG, "Capabilities changed: internet=$hasInternet, validated=$isValidated")
-                _isConnected.value = hasInternet && isValidated
-            }
-
-            override fun onUnavailable() {
-                Log.d(TAG, "Network unavailable")
-                _isConnected.value = false
-            }
-        }
+        networkCallback = callback
 
         try {
-            connectivityManager.registerNetworkCallback(request, networkCallback!!)
+            connectivityManager.registerNetworkCallback(networkRequest(), callback)
             Log.d(TAG, "Started observing network")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to register network callback", e)
+            networkCallback = null
         }
     }
 
@@ -114,40 +119,15 @@ class NetworkConnectivityObserver(
     /**
      * Get network connectivity as a Flow for reactive observation.
      */
-    fun observeConnectivity(): Flow<Boolean> = callbackFlow {
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                trySend(true)
+    fun observeConnectivity(): Flow<Boolean> =
+        callbackFlow {
+            val callback = connectivityCallback { trySend(it) }
+
+            trySend(checkCurrentConnectivity())
+            connectivityManager.registerNetworkCallback(networkRequest(), callback)
+
+            awaitClose {
+                connectivityManager.unregisterNetworkCallback(callback)
             }
-
-            override fun onLost(network: Network) {
-                trySend(checkCurrentConnectivity())
-            }
-
-            override fun onCapabilitiesChanged(
-                network: Network,
-                networkCapabilities: NetworkCapabilities
-            ) {
-                val connected = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                               networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                trySend(connected)
-            }
-
-            override fun onUnavailable() {
-                trySend(false)
-            }
-        }
-
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-
-        trySend(checkCurrentConnectivity())
-
-        connectivityManager.registerNetworkCallback(request, callback)
-
-        awaitClose {
-            connectivityManager.unregisterNetworkCallback(callback)
-        }
-    }.distinctUntilChanged()
+        }.distinctUntilChanged()
 }

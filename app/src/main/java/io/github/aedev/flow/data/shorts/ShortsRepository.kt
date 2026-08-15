@@ -19,6 +19,7 @@ import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -26,13 +27,15 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.StreamInfo
@@ -59,30 +62,30 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
  *    - StreamInfo cache (LRU, 30 entries) — full stream metadata for player setup
  *    - Discovery engine has its own per-channel + per-query caches
  */
-class ShortsRepository private constructor(private val context: Context) {
-
+class ShortsRepository private constructor(
+    private val context: Context,
+) {
     private val youtubeRepository = YouTubeRepository.getInstance()
     private val subscriptionRepository = SubscriptionRepository.getInstance(context)
     private val viewHistory = ViewHistory.getInstance(context)
     private val shortsDiscovery = ShortsDiscoveryEngine.getInstance(context)
-    
+
     // In-memory caches — ephemeral, cleared when app process dies
     private val streamInfoCache = LruCache<String, StreamInfo>(50)
     private val playbackStreamsCache = LruCache<String, ShortPlaybackStreams>(50)
     private val shortsCache = LruCache<String, ShortVideo>(100)
     private val streamResolveMutex = Mutex()
     private val playbackStreamsInFlight = mutableMapOf<String, Deferred<ShortPlaybackStreams?>>()
-    
+
     // Track recently shown to prevent immediate repeats within a session
     private val recentlyShownIds = mutableSetOf<String>()
-    
+
     // Cached home/initial feed to avoid duplicate API calls
     @Volatile
     private var cachedInitialFeed: ShortsSequenceResult? = null
     private var cachedFeedTimestamp = 0L
-    private val CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes
-    
-    // Progressive enrichment events — UI observes this to update metadata live 
+
+    // Progressive enrichment events — UI observes this to update metadata live
     private val _enrichmentUpdates = MutableSharedFlow<List<ShortVideo>>(extraBufferCapacity = 16)
     val enrichmentUpdates: SharedFlow<List<ShortVideo>> = _enrichmentUpdates.asSharedFlow()
 
@@ -92,7 +95,41 @@ class ShortsRepository private constructor(private val context: Context) {
 
     // Scope for background work (enrichment, pre-caching) that must outlive any single call
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    
+
+    private val playerPreferences by lazy { PlayerPreferences(context) }
+
+    private val preferredCodecKey = MutableStateFlow<String?>(null)
+
+    /**
+     * Completes when some short has had its playback streams resolved, i.e. when the user can
+     * actually watch something. Background feed work waits on this so it cannot compete with the
+     * resolve the user is blocked on.
+     */
+    private val firstPlaybackResolved = CompletableDeferred<Unit>()
+
+    init {
+        repositoryScope.launch {
+            playerPreferences.defaultVideoCodec.collect { preferredCodecKey.value = it.codecKey }
+        }
+    }
+
+    /**
+     * Suspends only until DataStore first emits; a plain field read from then on. Deliberately not
+     * defaulted to "auto" while loading — a placeholder would key the first resolve differently
+     * from every later one and turn the prefetch into a guaranteed cache miss.
+     */
+    private suspend fun preferredCodecKey(): String = preferredCodecKey.value ?: preferredCodecKey.filterNotNull().first()
+
+    /**
+     * Waits for the first playable short, but never indefinitely — if resolution fails outright the
+     * background work still has to run, otherwise a feed that could not play anything would also
+     * never discover anything.
+     */
+    private suspend fun awaitFirstPlaybackResolved() {
+        if (firstPlaybackResolved.isCompleted) return
+        withTimeoutOrNull(FIRST_PLAYBACK_GRACE_MS) { firstPlaybackResolved.await() }
+    }
+
     companion object {
         private const val TAG = "ShortsRepository"
         private const val INNERTUBE_TIMEOUT_MS = 8_000L
@@ -101,143 +138,159 @@ class ShortsRepository private constructor(private val context: Context) {
         private const val ENRICHMENT_TIMEOUT_MS = 12_000L
         private const val MAX_RECENTLY_SHOWN = 100
         private const val MIN_POOL_SIZE = 10
-        
+        private const val CACHE_TTL_MS = 5 * 60 * 1000L
+
+        // Upper bound on how long background feed work defers to the first playable short.
+        private const val FIRST_PLAYBACK_GRACE_MS = 6_000L
+
         @Volatile
-        private var INSTANCE: ShortsRepository? = null
-        
-        fun getInstance(context: Context): ShortsRepository {
-            return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: ShortsRepository(context.applicationContext).also { INSTANCE = it }
+        private var instance: ShortsRepository? = null
+
+        fun getInstance(context: Context): ShortsRepository =
+            instance ?: synchronized(this) {
+                instance ?: ShortsRepository(context.applicationContext).also { instance = it }
             }
-        }
     }
-    
-    suspend fun getShortsFeed(
-        seedVideoId: String? = null
-    ): ShortsSequenceResult = withContext(Dispatchers.IO) {
-        Log.d(TAG, "━━━ Fetching Shorts Feed (seed=$seedVideoId) ━━━")
-        if (seedVideoId == null) {
-            val cached = cachedInitialFeed
-            if (cached != null &&
-                System.currentTimeMillis() - cachedFeedTimestamp < CACHE_TTL_MS &&
-                cached.shorts.isNotEmpty()
-            ) {
-                Log.d(TAG, "♻ Using cached feed (${cached.shorts.size} shorts)")
-                val filtered = cached.copy(shorts = filterWatchedShorts(cached.shorts))
-                if (filtered.shorts.isNotEmpty()) return@withContext filtered
+
+    suspend fun getShortsFeed(seedVideoId: String? = null): ShortsSequenceResult =
+        withContext(Dispatchers.IO) {
+            Log.d(TAG, "━━━ Fetching Shorts Feed (seed=$seedVideoId) ━━━")
+            if (seedVideoId == null) {
+                val cached = cachedInitialFeed
+                if (cached != null &&
+                    System.currentTimeMillis() - cachedFeedTimestamp < CACHE_TTL_MS &&
+                    cached.shorts.isNotEmpty()
+                ) {
+                    Log.d(TAG, "♻ Using cached feed (${cached.shorts.size} shorts)")
+                    val filtered = cached.copy(shorts = filterWatchedShorts(cached.shorts))
+                    if (filtered.shorts.isNotEmpty()) return@withContext filtered
+                }
+                return@withContext fetchDiscoveryFeed()
             }
-            return@withContext fetchDiscoveryFeed()
-        }
 
-        val rawResult = try {
-            withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(seedVideoId) }
-        } catch (e: Exception) {
-            Log.w(TAG, "InnerTube seed feed failed: ${e.message}")
-            null
-        }
+            val rawResult =
+                try {
+                    withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(seedVideoId) }
+                } catch (e: Exception) {
+                    Log.w(TAG, "InnerTube seed feed failed: ${e.message}")
+                    null
+                }
 
-        if (rawResult != null && rawResult.shorts.isNotEmpty()) {
-            Log.d(TAG, "✓ InnerTube seed returned ${rawResult.shorts.size} shorts")
-            val filtered = rawResult.copy(shorts = filterWatchedShorts(rawResult.shorts))
-            filtered.shorts.forEach { shortsCache.put(it.id, it) }
-            markAsShown(filtered.shorts.map { it.id })
-            return@withContext filtered
-        }
+            if (rawResult != null && rawResult.shorts.isNotEmpty()) {
+                Log.d(TAG, "✓ InnerTube seed returned ${rawResult.shorts.size} shorts")
+                val filtered = rawResult.copy(shorts = filterWatchedShorts(rawResult.shorts))
+                filtered.shorts.forEach { shortsCache.put(it.id, it) }
+                markAsShown(filtered.shorts.map { it.id })
+                return@withContext filtered
+            }
 
-        Log.w(TAG, "InnerTube seed failed — falling back to discovery feed")
-        fetchDiscoveryFeed()
-    }
+            Log.w(TAG, "InnerTube seed failed — falling back to discovery feed")
+            fetchDiscoveryFeed()
+        }
 
     private suspend fun fetchDiscoveryFeed(): ShortsSequenceResult {
-        val userSubs = subscriptionRepository.getAllSubscriptionIds()
+        // Issued before anything else touches the network or the database. This single
+        // reel_watch_sequence call is what the feed is actually built from; the subscription
+        // lookup below only decides ordering, so it overlaps the round trip instead of delaying it.
+        val innerTubeFeed =
+            repositoryScope.async {
+                try {
+                    withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(null) }
+                } catch (e: Exception) {
+                    Log.w(TAG, "InnerTube feed failed: ${e.message}")
+                    null
+                }
+            }
 
-        // Discovery starts immediately in the background — never blocks the return path
-        val discJob = repositoryScope.async {
+        val userSubs = subscriptionRepository.getAllSubscriptionIds()
+        val innerTubeResult = innerTubeFeed.await()
+
+        suspend fun runDiscovery(): List<io.github.aedev.flow.data.model.Video>? =
             try {
                 shortsDiscovery.getDiscoveryShorts(userSubs = userSubs, trending = emptyList())
             } catch (e: Exception) {
                 Log.e(TAG, "ShortsDiscoveryEngine failed", e)
                 null
             }
-        }
-
-        // InnerTube is the fast path — typically returns in 1–3 s
-        val innerTubeResult = try {
-            withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(null) }
-        } catch (e: Exception) {
-            Log.w(TAG, "InnerTube feed failed: ${e.message}")
-            null
-        }
 
         if (innerTubeResult != null && innerTubeResult.shorts.isNotEmpty()) {
-            val itShorts = diversifySubscriptions(
-                items = filterWatchedShorts(innerTubeResult.shorts),
-                isSubscribed = { it.channelId in userSubs },
-            )
+            val itShorts =
+                diversifySubscriptions(
+                    items = filterWatchedShorts(innerTubeResult.shorts),
+                    isSubscribed = { it.channelId in userSubs },
+                )
             if (itShorts.isEmpty()) {
                 Log.i(TAG, "InnerTube fast-path contained only watched Shorts")
             } else {
-            markAsShown(itShorts.map { it.id })
-            itShorts.forEach { shortsCache.put(it.id, it) }
+                markAsShown(itShorts.map { it.id })
+                itShorts.forEach { shortsCache.put(it.id, it) }
 
-            repositoryScope.launch { preResolveStreams(itShorts.take(2).map { it.id }) }
+                val earlyResult = ShortsSequenceResult(itShorts, innerTubeResult.continuation)
+                cachedInitialFeed = earlyResult
+                cachedFeedTimestamp = System.currentTimeMillis()
+                Log.i(TAG, "✓ InnerTube fast-path: ${itShorts.size} shorts — returning immediately")
 
-            val earlyResult = ShortsSequenceResult(itShorts, innerTubeResult.continuation)
-            cachedInitialFeed = earlyResult
-            cachedFeedTimestamp = System.currentTimeMillis()
-            Log.i(TAG, "✓ InnerTube fast-path: ${itShorts.size} shorts — returning immediately")
+                repositoryScope.launch {
+                    // Held back until the first short can actually play. Discovery is up to eight
+                    // channel fetches plus three NewPipe searches; started here it would contend
+                    // with the stream resolve the user is waiting on, and it only ever *appends*
+                    // to a feed that has already been delivered.
+                    awaitFirstPlaybackResolved()
 
-            repositoryScope.launch {
-                val ranked = discJob.await()
-                val existingIds = itShorts.map { it.id }.toHashSet()
-                val newCandidates = ranked
-                    ?.filter { it.id !in recentlyShownIds && it.id !in existingIds }
-                    ?.let { deduplicateByTitle(it) }
-                    ?.map { it.toShortVideo() }
-                    ?.let { filterWatchedShorts(it) }
-                    ?.let { orderShortsNewestFirst(it) }
-                    .orEmpty()
+                    val ranked = runDiscovery()
+                    val existingIds = itShorts.map { it.id }.toHashSet()
+                    val newCandidates =
+                        ranked
+                            ?.filter { it.id !in recentlyShownIds && it.id !in existingIds }
+                            ?.let { deduplicateByTitle(it) }
+                            ?.map { it.toShortVideo() }
+                            ?.let { filterWatchedShorts(it) }
+                            ?.let { orderShortsNewestFirst(it) }
+                            .orEmpty()
 
-                if (newCandidates.isNotEmpty()) {
-                    markAsShown(newCandidates.map { it.id })
-                    newCandidates.forEach { shortsCache.put(it.id, it) }
-                    _discoveryFeedUpdate.tryEmit(newCandidates)
-                    cachedInitialFeed = ShortsSequenceResult(
-                        itShorts + newCandidates, innerTubeResult.continuation
-                    )
-                }
-
-                val allShorts = cachedInitialFeed?.shorts ?: itShorts
-                try {
-                    withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
-                        val enriched = enrichMissingMetadata(allShorts)
-                        enriched.forEach { shortsCache.put(it.id, it) }
-                        val withAvatars = enrichAvatarsForShorts(enriched)
-                        withAvatars.forEach { shortsCache.put(it.id, it) }
+                    if (newCandidates.isNotEmpty()) {
+                        markAsShown(newCandidates.map { it.id })
+                        newCandidates.forEach { shortsCache.put(it.id, it) }
+                        _discoveryFeedUpdate.tryEmit(newCandidates)
+                        cachedInitialFeed =
+                            ShortsSequenceResult(
+                                itShorts + newCandidates,
+                                innerTubeResult.continuation,
+                            )
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Background enrichment failed: ${e.message}")
-                }
-            }
 
-            return earlyResult
+                    val allShorts = cachedInitialFeed?.shorts ?: itShorts
+                    try {
+                        withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
+                            val enriched = enrichMissingMetadata(allShorts)
+                            enriched.forEach { shortsCache.put(it.id, it) }
+                            val withAvatars = enrichAvatarsForShorts(enriched)
+                            withAvatars.forEach { shortsCache.put(it.id, it) }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Background enrichment failed: ${e.message}")
+                    }
+                }
+
+                return earlyResult
             }
         }
 
-        // InnerTube unavailable — await discovery or NewPipe fallback
+        // InnerTube unavailable — discovery becomes the critical path, so run it now
         Log.w(TAG, "InnerTube failed — awaiting discovery result")
-        val rawDiscovery = discJob.await()
+        val rawDiscovery = runDiscovery()
         val discoveryVideos: List<io.github.aedev.flow.data.model.Video> =
             if (!rawDiscovery.isNullOrEmpty()) rawDiscovery else emptyList()
 
         if (discoveryVideos.isEmpty()) {
             Log.w(TAG, "⟳ All sources empty — falling back to NewPipe")
-            val newPipeResult = try {
-                withTimeoutOrNull(NEWPIPE_TIMEOUT_MS) { fetchFromNewPipe() }
-            } catch (e: Exception) {
-                Log.e(TAG, "NewPipe fallback failed: ${e.message}")
-                null
-            }
+            val newPipeResult =
+                try {
+                    withTimeoutOrNull(NEWPIPE_TIMEOUT_MS) { fetchFromNewPipe() }
+                } catch (e: Exception) {
+                    Log.e(TAG, "NewPipe fallback failed: ${e.message}")
+                    null
+                }
             if (newPipeResult != null && newPipeResult.shorts.isNotEmpty()) {
                 val reRanked = orderShortsNewestFirst(reRankWithFlowNeuro(newPipeResult.shorts, userSubs))
                 val result = newPipeResult.copy(shorts = reRanked)
@@ -251,12 +304,13 @@ class ShortsRepository private constructor(private val context: Context) {
             return ShortsSequenceResult(emptyList(), null)
         }
 
-        val candidateShorts = discoveryVideos
-            .filter { it.id !in recentlyShownIds }
-            .let { deduplicateByTitle(it) }
-            .map { it.toShortVideo() }
-            .let { filterWatchedShorts(it) }
-            .let { orderShortsNewestFirst(it) }
+        val candidateShorts =
+            discoveryVideos
+                .filter { it.id !in recentlyShownIds }
+                .let { deduplicateByTitle(it) }
+                .map { it.toShortVideo() }
+                .let { filterWatchedShorts(it) }
+                .let { orderShortsNewestFirst(it) }
 
         markAsShown(candidateShorts.map { it.id })
         candidateShorts.forEach { shortsCache.put(it.id, it) }
@@ -281,127 +335,137 @@ class ShortsRepository private constructor(private val context: Context) {
 
         return result
     }
-    
+
     /**
      * Load more shorts using continuation token (pagination).
-     * 
+     *
      * @param continuation The continuation token from a previous [ShortsSequenceResult].
      * @return Next page of shorts with a new continuation token.
      */
-    suspend fun loadMore(
-        continuation: String?
-    ): ShortsSequenceResult = withContext(Dispatchers.IO) {
-        if (continuation == null) {
-            Log.d(TAG, "No continuation token — cannot load more")
-            return@withContext ShortsSequenceResult(emptyList(), null)
-        }
-        
-        Log.d(TAG, "━━━ Loading More Shorts (continuation) ━━━")
-
-        val userSubs = subscriptionRepository.getAllSubscriptionIds()
-
-        // InnerTube continuation
-        val result = try {
-            withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) {
-                val page = YouTube.shorts(sequenceParams = continuation).getOrNull()
-                if (page != null && page.items.isNotEmpty()) {
-                    val shorts = page.items
-                        .map { it.toShortVideo() }
-                        .filter { it.id !in recentlyShownIds }
-                        .let { filterWatchedShorts(it) }
-                    ShortsSequenceResult(shorts, page.continuation)
-                } else null
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "InnerTube continuation failed: ${e.message}")
-            null
-        }
-        
-        if (result != null && result.shorts.isNotEmpty()) {
-            Log.d(TAG, "✓ Loaded ${result.shorts.size} more shorts (pre-enrichment)")
-
-            val recentlySeen = try {
-                FlowNeuroEngine.getRecentlySeenShorts()
-            } catch (e: Exception) { emptySet() }
-
-            val freshShorts = result.shorts.filter { it.id !in recentlySeen }
-
-            if (freshShorts.size < 3 && result.shorts.size > 3) {
-                Log.i(TAG, "loadMore: ${result.shorts.size - freshShorts.size} seen Shorts filtered, triggering discovery refresh")
-                return@withContext forceRefresh()
+    suspend fun loadMore(continuation: String?): ShortsSequenceResult =
+        withContext(Dispatchers.IO) {
+            if (continuation == null) {
+                Log.d(TAG, "No continuation token — cannot load more")
+                return@withContext ShortsSequenceResult(emptyList(), null)
             }
 
-            // Enrich metadata OUTSIDE the InnerTube timeout
-            val metadataEnriched = try {
-                withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
-                    enrichMissingMetadata(freshShorts)
+            Log.d(TAG, "━━━ Loading More Shorts (continuation) ━━━")
+
+            val userSubs = subscriptionRepository.getAllSubscriptionIds()
+
+            // InnerTube continuation
+            val result =
+                try {
+                    withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) {
+                        val page = YouTube.shorts(sequenceParams = continuation).getOrNull()
+                        if (page != null && page.items.isNotEmpty()) {
+                            val shorts =
+                                page.items
+                                    .map { it.toShortVideo() }
+                                    .filter { it.id !in recentlyShownIds }
+                                    .let { filterWatchedShorts(it) }
+                            ShortsSequenceResult(shorts, page.continuation)
+                        } else {
+                            null
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "InnerTube continuation failed: ${e.message}")
+                    null
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Enrichment for continuation failed: ${e.message}")
-                null
-            } ?: freshShorts
 
-            val enriched = try {
-                withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
-                    enrichAvatarsForShorts(metadataEnriched)
+            if (result != null && result.shorts.isNotEmpty()) {
+                Log.d(TAG, "✓ Loaded ${result.shorts.size} more shorts (pre-enrichment)")
+
+                val recentlySeen =
+                    try {
+                        FlowNeuroEngine.getRecentlySeenShorts()
+                    } catch (e: Exception) {
+                        emptySet()
+                    }
+
+                val freshShorts = result.shorts.filter { it.id !in recentlySeen }
+
+                if (freshShorts.size < 3 && result.shorts.size > 3) {
+                    Log.i(TAG, "loadMore: ${result.shorts.size - freshShorts.size} seen Shorts filtered, triggering discovery refresh")
+                    return@withContext forceRefresh()
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Avatar enrichment for continuation failed: ${e.message}")
-                null
-            } ?: metadataEnriched
 
-            val reRanked = orderShortsNewestFirst(reRankWithFlowNeuro(enriched, userSubs))
-            val enrichedResult = result.copy(shorts = reRanked)
-            enrichedResult.shorts.forEach { shortsCache.put(it.id, it) }
-            markAsShown(enrichedResult.shorts.map { it.id })
+                // Enrich metadata OUTSIDE the InnerTube timeout
+                val metadataEnriched =
+                    try {
+                        withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
+                            enrichMissingMetadata(freshShorts)
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Enrichment for continuation failed: ${e.message}")
+                        null
+                    } ?: freshShorts
 
+                val enriched =
+                    try {
+                        withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
+                            enrichAvatarsForShorts(metadataEnriched)
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Avatar enrichment for continuation failed: ${e.message}")
+                        null
+                    } ?: metadataEnriched
+
+                val reRanked = orderShortsNewestFirst(reRankWithFlowNeuro(enriched, userSubs))
+                val enrichedResult = result.copy(shorts = reRanked)
+                enrichedResult.shorts.forEach { shortsCache.put(it.id, it) }
+                markAsShown(enrichedResult.shorts.map { it.id })
+
+                try {
+                    FlowNeuroEngine.recordSeenShorts(reRanked.map { it.id })
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to record seen Shorts in loadMore", e)
+                }
+
+                return@withContext enrichedResult
+            }
+
+            // Fallback: fresh NewPipe fetch
+            Log.d(TAG, "⟳ Continuation failed, fetching fresh from NewPipe")
             try {
-                FlowNeuroEngine.recordSeenShorts(reRanked.map { it.id })
+                val fallback =
+                    withTimeoutOrNull(NEWPIPE_TIMEOUT_MS) {
+                        fetchFromNewPipe()
+                    }
+                if (fallback != null) {
+                    val reRanked = orderShortsNewestFirst(reRankWithFlowNeuro(fallback.shorts, userSubs))
+                    val rankedFallback = fallback.copy(shorts = reRanked)
+                    rankedFallback.shorts.forEach { shortsCache.put(it.id, it) }
+                    markAsShown(rankedFallback.shorts.map { it.id })
+                    return@withContext rankedFallback
+                }
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to record seen Shorts in loadMore", e)
+                Log.e(TAG, "NewPipe pagination fallback failed", e)
             }
 
-            return@withContext enrichedResult
+            ShortsSequenceResult(emptyList(), null)
         }
 
-        // Fallback: fresh NewPipe fetch
-        Log.d(TAG, "⟳ Continuation failed, fetching fresh from NewPipe")
-        try {
-            val fallback = withTimeoutOrNull(NEWPIPE_TIMEOUT_MS) {
-                fetchFromNewPipe()
-            }
-            if (fallback != null) {
-                val reRanked = orderShortsNewestFirst(reRankWithFlowNeuro(fallback.shorts, userSubs))
-                val rankedFallback = fallback.copy(shorts = reRanked)
-                rankedFallback.shorts.forEach { shortsCache.put(it.id, it) }
-                markAsShown(rankedFallback.shorts.map { it.id })
-                return@withContext rankedFallback
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "NewPipe pagination fallback failed", e)
-        }
-        
-        ShortsSequenceResult(emptyList(), null)
-    }
-    
     /**
      * Removes near-duplicate Shorts based on Jaccard title similarity.
      * Catches re-uploads and stolen content with different IDs but nearly
      * identical titles. Keeps the video with more views (likely the original).
      */
-    private fun deduplicateByTitle(
-        videos: List<io.github.aedev.flow.data.model.Video>
-    ): List<io.github.aedev.flow.data.model.Video> {
+    private fun deduplicateByTitle(videos: List<io.github.aedev.flow.data.model.Video>): List<io.github.aedev.flow.data.model.Video> {
         if (videos.size <= 1) return videos
 
         val result = mutableListOf<io.github.aedev.flow.data.model.Video>()
-        val titleTokens = videos.map { video ->
-            video to video.title.lowercase()
-                .split(Regex("\\s+"))
-                .map { it.trim { c -> !c.isLetterOrDigit() } }
-                .filter { it.length > 2 }
-                .toSet()
-        }
+        val titleTokens =
+            videos.map { video ->
+                video to
+                    video.title
+                        .lowercase()
+                        .split(Regex("\\s+"))
+                        .map { it.trim { c -> !c.isLetterOrDigit() } }
+                        .filter { it.length > 2 }
+                        .toSet()
+            }
         val consumed = mutableSetOf<Int>()
 
         for (i in titleTokens.indices) {
@@ -430,22 +494,22 @@ class ShortsRepository private constructor(private val context: Context) {
         return result
     }
 
-    private fun orderShortsNewestFirst(shorts: List<ShortVideo>): List<ShortVideo> =
-        shorts.sortedByDescending { it.timestamp }
+    private fun orderShortsNewestFirst(shorts: List<ShortVideo>): List<ShortVideo> = shorts.sortedByDescending { it.timestamp }
 
-    // FLOWNEURO RE-RANKING — YouTube algo primary, FlowNeuro personalization    
+    // FLOWNEURO RE-RANKING — YouTube algo primary, FlowNeuro personalization
+
     /**
      * Re-rank shorts using FlowNeuroEngine.
-     * 
+     *
      * Strategy: YouTube's algorithm provides the candidate pool (already high-quality),
      * FlowNeuro re-orders based on user's interest profile, watch history vectors,
      * time-of-day context, and curiosity gap scoring.
-     * 
+     *
      * The first item is pinned (YouTube chose it for a reason), rest are re-ranked.
      */
     private suspend fun reRankWithFlowNeuro(
         shorts: List<ShortVideo>,
-        userSubs: Set<String> = emptySet()
+        userSubs: Set<String> = emptySet(),
     ): List<ShortVideo> {
         if (shorts.size <= 2) return shorts
         return try {
@@ -453,10 +517,11 @@ class ShortsRepository private constructor(private val context: Context) {
             val pinned = shorts.first()
             val candidates = shorts.drop(1)
             val videosCandidates = candidates.map { it.toVideo() }
-            val ranked = FlowNeuroEngine.rank(
-                candidates = videosCandidates,
-                userSubs = userSubs
-            )
+            val ranked =
+                FlowNeuroEngine.rank(
+                    candidates = videosCandidates,
+                    userSubs = userSubs,
+                )
             val rankedIds = ranked.map { it.id }
             val shortById = candidates.associateBy { it.id }
             val reRanked = rankedIds.mapNotNull { shortById[it] }
@@ -467,74 +532,83 @@ class ShortsRepository private constructor(private val context: Context) {
             orderShortsNewestFirst(shorts)
         }
     }
-    
+
     // STREAM RESOLUTION — For Player Setup
+
     /**
      * Resolve stream info for a Short video.
      * Uses InnerTube ANDROID player endpoint first (better format support),
      * falls back to NewPipe extractor.
-     * 
+     *
      * Results are cached to avoid re-resolution on swipe-back.
      */
-    suspend fun resolveStreamInfo(videoId: String): StreamInfo? = withContext(Dispatchers.IO) {
-        streamInfoCache.get(videoId)?.let {
-            Log.d(TAG, "♻ Stream cache hit: $videoId")
-            return@withContext it
-        }
-        
-        Log.d(TAG, "⟳ Resolving stream: $videoId")
-        
-        val streamInfo = try {
-            withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                youtubeRepository.getVideoStreamInfo(videoId)
+    suspend fun resolveStreamInfo(videoId: String): StreamInfo? =
+        withContext(Dispatchers.IO) {
+            streamInfoCache.get(videoId)?.let {
+                Log.d(TAG, "♻ Stream cache hit: $videoId")
+                return@withContext it
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Stream resolution failed for $videoId: ${e.message}")
-            null
+
+            Log.d(TAG, "⟳ Resolving stream: $videoId")
+
+            val streamInfo =
+                try {
+                    withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
+                        youtubeRepository.getVideoStreamInfo(videoId)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Stream resolution failed for $videoId: ${e.message}")
+                    null
+                }
+
+            if (streamInfo != null) {
+                streamInfoCache.put(videoId, streamInfo)
+                Log.d(TAG, "✓ Resolved streams for $videoId")
+            } else {
+                Log.e(TAG, "✗ Failed to resolve streams for $videoId")
+            }
+
+            streamInfo
         }
-        
-        if (streamInfo != null) {
-            streamInfoCache.put(videoId, streamInfo)
-            Log.d(TAG, "✓ Resolved streams for $videoId")
-        } else {
-            Log.e(TAG, "✗ Failed to resolve streams for $videoId")
-        }
-        
-        streamInfo
-    }
-    
+
     suspend fun resolvePlaybackStreams(
         videoId: String,
         targetHeight: Int,
-        preferredAudioLanguage: String
-    ): ShortPlaybackStreams? = withContext(Dispatchers.IO) {
-        val preferredCodecKey = PlayerPreferences(context).defaultVideoCodec.first().codecKey
-        val cacheKey = "$videoId|$targetHeight|$preferredAudioLanguage|$preferredCodecKey"
-        playbackStreamsCache.get(cacheKey)?.let { return@withContext it }
+        preferredAudioLanguage: String,
+    ): ShortPlaybackStreams? =
+        withContext(Dispatchers.IO) {
+            val preferredCodecKey = preferredCodecKey()
+            val cacheKey = "$videoId|$targetHeight|$preferredAudioLanguage|$preferredCodecKey"
+            playbackStreamsCache.get(cacheKey)?.let { return@withContext it }
 
-        val inFlight = streamResolveMutex.withLock {
-            playbackStreamsInFlight[cacheKey]?.let { return@withLock it }
-            repositoryScope.async {
-                resolvePlaybackStreamsUncached(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)
-            }.also { playbackStreamsInFlight[cacheKey] = it }
-        }
+            val inFlight =
+                streamResolveMutex.withLock {
+                    playbackStreamsInFlight[cacheKey]?.let { return@withLock it }
+                    repositoryScope
+                        .async {
+                            resolvePlaybackStreamsUncached(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)
+                        }.also { playbackStreamsInFlight[cacheKey] = it }
+                }
 
-        try {
-            inFlight.await()?.also { playbackStreamsCache.put(cacheKey, it) }
-        } finally {
-            streamResolveMutex.withLock {
-                if (playbackStreamsInFlight[cacheKey] === inFlight) {
-                    playbackStreamsInFlight.remove(cacheKey)
+            try {
+                inFlight.await()?.also {
+                    playbackStreamsCache.put(cacheKey, it)
+                    firstPlaybackResolved.complete(Unit)
+                }
+            } finally {
+                streamResolveMutex.withLock {
+                    if (playbackStreamsInFlight[cacheKey] === inFlight) {
+                        playbackStreamsInFlight.remove(cacheKey)
+                    }
                 }
             }
         }
-    }
 
     private suspend fun resolvePlaybackStreamsUncached(
         videoId: String,
         targetHeight: Int,
         preferredAudioLanguage: String,
-        preferredCodecKey: String = "auto"
+        preferredCodecKey: String = "auto",
     ): ShortPlaybackStreams? {
         resolveFromUnifiedExtractor(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let { return it }
 
@@ -542,106 +616,122 @@ class ShortsRepository private constructor(private val context: Context) {
 
         val streamInfo = resolveStreamInfo(videoId) ?: return null
         val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
-        fun qualityHeight(stream: org.schabi.newpipe.extractor.stream.VideoStream): Int {
-            return QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(stream))
-        }
+
+        fun qualityHeight(stream: org.schabi.newpipe.extractor.stream.VideoStream): Int =
+            QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(stream))
+
         // Pick the height tier first (respecting the cap), then the user's preferred codec within it.
         fun pickAtHeight(streams: List<org.schabi.newpipe.extractor.stream.VideoStream>): org.schabi.newpipe.extractor.stream.VideoStream? {
             val height = streams.maxOfOrNull { qualityHeight(it) } ?: return null
-            return streams.filter { qualityHeight(it) == height }
+            return streams
+                .filter { qualityHeight(it) == height }
                 .minWithOrNull(compareBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) })
         }
-        val videoStream = if (targetHeight == 0) {
-            pickAtHeight(allVideoStreams)
-        } else {
-            pickAtHeight(allVideoStreams.filter { qualityHeight(it) <= targetHeight })
-                ?: allVideoStreams.minByOrNull { qualityHeight(it) }
-        }
+        val videoStream =
+            if (targetHeight == 0) {
+                pickAtHeight(allVideoStreams)
+            } else {
+                pickAtHeight(allVideoStreams.filter { qualityHeight(it) <= targetHeight })
+                    ?: allVideoStreams.minByOrNull { qualityHeight(it) }
+            }
 
-        val audioCandidates = streamInfo.audioStreams
-            ?.sortedByDescending { it.averageBitrate } ?: emptyList()
-        val audioStream = when (preferredAudioLanguage) {
-            "original", "" -> audioCandidates.firstOrNull { stream ->
-                stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-            } ?: audioCandidates.firstOrNull { stream ->
-                stream.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
-            } ?: audioCandidates.firstOrNull()
-            else -> audioCandidates.firstOrNull { a ->
-                val lang = a.audioLocale?.language ?: ""
-                lang.startsWith(preferredAudioLanguage, true)
-            } ?: audioCandidates.firstOrNull { stream ->
-                stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-            } ?: audioCandidates.firstOrNull()
-        }
+        val audioCandidates =
+            streamInfo.audioStreams
+                ?.sortedByDescending { it.averageBitrate } ?: emptyList()
+        val audioStream =
+            when (preferredAudioLanguage) {
+                "original", "" -> {
+                    audioCandidates.firstOrNull { stream ->
+                        stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+                    } ?: audioCandidates.firstOrNull { stream ->
+                        stream.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
+                    } ?: audioCandidates.firstOrNull()
+                }
+
+                else -> {
+                    audioCandidates.firstOrNull { a ->
+                        val lang = a.audioLocale?.language ?: ""
+                        lang.startsWith(preferredAudioLanguage, true)
+                    } ?: audioCandidates.firstOrNull { stream ->
+                        stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+                    } ?: audioCandidates.firstOrNull()
+                }
+            }
 
         val videoUrl = videoStream?.content ?: videoStream?.url ?: return null
         return ShortPlaybackStreams(
             videoUrl = videoUrl,
             audioUrl = audioStream?.content ?: audioStream?.url,
-            durationMs = streamInfo.duration.takeIf { it > 0 }?.let { it * 1000L }
+            durationMs = streamInfo.duration.takeIf { it > 0 }?.let { it * 1000L },
         )
     }
 
-    suspend fun getAvailableVideoQualities(videoId: String): List<ShortVideoQuality> = withContext(Dispatchers.IO) {
-        try {
-            val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                InnerTubeVideoStreamExtractor.extract(videoId, enumerateAudioTracks = false)
-            }
-            val formats = result?.videoFormats?.filter { !it.url.isNullOrBlank() }.orEmpty()
-            if (formats.isNotEmpty()) {
-                return@withContext formats
-                    .groupBy { format -> "${shortsQualityClass(format)}_${VideoCodecUtils.codecKeyFromMimeType(format.mimeType)}" }
-                    .mapNotNull { (_, group) ->
-                        val best = group.maxByOrNull { it.averageBitrate ?: it.bitrate } ?: return@mapNotNull null
-                        val cls = shortsQualityClass(best)
-                        val url = best.url ?: return@mapNotNull null
-                        val codecKey = VideoCodecUtils.codecKeyFromMimeType(best.mimeType)
-                        ShortVideoQuality(
-                            heightClass = cls,
-                            label = "${cls}p",
-                            videoUrl = url,
-                            codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
-                            codecKey = codecKey
-                        )
+    suspend fun getAvailableVideoQualities(videoId: String): List<ShortVideoQuality> =
+        withContext(Dispatchers.IO) {
+            try {
+                val result =
+                    withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
+                        InnerTubeVideoStreamExtractor.extract(videoId)
                     }
-                    .sortedWith(compareByDescending<ShortVideoQuality> { it.heightClass }
-                        .thenBy { VideoCodecUtils.playbackCodecRank(it.codecKey) })
+                val formats = result?.videoFormats?.filter { !it.url.isNullOrBlank() }.orEmpty()
+                if (formats.isNotEmpty()) {
+                    return@withContext formats
+                        .groupBy { format -> "${shortsQualityClass(format)}_${VideoCodecUtils.codecKeyFromMimeType(format.mimeType)}" }
+                        .mapNotNull { (_, group) ->
+                            val best = group.maxByOrNull { it.averageBitrate ?: it.bitrate } ?: return@mapNotNull null
+                            val cls = shortsQualityClass(best)
+                            val url = best.url ?: return@mapNotNull null
+                            val codecKey = VideoCodecUtils.codecKeyFromMimeType(best.mimeType)
+                            ShortVideoQuality(
+                                heightClass = cls,
+                                label = "${cls}p",
+                                videoUrl = url,
+                                codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
+                                codecKey = codecKey,
+                            )
+                        }.sortedWith(
+                            compareByDescending<ShortVideoQuality> { it.heightClass }
+                                .thenBy { VideoCodecUtils.playbackCodecRank(it.codecKey) },
+                        )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "getAvailableVideoQualities (unified) failed for $videoId: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "getAvailableVideoQualities (unified) failed for $videoId: ${e.message}")
+
+            val streamInfo = resolveStreamInfo(videoId) ?: return@withContext emptyList()
+            (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
+                .filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
+                .groupBy { stream ->
+                    val height = QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(stream))
+                    "${height}_${VideoCodecUtils.codecKeyFromStream(stream)}"
+                }.mapNotNull { (_, group) ->
+                    val best = group.maxByOrNull { it.bitrate } ?: return@mapNotNull null
+                    val cls = QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(best))
+                    val url = best.content ?: best.url ?: return@mapNotNull null
+                    val codecKey = VideoCodecUtils.codecKeyFromStream(best)
+                    ShortVideoQuality(
+                        heightClass = cls,
+                        label = "${cls}p",
+                        videoUrl = url,
+                        codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
+                        codecKey = codecKey,
+                    )
+                }.sortedWith(
+                    compareByDescending<ShortVideoQuality> { it.heightClass }
+                        .thenBy { VideoCodecUtils.playbackCodecRank(it.codecKey) },
+                )
         }
 
-        val streamInfo = resolveStreamInfo(videoId) ?: return@withContext emptyList()
-        (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
-            .filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
-            .groupBy { stream ->
-                "${QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(stream))}_${VideoCodecUtils.codecKeyFromStream(stream)}"
-            }
-            .mapNotNull { (_, group) ->
-                val best = group.maxByOrNull { it.bitrate } ?: return@mapNotNull null
-                val cls = QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(best))
-                val url = best.content ?: best.url ?: return@mapNotNull null
-                val codecKey = VideoCodecUtils.codecKeyFromStream(best)
-                ShortVideoQuality(
-                    heightClass = cls,
-                    label = "${cls}p",
-                    videoUrl = url,
-                    codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
-                    codecKey = codecKey
-                )
-            }
-            .sortedWith(compareByDescending<ShortVideoQuality> { it.heightClass }
-                .thenBy { VideoCodecUtils.playbackCodecRank(it.codecKey) })
-    }
-
     suspend fun getInnerTubeDownloadFormats(
-        videoId: String
+        videoId: String,
     ): Pair<List<PlayerResponse.StreamingData.Format>, List<PlayerResponse.StreamingData.Format>> =
         withContext(Dispatchers.IO) {
             try {
-                val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                    InnerTubeVideoStreamExtractor.extract(videoId, enumerateAudioTracks = false)
-                } ?: return@withContext emptyList<PlayerResponse.StreamingData.Format>() to emptyList<PlayerResponse.StreamingData.Format>()
+                val empty = emptyList<PlayerResponse.StreamingData.Format>() to emptyList<PlayerResponse.StreamingData.Format>()
+                val result =
+                    withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
+                        InnerTubeVideoStreamExtractor.extract(videoId)
+                    } ?: return@withContext empty
                 val video = result.videoFormats.filter { !it.url.isNullOrBlank() }
                 val audio = result.audioFormats.filter { !it.url.isNullOrBlank() }
                 video to audio
@@ -651,17 +741,23 @@ class ShortsRepository private constructor(private val context: Context) {
             }
         }
 
-    private fun codecLabelFromMime(mime: String): String = when {
-        mime.contains("av01", true) -> "AV1"
-        mime.contains("vp9", true) || mime.contains("vp09", true) -> "VP9"
-        mime.contains("avc", true) || mime.contains("mp4", true) -> "H.264"
-        mime.contains("vp8", true) -> "VP8"
-        else -> ""
-    }
+    private fun codecLabelFromMime(mime: String): String =
+        when {
+            mime.contains("av01", true) -> "AV1"
+            mime.contains("vp9", true) || mime.contains("vp09", true) -> "VP9"
+            mime.contains("avc", true) || mime.contains("mp4", true) -> "H.264"
+            mime.contains("vp8", true) -> "VP8"
+            else -> ""
+        }
 
     private fun shortsQualityClass(f: PlayerResponse.StreamingData.Format): Int {
         f.qualityLabel?.let { label ->
-            Regex("(\\d+)p").find(label)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { return it }
+            Regex("(\\d+)p")
+                .find(label)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toIntOrNull()
+                ?.let { return it }
         }
         val w = f.width ?: 0
         val h = f.height ?: 0
@@ -670,40 +766,50 @@ class ShortsRepository private constructor(private val context: Context) {
 
     private fun sortedVideoFormatsForPlayback(
         formats: List<PlayerResponse.StreamingData.Format>,
-        preferredCodecKey: String = "auto"
+        preferredCodecKey: String = "auto",
     ): List<PlayerResponse.StreamingData.Format> =
         formats.sortedWith(
             compareByDescending<PlayerResponse.StreamingData.Format> { shortsQualityClass(it) }
                 .thenBy { VideoCodecUtils.codecRankWithPreference(VideoCodecUtils.codecKeyFromMimeType(it.mimeType), preferredCodecKey) }
-                .thenByDescending { it.averageBitrate ?: it.bitrate }
+                .thenByDescending { it.averageBitrate ?: it.bitrate },
         )
 
     private fun selectVideoForTarget(
         videoFormats: List<PlayerResponse.StreamingData.Format>,
         targetHeight: Int,
-        preferredCodecKey: String = "auto"
+        preferredCodecKey: String = "auto",
     ): PlayerResponse.StreamingData.Format? {
-        val candidates = if (targetHeight == 0) {
-            videoFormats
-        } else {
-            videoFormats.filter { shortsQualityClass(it) <= targetHeight }
-        }
+        val candidates =
+            if (targetHeight == 0) {
+                videoFormats
+            } else {
+                videoFormats.filter { shortsQualityClass(it) <= targetHeight }
+            }
         return sortedVideoFormatsForPlayback(candidates, preferredCodecKey).firstOrNull()
             ?: videoFormats.minByOrNull { shortsQualityClass(it) }
     }
 
     private fun selectAudioForLanguage(
         audioFormats: List<PlayerResponse.StreamingData.Format>,
-        preferredAudioLanguage: String
+        preferredAudioLanguage: String,
     ): PlayerResponse.StreamingData.Format? {
-        val sorted = audioFormats.sortedByDescending {
-            (it.averageBitrate ?: it.bitrate) + if (it.mimeType.contains("webm", true)) 10_000 else 0
-        }
+        val sorted =
+            audioFormats.sortedByDescending {
+                (it.averageBitrate ?: it.bitrate) + if (it.mimeType.contains("webm", true)) 10_000 else 0
+            }
         return when (preferredAudioLanguage) {
-            "original", "" -> sorted.firstOrNull { it.isOriginal } ?: sorted.firstOrNull()
-            else -> sorted.firstOrNull { format ->
-                format.audioTrack?.id?.substringAfterLast(".")?.startsWith(preferredAudioLanguage, true) == true
-            } ?: sorted.firstOrNull { it.isOriginal } ?: sorted.firstOrNull()
+            "original", "" -> {
+                sorted.firstOrNull { it.isOriginal } ?: sorted.firstOrNull()
+            }
+
+            else -> {
+                sorted.firstOrNull { format ->
+                    format.audioTrack
+                        ?.id
+                        ?.substringAfterLast(".")
+                        ?.startsWith(preferredAudioLanguage, true) == true
+                } ?: sorted.firstOrNull { it.isOriginal } ?: sorted.firstOrNull()
+            }
         }
     }
 
@@ -711,12 +817,13 @@ class ShortsRepository private constructor(private val context: Context) {
         videoId: String,
         targetHeight: Int,
         preferredAudioLanguage: String,
-        preferredCodecKey: String = "auto"
+        preferredCodecKey: String = "auto",
     ): ShortPlaybackStreams? {
         return try {
-            val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                InnerTubeVideoStreamExtractor.extract(videoId, enumerateAudioTracks = false)
-            } ?: return null
+            val result =
+                withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
+                    InnerTubeVideoStreamExtractor.extract(videoId)
+                } ?: return null
 
             val videoFormats = result.videoFormats.filter { !it.url.isNullOrBlank() }
             if (videoFormats.isEmpty()) return null
@@ -727,11 +834,19 @@ class ShortsRepository private constructor(private val context: Context) {
             val audioFormats = result.audioFormats.filter { !it.url.isNullOrBlank() }
             val selectedAudio = selectAudioForLanguage(audioFormats, preferredAudioLanguage)
 
-            Log.d(TAG, "✓ Unified extractor resolved $videoId at ${shortsQualityClass(selectedVideo)}p via ${result.usedClient.clientName}")
+            Log.d(
+                TAG,
+                "✓ Unified extractor resolved $videoId at ${shortsQualityClass(selectedVideo)}p " +
+                    "via ${result.usedClient.clientName}",
+            )
             ShortPlaybackStreams(
                 videoUrl = videoUrl,
                 audioUrl = selectedAudio?.url,
-                durationMs = result.playerResponse.videoDetails?.lengthSeconds?.toLongOrNull()?.times(1000L)
+                durationMs =
+                    result.playerResponse.videoDetails
+                        ?.lengthSeconds
+                        ?.toLongOrNull()
+                        ?.times(1000L),
             )
         } catch (e: Exception) {
             Log.w(TAG, "Unified extractor resolve failed for $videoId: ${e.message}")
@@ -743,28 +858,32 @@ class ShortsRepository private constructor(private val context: Context) {
         videoId: String,
         targetHeight: Int,
         preferredAudioLanguage: String,
-        preferredCodecKey: String = "auto"
+        preferredCodecKey: String = "auto",
     ): ShortPlaybackStreams? {
         return try {
-            val response = withTimeoutOrNull(3_500L) {
-                YouTube.shortsPlayer(videoId).getOrNull()
-                    ?: YouTube.player(videoId, client = YouTubeClient.ANDROID).getOrNull()
-            } ?: return null
+            val response =
+                withTimeoutOrNull(3_500L) {
+                    YouTube.shortsPlayer(videoId).getOrNull()
+                        ?: YouTube.player(videoId, client = YouTubeClient.ANDROID).getOrNull()
+                } ?: return null
 
             val streamingData = response.streamingData ?: return null
 
-            val audioFormats = streamingData.adaptiveFormats
-                .filter { it.isAudio && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
-                .sortedByDescending { (it.averageBitrate ?: it.bitrate) + if (it.mimeType.contains("webm", true)) 10_000 else 0 }
+            val audioFormats =
+                streamingData.adaptiveFormats
+                    .filter { it.isAudio && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
+                    .sortedByDescending { (it.averageBitrate ?: it.bitrate) + if (it.mimeType.contains("webm", true)) 10_000 else 0 }
 
-            val adaptiveVideo = streamingData.adaptiveFormats
-                .filter { !it.isAudio && it.height != null && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
-            val videoFormats = if (adaptiveVideo.isNotEmpty() && audioFormats.isNotEmpty()) {
-                adaptiveVideo
-            } else {
-                (streamingData.formats.orEmpty() + streamingData.adaptiveFormats)
-                    .filter { !it.isAudio && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
-            }
+            val adaptiveVideo =
+                streamingData.adaptiveFormats
+                    .filter { !it.isAudio && it.height != null && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
+            val videoFormats =
+                if (adaptiveVideo.isNotEmpty() && audioFormats.isNotEmpty()) {
+                    adaptiveVideo
+                } else {
+                    (streamingData.formats.orEmpty() + streamingData.adaptiveFormats)
+                        .filter { !it.isAudio && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
+                }
 
             val selectedVideo = selectVideoForTarget(videoFormats, targetHeight, preferredCodecKey) ?: return null
             val selectedAudio = selectAudioForLanguage(audioFormats, preferredAudioLanguage)
@@ -774,7 +893,11 @@ class ShortsRepository private constructor(private val context: Context) {
             ShortPlaybackStreams(
                 videoUrl = videoUrl,
                 audioUrl = audioUrl,
-                durationMs = response.videoDetails?.lengthSeconds?.toLongOrNull()?.times(1000L)
+                durationMs =
+                    response.videoDetails
+                        ?.lengthSeconds
+                        ?.toLongOrNull()
+                        ?.times(1000L),
             )
         } catch (e: Exception) {
             Log.w(TAG, "Fast Shorts stream resolve failed for $videoId: ${e.message}")
@@ -782,184 +905,183 @@ class ShortsRepository private constructor(private val context: Context) {
         }
     }
 
-    /**
-     * Pre-resolve streams for multiple video IDs concurrently.
-     * Used to pre-buffer adjacent shorts in the pager.
-     */
-    suspend fun preResolveStreams(videoIds: List<String>) = supervisorScope {
-        val uncached = videoIds.filter { streamInfoCache.get(it) == null }
-        if (uncached.isEmpty()) return@supervisorScope
-        
-        Log.d(TAG, "⟳ Pre-resolving ${uncached.size} streams: ${uncached.joinToString()}")
-        
-        uncached.map { videoId ->
-            async(Dispatchers.IO) {
-                try {
-                    withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
-                        resolveStreamInfo(videoId)
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Pre-resolve failed for $videoId")
-                    null
-                }
-            }
-        }.forEach { it.await() } 
-    }
-    
     // HOME FEED SHORTS — For the Home screen's Shorts shelf
+
     /**
      * Get a small batch of shorts for the home screen shelf.
      * Uses cached feed if available, otherwise fetches fresh.
      * Returns up to 20 items for a populated shelf.
      */
-    suspend fun getHomeFeedShorts(): List<ShortVideo> = withContext(Dispatchers.IO) {
-        try {
-            val result = getShortsFeed()
-            val ordered = orderShortsNewestFirst(filterWatchedShorts(result.shorts)).take(20)
-            withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) { enrichMissingMetadata(ordered) } ?: ordered
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to get home feed shorts", e)
-            emptyList()
+    suspend fun getHomeFeedShorts(): List<ShortVideo> =
+        withContext(Dispatchers.IO) {
+            try {
+                val result = getShortsFeed()
+                val ordered = orderShortsNewestFirst(filterWatchedShorts(result.shorts)).take(20)
+                withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) { enrichMissingMetadata(ordered) } ?: ordered
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get home feed shorts", e)
+                emptyList()
+            }
         }
-    }
-    
-    // INTERNAL — InnerTube Fetching    
-    private suspend fun fetchFromInnerTubeRaw(
-        seedVideoId: String? = null
-    ): ShortsSequenceResult {
-        val page = if (seedVideoId != null) {
-            YouTube.shortsFromVideo(seedVideoId).getOrNull()
-        } else {
-            YouTube.shorts().getOrNull()
-        }
-        
+
+    // INTERNAL — InnerTube Fetching
+    private suspend fun fetchFromInnerTubeRaw(seedVideoId: String? = null): ShortsSequenceResult {
+        val page =
+            if (seedVideoId != null) {
+                YouTube.shortsFromVideo(seedVideoId).getOrNull()
+            } else {
+                YouTube.shorts().getOrNull()
+            }
+
         if (page == null || page.items.isEmpty()) {
             return ShortsSequenceResult(emptyList(), null)
         }
-        
+
         val shorts = page.items.map { it.toShortVideo() }
-        
+
         return ShortsSequenceResult(shorts, page.continuation)
     }
-    
-    // INTERNAL — Metadata Enrichment    
-    private suspend fun enrichMissingMetadata(shorts: List<ShortVideo>): List<ShortVideo> = supervisorScope {
-        val needsEnrichment = shorts.filter { 
-            it.title == "Short" || it.channelName == "Unknown" || it.channelName.isBlank() 
-        }
-        
-        if (needsEnrichment.isEmpty()) return@supervisorScope shorts
-        
-        Log.d(TAG, "⟳ Enriching metadata for ${needsEnrichment.size}/${shorts.size} shorts via player() endpoint")
-        
-        val enrichedMap = mutableMapOf<String, ShortVideo>()
-        
-        needsEnrichment.chunked(5).forEach { batch ->
-            val batchResults = batch.map { short ->
-                async(Dispatchers.IO) {
-                    try {
-                        withTimeoutOrNull(5_000L) {
-                            val playerResponse = YouTube.player(
-                                videoId = short.id,
-                                client = YouTubeClient.ANDROID
-                            ).getOrNull()
-                            
-                            val details = playerResponse?.videoDetails
-                            if (details != null) {
-                                short.copy(
-                                    title = details.title?.takeIf { it.isNotBlank() } ?: short.title,
-                                    channelName = details.author?.takeIf { it.isNotBlank() } ?: short.channelName,
-                                    channelId = details.channelId.takeIf { it.isNotBlank() } ?: short.channelId,
-                                    viewCountText = if (short.viewCountText.isBlank() && details.viewCount != null) {
-                                        formatEnrichViewCount(details.viewCount.toLongOrNull() ?: 0L)
-                                    } else short.viewCountText
-                                )
-                            } else short
-                        } ?: short
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Player enrichment failed for ${short.id}: ${e.message}")
-                        short
-                    }
+
+    // INTERNAL — Metadata Enrichment
+    private suspend fun enrichMissingMetadata(shorts: List<ShortVideo>): List<ShortVideo> =
+        supervisorScope {
+            val needsEnrichment =
+                shorts.filter {
+                    it.title == "Short" || it.channelName == "Unknown" || it.channelName.isBlank()
                 }
-            }.awaitAll()
-            
-            batchResults.forEach { enrichedMap[it.id] = it }
-            
-            val partiallyEnriched = shorts.map { enrichedMap[it.id] ?: it }
-            _enrichmentUpdates.tryEmit(partiallyEnriched)
+
+            if (needsEnrichment.isEmpty()) return@supervisorScope shorts
+
+            Log.d(TAG, "⟳ Enriching metadata for ${needsEnrichment.size}/${shorts.size} shorts via player() endpoint")
+
+            val enrichedMap = mutableMapOf<String, ShortVideo>()
+
+            needsEnrichment.chunked(5).forEach { batch ->
+                val batchResults =
+                    batch
+                        .map { short ->
+                            async(Dispatchers.IO) {
+                                try {
+                                    withTimeoutOrNull(5_000L) {
+                                        val playerResponse =
+                                            YouTube
+                                                .player(
+                                                    videoId = short.id,
+                                                    client = YouTubeClient.ANDROID,
+                                                ).getOrNull()
+
+                                        val details = playerResponse?.videoDetails
+                                        if (details != null) {
+                                            short.copy(
+                                                title = details.title?.takeIf { it.isNotBlank() } ?: short.title,
+                                                channelName = details.author?.takeIf { it.isNotBlank() } ?: short.channelName,
+                                                channelId = details.channelId.takeIf { it.isNotBlank() } ?: short.channelId,
+                                                viewCountText =
+                                                    if (short.viewCountText.isBlank() && details.viewCount != null) {
+                                                        formatEnrichViewCount(details.viewCount.toLongOrNull() ?: 0L)
+                                                    } else {
+                                                        short.viewCountText
+                                                    },
+                                            )
+                                        } else {
+                                            short
+                                        }
+                                    } ?: short
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Player enrichment failed for ${short.id}: ${e.message}")
+                                    short
+                                }
+                            }
+                        }.awaitAll()
+
+                batchResults.forEach { enrichedMap[it.id] = it }
+
+                val partiallyEnriched = shorts.map { enrichedMap[it.id] ?: it }
+                _enrichmentUpdates.tryEmit(partiallyEnriched)
+            }
+
+            val result = shorts.map { enrichedMap[it.id] ?: it }
+            Log.d(TAG, "✓ Enriched ${enrichedMap.size}/${needsEnrichment.size} shorts via player() endpoint")
+            result
         }
-        
-        val result = shorts.map { enrichedMap[it.id] ?: it }
-        Log.d(TAG, "✓ Enriched ${enrichedMap.size}/${needsEnrichment.size} shorts via player() endpoint")
-        result
-    }
-    
-    private fun formatEnrichViewCount(count: Long): String = when {
-        count >= 1_000_000_000 -> String.format("%.1fB views", count / 1_000_000_000.0)
-        count >= 1_000_000 -> String.format("%.1fM views", count / 1_000_000.0)
-        count >= 1_000 -> String.format("%.1fK views", count / 1_000.0)
-        count > 0 -> "$count views"
-        else -> ""
-    }
+
+    private fun formatEnrichViewCount(count: Long): String =
+        when {
+            count >= 1_000_000_000 -> String.format("%.1fB views", count / 1_000_000_000.0)
+            count >= 1_000_000 -> String.format("%.1fM views", count / 1_000_000.0)
+            count >= 1_000 -> String.format("%.1fK views", count / 1_000.0)
+            count > 0 -> "$count views"
+            else -> ""
+        }
 
     /**
      * Second-pass enrichment: fills in missing [ShortVideo.channelThumbnailUrl]
      * by looking up channel avatars via NewPipe. Results are emitted via
      * [_enrichmentUpdates] so the UI can refresh thumbnails live.
      */
-    private suspend fun enrichAvatarsForShorts(shorts: List<ShortVideo>): List<ShortVideo> = supervisorScope {
-        val channelIds = shorts
-            .filter { it.channelThumbnailUrl.isEmpty() && it.channelId.isNotEmpty() }
-            .map { it.channelId }
-            .distinct()
+    private suspend fun enrichAvatarsForShorts(shorts: List<ShortVideo>): List<ShortVideo> =
+        supervisorScope {
+            val channelIds =
+                shorts
+                    .filter { it.channelThumbnailUrl.isEmpty() && it.channelId.isNotEmpty() }
+                    .map { it.channelId }
+                    .distinct()
 
-        if (channelIds.isEmpty()) return@supervisorScope shorts
+            if (channelIds.isEmpty()) return@supervisorScope shorts
 
-        Log.d(TAG, "⟳ Avatar enrichment for ${channelIds.size} channels in ${shorts.size} shorts")
-        val avatarMap = mutableMapOf<String, String>()
-        channelIds.chunked(4).forEach { batch ->
-            batch.map { id ->
-                async(Dispatchers.IO) { withTimeoutOrNull(6_000L) { id to youtubeRepository.fetchChannelAvatarById(id) } }
-            }.awaitAll().forEach { pair ->
-                pair?.let { (id, url) -> if (url.isNotEmpty()) avatarMap[id] = url }
+            Log.d(TAG, "⟳ Avatar enrichment for ${channelIds.size} channels in ${shorts.size} shorts")
+            val avatarMap = mutableMapOf<String, String>()
+            channelIds.chunked(4).forEach { batch ->
+                batch
+                    .map { id ->
+                        async(Dispatchers.IO) { withTimeoutOrNull(6_000L) { id to youtubeRepository.fetchChannelAvatarById(id) } }
+                    }.awaitAll()
+                    .forEach { pair ->
+                        pair?.let { (id, url) -> if (url.isNotEmpty()) avatarMap[id] = url }
+                    }
             }
+
+            if (avatarMap.isEmpty()) return@supervisorScope shorts
+
+            val result =
+                shorts.map { short ->
+                    if (short.channelThumbnailUrl.isEmpty()) {
+                        avatarMap[short.channelId]?.let { short.copy(channelThumbnailUrl = it) } ?: short
+                    } else {
+                        short
+                    }
+                }
+            Log.d(TAG, "✓ Avatar enrichment done: ${avatarMap.size}/${channelIds.size} channels resolved")
+            _enrichmentUpdates.tryEmit(result)
+            result
         }
 
-        if (avatarMap.isEmpty()) return@supervisorScope shorts
-
-        val result = shorts.map { short ->
-            if (short.channelThumbnailUrl.isEmpty())
-                avatarMap[short.channelId]?.let { short.copy(channelThumbnailUrl = it) } ?: short
-            else short
-        }
-        Log.d(TAG, "✓ Avatar enrichment done: ${avatarMap.size}/${channelIds.size} channels resolved")
-        _enrichmentUpdates.tryEmit(result)
-        result
-    }
-    
-    // INTERNAL — NewPipe Fallback Fetching    
+    // INTERNAL — NewPipe Fallback Fetching
     private suspend fun fetchFromNewPipe(): ShortsSequenceResult {
         val (videos, _) = youtubeRepository.getShorts()
-        val shorts = videos
-            .filter { it.duration in 1..60 }
-            .map { it.toShortVideo() }
-            .filter { it.id !in recentlyShownIds }
-            .let { filterWatchedShorts(it) }
-            .let { orderShortsNewestFirst(it) }
-        
+        val shorts =
+            videos
+                .filter { it.duration in 1..60 }
+                .map { it.toShortVideo() }
+                .filter { it.id !in recentlyShownIds }
+                .let { filterWatchedShorts(it) }
+                .let { orderShortsNewestFirst(it) }
+
         return ShortsSequenceResult(shorts, null)
     }
 
     private suspend fun filterWatchedShorts(shorts: List<ShortVideo>): List<ShortVideo> {
         if (shorts.isEmpty()) return shorts
         val threshold = PlayerPreferences(context).watchedThreshold.first()
-        val watchedIds = runCatching {
-            viewHistory.getWatchedShortIdsAboveThreshold(threshold.minPercent, threshold.maxRemainingMs)
-        }.getOrDefault(emptySet())
-        val recentlySeenIds = runCatching {
-            FlowNeuroEngine.initialize(context)
-            FlowNeuroEngine.getRecentlySeenShorts()
-        }.getOrDefault(emptySet())
+        val watchedIds =
+            runCatching {
+                viewHistory.getWatchedShortIdsAboveThreshold(threshold.minPercent, threshold.maxRemainingMs)
+            }.getOrDefault(emptySet())
+        val recentlySeenIds =
+            runCatching {
+                FlowNeuroEngine.initialize(context)
+                FlowNeuroEngine.getRecentlySeenShorts()
+            }.getOrDefault(emptySet())
         if (watchedIds.isEmpty() && recentlySeenIds.isEmpty()) return shorts
         return shorts.filter { it.id !in watchedIds && it.id !in recentlySeenIds }
     }
@@ -971,7 +1093,7 @@ class ShortsRepository private constructor(private val context: Context) {
             FlowNeuroEngine.recordSeenShorts(listOf(videoId))
         }.onFailure { Log.w(TAG, "Failed to record shown Short $videoId", it) }
     }
-    
+
     // INTERNAL — Recently Shown Tracking
     private fun markAsShown(ids: List<String>) {
         recentlyShownIds.addAll(ids)
@@ -986,13 +1108,14 @@ class ShortsRepository private constructor(private val context: Context) {
             }
         }
     }
-    
+
     // CACHE MANAGEMENT
+
     /**
      * Get a cached ShortVideo by ID if available.
      */
     fun getCachedShort(videoId: String): ShortVideo? = shortsCache.get(videoId)
-    
+
     /**
      * Clear all caches. Used for debugging or force-refresh.
      */
@@ -1016,7 +1139,7 @@ class ShortsRepository private constructor(private val context: Context) {
         }
         Log.d(TAG, "Evicted channel $channelId from Shorts caches")
     }
-    
+
     /**
      * Force refresh — clears caches and fetches fresh.
      */
@@ -1029,7 +1152,7 @@ class ShortsRepository private constructor(private val context: Context) {
 data class ShortPlaybackStreams(
     val videoUrl: String,
     val audioUrl: String?,
-    val durationMs: Long?
+    val durationMs: Long?,
 )
 
 data class ShortVideoQuality(
@@ -1037,5 +1160,5 @@ data class ShortVideoQuality(
     val label: String,
     val videoUrl: String,
     val codecLabel: String,
-    val codecKey: String = ""
+    val codecKey: String = "",
 )
