@@ -1546,7 +1546,7 @@
     <string name="tracks_count_template">%1$s faixas</string>
     <string name="btn_minimize">Minimizar</string>
     <string name="captions">Legendas</string>
-    <string name="pip_mode">Imagem na imagem (PiP)</string>
+    <string name="pip_mode">Reprodutor flutuante</string>
     <string name="previous_video">Vídeo anterior</string>
     <string name="next_video">Próximo vídeo</string>
     <string name="fullscreen">Tela Cheia</string>
@@ -1579,7 +1579,7 @@
     <string name="download_title_label">Título</string>
     <string name="download_format_label">Formato</string>
     <string name="download_threads_label">Núcleos</string>
-    <string name="download_no_compatible_audio">Nenhum transmissão de áudio compatível — não é possível baixar</string>
+    <string name="download_no_compatible_audio">Nenhuma transmissão de áudio compatível — não é possível baixar</string>
     <string name="download_menu_style_title">Estilo do menu de baixar</string>
     <string name="download_menu_style_subtitle">Escolha como a caixa de diálogo de baixar parece</string>
     <string name="download_menu_style_classic">Clássico</string>
@@ -1595,7 +1595,7 @@
     <string name="download_status_failed">Falhou</string>
     <string name="download_status_cancelled">Cancelado</string>
     <string name="remove_incomplete_downloads">Remover baixados incompletos</string>
-    <string name="remove_incomplete_downloads_message">Remover %1$d pausado, falhado ou baixado parcialmente (s)? Os baixados concluídos não serão tocados.</string>
+    <string name="remove_incomplete_downloads_message">Remover %1$d pausado, falhado ou baixado parcialmente (s)? Os baixados concluídos não serão alterados.</string>
     <string name="audio_track">Faixa de áudio</string>
     <string name="audio_track_number_template">%1$s %2$d</string>
     <string name="subtitle_auto_generated_template">%1$s (%2$s)</string>
@@ -1614,7 +1614,7 @@
     <string name="cast_connected">Transmitindo</string>
     <string name="cast_disconnected">Transmissão desconectada</string>
     <string name="dlna_cast_to_device">Transmitir para o dispositivo</string>
-    <string name="dlna_no_devices">Sem DLNA/UPnP renderizadores encontrados nesta rede.\n\nCertifique-se de que sua TV ou reprodutor (VLC, Kodi, etc.) está na mesma rede Wi-Fi e tem modo de renderizador de mídia ativado.</string>
+    <string name="dlna_no_devices">Sem renderizadores UPnP/DLNA encontrados nesta rede.\n\nCertifique-se de que sua TV ou reprodutor (VLC, Kodi, etc.) está na mesma rede Wi-Fi e tem modo de renderizador de mídia ativado.</string>
     <string name="dlna_searching">Procurando por dispositivos DLNA...</string>
     <string name="dlna_now_casting">Transmitindo agora: %1$s</string>
     <string name="dlna_stop_casting">Parar de transmitir</string>
@@ -1633,7 +1633,7 @@
     <string name="flow_is_up_to_date">Flow está atualizado!</string>
     <string name="update_check_failed">Não foi possível verificar as atualizações. Verifica sua conexão.</string>
     <string name="export_engine_data">Exportar perfil do motor</string>
-    <string name="export_engine_data_subtitle">Faça copia de seus dados de personalidade e aprendizado de IA</string>
+    <string name="export_engine_data_subtitle">Faça cópia de seus dados de aprendizado e personalidade IA</string>
     <string name="export_engine_success">Perfil do motor exportado com sucesso</string>
     <string name="export_engine_failed">Falha ao exportar perfil do motor</string>
     <string name="import_engine_data">Importar dados do motor do Flow</string>
@@ -1649,13 +1649,13 @@
     <string name="import_master_backup_success">Cópia principal restaurada com sucesso</string>
     <string name="import_master_backup_failed">Falha ao importar cópia principal</string>
     <string name="sync_devices_title">Sincronizar dispositivos</string>
-    <string name="sync_devices_subtitle">Sincronizar biblioteca, históco e perfil sobre Wi-Fi local</string>
+    <string name="sync_devices_subtitle">Sincronizar biblioteca, históco e perfil pelo Wi-Fi local</string>
     <string name="sync_notification_title">Sincronizando dispositivos</string>
-    <string name="sync_notification_text">Transferir a sua biblioteca usando Wi-Fi local…</string>
+    <string name="sync_notification_text">Transferindo a sua biblioteca usando Wi-Fi local…</string>
     <string name="sync_notification_channel">Sincronização do dispositivo</string>
     <string name="sync_collection_playlists">Listas de reprodução</string>
     <string name="sync_collection_watch_history">Histórico de assistido</string>
-    <string name="sync_collection_likes">Likes</string>
+    <string name="sync_collection_likes">Curtidos</string>
     <string name="sync_collection_subscriptions">Inscrições</string>
     <string name="sync_collection_settings">Configurações</string>
     <string name="sync_collection_recommendation_profile">Perfil de recomendação</string>
@@ -1681,7 +1681,7 @@
     <string name="sync_safety_backup_note">Um cópia de segurança é feita automaticamente no dispositivo que recebe, antes que qualquer coisa seja mesclada.</string>
     <string name="sync_continue">Continuar</string>
     <string name="sync_qr_scan_on_target_sending">Analisar isso no dispositivo que você está enviando</string>
-    <string name="sync_qr_scan_on_target_receiving">Analisar isso no dispositivo que você está recebendo</string>
+    <string name="sync_qr_scan_on_target_receiving">Leia o código no dispositivo que está recebendo</string>
     <string name="sync_confirmation_code">Código de confirmação: %1$s</string>
     <string name="sync_expires_in">Expira em %1$ds</string>
     <string name="sync_qr_network_note">Ambos os dispositivos devem estar no mesmo Wi-Fi (ou ponto de acesso de um dispositivo). Você pode precisar permitir o Flow através de um firewall.</string>
