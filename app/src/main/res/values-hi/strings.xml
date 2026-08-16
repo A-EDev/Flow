@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Flow</string>
-    <string name="subscriptions_search_placeholder">सदस्यताएँ खोजें..।</string>
-    <string name="top_bar_subscriptions_title">सदस्यताएँ</string>
+    <string name="subscriptions_search_placeholder">सब्सक्रिप्शनस में से खोजें..।</string>
+    <string name="top_bar_subscriptions_title">सब्सक्रिप्शनें</string>
     <string name="view_all_button_label">सभी</string>
     <string name="subscribed">सब्सक्राइबड</string>
-    <string name="no_subscriptions_yet">कोई सब्सक्रिप्शन नहीं ली</string>
-    <string name="home_refresh_feed">फ़ीड ताज़ा करें</string>
+    <string name="no_subscriptions_yet">अभी कोई सब्सक्रिप्शन नहीं ली</string>
+    <string name="home_refresh_feed">फ़ीड रिफ्रेश करें</string>
     <string name="retry">फिर प्रयास करें</string>
     <string name="failed_to_load_channel">चैनल लोड करने में असफल</string>
-    <string name="subscribers">सब्सक्राइबर</string>
+    <string name="subscribers">सब्सक्राइबर्स</string>
     <string name="stats">आँकड़े</string>
     <string name="library_history_label">इतिहास</string>
     <string name="library_playlists_label">प्लेलिस्ट्स</string>
@@ -38,7 +38,7 @@
         <item quantity="one">%d चैनल</item>
         <item quantity="other">%d चैनल</item>
     </plurals>
-    <string name="empty_subscriptions_body">चैनलों की सदस्यता लें ताकि उनके\nनवीनतम वीडियो यहाँ दिखें</string>
+    <string name="empty_subscriptions_body">चैनलों को सब्सक्राइब करें ताकि उनके\nनवीनतम वीडियो यहाँ दिखें</string>
     <string name="library">लाइब्रेरी</string>
     <string name="library_section_header">आपकी सामग्री</string>
     <string name="clear_watch_history_alert_title">देखने का इतिहास साफ़ करें?</string>
@@ -92,9 +92,9 @@
     <string name="channels_label">चैनल</string>
     <string name="audio_info_not_available">ऑडियो स्ट्रीम जानकारी अभी उपलब्ध नहीं है।</string>
     <string name="undo">अन-डू करें</string>
-    <string name="subscribed_to">%s की सदस्यता ली गई</string>
-    <string name="unsubscribed_from">%s से सदस्यता समाप्त की गई</string>
-    <string name="unsubscribe">सदस्यता समाप्त करें</string>
+    <string name="subscribed_to">%s को सब्सक्राइब किया</string>
+    <string name="unsubscribed_from">%s से अनसब्सक्राइब किया</string>
+    <string name="unsubscribe">अनसब्सक्राइब करें</string>
     <string name="share_video">वीडियो सांझा करें</string>
     <string name="check_out_video_template">यह वीडियो देखें: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="related_videos">संबंधित वीडियो</string>
@@ -170,7 +170,7 @@
     <string name="nav_home">होम</string>
     <string name="nav_shorts">शॉर्ट्स</string>
     <string name="nav_music">संगीत</string>
-    <string name="nav_subs">सदस्यताएँ</string>
+    <string name="nav_subs">सब्सक्रिप्शंस</string>
     <string name="nav_library">लाइब्रेरी</string>
     <string name="notifications">सूचनाएँ</string>
     <string name="search">खोजें</string>
@@ -204,10 +204,10 @@
     <string name="personalized_feed">आपकी व्यक्तिगत फ़ीड</string>
     <string name="videos_curated_template">आपके लिए %1$d वीडियो चुने गए</string>
     <string name="import_newpipe_backup">न्यूपाइप बैकअप आयात करें</string>
-    <string name="importing_from_backup">न्यूपाइप बैकअप से सदस्यताएँ आयात की जा रही हैं..।</string>
-    <string name="search_subscriptions">सदस्यताएँ खोजें</string>
+    <string name="importing_from_backup">NewPipe बैकअप से सब्सक्रिप्शनें इंपोर्ट की जा रही हैं..।</string>
+    <string name="search_subscriptions">सब्सक्रिप्शनस खोजें</string>
     <string name="toggle_view_mode">दृश्य मोड टॉगल करें</string>
-    <string name="unsubscribed_from_template">%1$s से सदस्यता समाप्त की गई</string>
+    <string name="unsubscribed_from_template">%1$s से अनसब्सक्राइब किया</string>
     <string name="videos_count_template">%1$d वीडियो</string>
     <string name="playlists_count_template">%1$d प्लेलिस्ट</string>
     <string name="shorts_count_template">%1$d शॉर्ट्स</string>
@@ -250,7 +250,7 @@
     <string name="channel_default_title">चैनल</string>
     <string name="channel_banner">चैनल बैनर</string>
     <string name="channel_avatar">चैनल अवतार</string>
-    <string name="subscribe">सदस्यता लें</string>
+    <string name="subscribe">सब्सक्राइब</string>
     <string name="unlike">नापसंद करें</string>
     <string name="tab_shorts">शॉर्ट्स</string>
     <string name="tab_live">लाइव</string>
@@ -272,7 +272,7 @@
     <string name="delete">हटाएँ</string>
     <string name="dismiss">खारिज करें</string>
     <string name="peace_and_quiet">शांति और सन्नाटा</string>
-    <string name="notifications_empty_body">आप अपडेटेड हैं! आपकी सदस्यताओं से नए अपडेट यहाँ दिखेंगे।</string>
+    <string name="notifications_empty_body">आप अपडेटेड हैं! आपकी सब्सक्रिप्शनस से नए अपडेट यहाँ दिखेंगे।</string>
     <string name="settings_title">सेटिंग्स</string>
     <string name="settings_flow_engine_header">फ्लो इंजन</string>
     <string name="settings_active_learning">सक्रिय शिक्षण</string>
@@ -290,7 +290,7 @@
     <string name="settings_item_notifications_subtitle">नियंत्रित करें कि फ्लो कौन सी सूचनाएँ भेज सकता है</string>
     <string name="notif_settings_title">सूचना प्राथमिकताएँ</string>
     <string name="notif_type_new_videos">नए वीडियो</string>
-    <string name="notif_type_new_videos_subtitle">जब सदस्यता वाले चैनल नए वीडियो अपलोड करें तो सूचित करें</string>
+    <string name="notif_type_new_videos_subtitle">जब सब्सक्राइब किए चैनल नए वीडियो अपलोड करें तो सूचित करें</string>
     <string name="notif_type_downloads">डाउनलोड सूचनाएँ</string>
     <string name="notif_type_downloads_subtitle">प्रगति, पूर्णता और विफलता अलर्ट</string>
     <string name="notif_type_reminders">स्क्रीन समय अनुस्मारक</string>
@@ -305,7 +305,7 @@
     <string name="notif_check_interval">नए वीडियो जांच अंतराल</string>
     <string name="notif_check_interval_subtitle_template">हर %s में जाँच करें</string>
     <string name="notif_check_interval_dialog_title">जांच अंतराल</string>
-    <string name="notif_check_interval_dialog_body">फ्लो आपके सदस्यता वाले चैनलों से नए वीडियो के लिए दिन में कितनी बार जाँच करता है।</string>
+    <string name="notif_check_interval_dialog_body">Flow आपके सब्सक्राइब किए चैनलों से नए वीडियो के लिए दिन में कितनी बार जाँच करता है।</string>
     <string name="notif_interval_15m">15 मिनट</string>
     <string name="notif_interval_30m">30 मिनट</string>
     <string name="notif_interval_1h">1 घंटा</string>
@@ -369,9 +369,9 @@
     <string name="player_appearance_style_subtitle">सीक बार की दृश्य शैली चुनें</string>
     <string name="settings_item_player_appearance">प्लेयर दिखावट</string>
     <string name="settings_item_player_appearance_subtitle">प्रगति पट्टी शैली अनुकूलित करें</string>
-    <string name="style_default">डिफ़ॉल्ट (फ्लो)</string>
-    <string name="style_metrolist">मेट्रोलिस्ट (मोटा)</string>
-    <string name="style_metrolist_slim">मेट्रोलिस्ट (पतला)</string>
+    <string name="style_default">रेगुलर</string>
+    <string name="style_metrolist">मोटा</string>
+    <string name="style_metrolist_slim">डिफ़ॉल्ट</string>
     <string name="style_squiggly">लहरदार</string>
     <string name="style_slim">अल्ट्रा पतला</string>
     <string name="player_appearance_gestures_header">इशारे</string>
@@ -475,8 +475,8 @@
     <string name="content_settings_related_card_full_width_desc">नीचे शीर्षक के साथ बड़ा थंमनेल</string>
     <string name="content_settings_header_content_components">सामग्री घटक</string>
     <string name="content_settings_header_nav_tabs">नेविगेशन टैब</string>
-    <string name="settings_subs_shorts_shelf_title">सदस्यताएँ शॉर्ट्स शेल्फ़</string>
-    <string name="settings_subs_shorts_shelf_subtitle">सदस्यता फ़ीड ग्रिड में क्षैतिज शॉर्ट्स शेल्फ़ दिखाएँ।</string>
+    <string name="settings_subs_shorts_shelf_title">सब्सक्रिप्शनस शॉर्ट्स शेल्फ़</string>
+    <string name="settings_subs_shorts_shelf_subtitle">सब्सक्रिप्शन फ़ीड ग्रिड में क्षैतिज शॉर्ट्स शेल्फ़ दिखाएँ।</string>
     <string name="settings_home_shorts_shelf_title">होम स्क्रीन शॉर्ट्स शेल्फ़</string>
     <string name="settings_home_shorts_shelf_subtitle">होम स्क्रीन पर क्षैतिज शॉर्ट्स शेल्फ़ दिखाएँ।</string>
     <string name="settings_shorts_nav_tab_title">नेविगेशन में शॉर्ट्स टैब</string>
@@ -636,7 +636,7 @@
     <string name="action_save">सहेजें</string>
     <string name="action_share">सांझा करें</string>
     <string name="action_description">विवरण</string>
-    <string name="action_subscribe">सदस्यता लें</string>
+    <string name="action_subscribe">सब्सक्राइब करें</string>
     <string name="action_search">खोजें</string>
     <string name="content_preferences_title">सामग्री प्राथमिकताएँ</string>
     <string name="content_preferences_subtitle">आप जो देखते हैं उसे अनुकूलित करें</string>
@@ -738,22 +738,22 @@
     <string name="import_data_title">डेटा आयात करें</string>
     <string name="import_flow_backup_success">फ्लो बैकअप सफलतापूर्वक आयात किया गया</string>
     <string name="import_flow_backup_failed_template">फ्लो बैकअप आयात करने में विफल: %1$s</string>
-    <string name="import_newpipe_success_template">न्यूपाइप से %1$d सदस्यताएँ आयात की गईं</string>
+    <string name="import_newpipe_success_template">NewPipe से %1$d सब्सक्रिप्शनस इंपोर्ट की गईं</string>
     <string name="import_newpipe_failed_template">न्यूपाइप बैकअप आयात करने में विफल: %1$s</string>
-    <string name="import_youtube_success_template">यूट्यूब से %1$d सदस्यताएँ आयात की गईं</string>
+    <string name="import_youtube_success_template">YouTube से %1$d सब्सक्रिप्शनें इंपोर्ट की गई</string>
     <string name="import_youtube_failed_template">यूट्यूब बैकअप आयात करने में विफल: %1$s</string>
     <string name="import_flow_backup_item_title">फ्लो बैकअप आयात करें</string>
-    <string name="import_flow_backup_desc">फ्लो बैकअप फ़ाइल से अपना इतिहास, सेटिंग्स और सदस्यताएँ पुनर्स्थापित करें।</string>
+    <string name="import_flow_backup_desc">Flow बैकअप फ़ाइल से अपना इतिहास, सेटिंग्स और सब्सक्रिप्शनस पुनर्स्थापित करें।</string>
     <string name="import_from_newpipe">न्यूपाइप से आयात करें</string>
-    <string name="import_from_newpipe_desc">न्यूपाइप निर्यात फ़ाइल (JSON) से सदस्यताएँ आयात करें।</string>
+    <string name="import_from_newpipe_desc">NewPipe से एक्सपोर्ट की गई फ़ाइल (JSON) से सब्सक्रिप्शनें आयात करें।</string>
     <string name="import_from_libretube">लिब्रेट्यूब से आयात करें</string>
-    <string name="import_from_libretube_desc">लिब्रेट्यूब बैकअप फ़ाइल (JSON) से सदस्यताएँ आयात करें।</string>
+    <string name="import_from_libretube_desc">LibreTube बैकअप फ़ाइल (JSON) से सब्सक्रिप्शनें इंपोर्ट करें।</string>
     <string name="import_music_apps_section_title">संगीत ऐप्स</string>
     <string name="import_music_apps_section_subtitle">अन्य प्लेयर से अपना संगीत लाइब्रेरी आयात करें</string>
     <string name="import_from_metrolist">मेट्रोलिस्ट से आयात करें</string>
     <string name="import_from_metrolist_desc">मेट्रोलिस्ट बैकअप फ़ाइल (.zip) से संगीत प्लेलिस्ट आयात करें। प्लेलिस्ट आपकी संगीत लाइब्रेरी में दिखाई देंगी।</string>
     <string name="import_from_youtube">यूट्यूब से आयात करें</string>
-    <string name="import_from_youtube_desc">यूट्यूब टेकआउट (CSV) से सदस्यताएँ आयात करें।</string>
+    <string name="import_from_youtube_desc">YouTube टेकआउट (CSV) से सब्सक्रिप्शनें इंपोर्ट करें।</string>
     <string name="import_yt_data_section_title">यूट्यूब डेटा</string>
     <string name="import_yt_data_section_subtitle">यूट्यूब टेकआउट से अतिरिक्त डेटा आयात करें</string>
     <string name="import_yt_watch_history">देखने का इतिहास आयात करें</string>
@@ -1143,17 +1143,17 @@
     <string name="autoplay_countdown_restart">पुनः आरंभ करें</string>
     <string name="autoplay_countdown_play_now">अभी चलाएं</string>
     <string name="remove_selected_watch_later_text">इन्हें \'बाद में देखें\' से हटा दिया जाएगा।</string>
-    <string name="subscriptions_sort_label">चैनल सॉर्ट करें</string>
+    <string name="subscriptions_sort_label">चैनलों को क्रमबद्ध करें</string>
     <string name="subscriptions_sort_default">डिफ़ॉल्ट</string>
     <string name="subscriptions_sort_name">नाम (A-Z)</string>
-    <string name="subscriptions_sort_recent">हाल में अपडेट</string>
-    <string name="subscriptions_refresh_progress_template">%2$d में से %1$d चैनल रिफ्रेश हो रहे हैं</string>
+    <string name="subscriptions_sort_recent">हाल ही में अपडेट</string>
+    <string name="subscriptions_refresh_progress_template">%2$d में से %1$d चैनल रिफ्रेश किए जा रहे हैं</string>
     <string name="subscriptions_last_refreshed_template">अंतिम रिफ्रेश %1$s - %2$d वीडियो चेक किए गए</string>
     <string name="subscriptions_last_refreshed_time_only_template">अंतिम रिफ्रेश %1$s</string>
     <string name="copy_logs">लॉग कॉपी करें</string>
-    <string name="logs_copied">लॉग कॉपी</string>
-    <string name="logs_copy_failed">लॉग कॉपी नहीं कर सका</string>
-    <string name="channel_error_log_clip_label">फ्लो चैनल त्रुटि लॉग</string>
+    <string name="logs_copied">लॉग कॉपी किए गए</string>
+    <string name="logs_copy_failed">लॉग कॉपी नहीं किए जा सके</string>
+    <string name="channel_error_log_clip_label">Flow चैनल त्रुटि लॉग</string>
     <string name="collaborators">सहयोगी</string>
     <string name="collaborator">सहयोगी</string>
     <string name="channel_and_more_template">%1$s और %2$d अधिक</string>

@@ -2,8 +2,11 @@ package io.github.aedev.flow.utils.potoken
 
 import android.util.Log
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -16,7 +19,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 object WebPoTokenSession {
     private const val TAG = "WebPoTokenSession"
 
-    private val generator = PoTokenGenerator()
+    private val generator = PoTokenGenerator
     private val visitorMutex = Mutex()
 
     suspend fun sessionVisitorData(): String? {
@@ -44,35 +47,47 @@ object WebPoTokenSession {
         return mintForVisitorData(videoId, vd)
     }
 
+    private val mintCoalescer =
+        InFlightRequestCoalescer<String, PoTokenResult?>(
+            CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        )
+
     // Mint with a bounded wait for the fast extraction path.
-    suspend fun mintBounded(videoId: String, maxWaitMs: Long = 10_000L): PoTokenResult? {
+    suspend fun mintBounded(
+        videoId: String,
+        maxWaitMs: Long = 10_000L,
+    ): PoTokenResult? {
         return withTimeoutOrNull(maxWaitMs) {
-            val vd = sessionVisitorData() ?: return@withTimeoutOrNull null
-            try {
-                generator.getWebClientPoTokenSuspend(videoId, vd)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Bounded PoToken mint failed for $videoId: ${e.message}")
-                null
+            mintCoalescer.run(videoId) {
+                val vd = sessionVisitorData() ?: return@run null
+                try {
+                    generator.getWebClientPoTokenSuspend(videoId, vd)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Bounded PoToken mint failed for $videoId: ${e.message}")
+                    null
+                }
             }
         }
     }
 
     /** Mint against the exact visitor identity carried by the corresponding player response. */
-    suspend fun mintForVisitorData(videoId: String, visitorData: String): PoTokenResult? {
-        return mintForVisitorData(videoId, visitorData, forceRefresh = false)
-    }
+    suspend fun mintForVisitorData(
+        videoId: String,
+        visitorData: String,
+    ): PoTokenResult? = mintForVisitorData(videoId, visitorData, forceRefresh = false)
 
     /** Re-run attestation and replace the cached streaming token after a protection boundary. */
-    suspend fun refreshForVisitorData(videoId: String, visitorData: String): PoTokenResult? {
-        return mintForVisitorData(videoId, visitorData, forceRefresh = true)
-    }
+    suspend fun refreshForVisitorData(
+        videoId: String,
+        visitorData: String,
+    ): PoTokenResult? = mintForVisitorData(videoId, visitorData, forceRefresh = true)
 
     private suspend fun mintForVisitorData(
         videoId: String,
         visitorData: String,
-        forceRefresh: Boolean
+        forceRefresh: Boolean,
     ): PoTokenResult? {
         if (visitorData.isBlank()) return null
         return withTimeoutOrNull(90_000L) {

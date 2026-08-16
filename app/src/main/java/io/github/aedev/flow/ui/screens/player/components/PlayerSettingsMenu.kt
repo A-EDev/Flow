@@ -13,29 +13,29 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.*
-import io.github.aedev.flow.player.stream.VideoCodecUtils
-import androidx.compose.ui.res.stringResource
-import io.github.aedev.flow.R
 import io.github.aedev.flow.player.audio.AudioEffectsController
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
 import io.github.aedev.flow.ui.components.audio.EqualizerEditor
 import io.github.aedev.flow.ui.components.playbackSpeedOptions
@@ -71,7 +71,7 @@ fun SettingsMenuDialog(
     enableVerticalDismiss: Boolean = true,
     useGroupedQualitySelector: Boolean = false,
     onSheetProgressChange: (Float) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -85,22 +85,24 @@ fun SettingsMenuDialog(
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
     var currentPage by remember { mutableStateOf(initialPage) }
-    val sheetProgress = if (expandedHeightPx > 0f) {
-        ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
+    val sheetProgress =
+        if (expandedHeightPx > 0f) {
+            ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
     SideEffect {
         onSheetProgressChange(sheetProgress)
     }
-    val currentTitle = when (currentPage) {
-        PlayerSettingsPage.Main -> stringResource(R.string.player_settings)
-        PlayerSettingsPage.Quality -> stringResource(R.string.video_quality_title)
-        PlayerSettingsPage.Speed -> stringResource(R.string.playback_speed)
-        PlayerSettingsPage.Audio -> stringResource(R.string.audio_track)
-        PlayerSettingsPage.Subtitles -> stringResource(R.string.filter_subtitles)
-        PlayerSettingsPage.Equalizer -> stringResource(R.string.equalizer)
-    }
+    val currentTitle =
+        when (currentPage) {
+            PlayerSettingsPage.Main -> stringResource(R.string.player_settings)
+            PlayerSettingsPage.Quality -> stringResource(R.string.video_quality_title)
+            PlayerSettingsPage.Speed -> stringResource(R.string.playback_speed)
+            PlayerSettingsPage.Audio -> stringResource(R.string.audio_track)
+            PlayerSettingsPage.Subtitles -> stringResource(R.string.filter_subtitles)
+            PlayerSettingsPage.Equalizer -> stringResource(R.string.equalizer)
+        }
 
     fun animateToExpanded() {
         if (!enableVerticalDismiss) {
@@ -110,10 +112,11 @@ fun SettingsMenuDialog(
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = expandedHeightPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
             )
         }
     }
@@ -129,10 +132,11 @@ fun SettingsMenuDialog(
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = collapsedHeightPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
             )
             latestOnDismiss()
             afterDismiss()
@@ -151,10 +155,11 @@ fun SettingsMenuDialog(
         }
         sheetHeightPx.animateTo(
             targetValue = expandedHeightPx,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessLow
-            )
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessLow,
+                ),
         )
     }
 
@@ -170,291 +175,325 @@ fun SettingsMenuDialog(
         }
     })
 
-    val headerDragModifier = if (enableVerticalDismiss) Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
-        val velocityTracker = VelocityTracker()
-        detectVerticalDragGestures(
-            onVerticalDrag = { change, dragAmount ->
-                if (isAnimatingOut) return@detectVerticalDragGestures
-                velocityTracker.addPointerInputChange(change)
-                coroutineScope.launch {
-                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
-                    sheetHeightPx.snapTo(nextValue)
-                }
-            },
-            onDragCancel = {
-                velocityTracker.resetTracking()
-                if (!isAnimatingOut) animateToExpanded()
-            },
-            onDragEnd = {
-                val velocityY = velocityTracker.calculateVelocity().y
-                velocityTracker.resetTracking()
-                when {
-                    velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
-                    else -> animateToExpanded()
-                }
+    val headerDragModifier =
+        if (enableVerticalDismiss) {
+            Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
+                val velocityTracker = VelocityTracker()
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, dragAmount ->
+                        if (isAnimatingOut) return@detectVerticalDragGestures
+                        velocityTracker.addPointerInputChange(change)
+                        coroutineScope.launch {
+                            val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
+                            sheetHeightPx.snapTo(nextValue)
+                        }
+                    },
+                    onDragCancel = {
+                        velocityTracker.resetTracking()
+                        if (!isAnimatingOut) animateToExpanded()
+                    },
+                    onDragEnd = {
+                        val velocityY = velocityTracker.calculateVelocity().y
+                        velocityTracker.resetTracking()
+                        when {
+                            velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
+                            else -> animateToExpanded()
+                        }
+                    },
+                )
             }
-        )
-    } else Modifier
+        } else {
+            Modifier
+        }
 
     Box(
         modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
+        contentAlignment = Alignment.BottomCenter,
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(with(density) { sheetHeightPx.value.toDp() }),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(with(density) { sheetHeightPx.value.toDp() }),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp
+            tonalElevation = 0.dp,
         ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-        ) {
-            // ── Sheet title ──
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp)
-                    .then(headerDragModifier),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
             ) {
-                BottomSheetDefaults.DragHandle()
-            }
+                // ── Sheet title ──
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                            .then(headerDragModifier),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BottomSheetDefaults.DragHandle()
+                }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(headerDragModifier)
-                    .padding(start = 20.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (currentPage != PlayerSettingsPage.Main) {
-                    IconButton(
-                        onClick = { currentPage = PlayerSettingsPage.Main },
-                        modifier = Modifier.padding(end = 4.dp)
-                    ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .then(headerDragModifier)
+                            .padding(start = 20.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (currentPage != PlayerSettingsPage.Main) {
+                        IconButton(
+                            onClick = { currentPage = PlayerSettingsPage.Main },
+                            modifier = Modifier.padding(end = 4.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back),
+                            )
+                        }
+                    }
+                    Text(
+                        text = currentTitle,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = { animateToDismiss() }) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.close),
                         )
                     }
                 }
-                Text(
-                    text = currentTitle,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = { animateToDismiss() }) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.close)
-                    )
-                }
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-            ) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                ) {
+                    // ── Quality ──
+                    when (currentPage) {
+                        PlayerSettingsPage.Main -> {
+                            PlayerSettingsSectionHeader(stringResource(R.string.video))
+                            PlayerSettingsNavRow(
+                                icon = Icons.Filled.HighQuality,
+                                label = stringResource(R.string.quality),
+                                value =
+                                    if (playerState.currentQuality == 0) {
+                                        stringResource(R.string.quality_auto)
+                                    } else {
+                                        "${playerState.currentQuality}p"
+                                    },
+                                onClick = {
+                                    currentPage = PlayerSettingsPage.Quality
+                                },
+                            )
 
-            // ── Quality ──
-            when (currentPage) {
-                PlayerSettingsPage.Main -> {
-            PlayerSettingsSectionHeader(stringResource(R.string.video))
-            PlayerSettingsNavRow(
-                icon = Icons.Filled.HighQuality,
-                label = stringResource(R.string.quality),
-                value = if (playerState.currentQuality == 0) stringResource(R.string.quality_auto)
-                        else "${playerState.currentQuality}p",
-                onClick = {
-                    currentPage = PlayerSettingsPage.Quality
-                }
-            )
+                            // ── Playback Speed ──
+                            PlayerSettingsSectionHeader(stringResource(R.string.playback_header))
+                            PlayerSettingsNavRow(
+                                icon = Icons.Filled.Speed,
+                                label = stringResource(R.string.playback_speed),
+                                value =
+                                    if (playerState.playbackSpeed == 1.0f) {
+                                        stringResource(R.string.normal)
+                                    } else {
+                                        "${playerState.playbackSpeed}x"
+                                    },
+                                onClick = {
+                                    currentPage = PlayerSettingsPage.Speed
+                                },
+                            )
 
-            // ── Playback Speed ──
-            PlayerSettingsSectionHeader(stringResource(R.string.playback_header))
-            PlayerSettingsNavRow(
-                icon = Icons.Filled.Speed,
-                label = stringResource(R.string.playback_speed),
-                value = if (playerState.playbackSpeed == 1.0f) stringResource(R.string.normal)
-                        else "${playerState.playbackSpeed}x",
-                onClick = {
-                    currentPage = PlayerSettingsPage.Speed
-                }
-            )
+                            // ── Audio Track ──
+                            PlayerSettingsSectionHeader(stringResource(R.string.audio_settings_title))
+                            PlayerSettingsNavRow(
+                                icon = Icons.Filled.AudioFile,
+                                label = stringResource(R.string.audio_track),
+                                value =
+                                    audioTrackDisplayLabel(
+                                        playerState.availableAudioTracks.getOrNull(playerState.currentAudioTrack),
+                                        playerState.currentAudioTrack,
+                                    ),
+                                onClick = {
+                                    currentPage = PlayerSettingsPage.Audio
+                                },
+                            )
 
-            // ── Audio Track ──
-            PlayerSettingsSectionHeader(stringResource(R.string.audio_settings_title))
-            PlayerSettingsNavRow(
-                icon = Icons.Filled.AudioFile,
-                label = stringResource(R.string.audio_track),
-                value = audioTrackDisplayLabel(
-                    playerState.availableAudioTracks.getOrNull(playerState.currentAudioTrack),
-                    playerState.currentAudioTrack
-                ),
-                onClick = {
-                    currentPage = PlayerSettingsPage.Audio
-                }
-            )
+                            // ── Captions ──
+                            PlayerSettingsSectionHeader(stringResource(R.string.captions))
+                            PlayerSettingsNavRow(
+                                icon = Icons.Filled.Subtitles,
+                                label = stringResource(R.string.filter_subtitles),
+                                value = if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off),
+                                onClick = {
+                                    currentPage = PlayerSettingsPage.Subtitles
+                                },
+                            )
 
-            // ── Captions ──
-            PlayerSettingsSectionHeader(stringResource(R.string.captions))
-            PlayerSettingsNavRow(
-                icon = Icons.Filled.Subtitles,
-                label = stringResource(R.string.filter_subtitles),
-                value = if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off),
-                onClick = {
-                    currentPage = PlayerSettingsPage.Subtitles
-                }
-            )
+                            PlayerSettingsNavRow(
+                                icon = Icons.Filled.Tune,
+                                label = stringResource(R.string.subtitle_style),
+                                value = "",
+                                onClick = { onShowSubtitleStyle() },
+                            )
 
-            PlayerSettingsNavRow(
-                icon = Icons.Filled.Tune,
-                label = stringResource(R.string.subtitle_style),
-                value = "",
-                onClick = { onShowSubtitleStyle() }
-            )
+                            // ── Cast to TV ──
+                            PlayerSettingsSectionHeader(stringResource(R.string.player_settings_overlay_controls))
+                            PlayerSettingsNavRow(
+                                icon = Icons.Filled.Cast,
+                                label = stringResource(R.string.cast_to_tv),
+                                value = "",
+                                onClick = { animateToDismiss(onCastClick) },
+                            )
 
-            // ── Cast to TV ──
-            PlayerSettingsSectionHeader(stringResource(R.string.player_settings_overlay_controls))
-            PlayerSettingsNavRow(
-                icon = Icons.Filled.Cast,
-                label = stringResource(R.string.cast_to_tv),
-                value = "",
-                onClick = { animateToDismiss(onCastClick) }
-            )
+                            // ── Picture-in-Picture ──
+                            PlayerSettingsNavRow(
+                                icon = Icons.Filled.PictureInPicture,
+                                label = stringResource(R.string.pip_mode),
+                                value = "",
+                                onClick = { animateToDismiss(onPipClick) },
+                            )
 
-            // ── Picture-in-Picture ──
-            PlayerSettingsNavRow(
-                icon = Icons.Filled.PictureInPicture,
-                label = stringResource(R.string.pip_mode),
-                value = "",
-                onClick = { animateToDismiss(onPipClick) }
-            )
+                            // ── Sleep Timer ──
+                            PlayerSettingsNavRow(
+                                icon = Icons.Filled.Bedtime,
+                                label = stringResource(R.string.sleep_timer),
+                                value = "",
+                                onClick = { animateToDismiss(onSleepTimerClick) },
+                            )
 
-            // ── Sleep Timer ──
-            PlayerSettingsNavRow(
-                icon = Icons.Filled.Bedtime,
-                label = stringResource(R.string.sleep_timer),
-                value = "",
-                onClick = { animateToDismiss(onSleepTimerClick) }
-            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
 
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+                            // ── Loop Video ──
+                            PlayerSettingsSectionHeader(stringResource(R.string.playback_header))
+                            PlayerSettingsToggleRow(
+                                icon = Icons.Rounded.Repeat,
+                                label = stringResource(R.string.loop_video),
+                                checked = playerState.isLooping,
+                                onToggle = onLoopToggle,
+                            )
 
-            // ── Loop Video ──
-            PlayerSettingsSectionHeader(stringResource(R.string.playback_header))
-            PlayerSettingsToggleRow(
-                icon = Icons.Rounded.Repeat,
-                label = stringResource(R.string.loop_video),
-                checked = playerState.isLooping,
-                onToggle = onLoopToggle
-            )
+                            // ── Autoplay ──
+                            PlayerSettingsToggleRow(
+                                icon = Icons.Filled.SkipNext,
+                                label = stringResource(R.string.autoplay_next),
+                                checked = autoplayEnabled,
+                                enabled = !playerState.isLooping,
+                                onToggle = onAutoplayToggle,
+                            )
 
-            // ── Autoplay ──
-            PlayerSettingsToggleRow(
-                icon = Icons.Filled.SkipNext,
-                label = stringResource(R.string.autoplay_next),
-                checked = autoplayEnabled,
-                enabled = !playerState.isLooping,
-                onToggle = onAutoplayToggle
-            )
+                            // ── Audio Effects ──
+                            PlayerSettingsSectionHeader(stringResource(R.string.audio_effects))
 
-            // ── Audio Effects ──
-            PlayerSettingsSectionHeader(stringResource(R.string.audio_effects))
+                            // ── Equalizer ──
+                            val eqProfile by AudioEffectsController.eqProfileName.collectAsState()
+                            PlayerSettingsNavRow(
+                                icon = Icons.Filled.Equalizer,
+                                label = stringResource(R.string.equalizer),
+                                value = eqProfile,
+                                onClick = {
+                                    currentPage = PlayerSettingsPage.Equalizer
+                                },
+                            )
 
-            // ── Equalizer ──
-            val eqProfile by AudioEffectsController.eqProfileName.collectAsState()
-            PlayerSettingsNavRow(
-                icon = Icons.Filled.Equalizer,
-                label = stringResource(R.string.equalizer),
-                value = eqProfile,
-                onClick = {
-                    currentPage = PlayerSettingsPage.Equalizer
-                }
-            )
+                            // ── Skip Silence ──
+                            PlayerSettingsToggleRow(
+                                icon = Icons.Rounded.GraphicEq,
+                                label = stringResource(R.string.player_settings_skip_silence),
+                                checked = playerState.isSkipSilenceEnabled,
+                                onToggle = onSkipSilenceToggle,
+                            )
 
-            // ── Skip Silence ──
-            PlayerSettingsToggleRow(
-                icon = Icons.Rounded.GraphicEq,
-                label = stringResource(R.string.player_settings_skip_silence),
-                checked = playerState.isSkipSilenceEnabled,
-                onToggle = onSkipSilenceToggle
-            )
+                            // ── Stable Voice ──
+                            PlayerSettingsToggleRow(
+                                icon = Icons.AutoMirrored.Rounded.VolumeUp,
+                                label = stringResource(R.string.player_settings_stable_voice),
+                                checked = playerState.isStableVolumeEnabled,
+                                onToggle = onStableVolumeToggle,
+                            )
 
-            // ── Stable Voice ──
-            PlayerSettingsToggleRow(
-                icon = Icons.AutoMirrored.Rounded.VolumeUp,
-                label = stringResource(R.string.player_settings_stable_voice),
-                checked = playerState.isStableVolumeEnabled,
-                onToggle = onStableVolumeToggle
-            )
+                            // ── Ambient Mode ──
+                            PlayerSettingsSectionHeader(stringResource(R.string.player_settings_display))
+                            PlayerSettingsToggleRow(
+                                icon = ImageVector.vectorResource(R.drawable.ic_ambient_mode),
+                                label = stringResource(R.string.player_settings_ambient_mode),
+                                checked = ambientModeEnabled,
+                                onToggle = onAmbientModeToggle,
+                            )
+                        }
 
-            // ── Ambient Mode ──
-            PlayerSettingsSectionHeader(stringResource(R.string.player_settings_display))
-            PlayerSettingsToggleRow(
-                icon = ImageVector.vectorResource(R.drawable.ic_ambient_mode),
-                label = stringResource(R.string.player_settings_ambient_mode),
-                checked = ambientModeEnabled,
-                onToggle = onAmbientModeToggle
-            )
-                }
-                PlayerSettingsPage.Quality -> PlayerSettingsQualityPage(
-                    availableQualities = playerState.availableQualities,
-                    currentQuality = playerState.currentQuality,
-                    currentQualityKey = playerState.currentQualityKey,
-                    useGroupedQualitySelector = useGroupedQualitySelector,
-                    onQualitySelected = {
-                        onQualitySelected(it)
-                        animateToDismiss()
+                        PlayerSettingsPage.Quality -> {
+                            PlayerSettingsQualityPage(
+                                availableQualities = playerState.availableQualities,
+                                currentQuality = playerState.currentQuality,
+                                currentQualityKey = playerState.currentQualityKey,
+                                useGroupedQualitySelector = useGroupedQualitySelector,
+                                onQualitySelected = {
+                                    onQualitySelected(it)
+                                    animateToDismiss()
+                                },
+                            )
+                        }
+
+                        PlayerSettingsPage.Speed -> {
+                            PlayerSettingsSpeedPage(
+                                currentSpeed = playerState.playbackSpeed,
+                                onSpeedSelected = onSpeedSelected,
+                                onSpeedSelectionFinished = { animateToDismiss() },
+                            )
+                        }
+
+                        PlayerSettingsPage.Audio -> {
+                            PlayerSettingsAudioPage(
+                                availableAudioTracks = playerState.availableAudioTracks,
+                                currentAudioTrack = playerState.currentAudioTrack,
+                                onTrackSelected = {
+                                    onAudioTrackSelected(it)
+                                    animateToDismiss()
+                                },
+                            )
+                        }
+
+                        PlayerSettingsPage.Equalizer -> {
+                            EqualizerEditor(
+                                modifier =
+                                    Modifier
+                                        .padding(horizontal = 20.dp)
+                                        .padding(top = 8.dp, bottom = 16.dp),
+                            )
+                        }
+
+                        PlayerSettingsPage.Subtitles -> {
+                            PlayerSettingsSubtitlesPage(
+                                availableSubtitles = playerState.availableSubtitles,
+                                selectedSubtitleUrl = selectedSubtitleUrl,
+                                subtitlesEnabled = subtitlesEnabled,
+                                onSubtitleSelected = { index, url ->
+                                    onSubtitleSelected(index, url)
+                                    animateToDismiss()
+                                },
+                                onDisableSubtitles = {
+                                    onDisableSubtitles()
+                                    animateToDismiss()
+                                },
+                                onShowStyleCustomizer = {
+                                    currentPage = PlayerSettingsPage.Main
+                                    animateToDismiss(onShowSubtitleStyle)
+                                },
+                            )
+                        }
                     }
-                )
-                PlayerSettingsPage.Speed -> PlayerSettingsSpeedPage(
-                    currentSpeed = playerState.playbackSpeed,
-                    onSpeedSelected = onSpeedSelected,
-                    onSpeedSelectionFinished = { animateToDismiss() }
-                )
-                PlayerSettingsPage.Audio -> PlayerSettingsAudioPage(
-                    availableAudioTracks = playerState.availableAudioTracks,
-                    currentAudioTrack = playerState.currentAudioTrack,
-                    onTrackSelected = {
-                        onAudioTrackSelected(it)
-                        animateToDismiss()
-                    }
-                )
-                PlayerSettingsPage.Equalizer -> EqualizerEditor(
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .padding(top = 8.dp, bottom = 16.dp)
-                )
-                PlayerSettingsPage.Subtitles -> PlayerSettingsSubtitlesPage(
-                    availableSubtitles = playerState.availableSubtitles,
-                    selectedSubtitleUrl = selectedSubtitleUrl,
-                    subtitlesEnabled = subtitlesEnabled,
-                    onSubtitleSelected = { index, url ->
-                        onSubtitleSelected(index, url)
-                        animateToDismiss()
-                    },
-                    onDisableSubtitles = {
-                        onDisableSubtitles()
-                        animateToDismiss()
-                    },
-                    onShowStyleCustomizer = {
-                        currentPage = PlayerSettingsPage.Main
-                        animateToDismiss(onShowSubtitleStyle)
-                    }
-                )
-            }
+                }
             }
         }
     }
-}
 }
 
 enum class PlayerSettingsPage {
@@ -463,7 +502,7 @@ enum class PlayerSettingsPage {
     Speed,
     Audio,
     Subtitles,
-    Equalizer
+    Equalizer,
 }
 
 @Composable
@@ -472,28 +511,30 @@ private fun PlayerSettingsQualityPage(
     currentQuality: Int,
     currentQualityKey: String?,
     useGroupedQualitySelector: Boolean,
-    onQualitySelected: (QualityOption) -> Unit
+    onQualitySelected: (QualityOption) -> Unit,
 ) {
     val autoLabel = stringResource(R.string.quality_auto)
-    val selectorOptions = availableQualities.map { quality ->
-        PlayerQualitySelectorOption(
-            item = quality,
-            height = quality.height,
-            label = if (quality.height == 0) autoLabel else quality.displayLabel(),
-            codecKey = quality.codecKey,
-            codecLabel = quality.codecKey
-                .takeIf { it.isNotBlank() }
-                ?.let(VideoCodecUtils::codecLabelFromKey)
-                .orEmpty(),
-            streamKey = quality.streamKey,
-            selected = quality.isSelected(currentQuality, currentQualityKey)
-        )
-    }
+    val selectorOptions =
+        availableQualities.map { quality ->
+            PlayerQualitySelectorOption(
+                item = quality,
+                height = quality.height,
+                label = if (quality.height == 0) autoLabel else quality.displayLabel(),
+                codecKey = quality.codecKey,
+                codecLabel =
+                    quality.codecKey
+                        .takeIf { it.isNotBlank() }
+                        ?.let(VideoCodecUtils::codecLabelFromKey)
+                        .orEmpty(),
+                streamKey = quality.streamKey,
+                selected = quality.isSelected(currentQuality, currentQualityKey),
+            )
+        }
 
     PlayerQualitySelectorContent(
         options = selectorOptions,
         groupedByResolution = useGroupedQualitySelector,
-        onOptionSelected = onQualitySelected
+        onOptionSelected = onQualitySelected,
     )
 }
 
@@ -505,14 +546,14 @@ data class PlayerQualitySelectorOption<T>(
     val supportingText: String? = null,
     val codecKey: String = "",
     val codecLabel: String = "",
-    val streamKey: String? = null
+    val streamKey: String? = null,
 )
 
 @Composable
 fun <T> PlayerQualitySelectorContent(
     options: List<PlayerQualitySelectorOption<T>>,
     groupedByResolution: Boolean,
-    onOptionSelected: (T) -> Unit
+    onOptionSelected: (T) -> Unit,
 ) {
     if (!groupedByResolution) {
         options
@@ -522,7 +563,7 @@ fun <T> PlayerQualitySelectorContent(
                     label = option.label,
                     supportingText = option.supportingText,
                     selected = option.selected,
-                    onClick = { onOptionSelected(option.item) }
+                    onClick = { onOptionSelected(option.item) },
                 )
             }
         return
@@ -532,7 +573,7 @@ fun <T> PlayerQualitySelectorContent(
         PlayerSettingsSelectionRow(
             label = auto.label,
             selected = auto.selected,
-            onClick = { onOptionSelected(auto.item) }
+            onClick = { onOptionSelected(auto.item) },
         )
     }
     options
@@ -548,13 +589,13 @@ fun <T> PlayerQualitySelectorContent(
                     label = option.label,
                     supportingText = option.supportingText,
                     selected = option.selected,
-                    onClick = { onOptionSelected(option.item) }
+                    onClick = { onOptionSelected(option.item) },
                 )
             } else {
                 PlayerSettingsQualityCodecRow(
                     qualityLabel = options.first().resolutionLabel(),
                     codecOptions = codecOptions,
-                    onOptionSelected = onOptionSelected
+                    onOptionSelected = onOptionSelected,
                 )
             }
         }
@@ -565,14 +606,15 @@ fun <T> PlayerQualitySelectorContent(
 private fun <T> PlayerSettingsQualityCodecRow(
     qualityLabel: String,
     codecOptions: List<PlayerQualitySelectorOption<T>>,
-    onOptionSelected: (T) -> Unit
+    onOptionSelected: (T) -> Unit,
 ) {
     val rowSelected = codecOptions.any { it.selected }
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = qualityLabel,
@@ -580,77 +622,85 @@ private fun <T> PlayerSettingsQualityCodecRow(
             fontWeight = if (rowSelected) FontWeight.SemiBold else FontWeight.Normal,
             color = if (rowSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
-            modifier = Modifier.width(84.dp)
+            modifier = Modifier.width(84.dp),
         )
         Spacer(Modifier.width(12.dp))
         FlowRow(
             modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             codecOptions.forEach { option ->
                 FilterChip(
                     selected = option.selected,
                     onClick = { onOptionSelected(option.item) },
                     label = { Text(option.codecLabel.ifBlank { option.label }) },
-                    leadingIcon = if (option.selected) {
-                        {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(FilterChipDefaults.IconSize)
-                            )
-                        }
-                    } else null
+                    leadingIcon =
+                        if (option.selected) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                )
+                            }
+                        } else {
+                            null
+                        },
                 )
             }
         }
     }
 }
 
-private fun QualityOption.displayLabel(): String {
-    return label.takeIf { it.isNotBlank() } ?: "${height}p"
-}
+private fun QualityOption.displayLabel(): String = label.takeIf { it.isNotBlank() } ?: "${height}p"
 
-private fun PlayerQualitySelectorOption<*>.resolutionLabel(): String {
-    return if (codecLabel.isNotBlank() && label.endsWith(" $codecLabel")) {
+private fun PlayerQualitySelectorOption<*>.resolutionLabel(): String =
+    if (codecLabel.isNotBlank() && label.endsWith(" $codecLabel")) {
         label.removeSuffix(" $codecLabel")
     } else {
         label
     }
-}
 
-private fun QualityOption.isSelected(currentQuality: Int, currentQualityKey: String?): Boolean {
-    return if (height == 0) {
+private fun QualityOption.isSelected(
+    currentQuality: Int,
+    currentQualityKey: String?,
+): Boolean =
+    if (height == 0) {
         currentQuality == 0
     } else {
         streamKey != null && streamKey == currentQualityKey
     }
-}
 
 @Composable
 private fun PlayerSettingsSpeedPage(
     currentSpeed: Float,
     onSpeedSelected: (Float) -> Unit,
-    onSpeedSelectionFinished: () -> Unit
+    onSpeedSelectionFinished: () -> Unit,
 ) {
     val context = LocalContext.current
-    val playerPrefs = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
+    val playerPrefs =
+        remember {
+            io.github.aedev.flow.data.local
+                .PlayerPreferences(context)
+        }
     val customSpeedsEnabled by playerPrefs.customSpeedsEnabled.collectAsState(initial = false)
     val customSpeedPresetsRaw by playerPrefs.customSpeedPresets.collectAsState(initial = "")
     val speedSliderEnabled by playerPrefs.speedSliderEnabled.collectAsState(initial = false)
-    val speeds = remember(customSpeedsEnabled, customSpeedPresetsRaw) {
-        playbackSpeedOptions(customSpeedsEnabled, customSpeedPresetsRaw)
-    }
+    val speeds =
+        remember(customSpeedsEnabled, customSpeedPresetsRaw) {
+            playbackSpeedOptions(customSpeedsEnabled, customSpeedPresetsRaw)
+        }
 
     if (speedSliderEnabled) {
-        val sliderPresets = remember(customSpeedsEnabled, customSpeedPresetsRaw) {
-            playbackSpeedSliderPresets(customSpeedsEnabled, customSpeedPresetsRaw)
-        }
+        val sliderPresets =
+            remember(customSpeedsEnabled, customSpeedPresetsRaw) {
+                playbackSpeedSliderPresets(customSpeedsEnabled, customSpeedPresetsRaw)
+            }
         PlaybackSpeedSlider(
             currentSpeed = currentSpeed,
             quickPresets = sliderPresets,
-            onSpeedSelected = onSpeedSelected
+            onSpeedSelected = onSpeedSelected,
         )
     } else {
         speeds.forEach { speed ->
@@ -660,7 +710,7 @@ private fun PlayerSettingsSpeedPage(
                 onClick = {
                     onSpeedSelected(speed)
                     onSpeedSelectionFinished()
-                }
+                },
             )
         }
     }
@@ -670,7 +720,7 @@ private fun PlayerSettingsSpeedPage(
 private fun PlayerSettingsAudioPage(
     availableAudioTracks: List<AudioTrackOption>,
     currentAudioTrack: Int,
-    onTrackSelected: (Int) -> Unit
+    onTrackSelected: (Int) -> Unit,
 ) {
     availableAudioTracks.forEachIndexed { index, track ->
         PlayerSettingsSelectionRow(
@@ -678,7 +728,7 @@ private fun PlayerSettingsAudioPage(
             supportingText = track.language.takeIf { it.isNotBlank() },
             selected = index == currentAudioTrack,
             showSelectedContainer = false,
-            onClick = { onTrackSelected(index) }
+            onClick = { onTrackSelected(index) },
         )
     }
 }
@@ -690,28 +740,42 @@ private fun PlayerSettingsSubtitlesPage(
     subtitlesEnabled: Boolean,
     onSubtitleSelected: (Int, String) -> Unit,
     onDisableSubtitles: () -> Unit,
-    onShowStyleCustomizer: () -> Unit
+    onShowStyleCustomizer: () -> Unit,
 ) {
     val automaticLabel = stringResource(R.string.quality_auto)
+    val translatedLabel = stringResource(R.string.subtitle_translated)
     PlayerSettingsSelectionRow(
         label = stringResource(R.string.off),
         selected = !subtitlesEnabled,
-        onClick = onDisableSubtitles
+        onClick = onDisableSubtitles,
     )
     availableSubtitles.forEachIndexed { index, subtitle ->
         PlayerSettingsSelectionRow(
-            label = if (subtitle.isAutoGenerated) {
-                stringResource(
-                    R.string.subtitle_auto_generated_template,
-                    subtitle.label,
-                    automaticLabel
-                )
-            } else {
-                subtitle.label
-            },
+            label =
+                when {
+                    subtitle.isTranslated -> {
+                        stringResource(
+                            R.string.subtitle_auto_generated_template,
+                            subtitle.label,
+                            translatedLabel,
+                        )
+                    }
+
+                    subtitle.isAutoGenerated -> {
+                        stringResource(
+                            R.string.subtitle_auto_generated_template,
+                            subtitle.label,
+                            automaticLabel,
+                        )
+                    }
+
+                    else -> {
+                        subtitle.label
+                    }
+                },
             supportingText = subtitle.language.takeIf { it.isNotBlank() },
             selected = subtitle.url == selectedSubtitleUrl && subtitlesEnabled,
-            onClick = { onSubtitleSelected(index, subtitle.url) }
+            onClick = { onSubtitleSelected(index, subtitle.url) },
         )
     }
     HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
@@ -719,17 +783,20 @@ private fun PlayerSettingsSubtitlesPage(
         icon = Icons.Filled.Tune,
         label = stringResource(R.string.subtitle_style),
         value = "",
-        onClick = onShowStyleCustomizer
+        onClick = onShowStyleCustomizer,
     )
 }
 
 @Composable
-private fun audioTrackDisplayLabel(track: AudioTrackOption?, fallbackIndex: Int): String =
+private fun audioTrackDisplayLabel(
+    track: AudioTrackOption?,
+    fallbackIndex: Int,
+): String =
     track?.label?.takeIf { it.isNotBlank() }
         ?: stringResource(
             R.string.audio_track_number_template,
             stringResource(R.string.audio_track),
-            fallbackIndex + 1
+            fallbackIndex + 1,
         )
 
 @Composable
@@ -738,36 +805,38 @@ private fun PlayerSettingsSelectionRow(
     selected: Boolean,
     onClick: () -> Unit,
     supportingText: String? = null,
-    showSelectedContainer: Boolean = true
+    showSelectedContainer: Boolean = true,
 ) {
     Surface(
         onClick = onClick,
-        color = if (selected && showSelectedContainer) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-        } else {
-            Color.Transparent
-        },
-        modifier = Modifier.fillMaxWidth()
+        color =
+            if (selected && showSelectedContainer) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+            } else {
+                Color.Transparent
+            },
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
                 if (supportingText != null) {
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = supportingText,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -775,13 +844,12 @@ private fun PlayerSettingsSelectionRow(
                 Icon(
                     imageVector = Icons.Filled.Check,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
     }
 }
-
 
 @Composable
 private fun PlayerSettingsSectionHeader(title: String) {
@@ -790,7 +858,7 @@ private fun PlayerSettingsSectionHeader(title: String) {
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 4.dp)
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 4.dp),
     )
 }
 
@@ -799,37 +867,38 @@ private fun PlayerSettingsNavRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     value: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
         color = Color.Transparent,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.width(16.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             if (value.isNotBlank()) {
                 Text(
                     text = value,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.width(2.dp))
             }
@@ -837,7 +906,7 @@ private fun PlayerSettingsNavRow(
                 imageVector = Icons.Filled.ChevronRight,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -849,36 +918,44 @@ private fun PlayerSettingsToggleRow(
     label: String,
     checked: Boolean,
     enabled: Boolean = true,
-    onToggle: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit,
 ) {
     Surface(
         onClick = { if (enabled) onToggle(!checked) },
         color = Color.Transparent,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(22.dp),
-                tint = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                tint =
+                    if (enabled) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                            alpha = 0.4f,
+                        )
+                    },
             )
             Spacer(Modifier.width(16.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Switch(
                 checked = checked,
                 enabled = enabled,
-                onCheckedChange = null
+                onCheckedChange = null,
             )
         }
     }

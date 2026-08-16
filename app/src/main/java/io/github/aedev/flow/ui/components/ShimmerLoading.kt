@@ -10,7 +10,6 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -23,12 +22,12 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.max
 
+@Composable
 fun Modifier.shimmerEffect(
     shape: Shape = RoundedCornerShape(8.dp),
     durationMillis: Int = 1200,
     delayMillis: Int = 0,
-): Modifier =
-    composed {
+): Modifier  {
         var size by remember { mutableStateOf(IntSize.Zero) }
 
         val transition = rememberInfiniteTransition(label = "shimmer")
@@ -73,7 +72,7 @@ fun Modifier.shimmerEffect(
                 end = Offset(endOffset, endOffset * 0.5f),
             )
 
-        this
+        returnthis
             .onGloballyPositioned { coordinates ->
                 size = coordinates.size
             }.clip(shape)

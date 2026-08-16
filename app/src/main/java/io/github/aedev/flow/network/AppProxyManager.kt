@@ -7,15 +7,19 @@ import java.net.InetSocketAddress
 import java.net.PasswordAuthentication
 import java.net.Proxy
 
-enum class AppProxyType(val storageValue: String) {
+enum class AppProxyType(
+    val storageValue: String,
+) {
     HTTP("http"),
-    SOCKS5("socks5");
+    SOCKS5("socks5"),
+    ;
 
     companion object {
-        fun fromStorageValue(value: String?): AppProxyType = when (value?.lowercase()) {
-            SOCKS5.storageValue -> SOCKS5
-            else -> HTTP
-        }
+        fun fromStorageValue(value: String?): AppProxyType =
+            when (value?.lowercase()) {
+                SOCKS5.storageValue -> SOCKS5
+                else -> HTTP
+            }
     }
 }
 
@@ -25,22 +29,24 @@ data class AppProxyConfig(
     val host: String = "",
     val port: Int = 8080,
     val username: String = "",
-    val password: String = ""
+    val password: String = "",
 ) {
-    fun normalized(): AppProxyConfig = copy(
-        host = host.trim(),
-        username = username.trim()
-    )
+    fun normalized(): AppProxyConfig =
+        copy(
+            host = host.trim(),
+            username = username.trim(),
+        )
 
     fun hasUsableEndpoint(): Boolean = enabled && host.isNotBlank() && port in 1..65535
 
     fun toProxy(): Proxy? {
         if (!hasUsableEndpoint()) return null
-        val proxyType = when (type) {
-            AppProxyType.HTTP -> Proxy.Type.HTTP
-            AppProxyType.SOCKS5 -> Proxy.Type.SOCKS
-        }
-        return Proxy(proxyType, InetSocketAddress(host, port))
+        val proxyType =
+            when (type) {
+                AppProxyType.HTTP -> Proxy.Type.HTTP
+                AppProxyType.SOCKS5 -> Proxy.Type.SOCKS
+            }
+        return Proxy(proxyType, InetSocketAddress.createUnresolved(host, port))
     }
 
     fun hasCredentials(): Boolean = username.isNotBlank()
@@ -52,14 +58,15 @@ data class AppProxyConfig(
         return "Basic $encoded"
     }
 
-    fun signature(): String = listOf(
-        enabled,
-        type.storageValue,
-        host,
-        port,
-        username,
-        password
-    ).joinToString(separator = "|")
+    fun signature(): String =
+        listOf(
+            enabled,
+            type.storageValue,
+            host,
+            port,
+            username,
+            password,
+        ).joinToString(separator = "|")
 }
 
 object AppProxyManager {
@@ -91,7 +98,8 @@ object AppProxyManager {
             val authHeader = activeConfig.httpProxyAuthorizationHeader()
             if (authHeader != null) {
                 builder.proxyAuthenticator { _, response ->
-                    response.request.newBuilder()
+                    response.request
+                        .newBuilder()
                         .header("Proxy-Authorization", authHeader)
                         .build()
                 }
@@ -117,17 +125,19 @@ object AppProxyManager {
         val username = activeConfig.username
         val passwordChars = activeConfig.password.toCharArray()
 
-        Authenticator.setDefault(object : Authenticator() {
-            override fun getPasswordAuthentication(): PasswordAuthentication? {
-                val isProxyRequest = requestorType == RequestorType.PROXY
-                val hostMatches = requestingHost.equals(proxyHost, ignoreCase = true)
-                val portMatches = requestingPort == proxyPort || requestingPort <= 0
-                return if (isProxyRequest && hostMatches && portMatches) {
-                    PasswordAuthentication(username, passwordChars)
-                } else {
-                    null
+        Authenticator.setDefault(
+            object : Authenticator() {
+                override fun getPasswordAuthentication(): PasswordAuthentication? {
+                    val isProxyRequest = requestorType == RequestorType.PROXY
+                    val hostMatches = requestingHost.equals(proxyHost, ignoreCase = true)
+                    val portMatches = requestingPort == proxyPort || requestingPort <= 0
+                    return if (isProxyRequest && hostMatches && portMatches) {
+                        PasswordAuthentication(username, passwordChars)
+                    } else {
+                        null
+                    }
                 }
-            }
-        })
+            },
+        )
     }
 }

@@ -1692,4 +1692,26 @@
     <string name="sync_send_show_qr_hint">Das andere Gerät scannt es. Verwenden Sie diese Option, wenn das andere Gerät über eine Kamera verfügt.</string>
     <string name="sync_send_scan_hint">Verwenden Sie diese Option, um Daten an ein Gerät ohne Kamera (z. B. einen Desktop-Computer) zu senden, auf dem ein Empfangs-Code angezeigt wird.</string>
     <string name="sync_receive_scan_hint">Verwenden Sie diese Option, wenn dieses Gerät über eine Kamera verfügt und auf dem anderen Gerät ein Sendecode angezeigt wird.</string>
+    <string name="playlist_filter_owned">Im Besitz</string>
+    <string name="deep_flow_duration_hours">%1$d Stunden</string>
+    <string name="notif_background_restricted_title">Hintergrund Prüfungen sind beschränkt</string>
+    <string name="notif_background_restricted_subtitle">Android verbietet Flow im Hintergrund nach neuen Videos zu suchen, dadurch kommen Benachrichtigungen erst nach öffnen der App. Klicke hier um uneingeschränkte Hintergrundaktivitäten zuzulassen</string>
+    <string name="player_appearance_long_press_speed_title">Wiedergabetempo beim gedrückthalten</string>
+    <string name="select_threads_count_desc">Wähle die Anzahl der Threads (1-8):</string>
+    <string name="threads_count_label">%1$d Threads</string>
+    <string name="support_flow_dev_title">Unterstützte die Flow Entwicklung</string>
+    <string name="topic_weights_subtitle">Volle Transparenz wodurch dein Feed beeinflusst wird</string>
+    <string name="persona_deep_diver_description">Lamge Videobeiträge und Dokumentationen sind deine Welt</string>
+    <string name="status_playing">Spielt</string>
+    <string name="empty_history_title">Noch kein Verlauf</string>
+    <string name="captions">Untertitel</string>
+    <string name="resize_fit">Passend</string>
+    <string name="resize_fill">Füllung</string>
+    <string name="resize_zoom">Zoom</string>
+    <string name="shorts_quality_settings_title">Shorts Video Qualität</string>
+    <string name="desc_more">...mehr</string>
+    <string name="auto_backup_no_folder">Es wurde kein Ordner ausgewählt</string>
+    <string name="auto_backup_last_run">Letztes Backup: %s</string>
+    <string name="auto_backup_last_run_label">Letztes Backup</string>
+    <string name="auto_backup_never_run">Noch kein Backup</string>
 </resources>

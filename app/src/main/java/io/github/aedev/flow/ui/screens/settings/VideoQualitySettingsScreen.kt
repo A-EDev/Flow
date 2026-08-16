@@ -20,119 +20,147 @@ import io.github.aedev.flow.data.local.VideoQuality
 import kotlinx.coroutines.launch
 
 @Composable
-fun VideoQualitySettingsScreen(
-    onNavigateBack: () -> Unit
-) {
+fun VideoQualitySettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val playerPreferences = remember { PlayerPreferences(context) }
-    
-    val wifiQuality by playerPreferences.defaultQualityWifi.collectAsState(initial = VideoQuality.Q_1080p)
-    val cellularQuality by playerPreferences.defaultQualityCellular.collectAsState(initial = VideoQuality.Q_480p)
-    val musicAudioQuality by playerPreferences.musicAudioQuality.collectAsState(initial = MusicAudioQuality.AUTO)
-    
-    val qualities = listOf(
-        VideoQuality.AUTO,
-        VideoQuality.Q_2160p,
-        VideoQuality.Q_1440p,
-        VideoQuality.Q_1080p,
-        VideoQuality.Q_720p,
-        VideoQuality.Q_480p,
-        VideoQuality.Q_360p,
-        VideoQuality.Q_240p,
-        VideoQuality.Q_144p
-    )
 
-    val musicQualities = listOf(
-        MusicAudioQuality.AUTO,
-        MusicAudioQuality.HIGH,
-        MusicAudioQuality.MEDIUM,
-        MusicAudioQuality.LOW
-    )
+    val wifiQuality by playerPreferences.defaultQualityWifi.collectAsState(initial = VideoQuality.Q_1080P)
+    val cellularQuality by playerPreferences.defaultQualityCellular.collectAsState(initial = VideoQuality.Q_480P)
+    val musicAudioQuality by playerPreferences.musicAudioQuality.collectAsState(initial = MusicAudioQuality.AUTO)
+
+    val qualities =
+        listOf(
+            VideoQuality.AUTO,
+            VideoQuality.Q_2160P,
+            VideoQuality.Q_1440P,
+            VideoQuality.Q_1080P,
+            VideoQuality.Q_720P,
+            VideoQuality.Q_480P,
+            VideoQuality.Q_360P,
+            VideoQuality.Q_240P,
+            VideoQuality.Q_144P,
+        )
+
+    val musicQualities =
+        listOf(
+            MusicAudioQuality.AUTO,
+            MusicAudioQuality.HIGH,
+            MusicAudioQuality.MEDIUM,
+            MusicAudioQuality.LOW,
+        )
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.background,
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.btn_back))
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            androidx.compose.ui.res
+                                .stringResource(io.github.aedev.flow.R.string.btn_back),
+                        )
                     }
                     Text(
-                        text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.video_quality_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        text =
+                            androidx.compose.ui.res
+                                .stringResource(io.github.aedev.flow.R.string.video_quality_title),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     )
                 }
             }
-        }
+        },
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item {
                 Text(
-                    text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.video_quality_warning),
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(io.github.aedev.flow.R.string.video_quality_warning),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
-            
+
             // Wi-Fi Section
             item {
-                SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.video_quality_wifi_header))
+                SectionHeader(
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(io.github.aedev.flow.R.string.video_quality_wifi_header),
+                )
             }
-            
+
             item {
                 SettingsGroup {
                     qualities.forEachIndexed { index, quality ->
                         QualitySelectionItem(
                             quality = quality,
                             isSelected = wifiQuality == quality,
-                            onClick = { coroutineScope.launch { playerPreferences.setDefaultQualityWifi(quality) } }
+                            onClick = { coroutineScope.launch { playerPreferences.setDefaultQualityWifi(quality) } },
                         )
                         if (index < qualities.size - 1) {
-                            HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            HorizontalDivider(
+                                Modifier.padding(start = 56.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            )
                         }
                     }
                 }
             }
-            
+
             // Cellular Section
             item {
-                SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.video_quality_cellular_header))
+                SectionHeader(
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(io.github.aedev.flow.R.string.video_quality_cellular_header),
+                )
             }
-            
+
             item {
                 SettingsGroup {
                     qualities.forEachIndexed { index, quality ->
                         QualitySelectionItem(
                             quality = quality,
                             isSelected = cellularQuality == quality,
-                            onClick = { coroutineScope.launch { playerPreferences.setDefaultQualityCellular(quality) } }
+                            onClick = { coroutineScope.launch { playerPreferences.setDefaultQualityCellular(quality) } },
                         )
-                         if (index < qualities.size - 1) {
-                            HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        if (index < qualities.size - 1) {
+                            HorizontalDivider(
+                                Modifier.padding(start = 56.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            )
                         }
                     }
                 }
             }
 
             item {
-                SectionHeader(text = androidx.compose.ui.res.stringResource(R.string.music_quality_header))
+                SectionHeader(
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(R.string.music_quality_header),
+                )
             }
 
             item {
@@ -141,10 +169,13 @@ fun VideoQualitySettingsScreen(
                         MusicQualitySelectionItem(
                             quality = quality,
                             isSelected = musicAudioQuality == quality,
-                            onClick = { coroutineScope.launch { playerPreferences.setMusicAudioQuality(quality) } }
+                            onClick = { coroutineScope.launch { playerPreferences.setMusicAudioQuality(quality) } },
                         )
                         if (index < musicQualities.size - 1) {
-                            HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            HorizontalDivider(
+                                Modifier.padding(start = 56.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            )
                         }
                     }
                 }
@@ -157,78 +188,82 @@ fun VideoQualitySettingsScreen(
 fun QualitySelectionItem(
     quality: VideoQuality,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // Radio button look
         RadioButton(
             selected = isSelected,
-            onClick = null // Handled by row click
+            onClick = null, // Handled by row click
         )
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
+
         Text(
-            text = androidx.compose.ui.res.stringResource(getQualityNameRes(quality)),
+            text =
+                androidx.compose.ui.res
+                    .stringResource(getQualityNameRes(quality)),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
 
-private fun getQualityNameRes(quality: VideoQuality): Int {
-    return when (quality) {
+private fun getQualityNameRes(quality: VideoQuality): Int =
+    when (quality) {
         VideoQuality.AUTO -> io.github.aedev.flow.R.string.quality_auto
-        VideoQuality.Q_144p -> io.github.aedev.flow.R.string.quality_144p
-        VideoQuality.Q_240p -> io.github.aedev.flow.R.string.quality_240p
-        VideoQuality.Q_360p -> io.github.aedev.flow.R.string.quality_360p
-        VideoQuality.Q_480p -> io.github.aedev.flow.R.string.quality_480p
-        VideoQuality.Q_720p -> io.github.aedev.flow.R.string.quality_720p_hd
-        VideoQuality.Q_1080p -> io.github.aedev.flow.R.string.quality_1080p_full_hd
-        VideoQuality.Q_1440p -> io.github.aedev.flow.R.string.quality_1440p_qhd
-        VideoQuality.Q_2160p -> io.github.aedev.flow.R.string.quality_2160p_4k
+        VideoQuality.Q_144P -> io.github.aedev.flow.R.string.quality_144p
+        VideoQuality.Q_240P -> io.github.aedev.flow.R.string.quality_240p
+        VideoQuality.Q_360P -> io.github.aedev.flow.R.string.quality_360p
+        VideoQuality.Q_480P -> io.github.aedev.flow.R.string.quality_480p
+        VideoQuality.Q_720P -> io.github.aedev.flow.R.string.quality_720p_hd
+        VideoQuality.Q_1080P -> io.github.aedev.flow.R.string.quality_1080p_full_hd
+        VideoQuality.Q_1440P -> io.github.aedev.flow.R.string.quality_1440p_qhd
+        VideoQuality.Q_2160P -> io.github.aedev.flow.R.string.quality_2160p_4k
     }
-}
 
 @Composable
 private fun MusicQualitySelectionItem(
     quality: MusicAudioQuality,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(
             selected = isSelected,
-            onClick = null
+            onClick = null,
         )
 
         Spacer(modifier = Modifier.width(16.dp))
 
         Text(
-            text = androidx.compose.ui.res.stringResource(getMusicQualityNameRes(quality)),
+            text =
+                androidx.compose.ui.res
+                    .stringResource(getMusicQualityNameRes(quality)),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
 
-private fun getMusicQualityNameRes(quality: MusicAudioQuality): Int {
-    return when (quality) {
+private fun getMusicQualityNameRes(quality: MusicAudioQuality): Int =
+    when (quality) {
         MusicAudioQuality.AUTO -> R.string.music_quality_auto
         MusicAudioQuality.HIGH -> R.string.music_quality_high
         MusicAudioQuality.MEDIUM -> R.string.music_quality_medium
         MusicAudioQuality.LOW -> R.string.music_quality_low
     }
-}

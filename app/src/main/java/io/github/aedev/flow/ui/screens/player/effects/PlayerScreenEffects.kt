@@ -4,8 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
@@ -32,7 +30,9 @@ import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import org.schabi.newpipe.extractor.stream.StreamType
@@ -47,6 +47,8 @@ private const val STARTUP_RECOVERY_DELAY_MS = 5_000L
 private const val STARTUP_BUFFERING_GRACE_MS = 4_000L
 private const val ACTIVE_POSITION_TRACKING_INTERVAL_MS = 250L
 private const val IDLE_POSITION_TRACKING_INTERVAL_MS = 1_000L
+private const val AUTO_HIDE_CONTROLS_DELAY_MS = 3_000L
+private const val GESTURE_OVERLAY_HIDE_DELAY_MS = 1_000L
 
 private var liveDisplayVideoId: String? = null
 private var liveDisplayRawPositionMs: Long = 0L
@@ -470,32 +472,63 @@ fun AutoHideControlsEffect(
     hasEnded: Boolean,
     lastInteractionTimestamp: Long,
     isTouchLocked: Boolean = false,
+    isScrubbing: Boolean = false,
     onHideControls: () -> Unit,
 ) {
-    LaunchedEffect(showControls, isPlaying, hasEnded, lastInteractionTimestamp, isTouchLocked) {
-        if (showControls && isPlaying && !hasEnded && !isTouchLocked) {
-            delay(3000)
+    LaunchedEffect(
+        showControls,
+        isPlaying,
+        hasEnded,
+        lastInteractionTimestamp,
+        isTouchLocked,
+        isScrubbing,
+    ) {
+        if (showControls && isPlaying && !hasEnded && !isTouchLocked && !isScrubbing) {
+            delay(AUTO_HIDE_CONTROLS_DELAY_MS)
             onHideControls()
         }
     }
 }
 
 @Composable
-fun GestureOverlayAutoHideEffect(screenState: PlayerScreenState) {
-    // Brightness overlay auto-hide
-    LaunchedEffect(screenState.showBrightnessOverlay) {
-        if (screenState.showBrightnessOverlay) {
-            delay(1000)
-            screenState.showBrightnessOverlay = false
+fun AutoPlayNextEffect(
+    hasEnded: Boolean,
+    autoplayEnabled: Boolean,
+    isLooping: Boolean,
+    hasNextInQueue: Boolean,
+    relatedVideos: List<Video>,
+    onVideoClick: (Video) -> Unit,
+) {
+    LaunchedEffect(hasEnded, autoplayEnabled, isLooping, hasNextInQueue) {
+        if (hasEnded && autoplayEnabled && !isLooping && !hasNextInQueue) {
+            relatedVideos.firstOrNull()?.let { nextVideo ->
+                onVideoClick(nextVideo)
+            }
         }
     }
+}
 
-    // Volume overlay auto-hide
-    LaunchedEffect(screenState.showVolumeOverlay, screenState.volumeLevel) {
-        if (screenState.showVolumeOverlay) {
-            delay(1000)
-            screenState.showVolumeOverlay = false
-        }
+@Composable
+fun GestureOverlayAutoHideEffect(screenState: PlayerScreenState) {
+    LaunchedEffect(screenState) {
+        snapshotFlow { screenState.showBrightnessOverlay to screenState.brightnessLevel }
+            .collectLatest { (visible, _) ->
+                if (visible) {
+                    delay(GESTURE_OVERLAY_HIDE_DELAY_MS)
+                    screenState.showBrightnessOverlay = false
+                }
+            }
+    }
+
+
+    LaunchedEffect(screenState) {
+        snapshotFlow { screenState.showVolumeOverlay to screenState.volumeLevel }
+            .collectLatest { (visible, _) ->
+                if (visible) {
+                    delay(GESTURE_OVERLAY_HIDE_DELAY_MS)
+                    screenState.showVolumeOverlay = false
+                }
+            }
     }
 
     LaunchedEffect(screenState.seekAccumulation, screenState.showSeekForwardAnimation) {
@@ -523,7 +556,7 @@ fun FullscreenEffect(
     activity: Activity?,
     videoAspectRatio: Float = 16f / 9f,
     lifecycleOwner: LifecycleOwner,
-    fullscreenBrightnessLevel: Float? = null,
+    fullscreenBrightnessLevel: () -> Float? = { null },
     suppressFullscreenRequest: Boolean = false,
     isPortrait: Boolean = false,
 ) {
@@ -557,7 +590,7 @@ fun FullscreenEffect(
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
-                fullscreenBrightnessLevel?.let { brightnessLevel ->
+                fullscreenBrightnessLevel()?.let { brightnessLevel ->
                     val layoutParams = act.window.attributes
                     layoutParams.screenBrightness =
                         if (brightnessLevel < 0f) {
@@ -692,12 +725,7 @@ fun VideoLoadEffect(
     LaunchedEffect(videoId) {
         screenState.resetForNewVideo()
 
-        // Detect if on Wifi for preferred quality
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val activeNetwork = connectivityManager.activeNetwork
-        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
-        val isWifi = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ?: true
-        viewModel.loadVideoInfo(videoId, isWifi)
+        viewModel.loadVideoInfo(videoId, NetworkState.isOnWifi(context))
     }
 }
 

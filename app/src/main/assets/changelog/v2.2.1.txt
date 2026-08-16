@@ -6,12 +6,22 @@ STATUS: PRE-RELEASE
 NEW FEATURES
 - Discord RPC support by @PastaHimself
 - TV UI support by @PastaHimself
+- Drag left or right on the video to seek, with a toggle in Player Appearance settings
 
 IMPROVEMENTS
 - Slimmer player seekbar segment gaps #786
 - Improve restricted content filtering #783
 - Improve EQ and add it for video player #781
-- Improve playback speed 
+- Improve playback speed
+- Use standard media icons so Android Auto, Wear and system controls render them correctly
+- Show the player controls the moment you tap instead of waiting to see if a second tap follows
+- Add haptic feedback to seeking, the speed boost and the gesture controls
+- Follow your finger when swiping down to leave fullscreen, springing back if you let go early
+- Zoom the video as you drag up to enter fullscreen
+- Let pinch-to-zoom stretch past its limits and settle back when released
+- Scale the long-press speed boost from the current speed so it can never slow playback down #867
+- Restyle the long-press speed indicator as a pill showing the speed it will actually apply
+- Ripple the tapped side of the screen when double-tap seeking
 
 PERFORMANCE
 - Faster cold start and smoother scrolling
@@ -24,6 +34,17 @@ PERFORMANCE
 - Add stable list keys across feeds and search
 - Load thumbnails at display size
 - Draw waveform and mini-player progress instead of laying them out
+- Start videos sooner by keeping remote signature decoding off the path to first frame
+- Reuse one attestation session across videos instead of re-running it on every open
+- Skip stream resolution for downloaded videos while offline
+- Stop paying for work Shorts never uses
+- Read audio preferences once per video instead of once per client attempt
+- Load the Shorts and music feeds before the work that only appends to them
+- Animate the seek bar without re-measuring it on every frame
+- Read the player overlay settings in a single pass instead of twelve
+- Stop pinch-to-zoom redrawing the whole player overlay on every frame
+- Keep the playhead from recomposing the controls several times a second
+- Draw the seek bar through one system instead of three overlapping ones
 
 BUILD AND CI
 - Add automated Kotlin formatting checks with ktlint and Spotless
@@ -39,21 +60,32 @@ FIXES AND STABILITY
 - Fix missing channel avatars in comments and replies with cached channel-avatar fallback
 - Fix a crash when playback notification artwork finished loading in the background
 - Fix the playback notification disappearing when the queue auto-advanced in the background
+- Fix videos cutting out around the one-minute mark on auto-dubbed titles
+- Fix the wrong audio track being requested on auto-dubbed videos
+- Fix the mini player expanding back to the full player while metadata was still loading
+- Fix playback on videos that only offer a server-side adaptive stream
+- Fix downloaded videos failing to play when offline
+- Add a mobile web fallback and a newer VR client for stream extraction
 - Fix crash issues
+- Stop music background tasks from running after the player is closed
+- Fix custom SponsorBlock category colours having no effect on the seek bar
+- Fix the cast and sleep timer buttons appearing a moment after the rest of the controls
+- Fix the brightness readout vanishing while you were still adjusting it
+- Fix swiping down to leave fullscreen committing even after you dragged back up
 
 DEPENDENCY
 - Bump NewPipeExtractor to v0.26.4
 - Update Gradle to 9.6.1 and Android Gradle Plugin to 9.3.1
-- Update Kotlin to 2.4.10 with the Compose compiler plugin and KSP 2.3.10
+- Update Kotlin to 2.4.10 with the Compose compiler plugin and KSP 2.3.11
 - Update Hilt to 2.60.1 and Room to 2.8.4
 - Update Coroutines and Serialization to 1.11.0
 - Update baseline profile and benchmark tooling to 1.5.0-beta01
 - Update Compose BOM to 2026.06.01 with Material 3 1.4
 - Raise compileSdk to 37
 - Update Navigation, Lifecycle, Activity, Core, WorkManager, Paging and CameraX
-- Update Gson to 2.14.0, Conscrypt to 2.5.3 and core library desugaring to 2.1.5
+- Update Gson to 2.14.0, Conscrypt to 2.6.1 and core library desugaring to 2.1.5
 - Remove unused RxJava and multidex dependencies
 - Raise targetSdk to 36 for Android 16 platform behaviour
-- Update OkHttp to 5.4.0 and Media3/ExoPlayer to 1.11.0-rc01
+- Update OkHttp to 5.4.0 and Media3/ExoPlayer to 1.11.0
 - Update Coil image loading to 3.5.0
 - Update Ktor networking to 3.5.2

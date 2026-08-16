@@ -2340,4 +2340,19 @@
     <string name="duration_minutes">%1$d хв</string>
     <string name="duration_hours_short">%1$d год</string>
     <string name="duration_minutes_short">%1$d хв</string>
+    <string name="player_appearance_seek_gesture_title">Жест перемотування</string>
+    <string name="player_appearance_seek_gesture_subtitle">Проведіть пальцем по горизонталі в повноекранному режимі, щоби перемотати відео</string>
+    <string name="player_settings_subtitle_language">Бажана мова субтитрів</string>
+    <string name="player_settings_subtitle_language_dialog_title">Мова субтитрів</string>
+    <string name="player_settings_subtitle_language_dialog_body">Субтитри цією мовою відкриваються, коли вони доступні. Якщо у відео немає відповідної доріжки, Flow використовує переклад наявної доріжки від YouTube. Вибір субтитрів під час відтворення також оновить це налаштування.</string>
+    <string name="player_settings_subtitle_language_none">Не вказано</string>
+    <string name="player_settings_subtitle_language_none_desc">Використовуйте першу доріжку субтитрів, яку пропонує відео</string>
+    <string name="player_settings_auto_enable_subtitles">Автоматично вмикати субтитри</string>
+    <string name="player_settings_auto_enable_subtitles_subtitle">Починайте кожне відео із субтитрів вашою мовою</string>
+    <string name="subtitle_translated">перекладено</string>
+    <string name="player_brightness_auto">Авто</string>
+    <string name="player_gesture_level_percent">%1$d%%</string>
+    <string name="player_replay">Повторити</string>
+    <string name="player_seek_delta_forward">+%1$s</string>
+    <string name="player_seek_delta_back">-%1$s</string>
 </resources>

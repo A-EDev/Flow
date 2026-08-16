@@ -328,7 +328,7 @@ fun FlowApp(
             }
         }
 
-        LaunchedEffect(playerUiState.cachedVideo, playerUiState.isBackgroundPlaybackMode) {
+        LaunchedEffect(playerUiState.cachedVideo?.id, playerUiState.isBackgroundPlaybackMode) {
             if (playerUiState.cachedVideo != null) {
                 if (playerUiState.isBackgroundPlaybackMode) {
                     playerSheetState.snapTo(PlayerSheetValue.Collapsed)

@@ -1,7 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.components
 
-import android.graphics.Outline
 import android.content.Context
+import android.graphics.Outline
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
@@ -23,7 +23,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -56,7 +55,7 @@ fun VideoPlayerSurface(
     modifier: Modifier = Modifier,
     onVideoAspectRatioChanged: ((Float) -> Unit)? = null,
     cornerRadiusDp: Float = 0f,
-    ambientMode: Boolean = false
+    ambientMode: Boolean = false,
 ) {
     val ambientActive = ambientMode && resizeMode == 0
     val context = LocalContext.current
@@ -69,17 +68,19 @@ fun VideoPlayerSurface(
     val currentAspectRatioCallback by rememberUpdatedState(onVideoAspectRatioChanged)
     val cornerRadiusPx = with(density) { cornerRadiusDp.dp.toPx() }
 
-    val playerView = remember(video.id) {
-        Log.d("EnhancedVideoPlayer", "Creating shared PlayerView (sdk=${Build.VERSION.SDK_INT})")
-        (LayoutInflater.from(context).inflate(pickPlayerViewLayoutRes(), null) as PlayerView).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
-            setKeepContentOnPlayerReset(true)
+    val playerView =
+        remember {
+            Log.d("EnhancedVideoPlayer", "Creating shared PlayerView (sdk=${Build.VERSION.SDK_INT})")
+            (LayoutInflater.from(context).inflate(pickPlayerViewLayoutRes(), null) as PlayerView).apply {
+                layoutParams =
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+                setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                setKeepContentOnPlayerReset(true)
+            }
         }
-    }
 
     DisposableEffect(playerView) {
         val surfaceView = playerView.videoSurfaceView as? SurfaceView
@@ -99,28 +100,29 @@ fun VideoPlayerSurface(
             manager.attachVideoSurface(holder, forceAttach = true)
         }
 
-        val callback = object : SurfaceHolder.Callback {
-            override fun surfaceCreated(holder: SurfaceHolder) {
-                attachIfValid(holder)
-            }
+        val callback =
+            object : SurfaceHolder.Callback {
+                override fun surfaceCreated(holder: SurfaceHolder) {
+                    attachIfValid(holder)
+                }
 
-            override fun surfaceChanged(
-                holder: SurfaceHolder,
-                format: Int,
-                width: Int,
-                height: Int
-            ) {
-                attachIfValid(holder)
-            }
+                override fun surfaceChanged(
+                    holder: SurfaceHolder,
+                    format: Int,
+                    width: Int,
+                    height: Int,
+                ) {
+                    attachIfValid(holder)
+                }
 
-            override fun surfaceDestroyed(holder: SurfaceHolder) {
-                if (attachedHolder === holder) {
-                    manager.detachVideoSurface(holder)
-                    attachedHolder = null
-                    attachedSurface = null
+                override fun surfaceDestroyed(holder: SurfaceHolder) {
+                    if (attachedHolder === holder) {
+                        manager.detachVideoSurface(holder)
+                        attachedHolder = null
+                        attachedSurface = null
+                    }
                 }
             }
-        }
 
         surfaceView.holder.addCallback(callback)
         attachIfValid(surfaceView.holder)
@@ -131,20 +133,24 @@ fun VideoPlayerSurface(
         }
     }
 
-    val videoSizeListener = remember {
-        object : Player.Listener {
-            override fun onVideoSizeChanged(videoSize: VideoSize) {
-                val playerMediaId = EnhancedPlayerManager.getInstance().getPlayer()
-                    ?.currentMediaItem
-                    ?.mediaId
-                if (playerMediaId == null || playerMediaId == currentVideoId) {
-                    videoSize.toDisplayAspectRatioOrNull()?.let { ratio ->
-                        currentAspectRatioCallback?.invoke(ratio)
+    val videoSizeListener =
+        remember {
+            object : Player.Listener {
+                override fun onVideoSizeChanged(videoSize: VideoSize) {
+                    val playerMediaId =
+                        EnhancedPlayerManager
+                            .getInstance()
+                            .getPlayer()
+                            ?.currentMediaItem
+                            ?.mediaId
+                    if (playerMediaId == null || playerMediaId == currentVideoId) {
+                        videoSize.toDisplayAspectRatioOrNull()?.let { ratio ->
+                            currentAspectRatioCallback?.invoke(ratio)
+                        }
                     }
                 }
             }
         }
-    }
 
     DisposableEffect(playerView) {
         onDispose {
@@ -170,11 +176,12 @@ fun VideoPlayerSurface(
     }
 
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
-                surfaceRestoreTrigger++
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
+                    surfaceRestoreTrigger++
+                }
             }
-        }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
@@ -183,14 +190,13 @@ fun VideoPlayerSurface(
 
     val ambientFrame = rememberAmbientFrame(playerView, ambientActive)
 
-    key(video.id) {
-      Box(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         if (ambientActive) {
             VideoAmbientBackground(
                 frame = ambientFrame.frame,
                 baseColor = ambientFrame.base,
                 accentColor = ambientFrame.accent,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         }
         AndroidView(
@@ -205,20 +211,21 @@ fun VideoPlayerSurface(
 
                 if (oldPlayer !== newPlayer || videoChanged) {
                     val isVideoSwitch = attachedVideoId != null && videoChanged
+                    val playerMediaId = newPlayer?.currentMediaItem?.mediaId
+                    val alreadyRenderingThisVideo = playerMediaId == video.id
                     oldPlayer?.removeListener(videoSizeListener)
-                    if (oldPlayer === newPlayer && oldPlayer != null) {
+                    if (oldPlayer === newPlayer && oldPlayer != null && !alreadyRenderingThisVideo) {
                         view.player = null
                     }
                     newPlayer?.addListener(videoSizeListener)
                     view.player = newPlayer
                     attachedVideoId = video.id
-                    val playerMediaId = newPlayer?.currentMediaItem?.mediaId
                     currentAspectRatioCallback?.invoke(
-                        if (isVideoSwitch && playerMediaId != video.id) {
+                        if (isVideoSwitch && !alreadyRenderingThisVideo) {
                             16f / 9f
                         } else {
                             newPlayer?.videoSize?.toDisplayAspectRatioOrNull() ?: (16f / 9f)
-                        }
+                        },
                     )
                 }
 
@@ -235,7 +242,7 @@ fun VideoPlayerSurface(
                         if (lastAudioOnlySkipLogKey != skipLogKey) {
                             Log.d(
                                 "VideoPlayerSurface",
-                                "Keeping audio-only background mode (started=$lifecycleReadyForVideo interactive=$displayInteractive)"
+                                "Keeping audio-only background mode (started=$lifecycleReadyForVideo interactive=$displayInteractive)",
                             )
                             lastAudioOnlySkipLogKey = skipLogKey
                         }
@@ -256,40 +263,47 @@ fun VideoPlayerSurface(
                     }
                 }
 
-                val desiredResizeMode = when (resizeMode) {
-                    0 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    1 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
-                    2 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                }
+                val desiredResizeMode =
+                    when (resizeMode) {
+                        0 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        1 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
+                        2 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    }
                 if (view.resizeMode != desiredResizeMode) {
                     view.resizeMode = desiredResizeMode
                 }
 
                 view.setBackgroundColor(
-                    if (ambientActive) android.graphics.Color.TRANSPARENT else android.graphics.Color.BLACK
+                    if (ambientActive) android.graphics.Color.TRANSPARENT else android.graphics.Color.BLACK,
                 )
 
                 applyOutlineCornerRadius(view, cornerRadiusPx)
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         )
-      }
     }
 }
 
-private fun applyOutlineCornerRadius(view: PlayerView, radiusPx: Float) {
+private fun applyOutlineCornerRadius(
+    view: PlayerView,
+    radiusPx: Float,
+) {
     val current = view.getTag(R.id.player_view) as? Float
     if (current != null && current == radiusPx) return
     if (radiusPx <= 0f) {
         view.clipToOutline = false
         view.outlineProvider = ViewOutlineProvider.BACKGROUND
     } else {
-        view.outlineProvider = object : ViewOutlineProvider() {
-            override fun getOutline(v: View, outline: Outline) {
-                outline.setRoundRect(0, 0, v.width, v.height, radiusPx)
+        view.outlineProvider =
+            object : ViewOutlineProvider() {
+                override fun getOutline(
+                    v: View,
+                    outline: Outline,
+                ) {
+                    outline.setRoundRect(0, 0, v.width, v.height, radiusPx)
+                }
             }
-        }
         view.clipToOutline = true
     }
     view.invalidateOutline()
@@ -308,4 +322,6 @@ private fun Context.isDisplayInteractive(): Boolean =
     }.getOrDefault(true)
 
 private val Float.dp: androidx.compose.ui.unit.Dp
-    get() = androidx.compose.ui.unit.Dp(this)
+    get() =
+        androidx.compose.ui.unit
+            .Dp(this)

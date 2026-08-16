@@ -23,6 +23,7 @@ import io.github.aedev.flow.notification.SubscriptionCheckWorker
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.utils.cipher.PipePipeNsigDecoder
 import io.github.aedev.flow.utils.potoken.NewPipePoTokenProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -103,6 +104,8 @@ class FlowApplication :
             Log.e(TAG, "Failed to initialize CipherDeobfuscator", e)
         }
 
+        PipePipeNsigDecoder.initialize(this)
+
         // Initialize notification channels
         NotificationHelper.createNotificationChannels(this)
         Log.d(TAG, "Notification channels created")
@@ -138,8 +141,17 @@ class FlowApplication :
         // The X-Goog-Visitor-Id header prevents YouTube from returning empty
         // search results on tablets and fresh Android 16 installs (Issue #223).
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            var nsigWarmed = false
             playerPreferences.proxyConfig.collectLatest { proxyConfig ->
                 applyProxyConfig(proxyConfig)
+                // Ordered after the first proxy application so the warm-up honours it. Resolving
+                // the remote n-decoder player id is a round trip that the first video of a session
+                // would otherwise pay on its path to first frame; it is persisted for 24h, so on
+                // most launches this is only a disk read.
+                if (!nsigWarmed) {
+                    nsigWarmed = true
+                    PipePipeNsigDecoder.warmUp()
+                }
             }
         }
 

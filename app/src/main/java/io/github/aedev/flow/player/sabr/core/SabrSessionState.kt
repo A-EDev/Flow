@@ -5,8 +5,8 @@ import io.github.aedev.flow.player.sabr.proto.FormatId
 import io.github.aedev.flow.player.sabr.proto.FormatInitializationMetadata
 import io.github.aedev.flow.player.sabr.proto.NextRequestPolicy
 import io.github.aedev.flow.player.sabr.proto.SabrContext
-import io.github.aedev.flow.player.sabr.proto.SabrContextUpdate
 import io.github.aedev.flow.player.sabr.proto.SabrContextSendingPolicy
+import io.github.aedev.flow.player.sabr.proto.SabrContextUpdate
 import io.github.aedev.flow.player.sabr.proto.SabrRedirect
 
 class SabrSessionState {
@@ -26,6 +26,12 @@ class SabrSessionState {
     var selectedVideoItag: Int = 0
     var selectedVideoLmt: Long = 0
     var audioTrackId: String = ""
+
+    // Third component of FormatId. On auto-dubbed videos every language shares one audio itag (and
+    // often one lmt), so xtags is the only field that identifies which dub we asked for. Sending it
+    // empty makes the server reject the selection outright with sabr.no_audio_selected.
+    var selectedAudioXtags: String = ""
+    var selectedVideoXtags: String = ""
 
     // Actual pixel height of the selected video format; drives sticky_resolution in auto mode
     // so the server serves that quality class instead of ABR-defaulting to its lowest rung.
@@ -91,13 +97,16 @@ class SabrSessionState {
     val effectiveUrl: String get() = redirectUrl ?: streamingUrl
 
     /** Returns true the first time a segment is seen; false for duplicates. */
-    fun markSegmentConsumed(itag: Int, sequenceNumber: Int, isInit: Boolean): Boolean {
-        return if (isInit) {
+    fun markSegmentConsumed(
+        itag: Int,
+        sequenceNumber: Int,
+        isInit: Boolean,
+    ): Boolean =
+        if (isInit) {
             consumedInitSegments.add(itag)
         } else {
             consumedSegments.add((itag.toLong() shl 32) or (sequenceNumber.toLong() and 0xFFFFFFFFL))
         }
-    }
 
     /** Epoch ms when the GVS URL expires (`expire` query param), or 0 if unknown. */
     fun urlExpiresAtMs(): Long {
@@ -113,8 +122,8 @@ class SabrSessionState {
         consumedSegments.clear()
     }
 
-    val selectedAudioFormatId: FormatId get() = FormatId(selectedAudioItag, selectedAudioLmt)
-    val selectedVideoFormatId: FormatId get() = FormatId(selectedVideoItag, selectedVideoLmt)
+    val selectedAudioFormatId: FormatId get() = FormatId(selectedAudioItag, selectedAudioLmt, selectedAudioXtags)
+    val selectedVideoFormatId: FormatId get() = FormatId(selectedVideoItag, selectedVideoLmt, selectedVideoXtags)
 
     fun updateFromNextRequestPolicy(policy: NextRequestPolicy) {
         if (policy.playbackCookie.isNotEmpty()) {
@@ -140,11 +149,9 @@ class SabrSessionState {
         }
     }
 
-    fun activeSabrContexts(): List<SabrContext> =
-        sabrContextsToSend.mapNotNull { sabrContexts[it] }
+    fun activeSabrContexts(): List<SabrContext> = sabrContextsToSend.mapNotNull { sabrContexts[it] }
 
-    fun unsentSabrContextTypes(): List<Int> =
-        sabrContexts.keys.filterNot(sabrContextsToSend::contains)
+    fun unsentSabrContextTypes(): List<Int> = sabrContexts.keys.filterNot(sabrContextsToSend::contains)
 
     fun updateFromContextSendingPolicy(policy: SabrContextSendingPolicy) {
         sabrContextsToSend.addAll(policy.startTypes)
@@ -167,12 +174,26 @@ class SabrSessionState {
         poToken: String,
         visitorId: String,
         cpn: String,
+        audioItag: Int,
+        audioLmt: Long,
+        videoItag: Int,
+        videoLmt: Long,
+        audioTrackId: String,
+        audioXtags: String,
+        videoXtags: String,
     ) {
         this.streamingUrl = streamingUrl
         this.ustreamerConfig = ustreamerConfig
         this.poToken = poToken
         this.visitorId = visitorId
         this.cpn = cpn
+        this.selectedAudioItag = audioItag
+        this.selectedAudioLmt = audioLmt
+        this.selectedVideoItag = videoItag
+        this.selectedVideoLmt = videoLmt
+        this.audioTrackId = audioTrackId
+        this.selectedAudioXtags = audioXtags
+        this.selectedVideoXtags = videoXtags
         redirectUrl = null
         reloadToken = null
         // The SABR enforcement context, playback cookie, and buffered ranges are scoped
@@ -189,17 +210,21 @@ class SabrSessionState {
         initializedFormats.clear()
     }
 
-    fun addBufferedRange(isAudio: Boolean, range: FormatBufferedRange) {
+    fun addBufferedRange(
+        isAudio: Boolean,
+        range: FormatBufferedRange,
+    ) {
         val list = if (isAudio) audioBufferedRanges else videoBufferedRanges
         val last = list.lastOrNull()
         if (last != null &&
             last.formatId == range.formatId &&
             range.startSequence == last.endSequence + 1
         ) {
-            list[list.size - 1] = last.copy(
-                durationMs = last.durationMs + range.durationMs,
-                endSequence = range.endSequence
-            )
+            list[list.size - 1] =
+                last.copy(
+                    durationMs = last.durationMs + range.durationMs,
+                    endSequence = range.endSequence,
+                )
             return
         }
         list.add(range)
@@ -210,7 +235,10 @@ class SabrSessionState {
         videoBufferedRanges.clear()
     }
 
-    fun storeInitSegment(itag: Int, data: ByteArray) {
+    fun storeInitSegment(
+        itag: Int,
+        data: ByteArray,
+    ) {
         initSegments[itag] = data
     }
 

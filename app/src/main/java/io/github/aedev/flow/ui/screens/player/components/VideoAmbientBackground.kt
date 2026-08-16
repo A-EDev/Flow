@@ -32,6 +32,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import androidx.palette.graphics.Palette
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.ui.theme.PlayerScrim
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -582,7 +583,7 @@ fun VideoAmbientBackground(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(PlayerScrim),
     ) {
         Box(
             modifier =
@@ -612,7 +613,7 @@ fun VideoAmbientBackground(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .background(Color.Black.copy(alpha = AMBIENT_SCRIM_ALPHA)),
+                    .background(PlayerScrim.copy(alpha = AMBIENT_SCRIM_ALPHA)),
         )
     }
 }

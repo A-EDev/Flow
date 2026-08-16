@@ -36,10 +36,13 @@ class SabrOrchestrator(
     private var scope: CoroutineScope? = null
     private var eventCollectorJob: Job? = null
     private var segmentFetchJob: Job? = null
+
     @Volatile
     private var poTokenRefreshJob: Deferred<PoTokenRefreshResult>? = null
+
     @Volatile
     private var poTokenRefreshUrgent = false
+
     @Volatile
     private var playerResponseReloadJob: Deferred<Boolean>? = null
     private var playerResponseReloads = 0
@@ -73,11 +76,12 @@ class SabrOrchestrator(
         val newScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         scope = newScope
 
-        eventCollectorJob = newScope.launch {
-            controller.events.collect { event ->
-                handleEvent(event)
+        eventCollectorJob =
+            newScope.launch {
+                controller.events.collect { event ->
+                    handleEvent(event)
+                }
             }
-        }
 
         newScope.launch(Dispatchers.IO) {
             controller.startSession()
@@ -127,7 +131,10 @@ class SabrOrchestrator(
                     } else if (metadata.isVideo) {
                         videoBuffer.appendSegment(initData)
                         videoInitReceived = true
-                        Log.d(TAG, "Video init received: ${metadata.mimeType} ${metadata.codecs}, ${metadata.width}x${metadata.height}, ${initData.size}B")
+                        Log.d(
+                            TAG,
+                            "Video init received: ${metadata.mimeType} ${metadata.codecs}, ${metadata.width}x${metadata.height}, ${initData.size}B",
+                        )
                     }
                 }
                 onFormatInitialized?.invoke(metadata)
@@ -181,6 +188,10 @@ class SabrOrchestrator(
                 if (event.required) {
                     refreshPoToken(urgent = true)
                 } else {
+                    // A pending verdict alongside media is normal, so this must not be treated as a
+                    // fault on its own. Recovering from a verdict that never resolves requires
+                    // rotating the visitor identity (a re-minted token keeps the same visitorData and
+                    // draws the same verdict), which is not implemented yet.
                     Log.d(TAG, "PoToken attestation is pending; waiting for the server verdict")
                 }
             }
@@ -197,35 +208,38 @@ class SabrOrchestrator(
             poTokenRefreshJob = null
         }
         poTokenRefreshUrgent = urgent
-        poTokenRefreshJob = scope?.async(Dispatchers.IO) {
-            val videoId = controller.sessionState.videoId
-            val fresh = try {
-                val visitorData = controller.sessionState.visitorId
-                if (visitorData.isBlank()) null
-                else if (urgent) {
-                    WebPoTokenSession.refreshForVisitorData(videoId, visitorData)
+        poTokenRefreshJob =
+            scope?.async(Dispatchers.IO) {
+                val videoId = controller.sessionState.videoId
+                val fresh =
+                    try {
+                        val visitorData = controller.sessionState.visitorId
+                        if (visitorData.isBlank()) {
+                            null
+                        } else if (urgent) {
+                            WebPoTokenSession.refreshForVisitorData(videoId, visitorData)
+                        } else {
+                            WebPoTokenSession.mintForVisitorData(videoId, visitorData)
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "PoToken refresh threw: ${e.message}")
+                        null
+                    }
+                // videoId-bound content token, same binding the session was created with
+                val streamingToken = fresh?.playerRequestPoToken
+                if (!streamingToken.isNullOrEmpty()) {
+                    controller.sessionState.poToken = streamingToken
+                    Log.w(TAG, "PoToken refreshed for $videoId (urgent=$urgent)")
+                    PoTokenRefreshResult(success = true, required = urgent)
+                } else if (urgent) {
+                    onError?.invoke(-5, "PoToken refresh failed while attestation required", false)
+                    PoTokenRefreshResult(success = false, required = true)
                 } else {
-                    WebPoTokenSession.mintForVisitorData(videoId, visitorData)
+                    PoTokenRefreshResult(success = false, required = false)
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "PoToken refresh threw: ${e.message}")
-                null
             }
-            // videoId-bound content token, same binding the session was created with
-            val streamingToken = fresh?.playerRequestPoToken
-            if (!streamingToken.isNullOrEmpty()) {
-                controller.sessionState.poToken = streamingToken
-                Log.w(TAG, "PoToken refreshed for $videoId (urgent=$urgent)")
-                PoTokenRefreshResult(success = true, required = urgent)
-            } else if (urgent) {
-                onError?.invoke(-5, "PoToken refresh failed while attestation required", false)
-                PoTokenRefreshResult(success = false, required = true)
-            } else {
-                PoTokenRefreshResult(success = false, required = false)
-            }
-        }
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -234,7 +248,9 @@ class SabrOrchestrator(
         val resolver = reloadResolver
         if (resolver == null || playerResponseReloads >= MAX_PLAYER_RESPONSE_RELOADS) {
             io.github.aedev.flow.player.error.PlayerDiagnostics.logError(
-                TAG, "SABR reload budget spent (${playerResponseReloads}/$MAX_PLAYER_RESPONSE_RELOADS) — giving up")
+                TAG,
+                "SABR reload budget spent ($playerResponseReloads/$MAX_PLAYER_RESPONSE_RELOADS) — giving up",
+            )
             isRunning = false
             audioBuffer.signalEndOfStream()
             videoBuffer.signalEndOfStream()
@@ -243,41 +259,58 @@ class SabrOrchestrator(
         }
 
         playerResponseReloads++
-        playerResponseReloadJob = scope?.async(Dispatchers.IO) {
-            val fresh = try {
-                resolver(event)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Player response reload failed", e)
-                null
-            } ?: run {
-                io.github.aedev.flow.player.error.PlayerDiagnostics.logError(
-                    TAG, "SABR reload could not resolve a fresh player response")
-                return@async false
-            }
+        playerResponseReloadJob =
+            scope?.async(Dispatchers.IO) {
+                val fresh =
+                    try {
+                        resolver(event)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Player response reload failed", e)
+                        null
+                    } ?: run {
+                        io.github.aedev.flow.player.error.PlayerDiagnostics
+                            .logError(TAG, "SABR reload could not resolve a fresh player response")
+                        return@async false
+                    }
 
-            controller.sessionState.applyPlayerResponseReload(
-                streamingUrl = fresh.streamingUrl,
-                ustreamerConfig = fresh.ustreamerConfig,
-                poToken = fresh.poToken,
-                visitorId = fresh.visitorId,
-                cpn = fresh.cpn,
-            )
-            // Clear the controller's wedge counter/reload latch now that the fresh session is
-            // installed, so medialess responses seen during the reload window don't immediately
-            // re-trip the non-recoverable wedge on the resumed session.
-            controller.onPlayerResponseReloaded()
-            Log.w(
-                TAG,
-                "Player response reloaded in place at ${controller.sessionState.playheadPositionMs}ms " +
-                    "(attempt $playerResponseReloads/$MAX_PLAYER_RESPONSE_RELOADS)"
-            )
-            io.github.aedev.flow.player.error.PlayerDiagnostics.logWarning(
-                TAG, "SABR reload applied at ${controller.sessionState.playheadPositionMs}ms " +
-                    "(attempt $playerResponseReloads/$MAX_PLAYER_RESPONSE_RELOADS) — resuming session")
-            true
-        }
+                controller.sessionState.applyPlayerResponseReload(
+                    streamingUrl = fresh.streamingUrl,
+                    ustreamerConfig = fresh.ustreamerConfig,
+                    poToken = fresh.poToken,
+                    visitorId = fresh.visitorId,
+                    cpn = fresh.cpn,
+                    audioItag = fresh.audioItag,
+                    audioLmt = fresh.audioLmt,
+                    videoItag = fresh.videoItag,
+                    videoLmt = fresh.videoLmt,
+                    audioTrackId = fresh.audioTrackId,
+                    audioXtags = fresh.audioXtags,
+                    videoXtags = fresh.videoXtags,
+                )
+                Log.w(
+                    TAG,
+                    "Reload formats: audio=${fresh.audioItag}/${fresh.audioLmt} " +
+                        "video=${fresh.videoItag}/${fresh.videoLmt} track='${fresh.audioTrackId}' " +
+                        "audioXtags='${fresh.audioXtags}'",
+                )
+                // Clear the controller's wedge counter/reload latch now that the fresh session is
+                // installed, so medialess responses seen during the reload window don't immediately
+                // re-trip the non-recoverable wedge on the resumed session.
+                controller.onPlayerResponseReloaded()
+                Log.w(
+                    TAG,
+                    "Player response reloaded in place at ${controller.sessionState.playheadPositionMs}ms " +
+                        "(attempt $playerResponseReloads/$MAX_PLAYER_RESPONSE_RELOADS)",
+                )
+                io.github.aedev.flow.player.error.PlayerDiagnostics.logWarning(
+                    TAG,
+                    "SABR reload applied at ${controller.sessionState.playheadPositionMs}ms " +
+                        "(attempt $playerResponseReloads/$MAX_PLAYER_RESPONSE_RELOADS) — resuming session",
+                )
+                true
+            }
     }
 
     private suspend fun startFollowUpLoop() {
@@ -288,14 +321,15 @@ class SabrOrchestrator(
 
             val reloadJob = playerResponseReloadJob
             if (reloadJob != null) {
-                val reloaded = try {
-                    reloadJob.await()
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w(TAG, "Player response reload wait failed", e)
-                    false
-                }
+                val reloaded =
+                    try {
+                        reloadJob.await()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Player response reload wait failed", e)
+                        false
+                    }
                 if (playerResponseReloadJob === reloadJob) playerResponseReloadJob = null
                 if (!reloaded) {
                     isRunning = false
@@ -321,8 +355,9 @@ class SabrOrchestrator(
                 break
             }
 
-            val maxGapMs = state.maxTimeSinceLastRequestMs.takeIf { it > 0 }
-                ?: DEFAULT_MAX_REQUEST_GAP_MS
+            val maxGapMs =
+                state.maxTimeSinceLastRequestMs.takeIf { it > 0 }
+                    ?: DEFAULT_MAX_REQUEST_GAP_MS
             val heartbeatDue = now - lastRequestAtMs >= maxGapMs
             if (!heartbeatDue && bufferedAheadMs(state) >= targetReadaheadMs(state)) {
                 continue
@@ -330,18 +365,19 @@ class SabrOrchestrator(
 
             val refreshJob = poTokenRefreshJob
             if (refreshJob != null) {
-                val refreshResult = try {
-                    refreshJob.await()
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    // Distinguish our own cancellation from a superseded refresh job:
-                    // an urgent re-attest cancels the non-urgent mint it replaces.
-                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                    if (poTokenRefreshJob === refreshJob) poTokenRefreshJob = null
-                    continue
-                } catch (e: Exception) {
-                    Log.w(TAG, "PoToken refresh wait failed", e)
-                    PoTokenRefreshResult(success = false, required = true)
-                }
+                val refreshResult =
+                    try {
+                        refreshJob.await()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        // Distinguish our own cancellation from a superseded refresh job:
+                        // an urgent re-attest cancels the non-urgent mint it replaces.
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                        if (poTokenRefreshJob === refreshJob) poTokenRefreshJob = null
+                        continue
+                    } catch (e: Exception) {
+                        Log.w(TAG, "PoToken refresh wait failed", e)
+                        PoTokenRefreshResult(success = false, required = true)
+                    }
                 if (poTokenRefreshJob === refreshJob) poTokenRefreshJob = null
                 if (!refreshResult.success && refreshResult.required) {
                     break
@@ -366,12 +402,14 @@ class SabrOrchestrator(
     }
 
     private fun bufferedAheadMs(state: io.github.aedev.flow.player.sabr.core.SabrSessionState): Long {
-        val audioEndMs = state.audioBufferedRanges.maxOfOrNull { it.startTimeMs + it.durationMs }
-            ?: return 0L
+        val audioEndMs =
+            state.audioBufferedRanges.maxOfOrNull { it.startTimeMs + it.durationMs }
+                ?: return 0L
         // Audio-only mode: video lead is frozen by design — pace by audio alone
         if (state.enabledTrackTypes == 1) return audioEndMs - state.playheadPositionMs
-        val videoEndMs = state.videoBufferedRanges.maxOfOrNull { it.startTimeMs + it.durationMs }
-            ?: return 0L
+        val videoEndMs =
+            state.videoBufferedRanges.maxOfOrNull { it.startTimeMs + it.durationMs }
+                ?: return 0L
         return minOf(audioEndMs, videoEndMs) - state.playheadPositionMs
     }
 
@@ -381,6 +419,6 @@ class SabrOrchestrator(
 
     private data class PoTokenRefreshResult(
         val success: Boolean,
-        val required: Boolean
+        val required: Boolean,
     )
 }

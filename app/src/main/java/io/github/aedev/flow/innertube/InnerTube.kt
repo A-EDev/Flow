@@ -470,6 +470,13 @@ class InnerTube {
         }
     }
 
+    /**
+     * The attested main-site player request behind the SABR path.
+     *
+     * [client] must be a web-like client served from `www.youtube.com/youtubei/v1` — WEB or MWEB.
+     * The Android/iOS clients live on the gapis host with a different header set and do not belong
+     * here.
+     */
     suspend fun playerWeb(
         videoId: String,
         signatureTimestamp: Int?,
@@ -478,8 +485,8 @@ class InnerTube {
         locale: YouTubeLocale,
         cpn: String?,
         reloadToken: String? = null,
+        client: YouTubeClient = YouTubeClient.WEB,
     ) = withRetry {
-        val client = YouTubeClient.WEB
         httpClient.post("https://www.youtube.com/youtubei/v1/player") {
             headers {
                 append("X-Goog-Api-Format-Version", "1")

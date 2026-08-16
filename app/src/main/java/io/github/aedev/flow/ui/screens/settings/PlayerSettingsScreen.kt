@@ -29,9 +29,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.lyrics.LyricsProviderRegistry
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import kotlinx.coroutines.launch
 
@@ -129,6 +131,22 @@ private fun audioLanguageDisplayName(
         fallbackName.orEmpty()
     }
 
+/** Same language list as audio, with "no preference" standing in for "original". */
+private val subtitleLanguageOptions: List<Pair<String, String?>> =
+    listOf(CaptionTrackResolver.NO_PREFERRED_LANGUAGE to null) +
+        audioLanguageOptions.filterNot { it.first == "original" }
+
+@Composable
+private fun subtitleLanguageDisplayName(
+    code: String,
+    fallbackName: String?,
+): String =
+    if (code == CaptionTrackResolver.NO_PREFERRED_LANGUAGE) {
+        stringResource(R.string.player_settings_subtitle_language_none)
+    } else {
+        fallbackName.orEmpty()
+    }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
@@ -136,15 +154,18 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     val playerPreferences = remember { PlayerPreferences(context) }
 
-    val overlayCastEnabled by playerPreferences.overlayCastEnabled.collectAsState(initial = true)
-    val overlayCcEnabled by playerPreferences.overlayCcEnabled.collectAsState(initial = false)
-    val overlayPipEnabled by playerPreferences.overlayPipEnabled.collectAsState(initial = false)
+    val overlayDefaults = remember { PlayerOverlayPreferences() }
+    val overlayCastEnabled by playerPreferences.overlayCastEnabled.collectAsState(overlayDefaults.castEnabled)
+    val overlayCcEnabled by playerPreferences.overlayCcEnabled.collectAsState(overlayDefaults.captionsEnabled)
+    val overlayPipEnabled by playerPreferences.overlayPipEnabled.collectAsState(overlayDefaults.pipEnabled)
     val autoPipEnabled by playerPreferences.autoPipEnabled.collectAsState(initial = false)
-    val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
-    val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = true)
+    val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(overlayDefaults.autoplayEnabled)
+    val overlaySleepTimerEnabled by
+        playerPreferences.overlaySleepTimerEnabled.collectAsState(overlayDefaults.sleepTimerEnabled)
     val overlayLockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
-    val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
-    val overlayCommentsEnabled by playerPreferences.overlayCommentsEnabled.collectAsState(initial = true)
+    val overlaySpeedIndicatorEnabled by
+        playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(overlayDefaults.speedIndicatorEnabled)
+    val overlayCommentsEnabled by playerPreferences.overlayCommentsEnabled.collectAsState(overlayDefaults.commentsEnabled)
 
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
     val queueAutoplayEnabled by playerPreferences.queueAutoplayEnabled.collectAsState(initial = true)
@@ -156,6 +177,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
     val shortsPlaybackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
     val shortsAutoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
+    val preferredSubtitleLanguage by playerPreferences.preferredSubtitleLanguage
+        .collectAsState(initial = CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
+    val autoEnableSubtitles by playerPreferences.autoEnableSubtitles.collectAsState(initial = false)
     val defaultVideoCodec by playerPreferences.defaultVideoCodec.collectAsState(initial = VideoCodec.H264)
     val playDuringCalls by playerPreferences.playDuringCalls.collectAsState(initial = false)
     val lyricsProviderOrder by playerPreferences.lyricsProviderOrder.collectAsState(initial = "")
@@ -167,6 +191,7 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
 
     var showAudioLanguageDialog by remember { mutableStateOf(false) }
+    var showSubtitleLanguageDialog by remember { mutableStateOf(false) }
     var showVideoCodecDialog by remember { mutableStateOf(false) }
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
     var showSeekDurationDialog by remember { mutableStateOf(false) }
@@ -605,6 +630,31 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
+            // Subtitle Settings Section
+            item {
+                SectionHeader(text = stringResource(R.string.filter_subtitles))
+                SettingsGroup {
+                    SettingsClickItem(
+                        icon = Icons.Outlined.ClosedCaption,
+                        title = stringResource(R.string.player_settings_subtitle_language),
+                        subtitle =
+                            subtitleLanguageOptions
+                                .find { it.first == preferredSubtitleLanguage }
+                                ?.let { (code, fallbackName) -> subtitleLanguageDisplayName(code, fallbackName) }
+                                ?: stringResource(R.string.player_settings_subtitle_language_none),
+                        onClick = { showSubtitleLanguageDialog = true },
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Subtitles,
+                        title = stringResource(R.string.player_settings_auto_enable_subtitles),
+                        subtitle = stringResource(R.string.player_settings_auto_enable_subtitles_subtitle),
+                        checked = autoEnableSubtitles,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setAutoEnableSubtitles(it) } },
+                    )
+                }
+            }
+
             // Gestures Settings Section
             item {
                 Text(
@@ -711,6 +761,71 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
             },
             confirmButton = {
                 TextButton(onClick = { showAudioLanguageDialog = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            },
+        )
+    }
+
+    if (showSubtitleLanguageDialog) {
+        AlertDialog(
+            onDismissRequest = { showSubtitleLanguageDialog = false },
+            title = {
+                Text(
+                    stringResource(R.string.player_settings_subtitle_language_dialog_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            text = {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                ) {
+                    Text(
+                        stringResource(R.string.player_settings_subtitle_language_dialog_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 16.dp),
+                    )
+                    subtitleLanguageOptions.forEach { (code, displayName) ->
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch {
+                                            playerPreferences.setPreferredSubtitleLanguage(code)
+                                        }
+                                        showSubtitleLanguageDialog = false
+                                    }.padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = preferredSubtitleLanguage == code,
+                                onClick = null,
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = subtitleLanguageDisplayName(code, displayName),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                if (code == CaptionTrackResolver.NO_PREFERRED_LANGUAGE) {
+                                    Text(
+                                        text = stringResource(R.string.player_settings_subtitle_language_none_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSubtitleLanguageDialog = false }) {
                     Text(stringResource(R.string.btn_close))
                 }
             },
