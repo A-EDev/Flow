@@ -2346,4 +2346,10 @@
     <string name="player_settings_subtitle_language_none_desc">Использовать рекомендуемые субтитры из видео</string>
     <string name="player_settings_auto_enable_subtitles">Автоматически включать субтитры</string>
     <string name="player_settings_auto_enable_subtitles_subtitle">Запускать видео с субтитрами на предпочитаемом языке</string>
+    <string name="player_brightness_auto">Авто</string>
+    <string name="player_gesture_level_percent">%1$d%%</string>
+    <string name="player_replay">Повтор</string>
+    <string name="player_seek_delta_forward">+%1$s</string>
+    <string name="player_seek_delta_back">-%1$s</string>
+    <string name="subtitle_translated">перевод</string>
 </resources>
