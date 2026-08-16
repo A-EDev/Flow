@@ -491,24 +491,6 @@ fun AutoHideControlsEffect(
 }
 
 @Composable
-fun AutoPlayNextEffect(
-    hasEnded: Boolean,
-    autoplayEnabled: Boolean,
-    isLooping: Boolean,
-    hasNextInQueue: Boolean,
-    relatedVideos: List<Video>,
-    onVideoClick: (Video) -> Unit,
-) {
-    LaunchedEffect(hasEnded, autoplayEnabled, isLooping, hasNextInQueue) {
-        if (hasEnded && autoplayEnabled && !isLooping && !hasNextInQueue) {
-            relatedVideos.firstOrNull()?.let { nextVideo ->
-                onVideoClick(nextVideo)
-            }
-        }
-    }
-}
-
-@Composable
 fun GestureOverlayAutoHideEffect(screenState: PlayerScreenState) {
     LaunchedEffect(screenState) {
         snapshotFlow { screenState.showBrightnessOverlay to screenState.brightnessLevel }
@@ -519,7 +501,6 @@ fun GestureOverlayAutoHideEffect(screenState: PlayerScreenState) {
                 }
             }
     }
-
 
     LaunchedEffect(screenState) {
         snapshotFlow { screenState.showVolumeOverlay to screenState.volumeLevel }

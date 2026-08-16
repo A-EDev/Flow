@@ -1799,11 +1799,3 @@ fun ShortsActionButton(
         }
     }
 }
-
-fun formatViewCount(count: Long): String =
-    when {
-        count >= 1_000_000_000 -> String.format("%.1fB", count / 1_000_000_000.0)
-        count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-        count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
-        else -> count.toString()
-    }

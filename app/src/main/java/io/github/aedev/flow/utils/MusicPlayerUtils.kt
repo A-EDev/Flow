@@ -197,6 +197,7 @@ object MusicPlayerUtils {
             var sts: Int? = null
             var audioPreferences: AudioSelectionPreferences? = null
             val sessionId = if (isLoggedIn()) YouTube.dataSyncId else YouTube.visitorData
+
             suspend fun audioPreferences(): AudioSelectionPreferences =
                 audioPreferences ?: loadAudioSelectionPreferences().also { audioPreferences = it }
 
@@ -600,7 +601,7 @@ object MusicPlayerUtils {
         return when (preferredMusicAudioQuality) {
             MusicAudioQuality.AUTO,
             MusicAudioQuality.HIGH,
-                -> formatsWithKnownBitrate.maxByOrNull { it.audioQualityScore() }
+            -> formatsWithKnownBitrate.maxByOrNull { it.audioQualityScore() }
 
             MusicAudioQuality.MEDIUM -> formatsWithKnownBitrate.minByOrNull { abs(it.audioBitrate() - MEDIUM_BITRATE_TARGET) }
 

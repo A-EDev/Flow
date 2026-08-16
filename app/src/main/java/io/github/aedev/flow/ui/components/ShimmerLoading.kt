@@ -27,57 +27,57 @@ fun Modifier.shimmerEffect(
     shape: Shape = RoundedCornerShape(8.dp),
     durationMillis: Int = 1200,
     delayMillis: Int = 0,
-): Modifier  {
-        var size by remember { mutableStateOf(IntSize.Zero) }
+): Modifier {
+    var size by remember { mutableStateOf(IntSize.Zero) }
 
-        val transition = rememberInfiniteTransition(label = "shimmer")
-        val progress by transition.animateFloat(
-            initialValue = -1f,
-            targetValue = 2f,
-            animationSpec =
-                infiniteRepeatable(
-                    animation =
-                        tween(
-                            durationMillis = durationMillis,
-                            delayMillis = delayMillis,
-                            easing = LinearEasing,
-                        ),
-                    repeatMode = RepeatMode.Restart,
-                ),
-            label = "shimmer_progress",
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val progress by transition.animateFloat(
+        initialValue = -1f,
+        targetValue = 2f,
+        animationSpec =
+            infiniteRepeatable(
+                animation =
+                    tween(
+                        durationMillis = durationMillis,
+                        delayMillis = delayMillis,
+                        easing = LinearEasing,
+                    ),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "shimmer_progress",
+    )
+
+    val surfaceColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+    val highlightColor = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp).copy(alpha = 0.15f)
+
+    val shimmerColors =
+        listOf(
+            surfaceColor,
+            surfaceColor,
+            highlightColor.copy(alpha = 0.9f),
+            highlightColor,
+            highlightColor.copy(alpha = 0.9f),
+            surfaceColor,
+            surfaceColor,
         )
 
-        val surfaceColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-        val highlightColor = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp).copy(alpha = 0.15f)
+    val diagonal = max(size.width.toFloat(), size.height.toFloat()) * 1.5f
+    val startOffset = diagonal * progress
+    val endOffset = startOffset + diagonal * 0.6f
 
-        val shimmerColors =
-            listOf(
-                surfaceColor,
-                surfaceColor,
-                highlightColor.copy(alpha = 0.9f),
-                highlightColor,
-                highlightColor.copy(alpha = 0.9f),
-                surfaceColor,
-                surfaceColor,
-            )
+    val brush =
+        Brush.linearGradient(
+            colors = shimmerColors,
+            start = Offset(startOffset, startOffset * 0.5f),
+            end = Offset(endOffset, endOffset * 0.5f),
+        )
 
-        val diagonal = max(size.width.toFloat(), size.height.toFloat()) * 1.5f
-        val startOffset = diagonal * progress
-        val endOffset = startOffset + diagonal * 0.6f
-
-        val brush =
-            Brush.linearGradient(
-                colors = shimmerColors,
-                start = Offset(startOffset, startOffset * 0.5f),
-                end = Offset(endOffset, endOffset * 0.5f),
-            )
-
-        returnthis
-            .onGloballyPositioned { coordinates ->
-                size = coordinates.size
-            }.clip(shape)
-            .background(brush, shape)
-    }
+    return this
+        .onGloballyPositioned { coordinates ->
+            size = coordinates.size
+        }.clip(shape)
+        .background(brush, shape)
+}
 
 @Composable
 fun ShimmerBone(
@@ -308,81 +308,6 @@ fun ShimmerVideoCardHorizontal(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ShimmerVideoCard(modifier: Modifier = Modifier) {
-    Column(modifier = modifier.width(180.dp)) {
-        // Thumbnail
-        Box {
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f),
-                shape = RoundedCornerShape(12.dp),
-            )
-
-            // Duration badge
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .width(32.dp)
-                        .height(14.dp),
-                shape = RoundedCornerShape(3.dp),
-                delayMillis = 100,
-            )
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            // Channel avatar
-            ShimmerBone(
-                modifier = Modifier.size(32.dp),
-                shape = CircleShape,
-                delayMillis = 80,
-            )
-
-            Column(modifier = Modifier.weight(1f)) {
-                // Title
-                ShimmerBone(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(12.dp),
-                    delayMillis = 120,
-                )
-
-                Spacer(Modifier.height(6.dp))
-
-                ShimmerBone(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(0.70f)
-                            .height(12.dp),
-                    delayMillis = 160,
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                // Channel name
-                ShimmerBone(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(0.50f)
-                            .height(10.dp),
-                    shape = RoundedCornerShape(3.dp),
-                    delayMillis = 200,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun ShimmerGridItem(
     modifier: Modifier = Modifier,
     thumbnailAspectRatio: Float = 1f,
@@ -416,119 +341,6 @@ fun ShimmerGridItem(
                     .fillMaxWidth(0.55f)
                     .height(11.dp),
             shape = RoundedCornerShape(4.dp),
-            delayMillis = 140,
-        )
-    }
-}
-
-@Composable
-fun ShimmerMusicTrack(
-    modifier: Modifier = Modifier,
-    showTrackNumber: Boolean = false,
-) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // Track number
-        if (showTrackNumber) {
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .width(20.dp)
-                        .height(12.dp),
-                shape = RoundedCornerShape(3.dp),
-            )
-        }
-
-        // Album art
-        ShimmerBone(
-            modifier = Modifier.size(48.dp),
-            shape = RoundedCornerShape(6.dp),
-            delayMillis = 40,
-        )
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            // Song title
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.70f)
-                        .height(13.dp),
-                delayMillis = 80,
-            )
-
-            // Artist name
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.45f)
-                        .height(11.dp),
-                shape = RoundedCornerShape(4.dp),
-                delayMillis = 120,
-            )
-        }
-
-        // Duration
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .width(32.dp)
-                    .height(11.dp),
-            shape = RoundedCornerShape(4.dp),
-            delayMillis = 160,
-        )
-
-        // More button
-        ShimmerBone(
-            modifier = Modifier.size(20.dp),
-            shape = CircleShape,
-            delayMillis = 200,
-        )
-    }
-}
-
-@Composable
-fun ShimmerAlbumCard(
-    modifier: Modifier = Modifier,
-    size: Dp = 140.dp,
-) {
-    Column(
-        modifier = modifier.width(size),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // Album art
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .size(size)
-                    .fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-        )
-
-        // Album name
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .fillMaxWidth(0.85f)
-                    .height(12.dp),
-            delayMillis = 80,
-        )
-
-        // Artist
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .fillMaxWidth(0.55f)
-                    .height(10.dp),
-            shape = RoundedCornerShape(3.dp),
             delayMillis = 140,
         )
     }
@@ -597,141 +409,6 @@ fun ShimmerMoodButton(modifier: Modifier = Modifier) {
                 .fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
     )
-}
-
-@Composable
-fun ShimmerChannelHeader(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        // Banner
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
-                    .fillMaxWidth()
-                    .aspectRatio(CHANNEL_BANNER_ASPECT_RATIO),
-            shape = MaterialTheme.shapes.medium,
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        // Avatar
-        ShimmerBone(
-            modifier = Modifier.size(72.dp),
-            shape = CircleShape,
-            delayMillis = 80,
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        // Channel name
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .width(160.dp)
-                    .height(18.dp),
-            delayMillis = 140,
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        // Subscriber count + video count
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .width(200.dp)
-                    .height(12.dp),
-            shape = RoundedCornerShape(4.dp),
-            delayMillis = 200,
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        // Subscribe button
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .width(120.dp)
-                    .height(36.dp),
-            shape = RoundedCornerShape(18.dp),
-            delayMillis = 260,
-        )
-    }
-}
-
-@Composable
-fun ShimmerComment(modifier: Modifier = Modifier) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        // User avatar
-        ShimmerBone(
-            modifier = Modifier.size(32.dp),
-            shape = CircleShape,
-        )
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            // Username + timestamp
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.35f)
-                        .height(11.dp),
-                shape = RoundedCornerShape(3.dp),
-                delayMillis = 60,
-            )
-
-            // Comment text line 1
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.95f)
-                        .height(12.dp),
-                delayMillis = 100,
-            )
-
-            // Comment text line 2
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.70f)
-                        .height(12.dp),
-                delayMillis = 140,
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            // Like/reply buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                ShimmerBone(
-                    modifier =
-                        Modifier
-                            .width(40.dp)
-                            .height(10.dp),
-                    shape = RoundedCornerShape(3.dp),
-                    delayMillis = 180,
-                )
-                ShimmerBone(
-                    modifier =
-                        Modifier
-                            .width(40.dp)
-                            .height(10.dp),
-                    shape = RoundedCornerShape(3.dp),
-                    delayMillis = 220,
-                )
-            }
-        }
-    }
 }
 
 /**

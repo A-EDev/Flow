@@ -33,7 +33,6 @@ import kotlinx.serialization.json.Json
  * setters here, so tuning persists across tracks, player restarts, and both playback surfaces.
  */
 object AudioEffectsController {
-
     /** Reserved profile name for the user's live-edited (unsaved) EQ curve. */
     const val CUSTOM_PROFILE = "Custom"
 
@@ -54,18 +53,21 @@ object AudioEffectsController {
     private val _bassBoost = MutableStateFlow(0f)
     val bassBoost: StateFlow<Float> = _bassBoost.asStateFlow()
 
-    private val _customEq = MutableStateFlow(ParametricEQ.createFlat())
-    val customEq: StateFlow<ParametricEQ> = _customEq.asStateFlow()
+    private val customEq = MutableStateFlow(ParametricEQ.createFlat())
 
     private val _customPresets = MutableStateFlow<Map<String, ParametricEQ>>(emptyMap())
     val customPresets: StateFlow<Map<String, ParametricEQ>> = _customPresets.asStateFlow()
 
     /** The profile the audio pipelines should actually run: selected preset + bass boost folded in. */
-    val resolvedEq: StateFlow<ParametricEQ> = combine(
-        _eqProfileName, _bassBoost, _customEq, _customPresets
-    ) { name, boost, custom, presets ->
-        foldBassBoost(resolveProfile(name, custom, presets), boost)
-    }.stateIn(scope, SharingStarted.Eagerly, ParametricEQ.createFlat())
+    val resolvedEq: StateFlow<ParametricEQ> =
+        combine(
+            _eqProfileName,
+            _bassBoost,
+            customEq,
+            _customPresets,
+        ) { name, boost, custom, presets ->
+            foldBassBoost(resolveProfile(name, custom, presets), boost)
+        }.stateIn(scope, SharingStarted.Eagerly, ParametricEQ.createFlat())
 
     fun initialize(context: Context) {
         if (isInitialized) return
@@ -78,12 +80,15 @@ object AudioEffectsController {
                     _customPresets.value = json.decodeFromString(presetsMapSerializer, raw)
                 }
                 store.customEqJsonFlow.first()?.let { raw ->
-                    _customEq.value = json.decodeFromString(ParametricEQ.serializer(), raw)
+                    customEq.value = json.decodeFromString(ParametricEQ.serializer(), raw)
                 }
                 val settings = store.settingsFlow.first()
                 _bassBoost.value = settings.bassBoost
                 _eqProfileName.value = settings.eqProfile
-                Log.d(TAG, "Restored EQ state: profile=${settings.eqProfile}, bass=${settings.bassBoost}, customPresets=${_customPresets.value.keys}")
+                Log.d(
+                    TAG,
+                    "Restored EQ state: profile=${settings.eqProfile}, bass=${settings.bassBoost}, customPresets=${_customPresets.value.keys}",
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to restore EQ state", e)
             }
@@ -91,13 +96,12 @@ object AudioEffectsController {
     }
 
     /** Built-in preset names plus saved custom presets, in display order. */
-    fun availablePresetNames(): List<String> =
-        EqPresets.presets.keys.sorted() + _customPresets.value.keys.sorted()
+    fun availablePresetNames(): List<String> = EqPresets.presets.keys.sorted() + _customPresets.value.keys.sorted()
 
     fun isCustomPreset(name: String): Boolean = _customPresets.value.containsKey(name)
 
     /** The bands/preamp the editor should show for a profile name (without bass boost folded in). */
-    fun editableProfile(name: String): ParametricEQ = resolveProfile(name, _customEq.value, _customPresets.value)
+    fun editableProfile(name: String): ParametricEQ = resolveProfile(name, customEq.value, _customPresets.value)
 
     fun setEqProfile(name: String) {
         _eqProfileName.value = name
@@ -114,16 +118,17 @@ object AudioEffectsController {
      * [CUSTOM_PROFILE] and persists the curve (debounced — slider drags emit rapidly).
      */
     fun setCustomEq(profile: ParametricEQ) {
-        _customEq.value = profile
+        customEq.value = profile
         if (_eqProfileName.value != CUSTOM_PROFILE) {
             _eqProfileName.value = CUSTOM_PROFILE
             scope.launch { persistence?.saveEqProfile(CUSTOM_PROFILE) }
         }
         customEqSaveJob?.cancel()
-        customEqSaveJob = scope.launch {
-            delay(CUSTOM_EQ_SAVE_DEBOUNCE_MS)
-            persistence?.saveCustomEqJson(json.encodeToString(ParametricEQ.serializer(), profile))
-        }
+        customEqSaveJob =
+            scope.launch {
+                delay(CUSTOM_EQ_SAVE_DEBOUNCE_MS)
+                persistence?.saveCustomEqJson(json.encodeToString(ParametricEQ.serializer(), profile))
+            }
     }
 
     /** Save the currently shown curve under [name] and select it. Returns false for invalid names. */
@@ -151,26 +156,32 @@ object AudioEffectsController {
     private fun resolveProfile(
         name: String,
         custom: ParametricEQ,
-        presets: Map<String, ParametricEQ>
-    ): ParametricEQ = when {
-        name == CUSTOM_PROFILE -> custom
-        else -> EqPresets.presets[name] ?: presets[name] ?: ParametricEQ.createFlat()
-    }
+        presets: Map<String, ParametricEQ>,
+    ): ParametricEQ =
+        when {
+            name == CUSTOM_PROFILE -> custom
+            else -> EqPresets.presets[name] ?: presets[name] ?: ParametricEQ.createFlat()
+        }
 
     /** Fold the bass-boost slider into the profile as a low-shelf band (merging with an existing one). */
-    private fun foldBassBoost(base: ParametricEQ, boost: Float): ParametricEQ {
+    private fun foldBassBoost(
+        base: ParametricEQ,
+        boost: Float,
+    ): ParametricEQ {
         if (boost <= 0f) return base
-        val existingIndex = base.bands.indexOfFirst {
-            it.filterType == FilterType.LSC && it.frequency in 40.0..80.0
-        }
-        val newBands = if (existingIndex >= 0) {
-            base.bands.toMutableList().also { bands ->
-                val existing = bands[existingIndex]
-                bands[existingIndex] = existing.copy(gain = existing.gain + boost.toDouble())
+        val existingIndex =
+            base.bands.indexOfFirst {
+                it.filterType == FilterType.LSC && it.frequency in 40.0..80.0
             }
-        } else {
-            listOf(ParametricEQBand(60.0, boost.toDouble(), 0.7, FilterType.LSC)) + base.bands
-        }
+        val newBands =
+            if (existingIndex >= 0) {
+                base.bands.toMutableList().also { bands ->
+                    val existing = bands[existingIndex]
+                    bands[existingIndex] = existing.copy(gain = existing.gain + boost.toDouble())
+                }
+            } else {
+                listOf(ParametricEQBand(60.0, boost.toDouble(), 0.7, FilterType.LSC)) + base.bands
+            }
         return base.copy(bands = newBands)
     }
 }

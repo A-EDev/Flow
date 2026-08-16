@@ -280,35 +280,3 @@ private fun MusicPlaylistSheetRow(
         )
     }
 }
-
-@Composable
-private fun OptionItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        color = Color.Transparent,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-
-            Spacer(Modifier.width(16.dp))
-
-            Text(
-                text,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
-    }
-}

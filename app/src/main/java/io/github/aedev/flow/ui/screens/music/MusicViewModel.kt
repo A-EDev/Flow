@@ -760,15 +760,6 @@ class MusicViewModel
             }
         }
 
-        fun setFilter(filter: String?) {
-            _uiState.value = _uiState.value.copy(selectedFilter = filter)
-            if (filter != null) {
-                loadGenreTracks(filter)
-            } else {
-                _uiState.value = _uiState.value.copy(allSongs = _uiState.value.trendingSongs)
-            }
-        }
-
         fun setHomeChip(chip: HomePage.Chip?) {
             _uiState.update { it.copy(selectedHomeChip = chip) }
             if (chip != null && chip.endpoint != null) {
@@ -787,97 +778,6 @@ class MusicViewModel
                 }
             } else {
                 loadMusicContent()
-            }
-        }
-
-        /**
-         *  PERFORMANCE OPTIMIZED: Search with parallel query execution
-         */
-        fun searchMusic(query: String) {
-            if (query.isBlank()) {
-                _uiState.value = _uiState.value.copy(allSongs = _uiState.value.trendingSongs)
-                return
-            }
-
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                // Check cache
-                val cached = MusicCache.getSearchResults(query)
-                if (cached != null) {
-                    _uiState.value = _uiState.value.copy(allSongs = cached, isSearching = false)
-                    return@launch
-                }
-
-                _uiState.value = _uiState.value.copy(isSearching = true)
-                try {
-                    //  PARALLEL: Search tracks and artists simultaneously
-                    supervisorScope {
-                        val resultsDeferred =
-                            async(PerformanceDispatcher.networkIO) {
-                                withTimeoutOrNull(12_000L) {
-                                    YouTubeMusicService.searchMusic(query, 60)
-                                } ?: emptyList()
-                            }
-                        val artistsDeferred =
-                            async(PerformanceDispatcher.networkIO) {
-                                withTimeoutOrNull(8_000L) {
-                                    YouTubeMusicService.searchArtists(query, 5)
-                                } ?: emptyList()
-                            }
-
-                        val results = resultsDeferred.await()
-                        val artists = artistsDeferred.await()
-
-                        MusicCache.cacheSearchResults(query, results)
-                        _uiState.value =
-                            _uiState.value.copy(
-                                allSongs = results,
-                                searchResultsArtists = artists,
-                                isSearching = false,
-                            )
-                    }
-                } catch (e: Exception) {
-                    Log.e("MusicViewModel", "Search error", e)
-                    _uiState.value = _uiState.value.copy(isSearching = false)
-                }
-            }
-        }
-
-        /**
-         *  PERFORMANCE OPTIMIZED: Load genre tracks with timeout
-         */
-        fun loadGenreTracks(genre: String) {
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                // Check cache
-                val cached = MusicCache.getGenreTracks(genre, 100)
-                if (cached != null) {
-                    _uiState.value =
-                        _uiState.value.copy(
-                            allSongs = cached,
-                            selectedGenre = genre,
-                            isSearching = false,
-                        )
-                    return@launch
-                }
-
-                _uiState.value = _uiState.value.copy(isSearching = true)
-                try {
-                    val tracks =
-                        withTimeoutOrNull(12_000L) {
-                            YouTubeMusicService.fetchMusicByGenre(genre, 60)
-                        } ?: emptyList()
-
-                    if (tracks.isNotEmpty()) {
-                        MusicCache.cacheGenreTracks(genre, 60, tracks)
-                    }
-                    _uiState.value =
-                        _uiState.value.copy(
-                            allSongs = tracks,
-                            selectedGenre = genre,
-                            isSearching = false,
-                        )
-                } catch (e: Exception) {
-                    _uiState.value = _uiState.value.copy(isSearching = false)
-                }
             }
         }
 

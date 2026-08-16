@@ -1771,12 +1771,3 @@ private fun SearchErrorState(
         }
     }
 }
-
-@Composable
-private fun Dot() {
-    Text(
-        "\u00B7",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-    )
-}

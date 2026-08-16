@@ -1574,42 +1574,6 @@ class HomeViewModel
             }
         }
 
-        fun loadTrendingVideos() {
-            if (_uiState.value.isLoading && _uiState.value.videos.isEmpty()) return
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            viewModelScope.launch {
-                try {
-                    val region = playerPreferences.trendingRegion.first()
-                    val (videos, nextPage) = repository.getTrendingVideos(region, null)
-                    currentPage = nextPage
-
-                    val userSubs = subscriptionRepository.getAllSubscriptionIds()
-                    val ranked =
-                        FlowNeuroEngine.rank(
-                            videos.filterRecentHomeSuggestion(System.currentTimeMillis()),
-                            userSubs,
-                        )
-                    updateVideosAndShorts(ranked, append = false)
-
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            hasMorePages = nextPage != null,
-                            isFlowFeed = false,
-                        )
-                    }
-                } catch (e: Exception) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = e.message ?: appContext.getString(R.string.error_failed_to_load_videos),
-                        )
-                    }
-                }
-            }
-        }
-
         private suspend fun loadTrendingFallback() {
             val region = playerPreferences.trendingRegion.first()
             val (videos, nextPage) = repository.getTrendingVideos(region, null)

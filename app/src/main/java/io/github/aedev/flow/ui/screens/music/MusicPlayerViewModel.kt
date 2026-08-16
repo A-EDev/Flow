@@ -412,10 +412,6 @@ class MusicPlayerViewModel
             EnhancedMusicPlayerManager.pause()
         }
 
-        fun toggleAutoplay() {
-            _uiState.update { it.copy(autoplayEnabled = !it.autoplayEnabled) }
-        }
-
         fun setFilter(filter: String) {
             val currentTrack = _uiState.value.currentTrack ?: return
             _uiState.update { it.copy(selectedFilter = filter, isRelatedLoading = true) }
@@ -521,26 +517,6 @@ class MusicPlayerViewModel
             EnhancedMusicPlayerManager.playFromQueue(index)
         }
 
-        fun switchMode(isVideo: Boolean) {
-            val currentTrack = _uiState.value.currentTrack ?: return
-            viewModelScope.launch {
-                try {
-                    val url =
-                        if (isVideo) {
-                            YouTubeMusicService.getVideoUrl(currentTrack.videoId)
-                        } else {
-                            YouTubeMusicService.getAudioUrl(currentTrack.videoId)
-                        }
-
-                    if (url != null) {
-                        EnhancedMusicPlayerManager.switchMode(url)
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-
         fun fetchRelatedContent(videoId: String) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 _uiState.update { it.copy(isRelatedLoading = true) }
@@ -561,10 +537,6 @@ class MusicPlayerViewModel
                     _uiState.update { it.copy(isRelatedLoading = false) }
                 }
             }
-        }
-
-        fun removeFromQueue(index: Int) {
-            EnhancedMusicPlayerManager.removeFromQueue(index)
         }
 
         fun toggleShuffle() {
@@ -682,10 +654,6 @@ class MusicPlayerViewModel
                 }
             }
         }
-
-        suspend fun isTrackDownloaded(videoId: String): Boolean = downloadManager.isDownloaded(videoId)
-
-        suspend fun isTrackFavorite(videoId: String): Boolean = playlistRepository.isFavorite(videoId)
 
         private var lyricsJob: kotlinx.coroutines.Job? = null
 
