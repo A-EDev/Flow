@@ -2377,4 +2377,19 @@
     <string name="import_no_content">Aucun contenu importable n\'a été détecté dans cette sauvegarde</string>
     <string name="import_invalid_format">Format de sauvegarde non reconnu — assurez-vous d\'avoir sélectionné le bon fichier</string>
     <string name="import_failed_template">Échec de l\'importation : %1$s</string>
+    <string name="player_appearance_seek_gesture_title">Geste de recherche</string>
+    <string name="player_appearance_seek_gesture_subtitle">En mode plein écran, faites glisser votre doigt horizontalement pour faire défiler la vidéo</string>
+    <string name="player_settings_subtitle_language">Langue préférée pour les sous-titres</string>
+    <string name="player_settings_subtitle_language_dialog_title">Langue des sous-titres</string>
+    <string name="player_settings_subtitle_language_dialog_body">Les sous-titres s\'affichent dans cette langue lorsqu\'ils sont disponibles. Si la vidéo ne contient aucune piste, Flow utilise la traduction proposée par YouTube d\'une piste existante. Le choix d\'un sous-titre pendant la lecture met également celle-ci à jour.</string>
+    <string name="player_settings_subtitle_language_none">Aucune préférence</string>
+    <string name="player_settings_subtitle_language_none_desc">Utilisez la première piste de sous-titres proposée par la vidéo</string>
+    <string name="player_settings_auto_enable_subtitles">Activer automatiquement les sous-titres</string>
+    <string name="player_settings_auto_enable_subtitles_subtitle">Commencez chaque vidéo avec des sous-titres dans la langue de votre choix</string>
+    <string name="subtitle_translated">traduit</string>
+    <string name="player_brightness_auto">Auto</string>
+    <string name="player_gesture_level_percent">%1$d%%</string>
+    <string name="player_replay">Rediffusion</string>
+    <string name="player_seek_delta_forward">+%1$s</string>
+    <string name="player_seek_delta_back">-%1$s</string>
 </resources>
