@@ -271,11 +271,11 @@ It is distributed under the **GNU General Public License v3 (GPLv3)**.
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=A-EDev%2FFlow&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#A-EDev/Flow&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=A-EDev/Flow&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=A-EDev/Flow&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=A-EDev/Flow&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=A-EDev/Flow&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=A-EDev/Flow&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=A-EDev/Flow&type=date&legend=top-left" />
  </picture>
 </a>
 
