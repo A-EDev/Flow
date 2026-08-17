@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
+import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
@@ -1348,9 +1349,9 @@ class YouTubeRepository
 
             var durationSecs = if (duration > 0) duration.toInt() else 0
 
-            val isShortUrl = rawUrl.contains("/shorts/")
+            val isReel = ShortsClassifier.isReel(this)
 
-            if (isShortUrl && durationSecs == 0) {
+            if (isReel && durationSecs == 0) {
                 durationSecs = 60
             }
 
@@ -1410,7 +1411,7 @@ class YouTubeRepository
                 channelThumbnailUrls = avatarUrls,
                 isUpcoming = streamType == StreamType.NONE,
                 isLive = isLiveStream,
-                isShort = isShortUrl,
+                isShort = isReel,
                 isMusic = isMusicCandidate,
             )
         }

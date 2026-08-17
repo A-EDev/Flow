@@ -224,8 +224,7 @@ internal object NeuroScoring {
         // Subscription boost with freshness amplifier
         val isSub = userSubs.contains(video.channelId)
         if (isSub) {
-            val isShort = video.isShort || (video.duration in 1..120 && !video.isLive)
-            val subBoost = if (isShort) SUBSCRIPTION_BOOST * 3.0 else SUBSCRIPTION_BOOST
+            val subBoost = if (video.isShort) SUBSCRIPTION_BOOST * 3.0 else SUBSCRIPTION_BOOST
 
             val freshnessMultiplier = when {
                 !TimeDecay.isOlderThan24Hours(video.uploadDate) -> 2.0

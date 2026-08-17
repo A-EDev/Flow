@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.innertube
 
 import android.util.Log
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.data.subscriptions.ChannelRssClient
 import io.github.aedev.flow.data.subscriptions.ChannelRssEntry
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -563,7 +564,7 @@ class RssSubscriptionService
         private fun StreamInfoItem.isActiveLiveStream(): Boolean =
             streamType == StreamType.LIVE_STREAM || streamType == StreamType.AUDIO_LIVE_STREAM
 
-        private fun StreamInfoItem.isLikelyShort(): Boolean = isShortFormContent || url.contains("/shorts/", ignoreCase = true)
+        private fun StreamInfoItem.isLikelyShort(): Boolean = ShortsClassifier.isReel(this)
 
         private fun formatRelativeTime(timestampMillis: Long): String = formatYouTubeRelativeTime(timestampMillis)
 

@@ -1,0 +1,93 @@
+package io.github.aedev.flow.data.shorts.queue
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ShortsQueueSourceTest {
+    private fun roundTrip(source: ShortsQueueSource) = ShortsQueueSource.decode(source.encode())
+
+    @Test
+    fun `feed round trips`() {
+        assertEquals(ShortsQueueSource.Feed, roundTrip(ShortsQueueSource.Feed))
+    }
+
+    @Test
+    fun `saved round trips`() {
+        assertEquals(ShortsQueueSource.Saved, roundTrip(ShortsQueueSource.Saved))
+    }
+
+    @Test
+    fun `seeded feed round trips`() {
+        val source = ShortsQueueSource.SeededFeed("abcdefghijk")
+        assertEquals(source, roundTrip(source))
+    }
+
+    @Test
+    fun `snapshot round trips`() {
+        val source = ShortsQueueSource.Snapshot(token = "tok123", startVideoId = "abcdefghijk")
+        assertEquals(source, roundTrip(source))
+    }
+
+    @Test
+    fun `channel round trips despite colons in the url`() {
+        // The channel URL carries its own scheme colon, so decoding must only consume the separators
+        // it owns.
+        val source =
+            ShortsQueueSource.Channel(
+                channelUrl = "https://www.youtube.com/channel/UCabcdefg",
+                startVideoId = "abcdefghijk",
+            )
+
+        assertEquals(source, roundTrip(source))
+    }
+
+    // ── Degradation: a bad descriptor must never fail navigation ──
+
+    @Test
+    fun `null and blank decode to the feed`() {
+        assertEquals(ShortsQueueSource.Feed, ShortsQueueSource.decode(null))
+        assertEquals(ShortsQueueSource.Feed, ShortsQueueSource.decode(""))
+        assertEquals(ShortsQueueSource.Feed, ShortsQueueSource.decode("   "))
+    }
+
+    @Test
+    fun `unknown kind decodes to the feed`() {
+        assertEquals(ShortsQueueSource.Feed, ShortsQueueSource.decode("wat:xyz"))
+    }
+
+    @Test
+    fun `truncated snapshot decodes to the feed`() {
+        assertEquals(ShortsQueueSource.Feed, ShortsQueueSource.decode("snap:"))
+    }
+
+    @Test
+    fun `channel without a url decodes to the feed`() {
+        assertEquals(ShortsQueueSource.Feed, ShortsQueueSource.decode("channel:abcdefghijk"))
+    }
+
+    // ── Behavioural properties the controller depends on ──
+
+    @Test
+    fun `only anchored sources report a start short`() {
+        assertEquals("abcdefghijk", ShortsQueueSource.SeededFeed("abcdefghijk").openAtVideoId)
+        assertEquals("abcdefghijk", ShortsQueueSource.Snapshot("t", "abcdefghijk").openAtVideoId)
+        assertEquals("abcdefghijk", ShortsQueueSource.Channel("u", "abcdefghijk").openAtVideoId)
+        assertEquals(null, ShortsQueueSource.Feed.openAtVideoId)
+        assertEquals(null, ShortsQueueSource.Saved.openAtVideoId)
+    }
+
+    @Test
+    fun `blank start short reads as absent`() {
+        assertEquals(null, ShortsQueueSource.Snapshot("t", "").openAtVideoId)
+    }
+
+    @Test
+    fun `shelves and channel tabs continue into the feed, saved does not`() {
+        assertTrue(ShortsQueueSource.Snapshot("t", "v").continuesIntoFeed)
+        assertTrue(ShortsQueueSource.Channel("u", "v").continuesIntoFeed)
+        assertFalse("saved Shorts is a deliberate collection", ShortsQueueSource.Saved.continuesIntoFeed)
+        assertFalse("the feed is already the feed", ShortsQueueSource.Feed.continuesIntoFeed)
+    }
+}

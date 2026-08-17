@@ -71,7 +71,7 @@ internal fun WebSearchItem.toSearchResultItem(): SearchResultItem =
                     uploadDate = uploadDate,
                     channelThumbnailUrl = channelThumbnailUrls.firstOrNull().orEmpty(),
                     channelThumbnailUrls = channelThumbnailUrls,
-                    isShort = duration in 1..60,
+                    isShort = isShort,
                     isLive = isLive,
                 )
             )

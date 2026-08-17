@@ -1,6 +1,7 @@
 package io.github.aedev.flow.player.stream
 
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -66,7 +67,7 @@ object StreamInfoVideoMapper {
                 .firstOrNull()
                 .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
 
-        val isShortUrl = rawUrl.contains("/shorts/")
+        val isReel = ShortsClassifier.isReel(this)
         val isLiveStream = streamType == StreamType.LIVE_STREAM
         val durationSecs =
             when {
@@ -75,7 +76,7 @@ object StreamInfoVideoMapper {
                 duration > 0 -> duration.toInt()
 
                 // Shorts feed items report no duration; 60s is the format's ceiling.
-                isShortUrl -> 60
+                isReel -> 60
 
                 else -> 0
             }
@@ -101,7 +102,7 @@ object StreamInfoVideoMapper {
             channelThumbnailUrl = uploaderAvatars.sortedByDescending { it.height }.firstOrNull()?.url ?: "",
             isUpcoming = streamType == StreamType.NONE,
             isLive = isLiveStream,
-            isShort = isShortUrl,
+            isShort = isReel,
             isMusic = isMusicCandidate,
         )
     }

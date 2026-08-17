@@ -157,8 +157,10 @@ internal fun ShortVideoPage(
     val ambientActive = isActive && settings.ambientModeEnabled
     val ambientFrame =
         rememberAmbientFrame(playerView, ambientActive) {
-            playerPool.getPlayerForIndex(pageIndex)?.isPlaying == true
+            playerPool.ownedPlayer(pageIndex)?.isPlaying == true
         }
+
+    val ownershipGeneration by playerPool.ownershipGeneration.collectAsState()
 
     // Register a MediaSessionCompat so earphone / Bluetooth media buttons (play-pause)
     // work while a short is active. Re-created every time isActive changes; released on dispose.
@@ -195,13 +197,12 @@ internal fun ShortVideoPage(
     }
 
     // ── Initialize player pool and handle playback when visibility changes ──
-    LaunchedEffect(isActive, video.id) {
+    LaunchedEffect(isActive, video.id, ownershipGeneration) {
         if (isActive) {
-            pageState.hasStartedPlaying = false
             playerPool.initialize(context)
             EnhancedMusicPlayerManager.pause()
 
-            val player = playerPool.getPlayerForIndex(pageIndex)
+            val player = playerPool.playerForAttach(pageIndex)
             playerView.player = player
 
             if (player != null && player.isPlaying) {
@@ -210,6 +211,10 @@ internal fun ShortVideoPage(
         } else {
             playerView.player = null
         }
+    }
+
+    LaunchedEffect(isActive, video.id) {
+        if (isActive) pageState.hasStartedPlaying = false
     }
 
     // ── Add listener to detect when video ends (for auto-play-next) ──
@@ -258,8 +263,8 @@ internal fun ShortVideoPage(
         }
     }
 
-    DisposableEffect(isActive, pageIndex, settings.playbackMode, settings.autoScrollSeconds) {
-        val player = playerPool.getPlayerForIndex(pageIndex)
+    DisposableEffect(isActive, pageIndex, ownershipGeneration, settings.playbackMode, settings.autoScrollSeconds) {
+        val player = playerPool.ownedPlayer(pageIndex)
         val eventListener =
             object : androidx.media3.common.Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -289,7 +294,7 @@ internal fun ShortVideoPage(
     LaunchedEffect(isActive, pageIndex, settings.playbackMode, settings.autoScrollSeconds) {
         if (isActive) {
             while (true) {
-                val p = playerPool.getPlayerForIndex(pageIndex)
+                val p = playerPool.ownedPlayer(pageIndex)
                 if (p != null) {
                     val position = p.currentPosition.coerceAtLeast(0L)
                     val safeDuration = p.duration.coerceAtLeast(0L)
@@ -377,7 +382,7 @@ internal fun ShortVideoPage(
 
     fun togglePlaybackWithFeedback() {
         playerPool.togglePlayPause()
-        val player = playerPool.getPlayerForIndex(pageIndex)
+        val player = playerPool.ownedPlayer(pageIndex)
         if (player != null) pageState.isPlaying = player.isPlaying
         pageState.showPauseIndicator = true
         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1049,7 +1054,7 @@ internal fun ShortVideoPage(
                     pageState.isLoadingStreams = true
                     scope.launch {
                         pageState.availableQualities = viewModel.getAvailableQualities(video.id)
-                        val activeFormat = playerPool.getPlayerForIndex(pageIndex)?.videoFormat
+                        val activeFormat = playerPool.ownedPlayer(pageIndex)?.videoFormat
                         val activeCodecKey =
                             activeFormat?.let { format ->
                                 VideoCodecUtils.codecKeyFromMimeType(

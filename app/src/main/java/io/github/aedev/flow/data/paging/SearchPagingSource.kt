@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.local.ContentType
+import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.distinctBestImageUrls
@@ -133,7 +134,7 @@ class SearchPagingSource(
                                     timestamp = System.currentTimeMillis(),
                                     channelThumbnailUrl = channelThumb,
                                     channelThumbnailUrls = mergedChannelThumbs,
-                                    isShort = item.duration in 1..60,
+                                    isShort = ShortsClassifier.isReel(item),
                                     isLive = isLiveStream
                                 )
                                 .takeIf { it.matchesSearchFilters() }

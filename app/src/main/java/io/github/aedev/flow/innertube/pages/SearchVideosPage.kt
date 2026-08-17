@@ -19,6 +19,7 @@ data class SearchVideoItem(
     val uploadDate: String,
     val channelThumbnailUrls: List<String>,
     val isLive: Boolean,
+    val isShort: Boolean = false,
 ) : WebSearchItem
 
 data class SearchChannelItem(
@@ -105,8 +106,18 @@ private fun JsonObject.toSearchVideoItem(): SearchVideoItem? {
         channelThumbnailUrls = channelImages,
         isLive = viewText?.contains("watching", ignoreCase = true) == true ||
             containsString("style", "LIVE"),
+        isShort = isReelRenderer(),
     )
 }
+
+/**
+ * YouTube's own reel markers on a `videoRenderer`, mirroring what the extractor checks for
+ * `isShortFormContent`.
+ */
+private fun JsonObject.isReelRenderer(): Boolean =
+    containsString("webPageType", "WEB_PAGE_TYPE_SHORTS") ||
+        containsKey("reelWatchEndpoint") ||
+        containsString("style", "SHORTS")
 
 private fun JsonObject.toSearchChannelItem(): SearchChannelItem? {
     val id = this["channelId"].stringOrNull() ?: return null
@@ -217,6 +228,13 @@ private fun JsonElement?.containsString(key: String, value: String): Boolean =
     when (this) {
         is JsonArray -> any { it.containsString(key, value) }
         is JsonObject -> this[key].stringOrNull() == value || values.any { it.containsString(key, value) }
+        else -> false
+    }
+
+private fun JsonElement?.containsKey(key: String): Boolean =
+    when (this) {
+        is JsonArray -> any { it.containsKey(key) }
+        is JsonObject -> key in this || values.any { it.containsKey(key) }
         else -> false
     }
 

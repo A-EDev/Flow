@@ -85,6 +85,15 @@ class ShortsPlayerPool private constructor() {
     private var isInitialized = false
     private var dataSourceFactory: DefaultDataSource.Factory? = null
 
+    private var activeIndex: Int = -1
+
+    private val _ownershipGeneration = MutableStateFlow(0)
+    val ownershipGeneration: StateFlow<Int> = _ownershipGeneration.asStateFlow()
+
+    private fun bumpOwnership() {
+        _ownershipGeneration.value += 1
+    }
+
     /**
      * Reads through the shared media cache once it exists.
      *
@@ -279,14 +288,31 @@ class ShortsPlayerPool private constructor() {
     // PLAYER ACCESS
 
     /**
-     * Gets the player assigned to this specific content index.
-     * The index corresponds to the list position (0, 1, 2, ...).
-     * The pool automatically maps this to a physical player slot using modulo arithmetic.
+     * The player a page should bind its `PlayerView` to.
+     *
+     * Deliberately returns the slot before any media is loaded: the surface has to be attached to
+     * the ExoPlayer instance ahead of [prepare] or the first frame arrives with nowhere to go. It
+     * refuses only when the slot currently belongs to a *different* index, which is what used to
+     * hand a mid-fling page the still-playing previous short.
+     *
+     * Callers must re-read this when [ownershipGeneration] changes.
      */
-    fun getPlayerForIndex(index: Int): ExoPlayer? {
+    fun playerForAttach(index: Int): ExoPlayer? {
         if (!isInitialized || index < 0) return null
-        val slot = index % POOL_SIZE
+        val slot = ShortsSlotRules.slotFor(index, POOL_SIZE)
+        if (!ShortsSlotRules.canAttach(playerOwnerIndices[slot], index)) return null
+        return players[slot]
+    }
 
+    /**
+     * The player that actually holds this index's media, or null while the slot is unprepared or
+     * owned by someone else. Everything that reads playback state or issues a command uses this, so
+     * a control can never land on a short the user is not looking at.
+     */
+    fun ownedPlayer(index: Int): ExoPlayer? {
+        if (!isInitialized || index < 0) return null
+        val slot = ShortsSlotRules.slotFor(index, POOL_SIZE)
+        if (!ShortsSlotRules.isOwnedBy(playerOwnerIndices[slot], index)) return null
         return players[slot]
     }
 
@@ -337,6 +363,7 @@ class ShortsPlayerPool private constructor() {
         playerVideoIds[slot] = videoId
         playerVideoUrls[slot] = videoUrl
         playerAudioUrls[slot] = audioUrl
+        bumpOwnership()
 
         // Load media
         preparePlayerInternal(player, videoUrl, audioUrl)
@@ -378,6 +405,8 @@ class ShortsPlayerPool private constructor() {
         if (!isInitialized) return
         val activeSlot = index % POOL_SIZE
 
+        activeIndex = index
+
         for (i in 0 until POOL_SIZE) {
             val player = players[i] ?: continue
             val isTarget = (i == activeSlot)
@@ -395,6 +424,8 @@ class ShortsPlayerPool private constructor() {
                         true,
                     )
                     _currentVideoId.value = playerVideoIds[i]
+                } else {
+                    _currentVideoId.value = null
                 }
             } else {
                 player.playWhenReady = false
@@ -405,10 +436,10 @@ class ShortsPlayerPool private constructor() {
     fun releaseUnusedPlayers(currentIndex: Int) {
         if (!isInitialized) return
 
+        var released = false
         for (i in 0 until POOL_SIZE) {
             val ownerIndex = playerOwnerIndices[i] ?: continue
-            val diff = kotlin.math.abs(ownerIndex - currentIndex)
-            if (diff > 1) {
+            if (ShortsSlotRules.shouldRelease(ownerIndex, currentIndex)) {
                 Log.d(TAG, "Releasing stale player slot $i (owned by index $ownerIndex, current is $currentIndex)")
                 players[i]?.stop()
                 players[i]?.clearMediaItems()
@@ -416,8 +447,10 @@ class ShortsPlayerPool private constructor() {
                 playerVideoIds[i] = null
                 playerVideoUrls[i] = null
                 playerAudioUrls[i] = null
+                released = true
             }
         }
+        if (released) bumpOwnership()
     }
 
     /**
@@ -432,7 +465,7 @@ class ShortsPlayerPool private constructor() {
         if (!isInitialized || index < 0) return
         val slot = index % POOL_SIZE
         val player = players[slot] ?: return
-        if (playerOwnerIndices[slot] != index) return
+        if (playerOwnerIndices[slot] != index || playerVideoIds[slot] != videoId) return
 
         val videoUrl = playerVideoUrls[slot] ?: return
         val wasPlaying = player.isPlaying || player.playWhenReady
@@ -459,7 +492,7 @@ class ShortsPlayerPool private constructor() {
         if (!isInitialized || index < 0) return
         val slot = index % POOL_SIZE
         val player = players[slot] ?: return
-        if (playerOwnerIndices[slot] != index) return
+        if (playerOwnerIndices[slot] != index || playerVideoIds[slot] != videoId) return
 
         val wasPlaying = player.isPlaying || player.playWhenReady
         val position = player.currentPosition
@@ -505,17 +538,12 @@ class ShortsPlayerPool private constructor() {
     // PLAYBACK CONTROL
 
     /**
-     * Helper to find the actively playing player slot
+     * The player for [activeIndex], or null when the active page's media has not loaded yet.
+     *
+     * Returning null is the point: a command issued during that window is dropped rather than
+     * applied to whichever slot happened to still hold the previous short's id.
      */
-    private fun findActivePlayer(): ExoPlayer? {
-        val activeVideoId = _currentVideoId.value ?: return null
-        for (i in 0 until POOL_SIZE) {
-            if (playerVideoIds[i] == activeVideoId) {
-                return players[i]
-            }
-        }
-        return null
-    }
+    private fun findActivePlayer(): ExoPlayer? = ownedPlayer(activeIndex)
 
     fun play() {
         findActivePlayer()?.let { player ->
@@ -580,8 +608,10 @@ class ShortsPlayerPool private constructor() {
         }
         dataSourceFactory = null
         isInitialized = false
+        activeIndex = -1
         _currentVideoId.value = null
         _currentVideo.value = null
+        bumpOwnership()
     }
 
     fun isReady(): Boolean = isInitialized && players[0] != null

@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
+import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -126,7 +127,8 @@ class ChannelVideosPagingSource(
             timestamp = uploadTimestamp,
             description = "",
             isUpcoming = this.streamType == org.schabi.newpipe.extractor.stream.StreamType.NONE,
-            isLive = this.streamType == org.schabi.newpipe.extractor.stream.StreamType.LIVE_STREAM
+            isLive = this.streamType == org.schabi.newpipe.extractor.stream.StreamType.LIVE_STREAM,
+            isShort = ShortsClassifier.isReel(this)
         )
     }
 

@@ -238,7 +238,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
 
     private suspend fun fetchShortsForChannel(channelId: String): List<Video> {
         val uploads = youtubeRepository.getChannelUploads(channelId, UPLOADS_PER_CHANNEL)
-        return uploads.filter { v -> v.duration in 1..120 || v.isShort }
+        return uploads.filter { it.isShort }
             .sortedByDescending { it.timestamp }
     }
 
@@ -414,11 +414,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
 
             extractor.initialPage?.items
                 ?.filterIsInstance<StreamInfoItem>()
-                ?.filter { item ->
-                    item.duration in 1..120 ||
-                    item.url.contains("/shorts/", ignoreCase = true) ||
-                    (item.isShortFormContent == true)
-                }
+                ?.filter { item -> ShortsClassifier.isReel(item) }
                 ?.take(maxResults)
                 ?.map { item -> streamInfoItemToVideo(item) }
                 ?: emptyList()
@@ -448,8 +444,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
             else -> uploaderUrl.substringAfterLast("/").substringBefore("?")
         }
 
-        val isShort = item.isShortFormContent == true ||
-                url.contains("/shorts/", ignoreCase = true)
+        val isShort = ShortsClassifier.isReel(item)
         val timestamp = resolveUploadTimestamp(item) ?: System.currentTimeMillis()
         val avatarUrls = item.uploaderAvatars.distinctBestImageUrls()
 

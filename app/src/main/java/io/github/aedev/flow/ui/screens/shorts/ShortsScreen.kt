@@ -205,7 +205,8 @@ fun ShortsScreen(
                 }
 
                 // Track settled page for player pool management
-                LaunchedEffect(pagerState.settledPage, shortsTargetHeight) {
+                val settledShortId = uiState.shorts.getOrNull(pagerState.settledPage)?.id
+                LaunchedEffect(pagerState.settledPage, settledShortId, shortsTargetHeight) {
                     val targetHeight = shortsTargetHeight ?: return@LaunchedEffect
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()
