@@ -55,7 +55,19 @@ class SubscriptionsViewModel
         private val database: AppDatabase,
         private val playerPreferences: PlayerPreferences,
         private val subscriptionGroupDao: SubscriptionGroupDao,
+        private val shortsQueueHandoff: io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff,
     ) : ViewModel() {
+        /**
+         * The queue source for tapping [tapped] in the Shorts shelf.
+         *
+         * Lives on the ViewModel because the handoff registry is injected, and it is a one-line delegate
+         * so the shelf-to-queue rule stays in a single place.
+         */
+        fun shortsShelfSource(
+            shelf: List<io.github.aedev.flow.data.model.Video>,
+            tapped: io.github.aedev.flow.data.model.Video,
+        ) = shortsQueueHandoff.sourceForShelf(shelf, tapped)
+
         companion object {
             private const val TAG = "SubsViewModel"
 

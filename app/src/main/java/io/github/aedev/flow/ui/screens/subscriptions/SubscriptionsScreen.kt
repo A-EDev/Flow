@@ -135,7 +135,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SubscriptionsScreen(
     onVideoClick: (Video) -> Unit,
-    onShortClick: (String) -> Unit = {},
+    onShortClick: (io.github.aedev.flow.data.shorts.queue.ShortsQueueSource) -> Unit = {},
     onChannelClick: (Channel) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SubscriptionsViewModel = hiltViewModel(),
@@ -662,7 +662,9 @@ fun SubscriptionsScreen(
                                             Column {
                                                 ShortsShelf(
                                                     shorts = uiState.shorts,
-                                                    onShortClick = { short -> onShortClick(short.id) },
+                                                    onShortClick = { shelf, tapped ->
+                                                        onShortClick(viewModel.shortsShelfSource(shelf, tapped))
+                                                    },
                                                 )
                                                 Spacer(modifier = Modifier.height(8.dp))
                                                 HorizontalDivider(

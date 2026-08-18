@@ -512,8 +512,14 @@ class HomeViewModel @Inject constructor(
     private val subscriptionRepository: SubscriptionRepository, 
     private val shortsRepository: ShortsRepository,
     private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
+    private val shortsQueueHandoff: io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
+    fun shortsShelfSource(
+        shelf: List<io.github.aedev.flow.data.model.Video>,
+        tapped: io.github.aedev.flow.data.model.Video,
+    ) = shortsQueueHandoff.sourceForShelf(shelf, tapped)
+
     companion object {
         private const val TAG = "HomeViewModel"
         private const val HOME_TARGET_SIZE = 40

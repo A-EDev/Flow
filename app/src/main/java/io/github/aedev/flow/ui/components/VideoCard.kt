@@ -1633,7 +1633,7 @@ private fun formatContinueWatchingTime(ms: Long): String {
 @Composable
 fun ShortsShelf(
     shorts: List<Video>,
-    onShortClick: (Video) -> Unit,
+    onShortClick: (shelf: List<Video>, tapped: Video) -> Unit,
     onSeeAllClick: (() -> Unit)? = null,
 ) {
     val uniqueShorts =
@@ -1679,7 +1679,7 @@ fun ShortsShelf(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(uniqueShorts, key = { it.id }) { short ->
-                ShortsCard(video = short, onClick = { onShortClick(short) })
+                ShortsCard(video = short, onClick = { onShortClick(uniqueShorts, short) })
             }
         }
     }

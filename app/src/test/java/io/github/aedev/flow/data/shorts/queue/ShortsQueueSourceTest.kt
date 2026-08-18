@@ -15,7 +15,15 @@ class ShortsQueueSourceTest {
 
     @Test
     fun `saved round trips`() {
-        assertEquals(ShortsQueueSource.Saved, roundTrip(ShortsQueueSource.Saved))
+        assertEquals(ShortsQueueSource.Saved(), roundTrip(ShortsQueueSource.Saved()))
+    }
+
+    @Test
+    fun `saved anchored on a short round trips`() {
+        // Tapping a specific saved Short must open on it, not at the top of the collection.
+        val source = ShortsQueueSource.Saved("abcdefghijk")
+        assertEquals(source, roundTrip(source))
+        assertEquals("abcdefghijk", source.openAtVideoId)
     }
 
     @Test
@@ -75,7 +83,7 @@ class ShortsQueueSourceTest {
         assertEquals("abcdefghijk", ShortsQueueSource.Snapshot("t", "abcdefghijk").openAtVideoId)
         assertEquals("abcdefghijk", ShortsQueueSource.Channel("u", "abcdefghijk").openAtVideoId)
         assertEquals(null, ShortsQueueSource.Feed.openAtVideoId)
-        assertEquals(null, ShortsQueueSource.Saved.openAtVideoId)
+        assertEquals(null, ShortsQueueSource.Saved().openAtVideoId)
     }
 
     @Test
@@ -87,7 +95,7 @@ class ShortsQueueSourceTest {
     fun `shelves and channel tabs continue into the feed, saved does not`() {
         assertTrue(ShortsQueueSource.Snapshot("t", "v").continuesIntoFeed)
         assertTrue(ShortsQueueSource.Channel("u", "v").continuesIntoFeed)
-        assertFalse("saved Shorts is a deliberate collection", ShortsQueueSource.Saved.continuesIntoFeed)
+        assertFalse("saved Shorts is a deliberate collection", ShortsQueueSource.Saved().continuesIntoFeed)
         assertFalse("the feed is already the feed", ShortsQueueSource.Feed.continuesIntoFeed)
     }
 }

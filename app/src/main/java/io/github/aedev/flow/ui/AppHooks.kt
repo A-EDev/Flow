@@ -8,10 +8,12 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import android.content.Context
+import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.utils.NetworkConnectivityObserver
 import kotlinx.coroutines.delay
 
@@ -31,7 +33,8 @@ fun HandleDeepLinks(
                 try {
                     if (navController.currentDestination != null) {
                         if (isShort) {
-                            navController.navigate("shorts?startVideoId=$deeplinkVideoId") {
+                            val src = Uri.encode(ShortsQueueSource.SeededFeed(deeplinkVideoId).encode())
+                            navController.navigate("shorts?src=$src") {
                                 launchSingleTop = true
                             }
                         } else {

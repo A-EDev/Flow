@@ -89,7 +89,7 @@ private fun rememberHomeLayoutConfig(maxWidth: Dp): HomeLayoutConfig {
 @Composable
 fun HomeScreen(
     onVideoClick: (Video) -> Unit,
-    onShortClick: (Video) -> Unit,
+    onShortClick: (io.github.aedev.flow.data.shorts.queue.ShortsQueueSource) -> Unit,
     onSearchClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onSettingsClick: () -> Unit,
@@ -403,7 +403,9 @@ fun HomeScreen(
                                 ) {
                                     ShortsShelf(
                                         shorts = uiState.shorts,
-                                        onShortClick = { onShortClick(it) },
+                                        onShortClick = { shelf, tapped ->
+                                            onShortClick(viewModel.shortsShelfSource(shelf, tapped))
+                                        },
                                         onSeeAllClick = onOpenShortsFeed
                                     )
                                 }

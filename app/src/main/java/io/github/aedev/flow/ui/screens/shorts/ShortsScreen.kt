@@ -24,6 +24,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
@@ -36,10 +37,9 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ShortsScreen(
+    source: ShortsQueueSource,
     onBack: () -> Unit,
     onChannelClick: (String) -> Unit,
-    startVideoId: String? = null,
-    isSavedMode: Boolean = false,
     bottomNavOverlayPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
     viewModel: ShortsViewModel = hiltViewModel(),
@@ -142,13 +142,8 @@ fun ShortsScreen(
             pinned + sortedUnpinned
         }
 
-    // Load shorts
-    LaunchedEffect(Unit) {
-        if (isSavedMode) {
-            viewModel.loadSavedShorts(startVideoId)
-        } else {
-            viewModel.loadShorts(startVideoId = startVideoId)
-        }
+    LaunchedEffect(source) {
+        viewModel.load(source)
     }
 
     // Release player pool when leaving Shorts
@@ -172,7 +167,7 @@ fun ShortsScreen(
             uiState.error != null && uiState.shorts.isEmpty() -> {
                 ShortsErrorState(
                     error = uiState.error,
-                    onRetry = { viewModel.loadShorts() },
+                    onRetry = { viewModel.retry(source) },
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
@@ -197,12 +192,6 @@ fun ShortsScreen(
                     }
                 }
 
-                // Load more when near end
-                LaunchedEffect(pagerState.currentPage) {
-                    if (pagerState.currentPage >= uiState.shorts.size - 3) {
-                        viewModel.loadMoreShorts()
-                    }
-                }
 
                 // Track settled page for player pool management
                 val settledShortId = uiState.shorts.getOrNull(pagerState.settledPage)?.id
@@ -393,7 +382,7 @@ fun ShortsScreen(
         // Top Bar Overlay
         ShortsTopBar(
             visible = uiState.shorts.isNotEmpty(),
-            showBackButton = startVideoId != null || isSavedMode,
+            showBackButton = source != ShortsQueueSource.Feed,
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )

@@ -1039,7 +1039,7 @@ private fun SearchResultList(
                 }
 
                 is SearchResultItem.ShortsShelfResult -> {
-                    ShortsShelf(shorts = item.shorts, onShortClick = onVideoClick)
+                    ShortsShelf(shorts = item.shorts, onShortClick = { _, tapped -> onVideoClick(tapped) })
                 }
 
                 null -> {
@@ -1146,7 +1146,7 @@ private fun SearchResultGrid(
                 }
 
                 is SearchResultItem.ShortsShelfResult -> {
-                    ShortsShelf(shorts = item.shorts, onShortClick = onVideoClick)
+                    ShortsShelf(shorts = item.shorts, onShortClick = { _, tapped -> onVideoClick(tapped) })
                 }
             }
         }

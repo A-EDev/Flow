@@ -22,6 +22,8 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.data.shorts.queue.openAtVideoId
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.MusicPlayerSheetState
@@ -124,18 +126,18 @@ fun NavGraphBuilder.flowAppGraph(
         HomeScreen(
             onVideoClick = { video ->
                 if (video.isShort && !disableShortsPlayer) {
-                    navController.navigate("shorts?startVideoId=${video.id}")
+                    navController.openShorts(ShortsQueueSource.SeededFeed(video.id))
                 } else {
                     playerViewModel.playVideo(video)
                     GlobalPlayerState.setCurrentVideo(video)
                 }
             },
-            onShortClick = { video ->
-                if (disableShortsPlayer) {
-                    playerViewModel.playVideo(video)
-                    GlobalPlayerState.setCurrentVideo(video)
+            onShortClick = { source ->
+                val tappedId = source.openAtVideoId
+                if (disableShortsPlayer && tappedId != null) {
+                    navController.navigateToPlayer(tappedId)
                 } else {
-                    navController.navigate("shorts?startVideoId=${video.id}")
+                    navController.openShorts(source)
                 }
             },
             onSearchClick = {
@@ -154,7 +156,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("history")
             },
             onOpenShortsFeed = {
-                navController.navigate("shorts")
+                navController.openShorts(ShortsQueueSource.Feed)
             },
             viewModel = homeViewModel,
         )
@@ -173,23 +175,24 @@ fun NavGraphBuilder.flowAppGraph(
     }
 
     composable(
-        route = "shorts?startVideoId={startVideoId}",
+        route = SHORTS_ROUTE_PATTERN,
         arguments =
             listOf(
-                navArgument("startVideoId") {
+                navArgument(SHORTS_ROUTE_ARG) {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
                 },
             ),
     ) { backStackEntry ->
-        currentRoute.value = "shorts"
-        showBottomNav.value = true
-        selectedBottomNavIndex.intValue = 1
-        val startVideoId = backStackEntry.arguments?.getString("startVideoId")
+        currentRoute.value = SHORTS_ROUTE_KEY
+        val source = ShortsQueueSource.decode(backStackEntry.arguments?.getString(SHORTS_ROUTE_ARG))
+        val isRootTab = source == ShortsQueueSource.Feed
+        showBottomNav.value = isRootTab
+        if (isRootTab) selectedBottomNavIndex.intValue = 1
         ShortsScreen(
-            startVideoId = startVideoId,
-            bottomNavOverlayPadding = bottomNavOverlayPadding(),
+            source = source,
+            bottomNavOverlayPadding = if (isRootTab) bottomNavOverlayPadding() else 0.dp,
             onBack = {
                 navController.popBackStack()
             },
@@ -206,17 +209,18 @@ fun NavGraphBuilder.flowAppGraph(
         SubscriptionsScreen(
             onVideoClick = { video ->
                 if (video.isShort && !disableShortsPlayer) {
-                    navController.navigate("shorts?startVideoId=${video.id}")
+                    navController.openShorts(ShortsQueueSource.SeededFeed(video.id))
                 } else {
                     playerViewModel.playVideo(video)
                     GlobalPlayerState.setCurrentVideo(video)
                 }
             },
-            onShortClick = { videoId ->
-                if (disableShortsPlayer) {
-                    navController.navigateToPlayer(videoId)
+            onShortClick = { source ->
+                val tappedId = source.openAtVideoId
+                if (disableShortsPlayer && tappedId != null) {
+                    navController.navigateToPlayer(tappedId)
                 } else {
-                    navController.navigate("shorts?startVideoId=$videoId")
+                    navController.openShorts(source)
                 }
             },
             onChannelClick = { channel ->
@@ -265,7 +269,7 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onVideoClick = { video ->
                 if (video.isShort && !disableShortsPlayer) {
-                    navController.navigate("shorts?startVideoId=${video.id}")
+                    navController.openShorts(ShortsQueueSource.SeededFeed(video.id))
                 } else {
                     navController.navigateToPlayer(video.id)
                 }
@@ -300,7 +304,7 @@ fun NavGraphBuilder.flowAppGraph(
                 )
             },
             onSavedShortClick = { video ->
-                navController.navigate("savedShortsPlayer/${video.id}")
+                navController.openShorts(ShortsQueueSource.Saved(video.id))
             },
         )
     }
@@ -312,7 +316,7 @@ fun NavGraphBuilder.flowAppGraph(
         SearchScreen(
             onVideoClick = { video ->
                 if (video.isShort && !disableShortsPlayer) {
-                    navController.navigate("shorts?startVideoId=${video.id}")
+                    navController.openShorts(ShortsQueueSource.SeededFeed(video.id))
                 } else {
                     navController.navigateToPlayer(video.id)
                 }
@@ -334,7 +338,7 @@ fun NavGraphBuilder.flowAppGraph(
             onBackClick = { navController.popBackStack() },
             onVideoClick = { video ->
                 if (video.isShort && !disableShortsPlayer) {
-                    navController.navigate("shorts?startVideoId=${video.id}")
+                    navController.openShorts(ShortsQueueSource.SeededFeed(video.id))
                 } else {
                     navController.navigateToPlayer(video.id)
                 }
@@ -606,7 +610,7 @@ fun NavGraphBuilder.flowAppGraph(
             channelUrl = channelUrl,
             onVideoClick = { video ->
                 if (video.isShort && !disableShortsPlayer) {
-                    navController.navigate("shorts?startVideoId=${video.id}")
+                    navController.openShorts(ShortsQueueSource.SeededFeed(video.id))
                 } else {
                     navController.navigateToPlayer(video.id)
                 }
@@ -618,7 +622,9 @@ fun NavGraphBuilder.flowAppGraph(
                 if (disableShortsPlayer) {
                     navController.navigateToPlayer(videoId)
                 } else {
-                    navController.navigate("shorts?startVideoId=$videoId")
+                    navController.openShorts(
+                        ShortsQueueSource.Channel(channelUrl = channelUrl, startVideoId = videoId),
+                    )
                 }
             },
             onPlaylistClick = { playlistId ->
@@ -665,7 +671,7 @@ fun NavGraphBuilder.flowAppGraph(
                 if (disableShortsPlayer) {
                     navController.navigateToPlayer(videoId)
                 } else {
-                    navController.navigate("shorts?startVideoId=$videoId")
+                    navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
                 }
             },
             onMusicClick = { track, queue ->
@@ -742,7 +748,7 @@ fun NavGraphBuilder.flowAppGraph(
                 if (video.isMusic) {
                     navController.navigate("musicPlayer/${video.id}")
                 } else if (video.isShort && !disableShortsPlayer) {
-                    navController.navigate("shorts?startVideoId=${video.id}")
+                    navController.openShorts(ShortsQueueSource.SeededFeed(video.id))
                 } else {
                     navController.navigateToPlayer(video.id)
                 }
@@ -763,31 +769,11 @@ fun NavGraphBuilder.flowAppGraph(
         io.github.aedev.flow.ui.screens.library.SavedShortsGridScreen(
             onBackClick = { navController.popBackStack() },
             onVideoClick = { videoId ->
-                navController.navigate("savedShortsPlayer/$videoId")
+                navController.openShorts(ShortsQueueSource.Saved(videoId))
             },
         )
     }
 
-    // Saved Shorts Player
-    composable(
-        route = "savedShortsPlayer/{startVideoId}",
-        arguments = listOf(navArgument("startVideoId") { type = NavType.StringType }),
-    ) { backStackEntry ->
-        currentRoute.value = "savedShortsPlayer"
-        showBottomNav.value = false
-        val startVideoId = backStackEntry.arguments?.getString("startVideoId")
-        ShortsScreen(
-            startVideoId = startVideoId,
-            isSavedMode = true,
-            bottomNavOverlayPadding = 0.dp,
-            onBack = {
-                navController.popBackStack()
-            },
-            onChannelClick = { channelId ->
-                navController.navigateToYoutubeChannel(channelId)
-            },
-        )
-    }
     composable("downloads") {
         currentRoute.value = "downloads"
         showBottomNav.value = false

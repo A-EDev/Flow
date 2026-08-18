@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.subscriptions
 
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -69,6 +70,7 @@ class SubscriptionsViewModelTest {
                 database = database,
                 playerPreferences = playerPreferences,
                 subscriptionGroupDao = subscriptionGroupDao,
+                shortsQueueHandoff = ShortsQueueHandoff(),
             )
     }
 

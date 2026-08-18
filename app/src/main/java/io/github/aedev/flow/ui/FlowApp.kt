@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui
 
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import android.app.Activity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -221,8 +222,7 @@ fun FlowApp(
                     val route = currentRoute.value
                     if (!bottomNavHideOnScroll ||
                         source != NestedScrollSource.UserInput ||
-                        route == "shorts" ||
-                        route == "savedShortsPlayer"
+                        route == "shorts"
                     ) {
                         return Offset.Zero
                     }
@@ -252,8 +252,7 @@ fun FlowApp(
 
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     val currentVideo by GlobalPlayerState.currentVideo.collectAsState()
-    val isShortsPlayerRoute =
-        currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer"
+    val isShortsPlayerRoute = currentRoute.value == "shorts"
 
     LaunchedEffect(isShortsPlayerRoute) {
         if (isShortsPlayerRoute) {
@@ -432,7 +431,7 @@ fun FlowApp(
             systemDarkThemeMode = systemDarkThemeMode,
             isFullscreen = playerUiState.isFullscreen,
             isMusicPlayerImmersive = currentMusicTrack != null && musicPlayerSheetState.progress > 0.5f,
-            isShortsPlayer = currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer",
+            isShortsPlayer = isShortsPlayerRoute,
         )
 
         LaunchedEffect(isInPipMode) {
@@ -689,7 +688,7 @@ fun FlowApp(
             },
             onNavigateToShorts = { videoId ->
                 playerSheetState.collapse()
-                navController.navigate("shorts?startVideoId=$videoId")
+                navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
             },
         )
 

@@ -629,6 +629,8 @@
     <string name="player_appearance_grouped_quality_selector_subtitle">Show one row per resolution with codec choices inside it</string>
     <string name="shorts_saved">Short saved</string>
     <string name="shorts_unsaved">Short unsaved</string>
+    <string name="shorts_showing_more_like_this">We\'ll show more like this</string>
+    <string name="shorts_showing_less_like_this">Got it, showing less of this</string>
     <string name="settings_item_player_appearance">Player Appearance</string>
     <string name="settings_item_player_appearance_subtitle">Customize progress bar style</string>
     <string name="style_default">Regular</string>
