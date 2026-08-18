@@ -2326,4 +2326,8 @@
     <string name="duration_minutes">%1$d phút</string>
     <string name="duration_hours_short">%1$dg</string>
     <string name="duration_minutes_short">%1$dp</string>
+    <string name="player_appearance_seek_gesture_title">Thao tác tìm</string>
+    <string name="player_appearance_seek_gesture_subtitle">Vuốt ngang ở chế độ toàn màn hình để tua video</string>
+    <string name="player_settings_subtitle_language">Ngôn ngữ phụ đề ưu tiên</string>
+    <string name="player_settings_subtitle_language_dialog_title">Ngôn ngữ phụ đề</string>
 </resources>
