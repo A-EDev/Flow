@@ -340,6 +340,7 @@ private fun ChannelContent(
                 .PlayerPreferences(context)
         }
     val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
+    val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
     var selectedFilter by rememberSaveable { mutableStateOf(VideoFilter.Latest) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -356,28 +357,23 @@ private fun ChannelContent(
             VideoFilter.Oldest -> allLiveVideos.reversed()
         }
 
-    val tabTitles =
-        listOf(
-            stringResource(R.string.tab_videos),
-            stringResource(R.string.tab_shorts),
-            stringResource(R.string.tab_live),
-            stringResource(R.string.tab_playlists),
-            stringResource(R.string.tab_posts),
-            stringResource(R.string.tab_about),
-        )
+    val visibleTabs = ChannelTab.visible(shortsEnabled = shortsContentEnabled)
+    val tabTitles = visibleTabs.map { stringResource(it.titleRes) }
 
     val pagerState =
         rememberPagerState(
-            initialPage = uiState.selectedTab.coerceIn(0, tabTitles.lastIndex),
-            pageCount = { tabTitles.size },
+            initialPage = visibleTabs.indexOf(ChannelTab.from(uiState.selectedTab)).coerceAtLeast(0),
+            pageCount = { visibleTabs.size },
         )
 
+    val settledTab = visibleTabs.getOrElse(pagerState.settledPage) { ChannelTab.Videos }
+
     // Persist only fully settled pages so an in-progress swipe cannot trigger a competing animation.
-    LaunchedEffect(channelInfo.id, pagerState.settledPage) {
-        onTabSelected(pagerState.settledPage)
+    LaunchedEffect(channelInfo.id, settledTab) {
+        onTabSelected(settledTab.ordinal)
     }
 
-    val showFilterBar = pagerState.settledPage == 0 || pagerState.settledPage == 2
+    val showFilterBar = settledTab == ChannelTab.Videos || settledTab == ChannelTab.Live
 
     var collapsingHeaderHeightPx by remember { mutableFloatStateOf(0f) }
     var stickySectionHeightPx by remember { mutableFloatStateOf(0f) }
@@ -531,8 +527,8 @@ private fun ChannelContent(
         ) { page ->
             val listPadding = PaddingValues(top = visibleHeaderHeightDp)
 
-            when (page) {
-                0 -> {
+            when (visibleTabs.getOrElse(page) { ChannelTab.Videos }) {
+                ChannelTab.Videos -> {
                     when {
                         uiState.searchActive && uiState.searchQuery.isNotBlank() -> {
                             when {
@@ -628,7 +624,7 @@ private fun ChannelContent(
                     }
                 }
 
-                1 -> {
+                ChannelTab.Shorts -> {
                     LazyColumn(
                         state = shortsListState,
                         modifier = Modifier.fillMaxSize(),
@@ -639,7 +635,7 @@ private fun ChannelContent(
                     }
                 }
 
-                2 -> {
+                ChannelTab.Live -> {
                     if (isLoadingAllVideos && sortedLive.isEmpty()) {
                         Box(
                             modifier =
@@ -666,7 +662,7 @@ private fun ChannelContent(
                     }
                 }
 
-                3 -> {
+                ChannelTab.Playlists -> {
                     LazyColumn(
                         state = playlistsListState,
                         modifier = Modifier.fillMaxSize(),
@@ -677,7 +673,7 @@ private fun ChannelContent(
                     }
                 }
 
-                4 -> {
+                ChannelTab.Posts -> {
                     ChannelCommunityPosts(
                         posts = communityUiState.posts,
                         isLoading = communityUiState.isLoadingPosts,
@@ -694,7 +690,7 @@ private fun ChannelContent(
                     )
                 }
 
-                5 -> {
+                ChannelTab.About -> {
                     LazyColumn(
                         state = aboutListState,
                         modifier = Modifier.fillMaxSize(),

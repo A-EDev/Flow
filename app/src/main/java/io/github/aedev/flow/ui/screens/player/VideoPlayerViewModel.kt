@@ -289,9 +289,16 @@ class VideoPlayerViewModel
         @Volatile
         private var preferredSubtitleLanguage: String = CaptionTrackResolver.NO_PREFERRED_LANGUAGE
 
+        @Volatile
+        private var shortsContentEnabled: Boolean = true
+
         init {
             viewModelScope.launch {
                 playerPreferences.preferredSubtitleLanguage.collect { preferredSubtitleLanguage = it }
+            }
+
+            viewModelScope.launch {
+                playerPreferences.shortsContentEnabled.collect { shortsContentEnabled = it }
             }
 
             // Re-fetch streams whenever an expired URL is detected (HTTP 403/410 "data changed")
@@ -1543,6 +1550,7 @@ class VideoPlayerViewModel
                             val relatedVideos =
                                 if (streamInfo != null) {
                                     repository.getRelatedVideosFromStreamInfo(streamInfo)
+                                        .filter { shortsContentEnabled || !it.isShort }
                                 } else {
                                     emptyList()
                                 }
@@ -2514,6 +2522,7 @@ class VideoPlayerViewModel
                     primary = primaryCandidates,
                     fallback = manager.relatedCandidatesFor(videoId),
                     current = currentCandidates,
+                    shortsEnabled = shortsContentEnabled,
                 )
             if (selected.isNotEmpty()) {
                 if (relatedVideosVideoId == videoId) {
@@ -2557,6 +2566,7 @@ class VideoPlayerViewModel
                             primary = primaryCandidates,
                             fallback = fallbackCandidates,
                             current = _uiState.value.relatedVideos,
+                            shortsEnabled = shortsContentEnabled,
                         )
                     if (resolved.isNotEmpty()) {
                         applyRelatedVideos(videoId, resolved, loadToken)
@@ -2618,6 +2628,7 @@ class VideoPlayerViewModel
                         primary = repository.getRelatedVideosFromStreamInfo(streamInfo),
                         fallback = emptyList(),
                         current = emptyList(),
+                        shortsEnabled = shortsContentEnabled,
                     )
                 val cached = _uiState.value.cachedVideo ?: return@launch
                 if (cached.id != videoId) return@launch

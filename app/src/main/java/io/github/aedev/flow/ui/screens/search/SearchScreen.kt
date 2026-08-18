@@ -87,6 +87,7 @@ fun SearchScreen(
     }
     var isSearchFocused by remember { mutableStateOf(false) }
     val isGridMode by preferences.searchIsGridMode.collectAsState(initial = false)
+    val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
 
     var hasPerformedSearch by rememberSaveable { mutableStateOf(false) }
     var isNavigatingAway by remember { mutableStateOf(false) }
@@ -272,7 +273,15 @@ fun SearchScreen(
             SortType.RATING,
             SortType.VIEWS,
         )
-    val selectedContentType = uiState.filters?.contentType ?: ContentType.ALL
+    val storedContentType = uiState.filters?.contentType ?: ContentType.ALL
+    val selectedContentType =
+        if (storedContentType == ContentType.SHORTS && !shortsContentEnabled) ContentType.ALL else storedContentType
+
+    LaunchedEffect(shortsContentEnabled, storedContentType) {
+        if (storedContentType == ContentType.SHORTS && !shortsContentEnabled) {
+            viewModel.updateFilters((uiState.filters ?: SearchFilter()).copy(contentType = ContentType.ALL))
+        }
+    }
 
     Column(
         modifier =
@@ -388,6 +397,7 @@ fun SearchScreen(
             )
         } else {
             SearchFiltersBar(
+                shortsEnabled = shortsContentEnabled,
                 selectedContentType = selectedContentType,
                 onContentTypeSelected = { type ->
                     val base = uiState.filters ?: SearchFilter()
@@ -676,6 +686,7 @@ private fun SearchBarRow(
 
 @Composable
 private fun SearchFiltersBar(
+    shortsEnabled: Boolean,
     selectedContentType: ContentType,
     onContentTypeSelected: (ContentType) -> Unit,
     selectedDuration: Duration,
@@ -702,7 +713,7 @@ private fun SearchFiltersBar(
             ContentType.CHANNELS to R.string.channels_header,
             ContentType.PLAYLISTS to R.string.tab_playlists,
             ContentType.LIVE to R.string.tab_live,
-        )
+        ).filterNot { (type, _) -> type == ContentType.SHORTS && !shortsEnabled }
     val durationLabels =
         listOf(
             Duration.ANY to R.string.duration_any,

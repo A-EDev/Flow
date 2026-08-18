@@ -789,6 +789,9 @@
     <string name="content_settings_video_card_mark_watched_subtitle">Show an eye button on full and compact video cards to quickly mark videos as watched</string>
     <string name="content_settings_show_app_logo_title">Show app logo icon</string>
     <string name="content_settings_show_app_logo_subtitle">Display the Flow logo icon next to the app name in the home screen top bar</string>
+    <string name="content_settings_header_shorts">Shorts</string>
+    <string name="content_settings_shorts_content_title">Show Shorts</string>
+    <string name="content_settings_shorts_content_subtitle">Hide every Short across the app. Saved Shorts and watch history are kept, not deleted.</string>
     <string name="content_settings_header_content_components">Content Components</string>
     <string name="content_settings_restored_music_mini_player_title">Show restored music mini player</string>
     <string name="content_settings_restored_music_mini_player_subtitle">Automatically show your last music session after it is restored</string>

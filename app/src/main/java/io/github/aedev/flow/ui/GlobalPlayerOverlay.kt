@@ -174,7 +174,7 @@ fun GlobalPlayerOverlay(
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
-    val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
+    val disableShortsPlayer by playerPreferences.effectiveDisableShortsPlayer.collectAsState(initial = false)
     val showShortsPlayerPrompt by playerPreferences.showShortsPlayerPrompt.collectAsState(initial = true)
     val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)

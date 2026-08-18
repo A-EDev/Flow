@@ -4,12 +4,14 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -36,14 +38,14 @@ class SearchViewModelTest {
 
     @Test
     fun `initial ui state has empty query and null filters`() {
-        val viewModel = SearchViewModel(repository)
+        val viewModel = SearchViewModel(repository, ShortsContentFilter(flowOf(true)))
         assertThat(viewModel.uiState.value.query).isEmpty()
         assertThat(viewModel.uiState.value.filters).isNull()
     }
 
     @Test
     fun `search with valid query updates uiState`() {
-        val viewModel = SearchViewModel(repository)
+        val viewModel = SearchViewModel(repository, ShortsContentFilter(flowOf(true)))
         viewModel.search("Kotlin Compose")
 
         val uiState = viewModel.uiState.value
@@ -52,7 +54,7 @@ class SearchViewModelTest {
 
     @Test
     fun `search with empty query resets uiState`() {
-        val viewModel = SearchViewModel(repository)
+        val viewModel = SearchViewModel(repository, ShortsContentFilter(flowOf(true)))
         viewModel.search("Kotlin")
         viewModel.search("")
 
@@ -63,7 +65,7 @@ class SearchViewModelTest {
 
     @Test
     fun `updateFilters updates filters in uiState when query is active`() {
-        val viewModel = SearchViewModel(repository)
+        val viewModel = SearchViewModel(repository, ShortsContentFilter(flowOf(true)))
         viewModel.search("Music")
 
         val filter = SearchFilter(contentType = ContentType.VIDEOS)
@@ -74,7 +76,7 @@ class SearchViewModelTest {
 
     @Test
     fun `clearSearch resets search query and filters`() {
-        val viewModel = SearchViewModel(repository)
+        val viewModel = SearchViewModel(repository, ShortsContentFilter(flowOf(true)))
         viewModel.search("Android", SearchFilter(contentType = ContentType.PLAYLISTS))
 
         viewModel.clearSearch()
@@ -89,7 +91,7 @@ class SearchViewModelTest {
             val suggestions = listOf("kotlin tutorial", "kotlin android")
             coEvery { repository.getSearchSuggestions("kotlin") } returns suggestions
 
-            val viewModel = SearchViewModel(repository)
+            val viewModel = SearchViewModel(repository, ShortsContentFilter(flowOf(true)))
             val result = viewModel.getSearchSuggestions("kotlin")
 
             assertThat(result).isEqualTo(suggestions)

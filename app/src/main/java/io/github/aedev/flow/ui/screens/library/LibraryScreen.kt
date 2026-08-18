@@ -20,12 +20,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.model.Video
@@ -58,6 +60,7 @@ fun LibraryScreen(
     val downloadsTitle = stringResource(R.string.library_downloads_label)
     val watchLaterTitle = stringResource(R.string.library_watch_later_label)
     val savedShortsTitle = stringResource(R.string.library_saved_shorts_label)
+    val shortsEnabled by viewModel.shortsEnabled.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -130,13 +133,15 @@ fun LibraryScreen(
                 )
             }
 
-            item(key = "saved-shorts", contentType = "shorts-shelf") {
-                LibraryShortsShelfRoute(
-                    title = savedShortsTitle,
-                    shortsFlow = viewModel.savedShorts,
-                    onTitleClick = onNavigateToSavedShorts,
-                    onShortClick = onSavedShortClick
-                )
+            if (shortsEnabled) {
+                item(key = "saved-shorts", contentType = "shorts-shelf") {
+                    LibraryShortsShelfRoute(
+                        title = savedShortsTitle,
+                        shortsFlow = viewModel.savedShorts,
+                        onTitleClick = onNavigateToSavedShorts,
+                        onShortClick = onSavedShortClick
+                    )
+                }
             }
 
             item(key = "settings-data", contentType = "navigation-section") {

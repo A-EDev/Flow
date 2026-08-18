@@ -12,12 +12,14 @@ import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -31,6 +33,7 @@ class HistoryViewModel
         private val youTubeRepository: YouTubeRepository,
         private val videoDao: VideoDao,
         private val watchHistoryDao: WatchHistoryDao,
+        private val shortsContentFilter: ShortsContentFilter,
     ) : ViewModel() {
         private val isEnriching = AtomicBoolean(false)
 
@@ -38,10 +41,18 @@ class HistoryViewModel
         val uiState: StateFlow<HistoryUiState> = _uiState.asStateFlow()
 
         init {
+            viewModelScope.launch {
+                shortsContentFilter.enabled.collect { enabled ->
+                    _uiState.update { it.copy(shortsEnabled = enabled) }
+                }
+            }
+
             // Load history and enrich any entries that are missing metadata
             viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true) }
-                viewHistory.getAllHistory().collect { history ->
+                viewHistory.getAllHistory().combine(shortsContentFilter.enabled) { history, shortsEnabled ->
+                    if (shortsEnabled) history else history.filterNot { it.isShort }
+                }.collect { history ->
                     val enriched =
                         history.map { entry ->
                             var e = entry
@@ -192,4 +203,5 @@ data class HistoryUiState(
     val historyEntries: List<VideoHistoryEntry> = emptyList(),
     val shortVideos: Map<String, Video> = emptyMap(),
     val isLoading: Boolean = false,
+    val shortsEnabled: Boolean = true,
 )

@@ -19,6 +19,7 @@ import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.mergeDistinctByNonBlankKey
 import io.github.aedev.flow.data.paging.ChannelPlaylistsPagingSource
 import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
+import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.CommunityPost
 import io.github.aedev.flow.ui.youtubeChannelUrl
@@ -47,6 +48,7 @@ class ChannelViewModel
     constructor(
         @ApplicationContext private val appContext: Context,
         private val subscriptionRepository: SubscriptionRepository,
+        private val shortsContentFilter: ShortsContentFilter,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(ChannelUiState())
         val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
@@ -279,7 +281,7 @@ class ChannelViewModel
                     }
 
                     // Create the paging flow for Shorts
-                    if (currentShortsTab != null) {
+                    if (currentShortsTab != null && shortsContentFilter.isEnabled()) {
                         _shortsPagingFlow.value =
                             Pager(
                                 config = PagingConfig(pageSize = 20, enablePlaceholders = false),
@@ -707,7 +709,7 @@ data class ChannelUiState(
     val videosError: String? = null,
     val isSubscribed: Boolean = false,
     val isNotificationsEnabled: Boolean = false,
-    val selectedTab: Int = 0, // 0: Videos, 1: Shorts, 2: Live, 3: Playlists, 4: Posts, 5: About
+    val selectedTab: Int = 0,
     // ── Channel search ──────────────────────────────────────────────────────
     val searchActive: Boolean = false,
     val searchQuery: String = "",

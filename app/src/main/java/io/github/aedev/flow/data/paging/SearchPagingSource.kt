@@ -16,6 +16,7 @@ import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.pages.SearchVideoItem
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -51,7 +52,8 @@ sealed class SearchResultItem {
 class SearchPagingSource(
     private val query: String,
     private val contentFilters: List<String> = emptyList(),
-    private val searchFilter: SearchFilter? = null
+    private val searchFilter: SearchFilter? = null,
+    private val shortsEnabled: Boolean = true
 ) : PagingSource<Page, SearchResultItem>() {
 
     companion object {
@@ -70,7 +72,7 @@ class SearchPagingSource(
 
                 // Shorts tab: NewPipe search has no shorts, so serve them directly (single page).
                 if (searchFilter?.contentType == ContentType.SHORTS) {
-                    val shorts = if (page == null) fetchShortVideos().map { SearchResultItem.VideoResult(it) } else emptyList()
+                    val shorts = if (page == null && shortsEnabled) fetchShortVideos().map { SearchResultItem.VideoResult(it) } else emptyList()
                     return@withContext LoadResult.Page(
                         data = loadedItemKeys.filter(shorts) { it.contentIdentityKey() },
                         prevKey = null,
@@ -137,7 +139,8 @@ class SearchPagingSource(
                                     isShort = ShortsClassifier.isReel(item),
                                     isLive = isLiveStream
                                 )
-                                .takeIf { it.matchesSearchFilters() }
+                                .takeIf { shortsEnabled || !it.isShort }
+                                ?.takeIf { it.matchesSearchFilters() }
                                 ?.let { SearchResultItem.VideoResult(it) }
                         }
 
@@ -182,7 +185,7 @@ class SearchPagingSource(
                 val unfilteredAll = searchFilter == null || (searchFilter.contentType == ContentType.ALL &&
                     searchFilter.duration == Duration.ANY && searchFilter.uploadDate == UploadDate.ANY &&
                     searchFilter.sortType == SortType.RELEVANCE)
-                val combined = if (page == null && unfilteredAll) {
+                val combined = if (page == null && unfilteredAll && shortsEnabled) {
                     val shorts = fetchShortVideos().take(15)
                     when {
                         shorts.isEmpty() -> items
@@ -220,7 +223,9 @@ class SearchPagingSource(
             continuation = page?.id,
         ).getOrThrow()
 
-        val items = result.items.map { it.toSearchResultItem() }
+        val items = result.items
+            .filter { shortsEnabled || it !is SearchVideoItem || !it.isShort }
+            .map { it.toSearchResultItem() }
         val enrichedItems = enrichCollabVideoResults(items)
         val nextPage = result.continuation?.let { token ->
             Page("https://www.youtube.com/youtubei/v1/search", token)

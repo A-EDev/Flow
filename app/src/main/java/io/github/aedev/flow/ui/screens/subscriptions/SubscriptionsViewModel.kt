@@ -110,7 +110,7 @@ class SubscriptionsViewModel
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                playerPreferences.shortsShelfEnabled.collect { enabled ->
+                playerPreferences.effectiveShortsShelfEnabled.collect { enabled ->
                     _uiState.update { it.copy(isShortsShelfEnabled = enabled) }
                 }
             }
@@ -118,7 +118,7 @@ class SubscriptionsViewModel
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 combine(
                     playerPreferences.subscriptionShowVideos,
-                    playerPreferences.subscriptionShowShorts,
+                    playerPreferences.effectiveSubscriptionShowShorts,
                     playerPreferences.subscriptionShowLive,
                 ) { showVideos, showShorts, showLive ->
                     Triple(showVideos, showShorts, showLive)

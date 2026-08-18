@@ -74,6 +74,7 @@ fun ContentSettingsScreen(
         GridItemSize.BIG
     }
     
+    val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
     val isShortsShelfEnabled by preferences.shortsShelfEnabled.collectAsState(initial = true)
     val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
     val isHomeNavigationEnabled by preferences.homeNavigationEnabled.collectAsState(initial = true)
@@ -116,7 +117,7 @@ fun ContentSettingsScreen(
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
     val navigationVisibility = NavigationVisibility(
         home = isHomeNavigationEnabled,
-        shorts = isShortsNavigationEnabled,
+        shorts = isShortsNavigationEnabled && shortsContentEnabled,
         music = isMusicNavigationEnabled,
         search = isSearchNavigationEnabled,
         categories = isCategoriesNavigationEnabled
@@ -378,15 +379,54 @@ fun ContentSettingsScreen(
                 }
             }
 
-            // Content Components Section
+            // Shorts Section
             item {
-                SectionHeader(text = stringResource(R.string.content_settings_header_content_components))
+                SectionHeader(text = stringResource(R.string.content_settings_header_shorts))
                 SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        title = stringResource(R.string.content_settings_shorts_content_title),
+                        subtitle = stringResource(R.string.content_settings_shorts_content_subtitle),
+                        checked = shortsContentEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShortsContentEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        title = stringResource(R.string.settings_shorts_nav_tab_title),
+                        subtitle = stringResource(R.string.settings_shorts_nav_tab_subtitle),
+                        checked = isShortsNavigationEnabled && shortsContentEnabled,
+                        enabled = shortsContentEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShortsNavigationEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        title = stringResource(R.string.settings_home_shorts_shelf_title),
+                        subtitle = stringResource(R.string.settings_home_shorts_shelf_subtitle),
+                        checked = isHomeShortsShelfEnabled && shortsContentEnabled,
+                        enabled = shortsContentEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setHomeShortsShelfEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
                         title = stringResource(R.string.settings_subs_shorts_shelf_title),
                         subtitle = stringResource(R.string.settings_subs_shorts_shelf_subtitle),
-                        checked = isShortsShelfEnabled,
+                        checked = isShortsShelfEnabled && shortsContentEnabled,
+                        enabled = shortsContentEnabled,
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setShortsShelfEnabled(enabled)
@@ -396,16 +436,49 @@ fun ContentSettingsScreen(
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                        title = stringResource(R.string.settings_home_shorts_shelf_title),
-                        subtitle = stringResource(R.string.settings_home_shorts_shelf_subtitle),
-                        checked = isHomeShortsShelfEnabled,
+                        title = stringResource(R.string.content_settings_subs_show_shorts_title),
+                        subtitle = stringResource(R.string.content_settings_subs_show_shorts_subtitle),
+                        checked = subscriptionShowShorts && shortsContentEnabled,
+                        enabled = shortsContentEnabled,
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
-                                preferences.setHomeShortsShelfEnabled(enabled)
+                                preferences.setSubscriptionShowShorts(enabled)
                             }
                         }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.SmartDisplay,
+                        title = stringResource(R.string.content_settings_disable_shorts_player_title),
+                        subtitle = stringResource(R.string.content_settings_disable_shorts_player_subtitle),
+                        checked = disableShortsPlayer || !shortsContentEnabled,
+                        enabled = shortsContentEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setDisableShortsPlayer(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.SmartDisplay,
+                        title = stringResource(R.string.content_settings_shorts_player_prompt_title),
+                        subtitle = stringResource(R.string.content_settings_shorts_player_prompt_subtitle),
+                        checked = showShortsPlayerPrompt && shortsContentEnabled && !disableShortsPlayer,
+                        enabled = shortsContentEnabled && !disableShortsPlayer,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShowShortsPlayerPrompt(enabled)
+                            }
+                        }
+                    )
+                }
+            }
+
+            // Content Components Section
+            item {
+                SectionHeader(text = stringResource(R.string.content_settings_header_content_components))
+                SettingsGroup {
                     SettingsSwitchItem(
                         icon = Icons.Outlined.ViewAgenda,
                         title = stringResource(R.string.settings_continue_watching_title),
@@ -525,31 +598,6 @@ fun ContentSettingsScreen(
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = Icons.Outlined.SmartDisplay,
-                        title = stringResource(R.string.content_settings_disable_shorts_player_title),
-                        subtitle = stringResource(R.string.content_settings_disable_shorts_player_subtitle),
-                        checked = disableShortsPlayer,
-                        onCheckedChange = { enabled ->
-                            coroutineScope.launch {
-                                preferences.setDisableShortsPlayer(enabled)
-                            }
-                        }
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.SmartDisplay,
-                        title = stringResource(R.string.content_settings_shorts_player_prompt_title),
-                        subtitle = stringResource(R.string.content_settings_shorts_player_prompt_subtitle),
-                        checked = showShortsPlayerPrompt,
-                        enabled = !disableShortsPlayer,
-                        onCheckedChange = { enabled ->
-                            coroutineScope.launch {
-                                preferences.setShowShortsPlayerPrompt(enabled)
-                            }
-                        }
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
                         icon = Icons.Outlined.Language,
                         title = stringResource(R.string.content_settings_explore_region_picker_title),
                         subtitle = stringResource(R.string.content_settings_explore_region_picker_subtitle),
@@ -599,18 +647,6 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setHomeNavigationEnabled(enabled)
-                            }
-                        }
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                        title = stringResource(R.string.settings_shorts_nav_tab_title),
-                        subtitle = stringResource(R.string.settings_shorts_nav_tab_subtitle),
-                        checked = isShortsNavigationEnabled,
-                        onCheckedChange = { enabled ->
-                            coroutineScope.launch {
-                                preferences.setShortsNavigationEnabled(enabled)
                             }
                         }
                     )
@@ -695,18 +731,6 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setSubscriptionShowVideos(enabled)
-                            }
-                        }
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                        title = stringResource(R.string.content_settings_subs_show_shorts_title),
-                        subtitle = stringResource(R.string.content_settings_subs_show_shorts_subtitle),
-                        checked = subscriptionShowShorts,
-                        onCheckedChange = { enabled ->
-                            coroutineScope.launch {
-                                preferences.setSubscriptionShowShorts(enabled)
                             }
                         }
                     )

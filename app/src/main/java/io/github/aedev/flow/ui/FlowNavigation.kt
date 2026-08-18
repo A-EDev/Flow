@@ -304,7 +304,11 @@ fun NavGraphBuilder.flowAppGraph(
                 )
             },
             onSavedShortClick = { video ->
-                navController.openShorts(ShortsQueueSource.Saved(video.id))
+                if (disableShortsPlayer) {
+                    navController.navigateToPlayer(video.id)
+                } else {
+                    navController.openShorts(ShortsQueueSource.Saved(video.id))
+                }
             },
         )
     }
@@ -769,7 +773,11 @@ fun NavGraphBuilder.flowAppGraph(
         io.github.aedev.flow.ui.screens.library.SavedShortsGridScreen(
             onBackClick = { navController.popBackStack() },
             onVideoClick = { videoId ->
-                navController.openShorts(ShortsQueueSource.Saved(videoId))
+                if (disableShortsPlayer) {
+                    navController.navigateToPlayer(videoId)
+                } else {
+                    navController.openShorts(ShortsQueueSource.Saved(videoId))
+                }
             },
         )
     }

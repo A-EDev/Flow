@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.music.DownloadManager as MusicDownloadManager
+import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,8 @@ class LibraryViewModel @Inject constructor(
     @ApplicationContext context: Context,
     playlistRepository: PlaylistRepository,
     videoDownloadManager: VideoDownloadManager,
-    musicDownloadManager: MusicDownloadManager
+    musicDownloadManager: MusicDownloadManager,
+    shortsContentFilter: ShortsContentFilter
 ) : ViewModel() {
 
     private val likedVideosRepository = LikedVideosRepository.getInstance(context)
@@ -63,6 +65,10 @@ class LibraryViewModel @Inject constructor(
         .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }
         .distinctUntilChanged()
         .stateIn(viewModelScope, sharing, emptyList())
+
+    /** Hides the Saved Shorts shelf when the master switch is off — the rows stay in the database. */
+    internal val shortsEnabled = shortsContentFilter.enabled
+        .stateIn(viewModelScope, sharing, true)
 
     internal val savedShorts = playlistRepository.getVideoOnlySavedShortsFlow()
         .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }

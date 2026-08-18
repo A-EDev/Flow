@@ -173,14 +173,16 @@ fun HistoryScreen(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
                         ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.history_delete_shorts)) },
-                                enabled = uiState.historyEntries.any { it.isShort },
-                                onClick = {
-                                    showMenu = false
-                                    showClearShortsDialog = true
-                                },
-                            )
+                            if (uiState.shortsEnabled) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.history_delete_shorts)) },
+                                    enabled = uiState.historyEntries.any { it.isShort },
+                                    onClick = {
+                                        showMenu = false
+                                        showClearShortsDialog = true
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.clear_all)) },
                                 enabled = uiState.historyEntries.isNotEmpty(),
@@ -209,7 +211,14 @@ fun HistoryScreen(
                 focusRequester = searchFocusRequester,
             )
 
+            LaunchedEffect(uiState.shortsEnabled) {
+                if (!uiState.shortsEnabled && selectedFilter == HistoryContentFilter.Shorts) {
+                    selectedFilter = HistoryContentFilter.All
+                }
+            }
+
             HistoryFilterRow(
+                shortsEnabled = uiState.shortsEnabled,
                 selectedFilter = selectedFilter,
                 onFilterSelected = { selectedFilter = it },
                 selectedSort = selectedSort,
@@ -348,6 +357,7 @@ private fun HistorySearchField(
 
 @Composable
 private fun HistoryFilterRow(
+    shortsEnabled: Boolean,
     selectedFilter: HistoryContentFilter,
     onFilterSelected: (HistoryContentFilter) -> Unit,
     selectedSort: HistorySort,
@@ -364,7 +374,7 @@ private fun HistoryFilterRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(HistoryContentFilter.values().toList()) { filter ->
+        items(HistoryContentFilter.entries.filter { shortsEnabled || it != HistoryContentFilter.Shorts }) { filter ->
             FilterChip(
                 selected = selectedFilter == filter,
                 onClick = { onFilterSelected(filter) },

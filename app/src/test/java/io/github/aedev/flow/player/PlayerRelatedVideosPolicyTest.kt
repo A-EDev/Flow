@@ -57,6 +57,25 @@ class PlayerRelatedVideosPolicyTest {
         assertThat(selected).containsExactly(live, upcoming).inOrder()
     }
 
+    @Test
+    fun `sanitizing drops reels when shorts are disabled`() {
+        val reel = video("reel").copy(isShort = true)
+        val shortMusicVideo = video("music").copy(duration = 45)
+
+        val selected = PlayerRelatedVideosPolicy.sanitize("playing", listOf(reel, shortMusicVideo), shortsEnabled = false)
+
+        assertThat(selected).containsExactly(shortMusicVideo)
+    }
+
+    @Test
+    fun `sanitizing keeps reels when shorts are enabled`() {
+        val reel = video("reel").copy(isShort = true)
+
+        val selected = PlayerRelatedVideosPolicy.sanitize("playing", listOf(reel), shortsEnabled = true)
+
+        assertThat(selected).containsExactly(reel)
+    }
+
     private fun video(id: String) = Video(
         id = id,
         title = id,
