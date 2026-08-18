@@ -151,6 +151,11 @@ data class ApplyResult(
 )
 
 @Serializable
+data class Ping(
+    val pong: Boolean = false,
+)
+
+@Serializable
 data class ErrorFrame(
     @SerialName("code") val code: String,
     @SerialName("message") val message: String,

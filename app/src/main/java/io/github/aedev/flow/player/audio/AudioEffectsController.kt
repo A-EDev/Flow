@@ -53,7 +53,8 @@ object AudioEffectsController {
     private val _bassBoost = MutableStateFlow(0f)
     val bassBoost: StateFlow<Float> = _bassBoost.asStateFlow()
 
-    private val customEq = MutableStateFlow(ParametricEQ.createFlat())
+    private val _customEq = MutableStateFlow(ParametricEQ.createFlat())
+    val customEq: StateFlow<ParametricEQ> = _customEq.asStateFlow()
 
     private val _customPresets = MutableStateFlow<Map<String, ParametricEQ>>(emptyMap())
     val customPresets: StateFlow<Map<String, ParametricEQ>> = _customPresets.asStateFlow()
@@ -63,7 +64,7 @@ object AudioEffectsController {
         combine(
             _eqProfileName,
             _bassBoost,
-            customEq,
+            _customEq,
             _customPresets,
         ) { name, boost, custom, presets ->
             foldBassBoost(resolveProfile(name, custom, presets), boost)
@@ -80,7 +81,7 @@ object AudioEffectsController {
                     _customPresets.value = json.decodeFromString(presetsMapSerializer, raw)
                 }
                 store.customEqJsonFlow.first()?.let { raw ->
-                    customEq.value = json.decodeFromString(ParametricEQ.serializer(), raw)
+                    _customEq.value = json.decodeFromString(ParametricEQ.serializer(), raw)
                 }
                 val settings = store.settingsFlow.first()
                 _bassBoost.value = settings.bassBoost
@@ -101,7 +102,7 @@ object AudioEffectsController {
     fun isCustomPreset(name: String): Boolean = _customPresets.value.containsKey(name)
 
     /** The bands/preamp the editor should show for a profile name (without bass boost folded in). */
-    fun editableProfile(name: String): ParametricEQ = resolveProfile(name, customEq.value, _customPresets.value)
+    fun editableProfile(name: String): ParametricEQ = resolveProfile(name, _customEq.value, _customPresets.value)
 
     fun setEqProfile(name: String) {
         _eqProfileName.value = name
@@ -118,7 +119,7 @@ object AudioEffectsController {
      * [CUSTOM_PROFILE] and persists the curve (debounced — slider drags emit rapidly).
      */
     fun setCustomEq(profile: ParametricEQ) {
-        customEq.value = profile
+        _customEq.value = profile
         if (_eqProfileName.value != CUSTOM_PROFILE) {
             _eqProfileName.value = CUSTOM_PROFILE
             scope.launch { persistence?.saveEqProfile(CUSTOM_PROFILE) }

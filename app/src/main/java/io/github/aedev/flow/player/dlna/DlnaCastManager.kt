@@ -61,21 +61,24 @@ object DlnaCastManager {
     private val _devices = MutableStateFlow<List<DlnaDevice>>(emptyList())
     val devices: StateFlow<List<DlnaDevice>> = _devices.asStateFlow()
 
-    private val currentDevice = MutableStateFlow<DlnaDevice?>(null)
+    private val _currentDevice = MutableStateFlow<DlnaDevice?>(null)
+    val currentDevice: StateFlow<DlnaDevice?> = _currentDevice.asStateFlow()
 
     private val _isDiscovering = MutableStateFlow(false)
     val isDiscovering: StateFlow<Boolean> = _isDiscovering.asStateFlow()
 
-    val isCasting: Boolean get() = currentDevice.value != null
+    val isCasting: Boolean get() = _currentDevice.value != null
 
     private var discoveryJob: Job? = null
     private var multicastLock: WifiManager.MulticastLock? = null
 
     private val proxy = StreamProxyServer.getInstance()
 
-    private val castPosition = MutableStateFlow(0L)
+    private val _castPosition = MutableStateFlow(0L)
+    val castPosition: StateFlow<Long> = _castPosition.asStateFlow()
 
-    private val castDuration = MutableStateFlow(0L)
+    private val _castDuration = MutableStateFlow(0L)
+    val castDuration: StateFlow<Long> = _castDuration.asStateFlow()
 
     private var positionPollingJob: Job? = null
 
@@ -405,17 +408,17 @@ object DlnaCastManager {
                 setAVTransportUri(device, castUrl, title, contentType)
                 delay(500)
                 play(device)
-                currentDevice.value = device
+                _currentDevice.value = device
                 startPositionPolling(device)
             } catch (e: Exception) {
                 Log.e(TAG, "castTo failed: ${e.message}")
-                currentDevice.value = null
+                _currentDevice.value = null
             }
         }
     }
 
     fun stop() {
-        val device = currentDevice.value ?: return
+        val device = _currentDevice.value ?: return
         scope.launch {
             try {
                 sendSoap(
@@ -431,9 +434,9 @@ object DlnaCastManager {
                 Log.e(TAG, "stop failed: ${e.message}")
             } finally {
                 positionPollingJob?.cancel()
-                currentDevice.value = null
-                castPosition.value = 0
-                castDuration.value = 0
+                _currentDevice.value = null
+                _castPosition.value = 0
+                _castDuration.value = 0
             }
         }
     }
@@ -448,7 +451,7 @@ object DlnaCastManager {
     }
 
     fun pause() {
-        val device = currentDevice.value ?: return
+        val device = _currentDevice.value ?: return
         scope.launch {
             try {
                 sendSoap(
@@ -517,7 +520,7 @@ object DlnaCastManager {
         positionPollingJob?.cancel()
         positionPollingJob =
             scope.launch {
-                while (currentDevice.value != null) {
+                while (_currentDevice.value != null) {
                     try {
                         val body =
                             soapAction(
@@ -545,10 +548,10 @@ object DlnaCastManager {
         val durationRegex = Regex("<TrackDuration>([^<]+)</TrackDuration>")
 
         relTimeRegex.find(xml)?.groupValues?.get(1)?.let { time ->
-            castPosition.value = parseTimeToSeconds(time)
+            _castPosition.value = parseTimeToSeconds(time)
         }
         durationRegex.find(xml)?.groupValues?.get(1)?.let { time ->
-            castDuration.value = parseTimeToSeconds(time)
+            _castDuration.value = parseTimeToSeconds(time)
         }
     }
 

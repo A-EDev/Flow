@@ -499,6 +499,19 @@ data class FormatBufferedRange(
         }
 }
 
+data class ClientScreenInfo(
+    val screenWidthPixels: Int = 0,
+    val screenHeightPixels: Int = 0,
+    val screenDensity: Float = 0f,
+) {
+    fun encode(): ByteArray =
+        ProtobufWriter.encode {
+            if (screenWidthPixels != 0) writeInt32(1, screenWidthPixels)
+            if (screenHeightPixels != 0) writeInt32(2, screenHeightPixels)
+            if (screenDensity != 0f) writeFloat(3, screenDensity)
+        }
+}
+
 /**
  * ClientInfo — nested inside [StreamerContext]. Field numbers per
  * LuanRT/googlevideo `streamer_context.proto`. For the WEB client, [clientName] = 1.
