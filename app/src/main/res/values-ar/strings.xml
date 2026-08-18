@@ -1305,7 +1305,7 @@
     <string name="channel_search_close">إلغاء البحث</string>
     <string name="tap_to_close">أنقر للإغلاق</string>
     <string name="player_appearance_fullscreen_header">ملء الشاشة</string>
-    <string name="player_show_title_title">أظهر عنوان الفيديو</string>
+    <string name="player_show_title_title">إظهار عنوان الفيديو</string>
     <string name="player_show_title_subtitle">إعرض عنوان الفيديو أسفل الشريط العلوي أثناء وضع ملء الشاشة</string>
     <string name="deep_flow_duration_never">أبداً</string>
     <string name="player_appearance_volume_gesture_subtitle">إسحب من الحافة اليمنى في وضع ملء الشاشة لضبط مستوى الصوت</string>
