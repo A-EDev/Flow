@@ -1557,32 +1557,6 @@ fun SettingsScreen(
     }
 }
 
-@Composable
-fun BrainTraitRow(
-    label: String,
-    value: Double,
-    leftLabel: String,
-    rightLabel: String,
-) {
-    Column {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-            Text("${(value * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
-        }
-        Spacer(Modifier.height(4.dp))
-        LinearProgressIndicator(
-            progress = value.toFloat(), // Fixed: No lambda
-            modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
-            color = MaterialTheme.colorScheme.secondary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(leftLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(rightLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
 private val REGION_NAMES =
     mapOf(
         "DZ" to "Algeria",

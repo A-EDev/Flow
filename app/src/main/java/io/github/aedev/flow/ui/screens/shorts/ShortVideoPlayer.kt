@@ -275,7 +275,6 @@ internal fun ShortVideoPage(
                     }
                 }
             }
-
         if (isActive && player != null) {
             player.addListener(eventListener)
         }
@@ -1799,21 +1798,4 @@ fun ShortsActionButton(
             )
         }
     }
-}
-
-@Composable
-fun ActionButton(
-    icon: ImageVector,
-    text: String,
-    tint: Color = Color.White,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ShortsActionButton(
-        icon = icon,
-        text = text,
-        tint = tint,
-        onClick = onClick,
-        modifier = modifier,
-    )
 }

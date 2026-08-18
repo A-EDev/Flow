@@ -1,11 +1,11 @@
 package io.github.aedev.flow.data.local
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room.databaseBuilder
 import androidx.room.RoomDatabase
 import io.github.aedev.flow.data.local.dao.CacheDao
 import io.github.aedev.flow.data.local.dao.DownloadDao
-import io.github.aedev.flow.data.local.dao.DownloadedSongDao
 import io.github.aedev.flow.data.local.dao.HomeFeedCacheDao
 import io.github.aedev.flow.data.local.dao.NotificationDao
 import io.github.aedev.flow.data.local.dao.PlaylistDao
@@ -17,7 +17,6 @@ import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.local.entity.DownloadEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemEntity
-import io.github.aedev.flow.data.local.entity.DownloadedSongEntity
 import io.github.aedev.flow.data.local.entity.HomeFeedCacheEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeCacheEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeChipEntity
@@ -32,6 +31,7 @@ import io.github.aedev.flow.data.local.entity.SyncPeerEntity
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.local.migrations.MIGRATIONS
+import io.github.aedev.flow.data.local.migrations.Migration24To25
 
 @Database(
     entities = [
@@ -42,7 +42,6 @@ import io.github.aedev.flow.data.local.migrations.MIGRATIONS
         SubscriptionFeedEntity::class,
         MusicHomeCacheEntity::class,
         MusicHomeChipEntity::class,
-        DownloadedSongEntity::class,
         DownloadEntity::class,
         DownloadItemEntity::class,
         WatchHistoryEntity::class,
@@ -52,7 +51,10 @@ import io.github.aedev.flow.data.local.migrations.MIGRATIONS
         SyncLogEntity::class,
         SyncPeerEntity::class,
     ],
-    version = 24,
+    autoMigrations = [
+        AutoMigration(from = 24, to = 25, spec = Migration24To25::class),
+    ],
+    version = 25,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -63,8 +65,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
 
     abstract fun cacheDao(): CacheDao
-
-    abstract fun downloadedSongDao(): DownloadedSongDao
 
     abstract fun downloadDao(): DownloadDao
 

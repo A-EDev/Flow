@@ -491,24 +491,6 @@ fun AutoHideControlsEffect(
 }
 
 @Composable
-fun AutoPlayNextEffect(
-    hasEnded: Boolean,
-    autoplayEnabled: Boolean,
-    isLooping: Boolean,
-    hasNextInQueue: Boolean,
-    relatedVideos: List<Video>,
-    onVideoClick: (Video) -> Unit,
-) {
-    LaunchedEffect(hasEnded, autoplayEnabled, isLooping, hasNextInQueue) {
-        if (hasEnded && autoplayEnabled && !isLooping && !hasNextInQueue) {
-            relatedVideos.firstOrNull()?.let { nextVideo ->
-                onVideoClick(nextVideo)
-            }
-        }
-    }
-}
-
-@Composable
 fun GestureOverlayAutoHideEffect(screenState: PlayerScreenState) {
     LaunchedEffect(screenState) {
         snapshotFlow { screenState.showBrightnessOverlay to screenState.brightnessLevel }
@@ -796,64 +778,6 @@ fun PlaybackStartupRecoveryEffect(
 }
 
 @Composable
-fun VideoCleanupEffect(
-    videoId: String,
-    video: Video,
-    currentPosition: Long,
-    duration: Long,
-    uiState: VideoPlayerUiState,
-    viewModel: VideoPlayerViewModel,
-) {
-    var lastKnownPosition by remember(videoId) { mutableLongStateOf(currentPosition) }
-    var lastKnownDuration by remember(videoId) { mutableLongStateOf(duration) }
-    var lastKnownTitle by remember(videoId) { mutableStateOf(video.title) }
-    var lastKnownThumbnail by remember(videoId) {
-        mutableStateOf(
-            video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg",
-        )
-    }
-    var lastKnownChannelName by remember(videoId) { mutableStateOf(video.channelName) }
-    var lastKnownChannelId by remember(videoId) { mutableStateOf(video.channelId) }
-    val currentUiState by rememberUpdatedState(uiState)
-
-    SideEffect {
-        val streamInfo = uiState.streamInfo
-        val belongsToVideo = streamInfo?.id == videoId || uiState.cachedVideo?.id == videoId
-        if (belongsToVideo) {
-            lastKnownPosition = currentPosition
-            lastKnownDuration = duration
-            lastKnownTitle = streamInfo?.name ?: video.title
-            lastKnownThumbnail = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
-                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
-            lastKnownChannelName = resolveHistoryChannelName(video, streamInfo?.uploaderName)
-            lastKnownChannelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-        }
-    }
-
-    DisposableEffect(videoId) {
-        onDispose {
-            if (!currentUiState.isCurrentLiveStream()) {
-                viewModel.savePlaybackPosition(
-                    videoId = videoId,
-                    position = lastKnownPosition,
-                    duration = lastKnownDuration,
-                    title = lastKnownTitle,
-                    thumbnailUrl = lastKnownThumbnail,
-                    channelName = lastKnownChannelName,
-                    channelId = lastKnownChannelId,
-                    isShort = video.isShort,
-                )
-
-                viewModel.reportWatchProgress(video, lastKnownPosition, lastKnownDuration)
-            }
-            Log.d(TAG, "Video cleanup disposed for $videoId")
-        }
-    }
-}
-
-@Composable
 fun ShortVideoPromptEffect(
     videoDuration: Int,
     screenState: PlayerScreenState,
@@ -874,16 +798,6 @@ fun ShortVideoPromptEffect(
                 screenState.hasShownShortsPrompt = true
             }
         }
-    }
-}
-
-@Composable
-fun CommentsLoadEffect(
-    videoId: String,
-    viewModel: VideoPlayerViewModel,
-) {
-    LaunchedEffect(videoId) {
-        viewModel.loadComments(videoId)
     }
 }
 

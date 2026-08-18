@@ -1262,11 +1262,6 @@ private fun parseRelativeDurationMillis(text: String): Long? {
     return value * unit
 }
 
-private fun formatRelativeTime(
-    timestamp: Long,
-    now: Long,
-): String = formatYouTubeRelativeTime(timestamp, now)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MergeIntoPlaylistDialog(
@@ -1810,12 +1805,8 @@ class PlaylistDetailViewModel
                 .getUserCreatedVideoPlaylistsFlow()
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
-        private val _isMerging = MutableStateFlow(false)
-        val isMerging: StateFlow<Boolean> = _isMerging.asStateFlow()
-
         fun mergeIntoPlaylist(targetPlaylistId: String) {
             viewModelScope.launch {
-                _isMerging.value = true
                 val videos = _uiState.value.videos
                 try {
                     repository.addVideosToPlaylist(targetPlaylistId, videos)
@@ -1829,8 +1820,6 @@ class PlaylistDetailViewModel
                 } catch (e: Exception) {
                     android.util.Log.e("PlaylistDetailVM", "Failed to merge playlist", e)
                     Toast.makeText(context, context.getString(R.string.toast_failed_to_merge_playlist), Toast.LENGTH_SHORT).show()
-                } finally {
-                    _isMerging.value = false
                 }
             }
         }

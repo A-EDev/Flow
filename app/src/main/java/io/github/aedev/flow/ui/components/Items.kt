@@ -222,43 +222,6 @@ fun GridItem(
     }
 }
 
-@Composable
-fun GridItem(
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier,
-    badges: @Composable RowScope.() -> Unit = {},
-    thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
-    thumbnailRatio: Float = 1f,
-    fillMaxWidth: Boolean = false,
-) = GridItem(
-    modifier = modifier,
-    title = {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Start,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    },
-    subtitle = {
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    },
-    badges = badges,
-    thumbnailContent = thumbnailContent,
-    thumbnailRatio = thumbnailRatio,
-    fillMaxWidth = fillMaxWidth,
-)
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GridItem(

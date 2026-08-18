@@ -20,13 +20,22 @@ object FrameType {
     const val PING: Byte = 0x7E
     const val ERROR: Byte = 0x7F
 
-    fun name(b: Byte): String = when (b) {
-        HELLO -> "HELLO"; HELLO_ACK -> "HELLO_ACK"; CAPABILITIES -> "CAPABILITIES"
-        SELECTION -> "SELECTION"; CONSENT -> "CONSENT"; MANIFEST -> "MANIFEST"
-        CHUNK -> "CHUNK"; CHUNK_ACK -> "CHUNK_ACK"; COMPLETE -> "COMPLETE"
-        APPLY_RESULT -> "APPLY_RESULT"; PING -> "PING"; ERROR -> "ERROR"
-        else -> "UNKNOWN(0x%02x)".format(b)
-    }
+    fun name(b: Byte): String =
+        when (b) {
+            HELLO -> "HELLO"
+            HELLO_ACK -> "HELLO_ACK"
+            CAPABILITIES -> "CAPABILITIES"
+            SELECTION -> "SELECTION"
+            CONSENT -> "CONSENT"
+            MANIFEST -> "MANIFEST"
+            CHUNK -> "CHUNK"
+            CHUNK_ACK -> "CHUNK_ACK"
+            COMPLETE -> "COMPLETE"
+            APPLY_RESULT -> "APPLY_RESULT"
+            PING -> "PING"
+            ERROR -> "ERROR"
+            else -> "UNKNOWN(0x%02x)".format(b)
+        }
 }
 
 /** Canonical collection identifiers exchanged over the wire */
@@ -40,9 +49,15 @@ object SyncCollection {
     const val SUBSCRIPTIONS = "subscriptions"
 
     /** Collections Android can exchange in v1 (music_brain excluded — Android has no consumer). */
-    val ANDROID_SYNCABLE = listOf(
-        WATCH_HISTORY, PLAYLISTS, LIKES, SETTINGS, FLOW_NEURO_BRAIN, SUBSCRIPTIONS,
-    )
+    val ANDROID_SYNCABLE =
+        listOf(
+            WATCH_HISTORY,
+            PLAYLISTS,
+            LIKES,
+            SETTINGS,
+            FLOW_NEURO_BRAIN,
+            SUBSCRIPTIONS,
+        )
 }
 
 // --- Control-frame payloads (JSON; gzip+sealed by SyncCodec) ---
@@ -150,15 +165,14 @@ data class ErrorFrame(
  * Shared JSON for control frames: compact output, lenient parsing
  */
 object FrameJson {
-    val json = Json {
-        encodeDefaults = true
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
+    val json =
+        Json {
+            encodeDefaults = true
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
 
-    inline fun <reified T> encode(value: T): ByteArray =
-        json.encodeToString(serializer<T>(), value).toByteArray(Charsets.UTF_8)
+    inline fun <reified T> encode(value: T): ByteArray = json.encodeToString(serializer<T>(), value).toByteArray(Charsets.UTF_8)
 
-    inline fun <reified T> decode(bytes: ByteArray): T =
-        json.decodeFromString(serializer<T>(), String(bytes, Charsets.UTF_8))
+    inline fun <reified T> decode(bytes: ByteArray): T = json.decodeFromString(serializer<T>(), String(bytes, Charsets.UTF_8))
 }

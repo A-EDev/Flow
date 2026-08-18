@@ -167,83 +167,6 @@ fun TrackListItem(
 }
 
 @Composable
-fun ArtistGridItem(
-    artist: String,
-    thumbnailUrl: String?,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .width(100.dp)
-                .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Surface(
-            shape = CircleShape,
-            modifier = Modifier.size(100.dp),
-            tonalElevation = 4.dp,
-        ) {
-            AsyncImage(
-                model = thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = artist,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-    }
-}
-
-@Composable
-fun QuickPickItem(
-    track: MusicTrack,
-    isPlaying: Boolean = false,
-    isDownloaded: Boolean = false,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
-    onMenuClick: () -> Unit,
-) {
-    TrackListItem(
-        track = track,
-        isPlaying = isPlaying,
-        isDownloaded = isDownloaded,
-        onClick = onClick,
-        onLongClick = onLongClick,
-        onMenuClick = onMenuClick,
-        modifier = Modifier.width(320.dp), // Fixed width for horizontal lists
-    )
-}
-
-@Composable
-fun CompactTrackCard(
-    track: MusicTrack,
-    isDownloaded: Boolean = false,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
-    onMenuClick: (() -> Unit)? = null,
-    onArtistClick: ((String) -> Unit)? = null,
-) {
-    TrackListItem(
-        track = track,
-        isDownloaded = isDownloaded,
-        onClick = onClick,
-        onLongClick = onLongClick,
-        showMenu = onMenuClick != null,
-        onMenuClick = { onMenuClick?.invoke() },
-    )
-}
-
-@Composable
 fun MusicWaveAnimation(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary,
@@ -276,33 +199,4 @@ private fun MusicTrack.musicMetadataLine(): String {
             else -> null
         }
     return if (suffix != null) stringResource(R.string.year_artist_template, artist, suffix) else artist
-}
-
-@Composable
-fun TrendingTrackCard(
-    track: MusicTrack,
-    rank: Int,
-    isDownloaded: Boolean = false,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
-    onArtistClick: (String) -> Unit,
-    onMenuClick: () -> Unit,
-) {
-    TrackListItem(
-        track = track,
-        isDownloaded = isDownloaded,
-        leadingContent = {
-            Text(
-                text = rank.toString(),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (rank <= 3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(32.dp),
-                textAlign = TextAlign.Center,
-            )
-        },
-        onClick = onClick,
-        onLongClick = onLongClick,
-        onMenuClick = onMenuClick,
-    )
 }

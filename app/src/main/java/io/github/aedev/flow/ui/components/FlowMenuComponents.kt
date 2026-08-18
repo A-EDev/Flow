@@ -46,7 +46,7 @@ data class FlowAction(
     val onClick: () -> Unit,
     val enabled: Boolean = true,
     val backgroundColor: Color = Color.Unspecified,
-    val contentColor: Color = Color.Unspecified
+    val contentColor: Color = Color.Unspecified,
 )
 
 // Enhanced Action Button - Material 3 Expressive Design
@@ -59,45 +59,49 @@ fun FlowActionButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     Card(
-        modifier = modifier
-            .padding(2.dp)
-            .clickable(enabled = enabled) { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.5f)
-        ),
+        modifier =
+            modifier
+                .padding(2.dp)
+                .clickable(enabled = enabled) { onClick() },
+        colors =
+            CardDefaults.cardColors(
+                containerColor = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.5f),
+            ),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp, horizontal = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
         ) {
             Box(
                 modifier = Modifier.size(24.dp),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 androidx.compose.material3.LocalContentColor provides if (enabled) contentColor else contentColor.copy(alpha = 0.5f)
                 icon()
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Medium
-                ),
+                style =
+                    MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                    ),
                 color = if (enabled) contentColor else contentColor.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.basicMarquee()
+                modifier = Modifier.basicMarquee(),
             )
         }
     }
@@ -108,17 +112,17 @@ fun FlowActionButton(
 fun FlowActionGrid(
     actions: List<FlowAction>,
     modifier: Modifier = Modifier,
-    columns: Int = 3
+    columns: Int = 3,
 ) {
     val rows = actions.chunked(columns)
-    
+
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         rows.forEach { row ->
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 row.forEach { action ->
                     FlowActionButton(
@@ -127,11 +131,25 @@ fun FlowActionGrid(
                         onClick = action.onClick,
                         modifier = Modifier.weight(1f),
                         enabled = action.enabled,
-                        backgroundColor = if (action.backgroundColor != Color.Unspecified) action.backgroundColor else MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (action.contentColor != Color.Unspecified) action.contentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                        backgroundColor =
+                            if (action.backgroundColor !=
+                                Color.Unspecified
+                            ) {
+                                action.backgroundColor
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            },
+                        contentColor =
+                            if (action.contentColor !=
+                                Color.Unspecified
+                            ) {
+                                action.contentColor
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
                 }
-                
+
                 // Fill remaining space if row is not full
                 repeat(columns - row.size) {
                     Spacer(modifier = Modifier.weight(1f))
@@ -151,21 +169,22 @@ data class FlowMenuItemData(
     val description: (@Composable () -> Unit)? = null,
     val onClick: (() -> Unit)? = null,
     val cardColors: CardColors? = null,
-    val trailingContent: (@Composable () -> Unit)? = null
+    val trailingContent: (@Composable () -> Unit)? = null,
 )
 
 @Composable
 fun FlowMenuGroup(
     items: List<FlowMenuItemData>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column {
             items.forEachIndexed { index, item ->
@@ -174,7 +193,7 @@ fun FlowMenuGroup(
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 56.dp, end = 16.dp),
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                     )
                 }
             }
@@ -183,18 +202,16 @@ fun FlowMenuGroup(
 }
 
 @Composable
-private fun FlowMenuItemRow(
-    item: FlowMenuItemData
-) {
+private fun FlowMenuItemRow(item: FlowMenuItemData) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                enabled = item.onClick != null,
-                onClick = { item.onClick?.invoke() }
-            )
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(
+                    enabled = item.onClick != null,
+                    onClick = { item.onClick?.invoke() },
+                ).padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         item.icon?.let { icon ->
             icon()
@@ -202,7 +219,7 @@ private fun FlowMenuItemRow(
         }
 
         Column(
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             ProvideTextStyle(MaterialTheme.typography.titleMedium) {
                 item.title()
@@ -212,8 +229,8 @@ private fun FlowMenuItemRow(
                 Spacer(modifier = Modifier.height(2.dp))
                 ProvideTextStyle(
                     MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
                 ) {
                     desc()
                 }
@@ -234,31 +251,16 @@ private fun FlowMenuItemRow(
 @Composable
 fun FlowMenuSectionHeader(
     text: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium.copy(
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp
-        ),
+        style =
+            MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+            ),
         color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+        modifier = modifier.padding(horizontal = 20.dp, vertical = 12.dp),
     )
-}
-
-// Enhanced Menu Container
-@Composable
-fun FlowMenuContainer(
-    content: @Composable () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 32.dp)
-    ) {
-        content()
-    }
 }
