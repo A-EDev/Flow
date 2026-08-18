@@ -804,7 +804,7 @@
     <string name="player_portrait_seekbar_width_spaced">Espaçado</string>
     <string name="player_fullscreen_seekbar_width_subtitle">%1$d dp de preenchimento de cada lado</string>
     <string name="lyrics_provider_title">Fornecedor das Letras</string>
-    <string name="lyrics_provider_subtitle">Escolha a sua fonte preferida para as letras das musicas</string>
+    <string name="lyrics_provider_subtitle">Escolha a sua fonte preferida para as letras das músicas</string>
     <string name="lyrics_provider_lrclib">LrcLib</string>
     <string name="lyrics_provider_better_lyrics">Melhores Letras</string>
     <string name="lyrics_provider_simpmusic">SimpMusic</string>
@@ -988,7 +988,7 @@
     <string name="sb_category_sponsor">Patrocinador</string>
     <string name="sb_category_intro">Introdução/Intervalo</string>
     <string name="sb_category_outro">Cartões de encerramento / créditos</string>
-    <string name="sb_category_music_offtopic">Segmento sem musica</string>
+    <string name="sb_category_music_offtopic">Segmento sem música</string>
     <string name="sb_category_filler">Enrolação/desvio</string>
     <string name="sb_category_preview">Prévia/Resumo</string>
     <string name="sb_action_show_toast">Somente notificar</string>
@@ -1029,7 +1029,7 @@
     <string name="buffer_settings_desc">Configurar o comportamento do buffer de vídeo para otimizar sua conexão de rede.</string>
     <string name="buffer_settings_header_profile">Perfil de desempenho</string>
     <string name="buffer_settings_header_custom">Configuração manual</string>
-    <string name="buffer_profile_aggressive">Inicio rápido / Agressivo</string>
+    <string name="buffer_profile_aggressive">Início rápido / Agressivo</string>
     <string name="buffer_profile_datasaver">Economia de dados / Baixa latência</string>
     <string name="buffer_profile_custom">Personalizar</string>
     <string name="buffer_desc_stable">Tempo de inicialização e buffer equilibrados (mínimo de 15s, máximo de 50s)</string>
@@ -1126,7 +1126,7 @@
     <string name="sleep_timer_unit">min</string>
     <string name="sleep_timer_input_error">Insira um valor entre 1 e 1440</string>
     <string name="sleep_timer_end_of_song">Fim da música / vídeo</string>
-    <string name="sleep_timer_start">Inicio</string>
+    <string name="sleep_timer_start">Início</string>
     <string name="sleep_timer_stops_in">Paradas em</string>
     <string name="sleep_timer_end_of_media">Fim da música atual</string>
     <string name="sleep_timer_reset">Reiniciar</string>
@@ -1564,8 +1564,8 @@
     <string name="shorts_quality_settings_subtitle">Qualidade ao assistir Shorts</string>
     <string name="shorts_quality_warning">Qualidade alta usa mais dados. Shorts usar vídeo verticais.</string>
     <string name="shorts_quality_wifi_header">Qualidade do Shorts no Wi-Fi</string>
-    <string name="shorts_quality_cellular_header">Qualidade do Shorts no dados moveis</string>
-    <string name="play_next_video">Reprodiuzir o próximo</string>
+    <string name="shorts_quality_cellular_header">Qualidade do Shorts no dados móveis</string>
+    <string name="play_next_video">Reproduzir o próximo</string>
     <string name="play_next_video_desc">Inserir no início da fila de vídeo</string>
     <string name="add_video_to_queue">Adicionar à fila</string>
     <string name="add_video_to_queue_desc">Adicionar ao final da fila de vídeo</string>
