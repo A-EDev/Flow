@@ -11,11 +11,10 @@ import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.ANDROID_CRE
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_43_32
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_61_48
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.ANDROID_VR_NO_AUTH
-import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.IOS
-import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.IPADOS
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.MOBILE
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.TVHTML5
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
+import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.VISIONOS
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB_REMIX
@@ -62,22 +61,25 @@ object MusicPlayerUtils {
             ANDROID_VR_1_43_32,
             ANDROID_VR_1_61_48,
             ANDROID_CREATOR,
-            IPADOS,
             ANDROID_VR_NO_AUTH,
             MOBILE,
-            IOS,
             WEB,
             WEB_CREATOR,
         )
 
+    /**
+     * Tried before [STREAM_FALLBACK_CLIENTS]. VISIONOS leads because it is the only direct client
+     * GVS still serves past ~60s without a PO Token — the rest are unattested and get cut off
+     * mid-track, which is what stopped playlists at 59 seconds. IOS/IPADOS are gone entirely: they
+     * now return SABR-only responses with no direct URLs at all.
+     */
     private val FAST_DIRECT_STREAM_CLIENTS: Array<YouTubeClient> =
         arrayOf(
+            VISIONOS,
             ANDROID_VR_1_43_32,
             ANDROID_VR_1_61_48,
             ANDROID_VR_NO_AUTH,
-            IPADOS,
             MOBILE,
-            IOS,
             ANDROID_CREATOR,
         )
 
@@ -488,10 +490,13 @@ object MusicPlayerUtils {
             return null
         }
 
+        // Direct-URL clients skip the probe: their URLs are playable as returned, and the extra
+        // round trip would sit on the critical path to first audio.
         val needsValidation =
             validate &&
                 !client.clientName.startsWith("ANDROID") &&
-                client.clientName != "IOS"
+                client.clientName != "IOS" &&
+                client.clientName != "VISIONOS"
         if (needsValidation && !checkUrl(resolved.url, client.userAgent)) {
             Log.d(TAG, "URL validation failed for ${client.clientName}")
             return null

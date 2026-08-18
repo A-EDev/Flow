@@ -22,6 +22,7 @@ IMPROVEMENTS
 - Scale the long-press speed boost from the current speed so it can never slow playback down #867
 - Restyle the long-press speed indicator as a pill showing the speed it will actually apply
 - Ripple the tapped side of the screen when double-tap seeking
+- Offer every dubbed audio track and the full quality ladder on videos that provide them
 
 PERFORMANCE
 - Faster cold start and smoother scrolling
@@ -61,6 +62,7 @@ FIXES AND STABILITY
 - Fix a crash when playback notification artwork finished loading in the background
 - Fix the playback notification disappearing when the queue auto-advanced in the background
 - Fix videos cutting out around the one-minute mark on auto-dubbed titles
+- Fix playback stopping about a minute in and then retrying until it gave up #921 #922
 - Fix the wrong audio track being requested on auto-dubbed videos
 - Fix the mini player expanding back to the full player while metadata was still loading
 - Fix playback on videos that only offer a server-side adaptive stream
@@ -74,7 +76,7 @@ FIXES AND STABILITY
 - Fix swiping down to leave fullscreen committing even after you dragged back up
 
 DEPENDENCY
-- Bump NewPipeExtractor to v0.26.4
+- Bump NewPipeExtractor to v0.26.5
 - Update Gradle to 9.6.1 and Android Gradle Plugin to 9.3.1
 - Update Kotlin to 2.4.10 with the Compose compiler plugin and KSP 2.3.11
 - Update Hilt to 2.60.1 and Room to 2.8.4

@@ -2,6 +2,26 @@ package io.github.aedev.flow.innertube.models
 
 import kotlinx.serialization.Serializable
 
+/**
+ * Which attestation runtime mints a PO Token this client's requests will be accepted with.
+ *
+ * A PO Token is produced by BotGuard (Web), DroidGuard (Android) or iOSGuard (iOS), and one
+ * platform's token is never valid on another's URL. Flow only owns a BotGuard WebView, so [WEB]
+ * is the only family it can attest; the rest are usable exactly as long as YouTube keeps serving
+ * them unattested. Encoding that here is what stops a WEB token being stamped onto an
+ * ANDROID_VR/IOS URL, which is a claim GVS checks and rejects.
+ */
+enum class AttestationPlatform {
+    /** BotGuard — Flow mints these in [io.github.aedev.flow.utils.potoken.PoTokenWebView]. */
+    WEB,
+
+    /** DroidGuard, inside Google Play Services. Not reachable from a third-party app. */
+    DROIDGUARD,
+
+    /** iOSGuard. Not reachable at all from Android. */
+    IOSGUARD,
+}
+
 @Serializable
 data class YouTubeClient(
     val clientName: String,
@@ -25,6 +45,12 @@ data class YouTubeClient(
     val useSignatureTimestamp: Boolean = false,
     val isEmbedded: Boolean = false,
     val useWebPoTokens: Boolean = false,
+    /**
+     * The runtime that mints tokens this client's URLs will accept. Defaults to [AttestationPlatform.WEB]
+     * because every client Flow can actually attest is web-family; the non-web clients set it
+     * explicitly so token attachment can be gated on it.
+     */
+    val attestation: AttestationPlatform = AttestationPlatform.WEB,
     /**
      * Whether [userAgent] is repeated inside `context.client` as well as sent as the HTTP header.
      * Only MWEB expects this; sending it for other clients is a fingerprint inconsistency. Clients
@@ -121,6 +147,7 @@ data class YouTubeClient(
                 friendlyName = "Android",
                 loginSupported = true,
                 useSignatureTimestamp = true,
+                attestation = AttestationPlatform.DROIDGUARD,
             )
 
         val WEB_REMIX =
@@ -180,6 +207,7 @@ data class YouTubeClient(
                 clientId = "5",
                 userAgent = "com.google.ios.youtube/21.03.1 (iPhone16,2; U; CPU iOS 18_2 like Mac OS X;)",
                 osVersion = "18.2.22C152",
+                attestation = AttestationPlatform.IOSGUARD,
             )
 
         val MOBILE =
@@ -190,6 +218,7 @@ data class YouTubeClient(
                 userAgent = "com.google.android.youtube/21.03.38 (Linux; U; Android 14) gzip",
                 loginSupported = true,
                 useSignatureTimestamp = true,
+                attestation = AttestationPlatform.DROIDGUARD,
             )
 
         val ANDROID_VR_NO_AUTH =
@@ -202,6 +231,7 @@ data class YouTubeClient(
                         "(Linux; U; Android 12; en_US; Oculus Quest 3; Build/SQ3A.220605.009.A1; Cronet/132.0.6808.3)",
                 loginSupported = false,
                 useSignatureTimestamp = false,
+                attestation = AttestationPlatform.DROIDGUARD,
             )
 
         val ANDROID_VR_1_61_48 =
@@ -223,6 +253,7 @@ data class YouTubeClient(
                 friendlyName = "Android VR 1.61",
                 loginSupported = false,
                 useSignatureTimestamp = false,
+                attestation = AttestationPlatform.DROIDGUARD,
             )
 
         val ANDROID_VR_1_65_10 =
@@ -243,6 +274,7 @@ data class YouTubeClient(
                 friendlyName = "Android VR 1.65",
                 loginSupported = false,
                 useSignatureTimestamp = false,
+                attestation = AttestationPlatform.DROIDGUARD,
             )
 
         val ANDROID_VR_1_43_32 =
@@ -264,6 +296,7 @@ data class YouTubeClient(
                 friendlyName = "Android VR 1.43",
                 loginSupported = false,
                 useSignatureTimestamp = false,
+                attestation = AttestationPlatform.DROIDGUARD,
             )
 
         val ANDROID_CREATOR =
@@ -285,23 +318,36 @@ data class YouTubeClient(
                 friendlyName = "Android Studio",
                 loginSupported = true,
                 useSignatureTimestamp = true,
+                attestation = AttestationPlatform.DROIDGUARD,
             )
 
+        /**
+         * The primary direct-URL client. GVS serves its formats without a PO Token and without an
+         * `n` parameter, so it reaches first frame with no attestation and no nsig decode — the two
+         * properties ANDROID_VR was chosen for, which ANDROID_VR lost when YouTube began requiring
+         * a GVS PO Token for it (yt-dlp #17261, Aug 2026).
+         *
+         * Version-sensitive: the previous `0.1`/`RealityDevice14,1` build still answers, but serves
+         * 17 formats and a single audio track. This build serves 98 formats and every dubbed track,
+         * so do not "simplify" these values — they are the difference between a full ladder and a
+         * stub. Kept in step with yt-dlp's `visionos` entry in `youtube/_base.py`.
+         */
         val VISIONOS =
             YouTubeClient(
                 clientName = "VISIONOS",
-                clientVersion = "0.1",
+                clientVersion = "1.02",
                 clientId = "101",
                 userAgent =
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 " +
-                        "(KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 " +
+                        "(KHTML, like Gecko) Version/26.0 Safari/605.1.15",
                 osName = "visionOS",
-                osVersion = "1.3.21O771",
+                osVersion = "26.5.23O471",
                 deviceMake = "Apple",
-                deviceModel = "RealityDevice14,1",
+                deviceModel = "RealityDevice17,1",
                 friendlyName = "visionOS",
                 loginSupported = false,
                 useSignatureTimestamp = false,
+                attestation = AttestationPlatform.IOSGUARD,
             )
 
         val IPADOS =
@@ -318,6 +364,7 @@ data class YouTubeClient(
                 loginSupported = false,
                 useSignatureTimestamp = false,
                 packageName = "com.google.ios.youtube",
+                attestation = AttestationPlatform.IOSGUARD,
             )
     }
 }
