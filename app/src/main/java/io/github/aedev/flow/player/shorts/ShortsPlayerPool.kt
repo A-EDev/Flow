@@ -271,6 +271,29 @@ class ShortsPlayerPool private constructor() {
                 playWhenReady = false
                 videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
                 addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { _currentVideoId.value })
+                addListener(
+                    object : Player.Listener {
+                        override fun onRenderedFirstFrame() {
+                            ShortsStartupTrace.onFirstFrame(_currentVideoId.value)
+                        }
+
+                        override fun onPlaybackStateChanged(playbackState: Int) {
+                            ShortsStartupTrace.onState(
+                                _currentVideoId.value,
+                                when (playbackState) {
+                                    Player.STATE_IDLE -> "IDLE"
+                                    Player.STATE_BUFFERING -> "BUFFERING"
+                                    Player.STATE_READY -> "READY"
+                                    else -> "ENDED"
+                                },
+                            )
+                        }
+
+                        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                            ShortsStartupTrace.onState(_currentVideoId.value, "ERROR ${error.errorCodeName}: ${error.message}")
+                        }
+                    },
+                )
             }
     }
 
@@ -366,6 +389,7 @@ class ShortsPlayerPool private constructor() {
         bumpOwnership()
 
         // Load media
+        if (shouldPlay) ShortsStartupTrace.onPrepared(videoId)
         preparePlayerInternal(player, videoUrl, audioUrl)
 
         // Set playback state
@@ -443,6 +467,7 @@ class ShortsPlayerPool private constructor() {
                 Log.d(TAG, "Releasing stale player slot $i (owned by index $ownerIndex, current is $currentIndex)")
                 players[i]?.stop()
                 players[i]?.clearMediaItems()
+                playerVideoIds[i]?.let { ShortsStartupTrace.forget(it) }
                 playerOwnerIndices[i] = null
                 playerVideoIds[i] = null
                 playerVideoUrls[i] = null

@@ -17,6 +17,7 @@ import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.player.quality.QualityManager
+import io.github.aedev.flow.player.shorts.ShortsStartupTrace
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.CompletableDeferred
@@ -577,9 +578,13 @@ class ShortsRepository private constructor(
         preferredAudioLanguage: String,
     ): ShortPlaybackStreams? =
         withContext(Dispatchers.IO) {
+            ShortsStartupTrace.onRequested(videoId)
             val preferredCodecKey = preferredCodecKey()
             val cacheKey = "$videoId|$targetHeight|$preferredAudioLanguage|$preferredCodecKey"
-            playbackStreamsCache.get(cacheKey)?.let { return@withContext it }
+            playbackStreamsCache.get(cacheKey)?.let {
+                ShortsStartupTrace.onStreamsResolved(videoId, cached = true, strategy = "cache")
+                return@withContext it
+            }
 
             val inFlight =
                 streamResolveMutex.withLock {
@@ -610,11 +615,24 @@ class ShortsRepository private constructor(
         preferredAudioLanguage: String,
         preferredCodecKey: String = "auto",
     ): ShortPlaybackStreams? {
-        resolveFromUnifiedExtractor(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let { return it }
+        // Timed per strategy: the three legs cost up to 8s + 3.5s + 8s in sequence, so knowing which
+        // one answered is the difference between "the network is slow" and "leg one is failing".
+        val extractorStartedAt = System.currentTimeMillis()
+        resolveFromUnifiedExtractor(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let {
+            ShortsStartupTrace.onStreamsResolved(videoId, cached = false, strategy = "extractor")
+            return it
+        }
+        Log.w(TAG, "Unified extractor missed for $videoId after ${System.currentTimeMillis() - extractorStartedAt}ms")
 
-        resolveFromInnerTubePlayer(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let { return it }
+        val playerStartedAt = System.currentTimeMillis()
+        resolveFromInnerTubePlayer(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let {
+            ShortsStartupTrace.onStreamsResolved(videoId, cached = false, strategy = "innertube-player")
+            return it
+        }
+        Log.w(TAG, "InnerTube player missed for $videoId after ${System.currentTimeMillis() - playerStartedAt}ms")
 
         val streamInfo = resolveStreamInfo(videoId) ?: return null
+        ShortsStartupTrace.onStreamsResolved(videoId, cached = false, strategy = "newpipe")
         val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
 
         fun qualityHeight(stream: org.schabi.newpipe.extractor.stream.VideoStream): Int =
@@ -834,9 +852,12 @@ class ShortsRepository private constructor(
             val audioFormats = result.audioFormats.filter { !it.url.isNullOrBlank() }
             val selectedAudio = selectAudioForLanguage(audioFormats, preferredAudioLanguage)
 
-            Log.d(
+            Log.w(
                 TAG,
                 "✓ Unified extractor resolved $videoId at ${shortsQualityClass(selectedVideo)}p " +
+                    "(target=$targetHeight, picked ${selectedVideo.width}x${selectedVideo.height} " +
+                    "label=${selectedVideo.qualityLabel} itag=${selectedVideo.itag}, " +
+                    "ladder=${videoFormats.map { shortsQualityClass(it) }.distinct().sorted()}) " +
                     "via ${result.usedClient.clientName}",
             )
             ShortPlaybackStreams(
