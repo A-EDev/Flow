@@ -259,6 +259,8 @@ class PlayerPreferences(
         val SHOW_SHORTS_PLAYER_PROMPT = booleanPreferencesKey("show_shorts_player_prompt")
         val SHARE_WITHOUT_TEXT = booleanPreferencesKey("share_without_text")
 
+        val SHORTS_PIP_ENABLED = booleanPreferencesKey("shorts_pip_enabled")
+
         // Shorts background playback
         val SHORTS_BACKGROUND_PLAY = booleanPreferencesKey("shorts_background_play")
 
@@ -1929,6 +1931,18 @@ class PlayerPreferences(
     suspend fun setShortsBackgroundPlay(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_BACKGROUND_PLAY] = enabled
+        }
+    }
+
+    val shortsPipEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.SHORTS_PIP_ENABLED] ?: false
+            }
+
+    suspend fun setShortsPipEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_PIP_ENABLED] = enabled
         }
     }
 

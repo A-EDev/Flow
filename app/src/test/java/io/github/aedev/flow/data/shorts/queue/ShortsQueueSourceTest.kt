@@ -27,6 +27,19 @@ class ShortsQueueSourceTest {
     }
 
     @Test
+    fun `subscriptions round trips`() {
+        val source = ShortsQueueSource.Subscriptions("abcdefghijk")
+        assertEquals(source, roundTrip(source))
+        assertEquals("abcdefghijk", source.openAtVideoId)
+    }
+
+    @Test
+    fun `subscriptions without an anchor round trips`() {
+        assertEquals(ShortsQueueSource.Subscriptions(), roundTrip(ShortsQueueSource.Subscriptions()))
+        assertEquals(null, ShortsQueueSource.Subscriptions().openAtVideoId)
+    }
+
+    @Test
     fun `seeded feed round trips`() {
         val source = ShortsQueueSource.SeededFeed("abcdefghijk")
         assertEquals(source, roundTrip(source))
@@ -100,6 +113,17 @@ class ShortsQueueSourceTest {
         )
         assertFalse("saved Shorts is a deliberate collection", ShortsQueueSource.Saved().continuesIntoFeed)
         assertFalse("the feed is already the feed", ShortsQueueSource.Feed.continuesIntoFeed)
+    }
+
+    // #823 is about the subscription list being long enough to swipe through, not about walling the
+    // queue off: once it really is exhausted, handing over beats dead-ending.
+    @Test
+    fun `subscriptions continues into the feed only once it is exhausted`() {
+        assertTrue(ShortsQueueSource.Subscriptions("abcdefghijk").continuesIntoFeed)
+        assertFalse(
+            "its own items are the user's subscriptions, so discovery must not be interleaved",
+            ShortsQueueSource.Subscriptions("abcdefghijk").isAlgorithmicFeed,
+        )
     }
 
     // ── Channel sort ──

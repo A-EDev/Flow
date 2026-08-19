@@ -145,6 +145,16 @@ class EnhancedPlayerManager private constructor() {
     private var liveQualityHeights: List<Int> = emptyList()
 
     private var pendingLiveQualityHeight: Int = 0
+
+    /**
+     * The codec the user asked for, kept for the live path.
+     *
+     * A VOD picks its codec when the stream is chosen, so [QualityManager] carries the preference
+     * there. A livestream has no such step — the manifest is handed to the player whole — so the
+     * only lever is the track selector's codec order, and it has to be re-applied on every live
+     * quality change because each one rebuilds the selector parameters (#727).
+     */
+    private var preferredVideoCodecKey: String = "auto"
     private var lastLiveEdgeRecoveryMs = 0L
     private var preLivePlaybackSpeed: Float? = null
     private var pendingLiveDisplaySeekPositionMs: Long? = null
@@ -946,6 +956,7 @@ class EnhancedPlayerManager private constructor() {
                 "keepAudioOnly=$keepAudioOnly)",
         )
         resetPlaybackStateForNewVideo(videoId)
+        preferredVideoCodecKey = preferredVideoCodec
         currentLocalFilePath = localFilePath
         if (localFilePath != null) configureTrackSelectorForLocalFile()
         currentSabrInfo = sabrInfo
@@ -975,6 +986,7 @@ class EnhancedPlayerManager private constructor() {
             useLiveManifest &&
                 (!currentHlsUrl.isNullOrEmpty() || !currentDashManifestUrl.isNullOrEmpty())
         pendingLiveQualityHeight = if (isLiveStream) preferredLiveQualityHeight else 0
+        if (isLiveStream) applyLiveCodecPreference()
         updateLivePlaybackMode(isLive = isLiveStream, forceLiveSpeedReset = true)
         pendingInitialLiveEdgeSeek = streamType == StreamType.LIVE_STREAM
         currentVideoId = videoId
@@ -2451,12 +2463,22 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    private fun applyLiveCodecPreference() {
+        val selector = trackSelector ?: return
+        selector.setParameters(
+            selector
+                .buildUponParameters()
+                .setPreferredVideoMimeTypes(*VideoCodecUtils.preferredVideoMimeTypes(preferredVideoCodecKey))
+                .build(),
+        )
+    }
+
     private fun switchLiveQuality(height: Int): Boolean {
         val selector = trackSelector ?: return false
         val builder =
             selector
                 .buildUponParameters()
-                .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
+                .setPreferredVideoMimeTypes(*VideoCodecUtils.preferredVideoMimeTypes(preferredVideoCodecKey))
         if (height <= 0) {
             builder
                 .clearVideoSizeConstraints()

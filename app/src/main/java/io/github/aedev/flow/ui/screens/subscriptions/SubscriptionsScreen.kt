@@ -119,6 +119,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.ShortsShelf
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
@@ -135,7 +136,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SubscriptionsScreen(
     onVideoClick: (Video) -> Unit,
-    onShortClick: (io.github.aedev.flow.data.shorts.queue.ShortsQueueSource) -> Unit = {},
+    onShortClick: (ShortsQueueSource) -> Unit = {},
     onChannelClick: (Channel) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SubscriptionsViewModel = hiltViewModel(),
@@ -662,8 +663,10 @@ fun SubscriptionsScreen(
                                             Column {
                                                 ShortsShelf(
                                                     shorts = uiState.shorts,
-                                                    onShortClick = { shelf, tapped ->
-                                                        onShortClick(viewModel.shortsShelfSource(shelf, tapped))
+                                                    // The shelf shows one reel per channel; the queue behind it is
+                                                    // every subscription reel in date order (#823).
+                                                    onShortClick = { _, tapped ->
+                                                        onShortClick(ShortsQueueSource.Subscriptions(tapped.id))
                                                     },
                                                 )
                                                 Spacer(modifier = Modifier.height(8.dp))

@@ -2331,6 +2331,7 @@ class VideoPlayerViewModel
                 hlsUrl = result.liveHlsUrl,
                 streamType = StreamType.LIVE_STREAM,
                 startPosition = 0L,
+                preferredVideoCodec = playerPreferences.defaultVideoCodec.first().codecKey,
                 preferredLiveQualityHeight = preferredDefaultQualityHeight(),
             )
             applyRememberedPlaybackSpeed(isLive = true, manager = manager)

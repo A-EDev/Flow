@@ -201,12 +201,17 @@ class SubscriptionFeedRepository
         /**
          * Adds videos the background new-upload check discovered, without disturbing rows the feed
          * has already enriched. The channel is deliberately *not* marked as fetched: RSS alone
-         * cannot see Shorts or livestreams, so the feed still owes it a full pass.
+         * cannot see livestreams, so the feed still owes it a full pass.
+         *
+         * [reelVideoIds] is the caller's reel verdict for these entries. RSS marks none of them, so
+         * without it every seeded reel reaches the feed as an ordinary upload and stays there until
+         * the channel's next full refresh — visible even with Shorts switched off (#903).
          */
         suspend fun seedFromNotificationCheck(
             channelId: String,
             channelName: String?,
             entries: List<ChannelRssEntry>,
+            reelVideoIds: Set<String> = emptySet(),
         ) {
             if (entries.isEmpty()) return
             val now = System.currentTimeMillis()
@@ -214,7 +219,14 @@ class SubscriptionFeedRepository
             val rows =
                 entries
                     .filter { it.publishedAtMillis > cutoff }
-                    .map { entry -> entry.toEntity(channelId = channelId, channelName = channelName, cachedAt = now) }
+                    .map { entry ->
+                        entry.toEntity(
+                            channelId = channelId,
+                            channelName = channelName,
+                            cachedAt = now,
+                            isShort = entry.videoId in reelVideoIds,
+                        )
+                    }
             if (rows.isEmpty()) return
 
             withContext(PerformanceDispatcher.diskIO) {
@@ -296,6 +308,7 @@ private fun ChannelRssEntry.toEntity(
     channelId: String,
     channelName: String?,
     cachedAt: Long,
+    isShort: Boolean,
 ) = SubscriptionFeedEntity(
     videoId = videoId,
     title = title,
@@ -310,7 +323,7 @@ private fun ChannelRssEntry.toEntity(
     uploadDate = "",
     timestamp = publishedAtMillis,
     channelThumbnailUrl = "",
-    isShort = false,
+    isShort = isShort,
     isLive = false,
     isUpcoming = publishedAtMillis > cachedAt + 60_000L,
     cachedAt = cachedAt,

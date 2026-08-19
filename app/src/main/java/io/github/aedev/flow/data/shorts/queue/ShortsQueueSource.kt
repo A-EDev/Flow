@@ -37,6 +37,12 @@ sealed interface ShortsQueueSource {
         override fun encode(): String = "$CHANNEL:$startVideoId:$sortIndex:$channelUrl"
     }
 
+    data class Subscriptions(
+        val startVideoId: String = "",
+    ) : ShortsQueueSource {
+        override fun encode(): String = if (startVideoId.isBlank()) SUBSCRIPTIONS else "$SUBSCRIPTIONS:$startVideoId"
+    }
+
     /** An in-memory list handed over by a shelf. */
     data class Snapshot(
         val token: String,
@@ -49,6 +55,7 @@ sealed interface ShortsQueueSource {
         private const val FEED = "feed"
         private const val SAVED = "saved"
         private const val CHANNEL = "channel"
+        private const val SUBSCRIPTIONS = "subs"
         private const val SNAPSHOT = "snap"
 
         /**
@@ -69,6 +76,10 @@ sealed interface ShortsQueueSource {
 
                 SAVED -> {
                     Saved(rest)
+                }
+
+                SUBSCRIPTIONS -> {
+                    Subscriptions(rest)
                 }
 
                 CHANNEL -> {
@@ -108,21 +119,28 @@ val ShortsQueueSource.openAtVideoId: String?
             is ShortsQueueSource.Channel -> this.startVideoId.takeIf { it.isNotBlank() }
             is ShortsQueueSource.Snapshot -> this.startVideoId.takeIf { it.isNotBlank() }
             is ShortsQueueSource.Saved -> this.startVideoId.takeIf { it.isNotBlank() }
+            is ShortsQueueSource.Subscriptions -> this.startVideoId.takeIf { it.isNotBlank() }
             ShortsQueueSource.Feed -> null
         }
 
 /**
  * Whether running out of items should hand over to the algorithmic feed.
  *
- * Shelves and channel tabs continue, so a swipe never dead-ends: #547 is about staying inside the
- * channel while it still has Shorts to give, not about stopping once it runs dry. Saved Shorts is
- * the exception — it is a deliberate collection, and silently trailing recommendations onto it would
- * misrepresent it.
+ * Shelves, channel tabs and the subscription list all continue, so a swipe never dead-ends: #547
+ * and #823 are about staying inside the chosen source while it still has Shorts to give, not about
+ * stopping once it runs dry.
+ *
+ * Saved Shorts is the exception — it is a deliberate collection, and silently trailing
+ * recommendations onto it would misrepresent it.
  */
 val ShortsQueueSource.continuesIntoFeed: Boolean
     get() =
         when (this) {
-            is ShortsQueueSource.Snapshot, is ShortsQueueSource.Channel -> true
+            is ShortsQueueSource.Snapshot,
+            is ShortsQueueSource.Channel,
+            is ShortsQueueSource.Subscriptions,
+            -> true
+
             ShortsQueueSource.Feed, is ShortsQueueSource.Saved, is ShortsQueueSource.SeededFeed -> false
         }
 
@@ -135,5 +153,10 @@ val ShortsQueueSource.isAlgorithmicFeed: Boolean
     get() =
         when (this) {
             ShortsQueueSource.Feed, is ShortsQueueSource.SeededFeed -> true
-            is ShortsQueueSource.Snapshot, is ShortsQueueSource.Channel, is ShortsQueueSource.Saved -> false
+
+            is ShortsQueueSource.Snapshot,
+            is ShortsQueueSource.Channel,
+            is ShortsQueueSource.Saved,
+            is ShortsQueueSource.Subscriptions,
+            -> false
         }

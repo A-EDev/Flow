@@ -1,9 +1,12 @@
 package io.github.aedev.flow.data.shorts.queue
 
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toShortVideo
 import io.github.aedev.flow.data.shorts.ShortsRepository
+import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
+import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import kotlinx.coroutines.flow.first
 
 /**
@@ -53,6 +56,32 @@ class SavedShortsLoader(
             cursor = null,
             exhausted = true,
         )
+    }
+
+    override suspend fun more(cursor: String?): ShortsQueuePage = exhaustedPage()
+}
+
+class SubscriptionShortsLoader(
+    private val subscriptionFeedRepository: SubscriptionFeedRepository,
+    private val playerPreferences: PlayerPreferences,
+    private val watchedVideos: SubscriptionWatchedVideos,
+    private val anchorVideoId: String?,
+) : ShortsQueueLoader {
+    override suspend fun initial(): ShortsQueuePage {
+        val excludedChannelIds = playerPreferences.subscriptionShortsExcludedChannels.first()
+        val watchedIds = watchedVideos.ids.first()
+        val items =
+            subscriptionFeedRepository
+                .observeFeed()
+                .first()
+                .asSequence()
+                .filter { it.isShort && it.id.isNotBlank() }
+                .filter { it.channelId !in excludedChannelIds }
+                .filter { it.id == anchorVideoId || it.id !in watchedIds }
+                .sortedByDescending { it.timestamp }
+                .map { it.toShortVideo() }
+                .toList()
+        return ShortsQueuePage(items, cursor = null, exhausted = true)
     }
 
     override suspend fun more(cursor: String?): ShortsQueuePage = exhaustedPage()

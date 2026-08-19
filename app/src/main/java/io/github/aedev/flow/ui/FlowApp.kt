@@ -435,7 +435,12 @@ fun FlowApp(
         )
 
         LaunchedEffect(isInPipMode) {
-            if (isInPipMode && !currentRoute.value.startsWith("player") && currentVideo != null) {
+            if (
+                isInPipMode &&
+                !isShortsPlayerRoute &&
+                !currentRoute.value.startsWith("player") &&
+                currentVideo != null
+            ) {
                 navController.navigate("player/${currentVideo!!.id}")
             }
         }

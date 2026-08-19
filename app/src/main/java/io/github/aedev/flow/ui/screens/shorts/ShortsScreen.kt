@@ -24,6 +24,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
@@ -47,6 +48,9 @@ fun ShortsScreen(
     val audioLangPref = remember(context) { PlayerPreferences(context) }
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+
+    val isInPip by GlobalPlayerState.isInPipMode.collectAsState()
+    ShortsPipActionEffect()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
@@ -369,7 +373,7 @@ fun ShortsScreen(
                 }
 
                 // Loading more indicator at bottom
-                if (uiState.isLoadingMore) {
+                if (uiState.isLoadingMore && !isInPip) {
                     LinearProgressIndicator(
                         modifier =
                             Modifier
@@ -408,12 +412,13 @@ fun ShortsScreen(
 
         // Top Bar Overlay
         ShortsTopBar(
-            visible = uiState.shorts.isNotEmpty(),
+            visible = uiState.shorts.isNotEmpty() && !isInPip,
             showBackButton = source != ShortsQueueSource.Feed,
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
 
+        if (isInPip) return@Box
         SnackbarHost(
             hostState = snackbarHostState,
             modifier =

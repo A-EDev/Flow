@@ -146,6 +146,18 @@ class ShortsPlayerPool private constructor() {
 
     fun isPlaying(): Boolean = findActivePlayer()?.isPlaying == true
 
+    /**
+     * The playing reel's frame aspect, or null before the first frame reports a size.
+     *
+     * Measured rather than assumed 9:16: reels are only *mostly* portrait, and handing a
+     * Picture-in-Picture window the wrong ratio letterboxes it for the whole session.
+     */
+    fun activeVideoAspectRatio(): Float? =
+        findActivePlayer()
+            ?.videoSize
+            ?.takeIf { it.width > 0 && it.height > 0 }
+            ?.let { it.width.toFloat() / it.height.toFloat() }
+
     // INITIALIZATION
     fun initialize(context: Context) {
         if (isInitialized) return

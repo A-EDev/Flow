@@ -1,7 +1,10 @@
 package io.github.aedev.flow.data.shorts.queue
 
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.shorts.ShortsRepository
+import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
+import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,6 +14,9 @@ class ShortsQueueLoaderFactory
     constructor(
         private val shortsRepository: ShortsRepository,
         private val playlistRepository: PlaylistRepository,
+        private val subscriptionFeedRepository: SubscriptionFeedRepository,
+        private val subscriptionWatchedVideos: SubscriptionWatchedVideos,
+        private val playerPreferences: PlayerPreferences,
         private val handoff: ShortsQueueHandoff,
     ) {
         fun create(source: ShortsQueueSource): ShortsQueueController {
@@ -44,6 +50,15 @@ class ShortsQueueLoaderFactory
 
                 is ShortsQueueSource.Saved -> {
                     SavedShortsLoader(playlistRepository)
+                }
+
+                is ShortsQueueSource.Subscriptions -> {
+                    SubscriptionShortsLoader(
+                        subscriptionFeedRepository = subscriptionFeedRepository,
+                        playerPreferences = playerPreferences,
+                        watchedVideos = subscriptionWatchedVideos,
+                        anchorVideoId = source.startVideoId.takeIf { it.isNotBlank() },
+                    )
                 }
 
                 is ShortsQueueSource.Channel -> {

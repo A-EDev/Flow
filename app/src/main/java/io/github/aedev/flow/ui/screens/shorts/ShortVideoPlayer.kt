@@ -56,6 +56,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
 import io.github.aedev.flow.data.shorts.ShortVideoQuality
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
@@ -130,7 +131,10 @@ internal fun ShortVideoPage(
     val isSaved by isSavedState.collectAsState()
 
     // ── Local UI-only state ──
-    val controlsVisible = !isImpressiveShortsUi || sessionState.showImpressiveControls
+    // In Picture-in-Picture the window is a thumbnail: every overlay drawn at its authored size
+    // would bury the reel it is meant to annotate, so the page renders the video and nothing else.
+    val isInPip by GlobalPlayerState.isInPipMode.collectAsState()
+    val controlsVisible = !isInPip && (!isImpressiveShortsUi || sessionState.showImpressiveControls)
     val seekBarTouchHeight = 28.dp
     val seekBarBottomPadding = bottomNavOverlayPadding.coerceAtLeast(0.dp)
     val controlsBottomPadding = seekBarBottomPadding + 34.dp
@@ -156,7 +160,7 @@ internal fun ShortVideoPage(
                 keepScreenOn = true
             }
         }
-    val ambientActive = isActive && settings.ambientModeEnabled
+    val ambientActive = isActive && settings.ambientModeEnabled && !isInPip
     val ambientFrame =
         rememberAmbientFrame(playerView, ambientActive) {
             playerPool.ownedPlayer(pageIndex)?.isPlaying == true
@@ -957,7 +961,7 @@ internal fun ShortVideoPage(
 
             // ── Scrubbable Progress Bar ──
         }
-        if (pageState.duration > 0) {
+        if (pageState.duration > 0 && !isInPip) {
             SeekbarWithPreview(
                 value = {
                     if (pageState.isDragging) {
