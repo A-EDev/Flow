@@ -51,6 +51,7 @@ import io.github.aedev.flow.data.local.SearchHistoryItem
 import io.github.aedev.flow.data.model.*
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.search.SearchSuggestionsService
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatSubscriberCount
@@ -65,6 +66,7 @@ fun SearchScreen(
     onVideoClick: (Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
+    onShortsQueue: (ShortsQueueSource) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
@@ -189,6 +191,16 @@ fun SearchScreen(
                 hasPerformedSearch = true
                 dismissKeyboard()
                 onVideoClick(video)
+            }
+        }
+
+    val navigateToShortsQueue: (List<Video>, Video) -> Unit =
+        remember(dismissKeyboard, onShortsQueue, viewModel) {
+            { shelf, tapped ->
+                isNavigatingAway = true
+                hasPerformedSearch = true
+                dismissKeyboard()
+                onShortsQueue(viewModel.shortsShelfSource(shelf, tapped))
             }
         }
 
@@ -465,7 +477,7 @@ fun SearchScreen(
                             pagingItems,
                             gridState,
                             maxOf(columns, 2),
-                            navigateToVideo,
+                            navigateToShortsQueue,
                             dismissKeyboard,
                         )
                     }
@@ -477,6 +489,7 @@ fun SearchScreen(
                                 gridState,
                                 columns,
                                 navigateToVideo,
+                                navigateToShortsQueue,
                                 navigateToChannel,
                                 navigateToPlaylist,
                                 dismissKeyboard,
@@ -487,6 +500,7 @@ fun SearchScreen(
                                 gridState,
                                 columns,
                                 navigateToVideo,
+                                navigateToShortsQueue,
                                 navigateToChannel,
                                 navigateToPlaylist,
                                 dismissKeyboard,
@@ -958,6 +972,7 @@ private fun SearchResultList(
     gridState: LazyGridState,
     columns: Int,
     onVideoClick: (Video) -> Unit,
+    onShortsShelfClick: (shelf: List<Video>, tapped: Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     dismissKeyboard: () -> Unit,
@@ -1050,7 +1065,7 @@ private fun SearchResultList(
                 }
 
                 is SearchResultItem.ShortsShelfResult -> {
-                    ShortsShelf(shorts = item.shorts, onShortClick = { _, tapped -> onVideoClick(tapped) })
+                    ShortsShelf(shorts = item.shorts, onShortClick = onShortsShelfClick)
                 }
 
                 null -> {
@@ -1075,6 +1090,7 @@ private fun SearchResultGrid(
     gridState: LazyGridState,
     columns: Int,
     onVideoClick: (Video) -> Unit,
+    onShortsShelfClick: (shelf: List<Video>, tapped: Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     dismissKeyboard: () -> Unit,
@@ -1157,7 +1173,7 @@ private fun SearchResultGrid(
                 }
 
                 is SearchResultItem.ShortsShelfResult -> {
-                    ShortsShelf(shorts = item.shorts, onShortClick = { _, tapped -> onVideoClick(tapped) })
+                    ShortsShelf(shorts = item.shorts, onShortClick = onShortsShelfClick)
                 }
             }
         }
@@ -1172,13 +1188,18 @@ private fun SearchResultGrid(
     }
 }
 
+private fun loadedShorts(pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>): List<Video> =
+    (0 until pagingItems.itemCount).mapNotNull {
+        (pagingItems.peek(it) as? SearchResultItem.VideoResult)?.video
+    }
+
 /** Shorts tab: a portrait grid of [ShortsCard]s. */
 @Composable
 private fun SearchShortsGrid(
     pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
     gridState: LazyGridState,
     columns: Int,
-    onVideoClick: (Video) -> Unit,
+    onShortClick: (shelf: List<Video>, tapped: Video) -> Unit,
     dismissKeyboard: () -> Unit,
 ) {
     LazyVerticalGrid(
@@ -1212,7 +1233,7 @@ private fun SearchShortsGrid(
             (pagingItems[i] as? SearchResultItem.VideoResult)?.let {
                 ShortsCard(
                     video = it.video,
-                    onClick = { onVideoClick(it.video) },
+                    onClick = { onShortClick(loadedShorts(pagingItems), it.video) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

@@ -11,10 +11,13 @@ import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchPagingSource
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +45,7 @@ class SearchViewModel
     constructor(
         private val repository: YouTubeRepository,
         private val shortsContentFilter: ShortsContentFilter,
+        private val shortsQueueHandoff: ShortsQueueHandoff,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(SearchUiState())
         val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -83,6 +87,11 @@ class SearchViewModel
                 }.cachedIn(viewModelScope)
 
         // ── public API ────────────────────────────────────────────────────────────
+
+        fun shortsShelfSource(
+            shelf: List<Video>,
+            tapped: Video,
+        ): ShortsQueueSource = shortsQueueHandoff.sourceForShelf(shelf, tapped)
 
         fun search(
             query: String,

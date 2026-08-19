@@ -13,6 +13,8 @@ import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -34,8 +36,14 @@ class HistoryViewModel
         private val videoDao: VideoDao,
         private val watchHistoryDao: WatchHistoryDao,
         private val shortsContentFilter: ShortsContentFilter,
+        private val shortsQueueHandoff: ShortsQueueHandoff,
     ) : ViewModel() {
         private val isEnriching = AtomicBoolean(false)
+
+        fun shortsRowSource(
+            row: List<Video>,
+            tapped: Video,
+        ): ShortsQueueSource = shortsQueueHandoff.sourceForShelf(row, tapped)
 
         private val _uiState = MutableStateFlow(HistoryUiState())
         val uiState: StateFlow<HistoryUiState> = _uiState.asStateFlow()

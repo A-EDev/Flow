@@ -325,6 +325,14 @@ fun NavGraphBuilder.flowAppGraph(
                     navController.navigateToPlayer(video.id)
                 }
             },
+            onShortsQueue = { source ->
+                val tappedId = source.openAtVideoId
+                if (disableShortsPlayer && tappedId != null) {
+                    navController.navigateToPlayer(tappedId)
+                } else {
+                    navController.openShorts(source)
+                }
+            },
             onChannelClick = { channel ->
                 navController.navigateToYoutubeChannel(channel.url.ifBlank { channel.id })
             },
@@ -671,11 +679,12 @@ fun NavGraphBuilder.flowAppGraph(
                     navController.navigateToPlayer(track.videoId)
                 }
             },
-            onShortClick = { videoId ->
-                if (disableShortsPlayer) {
-                    navController.navigateToPlayer(videoId)
+            onShortsQueue = { source ->
+                val tappedId = source.openAtVideoId
+                if (disableShortsPlayer && tappedId != null) {
+                    navController.navigateToPlayer(tappedId)
                 } else {
-                    navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
+                    navController.openShorts(source)
                 }
             },
             onMusicClick = { track, queue ->

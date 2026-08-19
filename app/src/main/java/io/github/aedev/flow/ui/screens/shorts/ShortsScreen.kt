@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.*
@@ -146,11 +145,13 @@ fun ShortsScreen(
         viewModel.load(source)
     }
 
-    // Release player pool when leaving Shorts
+    // Release the pool on the way out — unless a later Shorts screen has claimed it in the meantime.
+    // An external /shorts/ link arriving while the Shorts tab is open pushes a second destination,
+    // and the outgoing screen's dispose runs after the incoming one has already prepared its players.
     DisposableEffect(Unit) {
-        onDispose {
-            ShortsPlayerPool.getInstance().release()
-        }
+        val playerPool = ShortsPlayerPool.getInstance()
+        val hostToken = playerPool.acquireHost()
+        onDispose { playerPool.releaseIfHost(hostToken) }
     }
 
     Box(
@@ -395,9 +396,9 @@ fun ShortsScreen(
         ) { data ->
             Snackbar(
                 snackbarData = data,
-                containerColor = Color.DarkGray,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(12.dp),
+                containerColor = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                shape = MaterialTheme.shapes.medium,
             )
         }
     }

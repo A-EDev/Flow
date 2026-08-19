@@ -73,6 +73,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.components.ShortsCard
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicTrackRow
@@ -85,7 +86,7 @@ import java.util.Locale
 fun HistoryScreen(
     onVideoClick: (MusicTrack) -> Unit,
     onBackClick: () -> Unit,
-    onShortClick: (String) -> Unit = {},
+    onShortsQueue: (ShortsQueueSource) -> Unit = {},
     onMusicClick: (MusicTrack, List<MusicTrack>) -> Unit = { track, _ -> onVideoClick(track) },
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = hiltViewModel(),
@@ -256,7 +257,7 @@ fun HistoryScreen(
                         shortVideos = uiState.shortVideos,
                         selectedFilter = selectedFilter,
                         onVideoClick = onVideoClick,
-                        onShortClick = onShortClick,
+                        onShortClick = { row, tapped -> onShortsQueue(viewModel.shortsRowSource(row, tapped)) },
                         onMusicClick = onMusicClick,
                         onRemove = viewModel::removeFromHistory,
                     )
@@ -450,7 +451,7 @@ private fun HistoryList(
     shortVideos: Map<String, Video>,
     selectedFilter: HistoryContentFilter,
     onVideoClick: (MusicTrack) -> Unit,
-    onShortClick: (String) -> Unit,
+    onShortClick: (row: List<Video>, tapped: Video) -> Unit,
     onMusicClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onRemove: (String) -> Unit,
 ) {
@@ -573,22 +574,27 @@ private fun HistoryEntryRow(
 private fun ShortsHistoryRow(
     entries: List<VideoHistoryEntry>,
     shortVideos: Map<String, Video>,
-    onShortClick: (String) -> Unit,
+    onShortClick: (row: List<Video>, tapped: Video) -> Unit,
     onRemove: (String) -> Unit,
 ) {
+    val rowVideos =
+        remember(entries, shortVideos) {
+            entries.map { shortVideos[it.videoId] ?: it.toShortVideo() }
+        }
+
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(
-            items = entries,
-            key = { it.videoId },
-        ) { entry ->
+            items = rowVideos,
+            key = Video::id,
+        ) { video ->
             ShortsCard(
-                video = shortVideos[entry.videoId] ?: entry.toShortVideo(),
-                onClick = { onShortClick(entry.videoId) },
+                video = video,
+                onClick = { onShortClick(rowVideos, video) },
                 trailingContent = {
-                    IconButton(onClick = { onRemove(entry.videoId) }) {
+                    IconButton(onClick = { onRemove(video.id) }) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = stringResource(R.string.remove_from_history),

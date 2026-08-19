@@ -94,6 +94,16 @@ class ShortsPlayerPool private constructor() {
         _ownershipGeneration.value += 1
     }
 
+    private var hostToken: Long = 0L
+    private var nextHostToken: Long = 1L
+
+    fun acquireHost(): Long = nextHostToken++.also { hostToken = it }
+
+    fun releaseIfHost(token: Long) {
+        if (token != hostToken) return
+        release()
+    }
+
     /**
      * Reads through the shared media cache once it exists.
      *
