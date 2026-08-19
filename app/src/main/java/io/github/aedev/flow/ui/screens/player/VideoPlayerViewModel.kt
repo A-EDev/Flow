@@ -1549,7 +1549,8 @@ class VideoPlayerViewModel
                             // Extract related videos directly from the stream info (avoids extra network call)
                             val relatedVideos =
                                 if (streamInfo != null) {
-                                    repository.getRelatedVideosFromStreamInfo(streamInfo)
+                                    repository
+                                        .getRelatedVideosFromStreamInfo(streamInfo)
                                         .filter { shortsContentEnabled || !it.isShort }
                                 } else {
                                     emptyList()

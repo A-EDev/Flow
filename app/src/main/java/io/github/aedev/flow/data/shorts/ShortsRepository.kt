@@ -759,15 +759,6 @@ class ShortsRepository private constructor(
             }
         }
 
-    private fun codecLabelFromMime(mime: String): String =
-        when {
-            mime.contains("av01", true) -> "AV1"
-            mime.contains("vp9", true) || mime.contains("vp09", true) -> "VP9"
-            mime.contains("avc", true) || mime.contains("mp4", true) -> "H.264"
-            mime.contains("vp8", true) -> "VP8"
-            else -> ""
-        }
-
     private fun shortsQualityClass(f: PlayerResponse.StreamingData.Format): Int {
         f.qualityLabel?.let { label ->
             Regex("(\\d+)p")

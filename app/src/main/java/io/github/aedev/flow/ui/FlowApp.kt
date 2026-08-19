@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui
 
-import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import android.app.Activity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -35,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.data.subscriptions.refreshSubscriptionsAtStartup
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager

@@ -28,13 +28,4 @@ interface ShortsQueueLoader {
 
     /** Returns an exhausted, empty page when there is nothing more — never throws for that case. */
     suspend fun more(cursor: String?): ShortsQueuePage
-
-    companion object {
-        val Empty: ShortsQueueLoader =
-            object : ShortsQueueLoader {
-                override suspend fun initial() = ShortsQueuePage(emptyList(), null, exhausted = true)
-
-                override suspend fun more(cursor: String?) = ShortsQueuePage(emptyList(), null, exhausted = true)
-            }
-    }
 }

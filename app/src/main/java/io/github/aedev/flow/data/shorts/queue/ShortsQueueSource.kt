@@ -56,8 +56,14 @@ sealed interface ShortsQueueSource {
             val rest = if (':' in value) value.substringAfter(':') else ""
 
             return when (kind) {
-                FEED -> if (rest.isBlank()) Feed else SeededFeed(rest)
-                SAVED -> Saved(rest)
+                FEED -> {
+                    if (rest.isBlank()) Feed else SeededFeed(rest)
+                }
+
+                SAVED -> {
+                    Saved(rest)
+                }
+
                 CHANNEL -> {
                     val startVideoId = rest.substringBefore(':')
                     val channelUrl = rest.substringAfter(':', missingDelimiterValue = "")
@@ -70,7 +76,9 @@ sealed interface ShortsQueueSource {
                     if (token.isBlank()) Feed else Snapshot(token, startVideoId)
                 }
 
-                else -> Feed
+                else -> {
+                    Feed
+                }
             }
         }
     }
@@ -85,13 +93,14 @@ sealed interface ShortsQueueSource {
  * [ShortsQueueSource.Feed] and [ShortsQueueSource.Saved] have no anchor: they start at the top.
  */
 val ShortsQueueSource.openAtVideoId: String?
-    get() = when (this) {
-        is ShortsQueueSource.SeededFeed -> this.startVideoId.takeIf { it.isNotBlank() }
-        is ShortsQueueSource.Channel -> this.startVideoId.takeIf { it.isNotBlank() }
-        is ShortsQueueSource.Snapshot -> this.startVideoId.takeIf { it.isNotBlank() }
-        is ShortsQueueSource.Saved -> this.startVideoId.takeIf { it.isNotBlank() }
-        ShortsQueueSource.Feed -> null
-    }
+    get() =
+        when (this) {
+            is ShortsQueueSource.SeededFeed -> this.startVideoId.takeIf { it.isNotBlank() }
+            is ShortsQueueSource.Channel -> this.startVideoId.takeIf { it.isNotBlank() }
+            is ShortsQueueSource.Snapshot -> this.startVideoId.takeIf { it.isNotBlank() }
+            is ShortsQueueSource.Saved -> this.startVideoId.takeIf { it.isNotBlank() }
+            ShortsQueueSource.Feed -> null
+        }
 
 /**
  * Whether running out of items should hand over to the algorithmic feed.
@@ -100,7 +109,20 @@ val ShortsQueueSource.openAtVideoId: String?
  * deliberate collection, and silently trailing recommendations onto it would misrepresent it.
  */
 val ShortsQueueSource.continuesIntoFeed: Boolean
-    get() = when (this) {
-        is ShortsQueueSource.Snapshot, is ShortsQueueSource.Channel -> true
-        ShortsQueueSource.Feed, is ShortsQueueSource.Saved, is ShortsQueueSource.SeededFeed -> false
-    }
+    get() =
+        when (this) {
+            is ShortsQueueSource.Snapshot, is ShortsQueueSource.Channel -> true
+            ShortsQueueSource.Feed, is ShortsQueueSource.Saved, is ShortsQueueSource.SeededFeed -> false
+        }
+
+/**
+ * Whether the queue's own items come from the algorithmic feed, and so may absorb a late discovery
+ * pass. A shelf snapshot, a channel tab and saved Shorts must not — see
+ * [ShortsQueueController]'s `acceptsDiscovery`.
+ */
+val ShortsQueueSource.isAlgorithmicFeed: Boolean
+    get() =
+        when (this) {
+            ShortsQueueSource.Feed, is ShortsQueueSource.SeededFeed -> true
+            is ShortsQueueSource.Snapshot, is ShortsQueueSource.Channel, is ShortsQueueSource.Saved -> false
+        }

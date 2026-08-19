@@ -18,6 +18,7 @@ class ShortsQueueLoaderFactory
             return ShortsQueueController(
                 primary = loaderFor(resolved),
                 continuation = if (resolved.continuesIntoFeed) AlgorithmicFeedLoader(shortsRepository) else null,
+                acceptsDiscovery = resolved.isAlgorithmicFeed,
             )
         }
 
@@ -33,12 +34,25 @@ class ShortsQueueLoaderFactory
 
         private fun loaderFor(source: ShortsQueueSource): ShortsQueueLoader =
             when (source) {
-                ShortsQueueSource.Feed -> AlgorithmicFeedLoader(shortsRepository)
-                is ShortsQueueSource.SeededFeed -> AlgorithmicFeedLoader(shortsRepository, source.startVideoId)
-                is ShortsQueueSource.Saved -> SavedShortsLoader(playlistRepository)
-                is ShortsQueueSource.Channel -> ChannelShortsLoader(source.channelUrl)
-                is ShortsQueueSource.Snapshot ->
+                ShortsQueueSource.Feed -> {
+                    AlgorithmicFeedLoader(shortsRepository)
+                }
+
+                is ShortsQueueSource.SeededFeed -> {
+                    AlgorithmicFeedLoader(shortsRepository, source.startVideoId)
+                }
+
+                is ShortsQueueSource.Saved -> {
+                    SavedShortsLoader(playlistRepository)
+                }
+
+                is ShortsQueueSource.Channel -> {
+                    ChannelShortsLoader(source.channelUrl)
+                }
+
+                is ShortsQueueSource.Snapshot -> {
                     // resolve() already guaranteed the token is present.
                     SnapshotLoader(handoff.peek(source.token).orEmpty())
+                }
             }
     }

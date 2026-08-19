@@ -34,10 +34,11 @@ class ChannelShortsLoader(
             try {
                 val service = NewPipe.getService(SERVICE_YOUTUBE)
                 val channelInfo = ChannelInfo.getInfo(service, channelUrl)
-                val shortsTab = ChannelShortsTab.find(channelInfo) ?: run {
-                    Log.w(TAG, "No Shorts tab on $channelUrl")
-                    return@withContext exhausted()
-                }
+                val shortsTab =
+                    ChannelShortsTab.find(channelInfo) ?: run {
+                        Log.w(TAG, "No Shorts tab on $channelUrl")
+                        return@withContext exhausted()
+                    }
                 tab = shortsTab
 
                 val tabInfo = ChannelTabInfo.getInfo(service, shortsTab)

@@ -55,214 +55,304 @@ class ShortsQueueControllerTest {
     // ── Opening position ──
 
     @Test
-    fun `opens at the tapped short without reordering the list`() = runTest {
-        // The shelf order has to survive so backward swipes still work.
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c", "d"))))
+    fun `opens at the tapped short without reordering the list`() =
+        runTest {
+            // The shelf order has to survive so backward swipes still work.
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c", "d"))))
 
-        controller.loadInitial(startVideoId = "c")
+            controller.loadInitial(startVideoId = "c")
 
-        assertEquals(listOf("a", "b", "c", "d"), ids(controller))
-        assertEquals(2, controller.currentIndex.value)
-        assertEquals("c", controller.currentItem?.id)
-    }
-
-    @Test
-    fun `opens at the top when no start short is named`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
-
-        controller.loadInitial(startVideoId = null)
-
-        assertEquals(0, controller.currentIndex.value)
-    }
+            assertEquals(listOf("a", "b", "c", "d"), ids(controller))
+            assertEquals(2, controller.currentIndex.value)
+            assertEquals("c", controller.currentItem?.id)
+        }
 
     @Test
-    fun `unknown start short falls back to the top`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
+    fun `opens at the top when no start short is named`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
 
-        controller.loadInitial(startVideoId = "missing")
+            controller.loadInitial(startVideoId = null)
 
-        assertEquals(0, controller.currentIndex.value)
-    }
+            assertEquals(0, controller.currentIndex.value)
+        }
 
     @Test
-    fun `duplicates in the first page are dropped`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "a"))))
+    fun `unknown start short falls back to the top`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
 
-        controller.loadInitial(null)
+            controller.loadInitial(startVideoId = "missing")
 
-        assertEquals(listOf("a", "b"), ids(controller))
-    }
+            assertEquals(0, controller.currentIndex.value)
+        }
+
+    @Test
+    fun `duplicates in the first page are dropped`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "a"))))
+
+            controller.loadInitial(null)
+
+            assertEquals(listOf("a", "b"), ids(controller))
+        }
 
     // ── Paging and the hand-over to the feed ──
 
     @Test
-    fun `finite source with no continuation stops at the end`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
-        controller.loadInitial(null)
+    fun `finite source with no continuation stops at the end`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
+            controller.loadInitial(null)
 
-        assertFalse(controller.hasMore)
-        controller.loadMore()
+            assertFalse(controller.hasMore)
+            controller.loadMore()
 
-        assertEquals(listOf("a", "b"), ids(controller))
-    }
-
-    @Test
-    fun `exhausted shelf hands over to the feed`() = runTest {
-        val shelf = FakeLoader(listOf(shorts("s1", "s2")))
-        val feed = FakeLoader(listOf(shorts("f1", "f2"), shorts("f3")))
-        val controller = ShortsQueueController(primary = shelf, continuation = feed)
-
-        controller.loadInitial(null)
-        assertEquals(listOf("s1", "s2"), ids(controller))
-        assertTrue("shelf is finite but a feed follows it", controller.hasMore)
-
-        controller.loadMore()
-        assertEquals(listOf("s1", "s2", "f1", "f2"), ids(controller))
-        assertEquals("continuation must start with initial(), not more()", 1, feed.initialCalls)
-
-        controller.loadMore()
-        assertEquals(listOf("s1", "s2", "f1", "f2", "f3"), ids(controller))
-        assertFalse(controller.hasMore)
-    }
+            assertEquals(listOf("a", "b"), ids(controller))
+        }
 
     @Test
-    fun `paginated primary is drained before the continuation is touched`() = runTest {
-        val primary = FakeLoader(listOf(shorts("p1"), shorts("p2")))
-        val feed = FakeLoader(listOf(shorts("f1")))
-        val controller = ShortsQueueController(primary, feed)
+    fun `exhausted shelf hands over to the feed`() =
+        runTest {
+            val shelf = FakeLoader(listOf(shorts("s1", "s2")))
+            val feed = FakeLoader(listOf(shorts("f1", "f2"), shorts("f3")))
+            val controller = ShortsQueueController(primary = shelf, continuation = feed)
 
-        controller.loadInitial(null)
-        controller.loadMore()
+            controller.loadInitial(null)
+            assertEquals(listOf("s1", "s2"), ids(controller))
+            assertTrue("shelf is finite but a feed follows it", controller.hasMore)
 
-        assertEquals(listOf("p1", "p2"), ids(controller))
-        assertEquals(0, feed.initialCalls)
+            controller.loadMore()
+            assertEquals(listOf("s1", "s2", "f1", "f2"), ids(controller))
+            assertEquals("continuation must start with initial(), not more()", 1, feed.initialCalls)
 
-        controller.loadMore()
-        assertEquals(listOf("p1", "p2", "f1"), ids(controller))
-    }
-
-    @Test
-    fun `append never re-adds an id already in the queue`() = runTest {
-        val primary = FakeLoader(listOf(shorts("a"), shorts("a", "b")))
-        val controller = ShortsQueueController(primary)
-
-        controller.loadInitial(null)
-        controller.loadMore()
-
-        assertEquals(listOf("a", "b"), ids(controller))
-    }
+            controller.loadMore()
+            assertEquals(listOf("s1", "s2", "f1", "f2", "f3"), ids(controller))
+            assertFalse(controller.hasMore)
+        }
 
     @Test
-    fun `an all-duplicate page does not end paging`() = runTest {
-        val primary = FakeLoader(listOf(shorts("a"), shorts("a"), shorts("b")))
-        val controller = ShortsQueueController(primary)
+    fun `paginated primary is drained before the continuation is touched`() =
+        runTest {
+            val primary = FakeLoader(listOf(shorts("p1"), shorts("p2")))
+            val feed = FakeLoader(listOf(shorts("f1")))
+            val controller = ShortsQueueController(primary, feed)
 
-        controller.loadInitial(null)
-        controller.loadMore()
+            controller.loadInitial(null)
+            controller.loadMore()
 
-        assertEquals("should have skipped the duplicate page", listOf("a", "b"), ids(controller))
-    }
+            assertEquals(listOf("p1", "p2"), ids(controller))
+            assertEquals(0, feed.initialCalls)
+
+            controller.loadMore()
+            assertEquals(listOf("p1", "p2", "f1"), ids(controller))
+        }
+
+    @Test
+    fun `append never re-adds an id already in the queue`() =
+        runTest {
+            val primary = FakeLoader(listOf(shorts("a"), shorts("a", "b")))
+            val controller = ShortsQueueController(primary)
+
+            controller.loadInitial(null)
+            controller.loadMore()
+
+            assertEquals(listOf("a", "b"), ids(controller))
+        }
+
+    @Test
+    fun `an all-duplicate page does not end paging`() =
+        runTest {
+            val primary = FakeLoader(listOf(shorts("a"), shorts("a"), shorts("b")))
+            val controller = ShortsQueueController(primary)
+
+            controller.loadInitial(null)
+            controller.loadMore()
+
+            assertEquals("should have skipped the duplicate page", listOf("a", "b"), ids(controller))
+        }
 
     // ── Removal ──
 
     @Test
-    fun `removing the current short reports that the position now holds another`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c"))))
-        controller.loadInitial(null)
-        controller.setCurrentIndex(1)
+    fun `removing the current short reports that the position now holds another`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c"))))
+            controller.loadInitial(null)
+            controller.setCurrentIndex(1)
 
-        val change = controller.remove("b")
+            val change = controller.remove("b")
 
-        assertEquals(ShortsQueueChange.CurrentItemChanged, change)
-        assertEquals(listOf("a", "c"), ids(controller))
-        assertEquals(1, controller.currentIndex.value)
-        assertEquals("c", controller.currentItem?.id)
-    }
-
-    @Test
-    fun `removing another short leaves the current one alone`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c"))))
-        controller.loadInitial(null)
-        controller.setCurrentIndex(1)
-
-        val change = controller.remove("c")
-
-        assertEquals(ShortsQueueChange.ListOnly, change)
-        assertEquals("b", controller.currentItem?.id)
-    }
+            assertEquals(ShortsQueueChange.CurrentItemChanged, change)
+            assertEquals(listOf("a", "c"), ids(controller))
+            assertEquals(1, controller.currentIndex.value)
+            assertEquals("c", controller.currentItem?.id)
+        }
 
     @Test
-    fun `removing the last short clamps the position`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
-        controller.loadInitial(null)
-        controller.setCurrentIndex(1)
+    fun `removing another short leaves the current one alone`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c"))))
+            controller.loadInitial(null)
+            controller.setCurrentIndex(1)
 
-        controller.remove("b")
+            val change = controller.remove("c")
 
-        assertEquals(0, controller.currentIndex.value)
-        assertEquals("a", controller.currentItem?.id)
-    }
-
-    @Test
-    fun `a removed short does not come back on the next append`() = runTest {
-        val primary = FakeLoader(listOf(shorts("a", "b"), shorts("b", "c")))
-        val controller = ShortsQueueController(primary)
-        controller.loadInitial(null)
-
-        controller.remove("b")
-        controller.loadMore()
-
-        assertEquals(listOf("a", "c"), ids(controller))
-    }
+            assertEquals(ShortsQueueChange.ListOnly, change)
+            assertEquals("b", controller.currentItem?.id)
+        }
 
     @Test
-    fun `removing an unknown id changes nothing`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a"))))
-        controller.loadInitial(null)
+    fun `removing the last short clamps the position`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
+            controller.loadInitial(null)
+            controller.setCurrentIndex(1)
 
-        assertEquals(ShortsQueueChange.None, controller.remove("nope"))
-    }
+            controller.remove("b")
+
+            assertEquals(0, controller.currentIndex.value)
+            assertEquals("a", controller.currentItem?.id)
+        }
+
+    @Test
+    fun `a removed short does not come back on the next append`() =
+        runTest {
+            val primary = FakeLoader(listOf(shorts("a", "b"), shorts("b", "c")))
+            val controller = ShortsQueueController(primary)
+            controller.loadInitial(null)
+
+            controller.remove("b")
+            controller.loadMore()
+
+            assertEquals(listOf("a", "c"), ids(controller))
+        }
+
+    @Test
+    fun `removing an unknown id changes nothing`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a"))))
+            controller.loadInitial(null)
+
+            assertEquals(ShortsQueueChange.None, controller.remove("nope"))
+        }
 
     // ── Enrichment and discovery ──
 
     @Test
-    fun `enrichment replaces in place`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
-        controller.loadInitial(null)
+    fun `enrichment replaces in place`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
+            controller.loadInitial(null)
 
-        val change = controller.applyEnrichment(listOf(short("a").copy(title = "enriched")))
+            val change = controller.applyEnrichment(listOf(short("a").copy(title = "enriched")))
 
-        assertEquals(ShortsQueueChange.ListOnly, change)
-        assertEquals(listOf("a", "b"), ids(controller))
-        assertEquals("enriched", controller.items.value.first().title)
-    }
-
-    @Test
-    fun `enrichment that changes nothing is reported as no change`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a"))))
-        controller.loadInitial(null)
-
-        assertEquals(ShortsQueueChange.None, controller.applyEnrichment(listOf(short("a"))))
-    }
+            assertEquals(ShortsQueueChange.ListOnly, change)
+            assertEquals(listOf("a", "b"), ids(controller))
+            assertEquals(
+                "enriched",
+                controller.items.value
+                    .first()
+                    .title,
+            )
+        }
 
     @Test
-    fun `discovery merges after the current position and never before it`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c"))))
-        controller.loadInitial(null)
-        controller.setCurrentIndex(1)
+    fun `enrichment that changes nothing is reported as no change`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a"))))
+            controller.loadInitial(null)
 
-        controller.mergeDiscovery(shorts("d"))
-
-        val result = ids(controller)
-        assertEquals("watched items must not move", listOf("a", "b"), result.take(2))
-        assertTrue("discovery item should be present", "d" in result)
-    }
+            assertEquals(ShortsQueueChange.None, controller.applyEnrichment(listOf(short("a"))))
+        }
 
     @Test
-    fun `discovery ignores ids already queued`() = runTest {
-        val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
-        controller.loadInitial(null)
+    fun `discovery merges after the current position and never before it`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c"))), acceptsDiscovery = true)
+            controller.loadInitial(null)
+            controller.setCurrentIndex(1)
 
-        assertEquals(ShortsQueueChange.None, controller.mergeDiscovery(shorts("a", "b")))
-    }
+            controller.mergeDiscovery(shorts("d"))
+
+            val result = ids(controller)
+            assertEquals("watched items must not move", listOf("a", "b"), result.take(2))
+            assertTrue("discovery item should be present", "d" in result)
+        }
+
+    @Test
+    fun `discovery ignores ids already queued`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))), acceptsDiscovery = true)
+            controller.loadInitial(null)
+
+            assertEquals(ShortsQueueChange.None, controller.mergeDiscovery(shorts("a", "b")))
+        }
+
+    // Saved Shorts and a channel tab are not the feed. Background discovery finishes on its own
+    // schedule, so without this guard a pass started on the Shorts tab lands in whatever is open.
+    @Test
+    fun `discovery is refused by a queue that is not the algorithmic feed`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
+            controller.loadInitial(null)
+
+            assertEquals(ShortsQueueChange.None, controller.mergeDiscovery(shorts("x", "y")))
+            assertEquals(listOf("a", "b"), ids(controller))
+        }
+
+    // ── Removal ──
+
+    @Test
+    fun `removing a short above the cursor keeps the same short playing`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c", "d"))))
+            controller.loadInitial(null)
+            controller.setCurrentIndex(2)
+
+            val change = controller.remove("a")
+
+            assertEquals(ShortsQueueChange.ListOnly, change)
+            assertEquals("c", controller.currentItem?.id)
+        }
+
+    @Test
+    fun `removing a short below the cursor leaves the position alone`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c", "d"))))
+            controller.loadInitial(null)
+            controller.setCurrentIndex(1)
+
+            val change = controller.remove("d")
+
+            assertEquals(ShortsQueueChange.ListOnly, change)
+            assertEquals("b", controller.currentItem?.id)
+        }
+
+    // ── Start anchor on a later page ──
+
+    @Test
+    fun `pages forward to find a start short the first page did not contain`() =
+        runTest {
+            // A channel's Shorts grid pages as the user scrolls, so the tap can be well past page one.
+            val loader = FakeLoader(listOf(shorts("a", "b"), shorts("c", "d"), shorts("e", "f")))
+            val controller = ShortsQueueController(loader)
+
+            controller.loadInitial(startVideoId = "e")
+
+            assertEquals(listOf("a", "b", "c", "d", "e", "f"), ids(controller))
+            assertEquals("e", controller.currentItem?.id)
+        }
+
+    @Test
+    fun `gives up paging and opens at the top when the start short never appears`() =
+        runTest {
+            val loader = FakeLoader(listOf(shorts("a"), shorts("b"), shorts("c"), shorts("d"), shorts("e")))
+            val controller = ShortsQueueController(loader)
+
+            controller.loadInitial(startVideoId = "zzz")
+
+            assertEquals(0, controller.currentIndex.value)
+            assertEquals("a", controller.currentItem?.id)
+        }
 }

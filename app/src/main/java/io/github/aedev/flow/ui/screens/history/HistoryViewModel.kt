@@ -50,80 +50,82 @@ class HistoryViewModel
             // Load history and enrich any entries that are missing metadata
             viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true) }
-                viewHistory.getAllHistory().combine(shortsContentFilter.enabled) { history, shortsEnabled ->
-                    if (shortsEnabled) history else history.filterNot { it.isShort }
-                }.collect { history ->
-                    val enriched =
-                        history.map { entry ->
-                            var e = entry
+                viewHistory
+                    .getAllHistory()
+                    .combine(shortsContentFilter.enabled) { history, shortsEnabled ->
+                        if (shortsEnabled) history else history.filterNot { it.isShort }
+                    }.collect { history ->
+                        val enriched =
+                            history.map { entry ->
+                                var e = entry
 
-                            val needsEnrichment = e.title.isEmpty() || e.channelName.isEmpty()
-                            val dbVideo = if (needsEnrichment || e.isShort) videoDao.getVideo(e.videoId) else null
+                                val needsEnrichment = e.title.isEmpty() || e.channelName.isEmpty()
+                                val dbVideo = if (needsEnrichment || e.isShort) videoDao.getVideo(e.videoId) else null
 
-                            if (e.thumbnailUrl.isEmpty()) {
-                                e =
-                                    e.copy(
-                                        thumbnailUrl =
-                                            ThumbnailUrlResolver.normalizeVideoThumbnail(
-                                                e.videoId,
-                                                dbVideo?.thumbnailUrl,
-                                            ),
-                                    )
+                                if (e.thumbnailUrl.isEmpty()) {
+                                    e =
+                                        e.copy(
+                                            thumbnailUrl =
+                                                ThumbnailUrlResolver.normalizeVideoThumbnail(
+                                                    e.videoId,
+                                                    dbVideo?.thumbnailUrl,
+                                                ),
+                                        )
+                                }
+
+                                if (dbVideo != null) {
+                                    if (e.title.isEmpty() && dbVideo.title.isNotEmpty()) {
+                                        e = e.copy(title = dbVideo.title)
+                                    }
+                                    if (e.channelName.isEmpty() && dbVideo.channelName.isNotEmpty()) {
+                                        e = e.copy(channelName = dbVideo.channelName, channelId = dbVideo.channelId)
+                                    }
+                                    if (dbVideo.thumbnailUrl.isNotEmpty() &&
+                                        ThumbnailUrlResolver.isYoutubeVideoThumbnail(e.thumbnailUrl)
+                                    ) {
+                                        e = e.copy(thumbnailUrl = dbVideo.thumbnailUrl)
+                                    }
+                                }
+                                e
                             }
 
-                            if (dbVideo != null) {
-                                if (e.title.isEmpty() && dbVideo.title.isNotEmpty()) {
-                                    e = e.copy(title = dbVideo.title)
-                                }
-                                if (e.channelName.isEmpty() && dbVideo.channelName.isNotEmpty()) {
-                                    e = e.copy(channelName = dbVideo.channelName, channelId = dbVideo.channelId)
-                                }
-                                if (dbVideo.thumbnailUrl.isNotEmpty() &&
-                                    ThumbnailUrlResolver.isYoutubeVideoThumbnail(e.thumbnailUrl)
-                                ) {
-                                    e = e.copy(thumbnailUrl = dbVideo.thumbnailUrl)
-                                }
-                            }
-                            e
-                        }
-
-                    val shortVideos = mutableMapOf<String, Video>()
-                    enriched
-                        .filter { it.isShort }
-                        .forEach { entry ->
-                            val video =
-                                videoDao.getVideo(entry.videoId)?.toDomain()?.copy(
-                                    isShort = true,
-                                    isMusic = entry.isMusic,
-                                    timestamp = entry.timestamp,
-                                )
-                            if (video != null) {
-                                shortVideos[video.id] = video
-                            }
-                        }
-
-                    _uiState.update {
-                        it.copy(
-                            historyEntries = enriched,
-                            shortVideos = shortVideos,
-                            isLoading = false,
-                        )
-                    }
-
-                    val stubs =
+                        val shortVideos = mutableMapOf<String, Video>()
                         enriched
-                            .filter { entry ->
-                                !entry.isLocal && (
-                                    entry.title.isEmpty() ||
-                                        entry.channelName.isEmpty() ||
-                                        (entry.isShort && !shortVideos.containsKey(entry.videoId))
-                                )
-                            }.distinctBy { it.videoId }
-                            .take(30)
-                    if (stubs.isNotEmpty()) {
-                        enrichFromApi(stubs)
+                            .filter { it.isShort }
+                            .forEach { entry ->
+                                val video =
+                                    videoDao.getVideo(entry.videoId)?.toDomain()?.copy(
+                                        isShort = true,
+                                        isMusic = entry.isMusic,
+                                        timestamp = entry.timestamp,
+                                    )
+                                if (video != null) {
+                                    shortVideos[video.id] = video
+                                }
+                            }
+
+                        _uiState.update {
+                            it.copy(
+                                historyEntries = enriched,
+                                shortVideos = shortVideos,
+                                isLoading = false,
+                            )
+                        }
+
+                        val stubs =
+                            enriched
+                                .filter { entry ->
+                                    !entry.isLocal && (
+                                        entry.title.isEmpty() ||
+                                            entry.channelName.isEmpty() ||
+                                            (entry.isShort && !shortVideos.containsKey(entry.videoId))
+                                    )
+                                }.distinctBy { it.videoId }
+                                .take(30)
+                        if (stubs.isNotEmpty()) {
+                            enrichFromApi(stubs)
+                        }
                     }
-                }
             }
         }
 

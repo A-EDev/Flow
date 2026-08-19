@@ -30,6 +30,15 @@ enum class ShortsQueueChange {
 class ShortsQueueController(
     private val primary: ShortsQueueLoader,
     private val continuation: ShortsQueueLoader? = null,
+    /**
+     * Whether late-arriving algorithmic discovery may be interleaved into this queue.
+     *
+     * Only true when [primary] *is* the algorithmic feed. Saved Shorts is a deliberate collection
+     * and a channel tab is that channel's work — injecting recommendations into either
+     * misrepresents it, and background discovery finishes on its own schedule, so without this a
+     * discovery pass started on the Shorts tab lands in whatever queue happens to be open.
+     */
+    private val acceptsDiscovery: Boolean = false,
 ) {
     private val _items = MutableStateFlow<List<ShortVideo>>(emptyList())
     val items: StateFlow<List<ShortVideo>> = _items.asStateFlow()
@@ -69,12 +78,35 @@ class ShortsQueueController(
         val items = page.items.distinctById()
         seenIds += items.map { it.id }
         _items.value = items
-        _currentIndex.value =
-            startVideoId
-                ?.takeIf { it.isNotBlank() }
-                ?.let { id -> items.indexOfFirst { it.id == id }.takeIf { it >= 0 } }
-                ?: 0
+
+        val anchor = startVideoId?.takeIf { it.isNotBlank() }
+        _currentIndex.value = anchor?.let(::indexOf) ?: 0
+        if (anchor != null && indexOf(anchor) == null) pageToAnchor(anchor)
     }
+
+    /**
+     * Pages forward looking for a start anchor the first page did not contain.
+     *
+     * A paginated source can hold the tapped short well past page one — a channel's Shorts grid
+     * pages as the user scrolls, so a tap forty items down resolves to nothing on the first page.
+     * Without this the queue silently opens at position 0 and plays a short the user did not pick.
+     *
+     * Bounded: if it is not found, opening at the top is still better than paging a channel forever.
+     */
+    private suspend fun pageToAnchor(anchor: String) {
+        repeat(MAX_ANCHOR_PAGES) {
+            if (!hasMore) return
+            val before = _items.value.size
+            loadMore()
+            if (_items.value.size == before) return
+            indexOf(anchor)?.let { found ->
+                _currentIndex.value = found
+                return
+            }
+        }
+    }
+
+    private fun indexOf(id: String): Int? = _items.value.indexOfFirst { it.id == id }.takeIf { it >= 0 }
 
     /**
      * Appends the next page, switching from [primary] to [continuation] the first time [primary]
@@ -128,8 +160,12 @@ class ShortsQueueController(
             return ShortsQueueChange.CurrentItemChanged
         }
 
-        val wasCurrent = removedIndex == _currentIndex.value
-        _currentIndex.value = _currentIndex.value.coerceAtMost(updated.lastIndex)
+        val position = _currentIndex.value
+        val wasCurrent = removedIndex == position
+        // Removing something above the cursor shifts the whole list under it; the index has to move
+        // with it or the user is silently pushed onto the next short.
+        val shifted = if (removedIndex < position) position - 1 else position
+        _currentIndex.value = shifted.coerceIn(0, updated.lastIndex)
         return if (wasCurrent) ShortsQueueChange.CurrentItemChanged else ShortsQueueChange.ListOnly
     }
 
@@ -151,7 +187,7 @@ class ShortsQueueController(
      * ordering helper so this behaves exactly as the pre-queue feed did.
      */
     fun mergeDiscovery(discovery: List<ShortVideo>): ShortsQueueChange {
-        if (discovery.isEmpty()) return ShortsQueueChange.None
+        if (!acceptsDiscovery || discovery.isEmpty()) return ShortsQueueChange.None
         val current = _items.value
         val merged =
             mergeDiscoveryCandidates(
@@ -179,13 +215,14 @@ class ShortsQueueController(
 
         // The continuation starts its own paging, so its first call is initial() and the primary's
         // spent cursor is discarded rather than handed to a loader that cannot read it.
-        val page = if (!continuationStarted) {
-            continuationStarted = true
-            cursor = null
-            next.initial()
-        } else {
-            next.more(cursor)
-        }
+        val page =
+            if (!continuationStarted) {
+                continuationStarted = true
+                cursor = null
+                next.initial()
+            } else {
+                next.more(cursor)
+            }
         cursor = page.cursor
         continuationExhausted = page.exhausted
         return page
@@ -193,6 +230,7 @@ class ShortsQueueController(
 
     private companion object {
         const val MAX_DEDUPE_ATTEMPTS = 3
+        const val MAX_ANCHOR_PAGES = 3
     }
 }
 

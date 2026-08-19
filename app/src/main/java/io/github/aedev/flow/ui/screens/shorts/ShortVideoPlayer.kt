@@ -101,7 +101,9 @@ internal fun ShortVideoPage(
     val isSimpleShortsUi = settings.uiMode == ShortsPlayerUiMode.SIMPLE
     val isImpressiveShortsUi = settings.uiMode == ShortsPlayerUiMode.IMPRESSIVE
     val pageState = remember(video.id) { ShortVideoPageState() }
-    val sessionState = remember(video.id, isActive) { ShortVideoSessionState() }
+    // Keyed on identity only: including isActive reset hasRecordedWatched every time the page went
+    // off screen, so swiping back and forth re-fed the same watch signal to the engine.
+    val sessionState = remember(video.id) { ShortVideoSessionState() }
     val autoAdvanceState =
         remember(
             video.id,
@@ -164,7 +166,11 @@ internal fun ShortVideoPage(
 
     // Register a MediaSessionCompat so earphone / Bluetooth media buttons (play-pause)
     // work while a short is active. Re-created every time isActive changes; released on dispose.
+    // Only the visible page registers one. Building it unconditionally meant three live compat
+    // sessions at all times (beyondViewportPageCount = 1), each a binder round-trip, all recreated
+    // on every swipe.
     DisposableEffect(isActive) {
+        if (!isActive) return@DisposableEffect onDispose { }
         val session =
             MediaSessionCompat(context, "ShortsPlayer").also { s ->
                 s.setPlaybackState(

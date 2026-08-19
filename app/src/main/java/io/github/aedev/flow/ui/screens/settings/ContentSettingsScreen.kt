@@ -14,27 +14,27 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.DragIndicator
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.MusicNote
-import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.Subscriptions
-import androidx.compose.material.icons.outlined.ViewAgenda
-import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material.icons.outlined.Explore
-import androidx.compose.material.icons.outlined.ViewQuilt
-import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.Title
+import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material.icons.outlined.ViewAgenda
+import androidx.compose.material.icons.outlined.ViewQuilt
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,26 +54,25 @@ import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.local.WatchedThreshold
 import io.github.aedev.flow.ui.NavigationVisibility
 import io.github.aedev.flow.ui.resolveDefaultNavTabIndex
-import io.github.aedev.flow.ui.visibleNavTabIndices
 import io.github.aedev.flow.ui.theme.GridItemSize
+import io.github.aedev.flow.ui.visibleNavTabIndices
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ContentSettingsScreen(
-    onBackClick: () -> Unit
-) {
+fun ContentSettingsScreen(onBackClick: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val preferences = remember { PlayerPreferences(context) }
-    
+
     val gridSizeString by preferences.gridItemSize.collectAsState(initial = "BIG")
-    val currentGridSize = try {
-        GridItemSize.valueOf(gridSizeString)
-    } catch (e: Exception) {
-        GridItemSize.BIG
-    }
-    
+    val currentGridSize =
+        try {
+            GridItemSize.valueOf(gridSizeString)
+        } catch (e: Exception) {
+            GridItemSize.BIG
+        }
+
     val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
     val isShortsShelfEnabled by preferences.shortsShelfEnabled.collectAsState(initial = true)
     val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
@@ -85,7 +84,7 @@ fun ContentSettingsScreen(
     val isContinueWatchingEnabled by preferences.continueWatchingEnabled.collectAsState(initial = true)
     val showRestoredMusicMiniPlayer by preferences.showRestoredMusicMiniPlayer.collectAsState(initial = true)
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
-    
+
     val homeViewModeString by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
     val currentHomeViewMode = homeViewModeString
 
@@ -96,7 +95,9 @@ fun ContentSettingsScreen(
     val hideWatchedVideosFromHome by preferences.hideWatchedVideosFromHome.collectAsState(initial = false)
     val hideWatchedVideosFromSubscriptions by preferences.hideWatchedVideosFromSubscriptions.collectAsState(initial = false)
     val hideUnplayableVideosFromSubscriptions by preferences.hideUnplayableVideosFromSubscriptions.collectAsState(initial = false)
-    val watchedThreshold by preferences.watchedThreshold.collectAsState(initial = io.github.aedev.flow.data.local.WatchedThreshold.ALMOST_FINISHED)
+    val watchedThreshold by preferences.watchedThreshold.collectAsState(
+        initial = io.github.aedev.flow.data.local.WatchedThreshold.ALMOST_FINISHED,
+    )
     var showWatchedThresholdDialog by remember { mutableStateOf(false) }
     val bottomNavHideOnScroll by preferences.bottomNavHideOnScroll.collectAsState(initial = true)
     val shareWithoutText by preferences.shareWithoutText.collectAsState(initial = false)
@@ -115,52 +116,58 @@ fun ContentSettingsScreen(
     val subscriptionShowLive by preferences.subscriptionShowLive.collectAsState(initial = true)
     val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
-    val navigationVisibility = NavigationVisibility(
-        home = isHomeNavigationEnabled,
-        shorts = isShortsNavigationEnabled && shortsContentEnabled,
-        music = isMusicNavigationEnabled,
-        search = isSearchNavigationEnabled,
-        categories = isCategoriesNavigationEnabled
-    )
+    val navigationVisibility =
+        NavigationVisibility(
+            home = isHomeNavigationEnabled,
+            shorts = isShortsNavigationEnabled && shortsContentEnabled,
+            music = isMusicNavigationEnabled,
+            search = isSearchNavigationEnabled,
+            categories = isCategoriesNavigationEnabled,
+        )
     val visibleNavIndices = visibleNavTabIndices(navTabOrder, navigationVisibility)
-    val resolvedDefaultNavTabIndex = resolveDefaultNavTabIndex(
-        preferredIndex = defaultNavTabIndex,
-        order = navTabOrder,
-        visibility = navigationVisibility
+    val resolvedDefaultNavTabIndex =
+        resolveDefaultNavTabIndex(
+            preferredIndex = defaultNavTabIndex,
+            order = navTabOrder,
+            visibility = navigationVisibility,
+        )
+    val downloadDialogStyle by preferences.downloadDialogStyle.collectAsState(
+        initial = io.github.aedev.flow.data.local.DownloadDialogStyle.FULL,
     )
-    val downloadDialogStyle by preferences.downloadDialogStyle.collectAsState(initial = io.github.aedev.flow.data.local.DownloadDialogStyle.FULL)
-    
+
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.background,
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back))
                     }
                     Text(
                         text = stringResource(R.string.content_settings_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     )
                 }
             }
-        }
+        },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Layout Settings Section
             item {
@@ -172,27 +179,27 @@ fun ContentSettingsScreen(
                                 Icons.Outlined.GridView,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
                                     text = stringResource(R.string.content_settings_grid_size_title),
-                                    style = MaterialTheme.typography.bodyLarge
+                                    style = MaterialTheme.typography.bodyLarge,
                                 )
                                 Text(
                                     text = stringResource(R.string.content_settings_grid_size_subtitle),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
-                        
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             GridSizeOption(
                                 title = stringResource(R.string.content_settings_grid_big_title),
@@ -203,7 +210,7 @@ fun ContentSettingsScreen(
                                         preferences.setGridItemSize("BIG")
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             GridSizeOption(
                                 title = stringResource(R.string.content_settings_grid_small_title),
@@ -214,7 +221,7 @@ fun ContentSettingsScreen(
                                         preferences.setGridItemSize("SMALL")
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }
@@ -231,13 +238,13 @@ fun ContentSettingsScreen(
                                 Icons.Outlined.ViewAgenda,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(
                                 text = stringResource(R.string.download_menu_style_subtitle),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
 
@@ -245,7 +252,7 @@ fun ContentSettingsScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             GridSizeOption(
                                 title = stringResource(R.string.download_menu_style_classic),
@@ -256,7 +263,7 @@ fun ContentSettingsScreen(
                                         preferences.setDownloadDialogStyle(io.github.aedev.flow.data.local.DownloadDialogStyle.FULL)
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             GridSizeOption(
                                 title = stringResource(R.string.download_menu_style_compact),
@@ -267,7 +274,7 @@ fun ContentSettingsScreen(
                                         preferences.setDownloadDialogStyle(io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT)
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }
@@ -281,30 +288,36 @@ fun ContentSettingsScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                if (currentHomeViewMode == io.github.aedev.flow.data.local.HomeViewMode.GRID) Icons.Outlined.GridView else Icons.AutoMirrored.Outlined.List,
+                                if (currentHomeViewMode ==
+                                    io.github.aedev.flow.data.local.HomeViewMode.GRID
+                                ) {
+                                    Icons.Outlined.GridView
+                                } else {
+                                    Icons.AutoMirrored.Outlined.List
+                                },
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
                                     text = stringResource(R.string.content_settings_home_layout_title),
-                                    style = MaterialTheme.typography.bodyLarge
+                                    style = MaterialTheme.typography.bodyLarge,
                                 )
                                 Text(
                                     text = stringResource(R.string.content_settings_home_layout_subtitle),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
-                        
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             LayoutOption(
                                 title = stringResource(R.string.content_settings_layout_grid),
@@ -315,7 +328,7 @@ fun ContentSettingsScreen(
                                         preferences.setHomeViewMode(io.github.aedev.flow.data.local.HomeViewMode.GRID)
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             LayoutOption(
                                 title = stringResource(R.string.content_settings_layout_list),
@@ -326,13 +339,13 @@ fun ContentSettingsScreen(
                                         preferences.setHomeViewMode(io.github.aedev.flow.data.local.HomeViewMode.LIST)
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }
                 }
             }
-            
+
             // Home Feed Section
             item {
                 SectionHeader(text = stringResource(R.string.content_settings_header_home_feed))
@@ -346,11 +359,11 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setHomeFeedEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Refresh,
@@ -361,20 +374,22 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setRefreshHomeOnReselect(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
                     SettingsSwitchItem(
-                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_notification_logo),
+                        icon =
+                            androidx.compose.ui.graphics.vector.ImageVector
+                                .vectorResource(id = R.drawable.ic_notification_logo),
                         title = stringResource(R.string.content_settings_show_app_logo_title),
                         subtitle = stringResource(R.string.content_settings_show_app_logo_subtitle),
                         checked = showAppLogoIcon,
                         onCheckedChange = { enabled ->
                             coroutineScope.launch { preferences.setShowAppLogoIcon(enabled) }
-                        }
+                        },
                     )
                 }
             }
@@ -384,7 +399,9 @@ fun ContentSettingsScreen(
                 SectionHeader(text = stringResource(R.string.content_settings_header_shorts))
                 SettingsGroup {
                     SettingsSwitchItem(
-                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        icon =
+                            androidx.compose.ui.graphics.vector.ImageVector
+                                .vectorResource(id = R.drawable.ic_shorts),
                         title = stringResource(R.string.content_settings_shorts_content_title),
                         subtitle = stringResource(R.string.content_settings_shorts_content_subtitle),
                         checked = shortsContentEnabled,
@@ -392,11 +409,13 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setShortsContentEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        icon =
+                            androidx.compose.ui.graphics.vector.ImageVector
+                                .vectorResource(id = R.drawable.ic_shorts),
                         title = stringResource(R.string.settings_shorts_nav_tab_title),
                         subtitle = stringResource(R.string.settings_shorts_nav_tab_subtitle),
                         checked = isShortsNavigationEnabled && shortsContentEnabled,
@@ -405,11 +424,13 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setShortsNavigationEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        icon =
+                            androidx.compose.ui.graphics.vector.ImageVector
+                                .vectorResource(id = R.drawable.ic_shorts),
                         title = stringResource(R.string.settings_home_shorts_shelf_title),
                         subtitle = stringResource(R.string.settings_home_shorts_shelf_subtitle),
                         checked = isHomeShortsShelfEnabled && shortsContentEnabled,
@@ -418,11 +439,13 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setHomeShortsShelfEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        icon =
+                            androidx.compose.ui.graphics.vector.ImageVector
+                                .vectorResource(id = R.drawable.ic_shorts),
                         title = stringResource(R.string.settings_subs_shorts_shelf_title),
                         subtitle = stringResource(R.string.settings_subs_shorts_shelf_subtitle),
                         checked = isShortsShelfEnabled && shortsContentEnabled,
@@ -431,11 +454,13 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setShortsShelfEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        icon =
+                            androidx.compose.ui.graphics.vector.ImageVector
+                                .vectorResource(id = R.drawable.ic_shorts),
                         title = stringResource(R.string.content_settings_subs_show_shorts_title),
                         subtitle = stringResource(R.string.content_settings_subs_show_shorts_subtitle),
                         checked = subscriptionShowShorts && shortsContentEnabled,
@@ -444,7 +469,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setSubscriptionShowShorts(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -457,7 +482,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setDisableShortsPlayer(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -470,7 +495,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setShowShortsPlayerPrompt(enabled)
                             }
-                        }
+                        },
                     )
                 }
             }
@@ -488,7 +513,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setContinueWatchingEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -500,7 +525,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setShowRestoredMusicMiniPlayer(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -512,7 +537,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setShowRelatedVideos(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -524,7 +549,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setCommentsEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -537,7 +562,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setCommentsPreviewEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -549,7 +574,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setHideWatchedVideosFromHome(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -561,7 +586,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setHideWatchedVideosFromSubscriptions(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -573,15 +598,18 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setHideUnplayableVideosFromSubscriptions(enabled)
                             }
-                        }
+                        },
                     )
                     if (hideWatchedVideosFromHome || hideWatchedVideosFromSubscriptions) {
-                        HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        )
                         SettingsItem(
                             icon = Icons.Outlined.Schedule,
                             title = stringResource(R.string.content_settings_watched_threshold_title),
                             subtitle = watchedThresholdLabel(watchedThreshold),
-                            onClick = { showWatchedThresholdDialog = true }
+                            onClick = { showWatchedThresholdDialog = true },
                         )
                     }
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -594,7 +622,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setShareWithoutText(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -606,7 +634,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setShowRegionPickerInExplore(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -618,7 +646,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setVideoCardActionsEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -630,7 +658,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setVideoCardMarkWatchedEnabled(enabled)
                             }
-                        }
+                        },
                     )
                 }
             }
@@ -648,7 +676,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setHomeNavigationEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -660,7 +688,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setMusicNavigationEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -672,7 +700,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setSearchNavigationEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -684,7 +712,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setCategoriesNavigationEnabled(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -696,7 +724,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setBottomNavHideOnScroll(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -708,7 +736,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setSubscriptionRefreshOnStartup(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -720,7 +748,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setSubscriptionShowCheckedVideoCount(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -732,7 +760,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setSubscriptionShowVideos(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
@@ -744,7 +772,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setSubscriptionShowLive(enabled)
                             }
-                        }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     NavTabOrderSettings(
@@ -767,7 +795,7 @@ fun ContentSettingsScreen(
                             coroutineScope.launch {
                                 preferences.setDefaultNavTabIndex(index)
                             }
-                        }
+                        },
                     )
                 }
             }
@@ -782,18 +810,18 @@ fun ContentSettingsScreen(
                                 Icons.Outlined.SmartDisplay,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
                                     text = stringResource(R.string.content_settings_related_card_style_title),
-                                    style = MaterialTheme.typography.bodyLarge
+                                    style = MaterialTheme.typography.bodyLarge,
                                 )
                                 Text(
                                     text = stringResource(R.string.content_settings_related_card_style_subtitle),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -810,7 +838,7 @@ fun ContentSettingsScreen(
                                         preferences.setPlayerRelatedCardStyle(PlayerRelatedCardStyle.COMPACT)
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             )
                             GridSizeOption(
                                 title = stringResource(R.string.content_settings_related_card_full_width),
@@ -821,7 +849,7 @@ fun ContentSettingsScreen(
                                         preferences.setPlayerRelatedCardStyle(PlayerRelatedCardStyle.FULL_WIDTH)
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
                     }
@@ -837,18 +865,18 @@ fun ContentSettingsScreen(
                                 Icons.Outlined.Title,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
                                     text = stringResource(R.string.content_settings_video_title_lines_title),
-                                    style = MaterialTheme.typography.bodyLarge
+                                    style = MaterialTheme.typography.bodyLarge,
                                 )
                                 Text(
                                     text = stringResource(R.string.content_settings_video_title_lines_subtitle),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -857,45 +885,63 @@ fun ContentSettingsScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             listOf(
                                 1 to stringResource(R.string.content_settings_title_lines_1),
                                 2 to stringResource(R.string.content_settings_title_lines_2),
                                 3 to stringResource(R.string.content_settings_title_lines_3),
-                                0 to stringResource(R.string.content_settings_title_lines_unlimited)
+                                0 to stringResource(R.string.content_settings_title_lines_unlimited),
                             ).forEach { (lines, label) ->
                                 val isSelected = videoTitleMaxLines == lines
                                 Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                                            else androidx.compose.ui.graphics.Color.Transparent
-                                        )
-                                        .border(
-                                            width = if (isSelected) 2.dp else 1.dp,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary
-                                                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
-                                        )
-                                        .clickable {
-                                            coroutineScope.launch {
-                                                preferences.setVideoTitleMaxLines(lines)
-                                            }
-                                        }
-                                        .padding(vertical = 12.dp),
-                                    contentAlignment = Alignment.Center
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .clip(
+                                                androidx.compose.foundation.shape
+                                                    .RoundedCornerShape(12.dp),
+                                            ).background(
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                                                } else {
+                                                    androidx.compose.ui.graphics.Color.Transparent
+                                                },
+                                            ).border(
+                                                width = if (isSelected) 2.dp else 1.dp,
+                                                color =
+                                                    if (isSelected) {
+                                                        MaterialTheme.colorScheme.primary
+                                                    } else {
+                                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                                    },
+                                                shape =
+                                                    androidx.compose.foundation.shape
+                                                        .RoundedCornerShape(12.dp),
+                                            ).clickable {
+                                                coroutineScope.launch {
+                                                    preferences.setVideoTitleMaxLines(lines)
+                                                }
+                                            }.padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
                                         text = label,
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.SemiBold
-                                                         else androidx.compose.ui.text.font.FontWeight.Normal
-                                        ),
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary
-                                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                        style =
+                                            MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight =
+                                                    if (isSelected) {
+                                                        androidx.compose.ui.text.font.FontWeight.SemiBold
+                                                    } else {
+                                                        androidx.compose.ui.text.font.FontWeight.Normal
+                                                    },
+                                            ),
+                                        color =
+                                            if (isSelected) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
                                     )
                                 }
                             }
@@ -916,7 +962,7 @@ fun ContentSettingsScreen(
             title = {
                 Text(
                     stringResource(R.string.content_settings_watched_threshold_title),
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleLarge,
                 )
             },
             text = {
@@ -925,29 +971,29 @@ fun ContentSettingsScreen(
                         stringResource(R.string.content_settings_watched_threshold_dialog_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(bottom = 16.dp),
                     )
                     listOf(
                         WatchedThreshold.ALMOST_FINISHED,
                         WatchedThreshold.PERCENT_99,
                         WatchedThreshold.PERCENT_95,
-                        WatchedThreshold.PERCENT_90
+                        WatchedThreshold.PERCENT_90,
                     ).forEach { option ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    coroutineScope.launch { preferences.setWatchedThreshold(option) }
-                                    showWatchedThresholdDialog = false
-                                }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch { preferences.setWatchedThreshold(option) }
+                                        showWatchedThresholdDialog = false
+                                    }.padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(selected = watchedThreshold == option, onClick = null)
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = watchedThresholdLabel(option),
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
                             )
                         }
                     }
@@ -957,11 +1003,10 @@ fun ContentSettingsScreen(
                 TextButton(onClick = { showWatchedThresholdDialog = false }) {
                     Text(stringResource(R.string.btn_close))
                 }
-            }
+            },
         )
     }
 }
-
 
 @Composable
 private fun NavTabOrderSettings(
@@ -969,7 +1014,7 @@ private fun NavTabOrderSettings(
     enabledIndices: Set<Int>,
     defaultTabIndex: Int,
     onMove: (index: Int, direction: Int) -> Unit,
-    onDefaultSelected: (Int) -> Unit
+    onDefaultSelected: (Int) -> Unit,
 ) {
     Column(modifier = Modifier.padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -977,18 +1022,18 @@ private fun NavTabOrderSettings(
                 Icons.Outlined.DragIndicator,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
                     text = stringResource(R.string.content_settings_nav_order_title),
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(
                     text = stringResource(R.string.content_settings_nav_order_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -998,39 +1043,40 @@ private fun NavTabOrderSettings(
         order.forEachIndexed { position, index ->
             val enabled = index in enabledIndices
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RadioButton(
                     selected = defaultTabIndex == index,
                     enabled = enabled,
-                    onClick = { onDefaultSelected(index) }
+                    onClick = { onDefaultSelected(index) },
                 )
                 Icon(
                     navTabIcon(index),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(22.dp),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = navTabLabel(index),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 IconButton(
                     onClick = { onMove(index, -1) },
                     enabled = position > 0,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.move_up))
                 }
                 IconButton(
                     onClick = { onMove(index, 1) },
                     enabled = position < order.lastIndex,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.move_down))
                 }
@@ -1040,36 +1086,39 @@ private fun NavTabOrderSettings(
 }
 
 @Composable
-private fun navTabLabel(index: Int): String = when (index) {
-    0 -> stringResource(R.string.nav_home)
-    1 -> stringResource(R.string.nav_shorts)
-    2 -> stringResource(R.string.nav_music)
-    3 -> stringResource(R.string.nav_subs)
-    4 -> stringResource(R.string.nav_library)
-    5 -> stringResource(R.string.nav_search)
-    6 -> stringResource(R.string.nav_explore)
-    else -> stringResource(R.string.nav_home)
-}
+private fun navTabLabel(index: Int): String =
+    when (index) {
+        0 -> stringResource(R.string.nav_home)
+        1 -> stringResource(R.string.nav_shorts)
+        2 -> stringResource(R.string.nav_music)
+        3 -> stringResource(R.string.nav_subs)
+        4 -> stringResource(R.string.nav_library)
+        5 -> stringResource(R.string.nav_search)
+        6 -> stringResource(R.string.nav_explore)
+        else -> stringResource(R.string.nav_home)
+    }
 
 @Composable
-private fun navTabIcon(index: Int): ImageVector = when (index) {
-    0 -> Icons.Outlined.Home
-    1 -> ImageVector.vectorResource(id = R.drawable.ic_shorts)
-    2 -> Icons.Outlined.MusicNote
-    3 -> Icons.Outlined.Subscriptions
-    4 -> Icons.Outlined.VideoLibrary
-    5 -> Icons.Outlined.Search
-    6 -> Icons.Outlined.Explore
-    else -> Icons.Outlined.Home
-}
+private fun navTabIcon(index: Int): ImageVector =
+    when (index) {
+        0 -> Icons.Outlined.Home
+        1 -> ImageVector.vectorResource(id = R.drawable.ic_shorts)
+        2 -> Icons.Outlined.MusicNote
+        3 -> Icons.Outlined.Subscriptions
+        4 -> Icons.Outlined.VideoLibrary
+        5 -> Icons.Outlined.Search
+        6 -> Icons.Outlined.Explore
+        else -> Icons.Outlined.Home
+    }
 
 @Composable
-private fun watchedThresholdLabel(threshold: WatchedThreshold): String = when (threshold) {
-    WatchedThreshold.PERCENT_90 -> stringResource(R.string.content_settings_watched_threshold_90)
-    WatchedThreshold.PERCENT_95 -> stringResource(R.string.content_settings_watched_threshold_95)
-    WatchedThreshold.PERCENT_99 -> stringResource(R.string.content_settings_watched_threshold_99)
-    WatchedThreshold.ALMOST_FINISHED -> stringResource(R.string.content_settings_watched_threshold_almost)
-}
+private fun watchedThresholdLabel(threshold: WatchedThreshold): String =
+    when (threshold) {
+        WatchedThreshold.PERCENT_90 -> stringResource(R.string.content_settings_watched_threshold_90)
+        WatchedThreshold.PERCENT_95 -> stringResource(R.string.content_settings_watched_threshold_95)
+        WatchedThreshold.PERCENT_99 -> stringResource(R.string.content_settings_watched_threshold_99)
+        WatchedThreshold.ALMOST_FINISHED -> stringResource(R.string.content_settings_watched_threshold_almost)
+    }
 
 @Composable
 private fun LayoutOption(
@@ -1077,38 +1126,44 @@ private fun LayoutOption(
     icon: ImageVector,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                else Color.Transparent
-            )
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    } else {
+                        Color.Transparent
+                    },
+                ).border(
+                    width = if (isSelected) 2.dp else 1.dp,
+                    color =
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                ).clickable(onClick = onClick)
+                .padding(12.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 icon,
                 contentDescription = null,
                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             )
         }
     }
@@ -1120,42 +1175,52 @@ private fun GridSizeOption(
     description: String,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                else Color.Transparent
-            )
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(16.dp)
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    } else {
+                        Color.Transparent
+                    },
+                ).border(
+                    width = if (isSelected) 2.dp else 1.dp,
+                    color =
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                ).clickable(onClick = onClick)
+                .padding(16.dp),
     ) {
         Column {
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                           else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
+                    color =
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    modifier = Modifier.weight(1f),
                 )
                 if (isSelected) {
                     Icon(
                         Icons.Default.Check,
                         contentDescription = stringResource(R.string.ui_selected),
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -1163,9 +1228,13 @@ private fun GridSizeOption(
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isSelected) MaterialTheme.colorScheme.onSurface
-                       else MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 14.sp
+                color =
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                lineHeight = 14.sp,
             )
         }
     }

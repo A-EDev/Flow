@@ -67,7 +67,6 @@ class ShortsViewModel
         private val _uiState = MutableStateFlow(ShortsUiState())
         val uiState: StateFlow<ShortsUiState> = _uiState.asStateFlow()
 
-
         private var queue: ShortsQueueController? = null
 
         private val _commentsState = MutableStateFlow<List<io.github.aedev.flow.data.model.Comment>>(emptyList())
@@ -126,29 +125,34 @@ class ShortsViewModel
         /**
          * Returns a StateFlow<Boolean> for whether a video is liked.
          * UI should collectAsState() from this directly.
+         *
+         * `WhileSubscribed` matters here: the page calls this from `remember(video.id)`, so a
+         * hand-rolled `launch { collect { } }` left one permanent Room observer per short scrolled
+         * past — a few hundred of them after a long session, every one waking on every write.
          */
-        fun isVideoLikedState(videoId: String): StateFlow<Boolean> {
-            val flow = MutableStateFlow(false)
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                likedVideosRepository.getLikeState(videoId).collect { likeState ->
-                    flow.value = likeState == "LIKED"
-                }
-            }
-            return flow.asStateFlow()
-        }
+        fun isVideoLikedState(videoId: String): StateFlow<Boolean> =
+            likedVideosRepository
+                .getLikeState(videoId)
+                .map { it == "LIKED" }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = false,
+                )
 
         /**
          * Returns a StateFlow<Boolean> for whether a channel is subscribed.
+         *
+         * Same lifetime rule as [isVideoLikedState].
          */
-        fun isChannelSubscribedState(channelId: String): StateFlow<Boolean> {
-            val flow = MutableStateFlow(false)
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                subscriptionRepository.isSubscribed(channelId).collect { subscribed ->
-                    flow.value = subscribed
-                }
-            }
-            return flow.asStateFlow()
-        }
+        fun isChannelSubscribedState(channelId: String): StateFlow<Boolean> =
+            subscriptionRepository
+                .isSubscribed(channelId)
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = false,
+                )
 
         /**
          * Returns a StateFlow<Boolean> for whether a short is saved.

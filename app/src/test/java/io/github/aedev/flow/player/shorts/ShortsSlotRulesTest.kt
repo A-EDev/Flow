@@ -13,11 +13,12 @@ class ShortsSlotRulesTest {
         // The pager composes previous, current and next, so those three must map to distinct
         // players or two pages would fight over one.
         for (current in 1..40) {
-            val slots = setOf(
-                ShortsSlotRules.slotFor(current - 1, poolSize),
-                ShortsSlotRules.slotFor(current, poolSize),
-                ShortsSlotRules.slotFor(current + 1, poolSize),
-            )
+            val slots =
+                setOf(
+                    ShortsSlotRules.slotFor(current - 1, poolSize),
+                    ShortsSlotRules.slotFor(current, poolSize),
+                    ShortsSlotRules.slotFor(current + 1, poolSize),
+                )
             assertEquals("indices ${current - 1}..${current + 1} collided", 3, slots.size)
         }
     }

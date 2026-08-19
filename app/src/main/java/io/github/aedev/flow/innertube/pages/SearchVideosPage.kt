@@ -52,32 +52,41 @@ fun JsonObject.toSearchVideosPage(): SearchVideosPage {
 
     fun collect(element: JsonElement) {
         when (element) {
-            is JsonArray -> element.forEach(::collect)
+            is JsonArray -> {
+                element.forEach(::collect)
+            }
+
             is JsonObject -> {
                 element["videoRenderer"].objectOrNull()?.toSearchVideoItem()?.let(items::add)
                 element["channelRenderer"].objectOrNull()?.toSearchChannelItem()?.let(items::add)
                 element["playlistRenderer"].objectOrNull()?.toSearchPlaylistItem()?.let(items::add)
-                element["lockupViewModel"].objectOrNull()
+                element["lockupViewModel"]
+                    .objectOrNull()
                     ?.toSearchPlaylistLockupItem()
                     ?.let(items::add)
-                element["continuationItemRenderer"].objectOrNull()
+                element["continuationItemRenderer"]
+                    .objectOrNull()
                     ?.findFirstString("token")
                     ?.let { continuation = it }
                 element.values.forEach(::collect)
             }
-            else -> Unit
+
+            else -> {
+                Unit
+            }
         }
     }
 
     collect(this)
     return SearchVideosPage(
-        items = items.distinctBy { item ->
-            when (item) {
-                is SearchVideoItem -> "video:${item.id}"
-                is SearchChannelItem -> "channel:${item.id}"
-                is SearchPlaylistItem -> "playlist:${item.id}"
-            }
-        },
+        items =
+            items.distinctBy { item ->
+                when (item) {
+                    is SearchVideoItem -> "video:${item.id}"
+                    is SearchChannelItem -> "channel:${item.id}"
+                    is SearchPlaylistItem -> "playlist:${item.id}"
+                }
+            },
         continuation = continuation,
     )
 }
@@ -86,26 +95,30 @@ private fun JsonObject.toSearchVideoItem(): SearchVideoItem? {
     val id = this["videoId"].stringOrNull() ?: return null
     val title = this["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return null
     val owner = this["ownerText"] ?: this["longBylineText"]
-    val viewText = this["viewCountText"].youtubeText()
-        ?: this["shortViewCountText"].youtubeText()
-    val channelImages = this["channelThumbnailSupportedRenderers"]
-        .collectImageUrls()
-        .distinct()
-        .takeLast(2)
+    val viewText =
+        this["viewCountText"].youtubeText()
+            ?: this["shortViewCountText"].youtubeText()
+    val channelImages =
+        this["channelThumbnailSupportedRenderers"]
+            .collectImageUrls()
+            .distinct()
+            .takeLast(2)
 
     return SearchVideoItem(
         id = id,
         title = title,
         channelName = owner.youtubeText().orEmpty(),
         channelId = owner.findFirstString("browseId").orEmpty(),
-        thumbnailUrl = this["thumbnail"].largestThumbnailUrl()
-            ?: "https://i.ytimg.com/vi/$id/hq720.jpg",
+        thumbnailUrl =
+            this["thumbnail"].largestThumbnailUrl()
+                ?: "https://i.ytimg.com/vi/$id/hq720.jpg",
         duration = parseDuration(this["lengthText"].youtubeText()),
         viewCount = parseYouTubeViewCount(viewText),
         uploadDate = this["publishedTimeText"].youtubeText().orEmpty(),
         channelThumbnailUrls = channelImages,
-        isLive = viewText?.contains("watching", ignoreCase = true) == true ||
-            containsString("style", "LIVE"),
+        isLive =
+            viewText?.contains("watching", ignoreCase = true) == true ||
+                containsString("style", "LIVE"),
         isShort = isReelRenderer(),
     )
 }
@@ -128,18 +141,20 @@ private fun JsonObject.toSearchChannelItem(): SearchChannelItem? {
         thumbnailUrl = this["thumbnail"].largestThumbnailUrl().orEmpty(),
         subscriberCount = parseYouTubeViewCount(this["subscriberCountText"].youtubeText()),
         description = this["descriptionSnippet"].youtubeText().orEmpty(),
-        url = when {
-            canonicalUrl.isNullOrBlank() -> "https://www.youtube.com/channel/$id"
-            canonicalUrl.startsWith("http") -> canonicalUrl
-            else -> "https://www.youtube.com$canonicalUrl"
-        },
+        url =
+            when {
+                canonicalUrl.isNullOrBlank() -> "https://www.youtube.com/channel/$id"
+                canonicalUrl.startsWith("http") -> canonicalUrl
+                else -> "https://www.youtube.com$canonicalUrl"
+            },
     )
 }
 
 private fun JsonObject.toSearchPlaylistItem(): SearchPlaylistItem? {
     val id = this["playlistId"].stringOrNull() ?: return null
-    val count = this["videoCount"].youtubeText()
-        ?: this["videoCountText"].youtubeText()
+    val count =
+        this["videoCount"].youtubeText()
+            ?: this["videoCountText"].youtubeText()
     return SearchPlaylistItem(
         id = id,
         name = this["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return null,
@@ -151,8 +166,11 @@ private fun JsonObject.toSearchPlaylistItem(): SearchPlaylistItem? {
 private fun JsonObject.toSearchPlaylistLockupItem(): SearchPlaylistItem? {
     if (this["contentType"].stringOrNull() != "LOCKUP_CONTENT_TYPE_PLAYLIST") return null
     val id = this["contentId"].stringOrNull() ?: return null
-    val metadata = this["metadata"].objectOrNull()
-        ?.get("lockupMetadataViewModel").objectOrNull()
+    val metadata =
+        this["metadata"]
+            .objectOrNull()
+            ?.get("lockupMetadataViewModel")
+            .objectOrNull()
     val count = findFirstText(Regex("""\b[\d,.]+\s+videos?\b""", RegexOption.IGNORE_CASE))
     return SearchPlaylistItem(
         id = id,
@@ -167,7 +185,10 @@ private fun JsonElement?.largestThumbnailUrl(): String? {
 
     fun collect(element: JsonElement?) {
         when (element) {
-            is JsonArray -> element.forEach(::collect)
+            is JsonArray -> {
+                element.forEach(::collect)
+            }
+
             is JsonObject -> {
                 element["url"].stringOrNull()?.let { url ->
                     val width = element["width"].stringOrNull()?.toIntOrNull() ?: 0
@@ -175,7 +196,10 @@ private fun JsonElement?.largestThumbnailUrl(): String? {
                 }
                 element.values.forEach(::collect)
             }
-            else -> Unit
+
+            else -> {
+                Unit
+            }
         }
     }
 
@@ -188,13 +212,19 @@ private fun JsonElement?.collectImageUrls(): List<String> {
 
     fun collect(element: JsonElement?) {
         when (element) {
-            is JsonArray -> element.forEach(::collect)
+            is JsonArray -> {
+                element.forEach(::collect)
+            }
+
             is JsonObject -> {
                 val url = element["url"].stringOrNull()
                 if (url != null && ("width" in element || "height" in element)) urls += url
                 element.values.forEach(::collect)
             }
-            else -> Unit
+
+            else -> {
+                Unit
+            }
         }
     }
 
@@ -204,12 +234,18 @@ private fun JsonElement?.collectImageUrls(): List<String> {
 
 private fun JsonElement?.findFirstString(key: String): String? {
     when (this) {
-        is JsonArray -> forEach { element -> element.findFirstString(key)?.let { return it } }
+        is JsonArray -> {
+            forEach { element -> element.findFirstString(key)?.let { return it } }
+        }
+
         is JsonObject -> {
             this[key].stringOrNull()?.let { return it }
             values.forEach { element -> element.findFirstString(key)?.let { return it } }
         }
-        else -> Unit
+
+        else -> {
+            Unit
+        }
     }
     return null
 }
@@ -224,7 +260,10 @@ private fun JsonElement?.findFirstText(pattern: Regex): String? {
     return null
 }
 
-private fun JsonElement?.containsString(key: String, value: String): Boolean =
+private fun JsonElement?.containsString(
+    key: String,
+    value: String,
+): Boolean =
     when (this) {
         is JsonArray -> any { it.containsString(key, value) }
         is JsonObject -> this[key].stringOrNull() == value || values.any { it.containsString(key, value) }
