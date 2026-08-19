@@ -56,12 +56,8 @@ class ChannelViewModel
         internal val communityUiState: StateFlow<ChannelCommunityUiState> = communityController.state
 
         // Paging flow for channel videos with infinite scroll
-        private val _videosPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
-        val videosPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _videosPagingFlow.asStateFlow()
         private val _shortsPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
         val shortsPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _shortsPagingFlow.asStateFlow()
-        private val _livePagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
-        val livePagingFlow: StateFlow<Flow<PagingData<Video>>?> = _livePagingFlow.asStateFlow()
         private val _playlistsPagingFlow = MutableStateFlow<Flow<PagingData<io.github.aedev.flow.data.model.Playlist>>?>(null)
         val playlistsPagingFlow: StateFlow<Flow<PagingData<io.github.aedev.flow.data.model.Playlist>>?> = _playlistsPagingFlow.asStateFlow()
 
@@ -301,7 +297,7 @@ class ChannelViewModel
                         _playlistsPagingFlow.value =
                             Pager(
                                 config = PagingConfig(pageSize = 20, enablePlaceholders = false),
-                                pagingSourceFactory = { ChannelPlaylistsPagingSource(channelInfo, currentPlaylistsTab) },
+                                pagingSourceFactory = { ChannelPlaylistsPagingSource(currentPlaylistsTab) },
                             ).flow.cachedIn(viewModelScope)
                     }
 
@@ -314,40 +310,6 @@ class ChannelViewModel
                             videosError = e.message,
                         )
                     }
-                }
-            }
-        }
-
-        private fun extractVideoId(url: String): String =
-            when {
-                url.contains("v=") -> url.substringAfter("v=").substringBefore("&")
-                url.contains("/watch/") -> url.substringAfter("/watch/").substringBefore("?")
-                url.contains("/shorts/") -> url.substringAfter("/shorts/").substringBefore("?")
-                else -> url.substringAfterLast("/").substringBefore("?")
-            }
-
-        private fun extractChannelId(url: String): String {
-            // Extract channel ID from YouTube URL
-            // Format: https://youtube.com/channel/UC... or https://youtube.com/c/...
-            return when {
-                url.contains("/channel/") -> {
-                    url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
-                }
-
-                url.contains("/c/") -> {
-                    url.substringAfter("/c/").substringBefore("/").substringBefore("?")
-                }
-
-                url.contains("/user/") -> {
-                    url.substringAfter("/user/").substringBefore("/").substringBefore("?")
-                }
-
-                url.contains("/@") -> {
-                    url.substringAfter("/@").substringBefore("/").substringBefore("?")
-                }
-
-                else -> {
-                    url
                 }
             }
         }
@@ -520,57 +482,6 @@ class ChannelViewModel
                                 ),
                         )
                     }
-                }
-            }
-        }
-
-        fun loadMoreSearchResults() {
-            val state = _uiState.value
-            val continuation = state.searchContinuation ?: return
-            val channelId = state.channelId ?: return
-            val channelInfo = state.channelInfo ?: return
-            if (state.isLoadingMoreSearch) return
-
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.update { it.copy(isLoadingMoreSearch = true) }
-                try {
-                    val channelThumbnail =
-                        try {
-                            channelInfo.avatars.maxByOrNull { it.height }?.url
-                                ?: channelInfo.avatars.firstOrNull()?.url ?: ""
-                        } catch (e: Exception) {
-                            ""
-                        }
-
-                    val result =
-                        io.github.aedev.flow.innertube.YouTube.channelSearchContinuation(
-                            channelId = channelId,
-                            channelName = channelInfo.name,
-                            channelThumbnailUrl = channelThumbnail,
-                            continuation = continuation,
-                        )
-                    result.fold(
-                        onSuccess = { page ->
-                            _uiState.update {
-                                it.copy(
-                                    searchResults =
-                                        it.searchResults.mergeDistinctByNonBlankKey(
-                                            page.videos,
-                                            Video::id,
-                                        ),
-                                    searchContinuation = page.continuation,
-                                    isLoadingMoreSearch = false,
-                                )
-                            }
-                        },
-                        onFailure = { e ->
-                            Log.e(TAG, "Channel search continuation failed", e)
-                            _uiState.update { it.copy(isLoadingMoreSearch = false) }
-                        },
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "Channel search continuation error", e)
-                    _uiState.update { it.copy(isLoadingMoreSearch = false) }
                 }
             }
         }

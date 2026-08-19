@@ -624,8 +624,6 @@ class HomeViewModel
 
         private var viewHistory: ViewHistory? = null
 
-        private val sessionWatchedTopics = mutableListOf<String>()
-
         private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
 
         // Related-graph (/next) per-seed cache, keyed by seed video id.
@@ -1576,42 +1574,6 @@ class HomeViewModel
                     }
                 } finally {
                     channelMetadataEnrichmentInFlight.remove(videoId)
-                }
-            }
-        }
-
-        fun loadTrendingVideos() {
-            if (_uiState.value.isLoading && _uiState.value.videos.isEmpty()) return
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            viewModelScope.launch {
-                try {
-                    val region = playerPreferences.trendingRegion.first()
-                    val (videos, nextPage) = repository.getTrendingVideos(region, null)
-                    currentPage = nextPage
-
-                    val userSubs = subscriptionRepository.getAllSubscriptionIds()
-                    val ranked =
-                        FlowNeuroEngine.rank(
-                            videos.filterRecentHomeSuggestion(System.currentTimeMillis()),
-                            userSubs,
-                        )
-                    updateVideosAndShorts(ranked, append = false)
-
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            hasMorePages = nextPage != null,
-                            isFlowFeed = false,
-                        )
-                    }
-                } catch (e: Exception) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = e.message ?: appContext.getString(R.string.error_failed_to_load_videos),
-                        )
-                    }
                 }
             }
         }

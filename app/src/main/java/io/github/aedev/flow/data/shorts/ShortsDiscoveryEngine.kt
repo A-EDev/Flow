@@ -92,7 +92,6 @@ class ShortsDiscoveryEngine private constructor(
     // ── Dependencies ──
 
     private val youtubeRepository = YouTubeRepository.getInstance()
-    private val subscriptionRepository = SubscriptionRepository.getInstance(appContext)
 
     private val requestSemaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
 

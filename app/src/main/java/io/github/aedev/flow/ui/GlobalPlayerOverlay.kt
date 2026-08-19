@@ -350,7 +350,6 @@ fun GlobalPlayerOverlay(
                 }
             }
         }
-
     // Sync fullscreen state with player sheet state
     LaunchedEffect(playerSheetState.currentValue) {
         if (playerSheetState.currentValue == PlayerSheetValue.Collapsed) {
@@ -667,7 +666,6 @@ fun GlobalPlayerOverlay(
                 streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
                     ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
                     ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
-
             val title = streamInfo?.name ?: video.title
             if (title.isNotEmpty() && screenState.duration > 0) {
                 playerViewModel.savePlaybackPosition(

@@ -2345,4 +2345,19 @@
     </plurals>
     <string name="subscriptions_failed_channels_body">أحدث فيديوهاتهم غير موجودة في هذه الصفحة: %1$s</string>
     <string name="subscriptions_failed_channels_more">%1$s و %2$d أخرين</string>
+    <string name="player_appearance_seek_gesture_title">إيماءة التمرير الزمني</string>
+    <string name="player_appearance_seek_gesture_subtitle">اسحب أفقياً في وضع الشاشة الكاملة للتمرير عبر الفيديو، لتقديم و تأخير الطابع الزمني</string>
+    <string name="player_settings_subtitle_language">لغة الترجمة المفضلة</string>
+    <string name="player_settings_subtitle_language_dialog_title">لغة الترجمة</string>
+    <string name="player_settings_subtitle_language_dialog_body">تظهر الترجمة بهذه اللغة عند توفرها. إذا لم يكن للفيديو مسار صوتي، يستخدم Flow ترجمة يوتيوب لمسار صوتي موجود. كما أن اختيار ترجمة أثناء التشغيل يُحدّث هذه الترجمة أيضًا.</string>
+    <string name="player_settings_subtitle_language_none">لا يوجد تفضيلات</string>
+    <string name="player_settings_subtitle_language_none_desc">‎استخدم مسار الترجمة الأول الذي يقدمه الفيديو</string>
+    <string name="player_settings_auto_enable_subtitles">‎تشغيل الترجمة تلقائيًا</string>
+    <string name="player_settings_auto_enable_subtitles_subtitle">ابدأ كل فيديو بترجمة مكتوبة بلغتك المفضلة</string>
+    <string name="subtitle_translated">مترجم</string>
+    <string name="player_brightness_auto">تلقائي</string>
+    <string name="player_gesture_level_percent">%1$d%%</string>
+    <string name="player_replay">إعادة التشغيل</string>
+    <string name="player_seek_delta_forward">+%1$s</string>
+    <string name="player_seek_delta_back">-%1$s</string>
 </resources>

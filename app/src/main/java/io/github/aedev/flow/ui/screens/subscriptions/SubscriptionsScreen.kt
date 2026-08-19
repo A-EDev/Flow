@@ -820,29 +820,6 @@ private fun CompactSubscriptionsHeader(
 }
 
 @Composable
-private fun SubscriptionSectionHeader(
-    title: String,
-    count: Int,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = count.toString(),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
 private fun GroupsManagerDialog(
     groups: List<SubscriptionGroup>,
     onDismiss: () -> Unit,

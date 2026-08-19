@@ -148,10 +148,14 @@ object PoTokenGenerator {
                 // GVS honors cold/low-trust attestations only briefly (the mid-playback 403).
                 // Re-run the full BotGuard challenge until the minted token reaches the
                 // documented 110-128 byte range, like the desktop minter's retry loop.
+                // Bound to the 11-char visitor ID, not the visitorData blob it sits inside: GVS
+                // validates the streaming token against the ID, so minting against the blob yields
+                // a token that is accepted at load time and refused once enforcement kicks in.
+                val gvsBinding = VisitorId.gvsBinding(sessionId)
                 var attempt = 0
                 while (attempt < STREAMING_POT_ATTEMPTS) {
                     val generator = attestedGenerator()
-                    val pot = generator.generatePoToken(sessionId)
+                    val pot = generator.generatePoToken(gvsBinding)
                     newStreamingPot = pot
                     lowTrust = PoTokenAttestationPolicy.isLowTrust(pot)
                     if (!lowTrust) break

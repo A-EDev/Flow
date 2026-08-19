@@ -4,6 +4,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.models.AttestationPlatform
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
@@ -51,15 +52,12 @@ object InnerTubeVideoStreamExtractor {
         val forceSabr: Boolean,
     )
 
-    // * Fast, token-free clients tried first. They return direct adaptive URLs (played via normal DASH/progressive) when not bot-walled
+    // The token-free direct client. VISIONOS alone: it is the only client that still serves direct
+    // adaptive URLs GVS will honour for the whole video without a PO Token, and it does so without
+    // an `n` parameter, so first frame costs neither an attestation nor an nsig decode.
     private val FAST_CLIENTS: List<YouTubeClient> =
         listOf(
-            YouTubeClient.ANDROID_VR_1_61_48,
-            YouTubeClient.ANDROID_VR_NO_AUTH,
-            YouTubeClient.ANDROID_VR_1_65_10,
-            YouTubeClient.IPADOS,
-            YouTubeClient.IOS,
-            YouTubeClient.ANDROID_VR_1_43_32,
+            YouTubeClient.VISIONOS,
         )
 
     private val BOT_RESISTANT_CLIENTS: List<YouTubeClient> =
@@ -67,23 +65,38 @@ object InnerTubeVideoStreamExtractor {
             YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER,
         )
 
-    // Last-resort token-free clients tried after the durable WEB+SABR path
+    /**
+     * Direct clients GVS now cuts off after ~60s of media without a PO Token Flow cannot mint
+     * (DroidGuard). Kept below the attested SABR path rather than deleted: they still answer, still
+     * carry a full ladder, and are the difference between degraded playback and none when both
+     * VISIONOS and SABR are unavailable. Never promote these above [SABR_CLIENTS].
+     */
+    private val GATED_FALLBACK_CLIENTS: List<YouTubeClient> =
+        listOf(
+            YouTubeClient.ANDROID_VR_1_61_48,
+            YouTubeClient.ANDROID_VR_NO_AUTH,
+            YouTubeClient.ANDROID_VR_1_65_10,
+            YouTubeClient.ANDROID_VR_1_43_32,
+        )
+
+    // Last-resort token-free clients, tried after everything else
     private val LAST_RESORT_CLIENTS: List<YouTubeClient> =
         listOf(
             YouTubeClient.MOBILE,
             YouTubeClient.ANDROID_CREATOR,
         )
 
+    // MWEB first: it carries every dubbed audio track and is web-family, so its GVS token is one
+    // Flow's own BotGuard session can mint.
     private val SABR_CLIENTS: List<YouTubeClient> =
         listOf(
-            YouTubeClient.WEB,
             YouTubeClient.MWEB,
+            YouTubeClient.WEB,
         )
 
     private val LIVE_MANIFEST_CLIENTS: List<YouTubeClient> =
         listOf(
-            YouTubeClient.IOS,
-            YouTubeClient.IPADOS,
+            YouTubeClient.VISIONOS,
             YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER,
             YouTubeClient.ANDROID_VR_1_61_48,
         )
@@ -139,12 +152,6 @@ object InnerTubeVideoStreamExtractor {
                 return@withContext result
             }
 
-            tryDirectClients(videoId, BOT_RESISTANT_CLIENTS, failureReasons, liveDetected = liveDetected)?.let { direct ->
-                val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
-                Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
-                return@withContext result
-            }
-
             if (liveDetected[0]) {
                 tryLiveClients(videoId, failureReasons)?.let {
                     Log.w(TAG, "Live manifest for $videoId via ${it.usedClient.clientName} (live-clients)")
@@ -152,14 +159,35 @@ object InnerTubeVideoStreamExtractor {
                 }
             }
 
-            // 2) Durable path: web client + BotGuard PoToken + SABR. Survives the LOGIN_REQUIRED bot wall
+            // 2) Durable path: web client + BotGuard PoToken + SABR. Ranked above every remaining
+            // direct client because it is the only other path whose token Flow can actually mint —
+            // the clients below it are all served unattested and can be cut off mid-playback.
             trySabrClients(videoId, failureReasons)?.let {
                 Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=SABR)")
                 PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR (durable) via ${it.usedClient.clientName}")
                 return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
             }
 
-            // 3) Last resort: remaining token-free clients
+            tryDirectClients(videoId, BOT_RESISTANT_CLIENTS, failureReasons, liveDetected = liveDetected)?.let { direct ->
+                val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
+                Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
+                return@withContext result
+            }
+
+            // 3) Gated direct clients. Playable, but GVS stops serving them ~60s in, so they rank
+            // below anything attested and are only reached when the paths above are unavailable.
+            tryDirectClients(videoId, GATED_FALLBACK_CLIENTS, failureReasons, liveDetected = liveDetected)?.let { direct ->
+                val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
+                Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)}/gated)")
+                PlayerDiagnostics.logWarning(
+                    TAG,
+                    "extract OK $videoId via ${result.usedClient.clientName} mode=${resultMode(result)}/GATED — " +
+                        "unattested, GVS may stop serving ~60s in",
+                )
+                return@withContext result
+            }
+
+            // 4) Last resort: remaining token-free clients
             tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons, allowUntransformedN = true, liveDetected = liveDetected)?.let {
                 Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/last-resort)")
                 PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${it.usedClient.clientName} mode=DIRECT/last-resort")
@@ -287,14 +315,13 @@ object InnerTubeVideoStreamExtractor {
                 try {
                     Log.d(TAG, "Trying ${client.clientName} v${client.clientVersion}")
 
-                    // ANDROID_VR's /player request must be called WITHOUT a PoToken: injecting the
-                    // WEB-bound BotGuard token makes YT reject the request (non-OK / empty
-                    // streamingData), which was silently dropping playback onto the slower clients.
-                    // Its URLs still need GVS protection — that is the `pot=` URL param attached to
-                    // the winner's formats below, not the /player token. Other fast clients keep the
-                    // /player attestation.
-                    val isAndroidVr = client.clientName == "ANDROID_VR"
-                    val clientPoToken = if (isAndroidVr) null else awaitMint()?.playerRequestPoToken
+                    // Only web-family clients get the BotGuard token. Injecting it into an
+                    // ANDROID_VR/IOS /player request makes YT reject it outright (non-OK / empty
+                    // streamingData), and stamping it on their URLs is worse than sending nothing:
+                    // it is a claim GVS validates and refuses. Those clients are usable only for as
+                    // long as YouTube serves them unattested.
+                    val webAttested = client.attestation == AttestationPlatform.WEB
+                    val clientPoToken = if (webAttested) awaitMint()?.playerRequestPoToken else null
 
                     val playerResponse =
                         withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
@@ -405,8 +432,12 @@ object InnerTubeVideoStreamExtractor {
                     )
 
                     val urlPot =
-                        withTimeoutOrNull(STREAM_POT_ATTACH_GRACE_MS) { awaitMint() }?.streamingDataPoToken
-                    if (urlPot == null) {
+                        if (webAttested) {
+                            withTimeoutOrNull(STREAM_POT_ATTACH_GRACE_MS) { awaitMint() }?.streamingDataPoToken
+                        } else {
+                            null
+                        }
+                    if (urlPot == null && webAttested) {
                         PlayerDiagnostics.logWarning(
                             TAG,
                             "${client.clientName} winner for $videoId shipping pot-less (mint not ready in " +
@@ -524,8 +555,15 @@ object InnerTubeVideoStreamExtractor {
                 return null
             }
 
-            // StreamerContext.po_token carries the videoId-bound content token. The visitor-bound streaming token here draws
-            // sabr.media_serving_enforcement_id_error from GVS.
+            // StreamerContext.po_token carries the videoId-bound content token, which is what GVS
+            // accepts here in practice.
+            //
+            // The visitor-bound token used to draw sabr.media_serving_enforcement_id_error, and the
+            // reason is now understood: it was minted against the whole visitorData blob rather than
+            // the 11-char visitor ID GVS actually binds to (see [VisitorId]). That binding is fixed,
+            // so the streaming token is a candidate here too — but this path is the durable fallback
+            // and the videoId-bound token is the one measured to work, so switching wants an
+            // on-device A/B rather than an assumption.
             val resolved =
                 if (targetHeight > 0) {
                     SabrUrlResolver.resolveForQuality(
@@ -652,13 +690,14 @@ object InnerTubeVideoStreamExtractor {
         return null
     }
 
-    private fun PlayerResponse.isLiveNow(): Boolean {
-        val details = videoDetails
-        return details?.isLive == true ||
-            details?.isPostLiveDvr == true ||
-            playabilityStatus.liveStreamability != null ||
-            !streamingData?.hlsManifestUrl.isNullOrBlank()
-    }
+    private fun PlayerResponse.isLiveNow(): Boolean =
+        LiveDetectionRules.isLiveNow(
+            isLive = videoDetails?.isLive,
+            isPostLiveDvr = videoDetails?.isPostLiveDvr,
+            hasLiveStreamability = playabilityStatus.liveStreamability != null,
+            hasHlsManifest = !streamingData?.hlsManifestUrl.isNullOrBlank(),
+            hasAdaptiveFormats = !streamingData?.adaptiveFormats.isNullOrEmpty(),
+        )
 
     private fun PlayerResponse.toLiveResultOrNull(client: YouTubeClient): VideoExtractionResult? {
         val hls = streamingData?.hlsManifestUrl?.takeIf { it.isNotBlank() }

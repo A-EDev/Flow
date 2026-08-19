@@ -2337,4 +2337,19 @@
     <string name="duration_minutes">%1$d мин</string>
     <string name="duration_hours_short">%1$dч</string>
     <string name="duration_minutes_short">%1$dмин</string>
+    <string name="player_appearance_seek_gesture_title">Жест перемотки</string>
+    <string name="player_appearance_seek_gesture_subtitle">Свайп влево или вправо в полноэкранном режиме для перемотки видео</string>
+    <string name="player_settings_subtitle_language">Предпочитаемый язык субтитров</string>
+    <string name="player_settings_subtitle_language_dialog_title">Язык субтитров</string>
+    <string name="player_settings_subtitle_language_dialog_body">Субтитры будут запускаться на этом языке. Если такой дорожки нет, Flow включит автоперевод от YouTube. Выбор субтитров в плеере также изменит эту настройку.</string>
+    <string name="player_settings_subtitle_language_none">Без предпочтений</string>
+    <string name="player_settings_subtitle_language_none_desc">Использовать рекомендуемые субтитры из видео</string>
+    <string name="player_settings_auto_enable_subtitles">Автоматически включать субтитры</string>
+    <string name="player_settings_auto_enable_subtitles_subtitle">Запускать видео с субтитрами на предпочитаемом языке</string>
+    <string name="player_brightness_auto">Авто</string>
+    <string name="player_gesture_level_percent">%1$d%%</string>
+    <string name="player_replay">Повтор</string>
+    <string name="player_seek_delta_forward">+%1$s</string>
+    <string name="player_seek_delta_back">-%1$s</string>
+    <string name="subtitle_translated">перевод</string>
 </resources>
