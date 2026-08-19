@@ -3,72 +3,63 @@ package io.github.aedev.flow.data.shorts.queue
 import android.util.Log
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toShortVideo
-import io.github.aedev.flow.data.shorts.ShortsClassifier
-import io.github.aedev.flow.player.stream.StreamInfoVideoMapper.toFlowVideo
+import io.github.aedev.flow.data.shorts.ChannelShortsFeed
+import io.github.aedev.flow.data.shorts.ChannelShortsOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.channel.ChannelInfo
-import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
-import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
-import org.schabi.newpipe.extractor.stream.StreamInfoItem
-
-internal object ChannelShortsTab {
-    fun find(channelInfo: ChannelInfo): ListLinkHandler? =
-        channelInfo.tabs.firstOrNull { tab ->
-            val name = runCatching { tab.contentFilters.joinToString() }.getOrDefault("")
-            val url = tab.url.orEmpty()
-            name.contains("shorts", ignoreCase = true) || url.contains("/shorts", ignoreCase = true)
-        }
-}
 
 class ChannelShortsLoader(
     private val channelUrl: String,
+    private val sortIndex: Int = 0,
 ) : ShortsQueueLoader {
-    private var tab: ListLinkHandler? = null
-    private var nextPage: Page? = null
+    private var owner = ChannelShortsOwner()
+    private var nextPage: String? = null
 
     override suspend fun initial(): ShortsQueuePage =
         withContext(Dispatchers.IO) {
-            try {
-                val service = NewPipe.getService(SERVICE_YOUTUBE)
-                val channelInfo = ChannelInfo.getInfo(service, channelUrl)
-                val shortsTab =
-                    ChannelShortsTab.find(channelInfo) ?: run {
-                        Log.w(TAG, "No Shorts tab on $channelUrl")
-                        return@withContext exhausted()
-                    }
-                tab = shortsTab
+            val channelId =
+                resolveChannelId() ?: run {
+                    Log.w(TAG, "Could not resolve a channel id from $channelUrl")
+                    return@withContext exhausted()
+                }
 
-                val tabInfo = ChannelTabInfo.getInfo(service, shortsTab)
-                nextPage = tabInfo.nextPage
-                page(tabInfo.relatedItems.filterIsInstance<StreamInfoItem>())
-            } catch (e: Exception) {
-                Log.w(TAG, "Channel Shorts tab failed for $channelUrl: ${e.message}")
-                exhausted()
-            }
+            val firstPage = ChannelShortsFeed.initial(channelId) ?: return@withContext exhausted()
+            val chosen = firstPage.sorts.getOrNull(sortIndex)
+            val page =
+                if (sortIndex == 0 || chosen == null || chosen.selected) {
+                    firstPage
+                } else {
+                    ChannelShortsFeed.initial(channelId, chosen.token) ?: firstPage
+                }
+
+            owner = page.owner
+            nextPage = page.continuation
+            page(page.videos.map { it.toShortVideo() })
         }
 
     override suspend fun more(cursor: String?): ShortsQueuePage =
         withContext(Dispatchers.IO) {
-            val currentTab = tab ?: return@withContext exhausted()
-            val page = nextPage ?: return@withContext exhausted()
-            try {
-                val more = ChannelTabInfo.getMoreItems(NewPipe.getService(SERVICE_YOUTUBE), currentTab, page)
-                nextPage = more.nextPage
-                page(more.items.filterIsInstance<StreamInfoItem>())
-            } catch (e: Exception) {
-                Log.w(TAG, "Channel Shorts pagination failed for $channelUrl: ${e.message}")
-                exhausted()
-            }
+            val continuation = nextPage ?: return@withContext exhausted()
+            val page = ChannelShortsFeed.more(continuation, owner) ?: return@withContext exhausted()
+            owner = page.owner
+            nextPage = page.continuation
+            page(page.videos.map { it.toShortVideo() })
         }
 
-    private fun page(items: List<StreamInfoItem>): ShortsQueuePage {
-        val shorts: List<ShortVideo> =
-            items
-                .filter { ShortsClassifier.isReel(it) }
-                .mapNotNull { item -> runCatching { item.toFlowVideo().toShortVideo() }.getOrNull() }
+    private suspend fun resolveChannelId(): String? {
+        CHANNEL_ID
+            .find(channelUrl)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let { return it }
+        return runCatching {
+            ChannelInfo.getInfo(NewPipe.getService(SERVICE_YOUTUBE), channelUrl).id
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun page(shorts: List<ShortVideo>): ShortsQueuePage {
         val hasMore = nextPage != null
         return ShortsQueuePage(
             items = shorts,
@@ -85,7 +76,7 @@ class ChannelShortsLoader(
     private companion object {
         const val TAG = "ChannelShortsLoader"
         const val SERVICE_YOUTUBE = 0
-
         const val MORE = "more"
+        val CHANNEL_ID = Regex("/channel/(UC[\\w-]+)")
     }
 }

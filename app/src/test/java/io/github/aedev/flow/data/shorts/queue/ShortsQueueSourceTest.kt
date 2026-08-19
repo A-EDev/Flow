@@ -94,8 +94,42 @@ class ShortsQueueSourceTest {
     @Test
     fun `shelves and channel tabs continue into the feed, saved does not`() {
         assertTrue(ShortsQueueSource.Snapshot("t", "v").continuesIntoFeed)
-        assertTrue(ShortsQueueSource.Channel("u", "v").continuesIntoFeed)
+        assertTrue(
+            "the channel hands over only once it is exhausted, so a swipe never dead-ends",
+            ShortsQueueSource.Channel("u", "v").continuesIntoFeed,
+        )
         assertFalse("saved Shorts is a deliberate collection", ShortsQueueSource.Saved().continuesIntoFeed)
         assertFalse("the feed is already the feed", ShortsQueueSource.Feed.continuesIntoFeed)
+    }
+
+    // ── Channel sort ──
+
+    @Test
+    fun `channel carries the chosen sort through the route`() {
+        val source =
+            ShortsQueueSource.Channel(
+                channelUrl = "https://www.youtube.com/channel/UCabcdefg",
+                startVideoId = "abcdefghijk",
+                sortIndex = 2,
+            )
+
+        assertEquals(source, roundTrip(source))
+    }
+
+    @Test
+    fun `channel defaults to the first sort`() {
+        assertEquals(0, ShortsQueueSource.Channel("https://youtube.com/channel/UCx", "vid").sortIndex)
+    }
+
+    // A handle URL has no scheme colon to confuse the split, but it also has no sort segment if an
+    // older descriptor somehow survives; falling back to 0 beats failing the navigation.
+    @Test
+    fun `a channel descriptor with an unparseable sort opens at the default order`() {
+        val decoded = ShortsQueueSource.decode("channel:vid:notanumber:https://www.youtube.com/@handle")
+
+        assertEquals(
+            ShortsQueueSource.Channel("https://www.youtube.com/@handle", "vid", 0),
+            decoded,
+        )
     }
 }

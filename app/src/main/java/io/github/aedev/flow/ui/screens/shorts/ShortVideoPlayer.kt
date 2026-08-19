@@ -1138,7 +1138,7 @@ internal fun ShortVideoPage(
             selectedHeight = pageState.selectedQualityHeight.takeIf { it >= 0 },
             selectedVideoUrl = pageState.selectedQualityUrl,
             onQualitySelected = { quality ->
-                playerPool.reloadWithVideoUrl(pageIndex, video.id, quality.videoUrl)
+                playerPool.reloadWithVideoUrl(pageIndex, video.id, quality.videoUrl, quality.dashManifest)
                 pageState.selectedQualityHeight = quality.heightClass
                 pageState.selectedQualityUrl = quality.videoUrl
                 pageState.showQualitySheet = false

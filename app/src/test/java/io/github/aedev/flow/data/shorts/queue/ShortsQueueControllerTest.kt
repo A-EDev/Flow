@@ -8,6 +8,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ShortsQueueControllerTest {
+    // Pinned: ShortVideo.timestamp defaults to System.currentTimeMillis(), so two fixtures for the
+    // same id are unequal whenever they straddle a millisecond — which made the enrichment test fail
+    // at random.
     private fun short(id: String) =
         ShortVideo(
             id = id,
@@ -15,6 +18,7 @@ class ShortsQueueControllerTest {
             channelName = "c",
             channelId = "ch",
             thumbnailUrl = "https://i.ytimg.com/vi/$id/oar2.jpg",
+            timestamp = 0L,
         )
 
     private fun shorts(vararg ids: String) = ids.map(::short)

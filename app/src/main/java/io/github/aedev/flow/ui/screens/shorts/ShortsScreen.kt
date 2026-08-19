@@ -212,7 +212,15 @@ fun ShortsScreen(
                         try {
                             val streams = viewModel.getPlaybackStreams(short.id, targetHeight, preferredLang)
                             if (streams != null) {
-                                playerPool.prepare(index, short.id, streams.videoUrl, streams.audioUrl, shouldPlay)
+                                playerPool.prepare(
+                                    index = index,
+                                    videoId = short.id,
+                                    videoUrl = streams.videoUrl,
+                                    audioUrl = streams.audioUrl,
+                                    shouldPlay = shouldPlay,
+                                    videoDashManifest = streams.videoDashManifest,
+                                    audioDashManifest = streams.audioDashManifest,
+                                )
                             } else {
                                 Log.w("ShortsScreen", "No stream URL resolved for ${short.id}")
                             }
@@ -266,7 +274,12 @@ fun ShortsScreen(
                     try {
                         val streams = viewModel.getPlaybackStreams(currentShort.id, newHeight, preferredLang)
                         if (streams != null) {
-                            playerPool.reloadWithVideoUrl(settled, currentShort.id, streams.videoUrl)
+                            playerPool.reloadWithVideoUrl(
+                                settled,
+                                currentShort.id,
+                                streams.videoUrl,
+                                streams.videoDashManifest,
+                            )
                         }
                     } catch (e: Exception) {
                         Log.e("ShortsScreen", "Quality change: failed to reload ${currentShort.id}", e)
@@ -276,7 +289,14 @@ fun ShortsScreen(
                         launch {
                             runCatching {
                                 val streams = viewModel.getPlaybackStreams(nextShort.id, newHeight, preferredLang)
-                                if (streams != null) playerPool.reloadWithVideoUrl(settled + 1, nextShort.id, streams.videoUrl)
+                                if (streams != null) {
+                                    playerPool.reloadWithVideoUrl(
+                                        settled + 1,
+                                        nextShort.id,
+                                        streams.videoUrl,
+                                        streams.videoDashManifest,
+                                    )
+                                }
                             }
                         }
                     }
@@ -284,7 +304,14 @@ fun ShortsScreen(
                         launch {
                             runCatching {
                                 val streams = viewModel.getPlaybackStreams(prevShort.id, newHeight, preferredLang)
-                                if (streams != null) playerPool.reloadWithVideoUrl(settled - 1, prevShort.id, streams.videoUrl)
+                                if (streams != null) {
+                                    playerPool.reloadWithVideoUrl(
+                                        settled - 1,
+                                        prevShort.id,
+                                        streams.videoUrl,
+                                        streams.videoDashManifest,
+                                    )
+                                }
                             }
                         }
                     }

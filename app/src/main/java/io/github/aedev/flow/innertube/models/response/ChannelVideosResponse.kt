@@ -390,9 +390,24 @@ data class ChannelVideosResponse(
     data class OnResponseReceivedAction(
         @SerialName("appendContinuationItemsAction")
         val appendContinuationItemsAction: AppendContinuationItemsAction? = null,
+        /**
+         * How a *sort switch* comes back, as opposed to a page append: picking Popular or Oldest
+         * replaces the grid rather than extending it. Without this the tab parses to zero videos.
+         *
+         * YouTube sends two of these — one holding the re-rendered chip bar, one holding the items —
+         * so callers must read every action rather than the first.
+         */
+        @SerialName("reloadContinuationItemsCommand")
+        val reloadContinuationItemsCommand: ReloadContinuationItemsCommand? = null,
     ) {
         @Serializable
         data class AppendContinuationItemsAction(
+            @SerialName("continuationItems")
+            val continuationItems: List<RichItem>? = null,
+        )
+
+        @Serializable
+        data class ReloadContinuationItemsCommand(
             @SerialName("continuationItems")
             val continuationItems: List<RichItem>? = null,
         )
@@ -400,14 +415,15 @@ data class ChannelVideosResponse(
 }
 
 internal fun ChannelVideosResponse.channelVideoCountText(): String? {
-    val metadataRows = header
-        ?.pageHeaderRenderer
-        ?.content
-        ?.pageHeaderViewModel
-        ?.metadata
-        ?.contentMetadataViewModel
-        ?.metadataRows
-        .orEmpty()
+    val metadataRows =
+        header
+            ?.pageHeaderRenderer
+            ?.content
+            ?.pageHeaderViewModel
+            ?.metadata
+            ?.contentMetadataViewModel
+            ?.metadataRows
+            .orEmpty()
     val statsRow = metadataRows.firstOrNull { it.metadataParts.orEmpty().size > 1 } ?: return null
     return statsRow.metadataParts
         ?.lastOrNull()

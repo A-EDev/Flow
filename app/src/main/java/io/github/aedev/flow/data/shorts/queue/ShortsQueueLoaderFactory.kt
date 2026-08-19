@@ -47,7 +47,7 @@ class ShortsQueueLoaderFactory
                 }
 
                 is ShortsQueueSource.Channel -> {
-                    ChannelShortsLoader(source.channelUrl)
+                    ChannelShortsLoader(source.channelUrl, source.sortIndex)
                 }
 
                 is ShortsQueueSource.Snapshot -> {

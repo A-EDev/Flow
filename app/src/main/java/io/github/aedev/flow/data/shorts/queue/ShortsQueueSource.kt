@@ -22,12 +22,19 @@ sealed interface ShortsQueueSource {
         override fun encode(): String = if (startVideoId.isBlank()) SAVED else "$SAVED:$startVideoId"
     }
 
-    /** A channel's Shorts tab, paginated. */
+    /**
+     * A channel's Shorts tab, paginated, in the sort order the tab is showing.
+     *
+     * [sortIndex] is the position of the chosen chip in YouTube's own sort bar rather than a named
+     * order, because the bar is data-driven — the app shows whatever sorts the channel offers
+     * (today Latest, Popular, Oldest) and never has to guess YouTube's params.
+     */
     data class Channel(
         val channelUrl: String,
         val startVideoId: String,
+        val sortIndex: Int = 0,
     ) : ShortsQueueSource {
-        override fun encode(): String = "$CHANNEL:$startVideoId:$channelUrl"
+        override fun encode(): String = "$CHANNEL:$startVideoId:$sortIndex:$channelUrl"
     }
 
     /** An in-memory list handed over by a shelf. */
@@ -66,8 +73,10 @@ sealed interface ShortsQueueSource {
 
                 CHANNEL -> {
                     val startVideoId = rest.substringBefore(':')
-                    val channelUrl = rest.substringAfter(':', missingDelimiterValue = "")
-                    if (channelUrl.isBlank()) Feed else Channel(channelUrl, startVideoId)
+                    val afterStart = rest.substringAfter(':', missingDelimiterValue = "")
+                    val sortIndex = afterStart.substringBefore(':').toIntOrNull() ?: 0
+                    val channelUrl = afterStart.substringAfter(':', missingDelimiterValue = "")
+                    if (channelUrl.isBlank()) Feed else Channel(channelUrl, startVideoId, sortIndex)
                 }
 
                 SNAPSHOT -> {
@@ -105,8 +114,10 @@ val ShortsQueueSource.openAtVideoId: String?
 /**
  * Whether running out of items should hand over to the algorithmic feed.
  *
- * Shelves and channel tabs continue, so a swipe never dead-ends. Saved Shorts stops: it is a
- * deliberate collection, and silently trailing recommendations onto it would misrepresent it.
+ * Shelves and channel tabs continue, so a swipe never dead-ends: #547 is about staying inside the
+ * channel while it still has Shorts to give, not about stopping once it runs dry. Saved Shorts is
+ * the exception — it is a deliberate collection, and silently trailing recommendations onto it would
+ * misrepresent it.
  */
 val ShortsQueueSource.continuesIntoFeed: Boolean
     get() =
