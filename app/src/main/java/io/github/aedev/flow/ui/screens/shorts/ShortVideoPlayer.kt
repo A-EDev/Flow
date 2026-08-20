@@ -1028,7 +1028,6 @@ internal fun ShortVideoPage(
             )
         }
 
-
         if (pageState.showShortsOptionsSheet) {
             ShortsOptionsSheet(
                 isLoadingStreams = pageState.isLoadingStreams,

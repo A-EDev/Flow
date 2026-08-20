@@ -111,6 +111,8 @@ import java.util.Locale
 
 private const val EXIT_DRAG_MIN_SCALE = 0.94f
 
+private const val FULLSCREEN_MEDIA_SHEET_FRACTION = 0.75f
+
 /**
  * GlobalPlayerOverlay - The main video player overlay that sits above everything.
  *
@@ -705,10 +707,12 @@ fun GlobalPlayerOverlay(
         val defaultMediaSheetExpandedHeight =
             with(density) {
                 val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
-                if (expandedPlayerBottom > 0.dp && availablePx > 0f) {
-                    availablePx.toDp()
-                } else {
-                    config.screenHeightDp.dp * 0.75f
+                when {
+                    screenState.isFullscreen -> (fullScreenHeight * FULLSCREEN_MEDIA_SHEET_FRACTION).toDp()
+
+                    expandedPlayerBottom > 0.dp && availablePx > 0f -> availablePx.toDp()
+
+                    else -> config.screenHeightDp.dp * 0.75f
                 }
             }
         val sixteenNineMediaSheetExpandedHeight =

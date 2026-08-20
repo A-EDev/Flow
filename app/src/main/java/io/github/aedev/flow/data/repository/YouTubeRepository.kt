@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
+import io.github.aedev.flow.data.shorts.ChannelReelIndex
 import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
@@ -48,6 +49,7 @@ class YouTubeRepository
     @Inject
     constructor(
         private val playerPreferences: PlayerPreferences,
+        private val channelReelIndex: ChannelReelIndex,
     ) {
         private val service = ServiceList.YouTube
 
@@ -676,7 +678,7 @@ class YouTubeRepository
                                 .filterNot { it.isPaidOrMembersOnly() }
                                 .take(limitPerChannel)
                                 .map { it.toVideo() }
-                        return@withContext items
+                        return@withContext markUploadsPlaylistReels(channelId, items)
                     }
 
                     // Fallback: attempt to use channel extractor directly (best-effort)
@@ -711,15 +713,29 @@ class YouTubeRepository
                             emptyList()
                         }
 
-                    pageItems
-                        .filterNot { it.isPaidOrMembersOnly() }
-                        .take(limitPerChannel)
-                        .map { it.toVideo() }
+                    val fallbackItems =
+                        pageItems
+                            .filterNot { it.isPaidOrMembersOnly() }
+                            .take(limitPerChannel)
+                            .map { it.toVideo() }
+                    if (channelId != null) {
+                        markUploadsPlaylistReels(channelId, fallbackItems)
+                    } else {
+                        fallbackItems
+                    }
                 } catch (e: Exception) {
                     Log.w(TAG, "${e::class.simpleName}: ${e.message}")
                     emptyList()
                 }
             }
+
+        private suspend fun markUploadsPlaylistReels(
+            channelId: String,
+            videos: List<Video>,
+        ): List<Video> =
+            withTimeoutOrNull(REEL_INDEX_TIMEOUT_MS) {
+                channelReelIndex.markReels(channelId, videos)
+            } ?: videos
 
         /**
          * Fetch channel info (best-effort) using NewPipe's channel extractor.
@@ -1581,13 +1597,17 @@ class YouTubeRepository
             private const val HOME_SUBS_MAX_CHANNELS = 18
             private const val COMMENT_AVATAR_FETCH_CONCURRENCY = 4
             private const val COMMENT_AVATAR_FETCH_TIMEOUT_MS = 6_000L
+            private const val REEL_INDEX_TIMEOUT_MS = 3_000L
 
             @Volatile
             private var instance: YouTubeRepository? = null
 
-            fun getInstance(playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences): YouTubeRepository =
+            fun getInstance(
+                playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
+                channelReelIndex: ChannelReelIndex,
+            ): YouTubeRepository =
                 instance ?: synchronized(this) {
-                    instance ?: YouTubeRepository(playerPreferences).also { instance = it }
+                    instance ?: YouTubeRepository(playerPreferences, channelReelIndex).also { instance = it }
                 }
 
             fun getInstance(): YouTubeRepository =
