@@ -30,35 +30,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync.SyncState
-import io.github.aedev.flow.sync.protocol.SyncCollection
 import io.github.aedev.flow.sync.protocol.SyncRole
+import io.github.aedev.flow.ui.screens.sync.COLLECTION_KEYS
 import io.github.aedev.flow.ui.screens.sync.QrCodeImage
 import io.github.aedev.flow.ui.screens.sync.SyncViewModel
+import io.github.aedev.flow.ui.screens.sync.collectionLabel
 import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.components.TvScreenScaffold
 import io.github.aedev.flow.ui.tv.components.TvSelectionRow
 import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
-
-private val COLLECTION_KEYS = listOf(
-    SyncCollection.PLAYLISTS,
-    SyncCollection.WATCH_HISTORY,
-    SyncCollection.LIKES,
-    SyncCollection.SUBSCRIPTIONS,
-    SyncCollection.SETTINGS,
-    SyncCollection.FLOW_NEURO_BRAIN,
-)
-
-@Composable
-private fun collectionLabel(key: String): String = when (key) {
-    SyncCollection.PLAYLISTS -> stringResource(R.string.sync_collection_playlists)
-    SyncCollection.WATCH_HISTORY -> stringResource(R.string.sync_collection_watch_history)
-    SyncCollection.LIKES -> stringResource(R.string.sync_collection_likes)
-    SyncCollection.SUBSCRIPTIONS -> stringResource(R.string.sync_collection_subscriptions)
-    SyncCollection.SETTINGS -> stringResource(R.string.sync_collection_settings)
-    SyncCollection.FLOW_NEURO_BRAIN -> stringResource(R.string.sync_collection_recommendation_profile)
-    else -> key
-}
 
 private enum class TvSyncStep { CHOOSER, SEND_SELECT }
 

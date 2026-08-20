@@ -1,0 +1,56 @@
+package io.github.aedev.flow.ui.screens.sync
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Psychology
+import androidx.compose.material.icons.outlined.Subscriptions
+import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import io.github.aedev.flow.R
+import io.github.aedev.flow.sync.protocol.SyncCollection
+
+/** The collections offered in the picker, in the order they are shown. */
+internal val COLLECTION_KEYS = listOf(
+    SyncCollection.PLAYLISTS,
+    SyncCollection.WATCH_HISTORY,
+    SyncCollection.LIKES,
+    SyncCollection.SUBSCRIPTIONS,
+    SyncCollection.SETTINGS,
+    SyncCollection.FLOW_NEURO_BRAIN,
+)
+
+@Composable
+internal fun collectionLabel(key: String): String = when (key) {
+    SyncCollection.PLAYLISTS -> stringResource(R.string.sync_collection_playlists)
+    SyncCollection.WATCH_HISTORY -> stringResource(R.string.sync_collection_watch_history)
+    SyncCollection.LIKES -> stringResource(R.string.sync_collection_likes)
+    SyncCollection.SUBSCRIPTIONS -> stringResource(R.string.sync_collection_subscriptions)
+    SyncCollection.SETTINGS -> stringResource(R.string.sync_collection_settings)
+    SyncCollection.FLOW_NEURO_BRAIN -> stringResource(R.string.sync_collection_recommendation_profile)
+    else -> key
+}
+
+/** One line saying what the collection actually covers, shown under its label in the picker. */
+@Composable
+internal fun collectionDescription(key: String): String? = when (key) {
+    SyncCollection.PLAYLISTS -> stringResource(R.string.sync_collection_playlists_body)
+    SyncCollection.WATCH_HISTORY -> stringResource(R.string.sync_collection_watch_history_body)
+    SyncCollection.LIKES -> stringResource(R.string.sync_collection_likes_body)
+    SyncCollection.SUBSCRIPTIONS -> stringResource(R.string.sync_collection_subscriptions_body)
+    SyncCollection.SETTINGS -> stringResource(R.string.sync_collection_settings_body)
+    SyncCollection.FLOW_NEURO_BRAIN -> stringResource(R.string.sync_collection_recommendation_profile_body)
+    else -> null
+}
+
+internal fun collectionIcon(key: String): ImageVector = when (key) {
+    SyncCollection.PLAYLISTS -> Icons.AutoMirrored.Outlined.PlaylistPlay
+    SyncCollection.WATCH_HISTORY -> Icons.Outlined.History
+    SyncCollection.LIKES -> Icons.Outlined.ThumbUp
+    SyncCollection.SUBSCRIPTIONS -> Icons.Outlined.Subscriptions
+    SyncCollection.SETTINGS -> Icons.Outlined.Tune
+    else -> Icons.Outlined.Psychology
+}

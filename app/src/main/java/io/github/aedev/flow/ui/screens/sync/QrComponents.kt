@@ -41,7 +41,9 @@ fun QrCodeImage(text: String, modifier: Modifier = Modifier) {
 }
 
 private fun generateQrBitmap(text: String, size: Int): Bitmap? = try {
-    val hints = mapOf(EncodeHintType.MARGIN to 1)
+    // The spec's minimum quiet zone is 4 modules; the code is shown on a dark container in dark
+    // theme, so anything less leaves scanners hunting for the finder patterns.
+    val hints = mapOf(EncodeHintType.MARGIN to 4)
     val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size, hints)
     val pixels = IntArray(size * size)
     for (y in 0 until size) {
