@@ -1403,6 +1403,7 @@ fun ShortsCard(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
+            ShortWatchedIndicator(videoId = video.id)
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(

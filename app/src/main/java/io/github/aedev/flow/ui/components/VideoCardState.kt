@@ -33,7 +33,7 @@ data class VideoCardPreferences(
     val deArrowBadgeEnabled: Boolean = false,
     val actionsEnabled: Boolean = false,
     val markWatchedEnabled: Boolean = false,
-    val upcomingReminderIds: Set<String> = emptySet()
+    val upcomingReminderIds: Set<String> = emptySet(),
 )
 
 /**
@@ -51,7 +51,7 @@ val LocalVideoCardPreferences = staticCompositionLocalOf { VideoCardPreferences(
  */
 @Stable
 class VideoWatchProgressStore internal constructor(
-    private val entries: State<Map<String, Float>>
+    private val entries: State<Map<String, Float>>,
 ) {
     internal fun progressFor(videoId: String): Float? = entries.value[videoId]
 
@@ -79,7 +79,7 @@ fun rememberWatchProgress(videoId: String): Float? {
 fun rememberIsWatched(
     videoId: String,
     watchedVideoIds: StateFlow<Set<String>>,
-    watchProgress: Float?
+    watchProgress: Float?,
 ): Boolean {
     val watchedIds = watchedVideoIds.collectAsStateWithLifecycle()
     val isMarkedWatched by remember(watchedIds, videoId) {
@@ -88,7 +88,7 @@ fun rememberIsWatched(
     return isMarkedWatched || (watchProgress ?: 0f) >= WATCHED_PROGRESS_THRESHOLD
 }
 
-private const val WATCHED_PROGRESS_THRESHOLD = 0.90f
+internal const val WATCHED_PROGRESS_THRESHOLD = 0.90f
 
 /**
  * Installs the shared card state. Must wrap any tree that renders video cards; without it cards
@@ -98,32 +98,36 @@ private const val WATCHED_PROGRESS_THRESHOLD = 0.90f
 fun ProvideVideoCardState(content: @Composable () -> Unit) {
     val context = LocalContext.current
 
-    val preferencesFlow = remember(context) {
-        val preferences = PlayerPreferences(context)
-        combine(
-            preferences.deArrowEnabled,
-            preferences.deArrowBadgeEnabled,
-            preferences.videoCardActionsEnabled,
-            preferences.videoCardMarkWatchedEnabled,
-            preferences.upcomingVideoReminderIds
-        ) { deArrow, deArrowBadge, actions, markWatched, reminders ->
-            VideoCardPreferences(deArrow, deArrowBadge, actions, markWatched, reminders)
-        }.distinctUntilChanged()
-    }
+    val preferencesFlow =
+        remember(context) {
+            val preferences = PlayerPreferences(context)
+            combine(
+                preferences.deArrowEnabled,
+                preferences.deArrowBadgeEnabled,
+                preferences.videoCardActionsEnabled,
+                preferences.videoCardMarkWatchedEnabled,
+                preferences.upcomingVideoReminderIds,
+            ) { deArrow, deArrowBadge, actions, markWatched, reminders ->
+                VideoCardPreferences(deArrow, deArrowBadge, actions, markWatched, reminders)
+            }.distinctUntilChanged()
+        }
     val preferences by preferencesFlow.collectAsStateWithLifecycle(VideoCardPreferences())
 
-    val progressFlow = remember(context) {
-        ViewHistory.getInstance(context).getAllHistory()
-            .map { entries -> entries.toWatchProgressMap() }
-            .distinctUntilChanged()
-    }
+    val progressFlow =
+        remember(context) {
+            ViewHistory
+                .getInstance(context)
+                .getAllHistory()
+                .map { entries -> entries.toWatchProgressMap() }
+                .distinctUntilChanged()
+        }
     val progressEntries = progressFlow.collectAsStateWithLifecycle(emptyMap())
     val progressStore = remember(progressEntries) { VideoWatchProgressStore(progressEntries) }
 
     CompositionLocalProvider(
         LocalVideoCardPreferences provides preferences,
         LocalVideoWatchProgress provides progressStore,
-        content = content
+        content = content,
     )
 }
 
@@ -131,11 +135,12 @@ fun ProvideVideoCardState(content: @Composable () -> Unit) {
  * Below 3% a video counts as not started, and at 90% the bar is filled rather than left a sliver
  * short of the end. Mirrors what each card computed for itself before.
  */
-internal fun List<VideoHistoryEntry>.toWatchProgressMap(): Map<String, Float> = buildMap {
-    this@toWatchProgressMap.forEach { entry ->
-        val percentage = entry.progressPercentage
-        if (entry.duration > 0 && percentage >= 3f) {
-            put(entry.videoId, if (percentage >= 90f) 1f else percentage / 100f)
+internal fun List<VideoHistoryEntry>.toWatchProgressMap(): Map<String, Float> =
+    buildMap {
+        this@toWatchProgressMap.forEach { entry ->
+            val percentage = entry.progressPercentage
+            if (entry.duration > 0 && percentage >= 3f) {
+                put(entry.videoId, if (percentage >= 90f) 1f else percentage / 100f)
+            }
         }
     }
-}

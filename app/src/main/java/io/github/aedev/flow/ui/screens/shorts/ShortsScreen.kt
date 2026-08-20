@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -158,12 +159,24 @@ fun ShortsScreen(
         onDispose { playerPool.releaseIfHost(hostToken) }
     }
 
-    Box(
+    val sheetInsets = rememberShortsSheetInsetState()
+    val density = LocalDensity.current
+
+    BoxWithConstraints(
         modifier =
             modifier
                 .fillMaxSize()
                 .background(Color.Black),
     ) {
+        val canShrinkReel = maxHeight > maxWidth
+        val sheetExpandedHeight = (maxHeight * SHORTS_SHEET_HEIGHT_FRACTION).takeIf { canShrinkReel }
+        val sheetExpandedHeightPx = with(density) { (sheetExpandedHeight ?: 0.dp).toPx() }
+        SideEffect {
+            sheetInsets.containerHeightPx = constraints.maxHeight.toFloat()
+            sheetInsets.shrinkEnabled = canShrinkReel
+        }
+        val screenSheetOpen = showCommentsSheet || showDescriptionSheet
+
         when {
             uiState.isLoading && uiState.shorts.isEmpty() -> {
                 ShortsLoadingState(modifier = Modifier.align(Alignment.Center))
@@ -336,6 +349,8 @@ fun ShortsScreen(
                         pageIndex = page,
                         viewModel = viewModel,
                         bottomNavOverlayPadding = bottomNavOverlayPadding,
+                        sheetInsets = sheetInsets,
+                        screenSheetOpen = screenSheetOpen,
                         actions =
                             ShortVideoPageActions(
                                 onChannelClick = { onChannelClick(short.channelId) },
@@ -387,6 +402,7 @@ fun ShortsScreen(
 
         // Comments Sheet
         if (showCommentsSheet) {
+            DisposableEffect(Unit) { onDispose { sheetInsets.release() } }
             FlowCommentsBottomSheet(
                 comments = sortedComments,
                 isLoading = isLoadingComments,
@@ -397,15 +413,22 @@ fun ShortsScreen(
                     showCommentsSheet = false
                     onChannelClick(authorChannelRef)
                 },
+                expandedHeight = sheetExpandedHeight,
+                onSheetProgressChange = { progress -> sheetInsets.follow(sheetExpandedHeightPx * progress) },
+                dismissOnOutsideTap = true,
                 onDismiss = { showCommentsSheet = false },
             )
         }
 
         // Description Sheet
         if (showDescriptionSheet && uiState.shorts.isNotEmpty()) {
+            DisposableEffect(Unit) { onDispose { sheetInsets.release() } }
             val safeIndex = uiState.currentIndex.coerceIn(0, uiState.shorts.size - 1)
             FlowDescriptionBottomSheet(
                 video = uiState.shorts[safeIndex].toVideo(),
+                expandedHeight = sheetExpandedHeight,
+                onSheetProgressChange = { progress -> sheetInsets.follow(sheetExpandedHeightPx * progress) },
+                dismissOnOutsideTap = true,
                 onDismiss = { showDescriptionSheet = false },
             )
         }
@@ -418,7 +441,7 @@ fun ShortsScreen(
             modifier = Modifier.align(Alignment.TopCenter),
         )
 
-        if (isInPip) return@Box
+        if (isInPip) return@BoxWithConstraints
         SnackbarHost(
             hostState = snackbarHostState,
             modifier =

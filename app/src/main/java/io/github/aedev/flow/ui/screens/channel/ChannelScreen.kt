@@ -113,6 +113,7 @@ import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.PlaylistCard
+import io.github.aedev.flow.ui.components.ShortWatchedIndicator
 import io.github.aedev.flow.ui.components.SortChipRow
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.sortCommentsByFilter
@@ -1333,6 +1334,7 @@ private fun ShortsGridCard(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
             )
+            ShortWatchedIndicator(videoId = video.id)
         }
         Text(
             text = video.title,

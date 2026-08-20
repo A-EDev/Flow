@@ -26,7 +26,7 @@ internal data class ShortVideoPageActions(
     val onShareClick: () -> Unit,
     val onWantMore: () -> Unit = {},
     val onNotInterested: () -> Unit = {},
-    val onVideoEnded: () -> Unit = {}
+    val onVideoEnded: () -> Unit = {},
 )
 
 @Immutable
@@ -40,7 +40,7 @@ internal data class ShortVideoPlayerSettings(
     val customSpeedsEnabled: Boolean,
     val customSpeedPresetsRaw: String,
     val speedSliderEnabled: Boolean,
-    val downloadDialogStyle: DownloadDialogStyle
+    val downloadDialogStyle: DownloadDialogStyle,
 )
 
 @Stable
@@ -83,25 +83,26 @@ internal class ShortVideoSessionState {
 @Stable
 internal class ShortVideoAutoAdvanceState {
     var hasAutoAdvanced by mutableStateOf(false)
+
+    /** An advance that came due while a sheet was open, held back until the sheet is gone. */
+    var deferredWhileSheetOpen by mutableStateOf(false)
 }
 
 @Composable
-internal fun rememberShortVideoPlayerSettings(
-    playerPreferences: PlayerPreferences
-): ShortVideoPlayerSettings {
+internal fun rememberShortVideoPlayerSettings(playerPreferences: PlayerPreferences): ShortVideoPlayerSettings {
     val playbackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
     val autoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
     val uiMode by playerPreferences.shortsPlayerUiMode.collectAsState(initial = ShortsPlayerUiMode.DEFAULT)
     val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val playbackSpeed by playerPreferences.shortsPlaybackSpeed.collectAsState(initial = 1f)
     val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(
-        initial = false
+        initial = false,
     )
     val customSpeedsEnabled by playerPreferences.customSpeedsEnabled.collectAsState(initial = false)
     val customSpeedPresetsRaw by playerPreferences.customSpeedPresets.collectAsState(initial = "")
     val speedSliderEnabled by playerPreferences.speedSliderEnabled.collectAsState(initial = false)
     val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(
-        initial = DownloadDialogStyle.FULL
+        initial = DownloadDialogStyle.FULL,
     )
 
     return ShortVideoPlayerSettings(
@@ -114,6 +115,6 @@ internal fun rememberShortVideoPlayerSettings(
         customSpeedsEnabled = customSpeedsEnabled,
         customSpeedPresetsRaw = customSpeedPresetsRaw,
         speedSliderEnabled = speedSliderEnabled,
-        downloadDialogStyle = downloadDialogStyle
+        downloadDialogStyle = downloadDialogStyle,
     )
 }

@@ -65,7 +65,6 @@ import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
 import io.github.aedev.flow.ui.components.playbackSpeedOptions
 import io.github.aedev.flow.ui.components.playbackSpeedSliderPresets
 import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
-import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorContent
 import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorOption
 import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
@@ -88,6 +87,8 @@ internal fun ShortVideoPage(
     isActive: Boolean,
     pageIndex: Int,
     viewModel: ShortsViewModel,
+    sheetInsets: ShortsSheetInsetState,
+    screenSheetOpen: Boolean,
     bottomNavOverlayPadding: androidx.compose.ui.unit.Dp = 0.dp,
     actions: ShortVideoPageActions,
     modifier: Modifier = Modifier,
@@ -135,6 +136,19 @@ internal fun ShortVideoPage(
     // would bury the reel it is meant to annotate, so the page renders the video and nothing else.
     val isInPip by GlobalPlayerState.isInPipMode.collectAsState()
     val controlsVisible = !isInPip && (!isImpressiveShortsUi || sessionState.showImpressiveControls)
+    val sheetOpen =
+        screenSheetOpen ||
+            pageState.showShortsOptionsSheet ||
+            pageState.showSpeedSheet ||
+            pageState.showAudioTrackSheet ||
+            pageState.showQualitySheet ||
+            pageState.isLoadingStreams
+    val chromeAlpha =
+        animateFloatAsState(
+            targetValue = if (sheetOpen) 0f else 1f,
+            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+            label = "shorts_chrome_alpha",
+        )
     val seekBarTouchHeight = 28.dp
     val seekBarBottomPadding = bottomNavOverlayPadding.coerceAtLeast(0.dp)
     val controlsBottomPadding = seekBarBottomPadding + 34.dp
@@ -228,10 +242,26 @@ internal fun ShortVideoPage(
     }
 
     // ── Add listener to detect when video ends (for auto-play-next) ──
+    val latestSheetOpen by rememberUpdatedState(sheetOpen)
+
+    fun advanceNow() {
+        autoAdvanceState.deferredWhileSheetOpen = false
+        autoAdvanceState.hasAutoAdvanced = true
+        actions.onVideoEnded()
+    }
+
     fun requestAutoAdvance() {
-        if (!autoAdvanceState.hasAutoAdvanced) {
-            autoAdvanceState.hasAutoAdvanced = true
-            actions.onVideoEnded()
+        if (autoAdvanceState.hasAutoAdvanced) return
+        if (latestSheetOpen) {
+            autoAdvanceState.deferredWhileSheetOpen = true
+            return
+        }
+        advanceNow()
+    }
+
+    LaunchedEffect(sheetOpen) {
+        if (!sheetOpen && autoAdvanceState.deferredWhileSheetOpen && !autoAdvanceState.hasAutoAdvanced) {
+            advanceNow()
         }
     }
 
@@ -402,6 +432,7 @@ internal fun ShortVideoPage(
         modifier =
             modifier
                 .fillMaxSize()
+                .shortsSheetInset(sheetInsets)
                 .background(Color.Black),
     ) {
         if (ambientActive) {
@@ -628,6 +659,7 @@ internal fun ShortVideoPage(
                     Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomStart)
+                        .graphicsLayer { alpha = chromeAlpha.value }
                         .padding(bottom = controlsBottomPadding, start = 16.dp, end = 8.dp),
                 verticalAlignment = Alignment.Bottom,
             ) {
@@ -989,192 +1021,198 @@ internal fun ShortVideoPage(
                     Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
+                        .graphicsLayer { alpha = chromeAlpha.value }
                         .padding(bottom = seekBarBottomPadding)
                         .height(seekBarTouchHeight)
                         .zIndex(1f),
             )
         }
-    }
 
-    if (pageState.showShortsOptionsSheet) {
-        ShortsOptionsSheet(
-            isLoadingStreams = pageState.isLoadingStreams,
-            onWantMore = {
-                pageState.showShortsOptionsSheet = false
-                actions.onWantMore()
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            },
-            onNotInterested = {
-                pageState.showShortsOptionsSheet = false
-                actions.onNotInterested()
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            },
-            ambientModeEnabled = settings.ambientModeEnabled,
-            onAmbientModeToggle = { enabled ->
-                scope.launch { playerPreferences.setVideoAmbientModeEnabled(enabled) }
-            },
-            onDownloadClick = {
-                pageState.showShortsOptionsSheet = false
-                if (!pageState.isLoadingStreams) {
-                    pageState.isLoadingStreams = true
-                    scope.launch {
-                        val streamInfo = viewModel.getVideoStreamInfo(video.id)
-                        pageState.currentStreamInfo = streamInfo
-                        val (itVideo, itAudio) = viewModel.getInnerTubeDownloadFormats(video.id)
-                        pageState.currentInnerTubeVideoFormats = itVideo
-                        pageState.currentInnerTubeAudioFormats = itAudio
-                        if (streamInfo != null || itVideo.isNotEmpty()) {
-                            pageState.currentStreamSizes = viewModel.fetchStreamSizes(video.id)
-                            pageState.showDownloadDialog = true
-                        }
-                        pageState.isLoadingStreams = false
-                    }
-                }
-            },
-            onAudioTrackClick = {
-                pageState.showShortsOptionsSheet = false
-                if (!pageState.isLoadingStreams) {
-                    pageState.isLoadingStreams = true
-                    scope.launch {
-                        val streamInfo = viewModel.getVideoStreamInfo(video.id)
-                        pageState.availableAudioStreams = streamInfo
-                            ?.audioStreams
-                            ?.sortedByDescending { it.averageBitrate }
-                            ?.groupBy { stream ->
-                                val trackIdLang =
-                                    stream.audioTrackId
-                                        ?.substringAfterLast(".")
-                                        ?.takeIf { it.isNotBlank() && it != stream.audioTrackId }
-                                val localeLang = stream.audioLocale?.language?.takeIf { it.isNotBlank() }
-                                val trackName = stream.audioTrackName?.takeIf { it.isNotBlank() }
-                                trackIdLang ?: localeLang ?: trackName ?: "default"
-                            }?.map { (_, group) -> group.first() }
-                            ?: emptyList()
-                        pageState.isLoadingStreams = false
-                        if (pageState.availableAudioStreams.isNotEmpty()) {
-                            pageState.showAudioTrackSheet = true
-                        }
-                    }
-                }
-            },
-            onQualityClick = {
-                pageState.showShortsOptionsSheet = false
-                if (!pageState.isLoadingStreams) {
-                    pageState.isLoadingStreams = true
-                    scope.launch {
-                        pageState.availableQualities = viewModel.getAvailableQualities(video.id)
-                        val activeFormat = playerPool.ownedPlayer(pageIndex)?.videoFormat
-                        val activeCodecKey =
-                            activeFormat?.let { format ->
-                                VideoCodecUtils.codecKeyFromMimeType(
-                                    buildString {
-                                        append(format.sampleMimeType.orEmpty())
-                                        format.codecs?.takeIf { it.isNotBlank() }?.let { codecs ->
-                                            append("; codecs=\"")
-                                            append(codecs)
-                                            append('"')
-                                        }
-                                    },
-                                )
+
+        if (pageState.showShortsOptionsSheet) {
+            ShortsOptionsSheet(
+                isLoadingStreams = pageState.isLoadingStreams,
+                onWantMore = {
+                    pageState.showShortsOptionsSheet = false
+                    actions.onWantMore()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                },
+                onNotInterested = {
+                    pageState.showShortsOptionsSheet = false
+                    actions.onNotInterested()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                },
+                ambientModeEnabled = settings.ambientModeEnabled,
+                onAmbientModeToggle = { enabled ->
+                    scope.launch { playerPreferences.setVideoAmbientModeEnabled(enabled) }
+                },
+                onDownloadClick = {
+                    pageState.showShortsOptionsSheet = false
+                    if (!pageState.isLoadingStreams) {
+                        pageState.isLoadingStreams = true
+                        scope.launch {
+                            val streamInfo = viewModel.getVideoStreamInfo(video.id)
+                            pageState.currentStreamInfo = streamInfo
+                            val (itVideo, itAudio) = viewModel.getInnerTubeDownloadFormats(video.id)
+                            pageState.currentInnerTubeVideoFormats = itVideo
+                            pageState.currentInnerTubeAudioFormats = itAudio
+                            if (streamInfo != null || itVideo.isNotEmpty()) {
+                                pageState.currentStreamSizes = viewModel.fetchStreamSizes(video.id)
+                                pageState.showDownloadDialog = true
                             }
-                        val activeQuality =
-                            findActiveShortQuality(
-                                qualities = pageState.availableQualities,
-                                currentVideoUrl = playerPool.getVideoUrlForIndex(pageIndex),
-                                activeVideoWidth = activeFormat?.width ?: 0,
-                                activeVideoHeight = activeFormat?.height ?: 0,
-                                activeCodecKey = activeCodecKey,
-                            )
-                        pageState.selectedQualityHeight = activeQuality?.heightClass ?: -1
-                        pageState.selectedQualityUrl = activeQuality?.videoUrl
-                        pageState.isLoadingStreams = false
-                        if (pageState.availableQualities.isNotEmpty()) {
-                            pageState.showQualitySheet = true
+                            pageState.isLoadingStreams = false
                         }
                     }
-                }
-            },
-            currentSpeed = settings.playbackSpeed,
-            onSpeedClick = {
-                pageState.showShortsOptionsSheet = false
-                pageState.showSpeedSheet = true
-            },
-            onDismiss = { pageState.showShortsOptionsSheet = false },
-        )
-    }
-
-    if (pageState.showSpeedSheet) {
-        ShortsSpeedSheet(
-            currentSpeed = settings.playbackSpeed,
-            speedSliderEnabled = settings.speedSliderEnabled,
-            customSpeedsEnabled = settings.customSpeedsEnabled,
-            customSpeedPresetsRaw = settings.customSpeedPresetsRaw,
-            onSpeedSelected = { speed ->
-                playerPool.setBasePlaybackSpeed(speed)
-            },
-            onSpeedSelectionFinished = { speed ->
-                scope.launch { playerPreferences.setShortsPlaybackSpeed(speed) }
-            },
-            onDismiss = { pageState.showSpeedSheet = false },
-        )
-    }
-
-    // ── Audio Track Selection Sheet ──
-    if (pageState.showAudioTrackSheet && pageState.availableAudioStreams.isNotEmpty()) {
-        ShortsAudioTrackSheet(
-            audioStreams = pageState.availableAudioStreams,
-            selectedIndex = pageState.selectedAudioIndex,
-            onTrackSelected = { index ->
-                val stream = pageState.availableAudioStreams[index]
-                val audioUrl = stream.content ?: stream.url
-                playerPool.reloadWithAudioUrl(pageIndex, video.id, audioUrl)
-                pageState.selectedAudioIndex = index
-                pageState.showAudioTrackSheet = false
-            },
-            onDismiss = { pageState.showAudioTrackSheet = false },
-        )
-    }
-
-    // ── Quality Selection Sheet ──
-    if (pageState.showQualitySheet && pageState.availableQualities.isNotEmpty()) {
-        ShortsQualitySheet(
-            qualities = pageState.availableQualities,
-            selectedHeight = pageState.selectedQualityHeight.takeIf { it >= 0 },
-            selectedVideoUrl = pageState.selectedQualityUrl,
-            onQualitySelected = { quality ->
-                playerPool.reloadWithVideoUrl(pageIndex, video.id, quality.videoUrl, quality.dashManifest)
-                pageState.selectedQualityHeight = quality.heightClass
-                pageState.selectedQualityUrl = quality.videoUrl
-                pageState.showQualitySheet = false
-            },
-            groupedByResolution = settings.groupedQualitySelectorEnabled,
-            onDismiss = { pageState.showQualitySheet = false },
-        )
-    }
-
-    // ── Download Dialog ──
-    if (
-        pageState.showDownloadDialog &&
-        (pageState.currentStreamInfo != null || pageState.currentInnerTubeVideoFormats.isNotEmpty())
-    ) {
-        if (settings.downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT) {
-            io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialogCompact(
-                streamInfo = pageState.currentStreamInfo,
-                streamSizes = pageState.currentStreamSizes,
-                innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
-                innerTubeAudioFormats = pageState.currentInnerTubeAudioFormats,
-                video = video,
-                onDismiss = { pageState.showDownloadDialog = false },
+                },
+                onAudioTrackClick = {
+                    pageState.showShortsOptionsSheet = false
+                    if (!pageState.isLoadingStreams) {
+                        pageState.isLoadingStreams = true
+                        scope.launch {
+                            val streamInfo = viewModel.getVideoStreamInfo(video.id)
+                            pageState.availableAudioStreams = streamInfo
+                                ?.audioStreams
+                                ?.sortedByDescending { it.averageBitrate }
+                                ?.groupBy { stream ->
+                                    val trackIdLang =
+                                        stream.audioTrackId
+                                            ?.substringAfterLast(".")
+                                            ?.takeIf { it.isNotBlank() && it != stream.audioTrackId }
+                                    val localeLang = stream.audioLocale?.language?.takeIf { it.isNotBlank() }
+                                    val trackName = stream.audioTrackName?.takeIf { it.isNotBlank() }
+                                    trackIdLang ?: localeLang ?: trackName ?: "default"
+                                }?.map { (_, group) -> group.first() }
+                                ?: emptyList()
+                            pageState.isLoadingStreams = false
+                            if (pageState.availableAudioStreams.isNotEmpty()) {
+                                pageState.showAudioTrackSheet = true
+                            }
+                        }
+                    }
+                },
+                onQualityClick = {
+                    pageState.showShortsOptionsSheet = false
+                    if (!pageState.isLoadingStreams) {
+                        pageState.isLoadingStreams = true
+                        scope.launch {
+                            pageState.availableQualities = viewModel.getAvailableQualities(video.id)
+                            val activeFormat = playerPool.ownedPlayer(pageIndex)?.videoFormat
+                            val activeCodecKey =
+                                activeFormat?.let { format ->
+                                    VideoCodecUtils.codecKeyFromMimeType(
+                                        buildString {
+                                            append(format.sampleMimeType.orEmpty())
+                                            format.codecs?.takeIf { it.isNotBlank() }?.let { codecs ->
+                                                append("; codecs=\"")
+                                                append(codecs)
+                                                append('"')
+                                            }
+                                        },
+                                    )
+                                }
+                            val activeQuality =
+                                findActiveShortQuality(
+                                    qualities = pageState.availableQualities,
+                                    currentVideoUrl = playerPool.getVideoUrlForIndex(pageIndex),
+                                    activeVideoWidth = activeFormat?.width ?: 0,
+                                    activeVideoHeight = activeFormat?.height ?: 0,
+                                    activeCodecKey = activeCodecKey,
+                                )
+                            pageState.selectedQualityHeight = activeQuality?.heightClass ?: -1
+                            pageState.selectedQualityUrl = activeQuality?.videoUrl
+                            pageState.isLoadingStreams = false
+                            if (pageState.availableQualities.isNotEmpty()) {
+                                pageState.showQualitySheet = true
+                            }
+                        }
+                    }
+                },
+                currentSpeed = settings.playbackSpeed,
+                onSpeedClick = {
+                    pageState.showShortsOptionsSheet = false
+                    pageState.showSpeedSheet = true
+                },
+                sheetInsets = sheetInsets,
+                onDismiss = { pageState.showShortsOptionsSheet = false },
             )
-        } else {
-            io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialog(
-                streamInfo = pageState.currentStreamInfo,
-                streamSizes = pageState.currentStreamSizes,
-                innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
-                innerTubeAudioFormats = pageState.currentInnerTubeAudioFormats,
-                video = video,
-                onDismiss = { pageState.showDownloadDialog = false },
+        }
+
+        if (pageState.showSpeedSheet) {
+            ShortsSpeedSheet(
+                currentSpeed = settings.playbackSpeed,
+                speedSliderEnabled = settings.speedSliderEnabled,
+                customSpeedsEnabled = settings.customSpeedsEnabled,
+                customSpeedPresetsRaw = settings.customSpeedPresetsRaw,
+                onSpeedSelected = { speed ->
+                    playerPool.setBasePlaybackSpeed(speed)
+                },
+                onSpeedSelectionFinished = { speed ->
+                    scope.launch { playerPreferences.setShortsPlaybackSpeed(speed) }
+                },
+                sheetInsets = sheetInsets,
+                onDismiss = { pageState.showSpeedSheet = false },
             )
+        }
+
+        // ── Audio Track Selection Sheet ──
+        if (pageState.showAudioTrackSheet && pageState.availableAudioStreams.isNotEmpty()) {
+            ShortsAudioTrackSheet(
+                audioStreams = pageState.availableAudioStreams,
+                selectedIndex = pageState.selectedAudioIndex,
+                onTrackSelected = { index ->
+                    val stream = pageState.availableAudioStreams[index]
+                    val audioUrl = stream.content ?: stream.url
+                    playerPool.reloadWithAudioUrl(pageIndex, video.id, audioUrl)
+                    pageState.selectedAudioIndex = index
+                    pageState.showAudioTrackSheet = false
+                },
+                sheetInsets = sheetInsets,
+                onDismiss = { pageState.showAudioTrackSheet = false },
+            )
+        }
+
+        // ── Quality Selection Sheet ──
+        if (pageState.showQualitySheet && pageState.availableQualities.isNotEmpty()) {
+            ShortsQualitySheet(
+                qualities = pageState.availableQualities,
+                selectedHeight = pageState.selectedQualityHeight.takeIf { it >= 0 },
+                selectedVideoUrl = pageState.selectedQualityUrl,
+                onQualitySelected = { quality ->
+                    playerPool.reloadWithVideoUrl(pageIndex, video.id, quality.videoUrl, quality.dashManifest)
+                    pageState.selectedQualityHeight = quality.heightClass
+                    pageState.selectedQualityUrl = quality.videoUrl
+                    pageState.showQualitySheet = false
+                },
+                groupedByResolution = settings.groupedQualitySelectorEnabled,
+                sheetInsets = sheetInsets,
+                onDismiss = { pageState.showQualitySheet = false },
+            )
+        }
+
+        // ── Download Dialog ──
+        if (
+            pageState.showDownloadDialog &&
+            (pageState.currentStreamInfo != null || pageState.currentInnerTubeVideoFormats.isNotEmpty())
+        ) {
+            if (settings.downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT) {
+                io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialogCompact(
+                    streamInfo = pageState.currentStreamInfo,
+                    streamSizes = pageState.currentStreamSizes,
+                    innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
+                    innerTubeAudioFormats = pageState.currentInnerTubeAudioFormats,
+                    video = video,
+                    onDismiss = { pageState.showDownloadDialog = false },
+                )
+            } else {
+                io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialog(
+                    streamInfo = pageState.currentStreamInfo,
+                    streamSizes = pageState.currentStreamSizes,
+                    innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
+                    innerTubeAudioFormats = pageState.currentInnerTubeAudioFormats,
+                    video = video,
+                    onDismiss = { pageState.showDownloadDialog = false },
+                )
+            }
         }
     }
 }
@@ -1193,13 +1231,15 @@ private fun ShortsOptionsSheet(
     onQualityClick: () -> Unit,
     currentSpeed: Float = 1f,
     onSpeedClick: () -> Unit,
+    sheetInsets: ShortsSheetInsetState,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
+    ShortsPlayerSheet(insets = sheetInsets, onDismiss = onDismiss) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(bottom = 32.dp),
         ) {
             Text(
@@ -1498,6 +1538,7 @@ private fun ShortsSpeedSheet(
     customSpeedPresetsRaw: String,
     onSpeedSelected: (Float) -> Unit,
     onSpeedSelectionFinished: (Float) -> Unit,
+    sheetInsets: ShortsSheetInsetState,
     onDismiss: () -> Unit,
 ) {
     val speeds =
@@ -1508,7 +1549,7 @@ private fun ShortsSpeedSheet(
         remember(customSpeedsEnabled, customSpeedPresetsRaw) {
             playbackSpeedSliderPresets(customSpeedsEnabled, customSpeedPresetsRaw)
         }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
+    ShortsPlayerSheet(insets = sheetInsets, onDismiss = onDismiss) {
         Column(
             modifier =
                 Modifier
@@ -1604,9 +1645,10 @@ private fun ShortsAudioTrackSheet(
     audioStreams: List<org.schabi.newpipe.extractor.stream.AudioStream>,
     selectedIndex: Int,
     onTrackSelected: (Int) -> Unit,
+    sheetInsets: ShortsSheetInsetState,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
+    ShortsPlayerSheet(insets = sheetInsets, onDismiss = onDismiss) {
         Column(
             modifier =
                 Modifier
@@ -1694,10 +1736,11 @@ private fun ShortsQualitySheet(
     selectedVideoUrl: String?,
     onQualitySelected: (ShortVideoQuality) -> Unit,
     groupedByResolution: Boolean,
+    sheetInsets: ShortsSheetInsetState,
     onDismiss: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
+    ShortsPlayerSheet(insets = sheetInsets, onDismiss = onDismiss) {
         Column(
             modifier =
                 Modifier
