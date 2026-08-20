@@ -1,5 +1,8 @@
 package io.github.aedev.flow.sync
 
+import io.github.aedev.flow.sync.canonical.BrainCounters
+import io.github.aedev.flow.sync.canonical.BrainLwwMaps
+import io.github.aedev.flow.sync.canonical.BrainSets
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalBrainVectors
 import io.github.aedev.flow.sync.canonical.CanonicalLike
@@ -10,6 +13,8 @@ import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalVector
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
 import io.github.aedev.flow.sync.canonical.GCounter
+import io.github.aedev.flow.sync.canonical.Lww
+import io.github.aedev.flow.sync.canonical.OrSet
 import io.github.aedev.flow.sync.identity.Hlc
 import io.github.aedev.flow.sync.merge.BrainMerger
 import io.github.aedev.flow.sync.merge.LikesMerger
@@ -118,8 +123,13 @@ class MergeConvergenceTest {
             deviceId = node,
             hlc = hlc(idf, 0, node),
             vectors = CanonicalBrainVectors(globalVector = CanonicalVector(topics = topics)),
-            idfTotalDocuments = GCounter(mapOf(node to idf)),
-            blockedTopics = blocked,
+            counters = BrainCounters(idfTotalDocuments = GCounter(mapOf(node to idf))),
+            sets = BrainSets(
+                blockedTopics = blocked.fold(OrSet()) { set, topic -> set.add(topic, hlc(idf, 0, node)) },
+            ),
+            lwwMaps = BrainLwwMaps(
+                suppressedVideoIds = mapOf("v$node" to Lww(idf, hlc(idf, 0, node))),
+            ),
         )
         val a = brain("a", mapOf("kotlin" to 0.8, "rust" to 0.3), 1000, setOf("politics"))
         val b = brain("b", mapOf("kotlin" to 0.5, "go" to 0.6), 500, setOf("spam"))
@@ -133,8 +143,25 @@ class MergeConvergenceTest {
         assertEquals(ab, BrainMerger.merge(ab, ab))
 
         // G-Counter sums experience; vectors keep the stronger signal; blocklists union.
-        assertEquals(1500L, ab.idfTotalDocuments.sum())
+        assertEquals(1500L, ab.counters.idfTotalDocuments.sum())
         assertEquals(0.8, ab.vectors.globalVector.topics["kotlin"]!!, 0.0)
-        assertEquals(setOf("politics", "spam"), ab.blockedTopics)
+        assertEquals(setOf("politics", "spam"), ab.sets.blockedTopics.members())
+        // LWW maps keep both sides' keys; only a collision resolves by stamp.
+        assertEquals(setOf("va", "vb"), ab.lwwMaps.suppressedVideoIds.keys)
+    }
+
+    @Test
+    fun brain_merge_carries_a_remote_unblock() {
+        val stampedAdd = hlc(100, 0, "a")
+        val stampedRemove = hlc(200, 0, "b")
+        val local = CanonicalBrain(
+            deviceId = "a",
+            sets = BrainSets(blockedChannels = OrSet().add("UCbad", stampedAdd)),
+        )
+        val remote = CanonicalBrain(
+            deviceId = "b",
+            sets = BrainSets(blockedChannels = OrSet().add("UCbad", stampedAdd).remove("UCbad", stampedRemove)),
+        )
+        assertEquals(emptySet<String>(), BrainMerger.merge(local, remote).sets.blockedChannels.members())
     }
 }

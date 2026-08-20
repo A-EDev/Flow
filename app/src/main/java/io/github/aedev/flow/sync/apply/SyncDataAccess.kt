@@ -159,21 +159,21 @@ class SyncDataAccess @Inject constructor(
         else -> "sync_${UUID.randomUUID()}"
     }
 
-    // --- brain (stateful: G-Counter sidecar) ---
+    // --- brain (stateful: CRDT sidecar) ---
 
     suspend fun readBrain(myDevice: String, hlc: String): CanonicalBrain {
         val local = exportLocalBrain()
-        var sidecar = attributeLocalGrowth(brainCrdtStore.load(), myDevice, local)
+        val sidecar = attributeLocalEdits(brainCrdtStore.load(), myDevice, local, hlc)
         brainCrdtStore.save(sidecar)
-        return BrainMapper.toCanonical(local, myDevice, hlc, sidecar.idfDocs, sidecar.interactions, sidecar.idfWords)
+        return BrainMapper.toCanonical(local, myDevice, hlc, sidecar)
     }
 
     /** Read local brain, merge the incoming brain into it (CRDT), and persist + reload the engine. */
     suspend fun mergeAndWriteBrain(remote: CanonicalBrain, myDevice: String, hlc: String) {
         val local = exportLocalBrain()
-        var sidecar = attributeLocalGrowth(brainCrdtStore.load(), myDevice, local)
-        val localCanonical = BrainMapper.toCanonical(local, myDevice, hlc, sidecar.idfDocs, sidecar.interactions, sidecar.idfWords)
-        val merged = BrainMerger.merge(localCanonical, remote)
+        var sidecar = attributeLocalEdits(brainCrdtStore.load(), myDevice, local, hlc)
+        val localCanonical = BrainMapper.toCanonical(local, myDevice, hlc, sidecar)
+        val merged = BrainMerger.merge(localCanonical, BrainMapper.normalizeIncoming(remote))
         val mergedBrain = BrainMapper.writeBack(merged, local)
         neuroEngine.importBrainFromStream(ByteArrayInputStream(BrainMapper.serialize(mergedBrain)))
         sidecar = BrainCrdtState.afterMerge(sidecar, merged)
@@ -181,19 +181,41 @@ class SyncDataAccess @Inject constructor(
     }
 
     private suspend fun exportLocalBrain(): BrainMapper.SBrain {
+        var exported = false
         val bytes = ByteArrayOutputStream().use { bos ->
-            neuroEngine.exportBrainToStream(bos)
+            exported = neuroEngine.exportBrainToStream(bos)
             bos.toByteArray()
         }
-        return runCatching { BrainMapper.parse(bytes) }.getOrDefault(BrainMapper.SBrain())
+        if (!exported) throw IllegalStateException("could not read the local FlowNeuro brain")
+        return runCatching { BrainMapper.parse(bytes) }
+            .getOrElse { throw IllegalStateException("the local FlowNeuro brain could not be parsed", it) }
     }
 
-    private fun attributeLocalGrowth(state: BrainCrdtState, myDevice: String, brain: BrainMapper.SBrain) =
-        BrainCrdtState.attributeLocal(
+    /**
+     * Fold everything that changed locally since the last sync into the sidecar: counter growth
+     * becomes this device's G-Counter sub-count, and blocklist/preference edits become OR-Set add
+     * or remove stamps. Both are diffs against the last-synced state, so re-running with no local
+     * activity is a no-op.
+     */
+    private fun attributeLocalEdits(
+        state: BrainCrdtState,
+        myDevice: String,
+        brain: BrainMapper.SBrain,
+        hlc: String,
+    ): BrainCrdtState {
+        val withCounters = BrainCrdtState.attributeLocal(
             state = state,
             myDevice = myDevice,
             idfDocsScalar = brain.idfTotalDocuments.toLong(),
             interactionsScalar = brain.interactions.toLong(),
             idfWordCounts = brain.idfWordFrequency.mapValues { it.value.toLong() },
         )
+        return BrainCrdtState.attributeSets(
+            state = withCounters,
+            blockedTopics = brain.blockedTopics,
+            blockedChannels = brain.blockedChannels,
+            preferredTopics = brain.preferredTopics,
+            hlc = hlc,
+        )
+    }
 }

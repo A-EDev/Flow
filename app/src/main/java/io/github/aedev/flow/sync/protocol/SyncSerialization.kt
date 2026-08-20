@@ -6,6 +6,7 @@ import io.github.aedev.flow.sync.canonical.CanonicalPlaylist
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
+import io.github.aedev.flow.sync.merge.BrainMerger
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -108,12 +109,19 @@ object SyncSerialization {
     fun decodeSubscriptions(lines: List<String>): List<CanonicalSubscriptionGroup> =
         lines.filter { it.isNotBlank() }.map { json.decodeFromString(CanonicalSubscriptionGroup.serializer(), it) }
 
-    // --- brain (single record) ---
+    // --- brain ---
     fun encodeBrain(brain: CanonicalBrain): CollectionWire {
         val line = enc(CanonicalBrain.serializer(), brain)
         return CollectionWire(listOf(line), 1, sha256Hex(line))
     }
 
+    /**
+     * Fold **every** record, not just the first: the desktop ships one snapshot per device it knows
+     * about (`brainmap::merged_flow_to_snapshots`) so a third device converges transitively. Taking
+     * only the first silently discarded every other device's learned vectors.
+     */
     fun decodeBrain(lines: List<String>): CanonicalBrain? =
-        lines.firstOrNull { it.isNotBlank() }?.let { json.decodeFromString(CanonicalBrain.serializer(), it) }
+        lines.filter { it.isNotBlank() }
+            .map { json.decodeFromString(CanonicalBrain.serializer(), it) }
+            .reduceOrNull(BrainMerger::merge)
 }

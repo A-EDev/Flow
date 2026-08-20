@@ -50,6 +50,22 @@ data class Hlc(
         /** Derive the 8-char HLC node id from a device UUID. */
         fun nodeFromDeviceId(deviceId: String): String =
             deviceId.lowercase().replace("-", "").take(8)
+
+        /** Total order over two encoded stamps; malformed input degrades to [ZERO]. */
+        fun compareEncoded(a: String, b: String): Int = decode(a).compareTo(decode(b))
+
+        /**
+         * The later of two encoded stamps. On an exact tie the lexicographically larger string is
+         * returned so the choice is independent of argument order (keeps merges commutative).
+         */
+        fun maxEncoded(a: String, b: String): String {
+            val c = compareEncoded(a, b)
+            return when {
+                c > 0 -> a
+                c < 0 -> b
+                else -> if (a >= b) a else b
+            }
+        }
     }
 }
 

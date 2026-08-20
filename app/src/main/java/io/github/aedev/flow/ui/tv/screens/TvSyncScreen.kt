@@ -298,6 +298,12 @@ private fun TvSyncQr(
                 fontFamily = FontFamily.Monospace,
             )
             Text(
+                text = stringResource(R.string.sync_qr_advertised_address, s.address),
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
                 text = stringResource(R.string.tv_sync_qr_session_active),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -128,7 +128,8 @@ class SyncManager @Inject constructor(
             val sas = SyncCrypto.sas(master, sessionId)
 
             val ip = LanAddress.resolve()
-                ?: throw IllegalStateException(context.getString(R.string.sync_error_no_network))
+            LanAddress.logCandidates(ip)
+            if (ip == null) throw IllegalStateException(context.getString(R.string.sync_error_no_network))
 
             SyncForegroundService.start(context)
             val srv = WsServer()
@@ -146,7 +147,13 @@ class SyncManager @Inject constructor(
                 role = qrRole,
                 sessionBound = sessionBoundQr,
             )
-            _state.value = SyncState.ShowingQr(qrText, sas, exp, sending = role == SyncRole.SENDER)
+            _state.value = SyncState.ShowingQr(
+                qrText = qrText,
+                sas = sas,
+                expiresAtEpochSeconds = exp,
+                sending = role == SyncRole.SENDER,
+                address = "$ip:$port",
+            )
 
             val conn = srv.awaitConnection()
             connection = conn

@@ -1758,6 +1758,7 @@
     <string name="sync_confirmation_code">Confirmation code: %1$s</string>
     <string name="sync_expires_in">Expires in %1$ds</string>
     <string name="sync_qr_network_note">Both devices must be on the same Wi-Fi (or one device\'s hotspot). You may need to allow Flow through a firewall.</string>
+    <string name="sync_qr_advertised_address">This device: %1$s</string>
     <string name="sync_sas_title">Do the codes match?</string>
     <string name="sync_sas_body">Confirm this 6-digit code is identical on both devices before continuing.</string>
     <string name="sync_sas_differ">They differ</string>

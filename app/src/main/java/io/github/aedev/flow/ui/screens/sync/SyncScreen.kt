@@ -317,6 +317,12 @@ private fun QrContent(s: SyncState.ShowingQr) {
     Text(stringResource(R.string.sync_confirmation_code, s.sas), style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Monospace)
     Text(stringResource(R.string.sync_expires_in, remaining), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Text(
+        stringResource(R.string.sync_qr_advertised_address, s.address),
+        style = MaterialTheme.typography.bodySmall,
+        fontFamily = FontFamily.Monospace,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Text(
         stringResource(R.string.sync_qr_network_note),
         style = MaterialTheme.typography.bodySmall,
         textAlign = TextAlign.Center,

@@ -207,23 +207,10 @@ class SyncProtocol(
     }
 
     private suspend fun sendChunk(collection: String, chunkSeq: Int, last: Boolean, lines: List<String>) {
-        val header = json.encodeToString(ChunkHeader.serializer(), ChunkHeader(collection, chunkSeq, last))
-        val sb = StringBuilder(header)
-        for (line in lines) {
-            sb.append('\n')
-            sb.append(line)
-        }
-        sendRaw(FrameType.CHUNK, sb.toString().toByteArray(Charsets.UTF_8))
+        sendRaw(FrameType.CHUNK, ChunkFraming.encode(ChunkHeader(collection, chunkSeq, last), lines))
     }
 
-    private fun parseChunk(plaintext: ByteArray): Pair<ChunkHeader, List<String>> {
-        val text = String(plaintext, Charsets.UTF_8)
-        val nl = text.indexOf('\n')
-        val headerStr = if (nl < 0) text else text.substring(0, nl)
-        val header = json.decodeFromString(ChunkHeader.serializer(), headerStr)
-        val body = if (nl < 0) emptyList() else text.substring(nl + 1).split('\n').filter { it.isNotEmpty() }
-        return header to body
-    }
+    private fun parseChunk(plaintext: ByteArray): Pair<ChunkHeader, List<String>> = ChunkFraming.decode(plaintext)
 
     private suspend fun expect(type: Byte): SyncCodec.Opened {
         val frame = recvFrame()

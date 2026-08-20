@@ -17,6 +17,7 @@ sealed interface SyncState {
         val expiresAtEpochSeconds: Long,
         /** True when this device will send (peer receives); false when this device will receive. */
         val sending: Boolean,
+        val address: String,
     ) : SyncState
 
     /** Client connecting to the host's socket. */
