@@ -46,7 +46,14 @@ object SyncCollection {
     const val SETTINGS = "settings"
     const val FLOW_NEURO_BRAIN = "flow_neuro_brain"
     const val MUSIC_BRAIN = "music_brain"
+
+    /** Subscription **groups** (the folders), not the channels themselves. */
     const val SUBSCRIPTIONS = "subscriptions"
+
+    /** The channels the user actually follows. Separate from [SUBSCRIPTIONS] on the wire because a
+     * group only references channel ids — it can neither create a subscription that is in no group
+     * nor express an unsubscribe. */
+    const val SUBSCRIBED_CHANNELS = "subscribed_channels"
 
     /** Collections Android can exchange in v1 (music_brain excluded — Android has no consumer). */
     val ANDROID_SYNCABLE =
@@ -56,6 +63,7 @@ object SyncCollection {
             LIKES,
             SETTINGS,
             FLOW_NEURO_BRAIN,
+            SUBSCRIBED_CHANNELS,
             SUBSCRIPTIONS,
         )
 }
@@ -123,6 +131,46 @@ data class ChunkHeader(
     val seq: Int,
     val last: Boolean,
 )
+
+/**
+ * CHUNK plaintext framing (addendum §7): the header line, a newline, then the `\n`-joined NDJSON
+ * records.
+ *
+ * The header/body separator is **mandatory even when the body is empty** — an empty collection
+ * must go on the wire as `header` + `\n`, not as a bare header. Emitting the bare form is what made
+ * a phone with an empty likes/history/playlist fail the desktop's decoder with
+ * `codec: chunk frame missing header newline`.
+ *
+ * [decode] stays deliberately lenient about a missing separator so a peer still speaking the old
+ * bare-header form keeps working.
+ */
+object ChunkFraming {
+    private const val SEPARATOR = '\n'
+
+    fun encode(
+        header: ChunkHeader,
+        lines: List<String>,
+    ): ByteArray {
+        val headerJson = FrameJson.json.encodeToString(ChunkHeader.serializer(), header)
+        val sb = StringBuilder(headerJson).append(SEPARATOR)
+        lines.joinTo(sb, SEPARATOR.toString())
+        return sb.toString().toByteArray(Charsets.UTF_8)
+    }
+
+    fun decode(plaintext: ByteArray): Pair<ChunkHeader, List<String>> {
+        val text = String(plaintext, Charsets.UTF_8)
+        val nl = text.indexOf(SEPARATOR)
+        val headerJson = if (nl < 0) text else text.substring(0, nl)
+        val header = FrameJson.json.decodeFromString(ChunkHeader.serializer(), headerJson)
+        val body =
+            if (nl < 0) {
+                emptyList()
+            } else {
+                text.substring(nl + 1).split(SEPARATOR).filter { it.isNotEmpty() }
+            }
+        return header to body
+    }
+}
 
 @Serializable
 data class ChunkAck(

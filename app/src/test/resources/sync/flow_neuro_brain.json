@@ -1,0 +1,73 @@
+{
+  "schema": 14,
+  "deviceId": "device-aaa",
+  "hlc": "1781512000000:0:device-aaa",
+  "vectors": {
+    "globalVector": { "topics": { "minecraft": 0.8, "coding": 0.5 }, "dims": { "duration": 0.4 } },
+    "timeVectors": {
+      "WEEKDAY_EVENING": { "topics": { "music": 0.6 }, "dims": {} }
+    },
+    "shortsVector": { "topics": { "comedy": 0.3 }, "dims": {} },
+    "topicAffinities": { "minecraft": 0.8, "coding": 0.5 },
+    "channelScores": { "UCabc": 0.7 },
+    "channelTopicProfiles": { "UCabc": { "coding": 0.9 } }
+  },
+  "counters": {
+    "idfTotalDocuments": { "device-aaa": 420 },
+    "totalInteractions": { "device-aaa": 1500 }
+  },
+  "idfWordFrequency": {
+    "minecraft": { "device-aaa": 42 },
+    "coding": { "device-aaa": 30 }
+  },
+  "perVideo": {
+    "watchHistoryMap": { "dQw4w9WgXcQ": 0.8 },
+    "watchSignalProgress": { "dQw4w9WgXcQ": 0.8 }
+  },
+  "sets": {
+    "blockedTopics": { "adds": { "politics": "1781000000000:0:device-aaa" }, "removes": {} },
+    "blockedChannels": { "adds": {}, "removes": {} },
+    "preferredTopics": { "adds": { "coding": "1781000000000:0:device-aaa" }, "removes": {} }
+  },
+  "lwwMaps": {
+    "suppressedVideoIds": {
+      "badvid01": { "value": 1781000000000, "hlc": "1781000000000:0:device-aaa" }
+    },
+    "suppressedChannels": {},
+    "rejectionPatterns": {
+      "politics": {
+        "value": { "count": 3, "lastRejectedAt": 1781000000000 },
+        "hlc": "1781000000000:0:device-aaa"
+      }
+    },
+    "topicEvidence": {
+      "coding": {
+        "value": {
+          "positiveSignals": 10,
+          "negativeSignals": 1,
+          "watchSignals": 8,
+          "explicitSignals": 2,
+          "positiveScore": 4.5,
+          "videoIds": ["dQw4w9WgXcQ"],
+          "channelIds": ["UCabc"],
+          "firstSeenAt": 1781000000000,
+          "lastSeenAt": 1781512000000
+        },
+        "hlc": "1781512000000:0:device-aaa"
+      }
+    },
+    "feedHistory": {
+      "dQw4w9WgXcQ": {
+        "value": { "lastShown": 1781512000000, "showCount": 2 },
+        "hlc": "1781512000000:0:device-aaa"
+      }
+    },
+    "channelStrikes": {
+      "UCbad": {
+        "value": { "count": 2, "firstAt": 1781000000000, "lastAt": 1781100000000 },
+        "hlc": "1781100000000:0:device-aaa"
+      }
+    }
+  },
+  "flags": { "hasCompletedOnboarding": true }
+}

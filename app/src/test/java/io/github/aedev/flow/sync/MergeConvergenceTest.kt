@@ -1,5 +1,8 @@
 package io.github.aedev.flow.sync
 
+import io.github.aedev.flow.sync.canonical.BrainCounters
+import io.github.aedev.flow.sync.canonical.BrainLwwMaps
+import io.github.aedev.flow.sync.canonical.BrainSets
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalBrainVectors
 import io.github.aedev.flow.sync.canonical.CanonicalLike
@@ -10,6 +13,8 @@ import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalVector
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
 import io.github.aedev.flow.sync.canonical.GCounter
+import io.github.aedev.flow.sync.canonical.Lww
+import io.github.aedev.flow.sync.canonical.OrSet
 import io.github.aedev.flow.sync.identity.Hlc
 import io.github.aedev.flow.sync.merge.BrainMerger
 import io.github.aedev.flow.sync.merge.LikesMerger
@@ -27,10 +32,19 @@ import org.junit.Test
  * three properties are the formal backbone of "no conflict / no loss / no double-count".
  */
 class MergeConvergenceTest {
+    private fun hlc(
+        ms: Long,
+        c: Int,
+        node: String,
+    ) = Hlc(ms, c, node).encode()
 
-    private fun hlc(ms: Long, c: Int, node: String) = Hlc(ms, c, node).encode()
-
-    private fun <T> laws(name: String, a: List<T>, b: List<T>, c: List<T>, merge: (List<T>, List<T>) -> List<T>) {
+    private fun <T> laws(
+        name: String,
+        a: List<T>,
+        b: List<T>,
+        c: List<T>,
+        merge: (List<T>, List<T>) -> List<T>,
+    ) {
         assertEquals("$name: commutativity", merge(a, b), merge(b, a))
         assertEquals("$name: associativity", merge(merge(a, b), c), merge(a, merge(b, c)))
         val ab = merge(a, b)
@@ -39,18 +53,21 @@ class MergeConvergenceTest {
 
     @Test
     fun watch_history_converges() {
-        val a = listOf(
-            CanonicalWatchHistory("v1", title = "A", watchedAtMs = 100, progress = 0.5, hlc = hlc(100, 0, "aaa")),
-            CanonicalWatchHistory("v2", watchedAtMs = 50, progress = 0.2, isMusic = true, hlc = hlc(50, 0, "aaa")),
-        )
-        val b = listOf(
-            CanonicalWatchHistory("v1", title = "A2", watchedAtMs = 200, progress = 0.9, hlc = hlc(200, 0, "bbb")),
-            CanonicalWatchHistory("v3", watchedAtMs = 70, hlc = hlc(70, 0, "bbb")),
-        )
-        val c = listOf(
-            CanonicalWatchHistory("v2", watchedAtMs = 60, progress = 0.8, hlc = hlc(60, 0, "ccc")),
-            CanonicalWatchHistory("v1", deleted = true, hlc = hlc(300, 0, "ccc")),
-        )
+        val a =
+            listOf(
+                CanonicalWatchHistory("v1", title = "A", watchedAtMs = 100, progress = 0.5, hlc = hlc(100, 0, "aaa")),
+                CanonicalWatchHistory("v2", watchedAtMs = 50, progress = 0.2, isMusic = true, hlc = hlc(50, 0, "aaa")),
+            )
+        val b =
+            listOf(
+                CanonicalWatchHistory("v1", title = "A2", watchedAtMs = 200, progress = 0.9, hlc = hlc(200, 0, "bbb")),
+                CanonicalWatchHistory("v3", watchedAtMs = 70, hlc = hlc(70, 0, "bbb")),
+            )
+        val c =
+            listOf(
+                CanonicalWatchHistory("v2", watchedAtMs = 60, progress = 0.8, hlc = hlc(60, 0, "ccc")),
+                CanonicalWatchHistory("v1", deleted = true, hlc = hlc(300, 0, "ccc")),
+            )
         laws("watch_history", a, b, c, WatchHistoryMerger::merge)
 
         // Specific guarantees: progress = max, isMusic OR is sticky.
@@ -89,22 +106,38 @@ class MergeConvergenceTest {
 
     @Test
     fun playlists_converge() {
-        fun item(id: String, pos: Long, hlcStr: String) = CanonicalPlaylistItem(videoId = id, position = pos, hlc = hlcStr)
-        val a = listOf(
-            CanonicalPlaylist(
-                syncId = "p1", title = "Gym", updatedHlc = hlc(100, 0, "a"),
-                items = listOf(item("v1", 0, hlc(100, 0, "a")), item("v2", 1, hlc(100, 0, "a"))),
+        fun item(
+            id: String,
+            pos: Long,
+            hlcStr: String,
+        ) = CanonicalPlaylistItem(videoId = id, position = pos, hlc = hlcStr)
+        val a =
+            listOf(
+                CanonicalPlaylist(
+                    syncId = "p1",
+                    title = "Gym",
+                    updatedHlc = hlc(100, 0, "a"),
+                    items = listOf(item("v1", 0, hlc(100, 0, "a")), item("v2", 1, hlc(100, 0, "a"))),
+                ),
             )
-        )
-        val b = listOf(
-            CanonicalPlaylist(
-                syncId = "p1", title = "Gym Mix", updatedHlc = hlc(200, 0, "b"),
-                items = listOf(item("v2", 0, hlc(200, 0, "b")), item("v3", 1, hlc(200, 0, "b"))),
+        val b =
+            listOf(
+                CanonicalPlaylist(
+                    syncId = "p1",
+                    title = "Gym Mix",
+                    updatedHlc = hlc(200, 0, "b"),
+                    items = listOf(item("v2", 0, hlc(200, 0, "b")), item("v3", 1, hlc(200, 0, "b"))),
+                ),
             )
-        )
-        val c = listOf(
-            CanonicalPlaylist(syncId = "p2", title = "Chill", updatedHlc = hlc(50, 0, "c"), items = listOf(item("v9", 0, hlc(50, 0, "c")))),
-        )
+        val c =
+            listOf(
+                CanonicalPlaylist(
+                    syncId = "p2",
+                    title = "Chill",
+                    updatedHlc = hlc(50, 0, "c"),
+                    items = listOf(item("v9", 0, hlc(50, 0, "c"))),
+                ),
+            )
         laws("playlists", a, b, c, PlaylistMerger::merge)
         // Metadata LWW: higher HLC title wins; items union.
         val p1 = PlaylistMerger.merge(a, b).first { it.syncId == "p1" }
@@ -114,12 +147,24 @@ class MergeConvergenceTest {
 
     @Test
     fun brain_converges() {
-        fun brain(node: String, topics: Map<String, Double>, idf: Long, blocked: Set<String>) = CanonicalBrain(
+        fun brain(
+            node: String,
+            topics: Map<String, Double>,
+            idf: Long,
+            blocked: Set<String>,
+        ) = CanonicalBrain(
             deviceId = node,
             hlc = hlc(idf, 0, node),
             vectors = CanonicalBrainVectors(globalVector = CanonicalVector(topics = topics)),
-            idfTotalDocuments = GCounter(mapOf(node to idf)),
-            blockedTopics = blocked,
+            counters = BrainCounters(idfTotalDocuments = GCounter(mapOf(node to idf))),
+            sets =
+                BrainSets(
+                    blockedTopics = blocked.fold(OrSet()) { set, topic -> set.add(topic, hlc(idf, 0, node)) },
+                ),
+            lwwMaps =
+                BrainLwwMaps(
+                    suppressedVideoIds = mapOf("v$node" to Lww(idf, hlc(idf, 0, node))),
+                ),
         )
         val a = brain("a", mapOf("kotlin" to 0.8, "rust" to 0.3), 1000, setOf("politics"))
         val b = brain("b", mapOf("kotlin" to 0.5, "go" to 0.6), 500, setOf("spam"))
@@ -133,8 +178,33 @@ class MergeConvergenceTest {
         assertEquals(ab, BrainMerger.merge(ab, ab))
 
         // G-Counter sums experience; vectors keep the stronger signal; blocklists union.
-        assertEquals(1500L, ab.idfTotalDocuments.sum())
+        assertEquals(1500L, ab.counters.idfTotalDocuments.sum())
         assertEquals(0.8, ab.vectors.globalVector.topics["kotlin"]!!, 0.0)
-        assertEquals(setOf("politics", "spam"), ab.blockedTopics)
+        assertEquals(setOf("politics", "spam"), ab.sets.blockedTopics.members())
+        // LWW maps keep both sides' keys; only a collision resolves by stamp.
+        assertEquals(setOf("va", "vb"), ab.lwwMaps.suppressedVideoIds.keys)
+    }
+
+    @Test
+    fun brain_merge_carries_a_remote_unblock() {
+        val stampedAdd = hlc(100, 0, "a")
+        val stampedRemove = hlc(200, 0, "b")
+        val local =
+            CanonicalBrain(
+                deviceId = "a",
+                sets = BrainSets(blockedChannels = OrSet().add("UCbad", stampedAdd)),
+            )
+        val remote =
+            CanonicalBrain(
+                deviceId = "b",
+                sets = BrainSets(blockedChannels = OrSet().add("UCbad", stampedAdd).remove("UCbad", stampedRemove)),
+            )
+        assertEquals(
+            emptySet<String>(),
+            BrainMerger
+                .merge(local, remote)
+                .sets.blockedChannels
+                .members(),
+        )
     }
 }

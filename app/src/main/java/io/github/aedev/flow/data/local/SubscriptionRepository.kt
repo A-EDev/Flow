@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.local
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -28,7 +29,20 @@ class SubscriptionRepository private constructor(
         // Keys format: "channel_{channelId}" -> JSON string with channel info
         private fun channelKey(channelId: String) = stringPreferencesKey("channel_$channelId")
 
+        /** "unsub_{channelId}" -> epoch ms the user unsubscribed. See [unsubscribedTombstones]. */
+        private fun unsubscribedKey(channelId: String) = stringPreferencesKey("unsub_$channelId")
+
+        private const val UNSUBSCRIBED_PREFIX = "unsub_"
+
         private const val SUBSCRIPTIONS_ORDER_KEY = "subscriptions_order"
+
+        /**
+         * How long an unsubscribe is remembered. Device sync resolves subscribe-vs-unsubscribe by
+         * comparing their timestamps, so forgetting a tombstone lets a peer that still holds the
+         * subscription resurrect it. Long enough that any realistic sync gap is covered, bounded so
+         * the store cannot grow without limit.
+         */
+        private const val UNSUBSCRIBE_TOMBSTONE_RETENTION_MS = 365L * 24 * 60 * 60 * 1000
     }
 
     /**
@@ -40,6 +54,7 @@ class SubscriptionRepository private constructor(
 
             // Save channel data
             preferences[channelKey(safeChannel.channelId)] = serializeChannel(safeChannel)
+            preferences.remove(unsubscribedKey(safeChannel.channelId)) // re-subscribing clears the tombstone
 
             // Update order list
             val currentOrder = preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] ?: ""
@@ -72,6 +87,7 @@ class SubscriptionRepository private constructor(
             channels.forEach { channel ->
                 val safeChannel = channel.withPreservedThumbnail(preferences)
                 preferences[channelKey(safeChannel.channelId)] = serializeChannel(safeChannel)
+                preferences.remove(unsubscribedKey(safeChannel.channelId))
                 if (knownIds.add(safeChannel.channelId)) {
                     newIds += safeChannel.channelId
                 }
@@ -88,8 +104,13 @@ class SubscriptionRepository private constructor(
      * Unsubscribe from a channel
      */
     suspend fun unsubscribe(channelId: String) {
+        val now = System.currentTimeMillis()
         context.subscriptionsDataStore.edit { preferences ->
             preferences.remove(channelKey(channelId))
+            // Remember *when*, so device sync can tell an unsubscribe from "this device never knew
+            // about the channel" and the removal actually reaches the other device.
+            preferences[unsubscribedKey(channelId)] = now.toString()
+            prune(preferences, now)
 
             // Update order list
             val currentOrder = preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] ?: ""
@@ -146,6 +167,53 @@ class SubscriptionRepository private constructor(
         } else {
             orderString.split(",").toSet()
         }
+    }
+
+    /**
+     * Channels this device has explicitly unsubscribed from, mapped to when it happened.
+     *
+     * Device sync ships these as tombstones. Without them an unsubscribe is indistinguishable from
+     * "never subscribed", and the peer that still holds the channel puts it straight back.
+     */
+    suspend fun unsubscribedTombstones(): Map<String, Long> =
+        context.subscriptionsDataStore.data
+            .map { preferences ->
+                preferences
+                    .asMap()
+                    .mapNotNull { (key, value) ->
+                        if (!key.name.startsWith(UNSUBSCRIBED_PREFIX)) return@mapNotNull null
+                        val at = (value as? String)?.toLongOrNull() ?: return@mapNotNull null
+                        key.name.removePrefix(UNSUBSCRIBED_PREFIX) to at
+                    }.toMap()
+            }.first()
+
+    /** Record a peer's unsubscribe so it keeps propagating to any third device. */
+    suspend fun recordUnsubscribedAt(tombstones: Map<String, Long>) {
+        if (tombstones.isEmpty()) return
+        val now = System.currentTimeMillis()
+        context.subscriptionsDataStore.edit { preferences ->
+            tombstones.forEach { (channelId, at) ->
+                val existing = preferences[unsubscribedKey(channelId)]?.toLongOrNull() ?: 0L
+                if (at > existing) preferences[unsubscribedKey(channelId)] = at.toString()
+            }
+            prune(preferences, now)
+        }
+    }
+
+    /** Drop tombstones past the retention window so the store cannot grow without limit. */
+    private fun prune(
+        preferences: MutablePreferences,
+        now: Long,
+    ) {
+        val cutoff = now - UNSUBSCRIBE_TOMBSTONE_RETENTION_MS
+        preferences
+            .asMap()
+            .keys
+            .filter { it.name.startsWith(UNSUBSCRIBED_PREFIX) }
+            .forEach { key ->
+                val at = (preferences[key] as? String)?.toLongOrNull()
+                if (at == null || at < cutoff) preferences.remove(key)
+            }
     }
 
     /**

@@ -1,11 +1,14 @@
 package io.github.aedev.flow.sync.merge
 
+import io.github.aedev.flow.sync.canonical.BrainCounters
+import io.github.aedev.flow.sync.canonical.BrainFlags
+import io.github.aedev.flow.sync.canonical.BrainLwwMaps
+import io.github.aedev.flow.sync.canonical.BrainPerVideo
+import io.github.aedev.flow.sync.canonical.BrainSets
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalBrainVectors
-import io.github.aedev.flow.sync.canonical.CanonicalFeedEntry
-import io.github.aedev.flow.sync.canonical.CanonicalRejectionSignal
-import io.github.aedev.flow.sync.canonical.CanonicalTopicEvidence
 import io.github.aedev.flow.sync.canonical.CanonicalVector
+import io.github.aedev.flow.sync.canonical.Lww
 
 /**
  * Brain merge. Every field is a join-semilattice op so the merge is commutative,
@@ -14,70 +17,87 @@ import io.github.aedev.flow.sync.canonical.CanonicalVector
  *   — the per-device breakdown is maintained by the sidecar so repeat syncs never double-count.
  * - learned vectors / affinity maps: **per-key max** (preserves the stronger signal from either
  *   device — a 5-video device can never erase a 1000-video one).
- * - timestamp maps: max (suppression/seen/feed) or min (first-seen).
- * - blocklists / preferred topics: **OR-Set union**.
+ * - `perVideo` progress: **max-register** per key.
+ * - `lwwMaps` (suppressions, rejection patterns, topic evidence, feed history, channel strikes):
+ *   **LWW register** per key, higher HLC wins. Keys present on only one side always survive.
+ * - blocklists / preferred topics: **OR-Set** union of add and remove stamps, so an explicit
+ *   unblock propagates instead of being resurrected by the other device's stale add.
  * - onboarding flag: OR.
+ *
+ * The field grouping and per-field semantics mirror the desktop's `merge.rs` exactly; both sides
+ * must converge on the *same* numbers, not merely converge.
  */
 object BrainMerger {
+    fun merge(
+        local: CanonicalBrain,
+        remote: CanonicalBrain,
+    ): CanonicalBrain =
+        CanonicalBrain(
+            schema = maxOf(local.schema, remote.schema),
+            deviceId = local.deviceId,
+            hlc = Crdt.maxHlc(local.hlc, remote.hlc),
+            vectors = mergeVectors(local.vectors, remote.vectors),
+            counters =
+                BrainCounters(
+                    idfTotalDocuments = local.counters.idfTotalDocuments.merge(remote.counters.idfTotalDocuments),
+                    totalInteractions = local.counters.totalInteractions.merge(remote.counters.totalInteractions),
+                ),
+            idfWordFrequency = Crdt.mergeKeyed(local.idfWordFrequency, remote.idfWordFrequency) { a, b -> a.merge(b) },
+            perVideo =
+                BrainPerVideo(
+                    watchHistoryMap = Crdt.mergeMaxFloat(local.perVideo.watchHistoryMap, remote.perVideo.watchHistoryMap),
+                    watchSignalProgress =
+                        Crdt.mergeMaxFloat(
+                            local.perVideo.watchSignalProgress,
+                            remote.perVideo.watchSignalProgress,
+                        ),
+                ),
+            sets =
+                BrainSets(
+                    blockedTopics = local.sets.blockedTopics.merge(remote.sets.blockedTopics),
+                    blockedChannels = local.sets.blockedChannels.merge(remote.sets.blockedChannels),
+                    preferredTopics = local.sets.preferredTopics.merge(remote.sets.preferredTopics),
+                ),
+            lwwMaps =
+                BrainLwwMaps(
+                    suppressedVideoIds = mergeLww(local.lwwMaps.suppressedVideoIds, remote.lwwMaps.suppressedVideoIds),
+                    suppressedChannels = mergeLww(local.lwwMaps.suppressedChannels, remote.lwwMaps.suppressedChannels),
+                    rejectionPatterns = mergeLww(local.lwwMaps.rejectionPatterns, remote.lwwMaps.rejectionPatterns),
+                    topicEvidence = mergeLww(local.lwwMaps.topicEvidence, remote.lwwMaps.topicEvidence),
+                    feedHistory = mergeLww(local.lwwMaps.feedHistory, remote.lwwMaps.feedHistory),
+                    channelStrikes = mergeLww(local.lwwMaps.channelStrikes, remote.lwwMaps.channelStrikes),
+                ),
+            flags =
+                BrainFlags(
+                    hasCompletedOnboarding = local.flags.hasCompletedOnboarding || remote.flags.hasCompletedOnboarding,
+                ),
+        )
 
-    fun merge(local: CanonicalBrain, remote: CanonicalBrain): CanonicalBrain = CanonicalBrain(
-        schema = maxOf(local.schema, remote.schema),
-        deviceId = local.deviceId,
-        hlc = Crdt.maxHlc(local.hlc, remote.hlc),
-        vectors = mergeVectors(local.vectors, remote.vectors),
-        idfTotalDocuments = local.idfTotalDocuments.merge(remote.idfTotalDocuments),
-        totalInteractions = local.totalInteractions.merge(remote.totalInteractions),
-        idfWordFrequency = Crdt.mergeKeyed(local.idfWordFrequency, remote.idfWordFrequency) { a, b -> a.merge(b) },
-        watchHistoryMap = Crdt.mergeMaxFloat(local.watchHistoryMap, remote.watchHistoryMap),
-        seenShortsHistory = Crdt.mergeMaxLong(local.seenShortsHistory, remote.seenShortsHistory),
-        suppressedVideoIds = Crdt.mergeMaxLong(local.suppressedVideoIds, remote.suppressedVideoIds),
-        suppressedChannels = Crdt.mergeMaxLong(local.suppressedChannels, remote.suppressedChannels),
-        rejectionPatterns = Crdt.mergeKeyed(local.rejectionPatterns, remote.rejectionPatterns) { a, b ->
-            CanonicalRejectionSignal(maxOf(a.count, b.count), maxOf(a.lastRejectedAt, b.lastRejectedAt))
-        },
-        feedHistory = Crdt.mergeKeyed(local.feedHistory, remote.feedHistory) { a, b ->
-            CanonicalFeedEntry(maxOf(a.lastShown, b.lastShown), maxOf(a.showCount, b.showCount))
-        },
-        topicEvidence = Crdt.mergeKeyed(local.topicEvidence, remote.topicEvidence) { a, b -> mergeEvidence(a, b) },
-        blockedTopics = Crdt.orSetUnion(local.blockedTopics, remote.blockedTopics),
-        blockedChannels = Crdt.orSetUnion(local.blockedChannels, remote.blockedChannels),
-        preferredTopics = Crdt.orSetUnion(local.preferredTopics, remote.preferredTopics),
-        hasCompletedOnboarding = local.hasCompletedOnboarding || remote.hasCompletedOnboarding,
-    )
+    private fun <T> mergeLww(
+        a: Map<String, Lww<T>>,
+        b: Map<String, Lww<T>>,
+    ): Map<String, Lww<T>> = Crdt.mergeKeyed(a, b) { x, y -> x.merge(y) }
 
-    private fun mergeVectors(a: CanonicalBrainVectors, b: CanonicalBrainVectors) = CanonicalBrainVectors(
+    private fun mergeVectors(
+        a: CanonicalBrainVectors,
+        b: CanonicalBrainVectors,
+    ) = CanonicalBrainVectors(
         globalVector = mergeVector(a.globalVector, b.globalVector),
         timeVectors = Crdt.mergeKeyed(a.timeVectors, b.timeVectors) { x, y -> mergeVector(x, y) },
         shortsVector = mergeVector(a.shortsVector, b.shortsVector),
         topicAffinities = Crdt.mergeMaxDouble(a.topicAffinities, b.topicAffinities),
         channelScores = Crdt.mergeMaxDouble(a.channelScores, b.channelScores),
-        channelTopicProfiles = Crdt.mergeKeyed(a.channelTopicProfiles, b.channelTopicProfiles) { x, y ->
-            Crdt.mergeMaxDouble(x, y)
-        },
+        channelTopicProfiles =
+            Crdt.mergeKeyed(a.channelTopicProfiles, b.channelTopicProfiles) { x, y ->
+                Crdt.mergeMaxDouble(x, y)
+            },
     )
 
-    private fun mergeVector(a: CanonicalVector, b: CanonicalVector) = CanonicalVector(
+    private fun mergeVector(
+        a: CanonicalVector,
+        b: CanonicalVector,
+    ) = CanonicalVector(
         topics = Crdt.mergeMaxDouble(a.topics, b.topics),
-        duration = maxOf(a.duration, b.duration),
-        pacing = maxOf(a.pacing, b.pacing),
-        complexity = maxOf(a.complexity, b.complexity),
-        isLive = maxOf(a.isLive, b.isLive),
+        dims = Crdt.mergeMaxDouble(a.dims, b.dims),
     )
-
-    private fun mergeEvidence(a: CanonicalTopicEvidence, b: CanonicalTopicEvidence) = CanonicalTopicEvidence(
-        positiveSignals = maxOf(a.positiveSignals, b.positiveSignals),
-        watchSignals = maxOf(a.watchSignals, b.watchSignals),
-        explicitSignals = maxOf(a.explicitSignals, b.explicitSignals),
-        positiveScore = maxOf(a.positiveScore, b.positiveScore),
-        videoIds = Crdt.orSetUnion(a.videoIds, b.videoIds),
-        channelIds = Crdt.orSetUnion(a.channelIds, b.channelIds),
-        firstSeenAt = minNonZero(a.firstSeenAt, b.firstSeenAt),
-        lastSeenAt = maxOf(a.lastSeenAt, b.lastSeenAt),
-    )
-
-    private fun minNonZero(a: Long, b: Long) = when {
-        a == 0L -> b
-        b == 0L -> a
-        else -> minOf(a, b)
-    }
 }

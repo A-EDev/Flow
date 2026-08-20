@@ -16,7 +16,6 @@ data class Hlc(
     val counter: Int,
     val node: String,
 ) : Comparable<Hlc> {
-
     override fun compareTo(other: Hlc): Int {
         if (physicalMs != other.physicalMs) return physicalMs.compareTo(other.physicalMs)
         if (counter != other.counter) return counter.compareTo(other.counter)
@@ -48,8 +47,29 @@ data class Hlc(
         }
 
         /** Derive the 8-char HLC node id from a device UUID. */
-        fun nodeFromDeviceId(deviceId: String): String =
-            deviceId.lowercase().replace("-", "").take(8)
+        fun nodeFromDeviceId(deviceId: String): String = deviceId.lowercase().replace("-", "").take(8)
+
+        /** Total order over two encoded stamps; malformed input degrades to [ZERO]. */
+        fun compareEncoded(
+            a: String,
+            b: String,
+        ): Int = decode(a).compareTo(decode(b))
+
+        /**
+         * The later of two encoded stamps. On an exact tie the lexicographically larger string is
+         * returned so the choice is independent of argument order (keeps merges commutative).
+         */
+        fun maxEncoded(
+            a: String,
+            b: String,
+        ): String {
+            val c = compareEncoded(a, b)
+            return when {
+                c > 0 -> a
+                c < 0 -> b
+                else -> if (a >= b) a else b
+            }
+        }
     }
 }
 
@@ -71,31 +91,44 @@ class HlcClock(
     private val lock = Any()
 
     /** Stamp a local event. Monotonic: never returns a value ≤ a previously returned one. */
-    fun now(): Hlc = synchronized(lock) {
-        val pt = physicalNow()
-        val prevPhysical = lastPhysical
-        lastPhysical = maxOf(prevPhysical, pt)
-        lastCounter = if (lastPhysical == prevPhysical) lastCounter + 1 else 0
-        Hlc(lastPhysical, lastCounter, node)
-    }
+    fun now(): Hlc =
+        synchronized(lock) {
+            val pt = physicalNow()
+            val prevPhysical = lastPhysical
+            lastPhysical = maxOf(prevPhysical, pt)
+            lastCounter = if (lastPhysical == prevPhysical) lastCounter + 1 else 0
+            Hlc(lastPhysical, lastCounter, node)
+        }
 
     /** Fold in a peer's observed clock, then stamp the receive event. */
-    fun update(remote: Hlc): Hlc = synchronized(lock) {
-        val pt = physicalNow()
-        val prevPhysical = lastPhysical
-        val prevCounter = lastCounter
-        val newPhysical = maxOf(prevPhysical, remote.physicalMs, pt)
-        val newCounter = when {
-            newPhysical == prevPhysical && newPhysical == remote.physicalMs ->
-                maxOf(prevCounter, remote.counter) + 1
-            newPhysical == prevPhysical -> prevCounter + 1
-            newPhysical == remote.physicalMs -> remote.counter + 1
-            else -> 0
+    fun update(remote: Hlc): Hlc =
+        synchronized(lock) {
+            val pt = physicalNow()
+            val prevPhysical = lastPhysical
+            val prevCounter = lastCounter
+            val newPhysical = maxOf(prevPhysical, remote.physicalMs, pt)
+            val newCounter =
+                when {
+                    newPhysical == prevPhysical && newPhysical == remote.physicalMs -> {
+                        maxOf(prevCounter, remote.counter) + 1
+                    }
+
+                    newPhysical == prevPhysical -> {
+                        prevCounter + 1
+                    }
+
+                    newPhysical == remote.physicalMs -> {
+                        remote.counter + 1
+                    }
+
+                    else -> {
+                        0
+                    }
+                }
+            lastPhysical = newPhysical
+            lastCounter = newCounter
+            Hlc(newPhysical, newCounter, node)
         }
-        lastPhysical = newPhysical
-        lastCounter = newCounter
-        Hlc(newPhysical, newCounter, node)
-    }
 
     /** Seed the clock from a previously persisted high-water mark (e.g. on startup). */
     fun observe(remote: Hlc) {

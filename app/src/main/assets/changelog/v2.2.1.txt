@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.2.1
-DATE: 2026-07-23
+DATE: 2026-08-20
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -34,6 +34,8 @@ IMPROVEMENTS
 - Shrink the reel when the comments or settings sheet opens instead of hiding it behind them
 - Close the Shorts comments by tapping above them instead of pausing the video #891
 - Apply your preferred video codec to live streams #727
+- Show which address this device is advertising on the sync QR screen, so a failed connection is easier to place
+- Rebuild the device sync screens on Material 3, with clearer send and receive options, a line explaining everything you can sync, and an easier-to-read pairing code
 
 PERFORMANCE
 - Faster cold start and smoother scrolling
@@ -89,6 +91,13 @@ FIXES AND STABILITY
 - Fix Shorts showing in the subscription feed while Shorts were turned off #903
 - Fix Shorts appearing among the videos in your home feed
 - Fix the comments sheet sticking to the bottom of the screen in vertical fullscreen
+- Fix device sync failing whenever one of the selected collections was empty on this device
+- Fix your recommendation brain barely transferring during device sync, and never arriving from the desktop app at all
+- Fix unblocking a topic or channel never reaching your other device, which kept re-blocking it on the next sync
+- Fix sync sending your desktop the tunnel address instead of your Wi-Fi one when a VPN was connected
+- Keep every device's learned interests when syncing with a device that has synced with a third one
+- Fix Back abandoning the whole sync screen instead of returning to the previous step
+- Fix the empty band above the title on the sync screen
 
 DEPENDENCY
 - Bump NewPipeExtractor to v0.26.5
