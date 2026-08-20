@@ -708,6 +708,9 @@ fun GlobalPlayerOverlay(
             with(density) {
                 val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
                 when {
+                    // Fullscreen leaves nothing below the player, so a sheet sized to "whatever is
+                    // left under it" collapses to a sliver pinned at the bottom of the screen. Over
+                    // a fullscreen player the sheet floats on the video and takes a fixed share.
                     screenState.isFullscreen -> (fullScreenHeight * FULLSCREEN_MEDIA_SHEET_FRACTION).toDp()
 
                     expandedPlayerBottom > 0.dp && availablePx > 0f -> availablePx.toDp()
