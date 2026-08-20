@@ -4,6 +4,7 @@ import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalLike
 import io.github.aedev.flow.sync.canonical.CanonicalPlaylist
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
+import io.github.aedev.flow.sync.canonical.CanonicalSubscribedChannel
 import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
 import io.github.aedev.flow.sync.merge.BrainMerger
@@ -33,17 +34,17 @@ data class CollectionWire(
  * re-keyed through a [JsonElement] before it goes on the wire.
  */
 object SyncSerialization {
-
     // encodeDefaults: stable canonical output (all fields present). ignoreUnknownKeys/isLenient/
     // coerceInputValues are DECODE-only (no effect on encoded bytes or the hash) and make us
     // tolerant of the desktop's JSON: unknown fields, lenient literals, and null/garbage in a
     // non-null field falling back to the schema default instead of throwing.
-    private val json = Json {
-        encodeDefaults = true
-        ignoreUnknownKeys = true
-        isLenient = true
-        coerceInputValues = true
-    }
+    private val json =
+        Json {
+            encodeDefaults = true
+            ignoreUnknownKeys = true
+            isLenient = true
+            coerceInputValues = true
+        }
 
     fun sha256Hex(s: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8))
@@ -57,52 +58,69 @@ object SyncSerialization {
     }
 
     /** Recursively re-key every JSON object in ascending key order. */
-    private fun canonicalize(e: JsonElement): JsonElement = when (e) {
-        is JsonObject -> JsonObject(
-            e.entries.sortedBy { it.key }.associateTo(LinkedHashMap()) { it.key to canonicalize(it.value) },
-        )
-        is JsonArray -> JsonArray(e.map { canonicalize(it) })
-        else -> e
-    }
+    private fun canonicalize(e: JsonElement): JsonElement =
+        when (e) {
+            is JsonObject -> {
+                JsonObject(
+                    e.entries.sortedBy { it.key }.associateTo(LinkedHashMap()) { it.key to canonicalize(it.value) },
+                )
+            }
+
+            is JsonArray -> {
+                JsonArray(e.map { canonicalize(it) })
+            }
+
+            else -> {
+                e
+            }
+        }
 
     /** Encode one record as compact, sorted-key canonical JSON. */
-    private fun <T> enc(serializer: KSerializer<T>, value: T): String =
-        json.encodeToString(JsonElement.serializer(), canonicalize(json.encodeToJsonElement(serializer, value)))
+    private fun <T> enc(
+        serializer: KSerializer<T>,
+        value: T,
+    ): String = json.encodeToString(JsonElement.serializer(), canonicalize(json.encodeToJsonElement(serializer, value)))
 
-    private fun <T> wire(records: List<T>, serializer: KSerializer<T>): CollectionWire {
+    private fun <T> wire(
+        records: List<T>,
+        serializer: KSerializer<T>,
+    ): CollectionWire {
         val lines = records.map { enc(serializer, it) }
         return CollectionWire(lines, lines.size, sha256Hex(lines.joinToString("\n")))
     }
 
     // --- watch history ---
-    fun encodeWatchHistory(records: List<CanonicalWatchHistory>) =
-        wire(records.sortedBy { it.videoId }, CanonicalWatchHistory.serializer())
+    fun encodeWatchHistory(records: List<CanonicalWatchHistory>) = wire(records.sortedBy { it.videoId }, CanonicalWatchHistory.serializer())
 
     fun decodeWatchHistory(lines: List<String>): List<CanonicalWatchHistory> =
         lines.filter { it.isNotBlank() }.map { json.decodeFromString(CanonicalWatchHistory.serializer(), it) }
 
     // --- playlists ---
-    fun encodePlaylists(records: List<CanonicalPlaylist>) =
-        wire(records.sortedBy { it.syncId }, CanonicalPlaylist.serializer())
+    fun encodePlaylists(records: List<CanonicalPlaylist>) = wire(records.sortedBy { it.syncId }, CanonicalPlaylist.serializer())
 
     fun decodePlaylists(lines: List<String>): List<CanonicalPlaylist> =
         lines.filter { it.isNotBlank() }.map { json.decodeFromString(CanonicalPlaylist.serializer(), it) }
 
     // --- likes ---
-    fun encodeLikes(records: List<CanonicalLike>) =
-        wire(records.sortedWith(compareBy({ it.kind }, { it.id })), CanonicalLike.serializer())
+    fun encodeLikes(records: List<CanonicalLike>) = wire(records.sortedWith(compareBy({ it.kind }, { it.id })), CanonicalLike.serializer())
 
     fun decodeLikes(lines: List<String>): List<CanonicalLike> =
         lines.filter { it.isNotBlank() }.map { json.decodeFromString(CanonicalLike.serializer(), it) }
 
     // --- settings ---
-    fun encodeSettings(records: List<CanonicalSetting>) =
-        wire(records.sortedBy { it.key }, CanonicalSetting.serializer())
+    fun encodeSettings(records: List<CanonicalSetting>) = wire(records.sortedBy { it.key }, CanonicalSetting.serializer())
 
     fun decodeSettings(lines: List<String>): List<CanonicalSetting> =
         lines.filter { it.isNotBlank() }.map { json.decodeFromString(CanonicalSetting.serializer(), it) }
 
-    // --- subscriptions ---
+    // --- subscribed channels ---
+    fun encodeSubscribedChannels(records: List<CanonicalSubscribedChannel>) =
+        wire(records.sortedBy { it.channelId }, CanonicalSubscribedChannel.serializer())
+
+    fun decodeSubscribedChannels(lines: List<String>): List<CanonicalSubscribedChannel> =
+        lines.filter { it.isNotBlank() }.map { json.decodeFromString(CanonicalSubscribedChannel.serializer(), it) }
+
+    // --- subscription groups ---
     fun encodeSubscriptions(records: List<CanonicalSubscriptionGroup>) =
         wire(records.sortedBy { it.name }, CanonicalSubscriptionGroup.serializer())
 
@@ -121,7 +139,8 @@ object SyncSerialization {
      * only the first silently discarded every other device's learned vectors.
      */
     fun decodeBrain(lines: List<String>): CanonicalBrain? =
-        lines.filter { it.isNotBlank() }
+        lines
+            .filter { it.isNotBlank() }
             .map { json.decodeFromString(CanonicalBrain.serializer(), it) }
             .reduceOrNull(BrainMerger::merge)
 }

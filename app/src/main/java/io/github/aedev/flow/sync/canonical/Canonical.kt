@@ -72,6 +72,7 @@ data class CanonicalPlaylist(
     companion object {
         const val ORIGIN_LOCAL = "local"
         const val ORIGIN_YOUTUBE = "youtube"
+
         /** Reserved id for the cross-platform Watch Later playlist */
         const val RESERVED_WATCH_LATER = "reserved:watch-later"
     }
@@ -123,6 +124,25 @@ data class CanonicalSubscriptionGroup(
     val deleted: Boolean = false,
 )
 
+/**
+ * One channel the user follows. Unsubscribing is a **tombstone** (`deleted=true`) carrying the
+ * moment it happened, not an omission — otherwise the peer's copy simply re-subscribes the channel
+ * on the next merge.
+ *
+ * Per-device concerns (notification opt-in, feed-fetch bookkeeping) are deliberately not on the
+ * wire: whether a channel should buzz *this* phone is not a property of the subscription.
+ */
+@Serializable
+data class CanonicalSubscribedChannel(
+    val channelId: String,
+    val name: String = "",
+    val avatarUrl: String = "",
+    val subscribedAtMs: Long = 0,
+    val isMusic: Boolean = false,
+    val hlc: String = "",
+    val deleted: Boolean = false,
+)
+
 // --- Brain CRDT primitives (wire forms must match the desktop's `canonical.rs` byte for byte) ---
 
 /**
@@ -152,7 +172,12 @@ data class GCounter(
 object GCounterSerializer : KSerializer<GCounter> {
     private val delegate = MapSerializer(String.serializer(), Long.serializer())
     override val descriptor: SerialDescriptor = SerialDescriptor("GCounter", delegate.descriptor)
-    override fun serialize(encoder: Encoder, value: GCounter) = delegate.serialize(encoder, value.perDevice)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: GCounter,
+    ) = delegate.serialize(encoder, value.perDevice)
+
     override fun deserialize(decoder: Decoder): GCounter = GCounter(delegate.deserialize(decoder))
 }
 
@@ -176,11 +201,15 @@ data class OrSet(
 
     fun members(): Set<String> = adds.keys.filterTo(LinkedHashSet()) { contains(it) }
 
-    fun add(member: String, hlc: String): OrSet =
-        copy(adds = adds + (member to Hlc.maxEncoded(adds[member].orEmpty(), hlc)))
+    fun add(
+        member: String,
+        hlc: String,
+    ): OrSet = copy(adds = adds + (member to Hlc.maxEncoded(adds[member].orEmpty(), hlc)))
 
-    fun remove(member: String, hlc: String): OrSet =
-        copy(removes = removes + (member to Hlc.maxEncoded(removes[member].orEmpty(), hlc)))
+    fun remove(
+        member: String,
+        hlc: String,
+    ): OrSet = copy(removes = removes + (member to Hlc.maxEncoded(removes[member].orEmpty(), hlc)))
 
     fun merge(other: OrSet): OrSet {
         if (other.adds.isEmpty() && other.removes.isEmpty()) return this
@@ -188,7 +217,10 @@ data class OrSet(
         return OrSet(mergeStamps(adds, other.adds), mergeStamps(removes, other.removes))
     }
 
-    private fun mergeStamps(a: Map<String, String>, b: Map<String, String>): Map<String, String> {
+    private fun mergeStamps(
+        a: Map<String, String>,
+        b: Map<String, String>,
+    ): Map<String, String> {
         if (b.isEmpty()) return a
         if (a.isEmpty()) return b
         val out = HashMap(a)
@@ -237,12 +269,13 @@ data class CanonicalVector(
             isLive: Double,
         ) = CanonicalVector(
             topics = topics,
-            dims = mapOf(
-                DIM_DURATION to duration,
-                DIM_PACING to pacing,
-                DIM_COMPLEXITY to complexity,
-                DIM_IS_LIVE to isLive,
-            ),
+            dims =
+                mapOf(
+                    DIM_DURATION to duration,
+                    DIM_PACING to pacing,
+                    DIM_COMPLEXITY to complexity,
+                    DIM_IS_LIVE to isLive,
+                ),
         )
     }
 }

@@ -13,7 +13,6 @@ import org.junit.Test
  * `codec: chunk frame missing header newline`.
  */
 class ChunkFramingTest {
-
     private val header = ChunkHeader("likes", 0, true)
     private val headerJson = """{"collection":"likes","seq":0,"last":true}"""
 

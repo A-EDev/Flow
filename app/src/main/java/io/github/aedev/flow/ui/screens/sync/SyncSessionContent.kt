@@ -49,7 +49,10 @@ import kotlinx.coroutines.delay
 /** The steps that run once a session is live: pairing code, verification, merge consent, outcome. */
 
 @Composable
-internal fun SyncQrContent(s: SyncState.ShowingQr, onCancel: () -> Unit) {
+internal fun SyncQrContent(
+    s: SyncState.ShowingQr,
+    onCancel: () -> Unit,
+) {
     var remaining by remember { mutableLongStateOf(QrCodec.DEFAULT_TTL_SECONDS) }
     LaunchedEffect(s.expiresAtEpochSeconds) {
         while (true) {
@@ -59,11 +62,12 @@ internal fun SyncQrContent(s: SyncState.ShowingQr, onCancel: () -> Unit) {
     }
 
     Text(
-        text = if (s.sending) {
-            stringResource(R.string.sync_qr_scan_on_target_sending)
-        } else {
-            stringResource(R.string.sync_qr_scan_on_target_receiving)
-        },
+        text =
+            if (s.sending) {
+                stringResource(R.string.sync_qr_scan_on_target_sending)
+            } else {
+                stringResource(R.string.sync_qr_scan_on_target_receiving)
+            },
         style = MaterialTheme.typography.titleLarge,
         textAlign = TextAlign.Center,
     )
@@ -74,11 +78,12 @@ internal fun SyncQrContent(s: SyncState.ShowingQr, onCancel: () -> Unit) {
     SyncCard {
         QrCodeImage(
             text = s.qrText,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .clip(MaterialTheme.shapes.medium)
-                .aspectRatio(1f),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .clip(MaterialTheme.shapes.medium)
+                    .aspectRatio(1f),
         )
     }
 
@@ -133,29 +138,35 @@ internal fun SyncQrContent(s: SyncState.ShowingQr, onCancel: () -> Unit) {
 
 /** The 6-digit short authentication string, spaced so two people can read it aloud reliably. */
 @Composable
-private fun SasReadout(sas: String, emphasized: Boolean = false) {
+private fun SasReadout(
+    sas: String,
+    emphasized: Boolean = false,
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = if (emphasized) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHighest
-        },
-        contentColor = if (emphasized) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
+        color =
+            if (emphasized) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            },
+        contentColor =
+            if (emphasized) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
         shape = MaterialTheme.shapes.large,
     ) {
         Text(
             text = sas,
             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-            style = if (emphasized) {
-                MaterialTheme.typography.displaySmall
-            } else {
-                MaterialTheme.typography.headlineMedium
-            },
+            style =
+                if (emphasized) {
+                    MaterialTheme.typography.displaySmall
+                } else {
+                    MaterialTheme.typography.headlineMedium
+                },
             fontFamily = FontFamily.Monospace,
             letterSpacing = 8.sp,
             textAlign = TextAlign.Center,
@@ -164,7 +175,10 @@ private fun SasReadout(sas: String, emphasized: Boolean = false) {
 }
 
 @Composable
-internal fun SyncSasContent(sas: String, onConfirm: (Boolean) -> Unit) {
+internal fun SyncSasContent(
+    sas: String,
+    onConfirm: (Boolean) -> Unit,
+) {
     SyncStepHeader(
         icon = Icons.Outlined.Password,
         title = stringResource(R.string.sync_sas_title),
@@ -180,7 +194,10 @@ internal fun SyncSasContent(sas: String, onConfirm: (Boolean) -> Unit) {
 }
 
 @Composable
-internal fun SyncConsentContent(collections: List<String>, onDecision: (Boolean) -> Unit) {
+internal fun SyncConsentContent(
+    collections: List<String>,
+    onDecision: (Boolean) -> Unit,
+) {
     SyncStepHeader(
         icon = Icons.Outlined.MergeType,
         title = stringResource(R.string.sync_consent_title),
@@ -234,7 +251,10 @@ internal fun SyncTransferContent(s: SyncState.Transferring) {
 }
 
 @Composable
-internal fun SyncDoneContent(s: SyncState.Done, onDone: () -> Unit) {
+internal fun SyncDoneContent(
+    s: SyncState.Done,
+    onDone: () -> Unit,
+) {
     SyncStepHeader(
         icon = Icons.Outlined.CheckCircle,
         title = stringResource(R.string.sync_complete),
@@ -264,7 +284,10 @@ private fun statsSummary(stats: ApplyStats): String =
     stringResource(R.string.sync_done_stats_summary, stats.added, stats.updated, stats.skipped)
 
 @Composable
-internal fun SyncFailedContent(message: String, onRetry: () -> Unit) {
+internal fun SyncFailedContent(
+    message: String,
+    onRetry: () -> Unit,
+) {
     SyncStepHeader(
         icon = Icons.Outlined.ErrorOutline,
         title = stringResource(R.string.sync_failed_title),

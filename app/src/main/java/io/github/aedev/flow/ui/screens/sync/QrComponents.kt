@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
-import io.github.aedev.flow.R
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.zxing.BarcodeFormat
@@ -28,43 +27,58 @@ import com.google.zxing.NotFoundException
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeWriter
+import io.github.aedev.flow.R
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Renders [text] as a QR code (ZXing, FOSS). */
 @Composable
-fun QrCodeImage(text: String, modifier: Modifier = Modifier) {
+fun QrCodeImage(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     val bitmap = remember(text) { generateQrBitmap(text, 640) }
     if (bitmap != null) {
-        Image(bitmap = bitmap.asImageBitmap(), contentDescription = stringResource(R.string.sync_qr_content_description), modifier = modifier)
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = stringResource(R.string.sync_qr_content_description),
+            modifier = modifier,
+        )
     }
 }
 
-private fun generateQrBitmap(text: String, size: Int): Bitmap? = try {
-    // The spec's minimum quiet zone is 4 modules; the code is shown on a dark container in dark
-    // theme, so anything less leaves scanners hunting for the finder patterns.
-    val hints = mapOf(EncodeHintType.MARGIN to 4)
-    val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size, hints)
-    val pixels = IntArray(size * size)
-    for (y in 0 until size) {
-        val offset = y * size
-        for (x in 0 until size) {
-            pixels[offset + x] = if (matrix.get(x, y)) Color.BLACK else Color.WHITE
+private fun generateQrBitmap(
+    text: String,
+    size: Int,
+): Bitmap? =
+    try {
+        // The spec's minimum quiet zone is 4 modules; the code is shown on a dark container in dark
+        // theme, so anything less leaves scanners hunting for the finder patterns.
+        val hints = mapOf(EncodeHintType.MARGIN to 4)
+        val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size, hints)
+        val pixels = IntArray(size * size)
+        for (y in 0 until size) {
+            val offset = y * size
+            for (x in 0 until size) {
+                pixels[offset + x] = if (matrix.get(x, y)) Color.BLACK else Color.WHITE
+            }
         }
+        Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
+            setPixels(pixels, 0, size, 0, 0, size, size)
+        }
+    } catch (e: Exception) {
+        null
     }
-    Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
-        setPixels(pixels, 0, size, 0, 0, size, size)
-    }
-} catch (e: Exception) {
-    null
-}
 
 /**
  * CameraX preview that decodes a QR code from the live frames with ZXing (FOSS — no ML Kit) and
  * invokes [onQrScanned] once. The caller must already hold the CAMERA permission.
  */
 @Composable
-fun QrScannerView(onQrScanned: (String) -> Unit, modifier: Modifier = Modifier) {
+fun QrScannerView(
+    onQrScanned: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scanned = remember { AtomicBoolean(false) }
     val executor = remember { Executors.newSingleThreadExecutor() }
@@ -76,15 +90,21 @@ fun QrScannerView(onQrScanned: (String) -> Unit, modifier: Modifier = Modifier) 
             val providerFuture = ProcessCameraProvider.getInstance(ctx)
             providerFuture.addListener({
                 val provider = providerFuture.get()
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
-                val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                analysis.setAnalyzer(executor, QrAnalyzer { result ->
-                    if (scanned.compareAndSet(false, true)) onQrScanned(result)
-                })
+                val preview =
+                    Preview.Builder().build().also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
+                val analysis =
+                    ImageAnalysis
+                        .Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build()
+                analysis.setAnalyzer(
+                    executor,
+                    QrAnalyzer { result ->
+                        if (scanned.compareAndSet(false, true)) onQrScanned(result)
+                    },
+                )
                 runCatching {
                     provider.unbindAll()
                     provider.bindToLifecycle(
@@ -101,10 +121,13 @@ fun QrScannerView(onQrScanned: (String) -> Unit, modifier: Modifier = Modifier) 
 }
 
 /** Decodes the luminance plane of each frame with ZXing; ignores frames without a QR. */
-private class QrAnalyzer(private val onResult: (String) -> Unit) : ImageAnalysis.Analyzer {
-    private val reader = MultiFormatReader().apply {
-        setHints(mapOf(DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE)))
-    }
+private class QrAnalyzer(
+    private val onResult: (String) -> Unit,
+) : ImageAnalysis.Analyzer {
+    private val reader =
+        MultiFormatReader().apply {
+            setHints(mapOf(DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE)))
+        }
 
     override fun analyze(image: ImageProxy) {
         try {
@@ -113,9 +136,17 @@ private class QrAnalyzer(private val onResult: (String) -> Unit) : ImageAnalysis
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
             val rowStride = plane.rowStride
-            val source = PlanarYUVLuminanceSource(
-                data, rowStride, image.height, 0, 0, image.width, image.height, false,
-            )
+            val source =
+                PlanarYUVLuminanceSource(
+                    data,
+                    rowStride,
+                    image.height,
+                    0,
+                    0,
+                    image.width,
+                    image.height,
+                    false,
+                )
             val result = reader.decodeWithState(BinaryBitmap(HybridBinarizer(source)))
             onResult(result.text)
         } catch (e: NotFoundException) {

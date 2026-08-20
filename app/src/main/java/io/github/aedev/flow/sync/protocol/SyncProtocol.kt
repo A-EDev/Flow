@@ -9,7 +9,9 @@ import javax.crypto.AEADBadTagException
 enum class SyncRole { SENDER, RECEIVER }
 
 /** Summary shown to the receiver before it consents to merge. */
-data class TransferSummary(val collections: List<String>)
+data class TransferSummary(
+    val collections: List<String>,
+)
 
 /** Final outcome of a session: per-collection merge stats + the peer that was synced with. */
 data class SyncResult(
@@ -26,10 +28,17 @@ interface ProtocolCallbacks {
     /** Receiver-only: "peer wants to send X — merge?" Return true to accept. */
     suspend fun confirmConsent(summary: TransferSummary): Boolean
 
-    fun onProgress(collection: String, done: Int, total: Int) {}
+    fun onProgress(
+        collection: String,
+        done: Int,
+        total: Int,
+    ) {}
 }
 
-class SyncProtocolException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class SyncProtocolException(
+    message: String,
+    cause: Throwable? = null,
+) : Exception(message, cause)
 
 /**
  * Drives one FLOW-SYNC/1 session over a [SyncConnection]. Strict lockstep with an
@@ -75,8 +84,8 @@ class SyncProtocol(
 
     // --- phases ---
 
-    private suspend fun handshake(): PeerInfo {
-        return if (isHost) {
+    private suspend fun handshake(): PeerInfo =
+        if (isHost) {
             val hello = decode(expect(FrameType.HELLO).plaintext, Hello.serializer())
             if (hello.protocol != 1) throw SyncProtocolException("unsupported peer protocol ${hello.protocol}")
             sendFrame(FrameType.HELLO_ACK, HelloAck.serializer(), localHello.toAck())
@@ -86,38 +95,44 @@ class SyncProtocol(
             val ack = decode(expect(FrameType.HELLO_ACK).plaintext, HelloAck.serializer())
             PeerInfo(ack.deviceId, ack.deviceName, ack.platform)
         }
-    }
 
-    private suspend fun exchangeCapabilities(): Capabilities = if (!isHost) {
-        sendFrame(FrameType.CAPABILITIES, Capabilities.serializer(), localCaps)
-        decode(expect(FrameType.CAPABILITIES).plaintext, Capabilities.serializer())
-    } else {
-        val peer = decode(expect(FrameType.CAPABILITIES).plaintext, Capabilities.serializer())
-        sendFrame(FrameType.CAPABILITIES, Capabilities.serializer(), localCaps)
-        peer
-    }
+    private suspend fun exchangeCapabilities(): Capabilities =
+        if (!isHost) {
+            sendFrame(FrameType.CAPABILITIES, Capabilities.serializer(), localCaps)
+            decode(expect(FrameType.CAPABILITIES).plaintext, Capabilities.serializer())
+        } else {
+            val peer = decode(expect(FrameType.CAPABILITIES).plaintext, Capabilities.serializer())
+            sendFrame(FrameType.CAPABILITIES, Capabilities.serializer(), localCaps)
+            peer
+        }
 
-    private suspend fun exchangeSelection(): Selection = if (!isHost) {
-        sendFrame(FrameType.SELECTION, Selection.serializer(), localSelection)
-        decode(expect(FrameType.SELECTION).plaintext, Selection.serializer())
-    } else {
-        val peer = decode(expect(FrameType.SELECTION).plaintext, Selection.serializer())
-        sendFrame(FrameType.SELECTION, Selection.serializer(), localSelection)
-        peer
-    }
+    private suspend fun exchangeSelection(): Selection =
+        if (!isHost) {
+            sendFrame(FrameType.SELECTION, Selection.serializer(), localSelection)
+            decode(expect(FrameType.SELECTION).plaintext, Selection.serializer())
+        } else {
+            val peer = decode(expect(FrameType.SELECTION).plaintext, Selection.serializer())
+            sendFrame(FrameType.SELECTION, Selection.serializer(), localSelection)
+            peer
+        }
 
     /**
      * Sender side of the canonical sequence (must mirror the desktop authority exactly):
      * `MANIFEST` (one aggregate frame) → `CONSENT` both ways → per-collection
      * `CHUNK*`/`CHUNK_ACK`/`COMPLETE` stream → one aggregate `APPLY_RESULT`.
      */
-    private suspend fun runSender(peer: PeerInfo, peerSelection: Selection, peerCaps: Capabilities): SyncResult {
+    private suspend fun runSender(
+        peer: PeerInfo,
+        peerSelection: Selection,
+        peerCaps: Capabilities,
+    ): SyncResult {
         val toSend = localSelection.send.filter { it in peerSelection.accept && canConsume(peerCaps, it) }
         val payload = buildPayload(toSend)
 
         // 1. Single aggregate MANIFEST describing everything we are about to stream.
         sendFrame(
-            FrameType.MANIFEST, Manifest.serializer(),
+            FrameType.MANIFEST,
+            Manifest.serializer(),
             Manifest(payload.mapValues { (_, w) -> ManifestEntry(w.recordCount, w.lines.sumOf { it.length.toLong() }, w.hash) }),
         )
 
@@ -193,20 +208,34 @@ class SyncProtocol(
 
     // --- framing helpers ---
 
-    private fun canConsume(caps: Capabilities, collection: String): Boolean =
-        caps.collections[collection]?.consume ?: false
+    private fun canConsume(
+        caps: Capabilities,
+        collection: String,
+    ): Boolean = caps.collections[collection]?.consume ?: false
 
-    private suspend fun <T> sendFrame(type: Byte, serializer: kotlinx.serialization.KSerializer<T>, value: T) {
+    private suspend fun <T> sendFrame(
+        type: Byte,
+        serializer: kotlinx.serialization.KSerializer<T>,
+        value: T,
+    ) {
         sendRaw(type, json.encodeToString(serializer, value).toByteArray(Charsets.UTF_8))
     }
 
-    private suspend fun sendRaw(type: Byte, plaintext: ByteArray) {
+    private suspend fun sendRaw(
+        type: Byte,
+        plaintext: ByteArray,
+    ) {
         val msg = SyncCodec.seal(keys.sealKey(isHost), sessionId, type, sendSeq, plaintext)
         sendSeq++
         conn.send(msg)
     }
 
-    private suspend fun sendChunk(collection: String, chunkSeq: Int, last: Boolean, lines: List<String>) {
+    private suspend fun sendChunk(
+        collection: String,
+        chunkSeq: Int,
+        last: Boolean,
+        lines: List<String>,
+    ) {
         sendRaw(FrameType.CHUNK, ChunkFraming.encode(ChunkHeader(collection, chunkSeq, last), lines))
     }
 
@@ -226,11 +255,12 @@ class SyncProtocol(
 
     private suspend fun recvFrame(): SyncCodec.Opened {
         val msg = conn.receive() ?: throw SyncProtocolException("connection closed by peer")
-        val opened = try {
-            SyncCodec.open(keys.openKey(isHost), sessionId, msg)
-        } catch (e: AEADBadTagException) {
-            throw SyncProtocolException("authentication failed (wrong key or tampered frame)", e)
-        }
+        val opened =
+            try {
+                SyncCodec.open(keys.openKey(isHost), sessionId, msg)
+            } catch (e: AEADBadTagException) {
+                throw SyncProtocolException("authentication failed (wrong key or tampered frame)", e)
+            }
         if (opened.seq != expectedRecvSeq) {
             throw SyncProtocolException("out-of-order frame: got ${opened.seq}, expected $expectedRecvSeq")
         }
@@ -238,12 +268,17 @@ class SyncProtocol(
         return opened
     }
 
-    private suspend fun sendError(code: String, message: String) {
+    private suspend fun sendError(
+        code: String,
+        message: String,
+    ) {
         runCatching { sendFrame(FrameType.ERROR, ErrorFrame.serializer(), ErrorFrame(code, message)) }
     }
 
-    private fun <T> decode(bytes: ByteArray, serializer: kotlinx.serialization.KSerializer<T>): T =
-        json.decodeFromString(serializer, String(bytes, Charsets.UTF_8))
+    private fun <T> decode(
+        bytes: ByteArray,
+        serializer: kotlinx.serialization.KSerializer<T>,
+    ): T = json.decodeFromString(serializer, String(bytes, Charsets.UTF_8))
 
     private fun Hello.toAck() = HelloAck(deviceId, deviceName, platform, appVersion, sasConfirmRequired = true)
 

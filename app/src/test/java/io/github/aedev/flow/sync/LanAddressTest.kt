@@ -10,9 +10,7 @@ import org.junit.Test
  * bug report with nothing in it. Ranking must match the desktop's `rank_lan_candidates`.
  */
 class LanAddressTest {
-
-    private fun best(vararg interfaces: Pair<String, String>) =
-        LanAddress.rank(interfaces.toList()).firstOrNull()?.ip
+    private fun best(vararg interfaces: Pair<String, String>) = LanAddress.rank(interfaces.toList()).firstOrNull()?.ip
 
     @Test
     fun private_ranges_are_preferred_in_order() {

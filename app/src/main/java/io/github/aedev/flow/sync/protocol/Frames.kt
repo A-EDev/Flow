@@ -46,7 +46,14 @@ object SyncCollection {
     const val SETTINGS = "settings"
     const val FLOW_NEURO_BRAIN = "flow_neuro_brain"
     const val MUSIC_BRAIN = "music_brain"
+
+    /** Subscription **groups** (the folders), not the channels themselves. */
     const val SUBSCRIPTIONS = "subscriptions"
+
+    /** The channels the user actually follows. Separate from [SUBSCRIPTIONS] on the wire because a
+     * group only references channel ids — it can neither create a subscription that is in no group
+     * nor express an unsubscribe. */
+    const val SUBSCRIBED_CHANNELS = "subscribed_channels"
 
     /** Collections Android can exchange in v1 (music_brain excluded — Android has no consumer). */
     val ANDROID_SYNCABLE =
@@ -56,6 +63,7 @@ object SyncCollection {
             LIKES,
             SETTINGS,
             FLOW_NEURO_BRAIN,
+            SUBSCRIBED_CHANNELS,
             SUBSCRIPTIONS,
         )
 }
@@ -137,10 +145,12 @@ data class ChunkHeader(
  * bare-header form keeps working.
  */
 object ChunkFraming {
-
     private const val SEPARATOR = '\n'
 
-    fun encode(header: ChunkHeader, lines: List<String>): ByteArray {
+    fun encode(
+        header: ChunkHeader,
+        lines: List<String>,
+    ): ByteArray {
         val headerJson = FrameJson.json.encodeToString(ChunkHeader.serializer(), header)
         val sb = StringBuilder(headerJson).append(SEPARATOR)
         lines.joinTo(sb, SEPARATOR.toString())
@@ -152,11 +162,12 @@ object ChunkFraming {
         val nl = text.indexOf(SEPARATOR)
         val headerJson = if (nl < 0) text else text.substring(0, nl)
         val header = FrameJson.json.decodeFromString(ChunkHeader.serializer(), headerJson)
-        val body = if (nl < 0) {
-            emptyList()
-        } else {
-            text.substring(nl + 1).split(SEPARATOR).filter { it.isNotEmpty() }
-        }
+        val body =
+            if (nl < 0) {
+                emptyList()
+            } else {
+                text.substring(nl + 1).split(SEPARATOR).filter { it.isNotEmpty() }
+            }
         return header to body
     }
 }

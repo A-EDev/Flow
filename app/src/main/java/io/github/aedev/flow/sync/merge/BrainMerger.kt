@@ -28,57 +28,75 @@ import io.github.aedev.flow.sync.canonical.Lww
  * must converge on the *same* numbers, not merely converge.
  */
 object BrainMerger {
+    fun merge(
+        local: CanonicalBrain,
+        remote: CanonicalBrain,
+    ): CanonicalBrain =
+        CanonicalBrain(
+            schema = maxOf(local.schema, remote.schema),
+            deviceId = local.deviceId,
+            hlc = Crdt.maxHlc(local.hlc, remote.hlc),
+            vectors = mergeVectors(local.vectors, remote.vectors),
+            counters =
+                BrainCounters(
+                    idfTotalDocuments = local.counters.idfTotalDocuments.merge(remote.counters.idfTotalDocuments),
+                    totalInteractions = local.counters.totalInteractions.merge(remote.counters.totalInteractions),
+                ),
+            idfWordFrequency = Crdt.mergeKeyed(local.idfWordFrequency, remote.idfWordFrequency) { a, b -> a.merge(b) },
+            perVideo =
+                BrainPerVideo(
+                    watchHistoryMap = Crdt.mergeMaxFloat(local.perVideo.watchHistoryMap, remote.perVideo.watchHistoryMap),
+                    watchSignalProgress =
+                        Crdt.mergeMaxFloat(
+                            local.perVideo.watchSignalProgress,
+                            remote.perVideo.watchSignalProgress,
+                        ),
+                ),
+            sets =
+                BrainSets(
+                    blockedTopics = local.sets.blockedTopics.merge(remote.sets.blockedTopics),
+                    blockedChannels = local.sets.blockedChannels.merge(remote.sets.blockedChannels),
+                    preferredTopics = local.sets.preferredTopics.merge(remote.sets.preferredTopics),
+                ),
+            lwwMaps =
+                BrainLwwMaps(
+                    suppressedVideoIds = mergeLww(local.lwwMaps.suppressedVideoIds, remote.lwwMaps.suppressedVideoIds),
+                    suppressedChannels = mergeLww(local.lwwMaps.suppressedChannels, remote.lwwMaps.suppressedChannels),
+                    rejectionPatterns = mergeLww(local.lwwMaps.rejectionPatterns, remote.lwwMaps.rejectionPatterns),
+                    topicEvidence = mergeLww(local.lwwMaps.topicEvidence, remote.lwwMaps.topicEvidence),
+                    feedHistory = mergeLww(local.lwwMaps.feedHistory, remote.lwwMaps.feedHistory),
+                    channelStrikes = mergeLww(local.lwwMaps.channelStrikes, remote.lwwMaps.channelStrikes),
+                ),
+            flags =
+                BrainFlags(
+                    hasCompletedOnboarding = local.flags.hasCompletedOnboarding || remote.flags.hasCompletedOnboarding,
+                ),
+        )
 
-    fun merge(local: CanonicalBrain, remote: CanonicalBrain): CanonicalBrain = CanonicalBrain(
-        schema = maxOf(local.schema, remote.schema),
-        deviceId = local.deviceId,
-        hlc = Crdt.maxHlc(local.hlc, remote.hlc),
-        vectors = mergeVectors(local.vectors, remote.vectors),
-        counters = BrainCounters(
-            idfTotalDocuments = local.counters.idfTotalDocuments.merge(remote.counters.idfTotalDocuments),
-            totalInteractions = local.counters.totalInteractions.merge(remote.counters.totalInteractions),
-        ),
-        idfWordFrequency = Crdt.mergeKeyed(local.idfWordFrequency, remote.idfWordFrequency) { a, b -> a.merge(b) },
-        perVideo = BrainPerVideo(
-            watchHistoryMap = Crdt.mergeMaxFloat(local.perVideo.watchHistoryMap, remote.perVideo.watchHistoryMap),
-            watchSignalProgress = Crdt.mergeMaxFloat(
-                local.perVideo.watchSignalProgress,
-                remote.perVideo.watchSignalProgress,
-            ),
-        ),
-        sets = BrainSets(
-            blockedTopics = local.sets.blockedTopics.merge(remote.sets.blockedTopics),
-            blockedChannels = local.sets.blockedChannels.merge(remote.sets.blockedChannels),
-            preferredTopics = local.sets.preferredTopics.merge(remote.sets.preferredTopics),
-        ),
-        lwwMaps = BrainLwwMaps(
-            suppressedVideoIds = mergeLww(local.lwwMaps.suppressedVideoIds, remote.lwwMaps.suppressedVideoIds),
-            suppressedChannels = mergeLww(local.lwwMaps.suppressedChannels, remote.lwwMaps.suppressedChannels),
-            rejectionPatterns = mergeLww(local.lwwMaps.rejectionPatterns, remote.lwwMaps.rejectionPatterns),
-            topicEvidence = mergeLww(local.lwwMaps.topicEvidence, remote.lwwMaps.topicEvidence),
-            feedHistory = mergeLww(local.lwwMaps.feedHistory, remote.lwwMaps.feedHistory),
-            channelStrikes = mergeLww(local.lwwMaps.channelStrikes, remote.lwwMaps.channelStrikes),
-        ),
-        flags = BrainFlags(
-            hasCompletedOnboarding = local.flags.hasCompletedOnboarding || remote.flags.hasCompletedOnboarding,
-        ),
-    )
+    private fun <T> mergeLww(
+        a: Map<String, Lww<T>>,
+        b: Map<String, Lww<T>>,
+    ): Map<String, Lww<T>> = Crdt.mergeKeyed(a, b) { x, y -> x.merge(y) }
 
-    private fun <T> mergeLww(a: Map<String, Lww<T>>, b: Map<String, Lww<T>>): Map<String, Lww<T>> =
-        Crdt.mergeKeyed(a, b) { x, y -> x.merge(y) }
-
-    private fun mergeVectors(a: CanonicalBrainVectors, b: CanonicalBrainVectors) = CanonicalBrainVectors(
+    private fun mergeVectors(
+        a: CanonicalBrainVectors,
+        b: CanonicalBrainVectors,
+    ) = CanonicalBrainVectors(
         globalVector = mergeVector(a.globalVector, b.globalVector),
         timeVectors = Crdt.mergeKeyed(a.timeVectors, b.timeVectors) { x, y -> mergeVector(x, y) },
         shortsVector = mergeVector(a.shortsVector, b.shortsVector),
         topicAffinities = Crdt.mergeMaxDouble(a.topicAffinities, b.topicAffinities),
         channelScores = Crdt.mergeMaxDouble(a.channelScores, b.channelScores),
-        channelTopicProfiles = Crdt.mergeKeyed(a.channelTopicProfiles, b.channelTopicProfiles) { x, y ->
-            Crdt.mergeMaxDouble(x, y)
-        },
+        channelTopicProfiles =
+            Crdt.mergeKeyed(a.channelTopicProfiles, b.channelTopicProfiles) { x, y ->
+                Crdt.mergeMaxDouble(x, y)
+            },
     )
 
-    private fun mergeVector(a: CanonicalVector, b: CanonicalVector) = CanonicalVector(
+    private fun mergeVector(
+        a: CanonicalVector,
+        b: CanonicalVector,
+    ) = CanonicalVector(
         topics = Crdt.mergeMaxDouble(a.topics, b.topics),
         dims = Crdt.mergeMaxDouble(a.dims, b.dims),
     )

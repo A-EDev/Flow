@@ -26,10 +26,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-/**
- * Shared Material 3 building blocks for the sync flow. Every step is a header plus a body plus a
- * bottom action row, so the flow reads as one screen changing rather than eight unrelated ones.
- */
+// Shared Material 3 building blocks for the sync flow. Every step is a header plus a body plus a
+// bottom action row, so the flow reads as one screen changing rather than eight unrelated ones.
 
 /**
  * The heading for a step: an icon in a tonal circle, a title, and one supporting line.
@@ -87,9 +85,10 @@ internal fun SyncOptionCard(
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
     ) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),

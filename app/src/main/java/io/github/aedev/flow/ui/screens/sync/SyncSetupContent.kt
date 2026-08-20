@@ -50,7 +50,10 @@ import io.github.aedev.flow.R
  */
 
 @Composable
-internal fun SyncChooserContent(onSend: () -> Unit, onReceive: () -> Unit) {
+internal fun SyncChooserContent(
+    onSend: () -> Unit,
+    onReceive: () -> Unit,
+) {
     SyncStepHeader(
         icon = Icons.Outlined.Wifi,
         body = stringResource(R.string.sync_intro),
@@ -99,13 +102,14 @@ internal fun SyncSelectContent(
                 ListItem(
                     // One toggle target for the whole row: the checkbox is decorative, the row owns
                     // the semantics, so a screen reader announces label + state once.
-                    modifier = Modifier.toggleable(
-                        value = checked,
-                        role = Role.Checkbox,
-                        onValueChange = { isChecked ->
-                            onSelectedChange(if (isChecked) selected + key else selected - key)
-                        },
-                    ),
+                    modifier =
+                        Modifier.toggleable(
+                            value = checked,
+                            role = Role.Checkbox,
+                            onValueChange = { isChecked ->
+                                onSelectedChange(if (isChecked) selected + key else selected - key)
+                            },
+                        ),
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     leadingContent = { Icon(collectionIcon(key), contentDescription = null) },
                     headlineContent = { Text(collectionLabel(key)) },
@@ -157,7 +161,10 @@ internal fun SyncTransportContent(
 }
 
 @Composable
-internal fun SyncScanContent(prompt: String, onScanned: (String) -> Unit) {
+internal fun SyncScanContent(
+    prompt: String,
+    onScanned: (String) -> Unit,
+) {
     val context = LocalContext.current
     var hasPermission by remember {
         mutableStateOf(
@@ -165,9 +172,10 @@ internal fun SyncScanContent(prompt: String, onScanned: (String) -> Unit) {
                 PackageManager.PERMISSION_GRANTED,
         )
     }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        hasPermission = granted
-    }
+    val launcher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            hasPermission = granted
+        }
     LaunchedEffect(Unit) {
         if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
     }
@@ -180,10 +188,11 @@ internal fun SyncScanContent(prompt: String, onScanned: (String) -> Unit) {
         )
         QrScannerView(
             onQrScanned = onScanned,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(MaterialTheme.shapes.extraLarge),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(MaterialTheme.shapes.extraLarge),
         )
     } else {
         SyncStepHeader(

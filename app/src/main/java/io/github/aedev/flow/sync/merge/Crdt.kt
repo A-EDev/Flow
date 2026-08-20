@@ -12,18 +12,29 @@ import io.github.aedev.flow.sync.identity.Hlc
  * record-level helpers the collection mergers share.
  */
 object Crdt {
-
     /** Compare two HLC strings by their total order. */
-    fun compareHlc(a: String, b: String): Int = Hlc.compareEncoded(a, b)
+    fun compareHlc(
+        a: String,
+        b: String,
+    ): Int = Hlc.compareEncoded(a, b)
 
     /** LWW string of an HLC; on a tie picks the lexicographically larger so it stays commutative. */
-    fun maxHlc(a: String, b: String): String = Hlc.maxEncoded(a, b)
+    fun maxHlc(
+        a: String,
+        b: String,
+    ): String = Hlc.maxEncoded(a, b)
 
     /**
      * Pick the "winning" record for LWW: higher HLC wins; on a tie the larger [contentKey] wins
      * (keeps the choice independent of argument order → commutative).
      */
-    fun <T> preferByHlc(x: T, xHlc: String, y: T, yHlc: String, contentKey: (T) -> String): T {
+    fun <T> preferByHlc(
+        x: T,
+        xHlc: String,
+        y: T,
+        yHlc: String,
+        contentKey: (T) -> String,
+    ): T {
         val c = compareHlc(xHlc, yHlc)
         return when {
             c > 0 -> x
@@ -33,15 +44,26 @@ object Crdt {
     }
 
     /** Tombstone resolution for exactly-two records keyed the same. */
-    fun resolveDeleted(xDeleted: Boolean, xHlc: String, yDeleted: Boolean, yHlc: String): Boolean {
+    fun resolveDeleted(
+        xDeleted: Boolean,
+        xHlc: String,
+        yDeleted: Boolean,
+        yHlc: String,
+    ): Boolean {
         if (xDeleted == yDeleted) return xDeleted
         // exactly one is a tombstone; it wins iff its HLC ≥ the live record's HLC.
         return if (xDeleted) compareHlc(xHlc, yHlc) >= 0 else compareHlc(yHlc, xHlc) >= 0
     }
 
-    fun ifEmptyOther(a: String, b: String): String = a.ifEmpty { b }
+    fun ifEmptyOther(
+        a: String,
+        b: String,
+    ): String = a.ifEmpty { b }
 
-    fun mergeMaxFloat(a: Map<String, Float>, b: Map<String, Float>): Map<String, Float> {
+    fun mergeMaxFloat(
+        a: Map<String, Float>,
+        b: Map<String, Float>,
+    ): Map<String, Float> {
         if (b.isEmpty()) return a
         if (a.isEmpty()) return b
         val out = HashMap(a)
@@ -49,7 +71,10 @@ object Crdt {
         return out
     }
 
-    fun mergeMaxDouble(a: Map<String, Double>, b: Map<String, Double>): Map<String, Double> {
+    fun mergeMaxDouble(
+        a: Map<String, Double>,
+        b: Map<String, Double>,
+    ): Map<String, Double> {
         if (b.isEmpty()) return a
         if (a.isEmpty()) return b
         val out = HashMap(a)

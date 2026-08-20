@@ -24,16 +24,29 @@ sealed interface SyncState {
     data object Connecting : SyncState
 
     /** Both devices show these 6 digits; the user confirms they match. */
-    data class AwaitingSas(val sas: String) : SyncState
+    data class AwaitingSas(
+        val sas: String,
+    ) : SyncState
 
     /** Receiver is asked to approve merging what the peer offers. */
-    data class AwaitingConsent(val summary: TransferSummary) : SyncState
+    data class AwaitingConsent(
+        val summary: TransferSummary,
+    ) : SyncState
 
     /** A collection is transferring. */
-    data class Transferring(val collection: String, val done: Int, val total: Int) : SyncState
+    data class Transferring(
+        val collection: String,
+        val done: Int,
+        val total: Int,
+    ) : SyncState
 
     /** Merge finished — per-collection stats. */
-    data class Done(val peerName: String, val stats: Map<String, ApplyStats>) : SyncState
+    data class Done(
+        val peerName: String,
+        val stats: Map<String, ApplyStats>,
+    ) : SyncState
 
-    data class Failed(val message: String) : SyncState
+    data class Failed(
+        val message: String,
+    ) : SyncState
 }

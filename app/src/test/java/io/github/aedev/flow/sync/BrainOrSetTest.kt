@@ -13,7 +13,6 @@ import org.junit.Test
  * peer's stale add just resurrected it on the next merge.
  */
 class BrainOrSetTest {
-
     private val early = "100:0:aaa"
     private val late = "200:0:bbb"
 
@@ -53,35 +52,41 @@ class BrainOrSetTest {
     @Test
     fun sidecar_turns_a_vanished_member_into_a_remove_tombstone() {
         // Sync 1: the topic is blocked locally and has never been stamped before.
-        val afterBlock = BrainCrdtState.attributeSets(
-            state = BrainCrdtState(),
-            blockedTopics = setOf("politics"),
-            blockedChannels = emptySet(),
-            preferredTopics = emptySet(),
-            hlc = early,
-        )
+        val afterBlock =
+            BrainCrdtState.attributeSets(
+                state = BrainCrdtState(),
+                blockedTopics = setOf("politics"),
+                blockedChannels = emptySet(),
+                preferredTopics = emptySet(),
+                hlc = early,
+            )
         assertEquals(setOf("politics"), afterBlock.sets.blockedTopics.members())
-        assertTrue(afterBlock.sets.blockedTopics.removes.isEmpty())
+        assertTrue(
+            afterBlock.sets.blockedTopics.removes
+                .isEmpty(),
+        )
 
         // Sync 2: the user unblocked it, so it is simply gone from the brain's plain set.
-        val afterUnblock = BrainCrdtState.attributeSets(
-            state = afterBlock,
-            blockedTopics = emptySet(),
-            blockedChannels = emptySet(),
-            preferredTopics = emptySet(),
-            hlc = late,
-        )
+        val afterUnblock =
+            BrainCrdtState.attributeSets(
+                state = afterBlock,
+                blockedTopics = emptySet(),
+                blockedChannels = emptySet(),
+                preferredTopics = emptySet(),
+                hlc = late,
+            )
         assertEquals(late, afterUnblock.sets.blockedTopics.removes["politics"])
         assertFalse(afterUnblock.sets.blockedTopics.contains("politics"))
 
         // Sync 3 with no local edits must not restamp anything.
-        val unchanged = BrainCrdtState.attributeSets(
-            state = afterUnblock,
-            blockedTopics = emptySet(),
-            blockedChannels = emptySet(),
-            preferredTopics = emptySet(),
-            hlc = "300:0:aaa",
-        )
+        val unchanged =
+            BrainCrdtState.attributeSets(
+                state = afterUnblock,
+                blockedTopics = emptySet(),
+                blockedChannels = emptySet(),
+                preferredTopics = emptySet(),
+                hlc = "300:0:aaa",
+            )
         assertEquals(afterUnblock.sets, unchanged.sets)
     }
 }

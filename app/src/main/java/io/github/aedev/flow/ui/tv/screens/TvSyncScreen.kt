@@ -73,43 +73,67 @@ fun TvSyncScreen(
         modifier = modifier,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = dimens.overscanHorizontal)
-                .verticalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = dimens.overscanHorizontal)
+                    .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when (val s = state) {
-                is SyncState.Idle -> when (step) {
-                    TvSyncStep.CHOOSER -> TvSyncChooser(
-                        onSend = { step = TvSyncStep.SEND_SELECT },
-                        onReceive = { viewModel.hostForTv(SyncRole.RECEIVER, COLLECTION_KEYS) },
-                    )
-                    TvSyncStep.SEND_SELECT -> TvSyncSelect(
-                        selected = selected,
-                        onToggle = { key ->
-                            selected = if (key in selected) selected - key else selected + key
-                        },
-                        onContinue = { viewModel.hostForTv(SyncRole.SENDER, selected.toList()) },
+                is SyncState.Idle -> {
+                    when (step) {
+                        TvSyncStep.CHOOSER -> {
+                            TvSyncChooser(
+                                onSend = { step = TvSyncStep.SEND_SELECT },
+                                onReceive = { viewModel.hostForTv(SyncRole.RECEIVER, COLLECTION_KEYS) },
+                            )
+                        }
+
+                        TvSyncStep.SEND_SELECT -> {
+                            TvSyncSelect(
+                                selected = selected,
+                                onToggle = { key ->
+                                    selected = if (key in selected) selected - key else selected + key
+                                },
+                                onContinue = { viewModel.hostForTv(SyncRole.SENDER, selected.toList()) },
+                            )
+                        }
+                    }
+                }
+
+                is SyncState.Preparing -> {
+                    TvSyncBusy(
+                        label = stringResource(R.string.sync_preparing),
+                        onCancel = returnToChooser,
                     )
                 }
-                is SyncState.Preparing -> TvSyncBusy(
-                    label = stringResource(R.string.sync_preparing),
-                    onCancel = returnToChooser,
-                )
-                is SyncState.Connecting -> TvSyncBusy(
-                    label = stringResource(R.string.sync_connecting),
-                    onCancel = returnToChooser,
-                )
-                is SyncState.ShowingQr -> TvSyncQr(s, onCancel = returnToChooser)
-                is SyncState.AwaitingSas -> TvSyncSas(
-                    sas = s.sas,
-                    onConfirm = viewModel::confirmSas,
-                )
-                is SyncState.AwaitingConsent -> TvSyncConsent(
-                    collections = s.summary.collections,
-                    onDecision = viewModel::confirmConsent,
-                )
+
+                is SyncState.Connecting -> {
+                    TvSyncBusy(
+                        label = stringResource(R.string.sync_connecting),
+                        onCancel = returnToChooser,
+                    )
+                }
+
+                is SyncState.ShowingQr -> {
+                    TvSyncQr(s, onCancel = returnToChooser)
+                }
+
+                is SyncState.AwaitingSas -> {
+                    TvSyncSas(
+                        sas = s.sas,
+                        onConfirm = viewModel::confirmSas,
+                    )
+                }
+
+                is SyncState.AwaitingConsent -> {
+                    TvSyncConsent(
+                        collections = s.summary.collections,
+                        onDecision = viewModel::confirmConsent,
+                    )
+                }
+
                 is SyncState.Transferring -> {
                     Text(
                         text = stringResource(R.string.sync_transferring, collectionLabel(s.collection)),
@@ -131,6 +155,7 @@ fun TvSyncScreen(
                         modifier = Modifier.tvInitialFocus(),
                     )
                 }
+
                 is SyncState.Done -> {
                     Text(
                         text = stringResource(R.string.sync_complete),
@@ -143,10 +168,14 @@ fun TvSyncScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         s.stats.forEach { (collection, st) ->
                             Text(
-                                text = stringResource(
-                                    R.string.sync_done_collection_stats,
-                                    collectionLabel(collection), st.added, st.updated, st.skipped,
-                                ),
+                                text =
+                                    stringResource(
+                                        R.string.sync_done_collection_stats,
+                                        collectionLabel(collection),
+                                        st.added,
+                                        st.updated,
+                                        st.skipped,
+                                    ),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -162,6 +191,7 @@ fun TvSyncScreen(
                         modifier = Modifier.tvInitialFocus(),
                     )
                 }
+
                 is SyncState.Failed -> {
                     Text(
                         text = stringResource(R.string.sync_failed_title),
@@ -266,11 +296,12 @@ private fun TvSyncQr(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = if (s.sending) {
-                    stringResource(R.string.sync_qr_scan_on_target_sending)
-                } else {
-                    stringResource(R.string.sync_qr_scan_on_target_receiving)
-                },
+                text =
+                    if (s.sending) {
+                        stringResource(R.string.sync_qr_scan_on_target_sending)
+                    } else {
+                        stringResource(R.string.sync_qr_scan_on_target_receiving)
+                    },
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
@@ -308,16 +339,20 @@ private fun TvSyncQr(
         ) {
             QrCodeImage(
                 text = s.qrText,
-                modifier = Modifier
-                    .padding(20.dp)
-                    .size(280.dp),
+                modifier =
+                    Modifier
+                        .padding(20.dp)
+                        .size(280.dp),
             )
         }
     }
 }
 
 @Composable
-private fun TvSyncSas(sas: String, onConfirm: (Boolean) -> Unit) {
+private fun TvSyncSas(
+    sas: String,
+    onConfirm: (Boolean) -> Unit,
+) {
     Text(
         text = stringResource(R.string.sync_sas_title),
         style = MaterialTheme.typography.titleLarge,
@@ -347,7 +382,10 @@ private fun TvSyncSas(sas: String, onConfirm: (Boolean) -> Unit) {
 }
 
 @Composable
-private fun TvSyncConsent(collections: List<String>, onDecision: (Boolean) -> Unit) {
+private fun TvSyncConsent(
+    collections: List<String>,
+    onDecision: (Boolean) -> Unit,
+) {
     Text(
         text = stringResource(R.string.sync_consent_title),
         style = MaterialTheme.typography.titleLarge,

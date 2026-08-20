@@ -3,6 +3,7 @@ package io.github.aedev.flow.sync.merge
 import io.github.aedev.flow.sync.canonical.CanonicalLike
 import io.github.aedev.flow.sync.canonical.CanonicalLikeMeta
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
+import io.github.aedev.flow.sync.canonical.CanonicalSubscribedChannel
 import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
 
@@ -26,7 +27,10 @@ object WatchHistoryMerger {
         return byId.values.sortedBy { it.videoId }
     }
 
-    fun mergeOne(x: CanonicalWatchHistory, y: CanonicalWatchHistory): CanonicalWatchHistory {
+    fun mergeOne(
+        x: CanonicalWatchHistory,
+        y: CanonicalWatchHistory,
+    ): CanonicalWatchHistory {
         val primary = Crdt.preferByHlc(x, x.hlc, y, y.hlc) { contentKey(it) }
         val secondary = if (primary === x) y else x
         return CanonicalWatchHistory(
@@ -49,7 +53,10 @@ object WatchHistoryMerger {
 }
 
 object LikesMerger {
-    fun merge(local: List<CanonicalLike>, remote: List<CanonicalLike>): List<CanonicalLike> {
+    fun merge(
+        local: List<CanonicalLike>,
+        remote: List<CanonicalLike>,
+    ): List<CanonicalLike> {
         val byKey = LinkedHashMap<String, CanonicalLike>(local.size + remote.size)
         for (r in local) byKey[key(r)] = r
         for (r in remote) {
@@ -59,17 +66,21 @@ object LikesMerger {
         return byKey.values.sortedWith(compareBy({ it.kind }, { it.id }))
     }
 
-    fun mergeOne(x: CanonicalLike, y: CanonicalLike): CanonicalLike {
+    fun mergeOne(
+        x: CanonicalLike,
+        y: CanonicalLike,
+    ): CanonicalLike {
         val winner = Crdt.preferByHlc(x, x.hlc, y, y.hlc) { "${it.updatedAtMs}|${it.state}" }
         val loser = if (winner === x) y else x
         return winner.copy(
             hlc = Crdt.maxHlc(x.hlc, y.hlc),
             updatedAtMs = maxOf(x.updatedAtMs, y.updatedAtMs),
-            meta = CanonicalLikeMeta(
-                title = Crdt.ifEmptyOther(winner.meta.title, loser.meta.title),
-                artist = Crdt.ifEmptyOther(winner.meta.artist, loser.meta.artist),
-                thumbnailUrl = Crdt.ifEmptyOther(winner.meta.thumbnailUrl, loser.meta.thumbnailUrl),
-            ),
+            meta =
+                CanonicalLikeMeta(
+                    title = Crdt.ifEmptyOther(winner.meta.title, loser.meta.title),
+                    artist = Crdt.ifEmptyOther(winner.meta.artist, loser.meta.artist),
+                    thumbnailUrl = Crdt.ifEmptyOther(winner.meta.thumbnailUrl, loser.meta.thumbnailUrl),
+                ),
             title = Crdt.ifEmptyOther(winner.title, loser.title),
             channelName = Crdt.ifEmptyOther(winner.channelName, loser.channelName),
             thumbnailUrl = Crdt.ifEmptyOther(winner.thumbnailUrl, loser.thumbnailUrl),
@@ -80,7 +91,10 @@ object LikesMerger {
 }
 
 object SettingsMerger {
-    fun merge(local: List<CanonicalSetting>, remote: List<CanonicalSetting>): List<CanonicalSetting> {
+    fun merge(
+        local: List<CanonicalSetting>,
+        remote: List<CanonicalSetting>,
+    ): List<CanonicalSetting> {
         val byKey = LinkedHashMap<String, CanonicalSetting>(local.size + remote.size)
         for (r in local) byKey[r.key] = r
         for (r in remote) {
@@ -90,10 +104,49 @@ object SettingsMerger {
         return byKey.values.sortedBy { it.key }
     }
 
-    fun mergeOne(x: CanonicalSetting, y: CanonicalSetting): CanonicalSetting {
+    fun mergeOne(
+        x: CanonicalSetting,
+        y: CanonicalSetting,
+    ): CanonicalSetting {
         val winner = Crdt.preferByHlc(x, x.hlc, y, y.hlc) { it.value.toString() }
         return winner.copy(hlc = Crdt.maxHlc(x.hlc, y.hlc))
     }
+}
+
+object SubscribedChannelsMerger {
+    fun merge(
+        local: List<CanonicalSubscribedChannel>,
+        remote: List<CanonicalSubscribedChannel>,
+    ): List<CanonicalSubscribedChannel> {
+        val byId = LinkedHashMap<String, CanonicalSubscribedChannel>(local.size + remote.size)
+        for (c in local) byId[c.channelId] = c
+        for (c in remote) {
+            val e = byId[c.channelId]
+            byId[c.channelId] = if (e == null) c else mergeOne(e, c)
+        }
+        return byId.values.sortedBy { it.channelId }
+    }
+
+    fun mergeOne(
+        x: CanonicalSubscribedChannel,
+        y: CanonicalSubscribedChannel,
+    ): CanonicalSubscribedChannel {
+        val winner = Crdt.preferByHlc(x, x.hlc, y, y.hlc) { contentKey(it) }
+        val loser = if (winner === x) y else x
+        return CanonicalSubscribedChannel(
+            channelId = x.channelId,
+            // Display metadata survives from whichever side actually has it: a tombstone carries
+            // none, so a re-subscribe must not blank the name and avatar.
+            name = Crdt.ifEmptyOther(winner.name, loser.name),
+            avatarUrl = Crdt.ifEmptyOther(winner.avatarUrl, loser.avatarUrl),
+            subscribedAtMs = maxOf(x.subscribedAtMs, y.subscribedAtMs),
+            isMusic = x.isMusic || y.isMusic, // same music↔video leak rule as watch history
+            hlc = Crdt.maxHlc(x.hlc, y.hlc),
+            deleted = Crdt.resolveDeleted(x.deleted, x.hlc, y.deleted, y.hlc),
+        )
+    }
+
+    private fun contentKey(c: CanonicalSubscribedChannel) = "${c.subscribedAtMs}|${c.deleted}|${c.name}"
 }
 
 object SubscriptionsMerger {
@@ -110,7 +163,10 @@ object SubscriptionsMerger {
         return byName.values.sortedBy { it.name }
     }
 
-    fun mergeOne(x: CanonicalSubscriptionGroup, y: CanonicalSubscriptionGroup): CanonicalSubscriptionGroup {
+    fun mergeOne(
+        x: CanonicalSubscriptionGroup,
+        y: CanonicalSubscriptionGroup,
+    ): CanonicalSubscriptionGroup {
         val channelIds = (x.channelIds.toSet() + y.channelIds.toSet()).sorted() // OR-Set union
         val sortWinner = Crdt.preferByHlc(x, x.hlc, y, y.hlc) { it.sortOrder.toString() }
         return CanonicalSubscriptionGroup(
@@ -123,6 +179,5 @@ object SubscriptionsMerger {
     }
 
     /** Canonical form: channelIds sorted + de-duped, so `a ⊕ a == a`. */
-    private fun normalize(g: CanonicalSubscriptionGroup) =
-        g.copy(channelIds = g.channelIds.toSortedSet().toList())
+    private fun normalize(g: CanonicalSubscriptionGroup) = g.copy(channelIds = g.channelIds.toSortedSet().toList())
 }

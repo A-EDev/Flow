@@ -14,7 +14,6 @@ import java.net.NetworkInterface
  * OS enumerates first even though it exists only inside the tunnel.
  */
 object LanAddress {
-
     private const val TAG = "LanAddress"
 
     /** Interface-name prefixes that mean "virtual, container, or VPN adapter". */
@@ -41,8 +40,9 @@ object LanAddress {
      * "the phone shows a QR but nothing connects" report arrives with the ranking attached.
      */
     fun candidates(): List<Candidate> {
-        val interfaces = runCatching { NetworkInterface.getNetworkInterfaces()?.toList() }.getOrNull()
-            ?: return emptyList()
+        val interfaces =
+            runCatching { NetworkInterface.getNetworkInterfaces()?.toList() }.getOrNull()
+                ?: return emptyList()
         val pairs = ArrayList<Pair<String, String>>()
         for (nif in interfaces) {
             val up = runCatching { nif.isUp }.getOrDefault(false)
@@ -69,9 +69,11 @@ object LanAddress {
      * The sort is stable, so equally-ranked addresses keep the OS enumeration order.
      */
     fun rank(interfaces: List<Pair<String, String>>): List<Candidate> =
-        interfaces.mapNotNull { (name, ip) ->
-            addressRank(name, ip)?.let { rank -> rank to Candidate(name, ip, isVirtual(name)) }
-        }.sortedBy { it.first }.map { it.second }
+        interfaces
+            .mapNotNull { (name, ip) ->
+                addressRank(name, ip)?.let { rank -> rank to Candidate(name, ip, isVirtual(name)) }
+            }.sortedBy { it.first }
+            .map { it.second }
 
     private fun isVirtual(name: String): Boolean {
         val n = name.lowercase()
@@ -82,24 +84,41 @@ object LanAddress {
      * How plausible this address is as "reachable from another device on the same LAN" — lower is
      * better. Null rejects the address outright.
      */
-    private fun addressRank(name: String, ip: String): Int? {
+    private fun addressRank(
+        name: String,
+        ip: String,
+    ): Int? {
         val o = ip.split('.').mapNotNull { it.toIntOrNull() }
         if (o.size != 4 || o.any { it !in 0..255 }) return null
-        val rangeRank = when {
-            o[0] == 127 -> return null // loopback
-            o[0] == 169 && o[1] == 254 -> return null // link-local
-            o[0] == 0 -> return null // unspecified
-            o[0] in 224..239 -> return null // multicast
-            o[0] == 192 && o[1] == 168 -> 0
-            o[0] == 10 -> 1
-            // Docker's default bridge is demoted rather than rejected, so a device whose only
-            // address really is in it still gets a QR.
-            o[0] == 172 && o[1] == 17 -> 4
-            o[0] == 172 && o[1] in 16..31 -> 2
-            // CGNAT / Tailscale range: routable for that overlay, almost never the phone's LAN.
-            o[0] == 100 && o[1] in 64..127 -> 5
-            else -> 3
-        }
+        val rangeRank =
+            when {
+                o[0] == 127 -> return null
+
+                // loopback
+                o[0] == 169 && o[1] == 254 -> return null
+
+                // link-local
+                o[0] == 0 -> return null
+
+                // unspecified
+                o[0] in 224..239 -> return null
+
+                // multicast
+                o[0] == 192 && o[1] == 168 -> 0
+
+                o[0] == 10 -> 1
+
+                // Docker's default bridge is demoted rather than rejected, so a device whose only
+                // address really is in it still gets a QR.
+                o[0] == 172 && o[1] == 17 -> 4
+
+                o[0] == 172 && o[1] in 16..31 -> 2
+
+                // CGNAT / Tailscale range: routable for that overlay, almost never the phone's LAN.
+                o[0] == 100 && o[1] in 64..127 -> 5
+
+                else -> 3
+            }
         return if (isVirtual(name)) 8 + rangeRank else rangeRank
     }
 }
