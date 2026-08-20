@@ -377,7 +377,6 @@
     <string name="sort_view_count">View count</string>
     <string name="sort_rating">Rating</string>
     <!-- Channel Screen -->
-    <string name="channel_sort_latest">Latest</string>
     <string name="channel_default_title">Channel</string>
     <string name="channel_banner">Channel banner</string>
     <string name="channel_avatar">Channel avatar</string>
@@ -629,6 +628,8 @@
     <string name="player_appearance_grouped_quality_selector_subtitle">Show one row per resolution with codec choices inside it</string>
     <string name="shorts_saved">Short saved</string>
     <string name="shorts_unsaved">Short unsaved</string>
+    <string name="shorts_showing_more_like_this">We\'ll show more like this</string>
+    <string name="shorts_showing_less_like_this">Got it, showing less of this</string>
     <string name="settings_item_player_appearance">Player Appearance</string>
     <string name="settings_item_player_appearance_subtitle">Customize progress bar style</string>
     <string name="style_default">Regular</string>
@@ -787,6 +788,9 @@
     <string name="content_settings_video_card_mark_watched_subtitle">Show an eye button on full and compact video cards to quickly mark videos as watched</string>
     <string name="content_settings_show_app_logo_title">Show app logo icon</string>
     <string name="content_settings_show_app_logo_subtitle">Display the Flow logo icon next to the app name in the home screen top bar</string>
+    <string name="content_settings_header_shorts">Shorts</string>
+    <string name="content_settings_shorts_content_title">Show Shorts</string>
+    <string name="content_settings_shorts_content_subtitle">Hide every Short across the app. Saved Shorts and watch history are kept, not deleted.</string>
     <string name="content_settings_header_content_components">Content Components</string>
     <string name="content_settings_restored_music_mini_player_title">Show restored music mini player</string>
     <string name="content_settings_restored_music_mini_player_subtitle">Automatically show your last music session after it is restored</string>
@@ -880,6 +884,10 @@
     <string name="player_settings_background_play_subtitle">Continue playing when app is in background</string>
     <string name="player_settings_shorts_background_play">Shorts Background Play</string>
     <string name="player_settings_shorts_background_play_subtitle">Continue playing Shorts when app is in background</string>
+    <string name="player_settings_shorts_pip">Shorts Picture-in-Picture</string>
+    <string name="player_settings_shorts_pip_subtitle">Shrink the current Short into a floating window when you leave the app</string>
+    <string name="player_settings_shorts_continue_into_feed">Continue with recommendations</string>
+    <string name="player_settings_shorts_continue_into_feed_subtitle">When a Shorts queue runs out, keep going with recommended Shorts instead of stopping at the end</string>
     <string name="player_settings_shorts_playback_mode_title">Shorts Playback Mode</string>
     <string name="player_settings_shorts_playback_mode_loop">Loop (repeat current short)</string>
     <string name="player_settings_shorts_playback_mode_auto_next">Auto Play Next (advance to next short)</string>
@@ -1071,6 +1079,7 @@
     <string name="cd_pause">Pause</string>
     <string name="cd_play">Play</string>
     <string name="cd_more_options">More Options</string>
+    <string name="cd_short_watched">Watched</string>
     <string name="shorts_original_sound">Original Sound - %1$s</string>
     <string name="view_count_billion_suffix">B</string>
     <string name="view_count_million_suffix">M</string>

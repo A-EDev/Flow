@@ -165,6 +165,7 @@ fun FlowCommentsBottomSheet(
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
+    dismissOnOutsideTap: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -272,6 +273,16 @@ fun FlowCommentsBottomSheet(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter,
     ) {
+        if (dismissOnOutsideTap) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .pointerInput(isAnimatingOut) {
+                            detectTapGestures { animateToDismiss() }
+                        },
+            )
+        }
         Surface(
             modifier =
                 Modifier

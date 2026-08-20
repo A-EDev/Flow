@@ -111,6 +111,8 @@ import java.util.Locale
 
 private const val EXIT_DRAG_MIN_SCALE = 0.94f
 
+private const val FULLSCREEN_MEDIA_SHEET_FRACTION = 0.75f
+
 /**
  * GlobalPlayerOverlay - The main video player overlay that sits above everything.
  *
@@ -174,7 +176,7 @@ fun GlobalPlayerOverlay(
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
-    val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
+    val disableShortsPlayer by playerPreferences.effectiveDisableShortsPlayer.collectAsState(initial = false)
     val showShortsPlayerPrompt by playerPreferences.showShortsPlayerPrompt.collectAsState(initial = true)
     val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
@@ -705,10 +707,15 @@ fun GlobalPlayerOverlay(
         val defaultMediaSheetExpandedHeight =
             with(density) {
                 val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
-                if (expandedPlayerBottom > 0.dp && availablePx > 0f) {
-                    availablePx.toDp()
-                } else {
-                    config.screenHeightDp.dp * 0.75f
+                when {
+                    // Fullscreen leaves nothing below the player, so a sheet sized to "whatever is
+                    // left under it" collapses to a sliver pinned at the bottom of the screen. Over
+                    // a fullscreen player the sheet floats on the video and takes a fixed share.
+                    screenState.isFullscreen -> (fullScreenHeight * FULLSCREEN_MEDIA_SHEET_FRACTION).toDp()
+
+                    expandedPlayerBottom > 0.dp && availablePx > 0f -> availablePx.toDp()
+
+                    else -> config.screenHeightDp.dp * 0.75f
                 }
             }
         val sixteenNineMediaSheetExpandedHeight =

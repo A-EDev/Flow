@@ -20,15 +20,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 
@@ -50,7 +52,7 @@ fun LibraryScreen(
     onDownloadedMusicClick: (List<DownloadedTrack>, Int) -> Unit,
     onSavedShortClick: (Video) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LibraryViewModel = hiltViewModel()
+    viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val historyTitle = stringResource(R.string.library_history_label)
     val playlistsTitle = stringResource(R.string.library_playlists_label)
@@ -58,18 +60,20 @@ fun LibraryScreen(
     val downloadsTitle = stringResource(R.string.library_downloads_label)
     val watchLaterTitle = stringResource(R.string.library_watch_later_label)
     val savedShortsTitle = stringResource(R.string.library_saved_shorts_label)
+    val shortsEnabled by viewModel.shortsEnabled.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
-        topBar = { LibraryTopBar() }
+        topBar = { LibraryTopBar() },
     ) { padding ->
         LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background),
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item(key = "history", contentType = "media-shelf") {
                 LibraryMediaShelfRoute(
@@ -80,7 +84,7 @@ fun LibraryScreen(
                     onVideoClick = onVideoClick,
                     onMusicClick = onMusicClick,
                     onDownloadedVideoClick = onDownloadedVideoClick,
-                    onDownloadedMusicClick = onDownloadedMusicClick
+                    onDownloadedMusicClick = onDownloadedMusicClick,
                 )
             }
 
@@ -91,7 +95,7 @@ fun LibraryScreen(
                     musicPlaylistsFlow = viewModel.musicPlaylists,
                     onTitleClick = onNavigateToPlaylists,
                     onVideoPlaylistClick = onPlaylistClick,
-                    onMusicPlaylistClick = onMusicPlaylistClick
+                    onMusicPlaylistClick = onMusicPlaylistClick,
                 )
             }
 
@@ -100,7 +104,7 @@ fun LibraryScreen(
                     title = watchLaterTitle,
                     videosFlow = viewModel.watchLater,
                     onTitleClick = onNavigateToWatchLater,
-                    onVideoClick = onVideoClick
+                    onVideoClick = onVideoClick,
                 )
             }
 
@@ -113,7 +117,7 @@ fun LibraryScreen(
                     onVideoClick = onVideoClick,
                     onMusicClick = onMusicClick,
                     onDownloadedVideoClick = onDownloadedVideoClick,
-                    onDownloadedMusicClick = onDownloadedMusicClick
+                    onDownloadedMusicClick = onDownloadedMusicClick,
                 )
             }
 
@@ -126,17 +130,19 @@ fun LibraryScreen(
                     onVideoClick = onVideoClick,
                     onMusicClick = onMusicClick,
                     onDownloadedVideoClick = onDownloadedVideoClick,
-                    onDownloadedMusicClick = onDownloadedMusicClick
+                    onDownloadedMusicClick = onDownloadedMusicClick,
                 )
             }
 
-            item(key = "saved-shorts", contentType = "shorts-shelf") {
-                LibraryShortsShelfRoute(
-                    title = savedShortsTitle,
-                    shortsFlow = viewModel.savedShorts,
-                    onTitleClick = onNavigateToSavedShorts,
-                    onShortClick = onSavedShortClick
-                )
+            if (shortsEnabled) {
+                item(key = "saved-shorts", contentType = "shorts-shelf") {
+                    LibraryShortsShelfRoute(
+                        title = savedShortsTitle,
+                        shortsFlow = viewModel.savedShorts,
+                        onTitleClick = onNavigateToSavedShorts,
+                        onShortClick = onSavedShortClick,
+                    )
+                }
             }
 
             item(key = "settings-data", contentType = "navigation-section") {
@@ -145,19 +151,19 @@ fun LibraryScreen(
                         text = stringResource(R.string.library_settings_data_header),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                     )
                     LibraryNavigationRow(
                         icon = Icons.Outlined.PermMedia,
                         title = stringResource(R.string.library_local_media_label),
                         subtitle = stringResource(R.string.library_local_media_subtitle),
-                        onClick = onNavigateToLocalMedia
+                        onClick = onNavigateToLocalMedia,
                     )
                     LibraryNavigationRow(
                         icon = Icons.Outlined.Storage,
                         title = stringResource(R.string.library_manage_data_label),
                         subtitle = stringResource(R.string.library_manage_data_subtitle),
-                        onClick = onManageData
+                        onClick = onManageData,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -170,18 +176,19 @@ fun LibraryScreen(
 private fun LibraryTopBar() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background
+        color = MaterialTheme.colorScheme.background,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(R.string.library),
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         }
     }

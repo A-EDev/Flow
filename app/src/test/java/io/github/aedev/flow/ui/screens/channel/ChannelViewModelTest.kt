@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.channel
 import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.SubscriptionRepository
+import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -34,6 +35,7 @@ class ChannelViewModelTest {
             ChannelViewModel(
                 appContext = context,
                 subscriptionRepository = subscriptionRepository,
+                shortsContentFilter = ShortsContentFilter(flowOf(true)),
             )
     }
 

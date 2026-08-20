@@ -175,7 +175,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
     val shortsBackgroundPlay by playerPreferences.shortsBackgroundPlay.collectAsState(initial = false)
     val shortsPlaybackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
+    val shortsPipEnabled by playerPreferences.shortsPipEnabled.collectAsState(initial = false)
     val shortsAutoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
+    val shortsQueueContinuesIntoFeed by playerPreferences.shortsQueueContinuesIntoFeed.collectAsState(initial = true)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
     val preferredSubtitleLanguage by playerPreferences.preferredSubtitleLanguage
         .collectAsState(initial = CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
@@ -371,6 +373,14 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setShortsBackgroundPlay(it) } },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.PictureInPictureAlt,
+                        title = stringResource(R.string.player_settings_shorts_pip),
+                        subtitle = stringResource(R.string.player_settings_shorts_pip_subtitle),
+                        checked = shortsPipEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setShortsPipEnabled(it) } },
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsClickItem(
                         icon = Icons.Outlined.SwapVert,
                         title = stringResource(R.string.player_settings_shorts_playback_mode_title),
@@ -392,6 +402,14 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                                 }
                             },
                         onClick = { showShortsPlaybackModeDialog = true },
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.AllInclusive,
+                        title = stringResource(R.string.player_settings_shorts_continue_into_feed),
+                        subtitle = stringResource(R.string.player_settings_shorts_continue_into_feed_subtitle),
+                        checked = shortsQueueContinuesIntoFeed,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setShortsQueueContinuesIntoFeed(it) } },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(

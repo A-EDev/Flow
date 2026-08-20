@@ -19,6 +19,7 @@ import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
+import io.github.aedev.flow.data.shorts.ChannelReelIndex
 import io.github.aedev.flow.data.subscriptions.ChannelRssClient
 import io.github.aedev.flow.data.subscriptions.ChannelRssParser
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
@@ -54,6 +55,8 @@ class SubscriptionCheckWorker(
         fun subscriptionFeedRepository(): SubscriptionFeedRepository
 
         fun channelRssClient(): ChannelRssClient
+
+        fun channelReelIndex(): ChannelReelIndex
 
         fun playerPreferences(): PlayerPreferences
     }
@@ -174,6 +177,8 @@ class SubscriptionCheckWorker(
 
                 Log.d(TAG, "Checking ${subscriptions.size} subscriptions")
 
+                val announceReels = dependencies.playerPreferences().effectiveSubscriptionShowShorts.first()
+
                 val newVideos = mutableListOf<NotificationHelper.NewVideoEntry>()
                 subscriptions.chunked(CHANNEL_CHUNK_SIZE).forEach { chunk ->
                     coroutineScope {
@@ -181,7 +186,7 @@ class SubscriptionCheckWorker(
                             .map { subscription ->
                                 async {
                                     try {
-                                        checkChannel(subscription, subscriptionRepository)
+                                        checkChannel(subscription, subscriptionRepository, announceReels)
                                     } catch (e: Exception) {
                                         Log.e(TAG, "Error checking channel ${subscription.channelName}", e)
                                         emptyList()
@@ -208,6 +213,7 @@ class SubscriptionCheckWorker(
     private suspend fun checkChannel(
         subscription: ChannelSubscription,
         repository: SubscriptionRepository,
+        announceReels: Boolean,
     ): List<NotificationHelper.NewVideoEntry> {
         val feed =
             dependencies.channelRssClient().fetch(subscription.channelId).getOrElse { error ->
@@ -218,13 +224,17 @@ class SubscriptionCheckWorker(
         val latestVideo = feed.entries.firstOrNull() ?: return emptyList()
         if (subscription.lastVideoId == latestVideo.videoId) return emptyList()
 
+        val reelVideoIds = dependencies.channelReelIndex().reelIds(subscription.channelId).orEmpty()
+
         // The channel moved on, so hand the whole page to the feed cache. Rows land without a
-        // duration or a Shorts flag — the feed's on-demand enrichment fills those in, and the next
-        // full refresh of this channel replaces them outright.
+        // duration — the feed's on-demand enrichment fills that in, and the next full refresh of
+        // this channel replaces them outright. The reel verdict cannot wait that long: an unmarked
+        // reel is visible in the feed in the meantime, Shorts switched off or not.
         dependencies.subscriptionFeedRepository().seedFromNotificationCheck(
             channelId = subscription.channelId,
             channelName = feed.channelName ?: subscription.channelName,
             entries = feed.entries,
+            reelVideoIds = reelVideoIds,
         )
 
         val newEntries = ChannelRssParser.newEntriesSince(feed.entries, subscription.lastVideoId)
@@ -234,7 +244,7 @@ class SubscriptionCheckWorker(
             Log.d(TAG, "${newEntries.size} new video(s) for ${subscription.channelName}")
         }
 
-        return newEntries.map { video ->
+        return newEntries.filter { announceReels || it.videoId !in reelVideoIds }.map { video ->
             NotificationHelper.NewVideoEntry(
                 channelName = subscription.channelName,
                 videoTitle = video.title,

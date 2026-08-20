@@ -11,14 +11,19 @@ import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchPagingSource
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.shorts.ShortsContentFilter
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
@@ -39,6 +44,8 @@ class SearchViewModel
     @Inject
     constructor(
         private val repository: YouTubeRepository,
+        private val shortsContentFilter: ShortsContentFilter,
+        private val shortsQueueHandoff: ShortsQueueHandoff,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(SearchUiState())
         val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -63,7 +70,8 @@ class SearchViewModel
             _searchKey
                 .filterNotNull()
                 .filter { it.query.isNotBlank() }
-                .flatMapLatest { key ->
+                .combine(shortsContentFilter.enabled) { key, shortsEnabled -> key to shortsEnabled }
+                .flatMapLatest { (key, shortsEnabled) ->
                     Pager(
                         config =
                             PagingConfig(
@@ -72,11 +80,18 @@ class SearchViewModel
                                 enablePlaceholders = false,
                                 initialLoadSize = 20,
                             ),
-                        pagingSourceFactory = { SearchPagingSource(key.query, key.contentFilters, key.searchFilter) },
+                        pagingSourceFactory = {
+                            SearchPagingSource(key.query, key.contentFilters, key.searchFilter, shortsEnabled)
+                        },
                     ).flow
                 }.cachedIn(viewModelScope)
 
         // ── public API ────────────────────────────────────────────────────────────
+
+        fun shortsShelfSource(
+            shelf: List<Video>,
+            tapped: Video,
+        ): ShortsQueueSource = shortsQueueHandoff.sourceForShelf(shelf, tapped)
 
         fun search(
             query: String,

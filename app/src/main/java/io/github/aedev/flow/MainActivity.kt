@@ -61,6 +61,8 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
+private const val PORTRAIT_REEL_ASPECT_RATIO = 9f / 16f
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val _deeplinkVideoId = mutableStateOf<String?>(null)
@@ -86,6 +88,9 @@ class MainActivity : ComponentActivity() {
 
     // Cached shorts background-play preference (default OFF — pause on background)
     private var cachedShortsBackgroundPlay = false
+
+    @Volatile
+    private var cachedShortsPipEnabled = false
 
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
@@ -167,12 +172,14 @@ class MainActivity : ComponentActivity() {
                 playerPreferences.autoPipEnabled,
                 playerPreferences.backgroundPlayEnabled,
                 playerPreferences.shortsBackgroundPlay,
-            ) { autoPip, backgroundPlay, shortsBackgroundPlay ->
-                Triple(autoPip, backgroundPlay, shortsBackgroundPlay)
-            }.collect { (autoPip, backgroundPlay, shortsBackgroundPlay) ->
+                playerPreferences.shortsPipEnabled,
+            ) { autoPip, backgroundPlay, shortsBackgroundPlay, shortsPip ->
+                listOf(autoPip, backgroundPlay, shortsBackgroundPlay, shortsPip)
+            }.collect { (autoPip, backgroundPlay, shortsBackgroundPlay, shortsPip) ->
                 cachedAutoPipEnabled = autoPip
                 cachedBackgroundPlayEnabled = backgroundPlay
                 cachedShortsBackgroundPlay = shortsBackgroundPlay
+                cachedShortsPipEnabled = shortsPip
             }
         }
 
@@ -751,7 +758,18 @@ class MainActivity : ComponentActivity() {
                 aspectRatio = PictureInPictureHelper.currentVideoAspectRatio,
                 isPlaying = true,
             )
+            return
         }
+
+        if (!cachedShortsPipEnabled || isMusicPlaying) return
+        val shortsPool =
+            io.github.aedev.flow.player.shorts.ShortsPlayerPool
+                .getInstance()
+        if (!shortsPool.isPlaying()) return
+        enterPlayerPictureInPictureMode(
+            aspectRatio = shortsPool.activeVideoAspectRatio() ?: PORTRAIT_REEL_ASPECT_RATIO,
+            isPlaying = true,
+        )
     }
 
     override fun onTrimMemory(level: Int) {

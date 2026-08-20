@@ -2,6 +2,8 @@ package io.github.aedev.flow.data.innertube
 
 import android.util.Log
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.shorts.ChannelReelIndex
+import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.data.subscriptions.ChannelRssClient
 import io.github.aedev.flow.data.subscriptions.ChannelRssEntry
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -45,15 +47,17 @@ data class SubscriptionFeedChunk(
  * Two-phase subscription extraction.
  *
  * Phase 1 reads every channel's RSS feed: cheap, and the only source with a trustworthy publish
- * timestamp. Phase 2 falls back to the channel tabs for the channels RSS could not satisfy, which
- * is also the only way to see Shorts and livestreams — their upload dates are then back-filled from
- * the Phase 1 timestamps.
+ * timestamp. RSS lists Shorts alongside ordinary uploads without marking either, so each channel's
+ * slice is run past [ChannelReelIndex] before it is used. Phase 2 falls back to the channel tabs for
+ * the channels RSS could not satisfy, which is also the only way to see livestreams — their upload
+ * dates are then back-filled from the Phase 1 timestamps.
  */
 @Singleton
 class RssSubscriptionService
     @Inject
     constructor(
         private val rssClient: ChannelRssClient,
+        private val channelReelIndex: ChannelReelIndex,
     ) {
         fun fetchSubscriptionVideos(
             channelIds: List<String>,
@@ -91,7 +95,8 @@ class RssSubscriptionService
                             chunk
                                 .map { channelId ->
                                     async(Dispatchers.IO) {
-                                        channelId to fetchRssVideos(channelId, minimumDateMillis, knownVideoIds)
+                                        val result = fetchRssVideos(channelId, minimumDateMillis, knownVideoIds)
+                                        channelId to result.copy(videos = channelReelIndex.markReels(channelId, result.videos))
                                     }
                                 }.awaitAll()
                         }
@@ -563,7 +568,7 @@ class RssSubscriptionService
         private fun StreamInfoItem.isActiveLiveStream(): Boolean =
             streamType == StreamType.LIVE_STREAM || streamType == StreamType.AUDIO_LIVE_STREAM
 
-        private fun StreamInfoItem.isLikelyShort(): Boolean = isShortFormContent || url.contains("/shorts/", ignoreCase = true)
+        private fun StreamInfoItem.isLikelyShort(): Boolean = ShortsClassifier.isReel(this)
 
         private fun formatRelativeTime(timestampMillis: Long): String = formatYouTubeRelativeTime(timestampMillis)
 

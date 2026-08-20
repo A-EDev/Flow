@@ -8,16 +8,59 @@ object VideoCodecUtils {
     private val CODECS_PARAMETER_REGEX = Regex("""codecs\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
 
     private val AV1_ITAGS = setOf(394, 395, 396, 397, 398, 399, 400, 401, 402, 571, 694, 695, 696, 697, 698, 699, 700, 701)
-    private val VP9_ITAGS = setOf(
-        242, 243, 244, 245, 246, 247, 248, 271, 272, 278,
-        302, 303, 308, 313, 315,
-        330, 331, 332, 333, 334, 335, 336, 337
-    )
-    private val H264_ITAGS = setOf(
-        133, 134, 135, 136, 137, 138, 160, 212,
-        264, 266, 298, 299, 300, 301, 304, 305,
-        18, 22, 34, 35, 37, 38, 59, 78
-    )
+    private val VP9_ITAGS =
+        setOf(
+            242,
+            243,
+            244,
+            245,
+            246,
+            247,
+            248,
+            271,
+            272,
+            278,
+            302,
+            303,
+            308,
+            313,
+            315,
+            330,
+            331,
+            332,
+            333,
+            334,
+            335,
+            336,
+            337,
+        )
+    private val H264_ITAGS =
+        setOf(
+            133,
+            134,
+            135,
+            136,
+            137,
+            138,
+            160,
+            212,
+            264,
+            266,
+            298,
+            299,
+            300,
+            301,
+            304,
+            305,
+            18,
+            22,
+            34,
+            35,
+            37,
+            38,
+            59,
+            78,
+        )
     private val VP8_ITAGS = setOf(43)
 
     fun codecKeyFromMimeType(mimeType: String): String {
@@ -36,7 +79,8 @@ object VideoCodecUtils {
 
     fun codecStringFromMimeType(mimeType: String): String {
         val m = mimeType.lowercase()
-        return CODECS_PARAMETER_REGEX.find(m)
+        return CODECS_PARAMETER_REGEX
+            .find(m)
             ?.groupValues
             ?.getOrNull(1)
             ?.substringBefore(",")
@@ -45,11 +89,12 @@ object VideoCodecUtils {
     }
 
     fun codecKeyFromStream(stream: VideoStream): String {
-        val url = try {
-            stream.content.takeIf { it.isNotBlank() } ?: stream.url ?: ""
-        } catch (_: Exception) {
-            ""
-        }
+        val url =
+            try {
+                stream.content.takeIf { it.isNotBlank() } ?: stream.url ?: ""
+            } catch (_: Exception) {
+                ""
+            }
         val itag = itagFromUrl(url) ?: itagFromId(stream)
 
         when (itag) {
@@ -59,8 +104,18 @@ object VideoCodecUtils {
             in H264_ITAGS -> return "h264"
         }
 
-        val fmtMime = try { stream.format?.mimeType?.lowercase() ?: "" } catch (_: Exception) { "" }
-        val fmtName = try { stream.format?.name?.lowercase() ?: "" } catch (_: Exception) { "" }
+        val fmtMime =
+            try {
+                stream.format?.mimeType?.lowercase() ?: ""
+            } catch (_: Exception) {
+                ""
+            }
+        val fmtName =
+            try {
+                stream.format?.name?.lowercase() ?: ""
+            } catch (_: Exception) {
+                ""
+            }
         return when {
             "av01" in fmtMime || "av01" in fmtName || "av1" in fmtName -> "av1"
             "vp09" in fmtMime || "vp9" in fmtMime || "vp9" in fmtName -> "vp9"
@@ -71,14 +126,15 @@ object VideoCodecUtils {
         }
     }
 
-    fun codecLabelFromKey(key: String): String = when (key) {
-        "av1" -> "AV1"
-        "vp9" -> "VP9"
-        "vp8" -> "VP8"
-        "hevc" -> "HEVC"
-        "h264" -> "H264"
-        else -> key.uppercase()
-    }
+    fun codecLabelFromKey(key: String): String =
+        when (key) {
+            "av1" -> "AV1"
+            "vp9" -> "VP9"
+            "vp8" -> "VP8"
+            "hevc" -> "HEVC"
+            "h264" -> "H264"
+            else -> key.uppercase()
+        }
 
     fun qualityHeightFromStream(stream: VideoStream): Int {
         parseQualityHeight(stream.resolution)?.let { return it }
@@ -87,37 +143,61 @@ object VideoCodecUtils {
         return normalizeQualityHeight(stream.height)
     }
 
-    fun qualityLabelFromStream(stream: VideoStream): String {
-        return stream.resolution
+    fun qualityLabelFromStream(stream: VideoStream): String =
+        stream.resolution
             .takeIf { it.isNotBlank() && it != VideoStream.RESOLUTION_UNKNOWN }
             ?: "${qualityHeightFromStream(stream)}p"
-    }
 
     fun playbackCodecRank(stream: VideoStream): Int = playbackCodecRank(codecKeyFromStream(stream))
 
-    fun playbackCodecRank(codecKey: String): Int = when (codecKey) {
-        "h264" -> 0
-        "vp9" -> 1
-        "vp8" -> 2
-        "hevc" -> 3
-        "av1" -> 4
-        else -> 5
+    fun playbackCodecRank(codecKey: String): Int =
+        when (codecKey) {
+            "h264" -> 0
+            "vp9" -> 1
+            "vp8" -> 2
+            "hevc" -> 3
+            "av1" -> 4
+            else -> 5
+        }
+
+    fun codecRankWithPreference(
+        codecKey: String,
+        preferred: String?,
+    ): Int =
+        if (!preferred.isNullOrBlank() && preferred != "auto" && codecKey == preferred) {
+            -1
+        } else {
+            playbackCodecRank(codecKey)
+        }
+
+    fun codecRankWithPreference(
+        stream: VideoStream,
+        preferred: String?,
+    ): Int = codecRankWithPreference(codecKeyFromStream(stream), preferred)
+
+    private val DEFAULT_VIDEO_MIME_TYPES =
+        arrayOf(
+            "video/avc",
+            "video/x-vnd.on2.vp9",
+            "video/x-vnd.on2.vp8",
+            "video/hevc",
+            "video/av01",
+        )
+
+    private val MIME_TYPE_BY_CODEC_KEY =
+        mapOf(
+            "h264" to "video/avc",
+            "vp9" to "video/x-vnd.on2.vp9",
+            "vp8" to "video/x-vnd.on2.vp8",
+            "hevc" to "video/hevc",
+            "av1" to "video/av01",
+        )
+
+    @JvmOverloads
+    fun preferredVideoMimeTypes(preferredCodecKey: String? = null): Array<String> {
+        val preferred = MIME_TYPE_BY_CODEC_KEY[preferredCodecKey?.lowercase()] ?: return DEFAULT_VIDEO_MIME_TYPES
+        return arrayOf(preferred) + DEFAULT_VIDEO_MIME_TYPES.filterNot { it == preferred }
     }
-
-    fun codecRankWithPreference(codecKey: String, preferred: String?): Int =
-        if (!preferred.isNullOrBlank() && preferred != "auto" && codecKey == preferred) -1
-        else playbackCodecRank(codecKey)
-
-    fun codecRankWithPreference(stream: VideoStream, preferred: String?): Int =
-        codecRankWithPreference(codecKeyFromStream(stream), preferred)
-
-    fun preferredVideoMimeTypes(): Array<String> = arrayOf(
-        "video/avc",
-        "video/x-vnd.on2.vp9",
-        "video/x-vnd.on2.vp8",
-        "video/hevc",
-        "video/av01"
-    )
 
     private fun itagFromUrl(url: String): Int? {
         if (url.isBlank()) return null
@@ -128,24 +208,26 @@ object VideoCodecUtils {
         }
     }
 
-    private fun itagFromId(stream: VideoStream): Int? {
-        return try {
+    private fun itagFromId(stream: VideoStream): Int? =
+        try {
             stream.id?.toIntOrNull()
         } catch (_: Exception) {
             null
         }
-    }
 
     private fun parseQualityHeight(value: String?): Int? {
         if (value.isNullOrBlank()) return null
-        return QUALITY_HEIGHT_REGEX.find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        return QUALITY_HEIGHT_REGEX
+            .find(value)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
     }
 
-    fun normalizeQualityHeight(rawHeight: Int): Int {
-        return when {
+    fun normalizeQualityHeight(rawHeight: Int): Int =
+        when {
             rawHeight <= 0 -> 0
             rawHeight in setOf(2160, 1440, 1080, 720, 480, 360, 240, 144) -> rawHeight
             else -> rawHeight
         }
-    }
 }

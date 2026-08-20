@@ -113,6 +113,8 @@ import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.PlaylistCard
+import io.github.aedev.flow.ui.components.ShortWatchedIndicator
+import io.github.aedev.flow.ui.components.SortChipRow
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.sortCommentsByFilter
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -125,15 +127,13 @@ import kotlin.math.roundToInt
 
 private typealias SortedVideos = List<Video>?
 
-enum class VideoFilter { Latest, Popular, Oldest }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChannelScreen(
     channelUrl: String,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
-    onShortClick: (String) -> Unit,
+    onShortClick: (videoId: String, sortIndex: Int) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -149,6 +149,12 @@ fun ChannelScreen(
     val isLoadingAllVideos by viewModel.isLoadingAllVideos.collectAsState()
 
     val shortsLazyPagingItems = shortsPagingFlow?.collectAsLazyPagingItems()
+    val shortsSorts by viewModel.shortsSorts.collectAsState()
+    val selectedShortsSort by viewModel.selectedShortsSort.collectAsState()
+    val videosSorts by viewModel.videosSorts.collectAsState()
+    val selectedVideosSort by viewModel.selectedVideosSort.collectAsState()
+    val liveSorts by viewModel.liveSorts.collectAsState()
+    val selectedLiveSort by viewModel.selectedLiveSort.collectAsState()
     val playlistsLazyPagingItems = playlistsPagingFlow?.collectAsLazyPagingItems()
 
     LaunchedEffect(channelUrl) { viewModel.loadChannel(channelUrl) }
@@ -244,11 +250,20 @@ fun ChannelScreen(
                             allVideos = allVideos,
                             isLoadingAllVideos = isLoadingAllVideos,
                             shortsLazyPagingItems = shortsLazyPagingItems,
+                            shortsSorts = shortsSorts,
+                            selectedShortsSort = selectedShortsSort,
+                            onShortsSortSelected = viewModel::selectShortsSort,
+                            videosSorts = videosSorts,
+                            selectedVideosSort = selectedVideosSort,
+                            onVideosSortSelected = viewModel::selectVideosSort,
+                            liveSorts = liveSorts,
+                            selectedLiveSort = selectedLiveSort,
+                            onLiveSortSelected = viewModel::selectLiveSort,
                             allLiveVideos = allLiveVideos,
                             playlistsLazyPagingItems = playlistsLazyPagingItems,
                             onVideoClick = onVideoClick,
                             onChannelClick = onChannelClick,
-                            onShortClick = onShortClick,
+                            onShortClick = { videoId -> onShortClick(videoId, selectedShortsSort) },
                             onPlaylistClick = onPlaylistClick,
                             onSubscribeClick = { viewModel.toggleSubscription() },
                             onUnsubscribeClick = { viewModel.unsubscribe() },
@@ -310,6 +325,15 @@ private fun ChannelContent(
     allVideos: List<Video>,
     isLoadingAllVideos: Boolean,
     shortsLazyPagingItems: LazyPagingItems<Video>?,
+    shortsSorts: List<String>,
+    selectedShortsSort: Int,
+    onShortsSortSelected: (Int) -> Unit,
+    videosSorts: List<String>,
+    selectedVideosSort: Int,
+    onVideosSortSelected: (Int) -> Unit,
+    liveSorts: List<String>,
+    selectedLiveSort: Int,
+    onLiveSortSelected: (Int) -> Unit,
     allLiveVideos: List<Video>,
     playlistsLazyPagingItems: LazyPagingItems<io.github.aedev.flow.data.model.Playlist>?,
     onVideoClick: (Video) -> Unit,
@@ -340,44 +364,49 @@ private fun ChannelContent(
                 .PlayerPreferences(context)
         }
     val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
-    var selectedFilter by rememberSaveable { mutableStateOf(VideoFilter.Latest) }
+    val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
     val coroutineScope = rememberCoroutineScope()
 
-    val sortedVideos: List<Video> =
-        when (selectedFilter) {
-            VideoFilter.Latest -> allVideos
-            VideoFilter.Popular -> allVideos.sortedByDescending { it.viewCount }
-            VideoFilter.Oldest -> allVideos.reversed()
-        }
-    val sortedLive: List<Video> =
-        when (selectedFilter) {
-            VideoFilter.Latest -> allLiveVideos
-            VideoFilter.Popular -> allLiveVideos.sortedByDescending { it.viewCount }
-            VideoFilter.Oldest -> allLiveVideos.reversed()
-        }
+    val sortedVideos: List<Video> = allVideos
+    val sortedLive: List<Video> = allLiveVideos
 
-    val tabTitles =
-        listOf(
-            stringResource(R.string.tab_videos),
-            stringResource(R.string.tab_shorts),
-            stringResource(R.string.tab_live),
-            stringResource(R.string.tab_playlists),
-            stringResource(R.string.tab_posts),
-            stringResource(R.string.tab_about),
-        )
+    val visibleTabs = ChannelTab.visible(shortsEnabled = shortsContentEnabled)
+    val tabTitles = visibleTabs.map { stringResource(it.titleRes) }
 
     val pagerState =
         rememberPagerState(
-            initialPage = uiState.selectedTab.coerceIn(0, tabTitles.lastIndex),
-            pageCount = { tabTitles.size },
+            initialPage = visibleTabs.indexOf(ChannelTab.from(uiState.selectedTab)).coerceAtLeast(0),
+            pageCount = { visibleTabs.size },
         )
 
+    val settledTab = visibleTabs.getOrElse(pagerState.settledPage) { ChannelTab.Videos }
+
     // Persist only fully settled pages so an in-progress swipe cannot trigger a competing animation.
-    LaunchedEffect(channelInfo.id, pagerState.settledPage) {
-        onTabSelected(pagerState.settledPage)
+    LaunchedEffect(channelInfo.id, settledTab) {
+        onTabSelected(settledTab.ordinal)
     }
 
-    val showFilterBar = pagerState.settledPage == 0 || pagerState.settledPage == 2
+    val showFilterBar =
+        settledTab == ChannelTab.Videos || settledTab == ChannelTab.Live || settledTab == ChannelTab.Shorts
+
+    val activeSorts =
+        when (settledTab) {
+            ChannelTab.Shorts -> shortsSorts
+            ChannelTab.Live -> liveSorts
+            else -> videosSorts
+        }
+    val activeSortIndex =
+        when (settledTab) {
+            ChannelTab.Shorts -> selectedShortsSort
+            ChannelTab.Live -> selectedLiveSort
+            else -> selectedVideosSort
+        }
+    val onActiveSortSelected: (Int) -> Unit =
+        when (settledTab) {
+            ChannelTab.Shorts -> onShortsSortSelected
+            ChannelTab.Live -> onLiveSortSelected
+            else -> onVideosSortSelected
+        }
 
     var collapsingHeaderHeightPx by remember { mutableFloatStateOf(0f) }
     var stickySectionHeightPx by remember { mutableFloatStateOf(0f) }
@@ -450,68 +479,15 @@ private fun ChannelContent(
     val playlistsListState = rememberLazyListState()
     val postsListState = rememberLazyListState()
     val aboutListState = rememberLazyListState()
-    var lastAppliedFilter by rememberSaveable { mutableStateOf(selectedFilter) }
 
     LaunchedEffect(videosListState) {
         snapshotFlow { videosListState.firstVisibleItemIndex to videosListState.firstVisibleItemScrollOffset }
             .collect { (index, offset) -> onScrollChanged(index, offset) }
     }
 
-    LaunchedEffect(selectedFilter) {
-        if (lastAppliedFilter == selectedFilter) return@LaunchedEffect
-        lastAppliedFilter = selectedFilter
-
-        when (pagerState.settledPage) {
-            0 -> videosListState.scrollToItem(0)
-            2 -> liveListState.scrollToItem(0)
-        }
-    }
-
-    LaunchedEffect(sortedVideos.size, selectedFilter, pagerState.settledPage, uiState.searchActive) {
-        if (selectedFilter == VideoFilter.Latest || pagerState.settledPage != 0 || uiState.searchActive) return@LaunchedEffect
-
-        when (selectedFilter) {
-            VideoFilter.Oldest -> {
-                videosListState.scrollToItem(0)
-            }
-
-            VideoFilter.Popular -> {
-                val isNearTop =
-                    videosListState.firstVisibleItemIndex <= 1 &&
-                        videosListState.firstVisibleItemScrollOffset <= 40
-                if (isNearTop) {
-                    videosListState.scrollToItem(0)
-                }
-            }
-
-            VideoFilter.Latest -> {
-                Unit
-            }
-        }
-    }
-
-    LaunchedEffect(sortedLive.size, selectedFilter, pagerState.settledPage) {
-        if (selectedFilter == VideoFilter.Latest || pagerState.settledPage != 2) return@LaunchedEffect
-
-        when (selectedFilter) {
-            VideoFilter.Oldest -> {
-                liveListState.scrollToItem(0)
-            }
-
-            VideoFilter.Popular -> {
-                val isNearTop =
-                    liveListState.firstVisibleItemIndex <= 1 &&
-                        liveListState.firstVisibleItemScrollOffset <= 40
-                if (isNearTop) {
-                    liveListState.scrollToItem(0)
-                }
-            }
-
-            VideoFilter.Latest -> {
-                Unit
-            }
-        }
-    }
+    LaunchedEffect(selectedVideosSort) { videosListState.scrollToItem(0) }
+    LaunchedEffect(selectedLiveSort) { liveListState.scrollToItem(0) }
+    LaunchedEffect(selectedShortsSort) { shortsListState.scrollToItem(0) }
 
     Box(
         modifier =
@@ -531,8 +507,8 @@ private fun ChannelContent(
         ) { page ->
             val listPadding = PaddingValues(top = visibleHeaderHeightDp)
 
-            when (page) {
-                0 -> {
+            when (visibleTabs.getOrElse(page) { ChannelTab.Videos }) {
+                ChannelTab.Videos -> {
                     when {
                         uiState.searchActive && uiState.searchQuery.isNotBlank() -> {
                             when {
@@ -619,7 +595,7 @@ private fun ChannelContent(
                                     pagingItems = null,
                                     sortedItems = sortedVideos,
                                     isGridView = isGridView,
-                                    listKeyPrefix = selectedFilter.name,
+                                    listKeyPrefix = selectedVideosSort.toString(),
                                     onVideoClick = onVideoClick,
                                 )
                                 item { Spacer(Modifier.height(16.dp)) }
@@ -628,7 +604,7 @@ private fun ChannelContent(
                     }
                 }
 
-                1 -> {
+                ChannelTab.Shorts -> {
                     LazyColumn(
                         state = shortsListState,
                         modifier = Modifier.fillMaxSize(),
@@ -639,7 +615,7 @@ private fun ChannelContent(
                     }
                 }
 
-                2 -> {
+                ChannelTab.Live -> {
                     if (isLoadingAllVideos && sortedLive.isEmpty()) {
                         Box(
                             modifier =
@@ -658,7 +634,7 @@ private fun ChannelContent(
                                 pagingItems = null,
                                 sortedItems = sortedLive,
                                 isGridView = isGridView,
-                                listKeyPrefix = selectedFilter.name,
+                                listKeyPrefix = selectedLiveSort.toString(),
                                 onVideoClick = onVideoClick,
                             )
                             item { Spacer(Modifier.height(16.dp)) }
@@ -666,7 +642,7 @@ private fun ChannelContent(
                     }
                 }
 
-                3 -> {
+                ChannelTab.Playlists -> {
                     LazyColumn(
                         state = playlistsListState,
                         modifier = Modifier.fillMaxSize(),
@@ -677,7 +653,7 @@ private fun ChannelContent(
                     }
                 }
 
-                4 -> {
+                ChannelTab.Posts -> {
                     ChannelCommunityPosts(
                         posts = communityUiState.posts,
                         isLoading = communityUiState.isLoadingPosts,
@@ -694,7 +670,7 @@ private fun ChannelContent(
                     )
                 }
 
-                5 -> {
+                ChannelTab.About -> {
                     LazyColumn(
                         state = aboutListState,
                         modifier = Modifier.fillMaxSize(),
@@ -747,11 +723,14 @@ private fun ChannelContent(
                 )
                 if (showFilterBar) {
                     FilterAndToggleBar(
-                        selectedFilter = selectedFilter,
+                        sortOptions = activeSorts,
+                        selectedSort = activeSortIndex,
                         isGridView = isGridView,
                         searchActive = uiState.searchActive,
                         searchQuery = uiState.searchQuery,
-                        onFilterSelected = { selectedFilter = it },
+                        // The Shorts tab is a fixed portrait grid and has no in-channel search.
+                        showListControls = settledTab != ChannelTab.Shorts,
+                        onSortSelected = onActiveSortSelected,
                         onToggleGridView = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } },
                         onSearchToggle = onSearchToggle,
                         onSearchQueryChange = onSearchQueryChange,
@@ -766,22 +745,17 @@ private fun ChannelContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterAndToggleBar(
-    selectedFilter: VideoFilter,
+    sortOptions: List<String>,
+    selectedSort: Int,
     isGridView: Boolean,
     searchActive: Boolean = false,
     searchQuery: String = "",
-    onFilterSelected: (VideoFilter) -> Unit,
+    showListControls: Boolean = true,
+    onSortSelected: (Int) -> Unit,
     onToggleGridView: () -> Unit,
     onSearchToggle: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
 ) {
-    val filters =
-        listOf(
-            VideoFilter.Latest to R.string.channel_sort_latest,
-            VideoFilter.Popular to R.string.filter_popular,
-            VideoFilter.Oldest to R.string.filter_oldest,
-        )
-
     Row(
         modifier =
             Modifier
@@ -789,7 +763,7 @@ private fun FilterAndToggleBar(
                 .padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (searchActive) {
+        if (searchActive && showListControls) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
@@ -824,38 +798,14 @@ private fun FilterAndToggleBar(
                 )
             }
         } else {
-            LazyRow(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(filters.size) { idx ->
-                    val (filter, labelRes) = filters[idx]
-                    FilterChip(
-                        selected = selectedFilter == filter,
-                        onClick = { onFilterSelected(filter) },
-                        label = {
-                            Text(
-                                text = stringResource(labelRes),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        leadingIcon =
-                            if (selectedFilter == filter) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                    )
-                }
+            Box(modifier = Modifier.weight(1f)) {
+                SortChipRow(
+                    options = sortOptions,
+                    selectedIndex = selectedSort,
+                    onSelected = onSortSelected,
+                )
             }
+            if (!showListControls) return@Row
             IconButton(onClick = onSearchToggle) {
                 Icon(
                     imageVector = Icons.Default.Search,
@@ -1384,6 +1334,7 @@ private fun ShortsGridCard(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
             )
+            ShortWatchedIndicator(videoId = video.id)
         }
         Text(
             text = video.title,

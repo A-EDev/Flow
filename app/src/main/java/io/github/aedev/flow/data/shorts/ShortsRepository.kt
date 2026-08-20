@@ -17,6 +17,7 @@ import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.player.quality.QualityManager
+import io.github.aedev.flow.player.shorts.ShortsStartupTrace
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.CompletableDeferred
@@ -577,9 +578,13 @@ class ShortsRepository private constructor(
         preferredAudioLanguage: String,
     ): ShortPlaybackStreams? =
         withContext(Dispatchers.IO) {
+            ShortsStartupTrace.onRequested(videoId)
             val preferredCodecKey = preferredCodecKey()
             val cacheKey = "$videoId|$targetHeight|$preferredAudioLanguage|$preferredCodecKey"
-            playbackStreamsCache.get(cacheKey)?.let { return@withContext it }
+            playbackStreamsCache.get(cacheKey)?.let {
+                ShortsStartupTrace.onStreamsResolved(videoId, cached = true, strategy = "cache")
+                return@withContext it
+            }
 
             val inFlight =
                 streamResolveMutex.withLock {
@@ -610,11 +615,24 @@ class ShortsRepository private constructor(
         preferredAudioLanguage: String,
         preferredCodecKey: String = "auto",
     ): ShortPlaybackStreams? {
-        resolveFromUnifiedExtractor(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let { return it }
+        // Timed per strategy: the three legs cost up to 8s + 3.5s + 8s in sequence, so knowing which
+        // one answered is the difference between "the network is slow" and "leg one is failing".
+        val extractorStartedAt = System.currentTimeMillis()
+        resolveFromUnifiedExtractor(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let {
+            ShortsStartupTrace.onStreamsResolved(videoId, cached = false, strategy = "extractor")
+            return it
+        }
+        Log.w(TAG, "Unified extractor missed for $videoId after ${System.currentTimeMillis() - extractorStartedAt}ms")
 
-        resolveFromInnerTubePlayer(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let { return it }
+        val playerStartedAt = System.currentTimeMillis()
+        resolveFromInnerTubePlayer(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let {
+            ShortsStartupTrace.onStreamsResolved(videoId, cached = false, strategy = "innertube-player")
+            return it
+        }
+        Log.w(TAG, "InnerTube player missed for $videoId after ${System.currentTimeMillis() - playerStartedAt}ms")
 
         val streamInfo = resolveStreamInfo(videoId) ?: return null
+        ShortsStartupTrace.onStreamsResolved(videoId, cached = false, strategy = "newpipe")
         val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
 
         fun qualityHeight(stream: org.schabi.newpipe.extractor.stream.VideoStream): Int =
@@ -659,10 +677,13 @@ class ShortsRepository private constructor(
             }
 
         val videoUrl = videoStream?.content ?: videoStream?.url ?: return null
+        val durationMs = streamInfo.duration.takeIf { it > 0 }?.let { it * 1000L }
         return ShortPlaybackStreams(
             videoUrl = videoUrl,
             audioUrl = audioStream?.content ?: audioStream?.url,
-            durationMs = streamInfo.duration.takeIf { it > 0 }?.let { it * 1000L },
+            durationMs = durationMs,
+            videoDashManifest = videoStream?.let { ShortsDashManifest.forStream(it, durationMs) },
+            audioDashManifest = audioStream?.let { ShortsDashManifest.forStream(it, durationMs) },
         )
     }
 
@@ -674,6 +695,13 @@ class ShortsRepository private constructor(
                         InnerTubeVideoStreamExtractor.extract(videoId)
                     }
                 val formats = result?.videoFormats?.filter { !it.url.isNullOrBlank() }.orEmpty()
+                val durationMs =
+                    result
+                        ?.playerResponse
+                        ?.videoDetails
+                        ?.lengthSeconds
+                        ?.toLongOrNull()
+                        ?.times(1000L)
                 if (formats.isNotEmpty()) {
                     return@withContext formats
                         .groupBy { format -> "${shortsQualityClass(format)}_${VideoCodecUtils.codecKeyFromMimeType(format.mimeType)}" }
@@ -688,6 +716,7 @@ class ShortsRepository private constructor(
                                 videoUrl = url,
                                 codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
                                 codecKey = codecKey,
+                                dashManifest = ShortsDashManifest.forVideo(best, url, durationMs),
                             )
                         }.sortedWith(
                             compareByDescending<ShortVideoQuality> { it.heightClass }
@@ -715,6 +744,11 @@ class ShortsRepository private constructor(
                         videoUrl = url,
                         codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
                         codecKey = codecKey,
+                        dashManifest =
+                            ShortsDashManifest.forStream(
+                                best,
+                                streamInfo.duration.takeIf { it > 0 }?.let { it * 1000L },
+                            ),
                     )
                 }.sortedWith(
                     compareByDescending<ShortVideoQuality> { it.heightClass }
@@ -739,15 +773,6 @@ class ShortsRepository private constructor(
                 Log.w(TAG, "getInnerTubeDownloadFormats failed for $videoId: ${e.message}")
                 emptyList<PlayerResponse.StreamingData.Format>() to emptyList<PlayerResponse.StreamingData.Format>()
             }
-        }
-
-    private fun codecLabelFromMime(mime: String): String =
-        when {
-            mime.contains("av01", true) -> "AV1"
-            mime.contains("vp9", true) || mime.contains("vp09", true) -> "VP9"
-            mime.contains("avc", true) || mime.contains("mp4", true) -> "H.264"
-            mime.contains("vp8", true) -> "VP8"
-            else -> ""
         }
 
     private fun shortsQualityClass(f: PlayerResponse.StreamingData.Format): Int {
@@ -834,19 +859,28 @@ class ShortsRepository private constructor(
             val audioFormats = result.audioFormats.filter { !it.url.isNullOrBlank() }
             val selectedAudio = selectAudioForLanguage(audioFormats, preferredAudioLanguage)
 
-            Log.d(
+            Log.w(
                 TAG,
                 "✓ Unified extractor resolved $videoId at ${shortsQualityClass(selectedVideo)}p " +
+                    "(target=$targetHeight, picked ${selectedVideo.width}x${selectedVideo.height} " +
+                    "label=${selectedVideo.qualityLabel} itag=${selectedVideo.itag}, " +
+                    "ladder=${videoFormats.map { shortsQualityClass(it) }.distinct().sorted()}) " +
                     "via ${result.usedClient.clientName}",
             )
+            val durationMs =
+                result.playerResponse.videoDetails
+                    ?.lengthSeconds
+                    ?.toLongOrNull()
+                    ?.times(1000L)
             ShortPlaybackStreams(
                 videoUrl = videoUrl,
                 audioUrl = selectedAudio?.url,
-                durationMs =
-                    result.playerResponse.videoDetails
-                        ?.lengthSeconds
-                        ?.toLongOrNull()
-                        ?.times(1000L),
+                durationMs = durationMs,
+                videoDashManifest = ShortsDashManifest.forVideo(selectedVideo, videoUrl, durationMs),
+                audioDashManifest =
+                    selectedAudio?.url?.let { audioUrl ->
+                        ShortsDashManifest.forAudio(selectedAudio, audioUrl, durationMs)
+                    },
             )
         } catch (e: Exception) {
             Log.w(TAG, "Unified extractor resolve failed for $videoId: ${e.message}")
@@ -890,14 +924,20 @@ class ShortsRepository private constructor(
 
             val videoUrl = NewPipeExtractor.getStreamUrl(selectedVideo, videoId) ?: return null
             val audioUrl = selectedAudio?.let { NewPipeExtractor.getStreamUrl(it, videoId) }
+            val durationMs =
+                response.videoDetails
+                    ?.lengthSeconds
+                    ?.toLongOrNull()
+                    ?.times(1000L)
             ShortPlaybackStreams(
                 videoUrl = videoUrl,
                 audioUrl = audioUrl,
-                durationMs =
-                    response.videoDetails
-                        ?.lengthSeconds
-                        ?.toLongOrNull()
-                        ?.times(1000L),
+                durationMs = durationMs,
+                videoDashManifest = ShortsDashManifest.forVideo(selectedVideo, videoUrl, durationMs),
+                audioDashManifest =
+                    selectedAudio?.let { audio ->
+                        audioUrl?.let { ShortsDashManifest.forAudio(audio, it, durationMs) }
+                    },
             )
         } catch (e: Exception) {
             Log.w(TAG, "Fast Shorts stream resolve failed for $videoId: ${e.message}")
@@ -1153,6 +1193,9 @@ data class ShortPlaybackStreams(
     val videoUrl: String,
     val audioUrl: String?,
     val durationMs: Long?,
+    /** See [ShortsDashManifest]. Null means play the URL progressively, as Shorts always did. */
+    val videoDashManifest: String? = null,
+    val audioDashManifest: String? = null,
 )
 
 data class ShortVideoQuality(
@@ -1161,4 +1204,5 @@ data class ShortVideoQuality(
     val videoUrl: String,
     val codecLabel: String,
     val codecKey: String = "",
+    val dashManifest: String? = null,
 )

@@ -47,6 +47,8 @@ import io.github.aedev.flow.innertube.pages.ArtistItemsContinuationPage
 import io.github.aedev.flow.innertube.pages.ArtistItemsPage
 import io.github.aedev.flow.innertube.pages.ArtistPage
 import io.github.aedev.flow.innertube.pages.BrowseResult
+import io.github.aedev.flow.innertube.pages.ChannelShortsPage
+import io.github.aedev.flow.innertube.pages.ChannelSortOption
 import io.github.aedev.flow.innertube.pages.ChartsPage
 import io.github.aedev.flow.innertube.pages.CommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.CommunityPostsPage
@@ -70,6 +72,8 @@ import io.github.aedev.flow.innertube.pages.SearchSummary
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.SearchVideosPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
+import io.github.aedev.flow.innertube.pages.channelSortOptions
+import io.github.aedev.flow.innertube.pages.toChannelShortsPage
 import io.github.aedev.flow.innertube.pages.toCommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
@@ -89,6 +93,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import java.net.Proxy
@@ -104,6 +109,7 @@ object YouTube {
     private const val CHANNEL_VIDEOS_PARAMS = "EgZ2aWRlb3PyBgQKAjoA"
     private const val CHANNEL_LIVE_PARAMS = "EgdzdHJlYW1z8gYECgJ6AA%3D%3D"
     private const val CHANNEL_POSTS_PARAMS = "EgVwb3N0c_IGBAoCSgA="
+    private const val CHANNEL_SHORTS_PARAMS = "EgZzaG9ydHPyBgUKA5oBAA=="
 
     var locale: YouTubeLocale
         get() = innerTube.locale
@@ -656,6 +662,8 @@ object YouTube {
         val videos: List<io.github.aedev.flow.data.model.Video>,
         val continuation: String?,
         val channelVideoCountText: String? = null,
+        /** The tab's Latest/Popular/Oldest bar. Empty on a continuation, which carries no header. */
+        val sorts: List<ChannelSortOption> = emptyList(),
     )
 
     /**
@@ -803,6 +811,35 @@ object YouTube {
         channelThumbnailUrl: String,
     ): Result<ChannelVideoSearchResult> = channelVideosPage(channelId, channelName, channelThumbnailUrl, null, true, continuation)
 
+    /**
+     * A channel's Shorts tab, including its sort bar. Unlike the Videos and Live tabs this goes
+     * through the native client rather than NewPipe, because NewPipe's `ChannelTabInfo` has no
+     * notion of the Latest/Popular/Oldest chips and the tab is useless without them (#547).
+     */
+    suspend fun channelShorts(channelId: String): Result<ChannelShortsPage> = channelShortsPage(channelId = channelId)
+
+    /** Serves both paging and sort switching — a sort chip's token is just another continuation. */
+    suspend fun channelShortsContinuation(continuation: String): Result<ChannelShortsPage> = channelShortsPage(continuation = continuation)
+
+    private suspend fun channelShortsPage(
+        channelId: String? = null,
+        continuation: String? = null,
+    ): Result<ChannelShortsPage> =
+        runCatching {
+            val client = currentWebClient()
+            val response =
+                innerTube.channelBrowse(
+                    client = client,
+                    channelId = channelId,
+                    params = CHANNEL_SHORTS_PARAMS.takeIf { continuation == null },
+                    continuation = continuation,
+                )
+            Json
+                .parseToJsonElement(response.bodyAsText())
+                .jsonObject
+                .toChannelShortsPage()
+        }
+
     suspend fun communityPosts(
         channelId: String,
         channelName: String,
@@ -903,7 +940,9 @@ object YouTube {
                     explicitNulls = false
                 }
             val response = lenientJson.decodeFromString<ChannelVideosResponse>(rawBody)
+            val sorts = Json.parseToJsonElement(rawBody).channelSortOptions()
             parseChannelVideosResponse(response, channelId, channelName, channelThumbnailUrl, isLive)
+                .copy(sorts = sorts)
         }
 
     private fun parseChannelVideosResponse(
@@ -929,8 +968,10 @@ object YouTube {
 
         val richItems = mutableListOf<ChannelVideosResponse.RichItem>()
         response.onResponseReceivedActions
-            ?.flatMap { it.appendContinuationItemsAction?.continuationItems.orEmpty() }
-            ?.let { richItems += it }
+            ?.flatMap {
+                it.appendContinuationItemsAction?.continuationItems.orEmpty() +
+                    it.reloadContinuationItemsCommand?.continuationItems.orEmpty()
+            }?.let { richItems += it }
 
         response.continuationContents
             ?.richGridContinuation

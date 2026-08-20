@@ -13,6 +13,7 @@ import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
 import io.github.aedev.flow.utils.DateFormatStyle
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -120,6 +121,7 @@ class PlayerPreferences(
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
         val GROUPED_QUALITY_SELECTOR_ENABLED = booleanPreferencesKey("grouped_quality_selector_enabled")
         val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
+        val SHORTS_CONTENT_ENABLED = booleanPreferencesKey("shorts_content_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val HOME_NAVIGATION_ENABLED = booleanPreferencesKey("home_navigation_enabled")
@@ -257,12 +259,15 @@ class PlayerPreferences(
         val SHOW_SHORTS_PLAYER_PROMPT = booleanPreferencesKey("show_shorts_player_prompt")
         val SHARE_WITHOUT_TEXT = booleanPreferencesKey("share_without_text")
 
+        val SHORTS_PIP_ENABLED = booleanPreferencesKey("shorts_pip_enabled")
+
         // Shorts background playback
         val SHORTS_BACKGROUND_PLAY = booleanPreferencesKey("shorts_background_play")
 
         // Shorts playback mode: "loop" (default), "auto_next", or "auto_interval"
         val SHORTS_PLAYBACK_MODE = stringPreferencesKey("shorts_playback_mode")
         val SHORTS_AUTO_SCROLL_SECONDS = intPreferencesKey("shorts_auto_scroll_seconds")
+        val SHORTS_QUEUE_CONTINUE_INTO_FEED = booleanPreferencesKey("shorts_queue_continue_into_feed")
 
         // Cache size
         val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
@@ -741,12 +746,34 @@ class PlayerPreferences(
         }
     }
 
+    /**
+     * Master switch for Shorts (reels) as content. When OFF the app hides every reel surface and the
+     * five granular Shorts toggles below are overridden — read the `effective*` flows, never the raw
+     * ones, or that surface will silently ignore the master switch.
+     *
+     * Hiding only. Saved Shorts and Shorts watch history stay in the database untouched.
+     */
+    val shortsContentEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.SHORTS_CONTENT_ENABLED] ?: true
+            }
+
+    suspend fun setShortsContentEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_CONTENT_ENABLED] = enabled
+        }
+    }
+
     // Shorts shelf enabled preference
     val shortsShelfEnabled: Flow<Boolean> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
                 preferences[Keys.SHORTS_SHELF_ENABLED] ?: true
             }
+
+    val effectiveShortsShelfEnabled: Flow<Boolean> =
+        combine(shortsContentEnabled, shortsShelfEnabled) { master, own -> master && own }
 
     suspend fun setShortsShelfEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -760,6 +787,9 @@ class PlayerPreferences(
             .map { preferences ->
                 preferences[Keys.HOME_SHORTS_SHELF_ENABLED] ?: true
             }
+
+    val effectiveHomeShortsShelfEnabled: Flow<Boolean> =
+        combine(shortsContentEnabled, homeShortsShelfEnabled) { master, own -> master && own }
 
     suspend fun setHomeShortsShelfEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -783,6 +813,9 @@ class PlayerPreferences(
             .map { preferences ->
                 preferences[Keys.SHORTS_NAVIGATION_ENABLED] ?: true
             }
+
+    val effectiveShortsNavigationEnabled: Flow<Boolean> =
+        combine(shortsContentEnabled, shortsNavigationEnabled) { master, own -> master && own }
 
     suspend fun setShortsNavigationEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
@@ -1760,6 +1793,9 @@ class PlayerPreferences(
         context.playerPreferencesDataStore.data
             .map { preferences -> preferences[Keys.SUBSCRIPTION_SHOW_SHORTS] ?: true }
 
+    val effectiveSubscriptionShowShorts: Flow<Boolean> =
+        combine(shortsContentEnabled, subscriptionShowShorts) { master, own -> master && own }
+
     suspend fun setSubscriptionShowShorts(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SUBSCRIPTION_SHOW_SHORTS] = enabled
@@ -1865,6 +1901,9 @@ class PlayerPreferences(
                 preferences[Keys.DISABLE_SHORTS_PLAYER] ?: false
             }
 
+    val effectiveDisableShortsPlayer: Flow<Boolean> =
+        combine(shortsContentEnabled, disableShortsPlayer) { master, own -> !master || own }
+
     suspend fun setDisableShortsPlayer(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DISABLE_SHORTS_PLAYER] = enabled
@@ -1896,6 +1935,18 @@ class PlayerPreferences(
         }
     }
 
+    val shortsPipEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.SHORTS_PIP_ENABLED] ?: false
+            }
+
+    suspend fun setShortsPipEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_PIP_ENABLED] = enabled
+        }
+    }
+
     // Shorts playback mode (default LOOP — repeats the current short)
     val shortsPlaybackMode: Flow<String> =
         context.playerPreferencesDataStore.data
@@ -1918,6 +1969,18 @@ class PlayerPreferences(
     suspend fun setShortsAutoScrollSeconds(seconds: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_AUTO_SCROLL_SECONDS] = seconds.coerceIn(5, 20)
+        }
+    }
+
+    val shortsQueueContinuesIntoFeed: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.SHORTS_QUEUE_CONTINUE_INTO_FEED] ?: true
+            }
+
+    suspend fun setShortsQueueContinuesIntoFeed(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_QUEUE_CONTINUE_INTO_FEED] = enabled
         }
     }
 

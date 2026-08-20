@@ -5,17 +5,16 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
-import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionRefreshPlan
+import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import io.github.aedev.flow.data.subscriptions.withHighQualityThumbnails
 import io.github.aedev.flow.data.subscriptions.withRelativeUploadDates
 import io.github.aedev.flow.data.subscriptions.withStableUploadSortKeys
@@ -51,10 +50,9 @@ class SubscriptionsViewModel
     constructor(
         private val subscriptionRepository: SubscriptionRepository,
         private val subscriptionFeedRepository: SubscriptionFeedRepository,
-        private val viewHistory: ViewHistory,
-        private val database: AppDatabase,
         private val playerPreferences: PlayerPreferences,
         private val subscriptionGroupDao: SubscriptionGroupDao,
+        private val subscriptionWatchedVideos: SubscriptionWatchedVideos,
     ) : ViewModel() {
         companion object {
             private const val TAG = "SubsViewModel"
@@ -98,7 +96,7 @@ class SubscriptionsViewModel
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                playerPreferences.shortsShelfEnabled.collect { enabled ->
+                playerPreferences.effectiveShortsShelfEnabled.collect { enabled ->
                     _uiState.update { it.copy(isShortsShelfEnabled = enabled) }
                 }
             }
@@ -106,7 +104,7 @@ class SubscriptionsViewModel
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 combine(
                     playerPreferences.subscriptionShowVideos,
-                    playerPreferences.subscriptionShowShorts,
+                    playerPreferences.effectiveSubscriptionShowShorts,
                     playerPreferences.subscriptionShowLive,
                 ) { showVideos, showShorts, showLive ->
                     Triple(showVideos, showShorts, showLive)
@@ -173,24 +171,10 @@ class SubscriptionsViewModel
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                combine(
-                    viewHistory.getVideoHistoryFlow(),
-                    playerPreferences.hideWatchedVideosFromSubscriptions,
-                    playerPreferences.watchedThreshold,
-                    database.downloadDao().getVideoDownloads(),
-                ) { history, hideWatched, threshold, downloads ->
-                    if (!hideWatched) return@combine emptySet<String>()
-                    val downloadedIds = downloads.mapTo(HashSet()) { it.download.videoId }
-                    history
-                        .asSequence()
-                        .filter { threshold.isWatched(it.position, it.duration) || it.videoId in downloadedIds }
-                        .map { it.videoId }
-                        .toHashSet()
-                }.distinctUntilChanged()
-                    .collect { ids ->
-                        watchedVideoIds = ids
-                        refreshVisibleFeed()
-                    }
+                subscriptionWatchedVideos.ids.collect { ids ->
+                    watchedVideoIds = ids
+                    refreshVisibleFeed()
+                }
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {

@@ -34,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.data.subscriptions.refreshSubscriptionsAtStartup
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -96,11 +97,11 @@ fun FlowApp(
 
     val preferences = remember { PlayerPreferences(context) }
     val isHomeNavigationEnabled by preferences.homeNavigationEnabled.collectAsState(initial = true)
-    val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
+    val isShortsNavigationEnabled by preferences.effectiveShortsNavigationEnabled.collectAsState(initial = true)
     val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
     val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
     val isCategoriesNavigationEnabled by preferences.categoriesNavigationEnabled.collectAsState(initial = false)
-    val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
+    val disableShortsPlayer by preferences.effectiveDisableShortsPlayer.collectAsState(initial = false)
     val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
     val subscriptionRefreshOnStartup by preferences.subscriptionRefreshOnStartup.collectAsState(initial = false)
@@ -221,8 +222,7 @@ fun FlowApp(
                     val route = currentRoute.value
                     if (!bottomNavHideOnScroll ||
                         source != NestedScrollSource.UserInput ||
-                        route == "shorts" ||
-                        route == "savedShortsPlayer"
+                        route == "shorts"
                     ) {
                         return Offset.Zero
                     }
@@ -252,8 +252,7 @@ fun FlowApp(
 
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     val currentVideo by GlobalPlayerState.currentVideo.collectAsState()
-    val isShortsPlayerRoute =
-        currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer"
+    val isShortsPlayerRoute = currentRoute.value == "shorts"
 
     LaunchedEffect(isShortsPlayerRoute) {
         if (isShortsPlayerRoute) {
@@ -432,11 +431,16 @@ fun FlowApp(
             systemDarkThemeMode = systemDarkThemeMode,
             isFullscreen = playerUiState.isFullscreen,
             isMusicPlayerImmersive = currentMusicTrack != null && musicPlayerSheetState.progress > 0.5f,
-            isShortsPlayer = currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer",
+            isShortsPlayer = isShortsPlayerRoute,
         )
 
         LaunchedEffect(isInPipMode) {
-            if (isInPipMode && !currentRoute.value.startsWith("player") && currentVideo != null) {
+            if (
+                isInPipMode &&
+                !isShortsPlayerRoute &&
+                !currentRoute.value.startsWith("player") &&
+                currentVideo != null
+            ) {
                 navController.navigate("player/${currentVideo!!.id}")
             }
         }
@@ -689,7 +693,7 @@ fun FlowApp(
             },
             onNavigateToShorts = { videoId ->
                 playerSheetState.collapse()
-                navController.navigate("shorts?startVideoId=$videoId")
+                navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
             },
         )
 

@@ -18,12 +18,17 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.mergeDistinctByNonBlankKey
 import io.github.aedev.flow.data.paging.ChannelPlaylistsPagingSource
+import io.github.aedev.flow.data.paging.ChannelShortsPagingSource
 import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
+import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.pages.ChannelSortOption
 import io.github.aedev.flow.innertube.pages.CommunityPost
 import io.github.aedev.flow.ui.youtubeChannelUrl
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +52,7 @@ class ChannelViewModel
     constructor(
         @ApplicationContext private val appContext: Context,
         private val subscriptionRepository: SubscriptionRepository,
+        private val shortsContentFilter: ShortsContentFilter,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(ChannelUiState())
         val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
@@ -56,6 +62,54 @@ class ChannelViewModel
         // Paging flow for channel videos with infinite scroll
         private val _shortsPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
         val shortsPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _shortsPagingFlow.asStateFlow()
+
+        /**
+         * The Shorts tab's sort bar, as YouTube sent it — labels already localised, order as shown
+         * on the web. Empty until the first page lands, and on a channel whose Shorts tab offers no
+         * sorting, in which case the screen shows no chips (#547).
+         */
+        private val _shortsSorts = MutableStateFlow<List<String>>(emptyList())
+        val shortsSorts: StateFlow<List<String>> = _shortsSorts.asStateFlow()
+
+        private val _selectedShortsSort = MutableStateFlow(0)
+        val selectedShortsSort: StateFlow<Int> = _selectedShortsSort.asStateFlow()
+
+        private var shortsSortTokens: List<String> = emptyList()
+        private var shortsChannelId: String = ""
+
+        /**
+         * Rebuilds the grid in the chosen order. The queue reads the same index off the nav route,
+         * so swipe order follows what the grid is showing rather than diverging from it.
+         */
+        fun selectShortsSort(index: Int) {
+            if (index == _selectedShortsSort.value || index !in shortsSortTokens.indices) return
+            _selectedShortsSort.value = index
+            buildShortsPager(shortsChannelId, shortsSortTokens.getOrNull(index).takeIf { index != 0 })
+        }
+
+        private fun buildShortsPager(
+            channelId: String,
+            sortToken: String?,
+        ) {
+            if (channelId.isBlank()) return
+            _shortsPagingFlow.value =
+                Pager(
+                    config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+                    pagingSourceFactory = {
+                        ChannelShortsPagingSource(
+                            channelId = channelId,
+                            sortToken = sortToken,
+                            onPageLoaded = { sorts, _ ->
+                                if (sorts.isNotEmpty()) {
+                                    shortsSortTokens = sorts.map { it.token }
+                                    _shortsSorts.value = sorts.map { it.label }
+                                }
+                            },
+                        )
+                    },
+                ).flow.cachedIn(viewModelScope)
+        }
+
         private val _playlistsPagingFlow = MutableStateFlow<Flow<PagingData<io.github.aedev.flow.data.model.Playlist>>?>(null)
         val playlistsPagingFlow: StateFlow<Flow<PagingData<io.github.aedev.flow.data.model.Playlist>>?> = _playlistsPagingFlow.asStateFlow()
 
@@ -80,6 +134,50 @@ class ChannelViewModel
         ) {
             listScrollIndex = index
             listScrollOffset = offset
+        }
+
+        private enum class TabKind { Videos, Live }
+
+        private var videosJob: Job? = null
+        private var liveJob: Job? = null
+        private var videosSortTokens: List<String> = emptyList()
+        private var liveSortTokens: List<String> = emptyList()
+
+        /**
+         * The Videos tab's sort bar, straight from YouTube. Replaces the old client-side
+         * Latest/Popular/Oldest: sorting an accumulated list can only order the pages already
+         * fetched, so "Oldest" on a large channel really meant "oldest of the first few hundred".
+         */
+        private val _videosSorts = MutableStateFlow<List<String>>(emptyList())
+        val videosSorts: StateFlow<List<String>> = _videosSorts.asStateFlow()
+
+        private val _selectedVideosSort = MutableStateFlow(0)
+        val selectedVideosSort: StateFlow<Int> = _selectedVideosSort.asStateFlow()
+
+        private val _liveSorts = MutableStateFlow<List<String>>(emptyList())
+        val liveSorts: StateFlow<List<String>> = _liveSorts.asStateFlow()
+
+        private val _selectedLiveSort = MutableStateFlow(0)
+        val selectedLiveSort: StateFlow<Int> = _selectedLiveSort.asStateFlow()
+
+        fun selectVideosSort(index: Int) {
+            if (index == _selectedVideosSort.value || index !in videosSortTokens.indices) return
+            _selectedVideosSort.value = index
+            videosJob?.cancel()
+            videosJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                    loadSortedTab(TabKind.Videos, videosSortTokens.getOrNull(index).takeIf { index != 0 })
+                }
+        }
+
+        fun selectLiveSort(index: Int) {
+            if (index == _selectedLiveSort.value || index !in liveSortTokens.indices) return
+            _selectedLiveSort.value = index
+            liveJob?.cancel()
+            liveJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                    loadSortedTab(TabKind.Live, liveSortTokens.getOrNull(index).takeIf { index != 0 })
+                }
         }
 
         private var currentVideosTab: ListLinkHandler? = null
@@ -269,25 +367,27 @@ class ChannelViewModel
                     // Load all pages for Videos tab (enables full-list filtering)
                     val videosTab = currentVideosTab
                     if (videosTab != null) {
-                        viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                            loadAllPages(videosTab, channelInfo, _videosAll)
-                        }
+                        videosJob?.cancel()
+                        videosJob =
+                            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                                loadSortedTab(TabKind.Videos, sortToken = null)
+                            }
                     }
 
                     // Create the paging flow for Shorts
-                    if (currentShortsTab != null) {
-                        _shortsPagingFlow.value =
-                            Pager(
-                                config = PagingConfig(pageSize = 20, enablePlaceholders = false),
-                                pagingSourceFactory = { ChannelVideosPagingSource(channelInfo, currentShortsTab) },
-                            ).flow.cachedIn(viewModelScope)
+                    if (currentShortsTab != null && shortsContentFilter.isEnabled()) {
+                        shortsChannelId = channelInfo.id.orEmpty()
+                        _selectedShortsSort.value = 0
+                        buildShortsPager(shortsChannelId, sortToken = null)
                     }
 
                     val liveTab = currentLiveTab
                     if (liveTab != null) {
-                        viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                            loadAllPages(liveTab, channelInfo, _liveAll)
-                        }
+                        liveJob?.cancel()
+                        liveJob =
+                            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                                loadSortedTab(TabKind.Live, sortToken = null)
+                            }
                     }
 
                     // Create the paging flow for Playlists
@@ -485,46 +585,111 @@ class ChannelViewModel
         }
 
         /**
-         * Fetches all pages for a channel tab sequentially and emits results
-         * incrementally into [target]. This allows filters (Popular/Latest/Oldest)
-         * to operate on the full video list rather than just the first batch.
+         * Loads a channel tab in the order YouTube itself would show it, paging until the tab runs
+         * out or [MAX_PAGES] is hit.
+         *
+         * [sortToken] is a chip from the tab's own sort bar, so the list arrives sorted rather than
+         * being re-ordered here. That is the difference that matters: a client-side sort can only
+         * order what has already been fetched, which quietly turned "Oldest" into "oldest of the
+         * pages loaded so far" on any channel bigger than the page cap.
          */
-        private suspend fun loadAllPages(
-            tab: ListLinkHandler,
-            channelInfo: ChannelInfo,
-            target: MutableStateFlow<List<Video>>,
+        private suspend fun loadSortedTab(
+            kind: TabKind,
+            sortToken: String?,
         ) {
+            val channelId = _uiState.value.channelId ?: return
+            val channelInfo = _uiState.value.channelInfo
+            val channelName = channelInfo?.name.orEmpty()
+            val avatar =
+                channelInfo
+                    ?.avatars
+                    ?.maxByOrNull { it.height }
+                    ?.url
+                    .orEmpty()
+            val target = if (kind == TabKind.Videos) _videosAll else _liveAll
+            val isLive = kind == TabKind.Live
+
             _isLoadingAllVideos.value = true
+            target.value = emptyList()
             try {
-                val service = NewPipe.getService(0)
+                val first =
+                    when {
+                        sortToken != null -> {
+                            continueTab(kind, sortToken, channelId, channelName, avatar)
+                        }
+
+                        isLive -> {
+                            YouTube.channelLiveStreams(channelId, channelName, avatar)
+                        }
+
+                        else -> {
+                            YouTube.channelVideos(channelId, channelName, avatar)
+                        }
+                    }.getOrNull() ?: return
+
+                publishSorts(kind, first.sorts)
+
                 val accumulated = mutableListOf<Video>()
+                val seen = mutableSetOf<String>()
 
-                // First page — no delay, show content immediately
-                val initial = ChannelTabInfo.getInfo(service, tab)
-                initial.relatedItems
-                    .filterIsInstance<StreamInfoItem>()
-                    .mapTo(accumulated) { it.toChannelVideo(channelInfo) }
-                target.value = accumulated.toList()
+                fun absorb(videos: List<Video>) {
+                    videos.forEach { video -> if (seen.add(video.id)) accumulated += video }
+                    target.value = accumulated.toList()
+                }
 
-                var nextPage = initial.nextPage
+                absorb(first.videos)
+
+                var continuation = first.continuation
                 var pagesLoaded = 1
-                while (nextPage != null && pagesLoaded < MAX_PAGES) {
+                while (continuation != null && pagesLoaded < MAX_PAGES) {
                     // Throttle subsequent pages — keeps the request pattern human-like
                     // and avoids triggering YouTube's burst rate-limiting (429s)
                     delay(PAGE_DELAY_MS)
-                    val more = ChannelTabInfo.getMoreItems(service, tab, nextPage)
-                    more.items
-                        .filterIsInstance<StreamInfoItem>()
-                        .mapTo(accumulated) { it.toChannelVideo(channelInfo) }
-                    target.value = accumulated.toList()
-                    nextPage = more.nextPage
+                    val more =
+                        continueTab(kind, continuation, channelId, channelName, avatar).getOrNull() ?: break
+                    if (more.videos.isEmpty() && more.continuation == null) break
+                    absorb(more.videos)
+                    continuation = more.continuation
                     pagesLoaded++
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Rate-limited or network error — user keeps whatever loaded so far
                 Log.w(TAG, "Page loading stopped after rate limit or error", e)
             } finally {
                 _isLoadingAllVideos.value = false
+            }
+        }
+
+        /**
+         * Live streams have their own continuation entry point. Paging them through the plain video
+         * one loses the live marker, so every past broadcast past the first page would render as an
+         * ordinary upload.
+         */
+        private suspend fun continueTab(
+            kind: TabKind,
+            continuation: String,
+            channelId: String,
+            channelName: String,
+            avatar: String,
+        ) = if (kind == TabKind.Live) {
+            YouTube.channelLiveStreamsContinuation(continuation, channelId, channelName, avatar)
+        } else {
+            YouTube.channelVideosContinuation(continuation, channelId, channelName, avatar)
+        }
+
+        private fun publishSorts(
+            kind: TabKind,
+            sorts: List<ChannelSortOption>,
+        ) {
+            if (sorts.isEmpty()) return
+            if (kind == TabKind.Videos) {
+                videosSortTokens = sorts.map { it.token }
+                _videosSorts.value = sorts.map { it.label }
+            } else {
+                liveSortTokens = sorts.map { it.token }
+                _liveSorts.value = sorts.map { it.label }
             }
         }
 
@@ -618,7 +783,7 @@ data class ChannelUiState(
     val videosError: String? = null,
     val isSubscribed: Boolean = false,
     val isNotificationsEnabled: Boolean = false,
-    val selectedTab: Int = 0, // 0: Videos, 1: Shorts, 2: Live, 3: Playlists, 4: Posts, 5: About
+    val selectedTab: Int = 0,
     // ── Channel search ──────────────────────────────────────────────────────
     val searchActive: Boolean = false,
     val searchQuery: String = "",

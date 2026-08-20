@@ -567,8 +567,14 @@ class HomeViewModel
         private val subscriptionRepository: SubscriptionRepository,
         private val shortsRepository: ShortsRepository,
         private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
+        private val shortsQueueHandoff: io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff,
         @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
+        fun shortsShelfSource(
+            shelf: List<io.github.aedev.flow.data.model.Video>,
+            tapped: io.github.aedev.flow.data.model.Video,
+        ) = shortsQueueHandoff.sourceForShelf(shelf, tapped)
+
         companion object {
             private const val TAG = "HomeViewModel"
             private const val HOME_TARGET_SIZE = 40
@@ -745,7 +751,7 @@ class HomeViewModel
             }
 
             viewModelScope.launch {
-                playerPreferences.homeShortsShelfEnabled.collect { enabled ->
+                playerPreferences.effectiveHomeShortsShelfEnabled.collect { enabled ->
                     if (!enabled) {
                         _uiState.update { it.copy(shorts = emptyList()) }
                     } else if (_uiState.value.shorts.isEmpty()) {
@@ -864,7 +870,7 @@ class HomeViewModel
 
         private fun loadHomeShorts() {
             viewModelScope.launch {
-                if (!playerPreferences.homeShortsShelfEnabled.first()) return@launch
+                if (!playerPreferences.effectiveHomeShortsShelfEnabled.first()) return@launch
                 try {
                     val shorts = shortsRepository.getHomeFeedShorts().map { it.toVideo() }
                     if (shorts.isNotEmpty()) {
@@ -913,14 +919,12 @@ class HomeViewModel
             }
         }
 
-        private fun updateVideosAndShorts(
+        private suspend fun updateVideosAndShorts(
             newVideos: List<Video>,
             append: Boolean = false,
         ) {
-            val (newShorts, regularVideos) =
-                newVideos.partition {
-                    it.isShort || (it.duration in 1..120) || (it.duration == 0 && !it.isLive)
-                }
+            val (reels, regularVideos) = newVideos.partition { it.isShort }
+            val newShorts = if (playerPreferences.effectiveHomeShortsShelfEnabled.first()) reels else emptyList()
 
             _uiState.update { state ->
                 val watched = watchedVideoIds.value
@@ -1078,7 +1082,7 @@ class HomeViewModel
                             .distinctBy { it.id }
                             .filterWatched(watchedVideoIds.value)
                             .filterRecentHomeSuggestion(now)
-                    if (feedShorts.isNotEmpty() && playerPreferences.homeShortsShelfEnabled.first()) {
+                    if (feedShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
                         val rankedShorts = FlowNeuroEngine.rank(feedShorts, userSubs)
                         _uiState.update { state ->
                             state.copy(shorts = (state.shorts + rankedShorts).distinctBy { it.id })
@@ -1432,7 +1436,7 @@ class HomeViewModel
                         .extractShorts()
                         .filterWatched(watchedVideoIds.value)
                         .filterRecentHomeSuggestion(now)
-                if (moreShorts.isNotEmpty() && playerPreferences.homeShortsShelfEnabled.first()) {
+                if (moreShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
                     val rankedMore = FlowNeuroEngine.rank(moreShorts, userSubs)
                     _uiState.update { state ->
                         state.copy(shorts = (state.shorts + rankedMore).distinctBy { it.id })
@@ -1870,24 +1874,19 @@ class HomeViewModel
 
         private fun List<Video>.filterValid(): List<Video> =
             this.filter {
-                !it.isShort &&
-                    ((it.duration > 120) || (it.duration == 0 && it.isLive))
+                !it.isShort && (it.duration > 0 || it.isLive)
             }
 
         private fun List<GraphCandidate>.filterValidGraph(): List<GraphCandidate> =
             filter { candidate ->
-                !candidate.video.isShort &&
-                    ((candidate.video.duration > 120) || (candidate.video.duration == 0 && candidate.video.isLive))
+                !candidate.video.isShort && (candidate.video.duration > 0 || candidate.video.isLive)
             }
 
         /**
          * Filter that extracts shorts from a video list for the shelf.
          * Complements filterValid() by capturing what it discards.
          */
-        private fun List<Video>.extractShorts(): List<Video> =
-            this.filter {
-                it.isShort || (it.duration in 1..120 && !it.isLive)
-            }
+        private fun List<Video>.extractShorts(): List<Video> = this.filter { it.isShort }
 
         private fun List<Video>.filterRecentHomeSuggestion(now: Long): List<Video> = filter { video -> isRecentHomeSuggestion(video, now) }
 

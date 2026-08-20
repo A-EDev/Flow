@@ -6,6 +6,8 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.shorts.ShortsContentFilter
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -59,7 +61,15 @@ class HistoryViewModelTest {
             coEvery { viewHistory.getAllHistory() } returns flowOf(historyList)
             coEvery { videoDao.getVideo("vid_1") } returns null
 
-            val viewModel = HistoryViewModel(viewHistory, youTubeRepository, videoDao, watchHistoryDao)
+            val viewModel =
+                HistoryViewModel(
+                    viewHistory,
+                    youTubeRepository,
+                    videoDao,
+                    watchHistoryDao,
+                    ShortsContentFilter(flowOf(true)),
+                    ShortsQueueHandoff(),
+                )
             testDispatcher.scheduler.advanceUntilIdle()
 
             val uiState = viewModel.uiState.value
@@ -73,7 +83,15 @@ class HistoryViewModelTest {
         runTest {
             coEvery { viewHistory.getAllHistory() } returns flowOf(emptyList())
 
-            val viewModel = HistoryViewModel(viewHistory, youTubeRepository, videoDao, watchHistoryDao)
+            val viewModel =
+                HistoryViewModel(
+                    viewHistory,
+                    youTubeRepository,
+                    videoDao,
+                    watchHistoryDao,
+                    ShortsContentFilter(flowOf(true)),
+                    ShortsQueueHandoff(),
+                )
             viewModel.clearHistory()
             testDispatcher.scheduler.advanceUntilIdle()
 
@@ -85,7 +103,15 @@ class HistoryViewModelTest {
         runTest {
             coEvery { viewHistory.getAllHistory() } returns flowOf(emptyList())
 
-            val viewModel = HistoryViewModel(viewHistory, youTubeRepository, videoDao, watchHistoryDao)
+            val viewModel =
+                HistoryViewModel(
+                    viewHistory,
+                    youTubeRepository,
+                    videoDao,
+                    watchHistoryDao,
+                    ShortsContentFilter(flowOf(true)),
+                    ShortsQueueHandoff(),
+                )
             viewModel.removeFromHistory("vid_123")
             testDispatcher.scheduler.advanceUntilIdle()
 

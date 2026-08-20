@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionRefreshPlan
+import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -65,10 +66,9 @@ class SubscriptionsViewModelTest {
             SubscriptionsViewModel(
                 subscriptionRepository = subscriptionRepository,
                 subscriptionFeedRepository = subscriptionFeedRepository,
-                viewHistory = viewHistory,
-                database = database,
                 playerPreferences = playerPreferences,
                 subscriptionGroupDao = subscriptionGroupDao,
+                subscriptionWatchedVideos = SubscriptionWatchedVideos(viewHistory, playerPreferences, database),
             )
     }
 

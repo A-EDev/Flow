@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.*
@@ -16,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,6 +24,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
@@ -36,10 +38,9 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ShortsScreen(
+    source: ShortsQueueSource,
     onBack: () -> Unit,
     onChannelClick: (String) -> Unit,
-    startVideoId: String? = null,
-    isSavedMode: Boolean = false,
     bottomNavOverlayPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
     viewModel: ShortsViewModel = hiltViewModel(),
@@ -48,6 +49,9 @@ fun ShortsScreen(
     val audioLangPref = remember(context) { PlayerPreferences(context) }
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+
+    val isInPip by GlobalPlayerState.isInPipMode.collectAsState()
+    ShortsPipActionEffect()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
@@ -142,28 +146,37 @@ fun ShortsScreen(
             pinned + sortedUnpinned
         }
 
-    // Load shorts
-    LaunchedEffect(Unit) {
-        if (isSavedMode) {
-            viewModel.loadSavedShorts(startVideoId)
-        } else {
-            viewModel.loadShorts(startVideoId = startVideoId)
-        }
+    LaunchedEffect(source) {
+        viewModel.load(source)
     }
 
-    // Release player pool when leaving Shorts
+    // Release the pool on the way out — unless a later Shorts screen has claimed it in the meantime.
+    // An external /shorts/ link arriving while the Shorts tab is open pushes a second destination,
+    // and the outgoing screen's dispose runs after the incoming one has already prepared its players.
     DisposableEffect(Unit) {
-        onDispose {
-            ShortsPlayerPool.getInstance().release()
-        }
+        val playerPool = ShortsPlayerPool.getInstance()
+        val hostToken = playerPool.acquireHost()
+        onDispose { playerPool.releaseIfHost(hostToken) }
     }
 
-    Box(
+    val sheetInsets = rememberShortsSheetInsetState()
+    val density = LocalDensity.current
+
+    BoxWithConstraints(
         modifier =
             modifier
                 .fillMaxSize()
                 .background(Color.Black),
     ) {
+        val canShrinkReel = maxHeight > maxWidth
+        val sheetExpandedHeight = (maxHeight * SHORTS_SHEET_HEIGHT_FRACTION).takeIf { canShrinkReel }
+        val sheetExpandedHeightPx = with(density) { (sheetExpandedHeight ?: 0.dp).toPx() }
+        SideEffect {
+            sheetInsets.containerHeightPx = constraints.maxHeight.toFloat()
+            sheetInsets.shrinkEnabled = canShrinkReel
+        }
+        val screenSheetOpen = showCommentsSheet || showDescriptionSheet
+
         when {
             uiState.isLoading && uiState.shorts.isEmpty() -> {
                 ShortsLoadingState(modifier = Modifier.align(Alignment.Center))
@@ -172,7 +185,7 @@ fun ShortsScreen(
             uiState.error != null && uiState.shorts.isEmpty() -> {
                 ShortsErrorState(
                     error = uiState.error,
-                    onRetry = { viewModel.loadShorts() },
+                    onRetry = { viewModel.retry(source) },
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
@@ -197,15 +210,9 @@ fun ShortsScreen(
                     }
                 }
 
-                // Load more when near end
-                LaunchedEffect(pagerState.currentPage) {
-                    if (pagerState.currentPage >= uiState.shorts.size - 3) {
-                        viewModel.loadMoreShorts()
-                    }
-                }
-
                 // Track settled page for player pool management
-                LaunchedEffect(pagerState.settledPage, shortsTargetHeight) {
+                val settledShortId = uiState.shorts.getOrNull(pagerState.settledPage)?.id
+                LaunchedEffect(pagerState.settledPage, settledShortId, shortsTargetHeight) {
                     val targetHeight = shortsTargetHeight ?: return@LaunchedEffect
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()
@@ -222,7 +229,15 @@ fun ShortsScreen(
                         try {
                             val streams = viewModel.getPlaybackStreams(short.id, targetHeight, preferredLang)
                             if (streams != null) {
-                                playerPool.prepare(index, short.id, streams.videoUrl, streams.audioUrl, shouldPlay)
+                                playerPool.prepare(
+                                    index = index,
+                                    videoId = short.id,
+                                    videoUrl = streams.videoUrl,
+                                    audioUrl = streams.audioUrl,
+                                    shouldPlay = shouldPlay,
+                                    videoDashManifest = streams.videoDashManifest,
+                                    audioDashManifest = streams.audioDashManifest,
+                                )
                             } else {
                                 Log.w("ShortsScreen", "No stream URL resolved for ${short.id}")
                             }
@@ -276,7 +291,12 @@ fun ShortsScreen(
                     try {
                         val streams = viewModel.getPlaybackStreams(currentShort.id, newHeight, preferredLang)
                         if (streams != null) {
-                            playerPool.reloadWithVideoUrl(settled, currentShort.id, streams.videoUrl)
+                            playerPool.reloadWithVideoUrl(
+                                settled,
+                                currentShort.id,
+                                streams.videoUrl,
+                                streams.videoDashManifest,
+                            )
                         }
                     } catch (e: Exception) {
                         Log.e("ShortsScreen", "Quality change: failed to reload ${currentShort.id}", e)
@@ -286,7 +306,14 @@ fun ShortsScreen(
                         launch {
                             runCatching {
                                 val streams = viewModel.getPlaybackStreams(nextShort.id, newHeight, preferredLang)
-                                if (streams != null) playerPool.reloadWithVideoUrl(settled + 1, nextShort.id, streams.videoUrl)
+                                if (streams != null) {
+                                    playerPool.reloadWithVideoUrl(
+                                        settled + 1,
+                                        nextShort.id,
+                                        streams.videoUrl,
+                                        streams.videoDashManifest,
+                                    )
+                                }
                             }
                         }
                     }
@@ -294,7 +321,14 @@ fun ShortsScreen(
                         launch {
                             runCatching {
                                 val streams = viewModel.getPlaybackStreams(prevShort.id, newHeight, preferredLang)
-                                if (streams != null) playerPool.reloadWithVideoUrl(settled - 1, prevShort.id, streams.videoUrl)
+                                if (streams != null) {
+                                    playerPool.reloadWithVideoUrl(
+                                        settled - 1,
+                                        prevShort.id,
+                                        streams.videoUrl,
+                                        streams.videoDashManifest,
+                                    )
+                                }
                             }
                         }
                     }
@@ -315,6 +349,8 @@ fun ShortsScreen(
                         pageIndex = page,
                         viewModel = viewModel,
                         bottomNavOverlayPadding = bottomNavOverlayPadding,
+                        sheetInsets = sheetInsets,
+                        screenSheetOpen = screenSheetOpen,
                         actions =
                             ShortVideoPageActions(
                                 onChannelClick = { onChannelClick(short.channelId) },
@@ -352,7 +388,7 @@ fun ShortsScreen(
                 }
 
                 // Loading more indicator at bottom
-                if (uiState.isLoadingMore) {
+                if (uiState.isLoadingMore && !isInPip) {
                     LinearProgressIndicator(
                         modifier =
                             Modifier
@@ -366,6 +402,7 @@ fun ShortsScreen(
 
         // Comments Sheet
         if (showCommentsSheet) {
+            DisposableEffect(Unit) { onDispose { sheetInsets.release() } }
             FlowCommentsBottomSheet(
                 comments = sortedComments,
                 isLoading = isLoadingComments,
@@ -376,27 +413,35 @@ fun ShortsScreen(
                     showCommentsSheet = false
                     onChannelClick(authorChannelRef)
                 },
+                expandedHeight = sheetExpandedHeight,
+                onSheetProgressChange = { progress -> sheetInsets.follow(sheetExpandedHeightPx * progress) },
+                dismissOnOutsideTap = true,
                 onDismiss = { showCommentsSheet = false },
             )
         }
 
         // Description Sheet
         if (showDescriptionSheet && uiState.shorts.isNotEmpty()) {
+            DisposableEffect(Unit) { onDispose { sheetInsets.release() } }
             val safeIndex = uiState.currentIndex.coerceIn(0, uiState.shorts.size - 1)
             FlowDescriptionBottomSheet(
                 video = uiState.shorts[safeIndex].toVideo(),
+                expandedHeight = sheetExpandedHeight,
+                onSheetProgressChange = { progress -> sheetInsets.follow(sheetExpandedHeightPx * progress) },
+                dismissOnOutsideTap = true,
                 onDismiss = { showDescriptionSheet = false },
             )
         }
 
         // Top Bar Overlay
         ShortsTopBar(
-            visible = uiState.shorts.isNotEmpty(),
-            showBackButton = startVideoId != null || isSavedMode,
+            visible = uiState.shorts.isNotEmpty() && !isInPip,
+            showBackButton = source != ShortsQueueSource.Feed,
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
 
+        if (isInPip) return@BoxWithConstraints
         SnackbarHost(
             hostState = snackbarHostState,
             modifier =
@@ -406,9 +451,9 @@ fun ShortsScreen(
         ) { data ->
             Snackbar(
                 snackbarData = data,
-                containerColor = Color.DarkGray,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(12.dp),
+                containerColor = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                shape = MaterialTheme.shapes.medium,
             )
         }
     }
