@@ -2330,4 +2330,15 @@
     <string name="player_appearance_seek_gesture_subtitle">Vuốt ngang ở chế độ toàn màn hình để tua video</string>
     <string name="player_settings_subtitle_language">Ngôn ngữ phụ đề ưu tiên</string>
     <string name="player_settings_subtitle_language_dialog_title">Ngôn ngữ phụ đề</string>
+    <string name="player_settings_subtitle_language_dialog_body">Phụ đề sẽ mở bằng ngôn ngữ này khi có sẵn. Nếu video không có phụ đề, Flow sẽ sử dụng bản dịch của YouTube từ phụ đề hiện có. Việc chọn phụ đề trong lúc phát cũng sẽ cập nhật tùy chọn này.</string>
+    <string name="player_settings_subtitle_language_none">Không ưu tiên</string>
+    <string name="player_settings_subtitle_language_none_desc">Dùng phụ đề đầu tiên của video</string>
+    <string name="player_settings_auto_enable_subtitles">Tự động bật phụ đề</string>
+    <string name="player_settings_auto_enable_subtitles_subtitle">Luôn bật phụ đề theo ngôn ngữ ưu tiên</string>
+    <string name="subtitle_translated">đã dịch</string>
+    <string name="player_brightness_auto">Tự động</string>
+    <string name="player_gesture_level_percent">%1$d%%</string>
+    <string name="player_replay">Phát lại</string>
+    <string name="player_seek_delta_forward">+%1$s</string>
+    <string name="player_seek_delta_back">-%1$s</string>
 </resources>
