@@ -267,6 +267,7 @@ class PlayerPreferences(
         // Shorts playback mode: "loop" (default), "auto_next", or "auto_interval"
         val SHORTS_PLAYBACK_MODE = stringPreferencesKey("shorts_playback_mode")
         val SHORTS_AUTO_SCROLL_SECONDS = intPreferencesKey("shorts_auto_scroll_seconds")
+        val SHORTS_QUEUE_CONTINUE_INTO_FEED = booleanPreferencesKey("shorts_queue_continue_into_feed")
 
         // Cache size
         val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
@@ -1968,6 +1969,18 @@ class PlayerPreferences(
     suspend fun setShortsAutoScrollSeconds(seconds: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_AUTO_SCROLL_SECONDS] = seconds.coerceIn(5, 20)
+        }
+    }
+
+    val shortsQueueContinuesIntoFeed: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.SHORTS_QUEUE_CONTINUE_INTO_FEED] ?: true
+            }
+
+    suspend fun setShortsQueueContinuesIntoFeed(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_QUEUE_CONTINUE_INTO_FEED] = enabled
         }
     }
 

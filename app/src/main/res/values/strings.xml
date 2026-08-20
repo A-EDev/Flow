@@ -886,6 +886,8 @@
     <string name="player_settings_shorts_background_play_subtitle">Continue playing Shorts when app is in background</string>
     <string name="player_settings_shorts_pip">Shorts Picture-in-Picture</string>
     <string name="player_settings_shorts_pip_subtitle">Shrink the current Short into a floating window when you leave the app</string>
+    <string name="player_settings_shorts_continue_into_feed">Continue with recommendations</string>
+    <string name="player_settings_shorts_continue_into_feed_subtitle">When a Shorts queue runs out, keep going with recommended Shorts instead of stopping at the end</string>
     <string name="player_settings_shorts_playback_mode_title">Shorts Playback Mode</string>
     <string name="player_settings_shorts_playback_mode_loop">Loop (repeat current short)</string>
     <string name="player_settings_shorts_playback_mode_auto_next">Auto Play Next (advance to next short)</string>

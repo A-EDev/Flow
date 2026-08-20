@@ -100,4 +100,20 @@ class SnapshotLoader(
     override suspend fun more(cursor: String?): ShortsQueuePage = exhaustedPage()
 }
 
+/**
+ * A loader the user can switch off — today, the algorithmic feed that trails a finished queue.
+ *
+ * [enabled] is read when the hand-over would actually happen rather than when the queue is built, so
+ * flipping the setting mid-watch decides what the *next* swipe past the end does. Switched off it
+ * reports itself exhausted, which is the queue's existing way of saying "this is the end".
+ */
+class GatedShortsLoader(
+    private val enabled: suspend () -> Boolean,
+    private val delegate: ShortsQueueLoader,
+) : ShortsQueueLoader {
+    override suspend fun initial(): ShortsQueuePage = if (enabled()) delegate.initial() else exhaustedPage()
+
+    override suspend fun more(cursor: String?): ShortsQueuePage = if (enabled()) delegate.more(cursor) else exhaustedPage()
+}
+
 private fun exhaustedPage() = ShortsQueuePage(emptyList(), cursor = null, exhausted = true)

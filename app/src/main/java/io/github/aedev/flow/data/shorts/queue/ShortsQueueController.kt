@@ -24,12 +24,19 @@ enum class ShortsQueueChange {
  * Owns a Shorts queue: its order, the current position, and paging.
  *
  * The behaviour every entry point shares lives here exactly once — opening on the short the user
- * tapped, de-duplicating appends, and handing over to [continuation] when [primary] runs dry so a
- * shelf of twenty never dead-ends at twenty.
+ * tapped, de-duplicating appends, and handing over to the next of [continuations] when [primary]
+ * runs dry so a shelf of twenty never dead-ends at twenty.
  */
 class ShortsQueueController(
     private val primary: ShortsQueueLoader,
-    private val continuation: ShortsQueueLoader? = null,
+    /**
+     * Sources to fall through to, in order, as each one before them runs out.
+     *
+     * A list rather than a single loader because the subscriptions queue has two fall-backs of very
+     * different character: the subscribed channels' own older reels first, and only then anything
+     * algorithmic.
+     */
+    private val continuations: List<ShortsQueueLoader> = emptyList(),
     /**
      * Whether late-arriving algorithmic discovery may be interleaved into this queue.
      *
@@ -52,14 +59,16 @@ class ShortsQueueController(
     /** Every id ever admitted, so an append can never re-add one — including a rejected short. */
     private val seenIds = mutableSetOf<String>()
 
+    /** [primary] first, then each continuation; the queue walks this in order and never back. */
+    private val legs: List<ShortsQueueLoader> = listOf(primary) + continuations
+
     private var cursor: String? = null
-    private var primaryExhausted = false
-    private var continuationStarted = false
-    private var continuationExhausted = false
+    private var legIndex = 0
+    private var legStarted = false
 
     /** False only once every loader is done, which is what stops the pager asking for more. */
     val hasMore: Boolean
-        get() = !primaryExhausted || (continuation != null && !continuationExhausted)
+        get() = legIndex < legs.size
 
     val currentItem: ShortVideo?
         get() = _items.value.getOrNull(_currentIndex.value)
@@ -71,9 +80,9 @@ class ShortsQueueController(
      * tapping the third item of a shelf can still be swiped *backwards* through the first two.
      */
     suspend fun loadInitial(startVideoId: String?) {
+        legStarted = true
         val page = primary.initial()
-        primaryExhausted = page.exhausted
-        cursor = page.cursor
+        consume(page)
 
         val items = page.items.distinctById()
         seenIds += items.map { it.id }
@@ -109,8 +118,8 @@ class ShortsQueueController(
     private fun indexOf(id: String): Int? = _items.value.indexOfFirst { it.id == id }.takeIf { it >= 0 }
 
     /**
-     * Appends the next page, switching from [primary] to [continuation] the first time [primary]
-     * reports itself exhausted.
+     * Appends the next page, moving on to the next of [continuations] each time the leg it is
+     * walking reports itself exhausted.
      *
      * Re-entrant calls are dropped: the pager asks as the user approaches the end, from more than
      * one place.
@@ -203,29 +212,24 @@ class ShortsQueueController(
     }
 
     private suspend fun fetchNext(): ShortsQueuePage? {
-        if (!primaryExhausted) {
-            val page = primary.more(cursor)
-            cursor = page.cursor
-            primaryExhausted = page.exhausted
-            return page
-        }
-
-        val next = continuation ?: return null
-        if (continuationExhausted) return null
-
-        // The continuation starts its own paging, so its first call is initial() and the primary's
-        // spent cursor is discarded rather than handed to a loader that cannot read it.
+        val leg = legs.getOrNull(legIndex) ?: return null
         val page =
-            if (!continuationStarted) {
-                continuationStarted = true
-                cursor = null
-                next.initial()
+            if (legStarted) {
+                leg.more(cursor)
             } else {
-                next.more(cursor)
+                legStarted = true
+                leg.initial()
             }
-        cursor = page.cursor
-        continuationExhausted = page.exhausted
+        consume(page)
         return page
+    }
+
+    private fun consume(page: ShortsQueuePage) {
+        cursor = page.cursor
+        if (!page.exhausted) return
+        legIndex++
+        legStarted = false
+        cursor = null
     }
 
     private companion object {

@@ -120,7 +120,7 @@ class ShortsQueueControllerTest {
         runTest {
             val shelf = FakeLoader(listOf(shorts("s1", "s2")))
             val feed = FakeLoader(listOf(shorts("f1", "f2"), shorts("f3")))
-            val controller = ShortsQueueController(primary = shelf, continuation = feed)
+            val controller = ShortsQueueController(primary = shelf, continuations = listOf(feed))
 
             controller.loadInitial(null)
             assertEquals(listOf("s1", "s2"), ids(controller))
@@ -140,7 +140,7 @@ class ShortsQueueControllerTest {
         runTest {
             val primary = FakeLoader(listOf(shorts("p1"), shorts("p2")))
             val feed = FakeLoader(listOf(shorts("f1")))
-            val controller = ShortsQueueController(primary, feed)
+            val controller = ShortsQueueController(primary, listOf(feed))
 
             controller.loadInitial(null)
             controller.loadMore()
@@ -150,6 +150,47 @@ class ShortsQueueControllerTest {
 
             controller.loadMore()
             assertEquals(listOf("p1", "p2", "f1"), ids(controller))
+        }
+
+    // The subscriptions queue: recent reels, then the subscribed channels' own older reels, and only
+    // then anything algorithmic. Each leg has to be spent before the next is touched at all.
+    @Test
+    fun `continuations are walked in order, one at a time`() =
+        runTest {
+            val recent = FakeLoader(listOf(shorts("r1")))
+            val deep = FakeLoader(listOf(shorts("d1"), shorts("d2")))
+            val feed = FakeLoader(listOf(shorts("f1")))
+            val controller = ShortsQueueController(recent, listOf(deep, feed))
+
+            controller.loadInitial(null)
+            assertEquals(listOf("r1"), ids(controller))
+
+            controller.loadMore()
+            assertEquals(listOf("r1", "d1"), ids(controller))
+            assertEquals("the feed must not be touched while the deep tier has pages", 0, feed.initialCalls)
+
+            controller.loadMore()
+            assertEquals(listOf("r1", "d1", "d2"), ids(controller))
+            assertTrue(controller.hasMore)
+
+            controller.loadMore()
+            assertEquals(listOf("r1", "d1", "d2", "f1"), ids(controller))
+            assertFalse(controller.hasMore)
+        }
+
+    @Test
+    fun `a queue with a gated continuation switched off ends at its own last short`() =
+        runTest {
+            val shelf = FakeLoader(listOf(shorts("s1")))
+            val feed = FakeLoader(listOf(shorts("f1")))
+            val controller = ShortsQueueController(shelf, listOf(GatedShortsLoader(enabled = { false }, delegate = feed)))
+
+            controller.loadInitial(null)
+            controller.loadMore()
+
+            assertEquals(listOf("s1"), ids(controller))
+            assertEquals(0, feed.initialCalls)
+            assertFalse(controller.hasMore)
         }
 
     @Test
