@@ -1,5 +1,7 @@
 package io.github.aedev.flow.ui.screens.home
 
+import android.util.Log
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -34,7 +36,10 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -331,9 +336,16 @@ fun HomeScreen(
                     }
 
                     else -> {
+                        ReportDrawnWhen {
+                            uiState.videos.isNotEmpty() || uiState.shorts.isNotEmpty() || uiState.continueWatchingVideos.isNotEmpty()
+                        }
+
                         LazyVerticalGrid(
                             columns = gridCells,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .testTag("home_feed"),
                             state = gridState,
                             contentPadding =
                                 PaddingValues(
@@ -367,6 +379,7 @@ fun HomeScreen(
                                             video = video,
                                             onClick = { onVideoClick(video) },
                                             onChannelClick = { channelId -> onChannelClick(channelId) },
+                                            modifier = Modifier.testTag("home_video_card"),
                                         )
                                     } else {
                                         VideoCardFullWidth(
@@ -374,6 +387,7 @@ fun HomeScreen(
                                             onClick = { onVideoClick(video) },
                                             onChannelClick = { channelId -> onChannelClick(channelId) },
                                             useInternalPadding = false,
+                                            modifier = Modifier.testTag("home_video_card"),
                                         )
                                     }
                                 }
@@ -407,6 +421,7 @@ fun HomeScreen(
                                                 viewModel.removeContinueWatchingEntry(videoId)
                                             },
                                             onSeeAllClick = onNavigateToHistory,
+                                            modifier = Modifier.testTag("home_continue_watching_shelf"),
                                         )
                                     }
                                 }
@@ -423,6 +438,7 @@ fun HomeScreen(
                                                 onShortClick(viewModel.shortsShelfSource(shelf, tapped))
                                             },
                                             onSeeAllClick = onOpenShortsFeed,
+                                            modifier = Modifier.testTag("home_shorts_shelf"),
                                         )
                                     }
                                 }

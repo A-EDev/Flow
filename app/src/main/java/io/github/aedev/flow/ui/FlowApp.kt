@@ -142,7 +142,8 @@ fun FlowApp(
     LaunchedEffect(Unit) {
         FlowNeuroEngine.initialize(context)
         DeepFlowManager.initialize(context)
-        needsOnboarding = FlowNeuroEngine.needsOnboarding()
+        val bypass = activity?.intent?.getBooleanExtra("bypass_onboarding", false) == true
+        needsOnboarding = if (bypass) false else FlowNeuroEngine.needsOnboarding()
     }
 
     LaunchedEffect(sleepTimerCloseAppOnExpiry) {

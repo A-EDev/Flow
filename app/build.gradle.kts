@@ -152,7 +152,15 @@ android {
 
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes +=
+                listOf(
+                    "/META-INF/{AL2.0,LGPL2.1}",
+                    "/META-INF/INDEX.LIST",
+                    "/META-INF/DEPENDENCIES",
+                    "/META-INF/*.version",
+                    "META-INF/LICENSE*",
+                    "META-INF/NOTICE*",
+                )
         }
     }
 
@@ -294,7 +302,7 @@ dependencies {
     // library AARs (Compose, RecyclerView, ...) at build time; this applies them at runtime,
     // which matters for sideloaded/F-Droid installs that bypass Play's cloud profiles.
     implementation(libs.androidx.profileinstaller)
-    baselineProfile(project(":baselineprofile"))
+    baselineProfile(project(":benchmark"))
 
     // Desugaring for older Android versions
     coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
