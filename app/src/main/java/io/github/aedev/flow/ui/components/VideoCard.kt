@@ -1317,6 +1317,7 @@ fun ShortsShelf(
     shorts: List<Video>,
     onShortClick: (shelf: List<Video>, tapped: Video) -> Unit,
     onSeeAllClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     val uniqueShorts =
         remember(shorts) {
@@ -1324,7 +1325,7 @@ fun ShortsShelf(
         }
     if (uniqueShorts.isEmpty()) return
     val context = LocalContext.current
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             modifier =
                 Modifier

@@ -345,7 +345,6 @@ fun HomeScreen(
                             modifier =
                                 Modifier
                                     .fillMaxSize()
-                                    .semantics { testTagsAsResourceId = true }
                                     .testTag("home_feed"),
                             state = gridState,
                             contentPadding =
@@ -399,32 +398,31 @@ fun HomeScreen(
                                         span = { GridItemSpan(maxLineSpan) },
                                         key = "continue_watching_shelf",
                                     ) {
-                                        Box(modifier = Modifier.testTag("home_continue_watching_shelf")) {
-                                            ContinueWatchingShelf(
-                                                entries = uiState.continueWatchingVideos,
-                                                onVideoClick = { videoId ->
-                                                    val entry = uiState.continueWatchingVideos.find { it.videoId == videoId }
-                                                    if (entry != null) {
-                                                        onVideoClick(
-                                                            Video(
-                                                                id = entry.videoId,
-                                                                title = entry.title,
-                                                                channelName = entry.channelName,
-                                                                channelId = entry.channelId,
-                                                                thumbnailUrl = entry.thumbnailUrl,
-                                                                duration = (entry.duration / 1000).toInt(),
-                                                                viewCount = 0L,
-                                                                uploadDate = "",
-                                                            ),
-                                                        )
-                                                    }
-                                                },
-                                                onRemove = { videoId ->
-                                                    viewModel.removeContinueWatchingEntry(videoId)
-                                                },
-                                                onSeeAllClick = onNavigateToHistory,
-                                            )
-                                        }
+                                        ContinueWatchingShelf(
+                                            entries = uiState.continueWatchingVideos,
+                                            onVideoClick = { videoId ->
+                                                val entry = uiState.continueWatchingVideos.find { it.videoId == videoId }
+                                                if (entry != null) {
+                                                    onVideoClick(
+                                                        Video(
+                                                            id = entry.videoId,
+                                                            title = entry.title,
+                                                            channelName = entry.channelName,
+                                                            channelId = entry.channelId,
+                                                            thumbnailUrl = entry.thumbnailUrl,
+                                                            duration = (entry.duration / 1000).toInt(),
+                                                            viewCount = 0L,
+                                                            uploadDate = "",
+                                                        ),
+                                                    )
+                                                }
+                                            },
+                                            onRemove = { videoId ->
+                                                viewModel.removeContinueWatchingEntry(videoId)
+                                            },
+                                            onSeeAllClick = onNavigateToHistory,
+                                            modifier = Modifier.testTag("home_continue_watching_shelf"),
+                                        )
                                     }
                                 }
 
@@ -434,15 +432,14 @@ fun HomeScreen(
                                         span = { GridItemSpan(maxLineSpan) },
                                         key = "shorts_shelf",
                                     ) {
-                                        Box(modifier = Modifier.testTag("home_shorts_shelf")) {
-                                            ShortsShelf(
-                                                shorts = uiState.shorts,
-                                                onShortClick = { shelf, tapped ->
-                                                    onShortClick(viewModel.shortsShelfSource(shelf, tapped))
-                                                },
-                                                onSeeAllClick = onOpenShortsFeed,
-                                            )
-                                        }
+                                        ShortsShelf(
+                                            shorts = uiState.shorts,
+                                            onShortClick = { shelf, tapped ->
+                                                onShortClick(viewModel.shortsShelfSource(shelf, tapped))
+                                            },
+                                            onSeeAllClick = onOpenShortsFeed,
+                                            modifier = Modifier.testTag("home_shorts_shelf"),
+                                        )
                                     }
                                 }
 
