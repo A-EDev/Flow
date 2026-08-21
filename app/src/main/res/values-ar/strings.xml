@@ -2360,7 +2360,7 @@
     <string name="player_replay">إعادة التشغيل</string>
     <string name="player_seek_delta_forward">+%1$s</string>
     <string name="player_seek_delta_back">-%1$s</string>
-    <string name="content_settings_header_shorts">Shorts</string>
+    <string name="content_settings_header_shorts">الفيديوهات القصيرة</string>
     <string name="player_settings_shorts_pip_subtitle">قم بتقليص حجم الفيديو القصير الحالي إلى نافذة عائمة عند الخروج من التطبيق</string>
     <string name="player_settings_shorts_continue_into_feed">المتابعة مع التوصيات</string>
     <string name="player_settings_shorts_continue_into_feed_subtitle">عندما تنتهي قائمة الفيديوهات القصيرة، استمر في مشاهدة الفيديوهات القصيرة الموصى بها بدلاً من التوقف عند النهاية</string>
