@@ -15,7 +15,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.4.10" apply false
     id("com.google.devtools.ksp") version "2.3.11" apply false
     id("com.android.test") version "9.3.1" apply false
-    id("androidx.baselineprofile") version "1.5.0-beta01" apply false
+    id("androidx.baselineprofile") version "1.5.0-rc01" apply false
     id("com.diffplug.spotless") version "8.9.0"
     alias(libs.plugins.room) apply false
 }
@@ -33,7 +33,7 @@ spotless {
     kotlin {
         target(
             "app/src/**/*.kt",
-            "baselineprofile/src/**/*.kt",
+            "benchmark/src/**/*.kt",
         )
         targetExclude(
             "**/build/**",
@@ -46,7 +46,7 @@ spotless {
         target(
             "*.gradle.kts",
             "app/*.gradle.kts",
-            "baselineprofile/*.gradle.kts",
+            "benchmark/*.gradle.kts",
         )
         targetExclude(
             "**/build/**",
