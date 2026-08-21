@@ -344,8 +344,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Request notification permission for Android 13+
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Request notification permission for Android 13+ (skip during benchmark/test runs)
+                val isBypassMode = intent?.getBooleanExtra("bypass_onboarding", false) == true
+                if (!isBypassMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val permissionLauncher =
                         androidx.activity.compose.rememberLauncherForActivityResult(
                             androidx.activity.result.contract.ActivityResultContracts
