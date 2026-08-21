@@ -108,7 +108,7 @@ android {
             versionNameSuffix = "-nightly"
             isDebuggable = false
             isMinifyEnabled = true
-            isShrinkResources = true
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -134,8 +134,8 @@ android {
                 signingConfig = signingConfigs.getByName("release")
                 println("Using RELEASE signing config with keystore: ${releaseKeystore.absolutePath}")
             } else {
-                signingConfig = signingConfigs.getByName("debug")
-                println("Release keystore not found. Using DEBUG signing configuration.")
+                signingConfig = null // Let Gradle build an unsigned APK for IzzyOnDroid/F-Droid
+                println("WARNING: Release keystore not found. Building UNSIGNED release APK.")
             }
         }
     }

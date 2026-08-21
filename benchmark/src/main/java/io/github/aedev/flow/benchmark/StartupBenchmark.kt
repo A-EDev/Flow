@@ -30,25 +30,13 @@ class StartupBenchmark {
     val rule = MacrobenchmarkRule()
 
     @Test
-    fun coldStartup() =
-        measureStartup(
-            startupMode = StartupMode.COLD,
-            compilationMode = CompilationMode.Partial(baselineProfileMode = BaselineProfileMode.Require),
-        )
+    fun coldStartup() = measureStartup(startupMode = StartupMode.COLD)
 
     @Test
-    fun warmStartup() =
-        measureStartup(
-            startupMode = StartupMode.WARM,
-            compilationMode = CompilationMode.Partial(baselineProfileMode = BaselineProfileMode.Require),
-        )
+    fun warmStartup() = measureStartup(StartupMode.WARM)
 
     @Test
-    fun hotStartup() =
-        measureStartup(
-            startupMode = StartupMode.HOT,
-            compilationMode = CompilationMode.Partial(baselineProfileMode = BaselineProfileMode.Require),
-        )
+    fun hotStartup() = measureStartup(startupMode = StartupMode.HOT)
 
     private fun measureStartup(
         startupMode: StartupMode,
