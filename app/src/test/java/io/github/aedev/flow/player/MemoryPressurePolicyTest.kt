@@ -27,12 +27,12 @@ class MemoryPressurePolicyTest {
 
     @Suppress("DEPRECATION")
     @Test
-    fun `background pressure releases rebuildable video playback`() {
+    fun `background state preserves paused video playback`() {
         assertThat(
             MemoryPressurePolicy.shouldReleaseVideoPlayback(
                 ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
             )
-        ).isTrue()
+        ).isFalse()
     }
 
     @Suppress("DEPRECATION")
@@ -43,5 +43,25 @@ class MemoryPressurePolicyTest {
                 ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
             )
         ).isFalse()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `moderate background pressure releases rebuildable video playback`() {
+        assertThat(
+            MemoryPressurePolicy.shouldReleaseVideoPlayback(
+                ComponentCallbacks2.TRIM_MEMORY_MODERATE
+            )
+        ).isTrue()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `complete background pressure releases rebuildable video playback`() {
+        assertThat(
+            MemoryPressurePolicy.shouldReleaseVideoPlayback(
+                ComponentCallbacks2.TRIM_MEMORY_COMPLETE
+            )
+        ).isTrue()
     }
 }
