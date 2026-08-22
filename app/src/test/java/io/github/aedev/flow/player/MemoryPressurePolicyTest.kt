@@ -10,8 +10,8 @@ class MemoryPressurePolicyTest {
     fun `ui hidden does not release video playback`() {
         assertThat(
             MemoryPressurePolicy.shouldReleaseVideoPlayback(
-                ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
-            )
+                ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN,
+            ),
         ).isFalse()
     }
 
@@ -20,19 +20,19 @@ class MemoryPressurePolicyTest {
     fun `running critical releases video playback on older Android versions`() {
         assertThat(
             MemoryPressurePolicy.shouldReleaseVideoPlayback(
-                ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
-            )
+                ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
+            ),
         ).isTrue()
     }
 
     @Suppress("DEPRECATION")
     @Test
-    fun `background pressure releases rebuildable video playback`() {
+    fun `background state preserves paused video playback`() {
         assertThat(
             MemoryPressurePolicy.shouldReleaseVideoPlayback(
-                ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
-            )
-        ).isTrue()
+                ComponentCallbacks2.TRIM_MEMORY_BACKGROUND,
+            ),
+        ).isFalse()
     }
 
     @Suppress("DEPRECATION")
@@ -40,8 +40,28 @@ class MemoryPressurePolicyTest {
     fun `running low does not clear the active playlist`() {
         assertThat(
             MemoryPressurePolicy.shouldReleaseVideoPlayback(
-                ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
-            )
+                ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
+            ),
         ).isFalse()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `moderate background pressure releases rebuildable video playback`() {
+        assertThat(
+            MemoryPressurePolicy.shouldReleaseVideoPlayback(
+                ComponentCallbacks2.TRIM_MEMORY_MODERATE,
+            ),
+        ).isTrue()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `complete background pressure releases rebuildable video playback`() {
+        assertThat(
+            MemoryPressurePolicy.shouldReleaseVideoPlayback(
+                ComponentCallbacks2.TRIM_MEMORY_COMPLETE,
+            ),
+        ).isTrue()
     }
 }
