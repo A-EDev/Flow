@@ -1,10 +1,25 @@
 name: CodeQL
 
+# Only Kotlin/Java sources and the build definition affect the analysis, so
+# translation-only and documentation pushes are skipped. Unlike build.yml this
+# workflow never runs on tags, so path filters here cannot skip a release.
 on:
   push:
     branches: [ main ]
+    paths:
+      - '**/*.kt'
+      - '**/*.java'
+      - '**/*.gradle.kts'
+      - 'gradle/libs.versions.toml'
+      - '.github/workflows/codeql.yml'
   pull_request:
     branches: [ main ]
+    paths:
+      - '**/*.kt'
+      - '**/*.java'
+      - '**/*.gradle.kts'
+      - 'gradle/libs.versions.toml'
+      - '.github/workflows/codeql.yml'
   schedule:
     # Weekly, so newly published queries still run against a quiet main.
     - cron: '27 4 * * 1'
@@ -21,7 +36,7 @@ jobs:
   analyze:
     name: Analyze Kotlin/Java
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       security-events: write
       actions: read
@@ -31,13 +46,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # build-mode "none" analyses sources directly. A full Android Gradle
-      # build is not needed and would duplicate the Build APK job.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # Caching is disabled deliberately. CodeQL extracts Kotlin by observing
+      # the compiler as it runs, so a cache hit that makes the compile tasks
+      # UP-TO-DATE would produce an empty database and fail the analysis.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: true
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # build-mode "none" cannot be used here: buildless extraction supports
+      # Java only and silently drops Kotlin, which is effectively this entire
+      # codebase. Kotlin requires a real build.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: java-kotlin
-          build-mode: none
+          build-mode: manual
+
+      - name: Build for extraction
+        run: >
+          ./gradlew :app:assembleGithubDebug
+          --no-build-cache --stacktrace
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
