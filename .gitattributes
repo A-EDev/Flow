@@ -1,0 +1,42 @@
+# Normalise line endings so ktlint/Spotless (LineEnding.UNIX) and Windows
+# checkouts agree. Without this, core.autocrlf=true produces CRLF working
+# copies that Spotless then reports as violations on untouched files.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF to stay executable by cmd.exe.
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+
+# The Gradle wrapper shell script must stay LF on every platform.
+gradlew     text eol=lf
+
+# Binary assets: never normalise, never diff as text.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.webp      binary
+*.gif       binary
+*.ico       binary
+*.mp3       binary
+*.mp4       binary
+*.ttf       binary
+*.otf       binary
+*.woff      binary
+*.woff2     binary
+*.jar       binary
+*.apk       binary
+*.aab       binary
+*.keystore  binary
+*.jks       binary
+*.so        binary
+
+# Generated baseline profiles are large and machine-produced; keep them out
+# of diffs and out of language statistics.
+app/src/githubRelease/generated/baselineProfiles/** linguist-generated=true -diff
+
+# Reference material vendored for comparison is not this project's code.
+LibreTube-master/**  linguist-vendored
+Metrolist-main/**    linguist-vendored
+NewPipe-dev/**       linguist-vendored
+pipepipe/**          linguist-vendored
