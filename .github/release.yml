@@ -1,24 +1,33 @@
+# Categories for GitHub's auto-generated release notes. Flow currently ships
+# curated notes from release-notes.md, so this only takes effect if a release
+# is generated with "Generate release notes". Labels listed here must exist in
+# the repository and are applied by .github/labeler.yml.
 changelog:
   exclude:
     labels:
       - ignore-for-release
+      - dependencies
   categories:
     - title: '🚀 New Features'
       labels:
-        - 'feature'
         - 'enhancement'
-        - 'feat'
     - title: '🐛 Bug Fixes'
       labels:
-        - 'fix'
         - 'bug'
     - title: '💅 UI/UX Improvements'
       labels:
         - 'ui'
-        - 'design'
+    - title: '▶️ Playback and Extraction'
+      labels:
+        - 'player'
+        - 'extraction'
+        - 'algorithm'
+        - 'sync'
+    - title: '🌍 Translations'
+      labels:
+        - 'localization'
     - title: '🔧 Under the Hood'
       labels:
-        - 'chore'
-        - 'refactor'
-        - 'maintenance'
-        - 'dependencies'
+        - 'build'
+        - 'ci'
+        - 'documentation'
