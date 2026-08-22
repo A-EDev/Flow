@@ -2119,4 +2119,11 @@
     <string name="taste_shape_title">Struktura Gustu</string>
     <string name="taste_shape_subtitle">Profil ogólny na tle czasu aktywności</string>
     <string name="taste_pacing">Tempo</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="one">Nie udało się wczytać %d kanału</item>
+        <item quantity="few">Nie udało się wczytać %d kanałów</item>
+        <item quantity="many">Nie udało się wczytać %d kanałów</item>
+        <item quantity="other">Nie udało się wczytać %d kanałów</item>
+    </plurals>
+    <string name="subscriptions_failed_channels_body">Nie znaleziono najnowszych filmów z: %1$s</string>
 </resources>
