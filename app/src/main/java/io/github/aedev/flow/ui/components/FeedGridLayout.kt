@@ -18,10 +18,10 @@ data class FeedGridLayout(
 @Composable
 fun rememberFeedGridLayout(maxWidth: Dp): FeedGridLayout = remember(maxWidth) {
     when {
-        maxWidth < 480.dp -> FeedGridLayout(columns = 1, contentPadding = 0.dp, cardSpacing = 12.dp)
-        maxWidth < 700.dp -> FeedGridLayout(columns = 1, contentPadding = 12.dp, cardSpacing = 14.dp)
-        maxWidth < 900.dp -> FeedGridLayout(columns = 2, contentPadding = 16.dp, cardSpacing = 12.dp)
-        maxWidth < 1200.dp -> FeedGridLayout(columns = 3, contentPadding = 20.dp, cardSpacing = 14.dp)
-        else -> FeedGridLayout(columns = 4, contentPadding = 24.dp, cardSpacing = 16.dp)
+        maxWidth < 360.dp -> FeedGridLayout(columns = 2, contentPadding = 8.dp, cardSpacing = 8.dp)
+        maxWidth < 700.dp -> FeedGridLayout(columns = 3, contentPadding = 12.dp, cardSpacing = 10.dp)
+        maxWidth < 900.dp -> FeedGridLayout(columns = 3, contentPadding = 16.dp, cardSpacing = 12.dp)
+        maxWidth < 1200.dp -> FeedGridLayout(columns = 4, contentPadding = 20.dp, cardSpacing = 14.dp)
+        else -> FeedGridLayout(columns = 5, contentPadding = 24.dp, cardSpacing = 16.dp)
     }
 }

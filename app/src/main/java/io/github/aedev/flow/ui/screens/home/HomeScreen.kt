@@ -68,13 +68,7 @@ private fun rememberHomeLayoutConfig(maxWidth: Dp): HomeLayoutConfig {
     val base = rememberFeedGridLayout(maxWidth)
     return remember(base, maxWidth) {
         val shortsShelfAfterIndex =
-            when {
-                maxWidth < 480.dp -> 1
-                maxWidth < 700.dp -> 2
-                maxWidth < 900.dp -> 2
-                maxWidth < 1200.dp -> 3
-                else -> 4
-            }
+            if (maxWidth < 700.dp) base.columns * 2 else base.columns
         HomeLayoutConfig(
             columns = base.columns,
             contentPadding = base.contentPadding,
