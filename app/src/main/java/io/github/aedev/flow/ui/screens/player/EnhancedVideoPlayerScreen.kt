@@ -184,7 +184,7 @@ fun EnhancedVideoPlayerScreen(
                                 if (isTabletPortrait) {
                                     relatedVideosGridContent(
                                         relatedVideos = uiState.relatedVideos,
-                                        columns = 2,
+                                        columns = 3,
                                         onVideoClick = onVideoClick,
                                         onChannelClick = onChannelClick,
                                         cardStyle = relatedCardStyle
