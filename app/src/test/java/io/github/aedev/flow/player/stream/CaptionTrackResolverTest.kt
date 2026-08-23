@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.schabi.newpipe.extractor.MediaFormat
 
 /** A signed timedtext URL as YouTube serves it today — note the trailing `fmt=srv3`. */
 private const val BASE_URL =
@@ -38,8 +39,18 @@ private fun track(
 
 class CaptionTrackResolverTest {
     @Test
-    fun `the format already on the base url is replaced, not duplicated`() {
+    fun `srv3 is requested by default for styled and positioned captions`() {
         val resolved = CaptionTrackResolver.resolveTracklist(tracklist(listOf(track("en"))))
+
+        val url = resolved.single().getContent()
+        assertEquals("exactly one fmt parameter expected: $url", 1, url.split("fmt=").size - 1)
+        assertTrue(url.endsWith("fmt=srv3"))
+    }
+
+    @Test
+    fun `an explicit vtt format request is honoured, not duplicated`() {
+        val resolved =
+            CaptionTrackResolver.resolveTracklist(tracklist(listOf(track("en"))), format = MediaFormat.VTT)
 
         val url = resolved.single().getContent()
         assertFalse("srv3 must not survive: $url", url.contains("fmt=srv3"))

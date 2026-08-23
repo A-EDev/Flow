@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
+import io.github.aedev.flow.player.renderer.subtitle.Srv3SubtitleParser
 import io.github.aedev.flow.player.resolver.VideoPlaybackResolver
 import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceFactory
 import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceResult
@@ -453,12 +454,18 @@ class MediaLoader(
     }
 
     private fun resolveSubtitleMimeType(subtitleStream: SubtitlesStream): String {
+        val url = subtitleStream.getContent().lowercase(Locale.ROOT)
+
+        // Checked before subtitleStream.format below: NewPipeExtractor's MediaFormat.TRANSCRIPT3
+        // (srv3) shares a generic XML mimeType with other transcript formats, which would
+        // otherwise route it to the TTML decoder — a decoder that can't parse YouTube's schema.
+        if ("fmt=srv3" in url) return Srv3SubtitleParser.MIME_TYPE
+
         subtitleStream.format
             ?.mimeType
             ?.takeIf { it.isNotBlank() }
             ?.let { return it }
 
-        val url = subtitleStream.getContent().lowercase(Locale.ROOT)
         return when {
             ".vtt" in url || "fmt=vtt" in url -> {
                 MimeTypes.TEXT_VTT
@@ -468,7 +475,7 @@ class MediaLoader(
                 MimeTypes.APPLICATION_SUBRIP
             }
 
-            ".ttml" in url || ".xml" in url || "fmt=ttml" in url || "fmt=srv" in url -> {
+            ".ttml" in url || ".xml" in url || "fmt=ttml" in url -> {
                 MimeTypes.APPLICATION_TTML
             }
 
