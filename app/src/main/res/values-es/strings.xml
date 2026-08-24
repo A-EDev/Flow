@@ -692,7 +692,7 @@
     <string name="speed_slider_apply">Aplicar</string>
     <string name="player_settings_stable_voice">Voz estable</string>
     <string name="player_settings_stable_voice_subtitle">Normalizar el volumen de audio para una reproducción consistente</string>
-    <string name="player_settings_sponsorblock">SponsorBlock</string>
+    <string name="player_settings_sponsorblock">SponsorBlock (bloqueador de patrocinadores)</string>
     <string name="loop_video">Vídeo en bucle</string>
     <string name="player_settings_dearrow_subtitle">Reemplace los títulos y miniaturas de clickbait con alternativas comunitarias</string>
     <string name="player_settings_sponsorblock_subtitle">Saltar segmentos patrocinados</string>
@@ -1502,7 +1502,7 @@
     <string name="import_history_section_title">Historia</string>
     <string name="import_freetube_history">Importar historial de FreeTube</string>
     <string name="notif_master_toggle_subtitle">Permitir que Flow se active en segundo plano para verificaciones de notificaciones y alertas</string>
-    <string name="player_settings_rytd_title">Return YouTube Dislike</string>
+    <string name="player_settings_rytd_title">Recuperar el «No me gusta» de YouTube</string>
     <string name="notif_master_toggle">Habilitar notificaciones</string>
     <string name="player_adaptive_size_title">Tamaño de Reproductor Adaptable</string>
     <string name="notif_check_interval_disabled">Las verificaciones de notificación de antecedentes están deshabilitadas</string>
@@ -2212,12 +2212,12 @@
     <string name="tv_keyboard_voice">Búsqueda por voz</string>
     <string name="tv_music_charts">Rankings</string>
     <string name="tv_filter_all">Todos</string>
-    <string name="tv_filter_videos">Videos</string>
+    <string name="tv_filter_videos">Vídeos</string>
     <string name="tv_filter_channels">Canales</string>
     <string name="tv_filter_playlists">Listas</string>
     <string name="tv_filter_artists">Artistas</string>
     <string name="tv_filter_live">En Directo</string>
-    <string name="tv_channel_videos">Videos</string>
+    <string name="tv_channel_videos">Vídeos</string>
     <string name="tv_subscriptions_all">Todos los canales</string>
     <plurals name="tv_playlist_video_count">
         <item quantity="one">%1$d video</item>
@@ -2373,7 +2373,18 @@
     <string name="sync_scanning_hint">Mantén el código del otro dispositivo en el encuadre.</string>
     <string name="player_brightness_auto">Automático</string>
     <string name="player_gesture_level_percent">%1$d%%</string>
-    <string name="player_replay">Repetir</string>
+    <string name="player_replay">Volver a reproducir</string>
     <string name="player_seek_delta_forward">+%1$s</string>
     <string name="player_seek_delta_back">-%1$s</string>
+    <string name="player_appearance_seek_gesture_title">Gesto de buscar</string>
+    <string name="player_appearance_seek_gesture_subtitle">Desliza el dedo horizontalmente en pantalla completa para ir a una posición del vídeo</string>
+    <string name="player_settings_shorts_pip">Shorts en modo emergente</string>
+    <string name="player_settings_shorts_pip_subtitle">Reducir el Short actual a una ventana flotante al salir de la aplicación</string>
+    <string name="player_settings_shorts_continue_into_feed">Continuar con las recomendaciones</string>
+    <string name="player_settings_subtitle_language_dialog_body">Los subtítulos se abren en este idioma cuando están disponibles. Si el vídeo no contiene ninguna pista, Flow utiliza la traducción de YouTube de una pista existente. Al seleccionar un subtítulo durante la reproducción, este también se actualiza.</string>
+    <string name="player_settings_subtitle_language_none_desc">Utiliza la primera pista de subtítulos que ofrece el vídeo</string>
+    <string name="player_settings_auto_enable_subtitles">Activar los subtítulos automáticamente</string>
+    <string name="player_settings_auto_enable_subtitles_subtitle">Empieza cada vídeo con subtítulos en tu idioma preferido</string>
+    <string name="sync_collection_subscription_groups_body">Las carpetas en las que organizas tus canales.</string>
+    <string name="sync_step_title_scan">Escanear el código</string>
 </resources>
