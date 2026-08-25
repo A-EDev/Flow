@@ -51,6 +51,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.VideoQuality
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -294,25 +295,9 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
     ) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = stringResource(R.string.download_settings_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back))
-                }
-            },
-            colors =
-                TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                ),
-            windowInsets = WindowInsets(0.dp),
+        FlowTopBar(
+            title = stringResource(R.string.download_settings_title),
+            onBack = onNavigateBack,
         )
 
         LazyColumn(

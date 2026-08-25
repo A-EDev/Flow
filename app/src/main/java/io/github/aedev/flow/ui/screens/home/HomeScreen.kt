@@ -51,7 +51,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
-import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -95,18 +95,14 @@ fun HomeScreen(
     onVideoClick: (Video) -> Unit,
     onShortClick: (io.github.aedev.flow.data.shorts.queue.ShortsQueueSource) -> Unit,
     onSearchClick: () -> Unit,
-    onNotificationClick: () -> Unit,
-    onSettingsClick: () -> Unit,
     onChannelClick: (String) -> Unit = {},
     onNavigateToHistory: () -> Unit = {},
     onOpenShortsFeed: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
-    notificationViewModel: NotificationViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val unreadNotifications by notificationViewModel.unreadCount.collectAsStateWithLifecycle()
     val preferences =
         remember {
             io.github.aedev.flow.data.local
@@ -176,23 +172,20 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        if (showAppLogoIcon) {
+            FlowTopBar(
+                title = {
+                    Text(
+                        stringResource(R.string.app_name_uppercase),
+                        style =
+                            MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp,
+                            ),
+                    )
+                },
+                leading =
+                    if (showAppLogoIcon) {
+                        {
                             FlowHeaderLogoIcon(
                                 isDeepFlowActive = deepFlowActive,
                                 onToggleDeepFlow = {
@@ -203,80 +196,18 @@ fun HomeScreen(
                                 modifier = Modifier.size(32.dp),
                             )
                         }
-                        Text(
-                            stringResource(R.string.app_name_uppercase),
-                            style =
-                                MaterialTheme.typography.titleLarge.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = 1.sp,
-                                ),
+                    } else {
+                        null
+                    },
+                actions = {
+                    IconButton(onClick = onSearchClick) {
+                        Icon(
+                            Icons.Outlined.Search,
+                            contentDescription = stringResource(R.string.search),
                         )
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(0.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(
-                            onClick = onSearchClick,
-                            modifier = Modifier.size(40.dp),
-                        ) {
-                            Icon(
-                                Icons.Outlined.Search,
-                                contentDescription = stringResource(R.string.search),
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
-                        IconButton(
-                            onClick = onNotificationClick,
-                            modifier = Modifier.size(40.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.TopEnd) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Notifications,
-                                    contentDescription = stringResource(R.string.notifications),
-                                    modifier = Modifier.size(24.dp),
-                                )
-                                if (unreadNotifications > 0) {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .offset(x = 4.dp, y = (-2).dp)
-                                                .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
-                                                .size(16.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text(
-                                            text =
-                                                if (unreadNotifications > 9) {
-                                                    stringResource(R.string.notification_badge_9_plus)
-                                                } else {
-                                                    unreadNotifications.toString()
-                                                },
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                            style =
-                                                MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    lineHeight = 9.sp,
-                                                ),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        IconButton(
-                            onClick = onSettingsClick,
-                            modifier = Modifier.size(40.dp),
-                        ) {
-                            Icon(
-                                Icons.Outlined.Settings,
-                                contentDescription = stringResource(R.string.settings),
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
-                    }
-                }
-            }
+                },
+            )
         },
     ) { padding ->
         ResettableHomePullToRefreshBox(

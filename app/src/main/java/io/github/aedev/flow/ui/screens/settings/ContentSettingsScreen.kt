@@ -53,6 +53,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.local.WatchedThreshold
 import io.github.aedev.flow.ui.NavigationVisibility
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.resolveDefaultNavTabIndex
 import io.github.aedev.flow.ui.theme.GridItemSize
 import io.github.aedev.flow.ui.visibleNavTabIndices
@@ -138,26 +139,10 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                    Text(
-                        text = stringResource(R.string.content_settings_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    )
-                }
-            }
+            FlowTopBar(
+                title = stringResource(R.string.content_settings_title),
+                onBack = onBackClick,
+            )
         },
     ) { padding ->
         LazyColumn(

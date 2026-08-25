@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync.SyncState
 import io.github.aedev.flow.sync.protocol.SyncRole
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 
 /** Where the user is in the pre-session setup. Once a session starts, [SyncState] drives the UI. */
 private enum class Step { CHOOSER, SEND_SELECT, SEND_TRANSPORT, SEND_SCAN, RECEIVE_TRANSPORT, RECEIVE_SCAN }
@@ -99,7 +100,6 @@ fun SyncScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var step by remember { mutableStateOf(Step.CHOOSER) }
     var selected by remember { mutableStateOf(COLLECTION_KEYS.toSet()) }
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     fun restart() {
         viewModel.reset()
@@ -133,24 +133,14 @@ fun SyncScreen(
     BackHandler(onBack = ::goBack)
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         // The app shell's Scaffold already pads for WindowInsets.systemBars, so both this Scaffold
         // and the bar itself must consume nothing — otherwise the status-bar inset is applied twice
         // and leaves an empty band above the title.
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(state.title(step)) },
-                navigationIcon = {
-                    IconButton(onClick = ::goBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back),
-                        )
-                    }
-                },
-                windowInsets = WindowInsets(0.dp),
-                scrollBehavior = scrollBehavior,
+            FlowTopBar(
+                title = state.title(step),
+                onBack = ::goBack,
             )
         },
     ) { padding ->

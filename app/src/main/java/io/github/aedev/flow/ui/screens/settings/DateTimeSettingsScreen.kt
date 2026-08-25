@@ -17,12 +17,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
 import io.github.aedev.flow.utils.DateDisplaySettings
 import io.github.aedev.flow.utils.DateFormatStyle
 import io.github.aedev.flow.utils.formatExactDate
-import io.github.aedev.flow.utils.DateContext
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,44 +47,43 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.background) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                    Text(
-                        text = stringResource(R.string.datetime_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-            }
-        }
+            FlowTopBar(
+                title = stringResource(R.string.datetime_title),
+                onBack = onNavigateBack,
+            )
+        },
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(paddingValues).background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             // ── Live preview ──
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                     shape = MaterialTheme.shapes.large,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Text(
                             text = stringResource(R.string.datetime_preview_header),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                         )
                         Spacer(Modifier.height(8.dp))
-                        PreviewLine(stringResource(R.string.datetime_context_lists), settings.format(sampleRelative, DateContext.LISTS, sampleTimestamp))
-                        PreviewLine(stringResource(R.string.datetime_context_watch), settings.format(sampleRelative, DateContext.WATCH, sampleTimestamp))
-                        PreviewLine(stringResource(R.string.datetime_context_description), settings.format(sampleRelative, DateContext.DESCRIPTION, sampleTimestamp))
+                        PreviewLine(
+                            stringResource(R.string.datetime_context_lists),
+                            settings.format(sampleRelative, DateContext.LISTS, sampleTimestamp),
+                        )
+                        PreviewLine(
+                            stringResource(R.string.datetime_context_watch),
+                            settings.format(sampleRelative, DateContext.WATCH, sampleTimestamp),
+                        )
+                        PreviewLine(
+                            stringResource(R.string.datetime_context_description),
+                            settings.format(sampleRelative, DateContext.DESCRIPTION, sampleTimestamp),
+                        )
                     }
                 }
             }
@@ -91,16 +91,17 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
             item { SectionHeader(text = stringResource(R.string.datetime_mode_header)) }
             item {
                 SettingsGroup {
-                    val modes = listOf(
-                        DateDisplayMode.RELATIVE to R.string.datetime_mode_relative,
-                        DateDisplayMode.EXACT to R.string.datetime_mode_exact,
-                        DateDisplayMode.BOTH to R.string.datetime_mode_both,
-                    )
+                    val modes =
+                        listOf(
+                            DateDisplayMode.RELATIVE to R.string.datetime_mode_relative,
+                            DateDisplayMode.EXACT to R.string.datetime_mode_exact,
+                            DateDisplayMode.BOTH to R.string.datetime_mode_both,
+                        )
                     modes.forEachIndexed { index, (mode, labelRes) ->
                         DateRadioRow(
                             title = stringResource(labelRes),
                             selected = globalMode == mode,
-                            onClick = { scope.launch { prefs.setDateDisplayMode(mode) } }
+                            onClick = { scope.launch { prefs.setDateDisplayMode(mode) } },
                         )
                         if (index < modes.size - 1) RowDivider()
                     }
@@ -114,16 +115,17 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
                     styles.forEachIndexed { index, style ->
                         val sample = formatExactDate(sampleTimestamp, style)
                         val title = if (style == DateFormatStyle.SYSTEM) stringResource(R.string.datetime_format_system) else sample
-                        val subtitle = when (style) {
-                            DateFormatStyle.SYSTEM -> sample
-                            DateFormatStyle.ISO -> stringResource(R.string.datetime_format_iso_hint)
-                            else -> null
-                        }
+                        val subtitle =
+                            when (style) {
+                                DateFormatStyle.SYSTEM -> sample
+                                DateFormatStyle.ISO -> stringResource(R.string.datetime_format_iso_hint)
+                                else -> null
+                            }
                         DateRadioRow(
                             title = title,
                             subtitle = subtitle,
                             selected = formatStyle == style,
-                            onClick = { scope.launch { prefs.setDateFormatStyle(style) } }
+                            onClick = { scope.launch { prefs.setDateFormatStyle(style) } },
                         )
                         if (index < styles.size - 1) RowDivider()
                     }
@@ -136,7 +138,7 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
                     text = stringResource(R.string.datetime_overrides_note),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
             item {
@@ -144,19 +146,19 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
                     OverrideRow(
                         label = stringResource(R.string.datetime_context_lists),
                         value = listsMode,
-                        onSelect = { scope.launch { prefs.setDateModeLists(it) } }
+                        onSelect = { scope.launch { prefs.setDateModeLists(it) } },
                     )
                     RowDivider()
                     OverrideRow(
                         label = stringResource(R.string.datetime_context_watch),
                         value = watchMode,
-                        onSelect = { scope.launch { prefs.setDateModeWatch(it) } }
+                        onSelect = { scope.launch { prefs.setDateModeWatch(it) } },
                     )
                     RowDivider()
                     OverrideRow(
                         label = stringResource(R.string.datetime_context_description),
                         value = descriptionMode,
-                        onSelect = { scope.launch { prefs.setDateModeDescription(it) } }
+                        onSelect = { scope.launch { prefs.setDateModeDescription(it) } },
                     )
                 }
             }
@@ -165,18 +167,21 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
 }
 
 @Composable
-private fun PreviewLine(label: String, value: String) {
+private fun PreviewLine(
+    label: String,
+    value: String,
+) {
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
         Text(
             text = "$label:",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
 }
@@ -186,11 +191,11 @@ private fun DateRadioRow(
     title: String,
     subtitle: String? = null,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = null)
         Spacer(Modifier.width(16.dp))
@@ -208,17 +213,18 @@ private fun DateRadioRow(
 private fun OverrideRow(
     label: String,
     value: DateContextMode,
-    onSelect: (DateContextMode) -> Unit
+    onSelect: (DateContextMode) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(text = label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(8.dp))
-        val options = listOf(
-            DateContextMode.DEFAULT to R.string.datetime_override_default,
-            DateContextMode.RELATIVE to R.string.datetime_override_relative,
-            DateContextMode.EXACT to R.string.datetime_override_exact,
-            DateContextMode.BOTH to R.string.datetime_override_both,
-        )
+        val options =
+            listOf(
+                DateContextMode.DEFAULT to R.string.datetime_override_default,
+                DateContextMode.RELATIVE to R.string.datetime_override_relative,
+                DateContextMode.EXACT to R.string.datetime_override_exact,
+                DateContextMode.BOTH to R.string.datetime_override_both,
+            )
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             options.forEachIndexed { index, (mode, labelRes) ->
                 SegmentedButton(
@@ -230,9 +236,9 @@ private fun OverrideRow(
                             text = stringResource(labelRes),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelMedium,
                         )
-                    }
+                    },
                 )
             }
         }

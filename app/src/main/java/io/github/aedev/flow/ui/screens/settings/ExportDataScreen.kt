@@ -10,12 +10,12 @@ import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.SaveAlt
-import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,139 +23,147 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExportDataScreen(
-    onNavigateBack: () -> Unit
-) {
+fun ExportDataScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val backupRepo = remember { BackupRepository(context) }
 
-    val exportAppDataLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                val result = backupRepo.exportData(it)
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(
-                        if (result.isSuccess) R.string.settings_export_success
-                        else R.string.settings_export_failed
-                    ),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+    val exportAppDataLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("application/json"),
+        ) { uri ->
+            uri?.let {
+                scope.launch {
+                    val result = backupRepo.exportData(it)
+                    android.widget.Toast
+                        .makeText(
+                            context,
+                            context.getString(
+                                if (result.isSuccess) {
+                                    R.string.settings_export_success
+                                } else {
+                                    R.string.settings_export_failed
+                                },
+                            ),
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                }
             }
         }
-    }
 
-    val exportNewPipeSubscriptionsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                val result = backupRepo.exportSubscriptionsAsNewPipe(it)
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(
-                        if (result.isSuccess) R.string.export_newpipe_subs_success
-                        else R.string.export_newpipe_subs_failed
-                    ),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+    val exportNewPipeSubscriptionsLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("application/json"),
+        ) { uri ->
+            uri?.let {
+                scope.launch {
+                    val result = backupRepo.exportSubscriptionsAsNewPipe(it)
+                    android.widget.Toast
+                        .makeText(
+                            context,
+                            context.getString(
+                                if (result.isSuccess) {
+                                    R.string.export_newpipe_subs_success
+                                } else {
+                                    R.string.export_newpipe_subs_failed
+                                },
+                            ),
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                }
             }
         }
-    }
 
-    val exportWatchHistoryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                val result = backupRepo.exportWatchHistory(it)
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(
-                        if (result.isSuccess) R.string.settings_export_success
-                        else R.string.history_export_failed
-                    ),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+    val exportWatchHistoryLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("application/json"),
+        ) { uri ->
+            uri?.let {
+                scope.launch {
+                    val result = backupRepo.exportWatchHistory(it)
+                    android.widget.Toast
+                        .makeText(
+                            context,
+                            context.getString(
+                                if (result.isSuccess) {
+                                    R.string.settings_export_success
+                                } else {
+                                    R.string.history_export_failed
+                                },
+                            ),
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                }
             }
         }
-    }
 
-    val exportEngineLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                val success = context.contentResolver.openOutputStream(it)?.use { out ->
-                    FlowNeuroEngine.exportBrainToStream(out)
-                } ?: false
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(
-                        if (success) R.string.export_engine_success else R.string.export_engine_failed
-                    ),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+    val exportEngineLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("application/json"),
+        ) { uri ->
+            uri?.let {
+                scope.launch {
+                    val success =
+                        context.contentResolver.openOutputStream(it)?.use { out ->
+                            FlowNeuroEngine.exportBrainToStream(out)
+                        } ?: false
+                    android.widget.Toast
+                        .makeText(
+                            context,
+                            context.getString(
+                                if (success) R.string.export_engine_success else R.string.export_engine_failed,
+                            ),
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                }
             }
         }
-    }
 
-    val exportMasterLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip")
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                val result = backupRepo.exportMasterBackup(it)
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(
-                        if (result.isSuccess) R.string.master_backup_export_success
-                        else R.string.master_backup_export_failed
-                    ),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+    val exportMasterLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("application/zip"),
+        ) { uri ->
+            uri?.let {
+                scope.launch {
+                    val result = backupRepo.exportMasterBackup(it)
+                    android.widget.Toast
+                        .makeText(
+                            context,
+                            context.getString(
+                                if (result.isSuccess) {
+                                    R.string.master_backup_export_success
+                                } else {
+                                    R.string.master_backup_export_failed
+                                },
+                            ),
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                }
             }
         }
-    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                    Text(
-                        text = stringResource(R.string.export_data_screen_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-            }
+            FlowTopBar(
+                title = stringResource(R.string.export_data_screen_title),
+                onBack = onNavigateBack,
+            )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
                 Text(
@@ -164,13 +172,13 @@ fun ExportDataScreen(
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.primary,
                     letterSpacing = 0.5.sp,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                 )
                 Text(
                     text = stringResource(R.string.export_data_section_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 )
             }
 
@@ -182,7 +190,7 @@ fun ExportDataScreen(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     onClick = {
                         exportAppDataLauncher.launch("flow_backup_${System.currentTimeMillis()}.json")
-                    }
+                    },
                 )
             }
 
@@ -194,7 +202,7 @@ fun ExportDataScreen(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     onClick = {
                         exportNewPipeSubscriptionsLauncher.launch("newpipe_subscriptions_${System.currentTimeMillis()}.json")
-                    }
+                    },
                 )
             }
 
@@ -206,7 +214,7 @@ fun ExportDataScreen(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     onClick = {
                         exportWatchHistoryLauncher.launch("flow-watch-history.json")
-                    }
+                    },
                 )
             }
 
@@ -218,7 +226,7 @@ fun ExportDataScreen(
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     onClick = {
                         exportEngineLauncher.launch("flow_engine_${System.currentTimeMillis()}.json")
-                    }
+                    },
                 )
             }
 
@@ -230,7 +238,7 @@ fun ExportDataScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     onClick = {
                         exportMasterLauncher.launch("flow_master_backup_${System.currentTimeMillis()}.zip")
-                    }
+                    },
                 )
             }
 

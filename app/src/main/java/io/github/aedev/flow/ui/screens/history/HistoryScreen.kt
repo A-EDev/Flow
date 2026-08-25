@@ -75,6 +75,9 @@ import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.components.ShortsCard
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarMenuItem
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarOverflow
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicTrackRow
 import java.text.SimpleDateFormat
@@ -139,63 +142,33 @@ fun HistoryScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.library_history_label),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = stringResource(R.string.more_options),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                        ) {
-                            if (uiState.shortsEnabled) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.history_delete_shorts)) },
-                                    enabled = uiState.historyEntries.any { it.isShort },
-                                    onClick = {
-                                        showMenu = false
-                                        showClearShortsDialog = true
-                                    },
+            FlowTopBar(
+                title = stringResource(R.string.library_history_label),
+                onBack = onBackClick,
+                actions = {
+                    FlowTopBarOverflow(
+                        items =
+                            buildList {
+                                if (uiState.shortsEnabled) {
+                                    add(
+                                        FlowTopBarMenuItem(
+                                            label = stringResource(R.string.history_delete_shorts),
+                                            enabled = uiState.historyEntries.any { it.isShort },
+                                            onClick = { showClearShortsDialog = true },
+                                        ),
+                                    )
+                                }
+                                add(
+                                    FlowTopBarMenuItem(
+                                        label = stringResource(R.string.clear_all),
+                                        enabled = uiState.historyEntries.isNotEmpty(),
+                                        onClick = { showClearDialog = true },
+                                    ),
                                 )
-                            }
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.clear_all)) },
-                                enabled = uiState.historyEntries.isNotEmpty(),
-                                onClick = {
-                                    showMenu = false
-                                    showClearDialog = true
-                                },
-                            )
-                        }
-                    }
-                }
-            }
+                            },
+                    )
+                },
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { paddingValues ->

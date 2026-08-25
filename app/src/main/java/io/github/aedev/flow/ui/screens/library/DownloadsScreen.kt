@@ -55,6 +55,7 @@ import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.utils.formatDuration
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,30 +116,10 @@ fun DownloadsScreen(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.close),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.downloads_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
+            FlowTopBar(
+                title = stringResource(R.string.downloads_title),
+                onBack = onBackClick,
+                actions = {
                     if (uiState.incompleteDownloadCount > 0) {
                         IconButton(onClick = { showRemoveIncompleteDialog = true }) {
                             Icon(
@@ -147,8 +128,8 @@ fun DownloadsScreen(
                             )
                         }
                     }
-                }
-            }
+                },
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->

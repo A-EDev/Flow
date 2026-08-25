@@ -60,6 +60,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.notification.BackgroundWorkPolicy
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
 import io.github.aedev.flow.notification.UpdateCheckWorker
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,26 +115,10 @@ fun NotificationSettingsScreen(onNavigateBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                    Text(
-                        text = stringResource(R.string.notif_settings_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    )
-                }
-            }
+            FlowTopBar(
+                title = stringResource(R.string.notif_settings_title),
+                onBack = onNavigateBack,
+            )
         },
     ) { paddingValues ->
         LazyColumn(

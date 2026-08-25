@@ -47,6 +47,7 @@ import io.github.aedev.flow.data.local.SeekbarPaddingMode
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.data.local.resolveSeekbarHorizontalPaddingDp
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.screens.music.player.components.PlayerSliderTrack
 import io.github.aedev.flow.ui.screens.music.player.components.SquigglySlider
@@ -292,26 +293,10 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                    Text(
-                        text = stringResource(R.string.player_appearance_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    )
-                }
-            }
+            FlowTopBar(
+                title = stringResource(R.string.player_appearance_title),
+                onBack = onNavigateBack,
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { paddingValues ->
