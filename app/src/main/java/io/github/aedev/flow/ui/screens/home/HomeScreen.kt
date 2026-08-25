@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.home
 
-import android.util.Log
 import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween

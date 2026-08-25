@@ -1316,8 +1316,8 @@ private fun formatContinueWatchingTime(ms: Long): String {
 fun ShortsShelf(
     shorts: List<Video>,
     onShortClick: (shelf: List<Video>, tapped: Video) -> Unit,
-    onSeeAllClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onSeeAllClick: (() -> Unit)? = null,
 ) {
     val uniqueShorts =
         remember(shorts) {
