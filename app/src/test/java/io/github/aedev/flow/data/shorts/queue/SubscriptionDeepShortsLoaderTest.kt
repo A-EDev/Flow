@@ -11,6 +11,8 @@ import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,26 +63,39 @@ class SubscriptionDeepShortsLoaderTest {
         owner = ChannelShortsOwner(id = channelId, name = channelId, avatarUrl = ""),
     )
 
+    /**
+     * The loader advances its whole working set concurrently on `Dispatchers.IO`, so both fetch
+     * hooks are entered from several threads at once. Unguarded collections here lose a write or
+     * throw out of `ArrayList.add`, which surfaces as an unrelated-looking flake in any test that
+     * walks more than one channel.
+     */
     private class RecordingTabs(
         private val pages: Map<String, List<ChannelShortsFeedPage>>,
     ) {
-        val requested = mutableListOf<String>()
+        private val mutex = Mutex()
+        private val requestedChannels = mutableListOf<String>()
         private val cursors = mutableMapOf<String, Int>()
 
-        suspend fun first(channelId: String): ChannelShortsFeedPage? {
-            requested += channelId
-            cursors[channelId] = 0
-            return pages[channelId]?.firstOrNull()
-        }
+        /** Snapshot for assertions, read from the test body once the loader has finished. */
+        val requested: List<String>
+            get() = requestedChannels.toList()
+
+        suspend fun first(channelId: String): ChannelShortsFeedPage? =
+            mutex.withLock {
+                requestedChannels += channelId
+                cursors[channelId] = 0
+                pages[channelId]?.firstOrNull()
+            }
 
         suspend fun next(
             continuation: String,
             owner: ChannelShortsOwner,
-        ): ChannelShortsFeedPage? {
-            val index = (cursors[owner.id] ?: 0) + 1
-            cursors[owner.id] = index
-            return pages[owner.id]?.getOrNull(index)
-        }
+        ): ChannelShortsFeedPage? =
+            mutex.withLock {
+                val index = (cursors[owner.id] ?: 0) + 1
+                cursors[owner.id] = index
+                pages[owner.id]?.getOrNull(index)
+            }
     }
 
     private fun loader(
