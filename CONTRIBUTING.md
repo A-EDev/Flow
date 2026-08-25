@@ -107,6 +107,38 @@ Use clear, descriptive commit messages:
 - Once approved, your PR will be merged
 - Your contribution will be credited in releases
 
+## 🔐 Release and Signing Invariants
+
+Flow is distributed through GitHub Releases and
+[IzzyOnDroid](https://apt.izzysoft.de/packages/io.github.aedev.flow). Both pin
+properties of the published artifacts, so the following are hard constraints.
+Breaking one of them cannot be fixed by a follow-up release — it forces every
+installed user to uninstall and reinstall, losing their local data.
+
+**The signing key never changes.** Every release APK must be signed with the
+official key, certificate SHA-256
+`4322294ed4caa2d4294140095818080ffe8acc1fbe3cdc76107df45c5286be40`. Android
+refuses to install an update signed by a different key. CI enforces this in the
+`Verify release signing certificate` step, which fails the build on a mismatch.
+Never regenerate `release.keystore`, and never rotate the
+`RELEASE_KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_ALIAS`, or `KEY_PASSWORD`
+repository secrets.
+
+**Release asset file names are a public contract.** IzzyOnDroid matches release
+assets by file name. `flow.apk` and `flow-foss.apk` are the universal builds
+and must keep those exact names. The per-ABI APKs are published alongside them
+as extras. Renaming or removing either universal APK silently breaks the
+IzzyOnDroid update feed, so coordinate with IzzyOnDroid before changing them.
+
+**`versionCode` must increase on every release.** F-Droid-format repositories
+use it to detect updates. The ABI splits all share one `versionCode`, so the
+universal APK is the only artifact IzzyOnDroid should consume.
+
+**A tag build must never publish unsigned APKs.** `app/build.gradle.kts` falls
+back to `signingConfig = null` when no keystore is present, which produces
+uninstallable APKs. CI hard-fails a `v*` tag build when the keystore secret is
+missing rather than publishing them.
+
 ## 🎯 Areas We Need Help
 
 - [ ] Improving documentation

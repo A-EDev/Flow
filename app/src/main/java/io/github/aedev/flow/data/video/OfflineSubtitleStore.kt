@@ -133,7 +133,9 @@ class OfflineSubtitleStore
         private suspend fun resolveCaptionTracks(videoId: String): List<SubtitlesStream> {
             CAPTION_CLIENTS.forEach { client ->
                 val response = YouTube.player(videoId, client = client).getOrNull()
-                val streams = response?.let { CaptionTrackResolver.resolve(it) }.orEmpty()
+                // VTT, not the default srv3: downloadTo() below validates and stores the raw
+                // WEBVTT body as-is, and offline playback only ever builds MediaFormat.VTT streams.
+                val streams = response?.let { CaptionTrackResolver.resolve(it, format = MediaFormat.VTT) }.orEmpty()
                 if (streams.isNotEmpty()) return streams
             }
             return emptyList()

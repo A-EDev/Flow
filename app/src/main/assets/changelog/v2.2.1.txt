@@ -87,6 +87,8 @@ FIXES AND STABILITY
 - Fix the cast and sleep timer buttons appearing a moment after the rest of the controls
 - Fix the brightness readout vanishing while you were still adjusting it
 - Fix swiping down to leave fullscreen committing even after you dragged back up
+- Remove the auto-translated subtitle languages, which YouTube almost always refused to serve, so picking one showed nothing
+- Fix a subtitle track other than the one you picked being used when two of them share a language
 - Fix Shorts stalling and playing only in H.264 #917
 - Fix Shorts showing in the subscription feed while Shorts were turned off #903
 - Fix Shorts appearing among the videos in your home feed

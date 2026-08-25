@@ -50,4 +50,8 @@ class AppDatabaseMigrationsTest {
 
             db.close()
         }
+
+    companion object {
+        private const val TEST_DB = "migration-test"
+    }
 }
