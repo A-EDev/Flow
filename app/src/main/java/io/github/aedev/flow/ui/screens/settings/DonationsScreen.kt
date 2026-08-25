@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 
 // Icon Ported from Mihon.
 private val IconPatreon: ImageVector by lazy {
@@ -66,19 +67,9 @@ fun DonationsScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.support_donations_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                        titleContentColor = MaterialTheme.colorScheme.onBackground,
-                    ),
-                windowInsets = WindowInsets(0),
+            FlowTopBar(
+                title = stringResource(R.string.support_donations_title),
+                onBack = onNavigateBack,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,

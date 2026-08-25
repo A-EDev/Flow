@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.utils.FlowDiagnostics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -46,10 +47,10 @@ private fun detectLevel(line: String): LogLevel {
     // Logcat format: "MM-DD HH:MM:SS.mmm  PID  TID LEVEL TAG: message"
     return when {
         line.contains(Regex("""\s[EF]\s""")) -> LogLevel.ERROR
-        line.contains(Regex("""\sW\s"""))    -> LogLevel.WARN
-        line.contains(Regex("""\sI\s"""))    -> LogLevel.INFO
-        line.contains(Regex("""\sD\s"""))    -> LogLevel.DEBUG
-        else                                 -> LogLevel.OTHER
+        line.contains(Regex("""\sW\s""")) -> LogLevel.WARN
+        line.contains(Regex("""\sI\s""")) -> LogLevel.INFO
+        line.contains(Regex("""\sD\s""")) -> LogLevel.DEBUG
+        else -> LogLevel.OTHER
     }
 }
 
@@ -58,8 +59,8 @@ private fun levelColor(level: LogLevel): Color {
     val cs = MaterialTheme.colorScheme
     return when (level) {
         LogLevel.ERROR -> Color(0xFFFF6B6B)
-        LogLevel.WARN  -> Color(0xFFFFD93D)
-        LogLevel.INFO  -> cs.onSurface.copy(alpha = 0.85f)
+        LogLevel.WARN -> Color(0xFFFFD93D)
+        LogLevel.INFO -> cs.onSurface.copy(alpha = 0.85f)
         LogLevel.DEBUG -> cs.onSurface.copy(alpha = 0.50f)
         LogLevel.OTHER -> cs.onSurface.copy(alpha = 0.65f)
     }
@@ -72,25 +73,24 @@ private fun levelColor(level: LogLevel): Color {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
-
-    val context       = LocalContext.current
-    val scope         = rememberCoroutineScope()
-    val clipboard     = LocalClipboardManager.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
 
     // Tab state
     var selectedTab by remember { mutableIntStateOf(0) }
 
     // Log content
-    var sessionLines   by remember { mutableStateOf<List<String>>(emptyList()) }
-    var crashText      by remember { mutableStateOf("") }
-    var isLoadingLogs  by remember { mutableStateOf(true) }
+    var sessionLines by remember { mutableStateOf<List<String>>(emptyList()) }
+    var crashText by remember { mutableStateOf("") }
+    var isLoadingLogs by remember { mutableStateOf(true) }
     var isLoadingCrash by remember { mutableStateOf(true) }
 
     // UI feedback
-    var showClearDialog  by remember { mutableStateOf(false) }
+    var showClearDialog by remember { mutableStateOf(false) }
     var copiedSnackShown by remember { mutableStateOf(false) }
-    val snackbarHost     = remember { SnackbarHostState() }
-    val listState        = rememberLazyListState()
+    val snackbarHost = remember { SnackbarHostState() }
+    val listState = rememberLazyListState()
 
     val deviceInfo = remember { FlowDiagnostics.buildDeviceInfo(context) }
 
@@ -99,13 +99,13 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
     // -----------------------------------------------------------------------
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            val raw       = FlowDiagnostics.readSessionLogs()
-            val lines     = raw.lines()
-            val crashRaw  = FlowDiagnostics.getCrashLogs(context)
+            val raw = FlowDiagnostics.readSessionLogs()
+            val lines = raw.lines()
+            val crashRaw = FlowDiagnostics.getCrashLogs(context)
             withContext(Dispatchers.Main) {
-                sessionLines   = lines
-                isLoadingLogs  = false
-                crashText      = crashRaw
+                sessionLines = lines
+                isLoadingLogs = false
+                crashText = crashRaw
                 isLoadingCrash = false
             }
         }
@@ -115,17 +115,18 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
     // Helper – copy current tab's content to clipboard
     // -----------------------------------------------------------------------
     fun copyCurrentTab() {
-        val text = when (selectedTab) {
-            0    -> FlowDiagnostics.buildFullReport(context, sessionLines.joinToString("\n"))
-            else -> "$deviceInfo\n\n$crashText"
-        }
+        val text =
+            when (selectedTab) {
+                0 -> FlowDiagnostics.buildFullReport(context, sessionLines.joinToString("\n"))
+                else -> "$deviceInfo\n\n$crashText"
+            }
         clipboard.setText(AnnotatedString(text))
         if (!copiedSnackShown) {
             copiedSnackShown = true
             scope.launch {
                 snackbarHost.showSnackbar(
-                    message  = context.getString(R.string.diagnostics_copied),
-                    duration = SnackbarDuration.Short
+                    message = context.getString(R.string.diagnostics_copied),
+                    duration = SnackbarDuration.Short,
                 )
                 delay(2500)
                 copiedSnackShown = false
@@ -138,11 +139,12 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
     // -----------------------------------------------------------------------
     fun shareReport() {
         val report = FlowDiagnostics.buildFullReport(context, sessionLines.joinToString("\n"))
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "Flow Diagnostics Report")
-            putExtra(Intent.EXTRA_TEXT, report)
-        }
+        val intent =
+            Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, "Flow Diagnostics Report")
+                putExtra(Intent.EXTRA_TEXT, report)
+            }
         context.startActivity(Intent.createChooser(intent, context.getString(R.string.diagnostics_share)))
     }
 
@@ -152,80 +154,67 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back)
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.diagnostics_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.weight(1f)
-                    )
+            FlowTopBar(
+                title = stringResource(R.string.diagnostics_title),
+                onBack = onNavigateBack,
+                actions = {
                     IconButton(onClick = ::shareReport) {
                         Icon(
                             Icons.Outlined.Share,
-                            contentDescription = stringResource(R.string.diagnostics_share)
+                            contentDescription = stringResource(R.string.diagnostics_share),
                         )
                     }
                     IconButton(onClick = ::copyCurrentTab) {
                         Icon(
                             Icons.Outlined.ContentCopy,
-                            contentDescription = stringResource(R.string.diagnostics_copy)
+                            contentDescription = stringResource(R.string.diagnostics_copy),
                         )
                     }
-                }
-            }
+                },
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHost) },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
         ) {
             // ----------------------------------------------------------------
             // Device info card (always visible)
             // ----------------------------------------------------------------
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                shape  = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                )
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    ),
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         Icons.Outlined.PhoneAndroid,
                         contentDescription = null,
-                        tint     = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        text  = deviceInfo,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 18.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = deviceInfo,
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                lineHeight = 18.sp,
+                            ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -235,28 +224,32 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
             // ----------------------------------------------------------------
             TabRow(
                 selectedTabIndex = selectedTab,
-                containerColor   = MaterialTheme.colorScheme.background,
-                divider          = {
+                containerColor = MaterialTheme.colorScheme.background,
+                divider = {
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-                }
+                },
             ) {
                 Tab(
                     selected = selectedTab == 0,
-                    onClick  = { selectedTab = 0 },
-                    text     = {
-                        Text(stringResource(R.string.diagnostics_tab_session),
-                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal)
+                    onClick = { selectedTab = 0 },
+                    text = {
+                        Text(
+                            stringResource(R.string.diagnostics_tab_session),
+                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                        )
                     },
-                    icon = { Icon(Icons.Outlined.BugReport, contentDescription = null, Modifier.size(16.dp)) }
+                    icon = { Icon(Icons.Outlined.BugReport, contentDescription = null, Modifier.size(16.dp)) },
                 )
                 Tab(
                     selected = selectedTab == 1,
-                    onClick  = { selectedTab = 1 },
-                    text     = {
-                        Text(stringResource(R.string.diagnostics_tab_crashes),
-                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal)
+                    onClick = { selectedTab = 1 },
+                    text = {
+                        Text(
+                            stringResource(R.string.diagnostics_tab_crashes),
+                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                        )
                     },
-                    icon = { Icon(Icons.Outlined.Warning, contentDescription = null, Modifier.size(16.dp)) }
+                    icon = { Icon(Icons.Outlined.Warning, contentDescription = null, Modifier.size(16.dp)) },
                 )
             }
 
@@ -264,28 +257,33 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
             // Content area
             // ----------------------------------------------------------------
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 when {
                     // Session logs tab
-                    selectedTab == 0 && isLoadingLogs -> LoadingState()
+                    selectedTab == 0 && isLoadingLogs -> {
+                        LoadingState()
+                    }
 
                     selectedTab == 0 -> {
                         LogList(
-                            lines     = sessionLines,
-                            listState = listState
+                            lines = sessionLines,
+                            listState = listState,
                         )
                     }
 
                     // Crash reports tab
-                    selectedTab == 1 && isLoadingCrash -> LoadingState()
+                    selectedTab == 1 && isLoadingCrash -> {
+                        LoadingState()
+                    }
 
                     selectedTab == 1 -> {
                         CrashContent(
-                            text             = crashText,
-                            onClearRequest   = { showClearDialog = true }
+                            text = crashText,
+                            onClearRequest = { showClearDialog = true },
                         )
                     }
                 }
@@ -299,29 +297,43 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            icon  = { Icon(Icons.Outlined.DeleteForever, null,
-                tint = MaterialTheme.colorScheme.error) },
-            title = { Text(stringResource(R.string.diagnostics_clear_confirm_title),
-                fontWeight = FontWeight.Bold) },
-            text  = { Text(stringResource(R.string.diagnostics_clear_confirm_body),
-                style = MaterialTheme.typography.bodyMedium) },
+            icon = {
+                Icon(
+                    Icons.Outlined.DeleteForever,
+                    null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            },
+            title = {
+                Text(
+                    stringResource(R.string.diagnostics_clear_confirm_title),
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    stringResource(R.string.diagnostics_clear_confirm_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         FlowDiagnostics.clearCrashLogs(context)
-                        crashText       = context.getString(R.string.ui_no_crash_logs)
+                        crashText = context.getString(R.string.ui_no_crash_logs)
                         showClearDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                        ),
                 ) { Text(stringResource(R.string.clear)) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
-            }
+            },
         )
     }
 }
@@ -337,8 +349,8 @@ private fun LoadingState() {
             CircularProgressIndicator()
             Spacer(Modifier.height(16.dp))
             Text(
-                text  = stringResource(R.string.diagnostics_loading),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = stringResource(R.string.diagnostics_loading),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -348,7 +360,7 @@ private fun LoadingState() {
 @Composable
 private fun LogList(
     lines: List<String>,
-    listState: androidx.compose.foundation.lazy.LazyListState
+    listState: androidx.compose.foundation.lazy.LazyListState,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
 
@@ -358,34 +370,38 @@ private fun LogList(
     }
 
     // Pre-compute levels once so recomposition doesn't re-evaluate regexes
-    val parsed = remember(lines) {
-        lines.map { line -> Pair(line, detectLevel(line)) }
-    }
+    val parsed =
+        remember(lines) {
+            lines.map { line -> Pair(line, detectLevel(line)) }
+        }
 
     Card(
-        shape  = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = surfaceColor),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         LazyColumn(
-            state           = listState,
-            modifier        = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
+            state = listState,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
             itemsIndexed(parsed, key = { index, _ -> index }) { _, (line, level) ->
                 Text(
-                    text     = line,
-                    style    = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        lineHeight = 16.sp,
-                        fontSize   = 11.sp
-                    ),
-                    color    = levelColor(level),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
+                    text = line,
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 16.sp,
+                            fontSize = 11.sp,
+                        ),
+                    color = levelColor(level),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                 )
             }
         }
@@ -396,7 +412,7 @@ private fun LogList(
 @Composable
 private fun CrashContent(
     text: String,
-    onClearRequest: () -> Unit
+    onClearRequest: () -> Unit,
 ) {
     val noCrashes = text.isBlank() || text.trim() == "No crash logs"
 
@@ -406,44 +422,54 @@ private fun CrashContent(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 EmptyLogsState(stringResource(R.string.diagnostics_no_crashes))
             }
         } else {
             val lines = remember(text) { text.lines() }
             Card(
-                shape    = RoundedCornerShape(12.dp),
-                colors   = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                shape = RoundedCornerShape(12.dp),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
             ) {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     items(lines) { line ->
                         Text(
-                            text  = line,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                lineHeight = 16.sp,
-                                fontSize   = 11.sp
-                            ),
-                            color = when {
-                                line.contains("Exception") || line.contains("CRASH") ->
-                                    Color(0xFFFF6B6B)
-                                line.startsWith("=") ->
-                                    MaterialTheme.colorScheme.primary
-                                else ->
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
-                            },
-                            modifier = Modifier.fillMaxWidth()
+                            text = line,
+                            style =
+                                MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    lineHeight = 16.sp,
+                                    fontSize = 11.sp,
+                                ),
+                            color =
+                                when {
+                                    line.contains("Exception") || line.contains("CRASH") -> {
+                                        Color(0xFFFF6B6B)
+                                    }
+
+                                    line.startsWith("=") -> {
+                                        MaterialTheme.colorScheme.primary
+                                    }
+
+                                    else -> {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
+                                    }
+                                },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
@@ -452,14 +478,18 @@ private fun CrashContent(
             Spacer(Modifier.height(8.dp))
 
             OutlinedButton(
-                onClick  = onClearRequest,
+                onClick = onClearRequest,
                 modifier = Modifier.fillMaxWidth(),
-                colors   = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
+                colors =
+                    ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
             ) {
-                Icon(Icons.Outlined.DeleteForever, contentDescription = null,
-                    modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Outlined.DeleteForever,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.diagnostics_clear_crashes))
             }
@@ -471,19 +501,19 @@ private fun CrashContent(
 private fun EmptyLogsState(message: String) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier            = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Icon(
-            imageVector      = Icons.Outlined.CheckCircle,
+            imageVector = Icons.Outlined.CheckCircle,
             contentDescription = null,
-            tint             = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-            modifier         = Modifier.size(48.dp)
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+            modifier = Modifier.size(48.dp),
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            text  = message,
+            text = message,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

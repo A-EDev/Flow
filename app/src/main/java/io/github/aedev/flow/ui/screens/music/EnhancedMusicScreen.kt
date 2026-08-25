@@ -33,6 +33,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.screens.music.components.*
 import io.github.aedev.flow.ui.theme.Dimensions
 import kotlinx.coroutines.flow.collectLatest
@@ -48,13 +49,11 @@ private fun List<MusicTrack>.audioMusicOnly(): List<MusicTrack> = filter { it.is
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun EnhancedMusicScreen(
-    onBackClick: () -> Unit,
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onVideoClick: (MusicTrack) -> Unit = {},
     onArtistClick: (String) -> Unit = {},
     onSearchClick: () -> Unit = {},
     onRecognizeClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
     onMoodsClick: (io.github.aedev.flow.innertube.pages.MoodAndGenres.Item?) -> Unit = {},
     viewModel: MusicViewModel = hiltViewModel(),
@@ -134,16 +133,8 @@ fun EnhancedMusicScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.screen_title_music),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        letterSpacing = 2.sp,
-                    )
-                },
+            FlowTopBar(
+                title = stringResource(R.string.screen_title_music),
                 actions = {
                     IconButton(onClick = onRecognizeClick) {
                         Icon(Icons.Outlined.Mic, stringResource(R.string.recognize_music))
@@ -151,15 +142,7 @@ fun EnhancedMusicScreen(
                     IconButton(onClick = onSearchClick) {
                         Icon(Icons.Outlined.Search, stringResource(R.string.search))
                     }
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Outlined.Settings, stringResource(R.string.settings))
-                    }
                 },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-                windowInsets = WindowInsets(0, 0, 0, 0),
             )
         },
         containerColor = MaterialTheme.colorScheme.background,

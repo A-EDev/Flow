@@ -42,6 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.PlaylistCard
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel
 
 @Composable
@@ -51,7 +52,7 @@ fun PlaylistsScreen(
     onMusicPlaylistClick: (PlaylistInfo) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlaylistsViewModel = hiltViewModel(),
-    musicViewModel: MusicPlaylistsViewModel = hiltViewModel()
+    musicViewModel: MusicPlaylistsViewModel = hiltViewModel(),
 ) {
     val videoState by viewModel.uiState.collectAsStateWithLifecycle()
     val musicState by musicViewModel.uiState.collectAsStateWithLifecycle()
@@ -62,27 +63,31 @@ fun PlaylistsScreen(
     var musicToRename by remember { mutableStateOf<PlaylistInfo?>(null) }
     var musicToDelete by remember { mutableStateOf<PlaylistInfo?>(null) }
 
-    val visibleVideoPlaylists = remember(
-        videoState.playlists,
-        videoState.savedPlaylists,
-        ownershipFilter
-    ) {
-        ownershipFilter.select(videoState.playlists, videoState.savedPlaylists)
-    }
-    val visibleMusicPlaylists = remember(
-        musicState.playlists,
-        musicState.savedPlaylists,
-        ownershipFilter
-    ) {
-        ownershipFilter.select(musicState.playlists, musicState.savedPlaylists)
-    }
-    val ownedMusicPlaylistIds = remember(musicState.playlists) {
-        musicState.playlists.mapTo(HashSet(), PlaylistInfo::id)
-    }
-    val isLoading = when (contentFilter) {
-        PlaylistContentFilter.Videos -> videoState.isLoading
-        PlaylistContentFilter.Music -> musicState.isLoading
-    }
+    val visibleVideoPlaylists =
+        remember(
+            videoState.playlists,
+            videoState.savedPlaylists,
+            ownershipFilter,
+        ) {
+            ownershipFilter.select(videoState.playlists, videoState.savedPlaylists)
+        }
+    val visibleMusicPlaylists =
+        remember(
+            musicState.playlists,
+            musicState.savedPlaylists,
+            ownershipFilter,
+        ) {
+            ownershipFilter.select(musicState.playlists, musicState.savedPlaylists)
+        }
+    val ownedMusicPlaylistIds =
+        remember(musicState.playlists) {
+            musicState.playlists.mapTo(HashSet(), PlaylistInfo::id)
+        }
+    val isLoading =
+        when (contentFilter) {
+            PlaylistContentFilter.Videos -> videoState.isLoading
+            PlaylistContentFilter.Music -> musicState.isLoading
+        }
 
     LaunchedEffect(contentFilter) {
         if (contentFilter == PlaylistContentFilter.Music) {
@@ -93,29 +98,30 @@ fun PlaylistsScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            PlaylistLibraryTopBar(
+            FlowTopBar(
                 title = stringResource(R.string.library_playlists_label),
-                onBackClick = onBackClick
+                onBack = onBackClick,
             )
         },
         floatingActionButton = {
             PlaylistCreationFabMenu(
                 onCreateVideo = { creationTarget = PlaylistCreationTarget.Video },
-                onCreateMusic = { creationTarget = PlaylistCreationTarget.Music }
+                onCreateMusic = { creationTarget = PlaylistCreationTarget.Music },
             )
-        }
+        },
     ) { paddingValues ->
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(paddingValues),
         ) {
             PlaylistLibraryFilterRow(
                 selectedContent = contentFilter,
                 onContentSelected = { contentFilter = it },
                 selectedOwnership = ownershipFilter,
-                onOwnershipSelected = { ownershipFilter = it }
+                onOwnershipSelected = { ownershipFilter = it },
             )
 
             Box(modifier = Modifier.fillMaxSize()) {
@@ -125,14 +131,15 @@ fun PlaylistsScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(160.dp),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            top = 8.dp,
-                            end = 16.dp,
-                            bottom = 96.dp
-                        ),
+                        contentPadding =
+                            PaddingValues(
+                                start = 16.dp,
+                                top = 8.dp,
+                                end = 16.dp,
+                                bottom = 96.dp,
+                            ),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         when (contentFilter) {
                             PlaylistContentFilter.Videos -> {
@@ -140,7 +147,7 @@ fun PlaylistsScreen(
                                     item(
                                         key = "empty-video-playlists",
                                         span = { GridItemSpan(maxLineSpan) },
-                                        contentType = "empty"
+                                        contentType = "empty",
                                     ) {
                                         EmptyPlaylistLibraryState(isMusic = false)
                                     }
@@ -149,12 +156,12 @@ fun PlaylistsScreen(
                                         items = visibleVideoPlaylists,
                                         key = { "video-${it.id}" },
                                         contentType = { "video-playlist" },
-                                        span = { GridItemSpan(maxLineSpan) }
+                                        span = { GridItemSpan(maxLineSpan) },
                                     ) { playlist ->
                                         PlaylistCard(
                                             playlist = playlist,
                                             onClick = { onVideoPlaylistClick(playlist) },
-                                            onDeleteClick = { videoToDelete = playlist }
+                                            onDeleteClick = { videoToDelete = playlist },
                                         )
                                     }
                                 }
@@ -165,7 +172,7 @@ fun PlaylistsScreen(
                                     item(
                                         key = "empty-music-playlists",
                                         span = { GridItemSpan(maxLineSpan) },
-                                        contentType = "empty"
+                                        contentType = "empty",
                                     ) {
                                         EmptyPlaylistLibraryState(isMusic = true)
                                     }
@@ -173,23 +180,25 @@ fun PlaylistsScreen(
                                     items(
                                         items = visibleMusicPlaylists,
                                         key = { "music-${it.id}" },
-                                        contentType = { "music-playlist" }
+                                        contentType = { "music-playlist" },
                                     ) { playlist ->
                                         val isOwned = playlist.id in ownedMusicPlaylistIds
                                         MusicPlaylistLibraryCard(
                                             playlist = playlist,
                                             onClick = { onMusicPlaylistClick(playlist) },
-                                            onDownload = if (isOwned) {
-                                                { musicViewModel.downloadPlaylist(playlist) }
-                                            } else {
-                                                null
-                                            },
-                                            onRename = if (isOwned) {
-                                                { musicToRename = playlist }
-                                            } else {
-                                                null
-                                            },
-                                            onDelete = { musicToDelete = playlist }
+                                            onDownload =
+                                                if (isOwned) {
+                                                    { musicViewModel.downloadPlaylist(playlist) }
+                                                } else {
+                                                    null
+                                                },
+                                            onRename =
+                                                if (isOwned) {
+                                                    { musicToRename = playlist }
+                                                } else {
+                                                    null
+                                                },
+                                            onDelete = { musicToDelete = playlist },
                                         )
                                     }
                                 }
@@ -209,7 +218,7 @@ fun PlaylistsScreen(
         },
         onCreateMusic = { name, description ->
             musicViewModel.createPlaylist(name, description, isPrivate = true)
-        }
+        },
     )
 
     PlaylistManagementDialogHost(
@@ -230,61 +239,33 @@ fun PlaylistsScreen(
         onConfirmMusicDelete = {
             musicViewModel.deletePlaylist(it.id)
             musicToDelete = null
-        }
+        },
     )
-}
-
-@Composable
-private fun PlaylistLibraryTopBar(
-    title: String,
-    onBackClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back))
-            }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
 }
 
 @Composable
 private fun EmptyPlaylistLibraryState(isMusic: Boolean) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 48.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Icon(
             imageVector = if (isMusic) Icons.Default.MusicNote else Icons.AutoMirrored.Outlined.PlaylistPlay,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(12.dp),
         )
         Text(
-            text = stringResource(
-                if (isMusic) R.string.empty_music_playlists else R.string.no_playlists_found
-            ),
+            text =
+                stringResource(
+                    if (isMusic) R.string.empty_music_playlists else R.string.no_playlists_found,
+                ),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

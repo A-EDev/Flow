@@ -33,6 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.NotificationEntity
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -75,40 +76,19 @@ fun NotificationScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
     ) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = stringResource(R.string.notifications),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack, // AutoMirrored is better for RTL
-                        contentDescription = stringResource(R.string.close),
-                    )
-                }
-            },
+        FlowTopBar(
+            title = stringResource(R.string.notifications),
+            onBack = onBackClick,
             actions = {
                 if (notifications.isNotEmpty()) {
                     IconButton(onClick = { viewModel.clearAll() }) {
                         Icon(
                             imageVector = Icons.Default.DeleteSweep,
                             contentDescription = stringResource(R.string.clear_all_notifications),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
             },
-            // Explicitly set insets to 0 so it doesn't add status bar padding
-            windowInsets = WindowInsets(0.dp),
-            colors =
-                TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                ),
         )
 
         if (notifications.isEmpty()) {

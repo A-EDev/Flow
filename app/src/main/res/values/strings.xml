@@ -7,6 +7,8 @@
     <string name="subscriptions_sort_name">Name (A–Z)</string>
     <string name="subscriptions_sort_recent">Recently updated</string>
     <string name="top_bar_subscriptions_title">Subscriptions</string>
+    <string name="top_bar_clear_search">Clear search</string>
+    <string name="top_bar_close_search">Close search</string>
     <string name="view_all_button_label">All</string>
     <string name="subscribed">Subscribed</string>
     <string name="no_subscriptions_yet">No Subscriptions Yet</string>

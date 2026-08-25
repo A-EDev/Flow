@@ -58,6 +58,8 @@ import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.player.DeepFlowManager
+import io.github.aedev.flow.ui.components.layout.topbar.FlowSearchTopBar
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.AppLanguageManager
@@ -177,10 +179,6 @@ fun SettingsScreen(
     // Search state
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
-    val searchFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(isSearchActive) {
-        if (isSearchActive) runCatching { searchFocusRequester.requestFocus() }
-    }
     BackHandler(enabled = isSearchActive) {
         isSearchActive = false
         searchQuery = ""
@@ -487,68 +485,26 @@ fun SettingsScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                if (isSearchActive) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(onClick = {
-                            isSearchActive = false
-                            searchQuery = ""
-                        }) {
-                            Icon(Icons.Default.ArrowBack, "Close search")
-                        }
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .focusRequester(searchFocusRequester),
-                            placeholder = { Text(stringResource(R.string.ui_search_settings)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = {}),
-                            colors =
-                                OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color.Transparent,
-                                    unfocusedBorderColor = Color.Transparent,
-                                ),
-                        )
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Outlined.Close, "Clear search")
-                            }
-                        }
-                    }
-                } else {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
-                        }
-                        Text(
-                            text = stringResource(R.string.settings_title),
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier.weight(1f),
-                        )
+            if (isSearchActive) {
+                FlowSearchTopBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    onClose = {
+                        isSearchActive = false
+                        searchQuery = ""
+                    },
+                    placeholder = stringResource(R.string.ui_search_settings),
+                )
+            } else {
+                FlowTopBar(
+                    title = stringResource(R.string.settings_title),
+                    onBack = onNavigateBack,
+                    actions = {
                         IconButton(onClick = { isSearchActive = true }) {
                             Icon(Icons.Outlined.Search, stringResource(R.string.ui_search_settings))
                         }
-                    }
-                }
+                    },
+                )
             }
         },
         modifier = modifier,

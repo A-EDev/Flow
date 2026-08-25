@@ -2,8 +2,6 @@ package io.github.aedev.flow.ui.screens.music
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.res.stringResource
-import io.github.aedev.flow.R
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -14,80 +12,71 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.components.MoodAndGenresButton
 import io.github.aedev.flow.ui.components.NavigationTitle
 import io.github.aedev.flow.ui.components.ShimmerHost
 import io.github.aedev.flow.ui.components.ShimmerMoodButton
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodsAndGenresScreen(
     onBackClick: () -> Unit,
     onGenreClick: (MoodAndGenres.Item) -> Unit,
-    viewModel: MoodsAndGenresViewModel = hiltViewModel()
+    viewModel: MoodsAndGenresViewModel = hiltViewModel(),
 ) {
     val moodAndGenresList by viewModel.moodAndGenres.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    
+
     val localConfiguration = LocalConfiguration.current
     val itemsPerRow = if (localConfiguration.orientation == Configuration.ORIENTATION_LANDSCAPE) 3 else 2
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        text = stringResource(R.string.section_moods_and_genres), 
-                        fontWeight = FontWeight.Bold
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack, 
-                            contentDescription = stringResource(R.string.btn_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+            FlowTopBar(
+                title = stringResource(R.string.section_moods_and_genres),
+                onBack = onBackClick,
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
         ) {
             when {
                 isLoading && moodAndGenresList == null -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(bottom = 80.dp),
                     ) {
                         item(key = "shimmer_loading") {
                             ShimmerHost(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp)
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp),
                             ) {
                                 repeat(8) {
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
                                         repeat(itemsPerRow) {
                                             ShimmerMoodButton(
-                                                modifier = Modifier.weight(1f)
+                                                modifier = Modifier.weight(1f),
                                             )
                                         }
                                     }
@@ -96,19 +85,20 @@ fun MoodsAndGenresScreen(
                         }
                     }
                 }
-                
+
                 error != null && moodAndGenresList == null -> {
                     Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.Center,
                     ) {
                         Text(
                             text = error ?: stringResource(R.string.unknown_error),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { viewModel.retry() }) {
@@ -116,47 +106,47 @@ fun MoodsAndGenresScreen(
                         }
                     }
                 }
-                
+
                 moodAndGenresList.isNullOrEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = stringResource(R.string.empty_moods_genres),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
-                
+
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(bottom = 80.dp),
                     ) {
                         moodAndGenresList?.forEachIndexed { index, moodCategory ->
                             item(key = "category_$index") {
                                 Column(
-                                    modifier = Modifier.padding(horizontal = 6.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp),
                                 ) {
                                     NavigationTitle(
-                                        title = moodCategory.title
+                                        title = moodCategory.title,
                                     )
-                                    
+
                                     moodCategory.items.chunked(itemsPerRow).forEach { row ->
                                         Row(
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         ) {
                                             row.forEach { item ->
                                                 MoodAndGenresButton(
                                                     title = item.title,
                                                     onClick = { onGenreClick(item) },
-                                                    modifier = Modifier.weight(1f)
+                                                    modifier = Modifier.weight(1f),
                                                 )
                                             }
-                                            
+
                                             repeat(itemsPerRow - row.size) {
                                                 Spacer(modifier = Modifier.weight(1f))
                                             }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Info
@@ -50,13 +51,11 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.text.KeyboardOptions
 
 @Composable
-fun ProxySettingsScreen(
-    onNavigateBack: () -> Unit
-) {
+fun ProxySettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val preferences = remember { PlayerPreferences(context) }
@@ -79,40 +78,26 @@ fun ProxySettingsScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                    Text(
-                        text = stringResource(R.string.proxy_settings_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-            }
-        }
+            FlowTopBar(
+                title = stringResource(R.string.proxy_settings_title),
+                onBack = onNavigateBack,
+            )
+        },
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
                 Text(
                     text = stringResource(R.string.proxy_settings_description),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -123,20 +108,21 @@ fun ProxySettingsScreen(
                         title = stringResource(R.string.proxy_settings_enabled),
                         subtitle = stringResource(R.string.proxy_settings_enabled_subtitle),
                         checked = enabled,
-                        onCheckedChange = { enabled = it }
+                        onCheckedChange = { enabled = it },
                     )
                     HorizontalDivider(
                         Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
                     SettingsItem(
                         icon = Icons.Outlined.Router,
                         title = stringResource(R.string.proxy_settings_type),
-                        subtitle = when (type) {
-                            AppProxyType.HTTP -> stringResource(R.string.proxy_type_http)
-                            AppProxyType.SOCKS5 -> stringResource(R.string.proxy_type_socks5)
-                        },
-                        onClick = { showTypeDialog = true }
+                        subtitle =
+                            when (type) {
+                                AppProxyType.HTTP -> stringResource(R.string.proxy_type_http)
+                                AppProxyType.SOCKS5 -> stringResource(R.string.proxy_type_socks5)
+                            },
+                        onClick = { showTypeDialog = true },
                     )
                 }
             }
@@ -151,14 +137,14 @@ fun ProxySettingsScreen(
                             label = { Text(stringResource(R.string.proxy_settings_host)) },
                             singleLine = true,
                             isError = hostError,
-                            leadingIcon = { Icon(Icons.Outlined.Public, contentDescription = null) }
+                            leadingIcon = { Icon(Icons.Outlined.Public, contentDescription = null) },
                         )
                         if (hostError) {
                             Text(
                                 text = stringResource(R.string.proxy_settings_invalid_host),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 4.dp)
+                                modifier = Modifier.padding(top = 4.dp),
                             )
                         }
 
@@ -172,14 +158,14 @@ fun ProxySettingsScreen(
                             singleLine = true,
                             isError = portError,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            leadingIcon = { Icon(Icons.Outlined.Tag, contentDescription = null) }
+                            leadingIcon = { Icon(Icons.Outlined.Tag, contentDescription = null) },
                         )
                         if (portError) {
                             Text(
                                 text = stringResource(R.string.proxy_settings_invalid_port),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 4.dp)
+                                modifier = Modifier.padding(top = 4.dp),
                             )
                         }
 
@@ -191,7 +177,7 @@ fun ProxySettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(stringResource(R.string.proxy_settings_username)) },
                             singleLine = true,
-                            leadingIcon = { Icon(Icons.Outlined.Public, contentDescription = null) }
+                            leadingIcon = { Icon(Icons.Outlined.Public, contentDescription = null) },
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -203,7 +189,7 @@ fun ProxySettingsScreen(
                             label = { Text(stringResource(R.string.proxy_settings_password)) },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
-                            leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) }
+                            leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -211,7 +197,7 @@ fun ProxySettingsScreen(
                         Text(
                             text = stringResource(R.string.proxy_settings_optional_auth),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -221,18 +207,18 @@ fun ProxySettingsScreen(
                 SettingsGroup {
                     Row(
                         modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.Top
+                        verticalAlignment = Alignment.Top,
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Info,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = stringResource(R.string.proxy_settings_restart_notice),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 16.dp)
+                            modifier = Modifier.padding(start = 16.dp),
                         )
                     }
                 }
@@ -250,18 +236,19 @@ fun ProxySettingsScreen(
                                     host = host,
                                     port = parsedPort ?: savedConfig.port,
                                     username = username,
-                                    password = password
-                                )
+                                    password = password,
+                                ),
                             )
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.proxy_settings_saved),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast
+                                .makeText(
+                                    context,
+                                    context.getString(R.string.proxy_settings_saved),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
                         }
                     },
                     enabled = canSave,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(text = stringResource(R.string.btn_save))
                 }
@@ -294,7 +281,7 @@ fun ProxySettingsScreen(
                 TextButton(onClick = { showTypeDialog = false }) {
                     Text(stringResource(R.string.btn_cancel))
                 }
-            }
+            },
         )
     }
 }

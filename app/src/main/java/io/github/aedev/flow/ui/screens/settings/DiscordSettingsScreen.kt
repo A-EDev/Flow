@@ -55,6 +55,7 @@ import io.github.aedev.flow.discord.DiscordConnectionState
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.discord.DiscordSettingsState
 import io.github.aedev.flow.discord.DiscordSettingsSummary
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,30 +68,19 @@ fun DiscordSettingsScreen(onNavigateBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.discord_presence_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                ),
-                windowInsets = WindowInsets(0),
+            FlowTopBar(
+                title = stringResource(R.string.discord_presence_title),
+                onBack = onNavigateBack,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -125,12 +115,13 @@ fun DiscordSettingsScreen(onNavigateBack: () -> Unit) {
                             onUnlink = { scope.launch { DiscordPresenceRuntime.unlink() } },
                         )
 
-                        state.errorMessage?.takeIf {
-                            state.summary == DiscordSettingsSummary.ERROR || !state.isAvailable
-                        }?.let { error ->
-                            HorizontalDivider(Modifier.padding(start = 56.dp))
-                            DiscordErrorRow(error)
-                        }
+                        state.errorMessage
+                            ?.takeIf {
+                                state.summary == DiscordSettingsSummary.ERROR || !state.isAvailable
+                            }?.let { error ->
+                                HorizontalDivider(Modifier.padding(start = 56.dp))
+                                DiscordErrorRow(error)
+                            }
                     }
                 }
             }
@@ -199,9 +190,10 @@ private fun DiscordSettingsGroup(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
     ) {
         Column(content = content)
     }
@@ -213,13 +205,15 @@ private fun DiscordAccountRow(
     onConnect: () -> Unit,
     onUnlink: () -> Unit,
 ) {
-    val connectionPending = state.connectionState == DiscordConnectionState.LINKING ||
-        state.connectionState == DiscordConnectionState.CONNECTING
+    val connectionPending =
+        state.connectionState == DiscordConnectionState.LINKING ||
+            state.connectionState == DiscordConnectionState.CONNECTING
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -241,20 +235,26 @@ private fun DiscordAccountRow(
         }
 
         when {
-            connectionPending -> CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                strokeWidth = 2.dp,
-            )
-
-            state.accountName != null -> TextButton(onClick = onUnlink) {
-                Text(stringResource(R.string.discord_presence_unlink_action))
+            connectionPending -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                )
             }
 
-            state.isAvailable -> TextButton(
-                onClick = onConnect,
-                enabled = state.isEnabled,
-            ) {
-                Text(stringResource(R.string.discord_presence_connect_action))
+            state.accountName != null -> {
+                TextButton(onClick = onUnlink) {
+                    Text(stringResource(R.string.discord_presence_unlink_action))
+                }
+            }
+
+            state.isAvailable -> {
+                TextButton(
+                    onClick = onConnect,
+                    enabled = state.isEnabled,
+                ) {
+                    Text(stringResource(R.string.discord_presence_connect_action))
+                }
             }
         }
     }
@@ -263,9 +263,10 @@ private fun DiscordAccountRow(
 @Composable
 private fun DiscordErrorRow(message: String) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Icon(
@@ -289,16 +290,18 @@ private fun DiscordInformationRow(
     body: String,
     isWarning: Boolean = false,
 ) {
-    val accentColor = if (isWarning) {
-        MaterialTheme.colorScheme.error
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val accentColor =
+        if (isWarning) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Icon(
@@ -323,22 +326,41 @@ private fun DiscordInformationRow(
 }
 
 @Composable
-fun discordSettingsSummaryText(state: DiscordSettingsState): String = when (state.summary) {
-    DiscordSettingsSummary.OFF -> stringResource(R.string.discord_presence_off)
-    DiscordSettingsSummary.NOT_CONNECTED -> stringResource(R.string.discord_presence_not_connected)
-    DiscordSettingsSummary.READY -> state.accountName?.let { account ->
-        stringResource(R.string.discord_presence_ready_as, account)
-    } ?: stringResource(R.string.discord_presence_ready)
-    DiscordSettingsSummary.CONNECTED -> state.accountName?.let { account ->
-        stringResource(R.string.discord_presence_connected_as, account)
-    } ?: stringResource(R.string.discord_presence_connected)
-    DiscordSettingsSummary.UNAVAILABLE -> stringResource(R.string.discord_presence_unavailable)
-    DiscordSettingsSummary.ERROR -> stringResource(R.string.discord_presence_connection_error)
-}
+fun discordSettingsSummaryText(state: DiscordSettingsState): String =
+    when (state.summary) {
+        DiscordSettingsSummary.OFF -> {
+            stringResource(R.string.discord_presence_off)
+        }
+
+        DiscordSettingsSummary.NOT_CONNECTED -> {
+            stringResource(R.string.discord_presence_not_connected)
+        }
+
+        DiscordSettingsSummary.READY -> {
+            state.accountName?.let { account ->
+                stringResource(R.string.discord_presence_ready_as, account)
+            } ?: stringResource(R.string.discord_presence_ready)
+        }
+
+        DiscordSettingsSummary.CONNECTED -> {
+            state.accountName?.let { account ->
+                stringResource(R.string.discord_presence_connected_as, account)
+            } ?: stringResource(R.string.discord_presence_connected)
+        }
+
+        DiscordSettingsSummary.UNAVAILABLE -> {
+            stringResource(R.string.discord_presence_unavailable)
+        }
+
+        DiscordSettingsSummary.ERROR -> {
+            stringResource(R.string.discord_presence_connection_error)
+        }
+    }
 
 @Composable
-private fun statusText(state: DiscordSettingsState): String = when (state.connectionState) {
-    DiscordConnectionState.LINKING -> stringResource(R.string.discord_presence_linking)
-    DiscordConnectionState.CONNECTING -> stringResource(R.string.discord_presence_connecting)
-    else -> discordSettingsSummaryText(state)
-}
+private fun statusText(state: DiscordSettingsState): String =
+    when (state.connectionState) {
+        DiscordConnectionState.LINKING -> stringResource(R.string.discord_presence_linking)
+        DiscordConnectionState.CONNECTING -> stringResource(R.string.discord_presence_connecting)
+        else -> discordSettingsSummaryText(state)
+    }
