@@ -158,8 +158,6 @@ android {
                     "/META-INF/INDEX.LIST",
                     "/META-INF/DEPENDENCIES",
                     "/META-INF/*.version",
-                    "META-INF/LICENSE*",
-                    "META-INF/NOTICE*",
                 )
         }
     }

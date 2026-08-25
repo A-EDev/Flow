@@ -8,9 +8,6 @@
 -dontobfuscate
 -keepattributes SourceFile,LineNumberTable
 
-## Enable access modification for aggressive inlining across package boundaries
--allowaccessmodification
-
 ## Strip debug and verbose logging from release binaries
 -assumenosideeffects class android.util.Log {
     public static boolean isLoggable(java.lang.String, int);
@@ -53,6 +50,7 @@
 ## Keep data models and serialization structures
 -keep class io.github.aedev.flow.data.model.** { *; }
 -keep class io.github.aedev.flow.data.local.** { *; }
+-keep class io.github.aedev.flow.data.lyrics.** { *; }
 -keep class io.github.aedev.flow.innertube.models.** { *; }
 
 ## Shazam recognition models + kotlinx serializers
