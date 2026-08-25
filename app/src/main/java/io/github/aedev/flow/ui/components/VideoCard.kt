@@ -1316,6 +1316,7 @@ private fun formatContinueWatchingTime(ms: Long): String {
 fun ShortsShelf(
     shorts: List<Video>,
     onShortClick: (shelf: List<Video>, tapped: Video) -> Unit,
+    modifier: Modifier = Modifier,
     onSeeAllClick: (() -> Unit)? = null,
 ) {
     val uniqueShorts =
@@ -1324,7 +1325,7 @@ fun ShortsShelf(
         }
     if (uniqueShorts.isEmpty()) return
     val context = LocalContext.current
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             modifier =
                 Modifier

@@ -4,13 +4,25 @@
 
 # https://developer.android.com/build/shrink-code
 
-## Helps debug release versions - keeps class/method names readable
+## Open-source readable stack traces (no de-obfuscation pipeline required)
 -dontobfuscate
--ignorewarnings
+-keepattributes SourceFile,LineNumberTable
+
+## Strip debug and verbose logging from release binaries
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+}
 
 ## Rules for NewPipeExtractor
 -keep class org.schabi.newpipe.extractor.timeago.patterns.** { *; }
 -keep class org.schabi.newpipe.extractor.** { *; }
+-keep class com.grack.nanojson.** { *; }
+-keep class org.schabi.newpipe.extractor.services.** { *; }
+-keep class * extends org.schabi.newpipe.extractor.Extractor { *; }
+-keep class * implements org.schabi.newpipe.extractor.Service { *; }
+-keepattributes Exceptions, InnerClasses
 
 ## Rules for Rhino and Rhino Engine (JavaScript engine used by NewPipe)
 -keep class org.mozilla.javascript.* { *; }
@@ -21,21 +33,7 @@
 -dontwarn org.mozilla.javascript.tools.**
 -keep class javax.script.** { *; }
 -dontwarn javax.script.**
--keep class jdk.dynalink.** { *; }
 -dontwarn jdk.dynalink.**
-
-## Rules for ExoPlayer / Media3
--keep class com.google.android.exoplayer2.** { *; }
--keep class androidx.media3.** { *; }
--dontwarn com.google.android.exoplayer2.**
--dontwarn androidx.media3.**
-
-## Keep application classes
--keep class io.github.aedev.flow.** { *; }
--keep class io.github.aedev.flow.FlowApplication { *; }
-
-## Rules for Jetpack Compose
--dontwarn androidx.compose.**
 
 ## Rules for Gson serialization
 -keepattributes Signature
@@ -45,66 +43,15 @@
 -keep class * implements com.google.gson.TypeAdapterFactory
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
-
-## Keep data model classes
--keep class io.github.aedev.flow.**.models.** { *; }
--keep class io.github.aedev.flow.**.data.** { *; }
-
-## Rules for Kotlin
--keep class kotlin.Metadata { *; }
--keepattributes RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations
--keep class kotlinx.coroutines.** { *; }
--dontwarn kotlinx.coroutines.**
-
-## Rules for DataStore
--keep class androidx.datastore.** { *; }
--dontwarn androidx.datastore.**
-
-## Rules for Coil image loading
--keep class coil3.** { *; }
--dontwarn coil3.**
-
-## Rules for Navigation
--keep class androidx.navigation.** { *; }
--dontwarn androidx.navigation.**
-
-## Standard Android rules
--keepclassmembers class * implements java.io.Serializable {
-    static final long serialVersionUID;
-    private static final java.io.ObjectStreamField[] serialPersistentFields;
-    !static !transient <fields>;
-    private void writeObject(java.io.ObjectOutputStream);
-    private void readObject(java.io.ObjectInputStream);
-    java.lang.Object writeReplace();
-    java.lang.Object readResolve();
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
 }
 
--keepclassmembers enum * {
-    public static **[] values();
-    public static ** valueOf(java.lang.String);
-    **[] $VALUES;
-    public *;
-}
-
--keep class * implements android.os.Parcelable {
-    public static final android.os.Parcelable$Creator *;
-}
-
--keepclasseswithmembernames class * {
-    native <methods>;
-}
-
-## Rules for OkHttp (used internally by NewPipe)
--dontwarn okhttp3.**
--dontwarn okio.**
--dontwarn javax.annotation.**
-
-## Rules for SLF4J
--dontwarn org.slf4j.**
-
-## Rules for Ktor
--dontwarn io.ktor.**
--keep class io.ktor.** { *; }
+## Keep data models and serialization structures
+-keep class io.github.aedev.flow.data.model.** { *; }
+-keep class io.github.aedev.flow.data.local.** { *; }
+-keep class io.github.aedev.flow.data.lyrics.** { *; }
+-keep class io.github.aedev.flow.innertube.models.** { *; }
 
 ## Shazam recognition models + kotlinx serializers
 -keepclasseswithmembers class io.github.aedev.flow.data.recognition.shazam.** {
@@ -114,27 +61,22 @@
     *** Companion;
 }
 
-## Rules for Brotli
+## Rules for Ktor
+-dontwarn io.ktor.**
+-keep class io.ktor.** { *; }
+
+## Rules for Brotli & re2j
 -dontwarn org.brotli.**
 -keep class org.brotli.** { *; }
 -dontwarn org.conscrypt.**
-
-## Java Beans (not available on Android)
--dontwarn java.beans.**
-
-
-
-## Additional rules for NewPipeExtractor stability
--keep class com.grack.nanojson.** { *; }
--keep class org.schabi.newpipe.extractor.services.** { *; }
--keep class org.schabi.newpipe.extractor.services.youtube.** { *; }
--keep class org.schabi.newpipe.extractor.services.soundcloud.** { *; }
--keep class * extends org.schabi.newpipe.extractor.Extractor { *; }
--keep class * implements org.schabi.newpipe.extractor.Service { *; }
--keepattributes Exceptions, InnerClasses
-
-## Rules for re2j (Required by Jsoup/NewPipeExtractor)
 -dontwarn com.google.re2j.**
 -keep class com.google.re2j.** { *; }
 -dontwarn org.jsoup.helper.Re2jRegex
 -dontwarn org.jsoup.helper.Re2jRegex$Re2jMatcher
+
+## Third-party / Platform warning suppressions
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn javax.annotation.**
+-dontwarn org.slf4j.**
+-dontwarn java.beans.**

@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
+import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -142,7 +143,8 @@ fun FlowApp(
     LaunchedEffect(Unit) {
         FlowNeuroEngine.initialize(context)
         DeepFlowManager.initialize(context)
-        needsOnboarding = FlowNeuroEngine.needsOnboarding()
+        val bypass = activity?.intent?.getBooleanExtra(MainActivity.EXTRA_BENCHMARK_BYPASS_ONBOARDING, false) == true
+        needsOnboarding = if (bypass) false else FlowNeuroEngine.needsOnboarding()
     }
 
     LaunchedEffect(sleepTimerCloseAppOnExpiry) {

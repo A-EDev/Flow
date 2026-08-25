@@ -13,6 +13,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseMigrationsTest {
+    private val testDb = "migration-test"
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @get:Rule
@@ -21,7 +22,7 @@ class AppDatabaseMigrationsTest {
             instrumentation = instrumentation,
             databaseClass = AppDatabase::class,
             driver = AndroidSQLiteDriver(),
-            file = instrumentation.targetContext.getDatabasePath(TEST_DB),
+            file = instrumentation.targetContext.getDatabasePath(testDb),
         )
 
     @Test
@@ -35,13 +36,13 @@ class AppDatabaseMigrationsTest {
             // Create latest version of the database.
             val db =
                 Room
-                    .databaseBuilder<AppDatabase>(instrumentation.targetContext, TEST_DB)
+                    .databaseBuilder<AppDatabase>(instrumentation.targetContext, testDb)
                     .setDriver(AndroidSQLiteDriver())
                     .build()
 
             // Open the database, Room validates the schema once all migrations
             // execute.
-            db.useReaderConnection { connection ->
+            db.useReaderConnection { _ ->
                 // Open the db for the migrations to take place.
                 // Perform additional validation to validate if data survived the migrations.
             }

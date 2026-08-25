@@ -19,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -344,8 +346,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Request notification permission for Android 13+
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Request notification permission for Android 13+ (skip during benchmark/test runs)
+                val isBypassMode = intent?.getBooleanExtra(EXTRA_BENCHMARK_BYPASS_ONBOARDING, false) == true
+                if (!isBypassMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val permissionLauncher =
                         androidx.activity.compose.rememberLauncherForActivityResult(
                             androidx.activity.result.contract.ActivityResultContracts
@@ -373,7 +376,12 @@ class MainActivity : ComponentActivity() {
                 // collect them individually, so a feed of ten opened ten Room observers and
                 // fifty DataStore collectors.
                 ProvideVideoCardState {
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .semantics { testTagsAsResourceId = true },
+                    ) {
                         // 1. MAIN APP (Home/NavHost)
                         // This loads *behind* the splash screen immediately.
                         // By the time splash fades, this is ready.
@@ -933,5 +941,9 @@ class MainActivity : ComponentActivity() {
             if (l < c) return false
         }
         return false
+    }
+
+    companion object {
+        const val EXTRA_BENCHMARK_BYPASS_ONBOARDING = "io.github.aedev.flow.extra.BENCHMARK_BYPASS_ONBOARDING"
     }
 }
