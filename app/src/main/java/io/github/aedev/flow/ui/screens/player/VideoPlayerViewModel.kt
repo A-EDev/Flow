@@ -135,6 +135,7 @@ class VideoPlayerViewModel
 
         private companion object {
             const val MAX_STREAM_EXPIRY_RETRIES = 3
+
             const val MAX_LIVE_CHAT_MESSAGES = 200
             const val MAX_LIVE_CHAT_SEEN_IDS = 1500
             const val LIVE_CHAT_RETRY_MS = 3000L
@@ -287,16 +288,9 @@ class VideoPlayerViewModel
         private fun detectIsWifi(): Boolean = NetworkState.isOnWifi(context)
 
         @Volatile
-        private var preferredSubtitleLanguage: String = CaptionTrackResolver.NO_PREFERRED_LANGUAGE
-
-        @Volatile
         private var shortsContentEnabled: Boolean = true
 
         init {
-            viewModelScope.launch {
-                playerPreferences.preferredSubtitleLanguage.collect { preferredSubtitleLanguage = it }
-            }
-
             viewModelScope.launch {
                 playerPreferences.shortsContentEnabled.collect { shortsContentEnabled = it }
             }
@@ -1703,7 +1697,7 @@ class VideoPlayerViewModel
                                 val captionStreams =
                                     innerTubeResult
                                         ?.playerResponse
-                                        ?.let { CaptionTrackResolver.resolve(it, preferredSubtitleLanguage) }
+                                        ?.let { CaptionTrackResolver.resolve(it) }
                                         .orEmpty()
                                 val mergedSubtitleStreams =
                                     StreamProcessor.processSubtitleStreams(
@@ -2296,7 +2290,7 @@ class VideoPlayerViewModel
 
             val liveCaptionStreams =
                 StreamProcessor.processSubtitleStreams(
-                    CaptionTrackResolver.resolve(result.playerResponse, preferredSubtitleLanguage),
+                    CaptionTrackResolver.resolve(result.playerResponse),
                 )
 
             _uiState.update {
@@ -2733,7 +2727,7 @@ class VideoPlayerViewModel
 
             val captionStreams =
                 StreamProcessor.processSubtitleStreams(
-                    CaptionTrackResolver.resolve(result.playerResponse, preferredSubtitleLanguage),
+                    CaptionTrackResolver.resolve(result.playerResponse),
                 )
 
             val autoplay = playerPreferences.autoplayEnabled.first()

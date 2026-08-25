@@ -602,6 +602,8 @@ fun GlobalPlayerOverlay(
 
     SponsorSkipEffect(context)
 
+    SubtitleLoadErrorEffect(context, screenState)
+
     OrientationListenerEffect(
         context = context,
         isExpanded = playerSheetState.currentValue == PlayerSheetValue.Expanded,
