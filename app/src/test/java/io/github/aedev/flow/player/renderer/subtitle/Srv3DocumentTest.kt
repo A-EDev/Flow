@@ -95,6 +95,27 @@ class Srv3DocumentTest {
         assertEquals(10f, window.horizontalPercent)
         assertEquals(15f, window.verticalPercent)
         assertEquals(Srv3Window.JUSTIFY_LEFT, window.justify)
+        assertTrue(window.positioned)
+    }
+
+    @Test
+    fun `a paragraph with no wp is not marked positioned so the player places it`() {
+        val xml =
+            """
+            <timedtext format="3">
+              <head>
+                <ws id="0" ju="0"/>
+              </head>
+              <body>
+                <p t="0" d="1000" ws="0">Left-justified, but unplaced</p>
+              </body>
+            </timedtext>
+            """.trimIndent()
+
+        val window = parseSrv3Document(xml).single().window
+
+        assertFalse("an unplaced cue must not carry an explicit line", window.positioned)
+        assertEquals(Srv3Window.JUSTIFY_LEFT, window.justify)
     }
 
     @Test

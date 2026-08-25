@@ -30,6 +30,7 @@ import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -822,6 +823,19 @@ fun SponsorSkipEffect(context: Context) {
     LaunchedEffect(Unit) {
         EnhancedPlayerManager.getInstance().skipEvent.collect { segment ->
             Toast.makeText(context, context.getString(R.string.ui_skipped_segment, segment.category), Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+@Composable
+fun SubtitleLoadErrorEffect(
+    context: Context,
+    screenState: PlayerScreenState,
+) {
+    LaunchedEffect(Unit) {
+        EnhancedPlayerManager.getInstance().subtitleLoadFailedEvent.collect { label ->
+            SubtitleSelection.disable(screenState)
+            Toast.makeText(context, context.getString(R.string.subtitle_load_failed, label), Toast.LENGTH_SHORT).show()
         }
     }
 }

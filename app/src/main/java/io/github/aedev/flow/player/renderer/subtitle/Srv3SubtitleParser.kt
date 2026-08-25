@@ -3,12 +3,14 @@ package io.github.aedev.flow.player.renderer.subtitle
 import android.graphics.Color
 import android.graphics.Typeface
 import android.text.Layout
+import android.util.Log
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.text.style.UnderlineSpan
+import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.text.Cue
 import androidx.media3.common.util.Consumer
@@ -29,13 +31,32 @@ class Srv3SubtitleParser : SubtitleParser {
         output: Consumer<CuesWithTiming>,
     ) {
         val xml = String(data, offset, length, Charsets.UTF_8)
-        val paragraphs = runCatching { parseSrv3Document(xml) }.getOrDefault(emptyList())
-        paragraphs.forEach { output.accept(it.toCuesWithTiming()) }
+        val paragraphs =
+            try {
+                parseSrv3Document(xml)
+            } catch (e: Exception) {
+                // A malformed document must not kill playback, but it also must not disappear:
+                // captions that silently render nothing are the hardest subtitle bug to diagnose.
+                Log.w(TAG, "Failed to parse srv3 document (${length}B), dropping captions", e)
+                return
+            }
+
+        val cues = paragraphs.map { it.toCuesWithTiming() }
+        if (outputOptions.startTimeUs == C.TIME_UNSET) {
+            cues.forEach(output::accept)
+            return
+        }
+
+        val (fromStartTime, beforeStartTime) = cues.partition { it.startTimeUs >= outputOptions.startTimeUs }
+        fromStartTime.forEach(output::accept)
+        if (outputOptions.outputAllCues) beforeStartTime.forEach(output::accept)
     }
 
     override fun getCueReplacementBehavior(): Int = Format.CUE_REPLACEMENT_BEHAVIOR_MERGE
 
     companion object {
+        private const val TAG = "Srv3SubtitleParser"
+
         /** MIME type this parser is registered against; never advertised by YouTube itself. */
         const val MIME_TYPE = "application/x-youtube-srv3"
     }
@@ -94,6 +115,19 @@ private fun String.toColorIntOrNull(opacity: Int?): Int? =
 private const val MAX_PEN_OPACITY = 254
 
 private fun Cue.Builder.applyWindow(window: Srv3Window): Cue.Builder {
+    val textAlignment =
+        when (window.justify) {
+            Srv3Window.JUSTIFY_LEFT -> Layout.Alignment.ALIGN_NORMAL
+            Srv3Window.JUSTIFY_RIGHT -> Layout.Alignment.ALIGN_OPPOSITE
+            else -> Layout.Alignment.ALIGN_CENTER
+        }
+    setTextAlignment(textAlignment)
+
+    // Most srv3 documents position nothing and expect the player's default placement. Setting a
+    // line anyway would pin those cues to the very bottom edge of the view, because SubtitleView
+    // skips its bottom-padding fraction for any cue that carries an explicit line.
+    if (!window.positioned) return this
+
     val anchor = window.anchorPoint.coerceIn(0, 8)
     val row = anchor / 3 // 0 = top, 1 = middle, 2 = bottom
     val column = anchor % 3 // 0 = left, 1 = center, 2 = right
@@ -110,18 +144,11 @@ private fun Cue.Builder.applyWindow(window: Srv3Window): Cue.Builder {
             1 -> Cue.ANCHOR_TYPE_MIDDLE
             else -> Cue.ANCHOR_TYPE_END
         }
-    val textAlignment =
-        when (window.justify) {
-            Srv3Window.JUSTIFY_LEFT -> Layout.Alignment.ALIGN_NORMAL
-            Srv3Window.JUSTIFY_RIGHT -> Layout.Alignment.ALIGN_OPPOSITE
-            else -> Layout.Alignment.ALIGN_CENTER
-        }
 
     return setLine(window.verticalPercent.coerceIn(0f, 100f) / 100f, Cue.LINE_TYPE_FRACTION)
         .setLineAnchor(lineAnchor)
         .setPosition(window.horizontalPercent.coerceIn(0f, 100f) / 100f)
         .setPositionAnchor(positionAnchor)
-        .setTextAlignment(textAlignment)
 }
 
 /** Trims whitespace from both ends while preserving any spans set on the interior range. */

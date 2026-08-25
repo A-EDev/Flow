@@ -1,0 +1,17 @@
+# Default owner for everything in the repository.
+* @A-EDev
+
+# Release, signing, and CI paths. Changes here can break the published
+# IzzyOnDroid/F-Droid artifacts, so they always need an explicit review.
+/.github/workflows/    @A-EDev
+/.github/dependabot.yml @A-EDev
+/app/build.gradle.kts  @A-EDev
+/build.gradle.kts      @A-EDev
+/gradle/               @A-EDev
+/fastlane/             @A-EDev
+
+# Project policy documents.
+/CLAUDE.md             @A-EDev
+/AGENTS.md             @A-EDev
+/CONTRIBUTING.md       @A-EDev
+/SECURITY.md           @A-EDev

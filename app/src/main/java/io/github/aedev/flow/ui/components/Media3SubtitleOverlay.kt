@@ -131,46 +131,46 @@ private fun StyledSubtitleView(
 ) {
     val visibleCues = remember(cues) { cues.filter { !it.text.isNullOrBlank() } }
 
-    AnimatedVisibility(
-        visible = visibleCues.isNotEmpty(),
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = modifier.fillMaxSize(),
-    ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val bottomPaddingFraction =
-                if (maxHeight.value > 0f) {
-                    (style.bottomPadding / maxHeight.value).coerceIn(0.02f, 0.4f)
-                } else {
-                    SubtitleView.DEFAULT_BOTTOM_PADDING_FRACTION
-                }
-            val typeface = if (style.isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+    // Deliberately not wrapped in AnimatedVisibility: cues empty out in the gap between every
+    // caption, which would tear the SubtitleView down and re-inflate it hundreds of times per
+    // video. An empty cue list already draws nothing.
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val bottomPaddingFraction =
+            if (maxHeight.value > 0f) {
+                (style.bottomPadding / maxHeight.value).coerceIn(0.02f, 0.4f)
+            } else {
+                SubtitleView.DEFAULT_BOTTOM_PADDING_FRACTION
+            }
+        val captionStyle =
+            remember(style) {
+                CaptionStyleCompat(
+                    style.textColor.toArgb(),
+                    style.backgroundColor.toArgb(),
+                    AndroidColor.TRANSPARENT,
+                    CaptionStyleCompat.EDGE_TYPE_NONE,
+                    AndroidColor.TRANSPARENT,
+                    if (style.isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT,
+                )
+            }
 
-            AndroidView(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                factory = { context -> SubtitleView(context) },
-                update = { view ->
-                    view.setApplyEmbeddedStyles(true)
-                    view.setApplyEmbeddedFontSizes(false)
-                    view.setBottomPaddingFraction(bottomPaddingFraction)
-                    view.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSize)
-                    view.setStyle(
-                        CaptionStyleCompat(
-                            style.textColor.toArgb(),
-                            style.backgroundColor.toArgb(),
-                            AndroidColor.TRANSPARENT,
-                            CaptionStyleCompat.EDGE_TYPE_NONE,
-                            AndroidColor.TRANSPARENT,
-                            typeface,
-                        ),
-                    )
-                    view.setCues(visibleCues)
-                },
-            )
-        }
+        AndroidView(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+            factory = { context ->
+                SubtitleView(context).apply {
+                    setApplyEmbeddedStyles(true)
+                    setApplyEmbeddedFontSizes(false)
+                }
+            },
+            update = { view ->
+                view.setBottomPaddingFraction(bottomPaddingFraction)
+                view.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSize)
+                view.setStyle(captionStyle)
+                view.setCues(visibleCues)
+            },
+        )
     }
 }
 
@@ -190,7 +190,7 @@ private fun List<Cue>.toRollingCaptionText(): String? {
 
 private fun String.cleanRollingCueText(): String {
     val lines =
-        replace(' ', ' ')
+        replace('\u00A0', ' ')
             .replace(Regex("[ \\t\\x0B\\f\\r]+"), " ")
             .lines()
             .map { it.trim() }

@@ -1,0 +1,53 @@
+player:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app/src/main/java/io/github/aedev/flow/player/**'
+          - 'app/src/main/java/io/github/aedev/flow/service/**'
+
+ui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app/src/main/java/io/github/aedev/flow/ui/**'
+          - 'app/src/main/res/values/themes.xml'
+
+algorithm:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app/src/main/java/io/github/aedev/flow/data/recommendation/**'
+
+sync:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app/src/main/java/io/github/aedev/flow/sync/**'
+
+extraction:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app/src/main/java/io/github/aedev/flow/innertube/**'
+          - 'app/src/main/java/io/github/aedev/flow/network/**'
+
+localization:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app/src/main/res/values-*/strings.xml'
+
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.gradle.kts'
+          - 'gradle/**'
+          - 'gradle.properties'
+          - 'app/proguard-rules.pro'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**'
+          - '.github/dependabot.yml'
+          - '.github/labeler.yml'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - 'fastlane/**'

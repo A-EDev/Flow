@@ -4,10 +4,11 @@ import androidx.media3.extractor.text.SimpleSubtitleDecoder
 import androidx.media3.extractor.text.Subtitle
 
 /**
- * Bridges [Srv3SubtitleParser] (the modern [androidx.media3.extractor.text.SubtitleParser] API)
- * into the legacy [SimpleSubtitleDecoder] flow, since this app's
- * [io.github.aedev.flow.player.renderer.CustomRenderersFactory] runs its [TextRenderer][
- * androidx.media3.exoplayer.text.TextRenderer] with legacy decoding enabled.
+ * Bridges [Srv3SubtitleParser] (the modern `SubtitleParser` API) into the legacy
+ * [SimpleSubtitleDecoder] flow, since this app's
+ * [io.github.aedev.flow.player.renderer.CustomRenderersFactory] runs its `TextRenderer` with legacy
+ * decoding enabled - sidecar caption tracks arrive through `SingleSampleMediaSource`, which does no
+ * subtitle parsing of its own.
  */
 class Srv3SubtitleDecoder : SimpleSubtitleDecoder("Srv3SubtitleDecoder") {
     private val parser = Srv3SubtitleParser()

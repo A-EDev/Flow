@@ -29,6 +29,20 @@ open class CustomRenderersFactory(
     context: Context,
     private val audioProcessors: Array<AudioProcessor> = emptyArray(),
 ) : DefaultRenderersFactory(context) {
+    /** Adds srv3 support (YouTube's styled/positioned caption XML) on top of Media3's defaults. */
+    private val subtitleDecoderFactory =
+        object : SubtitleDecoderFactory {
+            override fun supportsFormat(format: Format): Boolean =
+                format.sampleMimeType == Srv3SubtitleParser.MIME_TYPE || SubtitleDecoderFactory.DEFAULT.supportsFormat(format)
+
+            override fun createDecoder(format: Format): SubtitleDecoder =
+                if (format.sampleMimeType == Srv3SubtitleParser.MIME_TYPE) {
+                    Srv3SubtitleDecoder()
+                } else {
+                    SubtitleDecoderFactory.DEFAULT.createDecoder(format)
+                }
+        }
+
     override fun buildAudioSink(
         context: Context,
         enableFloatOutput: Boolean,
@@ -87,18 +101,4 @@ open class CustomRenderersFactory(
             },
         )
     }
-
-    /** Adds srv3 support (YouTube's styled/positioned caption XML) on top of Media3's defaults. */
-    private val subtitleDecoderFactory =
-        object : SubtitleDecoderFactory {
-            override fun supportsFormat(format: Format): Boolean =
-                format.sampleMimeType == Srv3SubtitleParser.MIME_TYPE || SubtitleDecoderFactory.DEFAULT.supportsFormat(format)
-
-            override fun createDecoder(format: Format): SubtitleDecoder =
-                if (format.sampleMimeType == Srv3SubtitleParser.MIME_TYPE) {
-                    Srv3SubtitleDecoder()
-                } else {
-                    SubtitleDecoderFactory.DEFAULT.createDecoder(format)
-                }
-        }
 }

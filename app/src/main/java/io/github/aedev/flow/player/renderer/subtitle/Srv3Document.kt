@@ -21,6 +21,13 @@ internal data class Srv3Window(
     val horizontalPercent: Float = 50f,
     val verticalPercent: Float = 100f,
     val justify: Int = JUSTIFY_CENTER,
+    /**
+     * Whether the document actually declared a `<wp>` for the paragraph, as opposed to these
+     * defaults. Cues without one must leave [androidx.media3.common.text.Cue.line] unset:
+     * SubtitleView only applies its bottom-padding fraction - and so the user's subtitle position
+     * setting - to cues that carry no explicit line.
+     */
+    val positioned: Boolean = false,
 ) {
     companion object {
         /** Numpad-style 0-8 grid, row-major: row = anchorPoint / 3, column = anchorPoint % 3. */
@@ -137,6 +144,7 @@ internal fun parseSrv3Document(xml: String): List<Srv3Paragraph> {
                                             horizontalPercent = position?.second ?: DEFAULT_WINDOW.horizontalPercent,
                                             verticalPercent = position?.third ?: DEFAULT_WINDOW.verticalPercent,
                                             justify = justify ?: DEFAULT_WINDOW.justify,
+                                            positioned = position != null,
                                         ),
                                     runs = runs,
                                 ),

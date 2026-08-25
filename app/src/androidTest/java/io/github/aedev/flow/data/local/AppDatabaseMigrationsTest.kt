@@ -13,8 +13,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseMigrationsTest {
-    private const val TEST_DB = "migration-test"
-
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @get:Rule
@@ -50,4 +48,8 @@ class AppDatabaseMigrationsTest {
 
             db.close()
         }
+
+    companion object {
+        private const val TEST_DB = "migration-test"
+    }
 }

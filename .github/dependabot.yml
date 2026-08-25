@@ -1,0 +1,50 @@
+version: 2
+
+updates:
+  # Gradle dependencies (version catalog + build scripts).
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "deps"
+    groups:
+      androidx-compose:
+        patterns:
+          - "androidx.compose*"
+          - "androidx.activity:activity-compose"
+          - "androidx.navigation:navigation-compose"
+      androidx-media3:
+        patterns:
+          - "androidx.media3:*"
+      hilt-and-ksp:
+        patterns:
+          - "com.google.dagger:*"
+          - "com.google.devtools.ksp*"
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "org.jetbrains.kotlinx:*"
+    ignore:
+      # AGP and Kotlin are coupled to the Compose compiler and KSP versions;
+      # bump them deliberately, not from an automated PR.
+      - dependency-name: "com.android.tools.build:gradle"
+      - dependency-name: "org.jetbrains.kotlin:kotlin-gradle-plugin"
+
+  # Keep the GitHub Actions used by CI current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"

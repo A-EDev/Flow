@@ -34,3 +34,6 @@ graphify-out/
 .claude/
 claude.md
 Flow-desktop/
+
+# Kotlin compiler session/daemon state
+.kotlin/
