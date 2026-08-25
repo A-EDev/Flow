@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.2.1
-DATE: 2026-08-20
+DATE: 2026-08-25
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -100,6 +100,7 @@ FIXES AND STABILITY
 - Keep every device's learned interests when syncing with a device that has synced with a third one
 - Fix Back abandoning the whole sync screen instead of returning to the previous step
 - Fix the empty band above the title on the sync screen
+- Fix Settings and Notifications being unreachable after turning off the home tab
 
 DEPENDENCY
 - Bump NewPipeExtractor to v0.26.5

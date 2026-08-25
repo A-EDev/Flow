@@ -143,12 +143,6 @@ fun NavGraphBuilder.flowAppGraph(
             onSearchClick = {
                 navController.navigate("search")
             },
-            onNotificationClick = {
-                navController.navigate("notifications")
-            },
-            onSettingsClick = {
-                navController.navigate("settings")
-            },
             onChannelClick = { channelId ->
                 navController.navigateToYoutubeChannel(channelId)
             },
@@ -347,7 +341,6 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = true
         selectedBottomNavIndex.intValue = 6
         io.github.aedev.flow.ui.screens.categories.CategoriesScreen(
-            onBackClick = { navController.popBackStack() },
             onVideoClick = { video ->
                 if (video.isShort && !disableShortsPlayer) {
                     navController.openShorts(ShortsQueueSource.SeededFeed(video.id))
@@ -891,7 +884,6 @@ fun NavGraphBuilder.flowAppGraph(
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
 
         EnhancedMusicScreen(
-            onBackClick = { navController.popBackStack() },
             onSongClick = { track, queue, source ->
                 musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
 
@@ -912,9 +904,6 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onRecognizeClick = {
                 navController.navigate("musicRecognize")
-            },
-            onSettingsClick = {
-                navController.navigate("settings")
             },
             onAlbumClick = { albumId ->
                 navController.navigate("musicPlaylist/$albumId")

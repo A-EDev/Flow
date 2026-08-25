@@ -14,14 +14,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.ui.res.stringResource
-import io.github.aedev.flow.R
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
@@ -29,6 +29,7 @@ import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.*
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.theme.Dimensions
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -39,55 +40,41 @@ fun YouTubeBrowseScreen(
     onAlbumClick: (String) -> Unit,
     onArtistClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
-    viewModel: YouTubeBrowseViewModel = hiltViewModel()
+    viewModel: YouTubeBrowseViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
-    
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        text = uiState.title ?: stringResource(R.string.title_browse),
-                        fontWeight = FontWeight.Bold
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+            FlowTopBar(
+                title = uiState.title ?: stringResource(R.string.title_browse),
+                onBack = onBackClick,
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
         ) {
             when {
                 uiState.isLoading -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(bottom = 80.dp),
                     ) {
                         item {
                             ShimmerHost {
                                 repeat(3) {
                                     ShimmerSectionTitle(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                     )
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
                                         items(5) {
                                             ShimmerGridItem()
@@ -99,19 +86,20 @@ fun YouTubeBrowseScreen(
                         }
                     }
                 }
-                
+
                 uiState.error != null -> {
                     Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.Center,
                     ) {
                         Text(
                             text = uiState.error ?: stringResource(R.string.unknown_error),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { viewModel.retry() }) {
@@ -119,24 +107,24 @@ fun YouTubeBrowseScreen(
                         }
                     }
                 }
-                
+
                 uiState.sections.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = stringResource(R.string.empty_browse_content),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
-                
+
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(bottom = 80.dp),
                     ) {
                         uiState.sections.forEach { section ->
                             if (section.items.isNotEmpty()) {
@@ -144,11 +132,11 @@ fun YouTubeBrowseScreen(
                                     item(key = "title_${title.hashCode()}") {
                                         SectionTitle(
                                             title = title,
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                         )
                                     }
                                 }
-                                
+
                                 if (section.items.all { it is SongItem }) {
                                     item(key = "songs_${section.title?.hashCode() ?: section.hashCode()}") {
                                         val gridState = rememberLazyGridState()
@@ -158,13 +146,14 @@ fun YouTubeBrowseScreen(
                                             contentPadding = PaddingValues(horizontal = 12.dp),
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalArrangement = Arrangement.spacedBy(4.dp),
-                                            modifier = Modifier
-                                                .height(Dimensions.ListItemHeight * 4 + 12.dp)
-                                                .fillMaxWidth()
+                                            modifier =
+                                                Modifier
+                                                    .height(Dimensions.ListItemHeight * 4 + 12.dp)
+                                                    .fillMaxWidth(),
                                         ) {
                                             items(
                                                 items = section.items,
-                                                key = { it.stableLazyKey("browse_grid_${section.title}") }
+                                                key = { it.stableLazyKey("browse_grid_${section.title}") },
                                             ) { item ->
                                                 val song = item as SongItem
                                                 ListItem(
@@ -173,7 +162,7 @@ fun YouTubeBrowseScreen(
                                                     thumbnailUrl = song.thumbnail,
                                                     isPlaying = currentTrack?.videoId == song.id,
                                                     onClick = { onSongClick(song) },
-                                                    modifier = Modifier.width(300.dp)
+                                                    modifier = Modifier.width(300.dp),
                                                 )
                                             }
                                         }
@@ -182,11 +171,11 @@ fun YouTubeBrowseScreen(
                                     item(key = "items_${section.title?.hashCode() ?: section.hashCode()}") {
                                         LazyRow(
                                             contentPadding = PaddingValues(horizontal = 12.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         ) {
                                             items(
                                                 items = section.items,
-                                                key = { it.stableLazyKey("browse_row_${section.title}") }
+                                                key = { it.stableLazyKey("browse_row_${section.title}") },
                                             ) { item ->
                                                 when (item) {
                                                     is SongItem -> {
@@ -195,44 +184,48 @@ fun YouTubeBrowseScreen(
                                                             subtitle = item.artists.joinToString(", ") { it.name },
                                                             thumbnailUrl = item.thumbnail,
                                                             thumbnailHeight = currentGridThumbnailHeight(),
-                                                            onClick = { onSongClick(item) }
+                                                            onClick = { onSongClick(item) },
                                                         )
                                                     }
+
                                                     is AlbumItem -> {
                                                         GridItem(
                                                             title = item.title,
                                                             subtitle = item.artists?.joinToString(", ") { it.name } ?: "",
                                                             thumbnailUrl = item.thumbnail,
                                                             thumbnailHeight = currentGridThumbnailHeight(),
-                                                            onClick = { onAlbumClick(item.id) }
+                                                            onClick = { onAlbumClick(item.id) },
                                                         )
                                                     }
+
                                                     is ArtistItem -> {
                                                         Column(
                                                             horizontalAlignment = Alignment.CenterHorizontally,
-                                                            modifier = Modifier
-                                                                .width(100.dp)
-                                                                .clickable { onArtistClick(item.id) }
+                                                            modifier =
+                                                                Modifier
+                                                                    .width(100.dp)
+                                                                    .clickable { onArtistClick(item.id) },
                                                         ) {
                                                             ArtistThumbnail(
                                                                 thumbnailUrl = item.thumbnail,
-                                                                size = 100.dp
+                                                                size = 100.dp,
                                                             )
                                                             Spacer(modifier = Modifier.height(4.dp))
                                                             Text(
                                                                 text = item.title,
                                                                 style = MaterialTheme.typography.bodySmall,
-                                                                maxLines = 1
+                                                                maxLines = 1,
                                                             )
                                                         }
                                                     }
+
                                                     is PlaylistItem -> {
                                                         GridItem(
                                                             title = item.title,
                                                             subtitle = item.author?.name ?: "",
                                                             thumbnailUrl = item.thumbnail,
                                                             thumbnailHeight = currentGridThumbnailHeight(),
-                                                            onClick = { onPlaylistClick(item.id) }
+                                                            onClick = { onPlaylistClick(item.id) },
                                                         )
                                                     }
                                                 }

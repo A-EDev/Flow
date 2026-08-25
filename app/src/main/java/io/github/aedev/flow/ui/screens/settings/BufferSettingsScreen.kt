@@ -12,20 +12,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.BufferProfile
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.launch
 
 @Composable
-fun BufferSettingsScreen(
-    onNavigateBack: () -> Unit
-) {
+fun BufferSettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val playerPreferences = remember { PlayerPreferences(context) }
-    
+
     // Buffer Settings
     val minBufferMs by playerPreferences.minBufferMs.collectAsState(initial = 30000)
     val maxBufferMs by playerPreferences.maxBufferMs.collectAsState(initial = 100000)
@@ -35,16 +36,16 @@ fun BufferSettingsScreen(
 
     // Cache size
     val cacheSizeMb by playerPreferences.mediaCacheSizeMb.collectAsState(initial = 500)
-    
+
     // Local state for sliders when in custom mode
     var tempMinBuffer by remember { mutableFloatStateOf(minBufferMs.toFloat()) }
     var tempMaxBuffer by remember { mutableFloatStateOf(maxBufferMs.toFloat()) }
     var tempPlaybackBuffer by remember { mutableFloatStateOf(bufferForPlaybackMs.toFloat()) }
     var tempRebuffer by remember { mutableFloatStateOf(bufferForPlaybackAfterRebufferMs.toFloat()) }
-    
+
     // Sync local state when preferences change from external source or profile switch
     LaunchedEffect(currentBufferProfile, minBufferMs, maxBufferMs, bufferForPlaybackMs, bufferForPlaybackAfterRebufferMs) {
-         if (currentBufferProfile != BufferProfile.CUSTOM) {
+        if (currentBufferProfile != BufferProfile.CUSTOM) {
             tempMinBuffer = currentBufferProfile.minBuffer.toFloat()
             tempMaxBuffer = currentBufferProfile.maxBuffer.toFloat()
             tempPlaybackBuffer = currentBufferProfile.playbackBuffer.toFloat()
@@ -60,101 +61,120 @@ fun BufferSettingsScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.btn_back))
-                    }
-                    Text(
-                        text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_settings_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-            }
-        }
+            FlowTopBar(
+                title = stringResource(R.string.buffer_settings_title),
+                onBack = onNavigateBack,
+            )
+        },
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            
             item {
                 Text(
-                    text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_settings_desc),
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(io.github.aedev.flow.R.string.buffer_settings_desc),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            
+
             // Profile Selection
-            item { SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_settings_header_profile)) }
-            
+            item {
+                SectionHeader(
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(io.github.aedev.flow.R.string.buffer_settings_header_profile),
+                )
+            }
+
             item {
                 SettingsGroup {
                     BufferProfile.values().filter { it != BufferProfile.CUSTOM }.forEachIndexed { index, profile ->
                         val isSelected = currentBufferProfile == profile
                         ProfileSelectionItem(
-                            title = androidx.compose.ui.res.stringResource(getProfileNameRes(profile)),
-                            subtitle = getProfileDescriptionRes(profile)?.let { androidx.compose.ui.res.stringResource(it) } ?: "",
+                            title =
+                                androidx.compose.ui.res
+                                    .stringResource(getProfileNameRes(profile)),
+                            subtitle =
+                                getProfileDescriptionRes(profile)?.let {
+                                    androidx.compose.ui.res
+                                        .stringResource(it)
+                                } ?: "",
                             isSelected = isSelected,
-                            onClick = { 
-                                coroutineScope.launch { 
+                            onClick = {
+                                coroutineScope.launch {
                                     playerPreferences.setBufferProfile(profile)
                                     // Also explicitly set values to ensure player picks them up immediately
                                     playerPreferences.setMinBufferMs(profile.minBuffer)
                                     playerPreferences.setMaxBufferMs(profile.maxBuffer)
                                     playerPreferences.setBufferForPlaybackMs(profile.playbackBuffer)
                                     playerPreferences.setBufferForPlaybackAfterRebufferMs(profile.rebufferBuffer)
-                                } 
-                            }
+                                }
+                            },
                         )
-                         if (index < BufferProfile.values().filter { it != BufferProfile.CUSTOM }.lastIndex) {
-                            HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        if (index < BufferProfile.values().filter { it != BufferProfile.CUSTOM }.lastIndex) {
+                            HorizontalDivider(
+                                Modifier.padding(start = 56.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            )
                         }
                     }
                 }
             }
-            
+
             // Custom Profile
-             item { SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_settings_header_custom)) }
-             
-             item {
-                 SettingsGroup {
-                     ProfileSelectionItem(
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_profile_custom),
-                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_profile_custom_desc),
+            item {
+                SectionHeader(
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(io.github.aedev.flow.R.string.buffer_settings_header_custom),
+                )
+            }
+
+            item {
+                SettingsGroup {
+                    ProfileSelectionItem(
+                        title =
+                            androidx.compose.ui.res
+                                .stringResource(io.github.aedev.flow.R.string.buffer_profile_custom),
+                        subtitle =
+                            androidx.compose.ui.res
+                                .stringResource(io.github.aedev.flow.R.string.buffer_profile_custom_desc),
                         isSelected = currentBufferProfile == BufferProfile.CUSTOM,
-                        onClick = { coroutineScope.launch { playerPreferences.setBufferProfile(BufferProfile.CUSTOM) } }
+                        onClick = { coroutineScope.launch { playerPreferences.setBufferProfile(BufferProfile.CUSTOM) } },
                     )
-                 }
-             }
+                }
+            }
 
             if (currentBufferProfile == BufferProfile.CUSTOM) {
                 item {
                     SettingsGroup {
-
                         Column(Modifier.padding(16.dp)) {
-                            Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_custom_mode_desc), 
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            
-                            Spacer(Modifier.height(16.dp))
-                            
+                            Text(
+                                androidx.compose.ui.res
+                                    .stringResource(io.github.aedev.flow.R.string.buffer_custom_mode_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
 
-                            
+                            Spacer(Modifier.height(16.dp))
+
                             // Min Buffer
-                            Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_label_min, tempMinBuffer.toInt()/1000), style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                androidx.compose.ui.res.stringResource(
+                                    io.github.aedev.flow.R.string.buffer_label_min,
+                                    tempMinBuffer.toInt() / 1000,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                             Slider(
                                 value = tempMinBuffer,
                                 onValueChange = { tempMinBuffer = it },
@@ -162,15 +182,19 @@ fun BufferSettingsScreen(
                                     coroutineScope.launch { playerPreferences.setMinBufferMs(tempMinBuffer.toInt()) }
                                 },
                                 valueRange = 1000f..60000f,
-                                steps = 59
+                                steps = 59,
                             )
-                            
-                            Spacer(Modifier.height(8.dp))
-                            
 
-                            
+                            Spacer(Modifier.height(8.dp))
+
                             // Max Buffer
-                            Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_label_max, tempMaxBuffer.toInt()/1000), style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                androidx.compose.ui.res.stringResource(
+                                    io.github.aedev.flow.R.string.buffer_label_max,
+                                    tempMaxBuffer.toInt() / 1000,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                             Slider(
                                 value = tempMaxBuffer,
                                 onValueChange = { tempMaxBuffer = it },
@@ -178,15 +202,19 @@ fun BufferSettingsScreen(
                                     coroutineScope.launch { playerPreferences.setMaxBufferMs(tempMaxBuffer.toInt()) }
                                 },
                                 valueRange = 30000f..180000f,
-                                steps = 30
+                                steps = 30,
                             )
-                            
+
                             Spacer(Modifier.height(8.dp))
 
-
-
                             // Playback Buffer
-                            Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_label_playback, tempPlaybackBuffer.toInt()/1000), style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                androidx.compose.ui.res.stringResource(
+                                    io.github.aedev.flow.R.string.buffer_label_playback,
+                                    tempPlaybackBuffer.toInt() / 1000,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                             Slider(
                                 value = tempPlaybackBuffer,
                                 onValueChange = { tempPlaybackBuffer = it },
@@ -194,15 +222,19 @@ fun BufferSettingsScreen(
                                     coroutineScope.launch { playerPreferences.setBufferForPlaybackMs(tempPlaybackBuffer.toInt()) }
                                 },
                                 valueRange = 500f..5000f,
-                                steps = 9
+                                steps = 9,
                             )
-                            
-                            Spacer(Modifier.height(8.dp))
-                            
 
-                            
+                            Spacer(Modifier.height(8.dp))
+
                             // Rebuffer
-                            Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_label_rebuffer, tempRebuffer.toInt()/1000), style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                androidx.compose.ui.res.stringResource(
+                                    io.github.aedev.flow.R.string.buffer_label_rebuffer,
+                                    tempRebuffer.toInt() / 1000,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                             Slider(
                                 value = tempRebuffer,
                                 onValueChange = { tempRebuffer = it },
@@ -210,44 +242,63 @@ fun BufferSettingsScreen(
                                     coroutineScope.launch { playerPreferences.setBufferForPlaybackAfterRebufferMs(tempRebuffer.toInt()) }
                                 },
                                 valueRange = 1000f..10000f,
-                                steps = 9
+                                steps = 9,
                             )
                         }
                     }
                 }
             } else {
-                 item {
-                     Text(
-                        text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.buffer_switch_to_custom),
+                item {
+                    Text(
+                        text =
+                            androidx.compose.ui.res
+                                .stringResource(io.github.aedev.flow.R.string.buffer_switch_to_custom),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 16.dp)
-                     )
-                 }
+                        modifier = Modifier.padding(start = 16.dp),
+                    )
+                }
             }
 
             // Cache Size Section
-            item { SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_header)) }
+            item {
+                SectionHeader(
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(io.github.aedev.flow.R.string.cache_size_header),
+                )
+            }
             item {
                 Text(
-                    text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_desc),
+                    text =
+                        androidx.compose.ui.res
+                            .stringResource(io.github.aedev.flow.R.string.cache_size_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
-                val cacheOptions = listOf(
-                    100 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_100mb),
-                    200 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_200mb),
-                    500 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_500mb),
-                    0 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_unlimited)
-                )
+                val cacheOptions =
+                    listOf(
+                        100 to
+                            androidx.compose.ui.res
+                                .stringResource(io.github.aedev.flow.R.string.cache_size_100mb),
+                        200 to
+                            androidx.compose.ui.res
+                                .stringResource(io.github.aedev.flow.R.string.cache_size_200mb),
+                        500 to
+                            androidx.compose.ui.res
+                                .stringResource(io.github.aedev.flow.R.string.cache_size_500mb),
+                        0 to
+                            androidx.compose.ui.res
+                                .stringResource(io.github.aedev.flow.R.string.cache_size_unlimited),
+                    )
                 androidx.compose.foundation.layout.Column {
                     cacheOptions.forEach { (sizeMb, label) ->
                         ProfileSelectionItem(
                             title = label,
                             subtitle = "",
                             isSelected = cacheSizeMb == sizeMb,
-                            onClick = { coroutineScope.launch { playerPreferences.setMediaCacheSizeMb(sizeMb) } }
+                            onClick = { coroutineScope.launch { playerPreferences.setMediaCacheSizeMb(sizeMb) } },
                         )
                     }
                 }
@@ -261,22 +312,23 @@ fun ProfileSelectionItem(
     title: String,
     subtitle: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-         RadioButton(
+        RadioButton(
             selected = isSelected,
-            onClick = null 
+            onClick = null,
         )
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
+
         Column {
             Text(text = title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle.isNotEmpty()) {
@@ -286,22 +338,19 @@ fun ProfileSelectionItem(
     }
 }
 
-
-private fun getProfileNameRes(profile: BufferProfile): Int {
-    return when (profile) {
+private fun getProfileNameRes(profile: BufferProfile): Int =
+    when (profile) {
         BufferProfile.STABLE -> io.github.aedev.flow.R.string.buffer_profile_stable
         BufferProfile.AGGRESSIVE -> io.github.aedev.flow.R.string.buffer_profile_aggressive
         BufferProfile.DATASAVER -> io.github.aedev.flow.R.string.buffer_profile_datasaver
         BufferProfile.CUSTOM -> io.github.aedev.flow.R.string.buffer_profile_custom
         else -> io.github.aedev.flow.R.string.buffer_profile_stable // Default fallback
     }
-}
 
-private fun getProfileDescriptionRes(profile: BufferProfile): Int? {
-    return when (profile) {
+private fun getProfileDescriptionRes(profile: BufferProfile): Int? =
+    when (profile) {
         BufferProfile.STABLE -> io.github.aedev.flow.R.string.buffer_desc_stable
         BufferProfile.AGGRESSIVE -> io.github.aedev.flow.R.string.buffer_desc_aggressive
         BufferProfile.DATASAVER -> io.github.aedev.flow.R.string.buffer_desc_datasaver
         else -> null
     }
-}

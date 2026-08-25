@@ -124,6 +124,8 @@ import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.ShortsShelf
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.VideoCardHorizontal
+import io.github.aedev.flow.ui.components.layout.topbar.FlowSearchTopBar
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.theme.extendedColors
 import kotlinx.coroutines.delay
@@ -267,37 +269,16 @@ fun SubscriptionsScreen(
     Scaffold(
         topBar = {
             if (isManagingSubs) {
-                TopAppBar(
-                    title = {
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = {
-                                Text(
-                                    androidx.compose.ui.res
-                                        .stringResource(R.string.subscriptions_search_placeholder),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                            },
-                            colors =
-                                TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                ),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                FlowSearchTopBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    onClose = {
+                        isManagingSubs = false
+                        searchQuery = ""
                     },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            isManagingSubs = false
-                            searchQuery = ""
-                        }) {
-                            Icon(Icons.Default.ArrowBack, stringResource(R.string.close))
-                        }
-                    },
+                    placeholder = stringResource(R.string.subscriptions_search_placeholder),
+                    // Manage mode opens a browsable channel list; popping the keyboard would cover it.
+                    autoFocus = false,
                     actions = {
                         Box {
                             IconButton(onClick = { showSortMenu = true }) {
@@ -333,54 +314,25 @@ fun SubscriptionsScreen(
                             Icon(Icons.Default.Upload, stringResource(R.string.import_newpipe_backup))
                         }
                     },
-                    colors =
-                        TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                    windowInsets = WindowInsets(0.dp),
                 )
             } else {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.background,
-                ) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.top_bar_subscriptions_title),
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        )
-                        Row {
-                            IconButton(
-                                onClick = { viewModel.toggleViewMode() },
-                                modifier = Modifier.size(40.dp),
-                            ) {
-                                Icon(
-                                    imageVector = if (uiState.isFullWidthView) Icons.Default.ViewList else Icons.Default.GridView,
-                                    contentDescription = stringResource(R.string.toggle_view_mode),
-                                    modifier = Modifier.size(24.dp),
-                                )
-                            }
-                            IconButton(
-                                onClick = { isManagingSubs = true },
-                                modifier = Modifier.size(40.dp),
-                            ) {
-                                Icon(
-                                    Icons.Outlined.Search,
-                                    stringResource(R.string.search_subscriptions),
-                                    modifier = Modifier.size(24.dp),
-                                )
-                            }
+                FlowTopBar(
+                    title = stringResource(R.string.top_bar_subscriptions_title),
+                    actions = {
+                        IconButton(onClick = { viewModel.toggleViewMode() }) {
+                            Icon(
+                                imageVector = if (uiState.isFullWidthView) Icons.Default.ViewList else Icons.Default.GridView,
+                                contentDescription = stringResource(R.string.toggle_view_mode),
+                            )
                         }
-                    }
-                }
+                        IconButton(onClick = { isManagingSubs = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Search,
+                                contentDescription = stringResource(R.string.search_subscriptions),
+                            )
+                        }
+                    },
+                )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

@@ -43,6 +43,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,9 +53,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FlowPersonalityScreen(
-    onNavigateBack: () -> Unit
-) {
+fun FlowPersonalityScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -74,38 +73,52 @@ fun FlowPersonalityScreen(
         isLoading = false
     }
 
-    val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
-    ) { uri: Uri? ->
-        uri ?: return@rememberLauncherForActivityResult
-        scope.launch {
-            val success = context.contentResolver.openOutputStream(uri)?.use { out ->
-                FlowNeuroEngine.exportBrainToStream(out)
-            } ?: false
-            Toast.makeText(
-                context,
-                if (success) context.getString(R.string.profile_export_success) else context.getString(R.string.profile_export_failed),
-                Toast.LENGTH_SHORT
-            ).show()
+    val exportLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/json"),
+        ) { uri: Uri? ->
+            uri ?: return@rememberLauncherForActivityResult
+            scope.launch {
+                val success =
+                    context.contentResolver.openOutputStream(uri)?.use { out ->
+                        FlowNeuroEngine.exportBrainToStream(out)
+                    } ?: false
+                Toast
+                    .makeText(
+                        context,
+                        if (success) {
+                            context.getString(R.string.profile_export_success)
+                        } else {
+                            context.getString(R.string.profile_export_failed)
+                        },
+                        Toast.LENGTH_SHORT,
+                    ).show()
+            }
         }
-    }
 
-    val importLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri ?: return@rememberLauncherForActivityResult
-        scope.launch {
-            val success = context.contentResolver.openInputStream(uri)?.use { input ->
-                FlowNeuroEngine.importBrainFromStream(context, input)
-            } ?: false
-            if (success) reloadBrain()
-            Toast.makeText(
-                context,
-                if (success) context.getString(R.string.profile_import_success) else context.getString(R.string.profile_import_failed),
-                Toast.LENGTH_SHORT
-            ).show()
+    val importLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocument(),
+        ) { uri: Uri? ->
+            uri ?: return@rememberLauncherForActivityResult
+            scope.launch {
+                val success =
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        FlowNeuroEngine.importBrainFromStream(context, input)
+                    } ?: false
+                if (success) reloadBrain()
+                Toast
+                    .makeText(
+                        context,
+                        if (success) {
+                            context.getString(R.string.profile_import_success)
+                        } else {
+                            context.getString(R.string.profile_import_failed)
+                        },
+                        Toast.LENGTH_SHORT,
+                    ).show()
+            }
         }
-    }
 
     LaunchedEffect(Unit) {
         reloadBrain(initialize = true)
@@ -113,97 +126,85 @@ fun FlowPersonalityScreen(
 
     LaunchedEffect(brain?.channelScores) {
         val snapshot = brain ?: return@LaunchedEffect
-        val idsToFetch = snapshot.channelScores.entries
-            .sortedByDescending { it.value }
-            .take(12)
-            .map { it.key }
-            .filter { it.isNotBlank() && !channelNames.containsKey(it) }
+        val idsToFetch =
+            snapshot.channelScores.entries
+                .sortedByDescending { it.value }
+                .take(12)
+                .map { it.key }
+                .filter { it.isNotBlank() && !channelNames.containsKey(it) }
 
         if (idsToFetch.isEmpty()) return@LaunchedEffect
 
         val repository = YouTubeRepository.getInstance()
-        val fetchedNames = withContext(Dispatchers.IO) {
-            idsToFetch.mapNotNull { channelId ->
-                runCatching {
-                    repository.getChannelInfo(channelId)?.name?.let { channelId to it }
-                }.getOrNull()
+        val fetchedNames =
+            withContext(Dispatchers.IO) {
+                idsToFetch.mapNotNull { channelId ->
+                    runCatching {
+                        repository.getChannelInfo(channelId)?.name?.let { channelId to it }
+                    }.getOrNull()
+                }
             }
-        }
         fetchedNames.forEach { (channelId, name) -> channelNames[channelId] = name }
     }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back)
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.flow_control_center),
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f)
-                    )
+            FlowTopBar(
+                title = stringResource(R.string.flow_control_center),
+                onBack = onNavigateBack,
+                actions = {
                     IconButton(
                         onClick = {
                             isLoading = true
                             scope.launch { reloadBrain() }
-                        }
+                        },
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = stringResource(R.string.action_refresh)
+                            contentDescription = stringResource(R.string.action_refresh),
                         )
                     }
-                }
-            }
+                },
+            )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         val snapshot = brain
         if (isLoading || snapshot == null) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(40.dp),
-                    strokeWidth = 3.dp
+                    strokeWidth = 3.dp,
                 )
             }
             return@Scaffold
         }
 
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                top = 12.dp,
-                end = 16.dp,
-                bottom = 28.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            contentPadding =
+                PaddingValues(
+                    start = 16.dp,
+                    top = 12.dp,
+                    end = 16.dp,
+                    bottom = 28.dp,
+                ),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item(key = "overview") {
                 PersonalityOverviewSection(
                     brain = snapshot,
-                    persona = persona
+                    persona = persona,
                 )
             }
             item(key = "stats") {
@@ -221,13 +222,13 @@ fun FlowPersonalityScreen(
             item(key = "channels") {
                 ChannelMemorySection(
                     brain = snapshot,
-                    channelNames = channelNames
+                    channelNames = channelNames,
                 )
             }
             item(key = "discovery") {
                 DiscoveryStatusSection(
                     brain = snapshot,
-                    queries = discoveryQueries
+                    queries = discoveryQueries,
                 )
             }
             if (snapshot.blockedTopics.isNotEmpty() || snapshot.blockedChannels.isNotEmpty()) {
@@ -246,7 +247,7 @@ fun FlowPersonalityScreen(
                                 FlowNeuroEngine.unblockChannel(context, channelId)
                                 reloadBrain()
                             }
-                        }
+                        },
                     )
                 }
             }
@@ -259,7 +260,7 @@ fun FlowPersonalityScreen(
                     onImport = {
                         importLauncher.launch(arrayOf("application/json", "text/plain"))
                     },
-                    onReset = { showResetDialog = true }
+                    onReset = { showResetDialog = true },
                 )
             }
         }
@@ -274,7 +275,7 @@ fun FlowPersonalityScreen(
                     showResetDialog = false
                     reloadBrain()
                 }
-            }
+            },
         )
     }
 }

@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.launch
 
 private const val ICON_NAMESPACE = "io.github.aedev.flow"
@@ -66,20 +67,27 @@ private data class AppIconOption(
     val nameRes: Int,
     val previewBackground: Color,
     val foregroundRes: Int,
-    val usesThemeColors: Boolean = false
+    val usesThemeColors: Boolean = false,
 )
 
-private val ALL_ICONS = listOf(
-    AppIconOption(".IconFlowRed", R.string.icon_name_flow_red, Color(0xFF0F0F0F), R.drawable.ic_launcher_foreground),
-    AppIconOption(".IconFlowLight", R.string.icon_name_flow_light, Color(0xFFFFFFFF), R.drawable.ic_launcher_foreground),
-    AppIconOption(".IconFlowPlay", R.string.icon_name_flow_play, Color(0xFFFFFFFF), R.drawable.ic_fg_flow_play),
-    AppIconOption(".IconAmoled", R.string.icon_name_amoled, Color(0xFF000000), R.drawable.ic_fg_amoled),
-    AppIconOption(".IconMonochrome", R.string.icon_name_monochrome, Color(0xFFFFFFFF), R.drawable.ic_fg_monochrome),
-    AppIconOption(".IconGhost", R.string.icon_name_ghost, Color(0xFF121212), R.drawable.ic_fg_ghost),
-    AppIconOption(".IconDynamic", R.string.icon_name_dynamic, Color.Unspecified, R.drawable.ic_launcher_dynamic_foreground, usesThemeColors = true),
-    AppIconOption(".IconMaterialSky", R.string.icon_name_material_sky, Color(0xFFD7E3FF), R.drawable.ic_launcher_foreground),
-    AppIconOption(".IconMaterialMint", R.string.icon_name_material_mint, Color(0xFFC7E8D4), R.drawable.ic_launcher_foreground)
-)
+private val ALL_ICONS =
+    listOf(
+        AppIconOption(".IconFlowRed", R.string.icon_name_flow_red, Color(0xFF0F0F0F), R.drawable.ic_launcher_foreground),
+        AppIconOption(".IconFlowLight", R.string.icon_name_flow_light, Color(0xFFFFFFFF), R.drawable.ic_launcher_foreground),
+        AppIconOption(".IconFlowPlay", R.string.icon_name_flow_play, Color(0xFFFFFFFF), R.drawable.ic_fg_flow_play),
+        AppIconOption(".IconAmoled", R.string.icon_name_amoled, Color(0xFF000000), R.drawable.ic_fg_amoled),
+        AppIconOption(".IconMonochrome", R.string.icon_name_monochrome, Color(0xFFFFFFFF), R.drawable.ic_fg_monochrome),
+        AppIconOption(".IconGhost", R.string.icon_name_ghost, Color(0xFF121212), R.drawable.ic_fg_ghost),
+        AppIconOption(
+            ".IconDynamic",
+            R.string.icon_name_dynamic,
+            Color.Unspecified,
+            R.drawable.ic_launcher_dynamic_foreground,
+            usesThemeColors = true,
+        ),
+        AppIconOption(".IconMaterialSky", R.string.icon_name_material_sky, Color(0xFFD7E3FF), R.drawable.ic_launcher_foreground),
+        AppIconOption(".IconMaterialMint", R.string.icon_name_material_mint, Color(0xFFC7E8D4), R.drawable.ic_launcher_foreground),
+    )
 
 private fun getActiveIconSuffix(context: Context): String {
     val pm = context.packageManager
@@ -94,17 +102,21 @@ private fun getActiveIconSuffix(context: Context): String {
     return ALL_ICONS.first().componentSuffix
 }
 
-private fun switchIcon(context: Context, newSuffix: String) {
+private fun switchIcon(
+    context: Context,
+    newSuffix: String,
+) {
     val pm = context.packageManager
     val pkg = context.packageName
 
     for (icon in ALL_ICONS) {
         val cn = ComponentName(pkg, "$ICON_NAMESPACE${icon.componentSuffix}")
-        val want = if (icon.componentSuffix == newSuffix) {
-            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-        } else {
-            PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-        }
+        val want =
+            if (icon.componentSuffix == newSuffix) {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            }
         pm.setComponentEnabledSetting(cn, want, PackageManager.DONT_KILL_APP)
     }
 }
@@ -123,50 +135,23 @@ fun AppIconPickerScreen(onNavigateBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back)
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_item_app_icon),
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = stringResource(R.string.app_icon_picker_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
+            FlowTopBar(
+                title = stringResource(R.string.settings_item_app_icon),
+                subtitle = stringResource(R.string.app_icon_picker_subtitle),
+                onBack = onNavigateBack,
+            )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { paddingValues ->
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 152.dp),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 AppIconWarningCard()
@@ -183,13 +168,14 @@ fun AppIconPickerScreen(onNavigateBack: () -> Unit) {
                             coroutineScope.launch {
                                 preferences.setSelectedAppIcon(icon.componentSuffix)
                             }
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.app_icon_apply_toast),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast
+                                .makeText(
+                                    context,
+                                    context.getString(R.string.app_icon_apply_toast),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
                         }
-                    }
+                    },
                 )
             }
         }
@@ -201,13 +187,13 @@ private fun AppIconWarningCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
     ) {
         Text(
             text = stringResource(R.string.app_icon_picker_warning),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onErrorContainer,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         )
     }
 }
@@ -216,68 +202,75 @@ private fun AppIconWarningCard() {
 private fun IconOptionCard(
     option: AppIconOption,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val cardShape = RoundedCornerShape(8.dp)
-    val previewBackground = if (option.usesThemeColors) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else {
-        option.previewBackground
-    }
-    val imageTint = if (option.usesThemeColors) {
-        ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)
-    } else {
-        null
-    }
-    val borderColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.outlineVariant
-    }
+    val previewBackground =
+        if (option.usesThemeColors) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            option.previewBackground
+        }
+    val imageTint =
+        if (option.usesThemeColors) {
+            ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)
+        } else {
+            null
+        }
+    val borderColor =
+        if (isSelected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.outlineVariant
+        }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(0.92f)
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = borderColor,
-                shape = cardShape
-            )
-            .clip(cardShape)
-            .clickable(onClick = onClick),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.92f)
+                .border(
+                    width = if (isSelected) 2.dp else 1.dp,
+                    color = borderColor,
+                    shape = cardShape,
+                ).clip(cardShape)
+                .clickable(onClick = onClick),
         shape = cardShape,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.26f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.26f)
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
+            ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(78.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(previewBackground),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(78.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(previewBackground),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Image(
                         painter = painterResource(option.foregroundRes),
                         contentDescription = null,
                         colorFilter = imageTint,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
 
@@ -288,24 +281,25 @@ private fun IconOptionCard(
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
             if (isSelected) {
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(MaterialTheme.colorScheme.primary),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .size(24.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }

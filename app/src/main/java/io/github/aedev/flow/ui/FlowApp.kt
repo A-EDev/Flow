@@ -49,10 +49,12 @@ import io.github.aedev.flow.ui.components.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.PersistentMiniMusicPlayer
 import io.github.aedev.flow.ui.components.PlayerSheetValue
 import io.github.aedev.flow.ui.components.SleepTimerSheet
+import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
 import io.github.aedev.flow.ui.components.rememberMusicPlayerSheetState
 import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.EnhancedMusicPlayerScreen
+import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
@@ -89,6 +91,8 @@ fun FlowApp(
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
 
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity!!)
+    // Activity-scoped so the unread badge has exactly one collector for the whole shell.
+    val notificationViewModel: NotificationViewModel = hiltViewModel(activity)
     val playerUiStateResult = playerViewModel.uiState.collectAsStateWithLifecycle()
     val playerUiState by playerUiStateResult
     val enhancedPlayerManager = remember { EnhancedPlayerManager.getInstance() }
@@ -539,71 +543,77 @@ fun FlowApp(
                             homeViewModel.initialize(context.applicationContext)
                         }
 
-                        NavHost(
-                            navController = navController,
-                            startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
-                            enterTransition = {
-                                fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
-                                    slideInHorizontally(
-                                        initialOffsetX = { (it * 0.06f).toInt() },
-                                        animationSpec =
-                                            spring(
-                                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                                stiffness = Spring.StiffnessMediumLow,
-                                            ),
-                                    )
-                            },
-                            exitTransition = {
-                                fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
-                            },
-                            popEnterTransition = {
-                                fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing))
-                            },
-                            popExitTransition = {
-                                fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing)) +
-                                    slideOutHorizontally(
-                                        targetOffsetX = { (it * 0.06f).toInt() },
-                                        animationSpec =
-                                            spring(
-                                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                                stiffness = Spring.StiffnessMediumLow,
-                                            ),
-                                    )
-                            },
+                        ProvideFlowGlobalActions(
+                            unreadNotifications = notificationViewModel.unreadCount,
+                            onOpenNotifications = { navController.navigate("notifications") },
+                            onOpenSettings = { navController.navigate("settings") },
                         ) {
-                            flowAppGraph(
+                            NavHost(
                                 navController = navController,
-                                currentRoute = currentRoute,
-                                showBottomNav = showBottomNav,
-                                selectedBottomNavIndex = selectedBottomNavIndex,
-                                playerSheetState = playerSheetState,
-                                musicPlayerSheetState = musicPlayerSheetState,
-                                homeViewModel = homeViewModel,
-                                playerViewModel = playerViewModel,
-                                playerUiStateResult = playerUiStateResult,
-                                playerVisibleState = playerVisibleState,
-                                currentTheme = currentTheme,
-                                themeVariant = themeVariant,
-                                customThemePalettes = customThemePalettes,
-                                systemLightThemeMode = systemLightThemeMode,
-                                systemDarkThemeMode = systemDarkThemeMode,
-                                systemDarkThemeVariant = systemDarkThemeVariant,
-                                onThemeChange = onThemeChange,
-                                onThemeVariantChange = onThemeVariantChange,
-                                onCustomThemePalettesChange = onCustomThemePalettesChange,
-                                onSystemLightThemeChange = onSystemLightThemeChange,
-                                onSystemDarkThemeChange = onSystemDarkThemeChange,
-                                onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
-                                disableShortsPlayer = disableShortsPlayer,
-                                defaultStartRoute = defaultStartRoute,
-                                bottomNavOverlayPadding = {
-                                    if (showBottomNav.value && isNavScrolledVisible) {
-                                        bottomNavContentHeightDp
-                                    } else {
-                                        0.dp
-                                    }
+                                startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
+                                enterTransition = {
+                                    fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
+                                        slideInHorizontally(
+                                            initialOffsetX = { (it * 0.06f).toInt() },
+                                            animationSpec =
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                    stiffness = Spring.StiffnessMediumLow,
+                                                ),
+                                        )
                                 },
-                            )
+                                exitTransition = {
+                                    fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
+                                },
+                                popEnterTransition = {
+                                    fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing))
+                                },
+                                popExitTransition = {
+                                    fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing)) +
+                                        slideOutHorizontally(
+                                            targetOffsetX = { (it * 0.06f).toInt() },
+                                            animationSpec =
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                    stiffness = Spring.StiffnessMediumLow,
+                                                ),
+                                        )
+                                },
+                            ) {
+                                flowAppGraph(
+                                    navController = navController,
+                                    currentRoute = currentRoute,
+                                    showBottomNav = showBottomNav,
+                                    selectedBottomNavIndex = selectedBottomNavIndex,
+                                    playerSheetState = playerSheetState,
+                                    musicPlayerSheetState = musicPlayerSheetState,
+                                    homeViewModel = homeViewModel,
+                                    playerViewModel = playerViewModel,
+                                    playerUiStateResult = playerUiStateResult,
+                                    playerVisibleState = playerVisibleState,
+                                    currentTheme = currentTheme,
+                                    themeVariant = themeVariant,
+                                    customThemePalettes = customThemePalettes,
+                                    systemLightThemeMode = systemLightThemeMode,
+                                    systemDarkThemeMode = systemDarkThemeMode,
+                                    systemDarkThemeVariant = systemDarkThemeVariant,
+                                    onThemeChange = onThemeChange,
+                                    onThemeVariantChange = onThemeVariantChange,
+                                    onCustomThemePalettesChange = onCustomThemePalettesChange,
+                                    onSystemLightThemeChange = onSystemLightThemeChange,
+                                    onSystemDarkThemeChange = onSystemDarkThemeChange,
+                                    onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
+                                    disableShortsPlayer = disableShortsPlayer,
+                                    defaultStartRoute = defaultStartRoute,
+                                    bottomNavOverlayPadding = {
+                                        if (showBottomNav.value && isNavScrolledVisible) {
+                                            bottomNavContentHeightDp
+                                        } else {
+                                            0.dp
+                                        }
+                                    },
+                                )
+                            }
                         }
                     }
                 }

@@ -32,6 +32,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 
 @Composable
@@ -64,7 +65,7 @@ fun LibraryScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
-        topBar = { LibraryTopBar() },
+        topBar = { FlowTopBar(title = stringResource(R.string.library)) },
     ) { padding ->
         LazyColumn(
             modifier =
@@ -168,28 +169,6 @@ fun LibraryScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun LibraryTopBar() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.library),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
         }
     }
 }

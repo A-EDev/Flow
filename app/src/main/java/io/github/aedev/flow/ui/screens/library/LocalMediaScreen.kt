@@ -54,6 +54,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.utils.formatDuration
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,30 +100,10 @@ fun LocalMediaScreen(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.close),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.local_media_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
+            FlowTopBar(
+                title = stringResource(R.string.local_media_title),
+                onBack = onBackClick,
+                actions = {
                     IconButton(
                         onClick = {
                             if (hasAnyPermission()) {
@@ -137,8 +118,8 @@ fun LocalMediaScreen(
                             contentDescription = stringResource(R.string.local_media_rescan),
                         )
                     }
-                }
-            }
+                },
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
