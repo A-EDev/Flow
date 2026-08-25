@@ -347,7 +347,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Request notification permission for Android 13+ (skip during benchmark/test runs)
-                val isBypassMode = intent?.getBooleanExtra("bypass_onboarding", false) == true
+                val isBypassMode = intent?.getBooleanExtra(EXTRA_BENCHMARK_BYPASS_ONBOARDING, false) == true
                 if (!isBypassMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val permissionLauncher =
                         androidx.activity.compose.rememberLauncherForActivityResult(
@@ -941,5 +941,9 @@ class MainActivity : ComponentActivity() {
             if (l < c) return false
         }
         return false
+    }
+
+    companion object {
+        const val EXTRA_BENCHMARK_BYPASS_ONBOARDING = "io.github.aedev.flow.extra.BENCHMARK_BYPASS_ONBOARDING"
     }
 }

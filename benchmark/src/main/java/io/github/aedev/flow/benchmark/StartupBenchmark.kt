@@ -57,7 +57,7 @@ class StartupBenchmark {
             },
         ) {
             startActivityAndWait { intent ->
-                intent.putExtra("bypass_onboarding", true)
+                intent.putExtra("io.github.aedev.flow.extra.BENCHMARK_BYPASS_ONBOARDING", true)
             }
 
             device.wait(Until.hasObject(By.res("home_feed")), 5000)

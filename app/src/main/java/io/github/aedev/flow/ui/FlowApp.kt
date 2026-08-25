@@ -142,7 +142,7 @@ fun FlowApp(
     LaunchedEffect(Unit) {
         FlowNeuroEngine.initialize(context)
         DeepFlowManager.initialize(context)
-        val bypass = activity?.intent?.getBooleanExtra("bypass_onboarding", false) == true
+        val bypass = activity?.intent?.getBooleanExtra(MainActivity.EXTRA_BENCHMARK_BYPASS_ONBOARDING, false) == true
         needsOnboarding = if (bypass) false else FlowNeuroEngine.needsOnboarding()
     }
 
