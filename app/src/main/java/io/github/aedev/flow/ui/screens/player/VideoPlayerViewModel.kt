@@ -1507,9 +1507,29 @@ class VideoPlayerViewModel
                             if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
 
                             if (escalateToSabr && innerTubeResult == null) {
+                                // The blanket refusal below was written when every fast client was
+                                // session-gated, so a re-extraction could only hand back the URLs that
+                                // had just 403'd. The fast path is VISIONOS now, whose URLs GVS honours
+                                // untokened for the whole video, so one full-ladder retry is a real
+                                // second chance — and the only thing standing between a device that
+                                // cannot mint a PoToken (no/broken WebView) and playback that never
+                                // resumes. Still bounded by MAX_STREAM_EXPIRY_RETRIES.
+                                Log.w(
+                                    "VideoPlayerViewModel",
+                                    "Forced-SABR reload for $videoId produced no SABR session — retrying the full client ladder",
+                                )
+                                innerTubeResult =
+                                    withTimeoutOrNull(25_000L) {
+                                        InnerTubeVideoStreamExtractor.extract(videoId, forceSabr = false)
+                                    }?.takeIf { innerTubeCanStartPlayback(it) }
+                                ensureActive()
+                                if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
+                            }
+
+                            if (escalateToSabr && innerTubeResult == null) {
                                 Log.e(
                                     "VideoPlayerViewModel",
-                                    "Forced-SABR reload for $videoId produced no SABR session — refusing direct-URL fallback",
+                                    "Forced-SABR reload for $videoId produced no playable session — giving up on this attempt",
                                 )
                                 if (isPlaybackLoadCurrent(loadToken)) {
                                     val videoError = VideoErrorMapper.from(context, null, videoId)
