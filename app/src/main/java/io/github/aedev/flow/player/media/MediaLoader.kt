@@ -26,6 +26,7 @@ import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
+import io.github.aedev.flow.player.renderer.subtitle.Srv3SubtitleParser
 import io.github.aedev.flow.player.resolver.VideoPlaybackResolver
 import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceFactory
 import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceResult
@@ -36,6 +37,7 @@ import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
@@ -55,6 +57,15 @@ class MediaLoader(
 ) {
     companion object {
         private const val TAG = "MediaLoader"
+
+        init {
+            // TrackGroup derives its type from MimeTypes.getTrackType(sampleMimeType), so without
+            // this an srv3 track group reports TRACK_TYPE_UNKNOWN and every `groups.filter { it.type
+            // == C.TRACK_TYPE_TEXT }` lookup - including EnhancedPlayerManager's track-id override -
+            // silently stops finding it. Registration is idempotent and keyed by MIME type, and
+            // the empty codec prefix is right: srv3 never appears in a Format's codec string.
+            MimeTypes.registerCustomMimeType(Srv3SubtitleParser.MIME_TYPE, "", C.TRACK_TYPE_TEXT)
+        }
 
         internal fun subtitleTrackId(index: Int): String = "flow-subtitle-$index"
     }
@@ -443,8 +454,7 @@ class MediaLoader(
                             } else {
                                 C.ROLE_FLAG_SUBTITLE
                             },
-                        )
-                        .setId(subtitleTrackId(index))
+                        ).setId(subtitleTrackId(index))
                         .build()
 
                 val factory =
@@ -507,12 +517,19 @@ class MediaLoader(
         }
 
     private fun resolveSubtitleMimeType(subtitleStream: SubtitlesStream): String {
+        val url = subtitleStream.getContent().lowercase(Locale.ROOT)
+
+        // Checked before subtitleStream.format.mimeType below: NewPipeExtractor gives every
+        // TRANSCRIPT* format the same generic XML mimeType, which would otherwise route srv3 to the
+        // TTML decoder — a decoder that can't parse YouTube's schema. The URL check covers streams
+        // reaching us from the NewPipe extraction path, which sets no TRANSCRIPT3 format.
+        if (subtitleStream.format == MediaFormat.TRANSCRIPT3 || "fmt=srv3" in url) return Srv3SubtitleParser.MIME_TYPE
+
         subtitleStream.format
             ?.mimeType
             ?.takeIf { it.isNotBlank() }
             ?.let { return it }
 
-        val url = subtitleStream.getContent().lowercase(Locale.ROOT)
         return when {
             ".vtt" in url || "fmt=vtt" in url -> {
                 MimeTypes.TEXT_VTT
@@ -522,7 +539,7 @@ class MediaLoader(
                 MimeTypes.APPLICATION_SUBRIP
             }
 
-            ".ttml" in url || ".xml" in url || "fmt=ttml" in url || "fmt=srv" in url -> {
+            ".ttml" in url || ".xml" in url || "fmt=ttml" in url -> {
                 MimeTypes.APPLICATION_TTML
             }
 
