@@ -39,7 +39,10 @@ internal data class Srv3Window(
 }
 
 /** One styled run of text within a paragraph, sharing a single [pen]. */
-internal data class Srv3Run(val text: String, val pen: Srv3Pen)
+internal data class Srv3Run(
+    val text: String,
+    val pen: Srv3Pen,
+)
 
 /** One caption event: a `<p>` element, with its resolved window and styled runs, in document order. */
 internal data class Srv3Paragraph(
@@ -89,17 +92,19 @@ internal fun parseSrv3Document(xml: String): List<Srv3Paragraph> {
     var eventType = parser.eventType
     while (eventType != XmlPullParser.END_DOCUMENT) {
         when (eventType) {
-            XmlPullParser.START_TAG ->
+            XmlPullParser.START_TAG -> {
                 when (parser.name) {
                     "pen" -> {
                         val id = parser.getAttributeValue(null, "id") ?: ""
                         pens[id] = parser.toPen()
                     }
+
                     "ws" -> {
                         val id = parser.getAttributeValue(null, "id") ?: ""
                         windowStyles[id] =
                             parser.getAttributeValue(null, "ju")?.toIntOrNull() ?: Srv3Window.JUSTIFY_CENTER
                     }
+
                     "wp" -> {
                         val id = parser.getAttributeValue(null, "id") ?: ""
                         val anchor = parser.getAttributeValue(null, "ap")?.toIntOrNull() ?: Srv3Window.DEFAULT_ANCHOR_POINT
@@ -107,6 +112,7 @@ internal fun parseSrv3Document(xml: String): List<Srv3Paragraph> {
                         val vertical = parser.getAttributeValue(null, "av")?.toFloatOrNull() ?: 100f
                         windowPositions[id] = Triple(anchor, horizontal, vertical)
                     }
+
                     "p" -> {
                         currentParagraphPenId = parser.getAttributeValue(null, "p")
                         currentWindowStyleId = parser.getAttributeValue(null, "ws")
@@ -116,18 +122,25 @@ internal fun parseSrv3Document(xml: String): List<Srv3Paragraph> {
                         currentRuns = mutableListOf()
                         currentRunPenId = null
                     }
+
                     "s" -> {
                         flushRun()
                         currentRunPenId = parser.getAttributeValue(null, "p")
                     }
                 }
-            XmlPullParser.TEXT -> if (currentRuns != null) currentRunText.append(parser.text)
-            XmlPullParser.END_TAG ->
+            }
+
+            XmlPullParser.TEXT -> {
+                if (currentRuns != null) currentRunText.append(parser.text)
+            }
+
+            XmlPullParser.END_TAG -> {
                 when (parser.name) {
                     "s" -> {
                         flushRun()
                         currentRunPenId = currentParagraphPenId
                     }
+
                     "p" -> {
                         flushRun()
                         val runs = currentRuns
@@ -153,6 +166,7 @@ internal fun parseSrv3Document(xml: String): List<Srv3Paragraph> {
                         currentRuns = null
                     }
                 }
+            }
         }
         eventType = parser.next()
     }

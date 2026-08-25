@@ -26,7 +26,11 @@ class Srv3DocumentTest {
         assertEquals(3000L, paragraph.durationMs)
         assertEquals("Hello world", paragraph.runs.joinToString("") { it.text })
         assertEquals(Srv3Window.DEFAULT_ANCHOR_POINT, paragraph.window.anchorPoint)
-        assertFalse(paragraph.runs.single().pen.bold)
+        assertFalse(
+            paragraph.runs
+                .single()
+                .pen.bold,
+        )
     }
 
     @Test
@@ -43,7 +47,12 @@ class Srv3DocumentTest {
             </timedtext>
             """.trimIndent()
 
-        val pen = parseSrv3Document(xml).single().runs.single().pen
+        val pen =
+            parseSrv3Document(xml)
+                .single()
+                .runs
+                .single()
+                .pen
 
         assertTrue(pen.bold)
         assertTrue(pen.italic)

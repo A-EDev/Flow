@@ -3,13 +3,13 @@ package io.github.aedev.flow.player.renderer.subtitle
 import android.graphics.Color
 import android.graphics.Typeface
 import android.text.Layout
-import android.util.Log
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.text.style.UnderlineSpan
+import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.text.Cue
@@ -75,7 +75,12 @@ private fun Srv3Paragraph.toCuesWithTiming(): CuesWithTiming {
     val durationUs = durationMs.coerceAtLeast(0L) * 1000L
     if (text.isBlank()) return CuesWithTiming(emptyList(), startTimeUs, durationUs)
 
-    val cue = Cue.Builder().setText(text).applyWindow(window).build()
+    val cue =
+        Cue
+            .Builder()
+            .setText(text)
+            .applyWindow(window)
+            .build()
     return CuesWithTiming(listOf(cue), startTimeUs, durationUs)
 }
 
