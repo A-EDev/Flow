@@ -37,6 +37,7 @@ import io.github.aedev.flow.platform.AppUiRoot
 import io.github.aedev.flow.platform.DeviceFormFactorDetector
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.ui.FlowApp
@@ -62,6 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import javax.inject.Inject
 
 private const val PORTRAIT_REEL_ASPECT_RATIO = 9f / 16f
 
@@ -82,17 +84,8 @@ class MainActivity : ComponentActivity() {
     private val _pendingWidgetRoute = mutableStateOf<String?>(null)
     val pendingWidgetRoute: State<String?> = _pendingWidgetRoute
 
-    // Cached auto-PiP preference
-    private var cachedAutoPipEnabled = false
-
-    // Cached background-play preference
-    private var cachedBackgroundPlayEnabled = false
-
-    // Cached shorts background-play preference (default OFF — pause on background)
-    private var cachedShortsBackgroundPlay = false
-
-    @Volatile
-    private var cachedShortsPipEnabled = false
+    @Inject
+    lateinit var lifecyclePlaybackPreferences: LifecyclePlaybackPreferences
 
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
@@ -117,7 +110,8 @@ class MainActivity : ComponentActivity() {
         val player = playerManager.getPlayer()
         return "interactive=${powerManager?.isInteractive} lifecycle=${lifecycle.currentState} " +
             "pip=$isInPictureInPictureMode pendingAutoPip=$pendingAutoPip " +
-            "bgPref=$cachedBackgroundPlayEnabled shortsBgPref=$cachedShortsBackgroundPlay " +
+            "bgPref=${lifecyclePlaybackPreferences.settings.backgroundPlayEnabled} " +
+            "shortsBgPref=${lifecyclePlaybackPreferences.settings.shortsBackgroundPlay} " +
             "explicitBg=${GlobalPlayerState.isExplicitBackgroundPlaybackActive.value} " +
             "video=${playerState.currentVideoId} exo=${videoPlaybackStateName(player?.playbackState)} " +
             "pwr=${player?.playWhenReady} playing=${player?.isPlaying} buffering=${playerState.isBuffering} " +
@@ -163,27 +157,9 @@ class MainActivity : ComponentActivity() {
         // thread and settles after the first frame instead of blocking onCreate.
         lifecycleScope.launch { GlobalPlayerState.initializeAsync(applicationContext) }
 
-        // One collector for the preferences that lifecycle callbacks (onUserLeaveHint, onStop)
-        // must be able to read synchronously. They share a DataStore, so collecting them
-        // separately mapped the same emission three times on the startup path.
-        lifecycleScope.launch {
-            val playerPreferences =
-                io.github.aedev.flow.data.local
-                    .PlayerPreferences(applicationContext)
-            combine(
-                playerPreferences.autoPipEnabled,
-                playerPreferences.backgroundPlayEnabled,
-                playerPreferences.shortsBackgroundPlay,
-                playerPreferences.shortsPipEnabled,
-            ) { autoPip, backgroundPlay, shortsBackgroundPlay, shortsPip ->
-                listOf(autoPip, backgroundPlay, shortsBackgroundPlay, shortsPip)
-            }.collect { (autoPip, backgroundPlay, shortsBackgroundPlay, shortsPip) ->
-                cachedAutoPipEnabled = autoPip
-                cachedBackgroundPlayEnabled = backgroundPlay
-                cachedShortsBackgroundPlay = shortsBackgroundPlay
-                cachedShortsPipEnabled = shortsPip
-            }
-        }
+        // Snapshot lives in the process, not the activity: onUserLeaveHint/onStop read it
+        // synchronously and must still see it after a recreation they run inside of (#817).
+        lifecyclePlaybackPreferences.observeIn(lifecycleScope)
 
         // Initialize Neuro Engine (Recommendation System)
         lifecycleScope.launch(Dispatchers.IO) {
@@ -484,7 +460,7 @@ class MainActivity : ComponentActivity() {
                 (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
         val shouldKeepBackgroundPlayback =
             BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
-                backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
+                backgroundPlaybackPreferenceEnabled = lifecyclePlaybackPreferences.settings.backgroundPlayEnabled,
                 explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
                 hasActiveVideo = hasActiveVideo,
             )
@@ -706,14 +682,16 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         FlowCrashHandler.recordPhase(
             "activity",
-            "onStop pip=$isInPictureInPictureMode backgroundPlay=$cachedBackgroundPlayEnabled shortsBackground=$cachedShortsBackgroundPlay",
+            "onStop pip=$isInPictureInPictureMode " +
+                "backgroundPlay=${lifecyclePlaybackPreferences.settings.backgroundPlayEnabled} " +
+                "shortsBackground=${lifecyclePlaybackPreferences.settings.shortsBackgroundPlay}",
         )
         videoLifecycleLog("onStop")
         if (!isInPictureInPictureMode && !PictureInPictureHelper.isPopupActive) {
             if (cachedAppUiRoot == AppUiRoot.MOBILE) {
                 releaseOrientationLock()
             }
-            if (!cachedShortsBackgroundPlay) {
+            if (!lifecyclePlaybackPreferences.settings.shortsBackgroundPlay) {
                 io.github.aedev.flow.player.shorts.ShortsPlayerPool
                     .getInstance()
                     .pauseAll()
@@ -744,7 +722,8 @@ class MainActivity : ComponentActivity() {
             GlobalPlayerState.isExplicitBackgroundPlaybackActive.value
         FlowCrashHandler.recordPhase(
             "activity",
-            "onUserLeaveHint autoPip=$cachedAutoPipEnabled explicitBackground=$explicitBackgroundPlaybackActive",
+            "onUserLeaveHint autoPip=${lifecyclePlaybackPreferences.settings.autoPipEnabled} " +
+                "explicitBackground=$explicitBackgroundPlaybackActive",
         )
         videoLifecycleLog("onUserLeaveHint")
         // Only enter PiP mode if video is playing and has progressed
@@ -763,7 +742,7 @@ class MainActivity : ComponentActivity() {
         // Only enter PiP for video, not for music (which uses background service)
         val shouldEnterAutoPip =
             BackgroundPlaybackPolicy.shouldEnterAutoPip(
-                autoPipEnabled = cachedAutoPipEnabled,
+                autoPipEnabled = lifecyclePlaybackPreferences.settings.autoPipEnabled,
                 isVideoPlaying = isVideoPlaying,
                 explicitBackgroundPlaybackActive = explicitBackgroundPlaybackActive,
             )
@@ -775,7 +754,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        if (!cachedShortsPipEnabled || isMusicPlaying) return
+        if (!lifecyclePlaybackPreferences.settings.shortsPipEnabled || isMusicPlaying) return
         val shortsPool =
             io.github.aedev.flow.player.shorts.ShortsPlayerPool
                 .getInstance()
@@ -861,7 +840,7 @@ class MainActivity : ComponentActivity() {
 
         val shouldKeepBackgroundPlayback =
             BackgroundPlaybackPolicy.shouldKeepPlaybackInBackground(
-                backgroundPlaybackPreferenceEnabled = cachedBackgroundPlayEnabled,
+                backgroundPlaybackPreferenceEnabled = lifecyclePlaybackPreferences.settings.backgroundPlayEnabled,
                 explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
                 hasActiveVideo = hasActiveVideo,
             )
