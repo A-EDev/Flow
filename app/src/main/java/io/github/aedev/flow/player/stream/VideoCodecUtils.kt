@@ -136,6 +136,27 @@ object VideoCodecUtils {
             else -> key.uppercase()
         }
 
+    /**
+     * Composite key for every "(resolution, codec) -> value" lookup table in the app: the download
+     * dialog's size map and the player's format grouping alike.
+     *
+     * Format: `"${height}_${codecKey}"`, e.g. `"2160_av1"`, `"1080_vp9"`.
+     */
+    fun streamSizeKey(
+        height: Int,
+        codecKey: String,
+    ): String = "${height}_$codecKey"
+
+    /**
+     * Resolution class of an InnerTube format. `qualityLabel` wins over the raw pixel height:
+     * portrait media (Shorts) reports the *long* side as the height, so keying off it alone files a
+     * 1080p Short under 1920 and nothing ever matches it again.
+     */
+    fun qualityHeightFromFormat(
+        qualityLabel: String?,
+        fallbackHeight: Int,
+    ): Int = normalizeQualityHeight(parseQualityHeight(qualityLabel) ?: fallbackHeight)
+
     fun qualityHeightFromStream(stream: VideoStream): Int {
         parseQualityHeight(stream.resolution)?.let { return it }
         parseQualityHeight(stream.quality)?.let { return it }

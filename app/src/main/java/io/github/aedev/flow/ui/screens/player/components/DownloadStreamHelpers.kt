@@ -1,7 +1,27 @@
 package io.github.aedev.flow.ui.screens.player.components
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import io.github.aedev.flow.R
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.AudioTrackType
+import java.util.Locale
+
+/**
+ * Approximate download size for one quality, or null when no estimate is available — the caller
+ * omits the line entirely rather than showing a placeholder.
+ */
+@Composable
+fun approxDownloadSizeLabel(bytes: Long?): String? {
+    if (bytes == null || bytes <= 0L) return null
+    val gigabytes = bytes / (1024.0 * 1024.0 * 1024.0)
+    return if (gigabytes >= 1.0) {
+        stringResource(R.string.download_size_estimate_gb, String.format(Locale.getDefault(), "%.2f", gigabytes))
+    } else {
+        val megabytes = bytes / (1024.0 * 1024.0)
+        stringResource(R.string.download_size_estimate_mb, String.format(Locale.getDefault(), "%.1f", megabytes))
+    }
+}
 
 object DownloadStreamHelpers {
     fun audioBitrateKbps(stream: AudioStream): Int {

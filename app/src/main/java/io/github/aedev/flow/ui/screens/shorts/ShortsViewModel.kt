@@ -24,10 +24,9 @@ import io.github.aedev.flow.data.shorts.queue.ShortsQueueController
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueLoaderFactory
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.data.shorts.queue.openAtVideoId
-import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,6 +38,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.VideoStream
 import javax.inject.Inject
 
 /**
@@ -507,65 +508,30 @@ class ShortsViewModel
         }
 
         /**
-         * Fetch stream sizes in bytes for all video formats of a Short.
-         * Uses InnerTube MOBILE player endpoint — same approach as VideoPlayerViewModel.
+         * Total download size per `(resolution, codec)` pair for the streams the download dialog is
+         * about to list. Pure: the caller has already resolved both extraction stacks, so nothing
+         * here goes back to the network.
          */
-        suspend fun fetchStreamSizes(videoId: String): Map<String, Long> =
-            withContext(PerformanceDispatcher.networkIO) {
-                try {
-                    val playerResult = YouTube.player(videoId, client = YouTubeClient.MOBILE)
-                    playerResult.getOrNull()?.let { playerResponse ->
-                        val sizes = mutableMapOf<String, Long>()
-
-                        val audioFormats =
-                            playerResponse.streamingData
-                                ?.adaptiveFormats
-                                ?.filter { it.isAudio } ?: emptyList()
-                        val bestAacSize =
-                            audioFormats
-                                .filter { it.mimeType.contains("mp4", ignoreCase = true) }
-                                .maxByOrNull { it.bitrate }
-                                ?.contentLength ?: 0L
-                        val bestOpusSize =
-                            audioFormats
-                                .filter { it.mimeType.contains("webm", ignoreCase = true) }
-                                .maxByOrNull { it.bitrate }
-                                ?.contentLength ?: 0L
-                        val bestAnyAudioSize =
-                            audioFormats
-                                .maxByOrNull { it.bitrate }
-                                ?.contentLength ?: 0L
-
-                        playerResponse.streamingData?.formats?.forEach { format ->
-                            if (format.height != null && format.contentLength != null) {
-                                val codecKey = VideoPlayerUtils.codecKeyFromMimeType(format.mimeType)
-                                val key = VideoPlayerUtils.streamSizeKey(format.height, codecKey)
-                                sizes[key] = format.contentLength
-                            }
-                        }
-                        playerResponse.streamingData?.adaptiveFormats?.forEach { format ->
-                            if (format.height != null && format.contentLength != null && !format.isAudio) {
-                                val codecKey = VideoPlayerUtils.codecKeyFromMimeType(format.mimeType)
-                                val isMp4Video = format.mimeType.contains("mp4", ignoreCase = true)
-                                val audioSize =
-                                    when {
-                                        isMp4Video && bestAacSize > 0 -> bestAacSize
-                                        !isMp4Video && bestOpusSize > 0 -> bestOpusSize
-                                        else -> bestAnyAudioSize
-                                    }
-                                val totalSize = format.contentLength + audioSize
-                                val key = VideoPlayerUtils.streamSizeKey(format.height, codecKey)
-                                val currentSize = sizes[key] ?: 0L
-                                if (totalSize > currentSize) sizes[key] = totalSize
-                            }
-                        }
-                        sizes
-                    } ?: emptyMap()
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to fetch stream sizes for $videoId: ${e.message}")
-                    emptyMap()
-                }
-            }
+        fun streamSizesFor(
+            streamInfo: StreamInfo?,
+            innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format>,
+            innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format>,
+        ): Map<String, Long> {
+            val durationSeconds = streamInfo?.duration?.coerceAtLeast(0L) ?: 0L
+            return StreamSizeEstimator.merge(
+                StreamSizeEstimator.fromInnerTubeFormats(
+                    innerTubeVideoFormats,
+                    innerTubeAudioFormats,
+                    durationSeconds * 1000L,
+                ),
+                StreamSizeEstimator.fromExtractorStreams(
+                    (streamInfo?.videoStreams.orEmpty() + streamInfo?.videoOnlyStreams.orEmpty())
+                        .filterIsInstance<VideoStream>(),
+                    streamInfo?.audioStreams.orEmpty(),
+                    durationSeconds,
+                ),
+            )
+        }
 
         /**
          * Load detailed metadata (description, upload date, like count) for a Short from its StreamInfo.

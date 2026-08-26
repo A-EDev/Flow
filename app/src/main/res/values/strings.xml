@@ -1649,6 +1649,9 @@
     <string name="download_format_label">Format</string>
     <string name="download_threads_label">Threads</string>
     <string name="download_no_compatible_audio">No compatible audio stream — download cannot proceed</string>
+    <!-- Approximate download size shown beside a quality; %1$s is a formatted number -->
+    <string name="download_size_estimate_mb">~%1$s MB</string>
+    <string name="download_size_estimate_gb">~%1$s GB</string>
     <!-- Download dialog style (Content settings) -->
     <string name="download_menu_style_title">Download menu style</string>
     <string name="download_menu_style_subtitle">Choose how the download dialog looks</string>

@@ -24,16 +24,10 @@ object VideoPlayerUtils {
 
     fun qualityLabelFromStream(stream: VideoStream): String = VideoCodecUtils.qualityLabelFromStream(stream)
 
-    /**
-     * Composite key used in `VideoPlayerUiState.streamSizes` and in the
-     * download dialog to look up the total size of a (resolution, codec) pair.
-     *
-     * Format: `"${height}_${codecKey}"`, e.g., `"2160_av1"`, `"1080_vp9"`.
-     */
     fun streamSizeKey(
         height: Int,
         codecKey: String,
-    ): String = "${height}_$codecKey"
+    ): String = VideoCodecUtils.streamSizeKey(height, codecKey)
 
     // ─────────────────────────────────────────────────────────────────────────
 

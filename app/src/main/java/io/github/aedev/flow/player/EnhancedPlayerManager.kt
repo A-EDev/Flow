@@ -103,7 +103,6 @@ class EnhancedPlayerManager private constructor() {
         private const val SABR_QUALITY_KEY_PREFIX = "sabr:"
         private const val LIVE_QUALITY_KEY_PREFIX = "live:"
         private const val AUTO_NEXT_TAG = "FlowVideoAutoNext"
-        private val QUALITY_HEIGHT_REGEX = Regex("""(\d+)p""")
 
         @Volatile
         private var instance: EnhancedPlayerManager? = null
@@ -2311,20 +2310,24 @@ class EnhancedPlayerManager private constructor() {
         val playableOptions = directOptions.filter { it.height != 0 }
         val existingKeys =
             playableOptions
-                .map { "${it.height}_${it.codecKey}" }
+                .map { VideoCodecUtils.streamSizeKey(it.height, it.codecKey) }
                 .toHashSet()
 
         val sabrOptions =
             if (currentSabrInfo != null) {
                 innerTubeVideoFormats
                     .filter { !it.isAudio && it.itag > 0 }
-                    .groupBy { "${qualityHeightFromFormat(it)}_${VideoCodecUtils.codecKeyFromMimeType(it.mimeType)}" }
-                    .values
+                    .groupBy {
+                        VideoCodecUtils.streamSizeKey(
+                            qualityHeightFromFormat(it),
+                            VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
+                        )
+                    }.values
                     .mapNotNull { formats ->
                         val best = formats.maxByOrNull { it.averageBitrate ?: it.bitrate } ?: return@mapNotNull null
                         val height = qualityHeightFromFormat(best)
                         val codecKey = VideoCodecUtils.codecKeyFromMimeType(best.mimeType)
-                        if ("${height}_$codecKey" in existingKeys) return@mapNotNull null
+                        if (VideoCodecUtils.streamSizeKey(height, codecKey) in existingKeys) return@mapNotNull null
                         QualityOption(
                             height = height,
                             label = "${qualityLabelFromFormat(best)} ${VideoCodecUtils.codecLabelFromKey(codecKey)}",
@@ -2388,17 +2391,8 @@ class EnhancedPlayerManager private constructor() {
         return true
     }
 
-    private fun qualityHeightFromFormat(format: PlayerResponse.StreamingData.Format): Int {
-        format.qualityLabel
-            ?.let {
-                QUALITY_HEIGHT_REGEX
-                    .find(it)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.toIntOrNull()
-            }?.let { return it }
-        return VideoCodecUtils.normalizeQualityHeight(format.height ?: format.width ?: 0)
-    }
+    private fun qualityHeightFromFormat(format: PlayerResponse.StreamingData.Format): Int =
+        VideoCodecUtils.qualityHeightFromFormat(format.qualityLabel, format.height ?: format.width ?: 0)
 
     private fun qualityLabelFromFormat(format: PlayerResponse.StreamingData.Format): String =
         format.qualityLabel

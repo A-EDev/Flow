@@ -70,10 +70,11 @@ private val downloadPrefsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO
 
 private val CODEC_PRIORITY = mapOf("vp9" to 0, "h264" to 1, "av1" to 2, "vp8" to 3, "hevc" to 4)
 
-private fun containerForCodec(codecKey: String): String = when (codecKey) {
-    "vp9", "vp8" -> "WebM"
-    else -> "MP4"
-}
+private fun containerForCodec(codecKey: String): String =
+    when (codecKey) {
+        "vp9", "vp8" -> "WebM"
+        else -> "MP4"
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -85,7 +86,7 @@ fun DownloadQualityDialogCompact(
     innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
     video: Video,
     currentPlayingHeight: Int = 0,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val prefs = remember(context) { PlayerPreferences(context) }
@@ -98,32 +99,40 @@ fun DownloadQualityDialogCompact(
     val defaultDownloadCodec by prefs.defaultDownloadCodec.collectAsState(initial = VideoCodec.AUTO)
     val preferredDownloadCodecKey = defaultDownloadCodec.takeIf { it != VideoCodec.AUTO }?.codecKey
 
-    val currentPlayingCodec = remember {
-        EnhancedPlayerManager.getInstance().getPlayer()?.videoFormat?.sampleMimeType
-            ?.let { VideoPlayerUtils.codecKeyFromMimeType(it) }
-    }
+    val currentPlayingCodec =
+        remember {
+            EnhancedPlayerManager
+                .getInstance()
+                .getPlayer()
+                ?.videoFormat
+                ?.sampleMimeType
+                ?.let { VideoPlayerUtils.codecKeyFromMimeType(it) }
+        }
 
-    val videoStreams = remember(innerTubeVideoFormats, streamInfo) {
-        val itVideo = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats)
-        val exVideoOnly = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-        val exMuxed = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-        (itVideo + exVideoOnly + exMuxed)
-            .filter { it.getContent().isNotBlank() }
-            .distinctBy { "${VideoPlayerUtils.qualityHeightFromStream(it)}_${VideoPlayerUtils.codecKeyFromStream(it)}" }
-            .sortedWith(
-                compareByDescending<VideoStream> { VideoPlayerUtils.qualityHeightFromStream(it) }
-                    .thenBy { CODEC_PRIORITY[VideoPlayerUtils.codecKeyFromStream(it)] ?: 99 }
+    val videoStreams =
+        remember(innerTubeVideoFormats, streamInfo) {
+            val itVideo = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats)
+            val exVideoOnly = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
+            val exMuxed = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
+            (itVideo + exVideoOnly + exMuxed)
+                .filter { it.getContent().isNotBlank() }
+                .distinctBy { "${VideoPlayerUtils.qualityHeightFromStream(it)}_${VideoPlayerUtils.codecKeyFromStream(it)}" }
+                .sortedWith(
+                    compareByDescending<VideoStream> { VideoPlayerUtils.qualityHeightFromStream(it) }
+                        .thenBy { CODEC_PRIORITY[VideoPlayerUtils.codecKeyFromStream(it)] ?: 99 },
+                )
+        }
+    val audioStreams =
+        remember(innerTubeAudioFormats, streamInfo) {
+            DownloadStreamHelpers.mergeAudioDownloadStreams(
+                InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats),
+                streamInfo?.audioStreams ?: emptyList(),
             )
-    }
-    val audioStreams = remember(innerTubeAudioFormats, streamInfo) {
-        DownloadStreamHelpers.mergeAudioDownloadStreams(
-            InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats),
-            streamInfo?.audioStreams ?: emptyList()
-        )
-    }
-    val heights = remember(videoStreams) {
-        videoStreams.map { VideoPlayerUtils.qualityHeightFromStream(it) }.distinct().sortedDescending()
-    }
+        }
+    val heights =
+        remember(videoStreams) {
+            videoStreams.map { VideoPlayerUtils.qualityHeightFromStream(it) }.distinct().sortedDescending()
+        }
 
     val hasVideo = videoStreams.isNotEmpty()
     val hasAudio = audioStreams.isNotEmpty()
@@ -138,35 +147,32 @@ fun DownloadQualityDialogCompact(
         mutableStateOf(
             heights.firstOrNull { it == lastHeight }
                 ?: heights.firstOrNull { it == currentPlayingHeight }
-                ?: heights.firstOrNull() ?: 0
+                ?: heights.firstOrNull() ?: 0,
         )
     }
-    val codecsForHeight = videoStreams
-        .filter { VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight }
-        .map { VideoPlayerUtils.codecKeyFromStream(it) }
-        .distinct()
-        .sortedBy { CODEC_PRIORITY[it] ?: 99 }
+    val codecsForHeight =
+        videoStreams
+            .filter { VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight }
+            .map { VideoPlayerUtils.codecKeyFromStream(it) }
+            .distinct()
+            .sortedBy { CODEC_PRIORITY[it] ?: 99 }
     var selectedCodec by remember(selectedHeight, lastCodec, preferredDownloadCodecKey) {
         mutableStateOf(
             codecsForHeight.firstOrNull { it == preferredDownloadCodecKey }
                 ?: codecsForHeight.firstOrNull { it == lastCodec }
                 ?: codecsForHeight.firstOrNull { it == currentPlayingCodec }
-                ?: codecsForHeight.firstOrNull() ?: ""
+                ?: codecsForHeight.firstOrNull() ?: "",
         )
     }
     var selectedAudioIndex by remember(audioStreams, lastAudioLabel) {
         mutableStateOf(
             audioStreams.indexOfFirst { audioOptionLabel(it) == lastAudioLabel }.takeIf { it >= 0 }
                 ?: audioStreams.indices.maxByOrNull { DownloadStreamHelpers.audioBitrateKbps(audioStreams[it]) }
-                ?: 0
+                ?: 0,
         )
     }
 
-    fun sizeTextFor(height: Int, codec: String): String? {
-        val bytes = streamSizes[VideoPlayerUtils.streamSizeKey(height, codec)] ?: return null
-        if (bytes <= 0) return null
-        return String.format("~%.1f MB", bytes / (1024.0 * 1024.0))
-    }
+    val selectedSizeText = approxDownloadSizeLabel(streamSizes[VideoPlayerUtils.streamSizeKey(selectedHeight, selectedCodec)])
 
     fun confirmDownload() {
         val finalTitle = title.trim().ifBlank { video.title }
@@ -184,7 +190,7 @@ fun DownloadQualityDialogCompact(
                 audioOnly = true,
                 audioExtension = DownloadStreamHelpers.audioFileExtension(stream),
                 audioMimeType = stream.format?.mimeType,
-                threads = threads
+                threads = threads,
             )
             Toast.makeText(context, context.getString(R.string.downloading_template, audioOptionLabel(stream)), Toast.LENGTH_SHORT).show()
             downloadPrefsScope.launch {
@@ -195,10 +201,11 @@ fun DownloadQualityDialogCompact(
             return
         }
 
-        val stream = videoStreams.firstOrNull {
-            VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight &&
-                VideoPlayerUtils.codecKeyFromStream(it) == selectedCodec
-        } ?: return
+        val stream =
+            videoStreams.firstOrNull {
+                VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight &&
+                    VideoPlayerUtils.codecKeyFromStream(it) == selectedCodec
+            } ?: return
         val downloadUrl = stream.getContent().takeIf { it.isNotBlank() } ?: return
         val codecLabel = VideoPlayerUtils.codecLabelFromKey(selectedCodec)
         val qualityLabel = "$codecLabel ${selectedHeight}p"
@@ -218,21 +225,31 @@ fun DownloadQualityDialogCompact(
         var fallbackCodec: String? = null
         var fallbackQuality: String? = null
         if (selectedCodec == "av1") {
-            val fb = videoStreams.firstOrNull {
-                VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight &&
-                    VideoPlayerUtils.codecKeyFromStream(it) != "av1"
-            }
+            val fb =
+                videoStreams.firstOrNull {
+                    VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight &&
+                        VideoPlayerUtils.codecKeyFromStream(it) != "av1"
+                }
             val fbUrl = fb?.getContent()?.takeIf { it.isNotBlank() }
             if (fb != null && fbUrl != null) {
                 val fbCodecKey = VideoPlayerUtils.codecKeyFromStream(fb)
-                val fbAudio = if (fb.isVideoOnly) {
-                    DownloadStreamHelpers.pickCompatibleAudioForVideo(fbCodecKey, audioStreams, preferredLang)
-                        ?.getContent()?.takeIf { it.isNotBlank() }
-                } else null
+                val fbAudio =
+                    if (fb.isVideoOnly) {
+                        DownloadStreamHelpers
+                            .pickCompatibleAudioForVideo(fbCodecKey, audioStreams, preferredLang)
+                            ?.getContent()
+                            ?.takeIf { it.isNotBlank() }
+                    } else {
+                        null
+                    }
                 if (!fb.isVideoOnly || fbAudio != null) {
                     fallbackUrl = fbUrl
                     fallbackAudioUrl = fbAudio
-                    fallbackCodec = when (fbCodecKey) { "vp9", "vp8" -> fbCodecKey; else -> null }
+                    fallbackCodec =
+                        when (fbCodecKey) {
+                            "vp9", "vp8" -> fbCodecKey
+                            else -> null
+                        }
                     fallbackQuality = "${VideoPlayerUtils.codecLabelFromKey(fbCodecKey)} ${selectedHeight}p"
                 }
             }
@@ -244,15 +261,16 @@ fun DownloadQualityDialogCompact(
             url = downloadUrl,
             qualityLabel = qualityLabel,
             audioUrl = audioUrl,
-            videoCodec = when (selectedCodec) {
-                "vp9", "vp8", "av1" -> selectedCodec
-                else -> null
-            },
+            videoCodec =
+                when (selectedCodec) {
+                    "vp9", "vp8", "av1" -> selectedCodec
+                    else -> null
+                },
             threads = threads,
             fallbackUrl = fallbackUrl,
             fallbackAudioUrl = fallbackAudioUrl,
             fallbackCodec = fallbackCodec,
-            fallbackQuality = fallbackQuality
+            fallbackQuality = fallbackQuality,
         )
         Toast.makeText(context, context.getString(R.string.downloading_template, qualityLabel), Toast.LENGTH_SHORT).show()
         downloadPrefsScope.launch {
@@ -267,7 +285,7 @@ fun DownloadQualityDialogCompact(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 6.dp,
         ) {
             Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -275,7 +293,7 @@ fun DownloadQualityDialogCompact(
                         text = stringResource(R.string.download_video),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
@@ -290,7 +308,7 @@ fun DownloadQualityDialogCompact(
                     label = { Text(stringResource(R.string.download_title_label)) },
                     leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 Spacer(Modifier.height(16.dp))
@@ -300,12 +318,12 @@ fun DownloadQualityDialogCompact(
                         SegmentedButton(
                             selected = !isAudioMode,
                             onClick = { isAudioMode = false },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                         ) { Text(stringResource(R.string.video)) }
                         SegmentedButton(
                             selected = isAudioMode,
                             onClick = { isAudioMode = true },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                         ) { Text(stringResource(R.string.download_audio)) }
                     }
                     Spacer(Modifier.height(16.dp))
@@ -314,32 +332,35 @@ fun DownloadQualityDialogCompact(
                 if (!isAudioMode && hasVideo) {
                     DownloadDropdownRow(
                         label = stringResource(R.string.quality),
-                        value = "${selectedHeight}p" + (sizeTextFor(selectedHeight, selectedCodec)?.let { "  ·  $it" } ?: ""),
-                        options = heights.map { h ->
-                            "${h}p" to { selectedHeight = h }
-                        }
+                        value = "${selectedHeight}p" + (selectedSizeText?.let { "  ·  $it" } ?: ""),
+                        options =
+                            heights.map { h ->
+                                "${h}p" to { selectedHeight = h }
+                            },
                     )
                     Spacer(Modifier.height(10.dp))
                     DownloadDropdownRow(
                         label = stringResource(R.string.download_format_label),
                         value = "${VideoPlayerUtils.codecLabelFromKey(selectedCodec)} · ${containerForCodec(selectedCodec)}",
-                        options = codecsForHeight.map { codec ->
-                            "${VideoPlayerUtils.codecLabelFromKey(codec)} · ${containerForCodec(codec)}" to { selectedCodec = codec }
-                        }
+                        options =
+                            codecsForHeight.map { codec ->
+                                "${VideoPlayerUtils.codecLabelFromKey(codec)} · ${containerForCodec(codec)}" to { selectedCodec = codec }
+                            },
                     )
                 } else if (isAudioMode && hasAudio) {
                     DownloadDropdownRow(
                         label = stringResource(R.string.download_audio),
                         value = audioStreams.getOrNull(selectedAudioIndex)?.let { audioOptionLabel(it) } ?: "",
-                        options = audioStreams.mapIndexed { index, stream ->
-                            audioOptionLabel(stream) to { selectedAudioIndex = index }
-                        }
+                        options =
+                            audioStreams.mapIndexed { index, stream ->
+                                audioOptionLabel(stream) to { selectedAudioIndex = index }
+                            },
                     )
                 } else {
                     Text(
                         text = stringResource(R.string.no_download_streams),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -349,30 +370,32 @@ fun DownloadQualityDialogCompact(
                     Text(
                         text = stringResource(R.string.download_threads_label),
                         style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     val currentThreads = threads.coerceIn(MIN_THREADS, MAX_THREADS)
                     FilledIconButton(
                         onClick = { threads = (currentThreads - 1).coerceAtLeast(MIN_THREADS) },
                         enabled = currentThreads > MIN_THREADS,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        colors =
+                            IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                     ) { Icon(Icons.Default.Remove, contentDescription = "-") }
                     Text(
                         text = currentThreads.toString(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     FilledIconButton(
                         onClick = { threads = (currentThreads + 1).coerceAtMost(MAX_THREADS) },
                         enabled = currentThreads < MAX_THREADS,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        colors =
+                            IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                     ) { Icon(Icons.Default.Add, contentDescription = "+") }
                 }
 
@@ -381,13 +404,13 @@ fun DownloadQualityDialogCompact(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { confirmDownload() },
-                        enabled = (isAudioMode && hasAudio) || (!isAudioMode && hasVideo && selectedCodec.isNotEmpty())
+                        enabled = (isAudioMode && hasAudio) || (!isAudioMode && hasVideo && selectedCodec.isNotEmpty()),
                     ) { Text(stringResource(R.string.download)) }
                 }
             }
@@ -407,20 +430,20 @@ private fun audioOptionLabel(stream: AudioStream): String {
 private fun DownloadDropdownRow(
     label: String,
     value: String,
-    options: List<Pair<String, () -> Unit>>
+    options: List<Pair<String, () -> Unit>>,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.width(88.dp)
+            modifier = Modifier.width(88.dp),
         )
         Box(modifier = Modifier.weight(1f)) {
             OutlinedButton(
                 onClick = { expanded = true },
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(text = value, modifier = Modifier.weight(1f))
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null)
@@ -432,7 +455,7 @@ private fun DownloadDropdownRow(
                         onClick = {
                             onSelect()
                             expanded = false
-                        }
+                        },
                     )
                 }
             }

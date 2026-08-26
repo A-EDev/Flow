@@ -140,14 +140,8 @@ fun DownloadQualityDialog(
                         val qualityHeight = VideoPlayerUtils.qualityHeightFromStream(stream)
                         val qualityLabel = "$codecLabel ${qualityHeight}p"
 
-                        val sizeInBytes = streamSizes[VideoPlayerUtils.streamSizeKey(qualityHeight, codecKey)]
                         val sizeText =
-                            if (sizeInBytes != null && sizeInBytes > 0) {
-                                val mb = sizeInBytes / (1024.0 * 1024.0)
-                                String.format("~%.2f MB", mb)
-                            } else {
-                                null
-                            }
+                            approxDownloadSizeLabel(streamSizes[VideoPlayerUtils.streamSizeKey(qualityHeight, codecKey)])
 
                         // Resolution badge
                         val resBadge =

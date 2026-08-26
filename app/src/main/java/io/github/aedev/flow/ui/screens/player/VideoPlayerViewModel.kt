@@ -50,6 +50,7 @@ import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
+import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.ui.screens.player.util.VideoErrorMapper
@@ -608,6 +609,7 @@ class VideoPlayerViewModel
                     streamInfo = null,
                     videoStream = null,
                     audioStream = null,
+                    streamSizes = emptyMap(),
                     savedPosition = null,
                     relatedVideos = emptyList(),
                     isSubscribed = false,
@@ -784,6 +786,7 @@ class VideoPlayerViewModel
                     streamInfo = null,
                     videoStream = null,
                     audioStream = null,
+                    streamSizes = emptyMap(),
                     savedPosition = null,
                     relatedVideos = emptyList(),
                     isSubscribed = false,
@@ -856,6 +859,7 @@ class VideoPlayerViewModel
                     streamInfo = null,
                     videoStream = null,
                     audioStream = null,
+                    streamSizes = emptyMap(),
                     savedPosition = null,
                     relatedVideos = emptyList(),
                     channelAvatarUrl = video.channelThumbnailUrl.takeIf { it.isNotBlank() },
@@ -910,6 +914,7 @@ class VideoPlayerViewModel
                     streamInfo = null,
                     videoStream = null,
                     audioStream = null,
+                    streamSizes = emptyMap(),
                     savedPosition = null,
                     relatedVideos = emptyList(),
                     channelAvatarUrl = video.channelThumbnailUrl.takeIf { it.isNotBlank() },
@@ -1256,6 +1261,7 @@ class VideoPlayerViewModel
                     streamInfo = null,
                     videoStream = null,
                     audioStream = null,
+                    streamSizes = emptyMap(),
                     savedPosition = null,
                     relatedVideos = emptyList(),
                     channelAvatarUrl =
@@ -1644,6 +1650,19 @@ class VideoPlayerViewModel
                                     StreamMergeUtils.mergeVideoStreams(extractorVideoStreams, innerTubeVideoStreams)
                                 val effectiveAudioStreams: List<AudioStream> =
                                     StreamMergeUtils.mergeAudioStreams(streamInfo.audioStreams, innerTubeAudioStreams)
+                                val downloadStreamSizes =
+                                    StreamSizeEstimator.merge(
+                                        StreamSizeEstimator.fromExtractorStreams(
+                                            effectiveVideoStreams,
+                                            effectiveAudioStreams,
+                                            streamInfo.duration,
+                                        ),
+                                        StreamSizeEstimator.fromInnerTubeFormats(
+                                            innerTubeResult?.videoFormats.orEmpty(),
+                                            innerTubeResult?.audioFormats.orEmpty(),
+                                            streamInfo.duration * 1000L,
+                                        ),
+                                    )
 
                                 if (extractorVideoStreams.isNotEmpty()) {
                                     Log.i(
@@ -1809,7 +1828,7 @@ class VideoPlayerViewModel
                                         savedPosition = savedPosition,
                                         isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
                                         autoplayEnabled = autoplay,
-                                        streamSizes = emptyMap(),
+                                        streamSizes = downloadStreamSizes,
                                         localFilePath = localFilePath,
                                         localFileVideoId = if (localFilePath != null) videoId else null,
                                         offlineSponsorBlockSegments = offlineSegments,
@@ -1891,89 +1910,6 @@ class VideoPlayerViewModel
                                             ),
                                         loadToken = loadToken,
                                     )
-                                }
-
-                                // Stream sizes are optional enrichment and must remain off the startup path.
-                                viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                                    supervisorScope {
-                                        // Compute stream sizes — use already-fetched innertube data when available
-                                        val sizesDeferred =
-                                            async(PerformanceDispatcher.networkIO) {
-                                                try {
-                                                    val sourceFormats =
-                                                        innerTubeResult?.playerResponse?.streamingData
-                                                            ?: withTimeoutOrNull(8000L) {
-                                                                YouTube
-                                                                    .player(videoId, client = YouTubeClient.MOBILE)
-                                                                    .getOrNull()
-                                                                    ?.streamingData
-                                                            }
-
-                                                    sourceFormats?.let { streamingData ->
-                                                        val sizes = mutableMapOf<String, Long>()
-                                                        val audioFmts = streamingData.adaptiveFormats.filter { it.isAudio }
-                                                        val bestAacSize =
-                                                            audioFmts
-                                                                .filter { it.mimeType.contains("mp4", ignoreCase = true) }
-                                                                .maxByOrNull { it.bitrate }
-                                                                ?.contentLength ?: 0L
-                                                        val bestOpusSize =
-                                                            audioFmts
-                                                                .filter { it.mimeType.contains("webm", ignoreCase = true) }
-                                                                .maxByOrNull { it.bitrate }
-                                                                ?.contentLength ?: 0L
-                                                        val bestAnyAudioSize =
-                                                            audioFmts
-                                                                .maxByOrNull { it.bitrate }
-                                                                ?.contentLength ?: 0L
-
-                                                        streamingData.formats?.forEach { format ->
-                                                            if (format.height != null && format.contentLength != null) {
-                                                                val codecKey = VideoPlayerUtils.codecKeyFromMimeType(format.mimeType)
-                                                                val key =
-                                                                    VideoPlayerUtils.streamSizeKey(
-                                                                        qualityHeightFromFormat(format.qualityLabel, format.height),
-                                                                        codecKey,
-                                                                    )
-                                                                sizes[key] = format.contentLength
-                                                            }
-                                                        }
-                                                        streamingData.adaptiveFormats.forEach { format ->
-                                                            if (format.height != null && format.contentLength != null && !format.isAudio) {
-                                                                val codecKey = VideoPlayerUtils.codecKeyFromMimeType(format.mimeType)
-                                                                val isMp4Video = format.mimeType.contains("mp4", ignoreCase = true)
-                                                                val audioSize =
-                                                                    when {
-                                                                        isMp4Video && bestAacSize > 0 -> bestAacSize
-                                                                        !isMp4Video && bestOpusSize > 0 -> bestOpusSize
-                                                                        else -> bestAnyAudioSize
-                                                                    }
-                                                                val totalSize = format.contentLength + audioSize
-                                                                val key =
-                                                                    VideoPlayerUtils.streamSizeKey(
-                                                                        qualityHeightFromFormat(format.qualityLabel, format.height),
-                                                                        codecKey,
-                                                                    )
-                                                                val currentSize = sizes[key] ?: 0L
-                                                                if (totalSize > currentSize) sizes[key] = totalSize
-                                                            }
-                                                        }
-                                                        sizes
-                                                    }
-                                                } catch (e: Exception) {
-                                                    Log.e("VideoPlayerViewModel", "Failed to compute stream sizes", e)
-                                                    null
-                                                }
-                                            }
-
-                                        val sizesResult = sizesDeferred.await()
-
-                                        if (isPlaybackLoadCurrent(loadToken)) {
-                                            sizesResult?.let { sizes ->
-                                                _uiState.value = _uiState.value.copy(streamSizes = sizes)
-                                            }
-                                        }
-                                    }
                                 }
                             } else if (liveFromInnerTube && innerTubeResult != null) {
                                 Log.w("VideoPlayerViewModel", "Live fallback for $videoId via InnerTube manifest (NewPipe StreamInfo null)")
@@ -2663,6 +2599,17 @@ class VideoPlayerViewModel
                             streamInfo = streamInfo,
                             relatedVideos = relatedVideos.ifEmpty { it.relatedVideos },
                             chapters = streamInfo.streamSegments ?: it.chapters,
+                            // Late NewPipe metadata adds its own streams to the download dialog's list,
+                            // so their sizes have to join the map the dialog looks them up in.
+                            streamSizes =
+                                StreamSizeEstimator.merge(
+                                    it.streamSizes,
+                                    StreamSizeEstimator.fromExtractorStreams(
+                                        (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>(),
+                                        streamInfo.audioStreams,
+                                        streamInfo.duration,
+                                    ),
+                                ),
                         )
                     }
                 }
@@ -2792,6 +2739,12 @@ class VideoPlayerViewModel
                     upcomingReleaseTimeMs = null,
                     innerTubeVideoFormats = result.videoFormats,
                     innerTubeAudioFormats = result.audioFormats,
+                    streamSizes =
+                        StreamSizeEstimator.fromInnerTubeFormats(
+                            result.videoFormats,
+                            result.audioFormats,
+                            durationSeconds * 1000L,
+                        ),
                 )
             }
 
@@ -3537,22 +3490,6 @@ class VideoPlayerViewModel
                 .map { height ->
                     VideoQuality.fromHeight(height)
                 }.distinct() + listOf(VideoQuality.AUTO)
-        }
-
-        private fun qualityHeightFromFormat(
-            qualityLabel: String?,
-            fallbackHeight: Int,
-        ): Int {
-            val labelHeight =
-                qualityLabel
-                    ?.let {
-                        Regex("""(\d+)p""")
-                            .find(it)
-                            ?.groupValues
-                            ?.getOrNull(1)
-                            ?.toIntOrNull()
-                    }
-            return QualityManager.normalizeQualityHeight(labelHeight ?: fallbackHeight)
         }
 
         private fun extractSubtitles(subtitleStreams: List<org.schabi.newpipe.extractor.stream.SubtitlesStream>): List<SubtitleInfo> =

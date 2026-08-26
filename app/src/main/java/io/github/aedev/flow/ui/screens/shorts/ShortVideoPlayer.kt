@@ -1056,7 +1056,8 @@ internal fun ShortVideoPage(
                             pageState.currentInnerTubeVideoFormats = itVideo
                             pageState.currentInnerTubeAudioFormats = itAudio
                             if (streamInfo != null || itVideo.isNotEmpty()) {
-                                pageState.currentStreamSizes = viewModel.fetchStreamSizes(video.id)
+                                pageState.currentStreamSizes =
+                                    viewModel.streamSizesFor(streamInfo, itVideo, itAudio)
                                 pageState.showDownloadDialog = true
                             }
                             pageState.isLoadingStreams = false
