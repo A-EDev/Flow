@@ -435,9 +435,10 @@ class MusicPlaylistsViewModel
                         description = details.description ?: "",
                         thumbnailUrl = details.thumbnailUrl,
                     )
-                    details.tracks.forEach { track ->
-                        val video =
-                            io.github.aedev.flow.data.model.Video(
+                    playlistRepository.addVideosToPlaylist(
+                        details.id,
+                        details.tracks.map { track ->
+                            Video(
                                 id = track.videoId,
                                 title = track.title,
                                 channelName = track.artist,
@@ -448,8 +449,8 @@ class MusicPlaylistsViewModel
                                 uploadDate = "",
                                 isMusic = true,
                             )
-                        playlistRepository.addVideoToPlaylist(details.id, video)
-                    }
+                        },
+                    )
                     _isSavedPlaylist.value = true
                     Toast.makeText(context, context.getString(R.string.toast_saved_playlist_to_music_library), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {

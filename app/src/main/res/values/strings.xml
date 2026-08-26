@@ -1242,6 +1242,8 @@
     <string name="import_yt_watch_history_desc">Import your watch history from YouTube Takeout (watch-history.html).</string>
     <string name="import_yt_playlist">Import YouTube Playlist</string>
     <string name="import_yt_playlist_desc">Import a playlist from YouTube Takeout CSV (Playlist-&lt;name&gt;.csv).</string>
+    <string name="import_yt_watch_later">Import Watch Later</string>
+    <string name="import_yt_watch_later_desc">Import a YouTube Takeout CSV straight into your Watch Later list, whatever the file is named.</string>
     <string name="import_yt_music_playlist">Import YouTube Music Playlist</string>
     <string name="import_yt_music_playlist_desc">Import a music playlist from YouTube Music Takeout CSV. Appears under Music Playlists.</string>
     <string name="import_yt_history_success_template">Imported %1$d entries from your YouTube watch history</string>
