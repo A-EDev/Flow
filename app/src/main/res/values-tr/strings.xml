@@ -123,7 +123,6 @@
     <string name="empty_liked_music">Beğenilen müzik yok</string>
     <string name="empty_liked_music_body">Beğendiğin şarkılar burada görünecek</string>
     <string name="download_all">Hepsini indir</string>
-    <string name="download_all_confirmation">%1$d videonun tümünü indirmek istiyor musun? Bu işlem önemli miktarda depolama alanı kaplayabilir.</string>
     <string name="saved">Kaydedildi</string>
     <string name="resume">Devam et</string>
     <string name="playing_from">Şuradan oynatılıyor</string>
@@ -143,7 +142,6 @@
     <string name="playlist_private">Gizli</string>
     <string name="views">Görüntülemeler</string>
     <string name="empty_subscriptions_body">Son videoları görmek için\nkanala abone ol</string>
-    <string name="subscriptions_last_refreshed_template">Son yenilenme %1$s - %2$d video kontrol edildi</string>
     <string name="share_message_template">Şu parçaya göz at: %1$s - %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
     <string name="playlist_public">Herkese açık</string>
     <string name="create_new_playlist">Yeni oynatma listesi oluştur</string>
@@ -186,7 +184,6 @@
     <string name="read_more">Devamını oku</string>
     <string name="reply">Yanıtla</string>
     <string name="hide_replies">Yanıtları gizle</string>
-    <string name="view_replies_template">%1$d yanıtı gör</string>
     <string name="load_more_replies">Daha fazla yanıt gör</string>
     <string name="select_text">Metin seç</string>
     <string name="pinned_comment">Sabitlenmiş yorum</string>
@@ -204,7 +201,6 @@
     <string name="notifications">Bildirimler</string>
     <string name="search">Ara</string>
     <string name="settings">Ayarlar</string>
-    <string name="subscriptions_refresh_progress_template">%1$d / %2$d kanal yenileniyor</string>
     <string name="description">Açıklama</string>
     <string name="copy_description">Açıklamayı kopyala</string>
     <string name="description_copied">Açıklama panoya kopyalandı</string>
@@ -218,11 +214,6 @@
     <string name="notification_badge_9_plus">9+</string>
     <string name="import_newpipe_backup">NewPipe Yedeğini içe aktar</string>
     <string name="importing_from_backup">NewPipe yedeğinden abonelikler içe aktarılıyor...</string>
-    <string name="videos_count_template">%1$d video</string>
-    <string name="likes_count_template">%1$d beğeni</string>
-    <string name="playlists_count_template">%1$d oynatma listesi</string>
-    <string name="shorts_count_template">%1$d shorts</string>
-    <string name="songs_count_template">%1$d şarkı</string>
     <string name="pinned_by_creator">İçerik üretici tarafından sabitlendi</string>
     <string name="select_artist">Sanatçı seç</string>
     <string name="album_art">Albüm kapağı</string>
@@ -332,7 +323,6 @@
     <string name="more_header">Daha fazla</string>
     <string name="chapters">Bölümler</string>
     <string name="personalized_feed">Kişiselleştirilmiş akışınız</string>
-    <string name="videos_curated_template">%1$d video senin için özenle seçildi</string>
     <string name="group_all">Hepsi</string>
     <string name="manage_groups">Grupları Yönet</string>
     <string name="new_group">Yeni Grup</string>
@@ -344,7 +334,6 @@
     <string name="empty_downloads">Henüz indirme yok</string>
     <string name="play_all">Hepsini oynat</string>
     <string name="remove_from_watch_later">Daha Sonra İzle\'den kaldır</string>
-    <string name="playlist_metadata_template">Oynatma listesi • Özel • %1$d video</string>
     <string name="explicit">E</string>
     <string name="filter_sort_by">Sırala</string>
     <string name="unlike">Beğeniyi Kaldır</string>
@@ -470,8 +459,6 @@
     <string name="content_preferences_subtitle">Gördüklerini özelleştir</string>
     <string name="interests_tab">İlgi alanları</string>
     <string name="blocked_tab">Engellendi</string>
-    <string name="topics_count_template">%1$d konu</string>
-    <string name="hidden_count_template">%1$d gizli</string>
     <string name="your_interests_title">İlgi Alanların</string>
     <string name="your_interests_desc">Seçtiğin konular Flow\'un daha iyi içerik önermesine yardımcı olur. Eklemek veya kaldırmak için aşağıdaki konulara dokun.</string>
     <string name="currently_following">Takip Edilenler</string>
@@ -487,10 +474,8 @@
     <string name="quick_add">Hızlı Ekle</string>
     <string name="common_topics_to_block">Sık engellenen konular</string>
     <string name="currently_blocked">Şu anda Engelli</string>
-    <string name="topics_blocked_count_plural">%1$d konu</string>
     <string name="desc_remove_topic">%1$s Konusunu kaldır</string>
     <string name="desc_unblock_topic">%1$s için engellemeyi kaldır</string>
-    <string name="selected_count_template">%1$d seçildi</string>
     <string name="time_management_title">Zaman yönetimi</string>
     <string name="time_management_subtitle">Ekran süreni takip ve kontrol et</string>
     <string name="stats_disclaimer">İstatistikler, bu uygulamadaki izleme geçmişine dayanır...</string>
@@ -501,12 +486,10 @@
     <string name="bedtime_notification_note">Başlangıç saatinde bildirim gönderilecek.</string>
     <string name="remind_break">Ara vermem gerektiğini hatırlat</string>
     <string name="reminder_frequency">Hatırlatma sıklığı</string>
-    <string name="every_min_template">Her %1$d dakikada bir</string>
     <string name="daily_average_label">Günlük Ortalama</string>
     <string name="stats_today">Bugün</string>
     <string name="stats_last_7_days">Son 7 gün</string>
     <string name="frequency_dialog_title">Sıklık</string>
-    <string name="every_minutes_template">Her %1$d dakikada bir</string>
     <string name="this_week">Bu Hafta</string>
     <string name="total_hours_template">Toplam: %s saat</string>
     <string name="no_watch_data">Henüz hiçbir şey izlenmedi</string>
@@ -522,7 +505,6 @@
     <string name="confirm">Onayla</string>
     <string name="sleep_timer">Uyku Zamanlayıcısı</string>
     <string name="sleep_timer_duration">Zamanlayıcı Süresi</string>
-    <string name="sleep_timer_minutes">%1$d dakika</string>
     <string name="sleep_timer_min_label">5 dakika</string>
     <string name="sleep_timer_max_label">120 dakika</string>
     <string name="sleep_timer_custom_label">Özel süre</string>
@@ -544,31 +526,24 @@
     <string name="search_suggestions_title">Arama Önerileri</string>
     <string name="show_suggestions_subtitle">Yazma esnasında önerileri görüntüle</string>
     <string name="max_history_size_title">Maksimum Geçmiş Boyutu</string>
-    <string name="currently_searches_template">Şu anda: %1$d arama</string>
     <string name="auto_delete_history_title">Geçmişi Otomatik Sil</string>
-    <string name="delete_after_days_template">%1$d gün geçince sil</string>
     <string name="never_delete_automatically">Asla otomatik silme</string>
     <string name="retention_period_title">Saklama Süresi</string>
-    <string name="delete_older_than_template">%1$d günden eski aramaları sil</string>
     <string name="clear_history_item_title">Arama Geçmişini Temizle</string>
     <string name="remove_all_queries">Tüm arama geçmişini temizle</string>
     <string name="clear_history_dialog_title">Arama Geçmişini Temizle?</string>
     <string name="clear_history_dialog_text">Tüm arama geçmişini kalıcı olarak sil.</string>
     <string name="choose_history_size">Kaç arama sonucunu saklamak istediğini seç:</string>
-    <string name="searches_count_template">%1$d arama</string>
     <string name="delete_searches_older_than">Şundan daha eski aramaları sil:</string>
     <string name="period_one_week">1 hafta</string>
     <string name="period_one_month">1 ay</string>
     <string name="period_three_months">3 ay</string>
     <string name="period_six_months">6 ay</string>
     <string name="period_one_year">1 yıl</string>
-    <string name="days_count_template">%1$d gün</string>
     <string name="import_data_title">Verileri İçe Aktar</string>
     <string name="import_flow_backup_success">Flow yedeği başarıyla içe aktardı</string>
     <string name="import_flow_backup_failed_template">Flow yedeği içe aktarılamadı: %1$s</string>
-    <string name="import_newpipe_success_template">NewPipe\'tan %1$d abonelik içe aktarıldı</string>
     <string name="import_newpipe_failed_template">NewPipe yedeklemesi içe aktarılamadı: %1$s</string>
-    <string name="import_youtube_success_template">YouTube\'dan %1$d abonelik içe aktarıldı</string>
     <string name="import_youtube_failed_template">YouTube yedeklemesi içe aktarılamadı: %1$s</string>
     <string name="import_flow_backup_item_title">Flow yedeğini içe aktar</string>
     <string name="import_flow_backup_desc">Geçmişini, ayarlarını ve aboneliklerini bir Flow yedeğinden geri yükle.</string>
@@ -609,8 +584,6 @@
     <string name="appearance_category_dark">Karanlık</string>
     <string name="appearance_category_custom">Kişiselleştirilmiş</string>
     <string name="appearance_category_special">Özel</string>
-    <string name="appearance_themes_count_all">Toplam %1$d tema</string>
-    <string name="appearance_themes_count_filtered">%1$d %2$s tema</string>
     <string name="appearance_applied_toast">Uygulandı: %1$s</string>
     <string name="appearance_customize_theme">Temayı Kişiselleştir</string>
     <string name="appearance_customizer_title">Kişiselleştirilmiş Tema Düzenleyicisi</string>
@@ -884,10 +857,8 @@
     <string name="player_settings_shorts_playback_mode_loop">Döngü (mevcut videoyu tekrarla)</string>
     <string name="player_settings_shorts_playback_mode_auto_next">Sonrakini Otomatik Oynat (bir sonraki Shorts\'a geç)</string>
     <string name="player_settings_shorts_playback_mode_auto_interval">Belirlenen süre sonrası otomatik kaydırma</string>
-    <string name="player_settings_shorts_playback_mode_auto_interval_summary">Her %1$d saniyede bir otomatik kaydır</string>
     <string name="player_settings_shorts_playback_mode_dialog_title">Shorts Oynatma Modu</string>
     <string name="player_settings_shorts_playback_mode_dialog_body">İzlenen Shorts videosu bittiğinde uygulamanın ne yapacağını seç:</string>
-    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d saniye</string>
     <string name="player_settings_autoplay">Otomatik Oynatma</string>
     <string name="player_settings_autoplay_subtitle">Sonraki videoyu otomatik oynat</string>
     <string name="player_settings_skip_silence">Sessiz Bölümleri Atla</string>
@@ -1025,9 +996,7 @@
     <string name="import_yt_playlist_desc">YouTube Takeout\'un CSV\'sinden (Playlist-.csv) bir oynatma listesini içe aktar.</string>
     <string name="import_yt_music_playlist">YouTube Music Oynatma Listesini İçe Aktar</string>
     <string name="import_yt_music_playlist_desc">YouTube Music Takeout\'un CSV\'sinden bir müzik oynatma listesini içe aktar. Müzik Oynatma Listeleri altında görünür.</string>
-    <string name="import_yt_history_success_template">YouTube izleme geçmişinden %1$d kayıt içe aktarıldı</string>
     <string name="import_yt_history_failed_template">İzleme geçmişi içe aktarılamadı: %1$s</string>
-    <string name="import_yt_playlist_success_template">%2$d videodan oluşan “%1$s” isimli oynatma listesi içe aktarıldı</string>
     <string name="import_yt_playlist_failed_template">Oynatma listesi içe aktarılamadı: %1$s</string>
     <string name="import_yt_history_empty_error">Dosyada hiçbir izleme geçmişi kaydı bulunamadı. YouTube Takeout\'tan watch-history.html dosyası olduğundan emin ol.</string>
     <string name="import_yt_playlist_empty_error">Bu CSV\'de hiç video bulunamadı. YouTube Takeout\'tan oynatma listesi CSV dosyası olduğundan emin ol.</string>
@@ -1058,7 +1027,6 @@
     <string name="parallel_downloading_title">Paralel İndirme</string>
     <string name="parallel_downloading_subtitle">Maksimum hız için dosyaları birden fazla parça halinde indir.</string>
     <string name="concurrent_threads_title">Eşzamanlı İş Parçacıkları</string>
-    <string name="threads_per_download_template">İndirme başına %1$d iş parçacığı</string>
     <string name="performance_optimization_note">Daha fazla iş parçacığı kullanmak hızı artırabilir ancak daha fazla pil tüketebilir ve cihazı ısıtabilir.</string>
     <string name="location_dialog_subtitle">İndirilen dosyaların cihazında nereye kaydedileceğini seç.</string>
     <string name="location_preset_header">Ön Ayarlı Konumlar</string>
@@ -1077,7 +1045,6 @@
     <string name="location_badge_recommended">Önerilen</string>
     <string name="location_badge_active">Etkin</string>
     <string name="select_threads_count_desc">İş parçacığı sayısını seç (1-8):</string>
-    <string name="threads_count_label">%1$d iş parçacığı</string>
     <string name="support_donations_title">Destek &amp; Bağışlar</string>
     <string name="support_flow_dev_title">Flow\'un Geliştirilmesine Destek Olun</string>
     <string name="support_flow_dev_desc">Flow\'u yararlı buluyorsan ve projenin geliştirilmesine destek olmak istiyorsan, Patreon üzerinden destek verebilir veya aşağıdaki kripto adreslerine bağışta bulunabilirsin. Desteğin, projenin devam etmesine önayak olur!</string>
@@ -1133,8 +1100,6 @@
     <string name="playlist_empty_desc">Oynatıcıdan videolar ekleyerek\noynatma listeni oluştur</string>
     <string name="delete_playlist_dialog_title">Oynatma listesi silinsin mi?</string>
     <string name="delete_playlist_dialog_text">Bu işlem, \'%1$s\' oynatma listesini ve içindeki tüm videoları kalıcı olarak silecek.</string>
-    <string name="playlist_metadata_private_template">Oynatma Listesi • Gizli • %1$d video</string>
-    <string name="playlist_metadata_public_template">Oynatma Listesi • Herkese Açık • %1$d video</string>
     <string name="playlist_sort_options">Oynatma listesi sıralama seçenekleri</string>
     <string name="playlist_sort_manual">Manuel</string>
     <string name="playlist_sort_date_added_newest">Eklenme tarihi (en yeni)</string>
@@ -1142,13 +1107,11 @@
     <string name="playlist_sort_most_popular">En popüler</string>
     <string name="playlist_sort_date_published_newest">Yayınlanma tarihi (en yeni)</string>
     <string name="playlist_sort_date_published_oldest">Yayınlanma tarihi (en eski)</string>
-    <string name="remove_selected_videos_title">%1$d video kaldırılsın mı?</string>
     <string name="remove_selected_playlist_text">Bu oynatma listesinden kaldırılacaklar.</string>
     <string name="remove_selected_watch_later_text">Daha sonra izle listesinden kaldırılacaklar.</string>
     <string name="welcome_to_flow">Flow\'a Hoş Geldin</string>
     <string name="onboarding_subtitle">Bize ilgi alanlarını söyle</string>
     <string name="onboarding_instructions">Deneyimini kişiselleştirmek için en az 3 konu seç</string>
-    <string name="selected_with_more_needed_template">%1$d seçildi (%2$d daha gerekli)</string>
     <string name="btn_skip_for_now">Şimdilik geç</string>
     <string name="onboarding_btn_continue">Devam et</string>
     <string name="cd_collapse_category">Daralt</string>
@@ -1186,7 +1149,6 @@
     <string name="stats_interactions">Etkileşimler</string>
     <string name="stats_topics">Konular</string>
     <string name="empty_bubble_cloud_message">İlgi alanı uzayını doldurmak için birkaç video izle!</string>
-    <string name="interactions_level_template">%1$d etkileşimler • Seviye %2$d</string>
     <string name="export_profile_data">Profil Verilerini Dışa Aktar</string>
     <string name="flow_neural_profile_export_subject">Flow Sinir Profili Dışa Aktarımı</string>
     <string name="screen_title_music_library">Müzik Kitaplığı</string>
@@ -1206,8 +1168,6 @@
     <string name="artist_views_template">%1$s • %2$s görüntüleme</string>
     <string name="action_view_all">Tümünü gör</string>
     <string name="search_content_description">Ara</string>
-    <string name="views_count_format">%1$s görüntüleme</string>
-    <string name="playlist_footer_template">%1$d parça• %2$s</string>
     <string name="unknown_error">Bilinmeyen hata</string>
     <string name="action_retry">Tekrar dene</string>
     <string name="empty_moods_genres">Ruh hali ve türler mevcut değil</string>
@@ -1296,7 +1256,6 @@
     <string name="subtitle_playlist_template">Oynatma Listesi • %1$s</string>
     <string name="plays_count_template">• %1$s çalma</string>
     <string name="album_year_template">Albüm • %1$s • %2$s</string>
-    <string name="artist_audience_template">Sanatçı • Aylık %1$s dinleyici</string>
     <string name="search_source_template">Arama: %1$s</string>
     <string name="artist_source_template">Sanatçı: %1$s</string>
     <string name="top_picks_for_you">Sizin için en iyi seçimler</string>
@@ -1309,7 +1268,6 @@
     <string name="empty_favorites_title">Henüz Favori Yok</string>
     <string name="empty_favorites_subtitle">Favorilerine eklemek için herhangi bir parçadaki kalp simgesine dokun</string>
     <string name="empty_history_title">Henüz Geçmiş Yok</string>
-    <string name="favorites_count_template">%1$d favori parça</string>
     <string name="empty_history_subtitle">Geçmişini burada görmek için müzik dinlemeye başla</string>
     <string name="empty_downloads_title">Henüz indirme yok</string>
     <string name="empty_downloads_subtitle">Çevrimdışı dinlemek için parçaları indir</string>
@@ -1355,7 +1313,6 @@
     <string name="download_status_failed">Başarısız</string>
     <string name="download_status_cancelled">İptal edildi</string>
     <string name="remove_incomplete_downloads">Tamamlanmamış indirmeleri kaldır</string>
-    <string name="remove_incomplete_downloads_message">%1$d duraklatılmış, başarısız veya kısmi indirme kaldırılsın mı? Tamamlanan indirmeler etkilenmez.</string>
     <string name="audio_track">Ses Parçası</string>
     <string name="off">Kapalı</string>
     <string name="on">Açık</string>
@@ -1510,7 +1467,6 @@
     <string name="diagnostics_copied">Rapor panoya kopyalandı</string>
     <string name="add_all_to_playlist">Oynatma listeme ekle</string>
     <string name="merge_playlist_dialog_title">Tüm şarkıları şuraya ekle…</string>
-    <string name="merge_playlist_success">%1$d şarkı “%2$s” listesine eklendi</string>
     <string name="merge_playlist_no_playlists">Henüz oynatma listesi yok. Önce bir tane oluştur!</string>
     <string name="profile_export_success">Profil başarıyla dışa aktarıldı</string>
     <string name="profile_export_failed">Dışa aktarma başarısız oldu</string>
@@ -1546,7 +1502,6 @@
     <string name="taste_live_affinity">Canlı yayın ilgisi</string>
     <string name="taste_live_affinity_detail">Canlı içeriğin profile ne kadar uyduğu</string>
     <string name="taste_topic_breadth">Konu genişliği</string>
-    <string name="taste_topic_breadth_detail">Küresel vektörde %1$d konu</string>
     <string name="interest_weights_title">İlgi Ağırlıkları</string>
     <string name="interest_weights_subtitle">Gözlem ve kanıtlardan sonra en yüksek ağırlığa sahip konular</string>
     <string name="interest_weights_empty">Henüz konu ağırlığı yok.</string>
@@ -1778,7 +1733,6 @@
     <string name="player_settings_queue_autoplay_subtitle">Oynatma listesindeki veya Daha Sonra İzle kuyruğundaki sonraki videoyu otomatik olarak oynat. Kapalıyken de elle sonraki videoya geçebilirsin.</string>
     <string name="player_settings_autoplay_countdown_title">Otomatik oynatma gecikmesi</string>
     <string name="player_settings_autoplay_countdown_none">Yok (hemen geç)</string>
-    <string name="player_settings_autoplay_countdown_seconds_template">%1$d saniye</string>
     <string name="player_settings_autoplay_countdown_dialog_body">Sonraki videoya otomatik geçmeden önce geri sayım göster. Geri sayım sırasında mevcut videoyu baştan başlatabilir, geçişi iptal edebilir veya sonraki videoyu hemen oynatabilirsin.</string>
     <string name="autoplay_countdown_up_next">Sıradaki</string>
     <string name="autoplay_countdown_next_video">Sonraki video</string>
@@ -1807,14 +1761,12 @@
     <string name="onboarding_channels_search_placeholder">Kanallarda ara…</string>
     <string name="onboarding_channels_empty_prompt">Aramak için bir kanal adı yaz</string>
     <string name="onboarding_channels_no_results">%1$s için kanal bulunamadı</string>
-    <string name="onboarding_channels_added_count">%1$d kanal eklendi</string>
     <string name="onboarding_channels_subscribers">%1$s abone</string>
     <string name="onboarding_channels_subscribed">Abone olundu</string>
     <string name="onboarding_channels_subscribe">Abone ol</string>
     <string name="onboarding_import_title">Verilerini içe aktar</string>
     <string name="onboarding_import_subtitle">Aboneliklerini ve geçmişini diğer uygulamalardan getir. Tüm adımlar isteğe bağlıdır.</string>
     <string name="onboarding_backup_restore_section">Yedekleme ve geri yükleme</string>
-    <string name="onboarding_n_selected">%1$d seçildi</string>
     <string name="onboarding_topic_selected">Seçili</string>
     <string name="onboarding_topic_not_selected">Seçili değil</string>
     <string name="onboarding_import_failed_template">İçe aktarma başarısız: %1$s</string>
@@ -2004,7 +1956,6 @@
     <string name="update_download_prompt">Flow\'un yeni bir sürümü mevcut (%1$s). En son APK indirilsin mi?</string>
     <string name="ui_instrumental">E N S T R Ü M A N T A L</string>
     <string name="ui_playlist_empty">Oynatma listesi boş</string>
-    <string name="ui_downloading_videos">%1$d video indiriliyor…</string>
     <string name="ui_playlist_saved_to_library">Oynatma listesi kitaplığa kaydedildi</string>
     <string name="ui_playlist_removed_from_library">Oynatma listesi kitaplıktan kaldırıldı</string>
     <string name="ui_download_audio">Ses indiriliyor: %1$skbps %2$s</string>
@@ -2026,10 +1977,8 @@
     <string name="toast_playlist_deleted">Oynatma listesi silindi</string>
     <string name="toast_playlist_renamed">Oynatma listesinin adı değiştirildi</string>
     <string name="toast_starting_playlist_download">%1$s için indirme başlatılıyor…</string>
-    <string name="toast_downloaded_tracks_from_playlist">%2$s listesinden %1$d parça indirildi</string>
     <string name="toast_failed_to_download_playlist">Oynatma listesi indirilemedi</string>
     <string name="toast_error_downloading_playlist">Oynatma listesi indirilirken hata oluştu</string>
-    <string name="toast_downloaded_tracks">%1$d parça indirildi</string>
     <string name="toast_added_to_playlist">Oynatma listesine eklendi</string>
     <string name="toast_failed_to_add_track">Parça eklenemedi</string>
     <string name="toast_removed_from_playlist">Oynatma listesinden kaldırıldı</string>
@@ -2046,7 +1995,6 @@
     <string name="notification_download_failed">İndirme başarısız</string>
     <string name="notification_more">+%1$d daha</string>
     <string name="notification_new_videos">Yeni videolar</string>
-    <string name="notification_new_videos_from_subscriptions">Aboneliklerinden %1$d yeni video</string>
     <string name="notification_update_available">Güncelleme mevcut: %1$s</string>
     <string name="notification_tap_to_update">En son sürüme güncellemek için dokun.</string>
     <string name="notification_watch_later_reminder">Daha Sonra İzle hatırlatıcısı</string>
@@ -2117,7 +2065,6 @@
     <string name="import_manage_backups">Flow yedeklerini yönet</string>
     <string name="import_external_services">Harici hizmetler</string>
     <string name="import_other_youtube_clients">Diğer YouTube istemcilerinden içe aktar</string>
-    <string name="imported_count">%1$d %2$s içe aktarıldı</string>
     <string name="imported_successfully">%1$s başarıyla içe aktarıldı</string>
     <string name="importing_label">%1$s içe aktarılıyor…</string>
     <string name="imported_from_google_takeout">Google Takeout\'tan içe aktarıldı</string>

@@ -534,7 +534,13 @@ object NotificationHelper {
         val inboxStyle =
             NotificationCompat
                 .InboxStyle()
-                .setBigContentTitle(context.getString(R.string.notification_new_videos_from_subscriptions, videos.size))
+                .setBigContentTitle(
+                    context.resources.getQuantityString(
+                        R.plurals.notification_new_videos_from_subscriptions,
+                        videos.size,
+                        videos.size,
+                    ),
+                )
         videos.take(6).forEach { v ->
             inboxStyle.addLine("${v.channelName}: ${v.videoTitle}")
         }
@@ -547,8 +553,13 @@ object NotificationHelper {
                 .Builder(context, CHANNEL_SUBSCRIPTIONS)
                 .setSmallIcon(R.drawable.ic_notification_logo)
                 .setContentTitle(context.getString(R.string.notification_new_videos))
-                .setContentText(context.getString(R.string.notification_new_videos_from_subscriptions, videos.size))
-                .setContentIntent(summaryPendingIntent)
+                .setContentText(
+                    context.resources.getQuantityString(
+                        R.plurals.notification_new_videos_from_subscriptions,
+                        videos.size,
+                        videos.size,
+                    ),
+                ).setContentIntent(summaryPendingIntent)
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -651,8 +662,13 @@ object NotificationHelper {
                 .Builder(context, CHANNEL_SUBSCRIPTIONS)
                 .setSmallIcon(R.drawable.ic_notification_logo)
                 .setContentTitle(context.getString(R.string.notification_new_videos))
-                .setContentText(context.getString(R.string.notification_new_videos_from_subscriptions, videoCount))
-                .setGroup("new_videos")
+                .setContentText(
+                    context.resources.getQuantityString(
+                        R.plurals.notification_new_videos_from_subscriptions,
+                        videoCount,
+                        videoCount,
+                    ),
+                ).setGroup("new_videos")
                 .setGroupSummary(true)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)

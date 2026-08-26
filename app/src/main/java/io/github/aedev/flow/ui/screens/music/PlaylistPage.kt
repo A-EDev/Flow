@@ -1161,8 +1161,9 @@ private fun MusicMergeIntoPlaylistDialog(
                                 )
                                 Text(
                                     text =
-                                        androidx.compose.ui.res.stringResource(
-                                            io.github.aedev.flow.R.string.songs_count_template,
+                                        androidx.compose.ui.res.pluralStringResource(
+                                            io.github.aedev.flow.R.plurals.songs_count_template,
+                                            playlist.videoCount,
                                             playlist.videoCount,
                                         ),
                                     style = MaterialTheme.typography.bodySmall,

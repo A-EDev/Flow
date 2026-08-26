@@ -160,7 +160,6 @@
     <string name="read_more">Pročitaj više</string>
     <string name="reply">Odgovori</string>
     <string name="hide_replies">Sakrij odgovore</string>
-    <string name="view_replies_template">Pogledaj %1$d odgovora</string>
     <string name="pinned_comment">Zakačeni komentar</string>
     <string name="pinned_by_creator">Zakačio autor</string>
     <string name="new_update_available">Novo ažuriranje dostupno</string>
@@ -203,20 +202,14 @@
     <string name="app_name_uppercase">FLOW</string>
     <string name="notification_badge_9_plus">9+</string>
     <string name="personalized_feed">Vaš personalizirani feed</string>
-    <string name="videos_curated_template">&gt;%1$d videozapisa prilagođenih vama</string>
     <string name="import_newpipe_backup">Uvezi sigurnosnu kopiju iz NewPipe-a</string>
     <string name="importing_from_backup">Uvoz pretplata iz NewPipe sigurnosne kopije…</string>
     <string name="search_subscriptions">Pretraži pretplate</string>
     <string name="toggle_view_mode">Prebaci način pregleda</string>
     <string name="unsubscribed_from_template">%1$s otpreplaćen</string>
-    <string name="videos_count_template">%1$d videozapisa</string>
-    <string name="playlists_count_template">%1$d lista za reprodukciju</string>
-    <string name="shorts_count_template">%1$d shorts</string>
-    <string name="songs_count_template">%1$d pjesama</string>
     <string name="empty_downloads">Još nema preuzimanja</string>
     <string name="play_all">Reproduciraj sve</string>
     <string name="remove_from_watch_later">Ukloni iz Gledaj kasnije</string>
-    <string name="playlist_metadata_template">%1$d videozapisa • Privatno</string>
     <string name="explicit">E</string>
     <string name="no_videos_saved">Nema sačuvanih videa</string>
     <string name="no_videos_saved_body">Videi koje sačuvaš za Gledaj kasnije pojavit će se ovdje</string>
@@ -387,8 +380,6 @@
     <string name="appearance_category_dark">Tamno</string>
     <string name="appearance_category_custom">Prilagođeno</string>
     <string name="appearance_category_special">Posebno</string>
-    <string name="appearance_themes_count_all">%1$d tema</string>
-    <string name="appearance_themes_count_filtered">%1$d %2$s teme</string>
     <string name="appearance_applied_toast">Primijenjeno: %1$s</string>
     <string name="appearance_customize_theme">Prilagodi Temu</string>
     <string name="appearance_customizer_subtitle">Postavite svaku ulogu s heks vrijednostima i odmah je pregledajte</string>

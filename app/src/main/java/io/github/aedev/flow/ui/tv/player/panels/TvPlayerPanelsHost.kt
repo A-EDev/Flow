@@ -45,6 +45,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -414,7 +415,7 @@ private fun TvSavePanelContent(video: Video) {
             val added = info.id in membership
             TvSelectionRow(
                 label = info.name,
-                supportingText = stringResource(R.string.videos_count_template, info.videoCount),
+                supportingText = pluralStringResource(R.plurals.videos_count_template, info.videoCount, info.videoCount),
                 selected = added,
                 onClick = {
                     scope.launch {
@@ -622,7 +623,12 @@ private fun TvCommentRow(
                     }
                     if (comment.replyCount > 0) {
                         Text(
-                            text = stringResource(R.string.view_replies_template, comment.replyCount),
+                            text =
+                                pluralStringResource(
+                                    R.plurals.view_replies_template,
+                                    comment.replyCount,
+                                    comment.replyCount,
+                                ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                         )

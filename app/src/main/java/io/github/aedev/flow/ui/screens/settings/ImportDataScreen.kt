@@ -483,7 +483,12 @@ private fun rememberTakeoutCsvImportLauncher(
                     val message =
                         result.fold(
                             onSuccess = { (name, count) ->
-                                context.getString(R.string.import_yt_playlist_success_template, name, count)
+                                context.resources.getQuantityString(
+                                    R.plurals.import_yt_playlist_success_template,
+                                    count,
+                                    name,
+                                    count,
+                                )
                             },
                             onFailure = { error ->
                                 when (error.message) {

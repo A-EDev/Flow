@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -918,7 +919,7 @@ private fun FrequencySelector(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    stringResource(R.string.every_min_template, currentMinutes),
+                    pluralStringResource(R.plurals.every_min_template, currentMinutes, currentMinutes),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
@@ -1032,7 +1033,7 @@ private fun FrequencyPickerDialog(
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    stringResource(R.string.every_minutes_template, minutes),
+                                    pluralStringResource(R.plurals.every_minutes_template, minutes, minutes),
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 )
                                 if (minutes >= 60) {

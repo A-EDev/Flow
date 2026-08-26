@@ -45,8 +45,6 @@
     <string name="clear_watch_history_alert_body">To usunie wszystkie filmy z twojej historii oglądania. Ta akcja nie może zostać cofnięta.</string>
     <string name="clear">Wyczyść</string>
     <string name="view_all_button_label">Wszystko</string>
-    <string name="subscriptions_refresh_progress_template">Odświeżanie %1$d z %2$d kanałów</string>
-    <string name="subscriptions_last_refreshed_template">Ostatnie odświeżenie: %1$s - Sprawdzono filmów: %2$d</string>
     <string name="empty_watch_history">Brak historii oglądania</string>
     <string name="empty_watch_history_body">Filmy, które obejrzałeś pojawią się tutaj</string>
     <string name="search_watch_history">Szukaj w historii oglądania</string>
@@ -68,7 +66,6 @@
     <string name="video">Film</string>
     <string name="downloaded">Pobrane</string>
     <string name="download_all">Pobierz wszystko</string>
-    <string name="download_all_confirmation">Pobrać wszystkie %1$d filmów? To może zająć dużo miejsca na dysku.</string>
     <string name="add_to_library">Dodaj do biblioteki</string>
     <string name="saved_to_library">Zapisano do biblioteki</string>
     <string name="failed_to_save_to_library">Nie udało się zapisać do biblioteki</string>
@@ -188,7 +185,6 @@
     <string name="read_more">Pokaż więcej</string>
     <string name="reply">Odpowiedz</string>
     <string name="hide_replies">Ukryj odpowiedzi</string>
-    <string name="view_replies_template">Zobacz odpowiedzi: %1$d</string>
     <string name="load_more_replies">Załaduj więcej odpowiedzi</string>
     <string name="select_text">Zaznacz Tekst</string>
     <string name="pinned_comment">Przypięty komentarz</string>
@@ -254,7 +250,6 @@
     <string name="app_name_uppercase">FLOW</string>
     <string name="notification_badge_9_plus">9+</string>
     <string name="personalized_feed">Twoja spersonalizowana zawartość</string>
-    <string name="videos_curated_template">%1$d filmów znalezionych właśnie dla Ciebie</string>
     <string name="import_newpipe_backup">Importuj kopię zapasową z NewPipe</string>
     <string name="importing_from_backup">Importowanie subskrybcji z kopii zapasowej z NewPipe...</string>
     <string name="search_subscriptions">Szukaj Subskrypcji</string>
@@ -268,15 +263,9 @@
     <string name="unsubscribed_from_template">Odsubskrybowano kanał %1$s</string>
     <string name="hide_channel_shorts">Ukryj filmy Shorts z tego kanału</string>
     <string name="show_channel_shorts">Pokazuj filmy Shorts z tego kanału</string>
-    <string name="videos_count_template">%1$d filmów</string>
-    <string name="likes_count_template">%1$d polubień</string>
-    <string name="playlists_count_template">%1$d playlist</string>
-    <string name="shorts_count_template">%1$d filmów Shorts</string>
-    <string name="songs_count_template">%1$d utworów</string>
     <string name="empty_downloads">Brak pobranych</string>
     <string name="play_all">Odtwórz wszystko</string>
     <string name="remove_from_watch_later">Usuń z Obejrzyj Później</string>
-    <string name="playlist_metadata_template">Playlista • Prywatna • %1$d filmów</string>
     <string name="explicit">E</string>
     <string name="no_videos_saved">Brak zapisanych filmów</string>
     <string name="no_videos_saved_body">Filmy, które zapiszesz do późniejszego obejrzenia pojawią się tutaj</string>
@@ -443,8 +432,6 @@
     <string name="appearance_category_dark">Ciemny</string>
     <string name="appearance_category_custom">Niestandardowy</string>
     <string name="appearance_category_special">Specjalny</string>
-    <string name="appearance_themes_count_all">%1$d motywów</string>
-    <string name="appearance_themes_count_filtered">%1$d %2$s motywów</string>
     <string name="appearance_applied_toast">Zastosowano: %1$s</string>
     <string name="appearance_customize_theme">Dostosuj Motyw</string>
     <string name="appearance_customizer_title">Niestandardowy Edytor Motywów</string>
@@ -608,7 +595,6 @@
     <string name="period_three_months">3 miesiące</string>
     <string name="period_six_months">6 miesięcy</string>
     <string name="period_one_year">1 rok</string>
-    <string name="days_count_template">%1$d dni</string>
     <string name="onboarding_btn_continue">Kontynuuj</string>
     <string name="category_gaming">Gry</string>
     <string name="category_music">Muzyka</string>
@@ -668,9 +654,7 @@
     <string name="import_data_title">Import Danych</string>
     <string name="import_flow_backup_success">Kopia zapasowa Flow importowana pomyślnie</string>
     <string name="import_flow_backup_failed_template">Importowanie kopii zapasowej Flow nie powiodło się: %1$s</string>
-    <string name="import_newpipe_success_template">Ilość subskrypcji importowanych z NewPipe: %1$d</string>
     <string name="import_newpipe_failed_template">Importowanie kopii zapasowej NewPipe nie powiodło się: %1$s</string>
-    <string name="import_youtube_success_template">Ilość subskrypcji importowanych z Youtube: %1$d</string>
     <string name="import_youtube_failed_template">Importowanie kopii zapasowej Youtube nie powiodło się: %1$s</string>
     <string name="import_flow_backup_item_title">Importuj kopię zapasową Flow</string>
     <string name="import_flow_backup_desc">Przywróć swoją historię, ustawienia i subskrypcje z pliku kopii zapasowej Flow.</string>
@@ -811,8 +795,6 @@
     <string name="datetime_mode_exact">Dokładna data</string>
     <string name="datetime_mode_header">Wyświetlanie czasu</string>
     <string name="datetime_mode_both">Oba</string>
-    <string name="delete_older_than_template">Usuń wyniki wyszukiwania starsze niż %1$d dni</string>
-    <string name="delete_after_days_template">Usuń po %1$d dniach</string>
     <string name="stats_last_7_days">Ostatnie 7 dni</string>
     <string name="datetime_format_header">Format dokładnej daty</string>
     <string name="datetime_override_exact">Dokładna</string>
@@ -992,10 +974,8 @@
     <string name="performance_header">Wydajność</string>
     <string name="parallel_downloading_subtitle">Pobieraj wielowątkowo, by przyspieszyć pobieranie do maksimum.</string>
     <string name="concurrent_threads_title">Liczba Wątków</string>
-    <string name="threads_per_download_template">%1$d wątków na pobranie</string>
     <string name="performance_optimization_note">Zwiększenie liczby wątków może przyspieszyć działanie, ale może też spowodować większe zużycie baterii i przegrzanie urządzenia.</string>
     <string name="select_threads_count_desc">Wybierz liczbę wątków (1–8):</string>
-    <string name="threads_count_label">%1$d wąt.</string>
     <string name="download_threads_label">Wątki</string>
     <string name="import_freetube_history_desc">Zaimportuj historię oglądania z pliku JSON wyeksportowanego z serwisu FreeTube.</string>
     <string name="notif_check_interval_section_header">Sprawdzanie Powiadomień</string>
@@ -1005,9 +985,7 @@
     <string name="search_suggestions_title">Sugestie Wyszukiwania</string>
     <string name="show_suggestions_subtitle">Wyświetlaj sugestie podczas wpisywania</string>
     <string name="max_history_size_title">Maksymalny Rozmiar Historii</string>
-    <string name="currently_searches_template">Obecnie: %1$d wyszukiwań</string>
     <string name="choose_history_size">Wybierz, ile wyników wyszukiwania chcesz zachować:</string>
-    <string name="searches_count_template">%1$d wyszukiwań</string>
     <string name="auto_delete_history_title">Automatyczne Usuwanie Historii</string>
     <string name="never_delete_automatically">Nigdy nie usuwaj automatycznie</string>
     <string name="retention_period_title">Okres Przechowywania</string>
@@ -1035,8 +1013,6 @@
     <string name="break_reminder_subtitle">Podczas oglądania rób regularne przerwy</string>
     <string name="reminder_frequency">Częstotliwość przypomnień</string>
     <string name="frequency_description">Jak często Ci przypominać</string>
-    <string name="every_min_template">Co %1$d minut</string>
-    <string name="every_minutes_template">Co %1$d minut</string>
     <string name="frequency_dialog_title">Częstotliwość</string>
     <string name="export_data_screen_title">Eksport Danych</string>
     <string name="export_data_section_header">Wybierz Typ Eksportu</string>
@@ -1067,7 +1043,6 @@
     <string name="import_engine_data">Importuj Dane Silnika Flow</string>
     <string name="error_codec_issue_hint">Twoje urządzenie nie mogło odtworzyć tego strumienia. Spróbuj wybrać niższą jakość.</string>
     <string name="import_yt_watch_history_desc">Zaimportuj historię oglądania z serwisu YouTube Takeout (watch-history.html).</string>
-    <string name="import_yt_history_success_template">Zaimportowano %1$d pozycji z historii oglądania serwisu YouTube</string>
     <string name="import_newpipe_history_desc">Zaimportuj historię oglądania z pliku ZIP zawierającego kopię zapasową NewPipe lub z pliku newpipe.db.</string>
     <string name="import_yt_watch_history">Zaimportuj Historie Oglądania</string>
     <string name="import_yt_history_empty_error">W tym pliku nie znaleziono żadnych wpisów dotyczących historii oglądania. Upewnij się, że jest to plik „watch-history.html” z serwisu YouTube Takeout.</string>
@@ -1089,7 +1064,6 @@
     <string name="play_next_toast">Następny w kolejce</string>
     <string name="sleep_timer">Wyłącznik Czasowy</string>
     <string name="sleep_timer_duration">Czas trwania</string>
-    <string name="sleep_timer_minutes">%1$d min</string>
     <string name="sleep_timer_min_label">5 min</string>
     <string name="sleep_timer_max_label">120 min</string>
     <string name="sleep_timer_custom_label">Czas niestandardowy</string>
@@ -1174,7 +1148,6 @@
     <string name="onboarding_interests_hint">Wybierz tematy (min.%1$d), aby spersonalizować wyświetlane treści. Zostało:%2$d.</string>
     <string name="onboarding_interests_ready">Świetny wybór. Zawsze możesz to później zmienić w ustawieniach.</string>
     <string name="currently_following">Obecnie Obserwowane</string>
-    <string name="topics_count_template">%1$d tematów</string>
     <string name="add_topics">Dodaj Tematy</string>
     <string name="browse_by_category">Przeglądaj według kategorii</string>
     <string name="screen_title_music">MUZYKA</string>
@@ -1199,7 +1172,6 @@
     <string name="onboarding_channels_title">Znajdź kanały</string>
     <string name="onboarding_channels_empty_prompt">Wpisz nazwę kanału, który chcesz wyszukać</string>
     <string name="onboarding_channels_no_results">Nie znaleziono kanału o nazwie „%1$s”</string>
-    <string name="onboarding_channels_added_count">Liczba dodanych kanałów: %1$d</string>
     <string name="onboarding_channels_subscribers">%1$s subskrybentów</string>
     <string name="onboarding_channels_subscribed">Subskrybowany</string>
     <string name="onboarding_channels_subscribe">Zasubskrybuj</string>
@@ -1208,7 +1180,6 @@
     <string name="onboarding_btn_back">Powróć</string>
     <string name="onboarding_btn_finish">Zakończ</string>
     <string name="onboarding_import_failed_template">Import nie powiódł się: %1$s</string>
-    <string name="onboarding_n_selected">Wybrane tematy: %1$d</string>
     <string name="onboarding_topic_selected">Wybrane</string>
     <string name="onboarding_topic_not_selected">Nie wybrane</string>
     <string name="profile_maturity_detail">Wyższa dojrzałość gwarantuje pełną stabilność profilu silnika AI</string>
@@ -1290,7 +1261,6 @@
     <string name="profile_export_success">Pomyślnie wyeksportowano profil</string>
     <string name="profile_import_success">Pomyślnie zaimportowano profil</string>
     <string name="profile_import_failed">Import nieudany – nieprawidłowy plik</string>
-    <string name="merge_playlist_success">%2$s” dodano następującą liczbę utworów:%1$d</string>
     <string name="player_settings_overlay_comments">Przycisk Komentarzy</string>
     <string name="player_settings_overlay_comments_subtitle">Wyświetl przycisk komentarzy w pełnym ekranie i otwieraj je w panelu bocznym</string>
     <string name="player_action_copy_link">Skopiuj link</string>
@@ -1401,7 +1371,6 @@
     <string name="player_settings_autoplay">Autoodtwarzanie Polecanych Filmów</string>
     <string name="player_settings_autoplay_countdown_title">Opóźnienie autoodtwarzania</string>
     <string name="player_settings_autoplay_countdown_none">Żadne (przełącz od razu)</string>
-    <string name="player_settings_autoplay_countdown_seconds_template">%1$d s</string>
     <string name="player_settings_autoplay_countdown_dialog_body">Wyświetlaj odliczanie przed autoodtwarzaniem kolejnego filmu. W tym czasie możesz uruchomić film od nowa, anulować przejście lub natychmiast włączyć następny.</string>
     <string name="search_empty_prompt">Wyszukuj filmy, muzykę i więcej</string>
     <string name="search_filter_all">Wszystko</string>
@@ -1489,8 +1458,6 @@
     <string name="interface_mode_tv">TV</string>
     <string name="interface_mode_tv_summary">Zawsze używaj wygodnego dla pilota interfejsu TV</string>
     <string name="ui_add_interest">Dodaj zainteresowania</string>
-    <string name="player_settings_shorts_playback_mode_auto_interval_summary">Automatyczne przewijanie co %1$d s</string>
-    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d sekund</string>
     <string name="subtitle_community_playlists">Stworzone Przez Społeczność</string>
     <string name="content_settings_hide_unplayable_subscriptions_title">Ukryj Niedostępne Filmy z Subskrypcji</string>
     <string name="content_settings_hide_unplayable_subscriptions_subtitle">Ukrywaj filmy usunięte, prywatne, z ograniczeniem wieku oraz tylko dla wspierających, jeśli nie da się ich odtworzyć</string>
@@ -1620,12 +1587,10 @@
     <string name="cd_liked">Polubione</string>
     <string name="shorts_original_sound">Dźwięk Oryginalny - %1$s</string>
     <string name="view_count_billion_suffix">bln.</string>
-    <string name="hidden_count_template">%1$d ukryte</string>
     <string name="tap_to_remove">Dotknij by usunąć</string>
     <string name="desc_add_topic">Dodaj temat</string>
     <string name="desc_remove_topic">Usuń %1$s</string>
     <string name="desc_unblock_topic">Odblokuj %1$s</string>
-    <string name="selected_count_template">%1$d zaznaczone</string>
     <string name="cancel_selection">Anuluj zaznaczenie</string>
     <string name="select_all">Zaznacz wszystko</string>
     <string name="deselect_all">Odznacz wszystkie</string>
@@ -1641,7 +1606,6 @@
     <string name="import_yt_data_section_subtitle">Zaimportuj dodatkowe dane z serwisu YouTube Takeout</string>
     <string name="import_yt_playlist">Zaimportuj listę odtwarzania z YouTube</string>
     <string name="import_yt_playlist_desc">Zaimportuj listę odtwarzania z pliku CSV z serwisu YouTube Takeout (Playlist-&lt;nazwa&gt;.csv).</string>
-    <string name="import_yt_playlist_success_template">Zaimportowano listę odtwarzania \"%1$s\" z %2$d filmami</string>
     <string name="import_yt_playlist_failed_template">Nie udało się zaimportować listy odtwarzania: %1$s</string>
     <string name="import_yt_playlist_empty_error">W tym pliku CSV nie znaleziono żadnych filmów. Upewnij się, że jest to plik CSV zawierający listę odtwarzania z serwisu YouTube Takeout.</string>
     <string name="location_downloads_label">Pobrane / Flow</string>
@@ -1666,8 +1630,6 @@
     <string name="remove_from_playlist_action">Usuń z listy odtwarzania</string>
     <string name="playlist_empty_title">Ta lista odtwarzania jest pusta</string>
     <string name="playlist_empty_desc">Dodaj filmy z odtwarzacza, by zbudować\nswoją listę odtwarzania</string>
-    <string name="playlist_metadata_private_template">Lista odtwarzania • Prywatna • %1$d filmów</string>
-    <string name="playlist_metadata_public_template">Lista odtwarzania • Publiczna • %1$d filmów</string>
     <string name="playlist_sort_options">Opcje sortowania listy odtwarzania</string>
     <string name="playlist_sort_manual">Ręcznie</string>
     <string name="playlist_sort_date_added_newest">Data dodania (najnowsze)</string>
@@ -1677,7 +1639,6 @@
     <string name="remove_selected_playlist_text">Zostaną usunięte z listy odtwarzania.</string>
     <string name="remove_selected_watch_later_text">Zostaną usunięte z „Na później”.</string>
     <string name="welcome_to_flow">Witamy w Flow</string>
-    <string name="selected_with_more_needed_template">%1$d zaznaczone (%2$d więcej potrzebnych)</string>
     <string name="cd_collapse_category">Zwiń</string>
     <string name="cd_expand_category">Rozwiń</string>
     <string name="action_refresh">Odśwież</string>
@@ -1714,7 +1675,6 @@
     <string name="reset_neural_profile_body">Spowoduje to trwałe usunięcie:\n\n• Wszystkich zapamiętanych preferencji\n• Długoterminowego wektora osobowości\n• Wzorców związanych z kontekstem czasowym\n• Wyników zgodności z kanałami\n\nTwój strumień treści powróci do stanu początkowego.</string>
     <string name="erase_everything">Wymaż Wszystko</string>
     <string name="empty_bubble_cloud_message">Obejrzyj kilka filmów, aby wzbogacić swoją mgławicę zainteresowań!</string>
-    <string name="interactions_level_template">%1$d interakcji • Poziom %2$d</string>
     <string name="export_profile_data">Eksportuj Dane Profilu</string>
     <string name="flow_neural_profile_export_subject">Eksport Neuralnego Profilu Flow</string>
     <string name="screen_title_music_library">Biblioteka muzyczna</string>
@@ -1727,8 +1687,6 @@
     <string name="section_fans_also_like">Fani lubią także</string>
     <string name="artist_views_template">%1$s • %2$s wyświetleń</string>
     <string name="search_content_description">Szukaj</string>
-    <string name="views_count_format">%1$s wyświetleń</string>
-    <string name="playlist_footer_template">%1$d utworów • %2$s</string>
     <string name="unknown_error">Nieznany błąd</string>
     <string name="empty_moods_genres">Brak dostępnych nastrojów i gatunków</string>
     <string name="title_browse">Przeglądaj</string>
@@ -1777,7 +1735,6 @@
     <string name="no_results_found">Brak wyników wyszukiwania</string>
     <string name="no_tracks_available">Nie znaleziono utworów</string>
     <string name="tab_favorites">Ulubione</string>
-    <string name="favorites_count_template">%1$d ulubionych utworów</string>
     <string name="empty_history_title">Brak Historii</string>
     <string name="empty_downloads_title">Brak Pobranych</string>
     <string name="total_size">Łączny Rozmiar</string>
@@ -1999,12 +1956,10 @@
     <string name="desc_more">...więcej</string>
     <string name="comment_edited">edytowany</string>
     <string name="comment_time_edited_template">%1$s (%2$s)</string>
-    <string name="deep_flow_duration_hours">%1$d godz.</string>
     <string name="remove_from_queue">Usuń z kolejki</string>
     <string name="remove_from_queue_confirmation">Czy na pewno chcesz usunąć ten film z kolejki?</string>
     <string name="fallback_more_results">Więcej wyników</string>
     <string name="duration_hours_minutes">%1$d godz %2$d min</string>
-    <string name="duration_minutes">%1$d min</string>
     <string name="duration_hours_short">%1$dgodz</string>
     <string name="duration_minutes_short">%1$dmin</string>
     <string name="ui_version">Wersja %1$s</string>
@@ -2023,7 +1978,6 @@
     <string name="cast_connecting">Łączenie z urządzeniem…</string>
     <string name="on">Włącz</string>
     <string name="download_status_paused">Wstrzymane</string>
-    <string name="remove_incomplete_downloads_message">Usunąć wstrzymane, nieudane lub częściowo pobrane (%1$d)? Zakończone pobrania nie zostaną naruszone.</string>
     <string name="no_active_queue_toast">Brak aktywnej kolejki filmów. Najpierw odtwórz film.</string>
     <string name="discord_presence_connecting">Łączenie z Discordem…</string>
     <string name="discord_error_not_initialized">Funkcja Discord Rich Presence nie została uruchomiona.</string>
@@ -2133,7 +2087,6 @@
     <string name="sync_collection_subscriptions_body">Kanały, które obserwujesz.</string>
     <string name="sync_collection_settings_body">Ustawienia odtwarzania, wyglądu i pobierania.</string>
     <string name="sync_select_none">Wyczyść</string>
-    <string name="sync_selected_count">Wybrano %1$d z %2$d</string>
     <string name="sync_select_all">Wybierz wszystko</string>
     <string name="sync_collection_subscription_groups_body">Foldery w których porządkujesz obserwowane kanały.</string>
     <string name="sync_collection_subscription_groups">Grupy subskrypcji</string>

@@ -157,7 +157,6 @@
     <string name="read_more">Lire la suite</string>
     <string name="reply">Répondre</string>
     <string name="hide_replies">Masquer les réponses</string>
-    <string name="view_replies_template">Voir %1$d réponses</string>
     <!-- Dialogue de Mise à Jour -->
     <string name="new_update_available">Mise à jour disponible</string>
     <string name="update_available_template">%1$s est maintenant disponible</string>
@@ -196,18 +195,13 @@
     <string name="app_name_uppercase">FLOW</string>
     <string name="notification_badge_9_plus">9+</string>
     <string name="personalized_feed">Votre fil personnalisé</string>
-    <string name="videos_curated_template">%1$d vidéos sélectionnées rien que pour vous</string>
     <string name="import_newpipe_backup">Importer la sauvegarde NewPipe</string>
     <string name="importing_from_backup">Importation des abonnements depuis la sauvegarde NewPipe...</string>
     <string name="search_subscriptions">Rechercher des Abonnements</string>
     <string name="toggle_view_mode">Changer de mode d\'affichage</string>
     <string name="unsubscribed_from_template">Désabonné de %1$s</string>
-    <string name="videos_count_template">%1$d vidéos</string>
-    <string name="playlists_count_template">%1$d playlists</string>
-    <string name="shorts_count_template">%1$d shorts</string>
     <string name="play_all">Tout lire</string>
     <string name="remove_from_watch_later">Retirer de À regarder plus tard</string>
-    <string name="playlist_metadata_template">Playlist • Privée • %1$d vidéos</string>
     <string name="explicit">E</string>
     <string name="no_videos_saved">Aucune vidéo enregistrée</string>
     <string name="no_videos_saved_body">Les vidéos que vous enregistrez pour les regarder plus tard apparaîtront ici</string>
@@ -318,8 +312,6 @@
     <string name="appearance_category_light">Clair</string>
     <string name="appearance_category_dark">Sombre</string>
     <string name="appearance_category_special">Spécial</string>
-    <string name="appearance_themes_count_all">%1$d thèmes</string>
-    <string name="appearance_themes_count_filtered">%1$d thèmes %2$s</string>
     <string name="appearance_applied_toast">Appliqué : %1$s</string>
     <!-- Apparence du Lecteur -->
     <string name="player_appearance_title">Apparence du Lecteur</string>
@@ -486,8 +478,6 @@
     <string name="content_preferences_subtitle">Personnalisez ce que vous voyez</string>
     <string name="interests_tab">Intérêts</string>
     <string name="blocked_tab">Bloqués</string>
-    <string name="topics_count_template">%1$d sujets</string>
-    <string name="hidden_count_template">%1$d masqués</string>
     <string name="your_interests_title">Vos Intérêts</string>
     <string name="your_interests_desc">Les thèmes que vous avez sélectionnés aident Flow à vous recommander des contenus plus pertinents. Appuyez sur les thèmes ci-dessous pour en ajouter ou en supprimer.</string>
     <string name="currently_following">Actuellement Suivis</string>
@@ -503,10 +493,8 @@
     <string name="quick_add">Ajout rapide</string>
     <string name="common_topics_to_block">Sujets courants à bloquer</string>
     <string name="currently_blocked">Actuellement Bloqués</string>
-    <string name="topics_blocked_count_plural">%1$d sujet%2$s</string>
     <string name="desc_remove_topic">Supprimer %1$s</string>
     <string name="desc_unblock_topic">Débloquer %1$s</string>
-    <string name="selected_count_template">%1$d sélectionnés</string>
     <!-- Écran de Gestion du Temps -->
     <string name="time_management_title">Gestion du temps</string>
     <string name="stats_disclaimer">Les statistiques sont basées sur votre historique de visionnage dans cette application. L\'utilisation réelle peut varier.</string>
@@ -517,12 +505,10 @@
     <string name="bedtime_notification_note">Une notification sera envoyée à l\'heure de début.</string>
     <string name="remind_break">Me rappeler de faire une pause</string>
     <string name="reminder_frequency">Fréquence des rappels</string>
-    <string name="every_min_template">Toutes les %1$d min</string>
     <string name="daily_average_label">Moyenne Quotidienne</string>
     <string name="stats_today">Aujourd\'hui</string>
     <string name="stats_last_7_days">7 derniers jours</string>
     <string name="frequency_dialog_title">Fréquence</string>
-    <string name="every_minutes_template">Toutes les %1$d minutes</string>
     <!-- Écran des Paramètres d'Historique de Recherche -->
     <string name="search_history_title">Recherche &amp; Historique</string>
     <string name="save_search_history_title">Enregistrer l\'historique de recherche</string>
@@ -530,32 +516,25 @@
     <string name="search_suggestions_title">Suggestions de recherche</string>
     <string name="show_suggestions_subtitle">Afficher les suggestions pendant la saisie</string>
     <string name="max_history_size_title">Taille Max de l\'Historique</string>
-    <string name="currently_searches_template">Actuellement : %1$d recherches</string>
     <string name="auto_delete_history_title">Suppression auto. de l\'historique</string>
-    <string name="delete_after_days_template">Supprimer après %1$d jours</string>
     <string name="never_delete_automatically">Ne jamais supprimer automatiquement</string>
     <string name="retention_period_title">Période de conservation</string>
-    <string name="delete_older_than_template">Supprimer les recherches plus anciennes que %1$d jours</string>
     <string name="clear_history_item_title">Effacer l\'historique de recherche</string>
     <string name="remove_all_queries">Supprimer toutes les requêtes de recherche</string>
     <string name="clear_history_dialog_title">Effacer l\'Historique de Recherche ?</string>
     <string name="clear_history_dialog_text">Supprimer définitivement tout l\'historique de recherche.</string>
     <string name="choose_history_size">Choisissez combien de recherches conserver :</string>
-    <string name="searches_count_template">%1$d recherches</string>
     <string name="delete_searches_older_than">Supprimer les recherches plus anciennes que :</string>
     <string name="period_one_week">1 semaine</string>
     <string name="period_one_month">1 mois</string>
     <string name="period_three_months">3 mois</string>
     <string name="period_six_months">6 mois</string>
     <string name="period_one_year">1 an</string>
-    <string name="days_count_template">%1$d jours</string>
     <!-- Écran d'Importation de Données -->
     <string name="import_data_title">Importer des données</string>
     <string name="import_flow_backup_success">Sauvegarde Flow importée avec succès</string>
     <string name="import_flow_backup_failed_template">Échec de l\'importation de la sauvegarde Flow : %1$s</string>
-    <string name="import_newpipe_success_template">%1$d abonnements importés depuis NewPipe</string>
     <string name="import_newpipe_failed_template">Échec de l\'importation de la sauvegarde NewPipe : %1$s</string>
-    <string name="import_youtube_success_template">%1$d abonnements importés depuis YouTube</string>
     <string name="import_youtube_failed_template">Échec de l\'importation de la sauvegarde YouTube : %1$s</string>
     <string name="import_flow_backup_item_title">Importer une sauvegarde Flow</string>
     <string name="import_flow_backup_desc">Restaurez votre historique, vos paramètres et vos abonnements depuis un fichier de sauvegarde Flow.</string>
@@ -581,7 +560,6 @@
     <string name="parallel_downloading_title">Téléchargement parallèle</string>
     <string name="parallel_downloading_subtitle">Télécharger les fichiers en plusieurs parties pour une vitesse maximale.</string>
     <string name="concurrent_threads_title">Threads concurrentiels</string>
-    <string name="threads_per_download_template">%1$d threads par téléchargement</string>
     <string name="performance_optimization_note">Utiliser plus de threads peut augmenter la vitesse mais peut utiliser plus de batterie et chauffer l\'appareil.</string>
     <string name="location_dialog_subtitle">Choisissez où les fichiers téléchargés sont enregistrés sur votre appareil.</string>
     <string name="location_preset_header">Emplacements prédéfinis</string>
@@ -600,7 +578,6 @@
     <string name="location_badge_recommended">Recommandé</string>
     <string name="location_badge_active">Actif</string>
     <string name="select_threads_count_desc">Sélectionnez le nombre de threads (1-8) :</string>
-    <string name="threads_count_label">%1$d threads</string>
     <!-- Écran des Dons -->
     <string name="support_donations_title">Soutien et dons</string>
     <string name="support_flow_dev_title">Soutenir le développement de Flow</string>
@@ -653,13 +630,10 @@
     <string name="playlist_empty_desc">Ajoutez des vidéos depuis le lecteur vidéo\npour construire votre playlist</string>
     <string name="delete_playlist_dialog_title">Supprimer la playlist ?</string>
     <string name="delete_playlist_dialog_text">Cela supprimera définitivement \'%1$s\' et toutes ses vidéos.</string>
-    <string name="playlist_metadata_private_template">Playlist • Privée • %1$d vidéos</string>
-    <string name="playlist_metadata_public_template">Playlist • Publique • %1$d vidéos</string>
     <!-- Accueil -->
     <string name="welcome_to_flow">Bienvenue dans Flow</string>
     <string name="onboarding_subtitle">Dites-nous ce qui vous intéresse</string>
     <string name="onboarding_instructions">Sélectionnez au moins 3 sujets pour personnaliser votre expérience</string>
-    <string name="selected_with_more_needed_template">%1$d sélectionnés (%2$d de plus nécessaires)</string>
     <string name="btn_skip_for_now">Passer pour l\'instant</string>
     <string name="onboarding_btn_continue">Continuer</string>
     <string name="cd_collapse_category">Réduire</string>
@@ -698,7 +672,6 @@
     <string name="stats_interactions">Interactions</string>
     <string name="stats_topics">Sujets</string>
     <string name="empty_bubble_cloud_message">Regardez quelques vidéos pour remplir votre nébuleuse d\'intérêts !</string>
-    <string name="interactions_level_template">%1$d interactions • Niveau %2$d</string>
     <string name="export_profile_data">Exporter les données de profil</string>
     <string name="flow_neural_profile_export_subject">Exportation du Profil Neural de Flow</string>
     <!-- Écran des Playlists Musicales -->
@@ -717,8 +690,6 @@
     <string name="artist_views_template">%1$s • %2$s vues</string>
     <string name="action_view_all">Voir tout</string>
     <string name="search_content_description">Rechercher</string>
-    <string name="views_count_format">%1$s vues</string>
-    <string name="playlist_footer_template">%1$d pistes • %2$s</string>
     <string name="unknown_error">Erreur inconnue</string>
     <string name="action_retry">Réessayer</string>
     <string name="empty_moods_genres">Aucune humeur &amp; genre disponible</string>
@@ -798,7 +769,6 @@
     <string name="subtitle_playlist_template">Playlist • %1$s</string>
     <string name="plays_count_template">• %1$s lectures</string>
     <string name="album_year_template">Album • %1$s • %2$s</string>
-    <string name="artist_audience_template">Artiste • %1$s audience mensuelle</string>
     <string name="search_source_template">Recherche : %1$s</string>
     <string name="artist_source_template">Artiste : %1$s</string>
     <string name="top_picks_for_you">Nos meilleures suggestions pour vous</string>
@@ -811,7 +781,6 @@
     <string name="empty_playlists_subtitle">Créez votre première playlist pour organiser vos morceaux préférés</string>
     <string name="empty_favorites_title">Aucun Favoris Pour l\'Instant</string>
     <string name="empty_favorites_subtitle">Appuyez sur l\'icône de cœur sur n\'importe quelle piste pour l\'ajouter à vos favoris</string>
-    <string name="favorites_count_template">%1$d morceaux favoris</string>
     <string name="empty_history_title">Aucun Historique Pour l\'Instant</string>
     <string name="empty_history_subtitle">Commencez à écouter de la musique pour voir votre historique ici</string>
     <string name="empty_downloads_title">Aucun Téléchargement Pour l\'Instant</string>
@@ -887,7 +856,6 @@
     <string name="group_name_label">Nom du groupe</string>
     <string name="no_groups_yet">Pas encore de groupes. Créez-en un pour filtrer vos recommandations.</string>
     <string name="search_channels_hint">Recherche de chaînes…</string>
-    <string name="songs_count_template">%1$d titres</string>
     <string name="end_of_queue">Fin de la file d\'attente</string>
     <string name="channel_search_hint">Rechercher dans la chaîne</string>
     <string name="channel_search_open">Rechercher dans la chaîne</string>
@@ -1141,7 +1109,6 @@
     <string name="back">Retour</string>
     <string name="cd_more_options">Plus d\'options</string>
     <string name="sleep_timer_duration">Durée</string>
-    <string name="sleep_timer_minutes">%1$d min</string>
     <string name="sleep_timer_min_label">5 min</string>
     <string name="sleep_timer_max_label">120 min</string>
     <string name="sleep_timer_custom_label">Heure personnalisée</string>
@@ -1172,9 +1139,7 @@
     <string name="import_yt_playlist_desc">Importez une playlist à partir d\'un fichier CSV YouTube Takeout (Playlist-&lt;nom&gt;.csv).</string>
     <string name="import_yt_music_playlist">Importer une playlist YouTube Music</string>
     <string name="import_yt_music_playlist_desc">Importez une playlist depuis un fichier CSV YouTube Music Takeout. Elle apparaîtra dans la section « Playlists ».</string>
-    <string name="import_yt_history_success_template">Importation de %1$d éléments depuis votre historique de visionnage YouTube</string>
     <string name="import_yt_history_failed_template">Échec de l\'importation de l\'historique de visionnage : %1$s</string>
-    <string name="import_yt_playlist_success_template">Playlist « %1$s » importée, contenant %2$d vidéos</string>
     <string name="import_yt_playlist_failed_template">Échec de l\'importation de la playlist : %1$s</string>
     <string name="import_yt_history_empty_error">Aucune entrée d\'historique de visionnage n\'a été trouvée dans ce fichier. Vérifiez qu\'il s\'agit bien d\'un fichier « watch-history.html » issu de YouTube Takeout.</string>
     <string name="import_yt_playlist_empty_error">Aucune vidéo n\'a été trouvée dans ce fichier CSV. Vérifiez qu\'il s\'agit bien d\'un fichier CSV de playlist YouTube Takeout.</string>
@@ -1262,9 +1227,7 @@
     <string name="diagnostics_copied">Le rapport a été copié dans le presse-papiers</string>
     <string name="add_all_to_playlist">Ajouter à ma playlist</string>
     <string name="merge_playlist_dialog_title">Ajouter tous les titres à…</string>
-    <string name="merge_playlist_success">%1$d titres ont été ajoutés à « %2$s »</string>
     <string name="download_all">Tout télécharger</string>
-    <string name="download_all_confirmation">Télécharger les %1$d vidéos ? Cela risque de prendre beaucoup d\'espace de stockage.</string>
     <string name="saved">Enregistré</string>
     <string name="filter_oldest">Le plus ancien</string>
     <string name="title_copied">Le titre a été copié dans le presse-papiers</string>
@@ -1441,7 +1404,6 @@
     <string name="taste_live_affinity">Affinité en direct</string>
     <string name="taste_live_affinity_detail">La part de contenu en direct qui correspond au profil</string>
     <string name="taste_topic_breadth">Étendue du sujet</string>
-    <string name="taste_topic_breadth_detail">%1$d sujets dans le vecteur global</string>
     <string name="interest_weights_title">Pondérations des taux d\'intérêt</string>
     <string name="interest_weights_subtitle">Sujets les plus importants après la période d\'essai et la vérification des antécédents</string>
     <string name="interest_weights_empty">Aucune pondération des sujets n\'a encore été définie.</string>
@@ -1512,13 +1474,10 @@
     <string name="section_incomplete_downloads">Téléchargements incomplets</string>
     <string name="download_status_cancelled">Annulé</string>
     <string name="remove_incomplete_downloads">Supprimer les téléchargements incomplets</string>
-    <string name="remove_incomplete_downloads_message">Souhaitez-vous supprimer %1$d téléchargements en pause, ayant échoué ou partiels ? Les téléchargements terminés ne seront pas affectés.</string>
     <string name="player_lock_controls">Commandes de verrouillage</string>
     <string name="player_unlock_controls">Commandes de déverrouillage</string>
     <string name="player_settings_overlay_lock_mode">Bouton de verrouillage</string>
     <string name="player_settings_overlay_lock_mode_subtitle">Afficher un bouton de verrouillage du lecteur pour empêcher les touches accidentelles</string>
-    <string name="subscriptions_refresh_progress_template">Actualisation de %1$d chaînes sur %2$d</string>
-    <string name="subscriptions_last_refreshed_template">Dernière mise à jour le %1$s - %2$d vidéos vérifiées</string>
     <string name="content_settings_comments_preview_title">Aperçu des commentaires</string>
     <string name="content_settings_comments_preview_subtitle">Afficher le dernier commentaire dans la carte des commentaires</string>
     <string name="content_settings_subs_startup_refresh_title">Actualiser les abonnements au démarrage</string>
@@ -1547,8 +1506,6 @@
     <string name="hide_channel_shorts">Masquer les Shorts de cette chaîne</string>
     <string name="show_channel_shorts">Afficher les Shorts de cette chaîne</string>
     <string name="player_settings_shorts_playback_mode_auto_interval">Défilement automatique après une durée personnalisée</string>
-    <string name="player_settings_shorts_playback_mode_auto_interval_summary">Défilement automatique toutes les %1$d secondes</string>
-    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d secondes</string>
     <string name="shorts_auto_scroll_active_template">Auto %1$ds</string>
     <string name="search_watch_history">Consulter l\'historique des recherches</string>
     <string name="history_filter_all_years">Tous les ans</string>
@@ -1559,7 +1516,6 @@
     <string name="empty_liked_videos">Aucune vidéo aimée</string>
     <string name="empty_liked_music">Aucune musique préférée</string>
     <string name="empty_liked_music_body">Les titres que vous aimez s\'afficheront ici</string>
-    <string name="likes_count_template">%1$d mentions « J\'aime »</string>
     <string name="playlist_sort_options">Options de tri des playlists</string>
     <string name="playlist_sort_manual">Manuel</string>
     <string name="playlist_sort_date_added_newest">Date d\'ajout (la plus récente)</string>
@@ -1567,7 +1523,6 @@
     <string name="playlist_sort_most_popular">Les plus populaires</string>
     <string name="playlist_sort_date_published_newest">Date de publication (la plus récente)</string>
     <string name="playlist_sort_date_published_oldest">Date de publication (la plus ancienne)</string>
-    <string name="remove_selected_videos_title">Supprimer %1$d vidéo(s) ?</string>
     <string name="remove_selected_playlist_text">Ils seront supprimés de cette playlist.</string>
     <string name="remove_selected_watch_later_text">Ils seront supprimés de la playlist « À regarder plus tard ».</string>
     <string name="player_settings_overlay_speed_indicator">Indicateur de vitesse de lecture</string>
@@ -1722,7 +1677,6 @@
     <string name="player_appearance_controls_while_loading_subtitle">Affichez les commandes de lecture avant la fin du chargement de la vidéo afin de pouvoir régler le volume immédiatement</string>
     <string name="player_settings_autoplay_countdown_title">Délai de lecture automatique</string>
     <string name="player_settings_autoplay_countdown_none">Aucun (changer immédiatement)</string>
-    <string name="player_settings_autoplay_countdown_seconds_template">%1$d secondes</string>
     <string name="player_settings_autoplay_countdown_dialog_body">Affichez un compte à rebours avant de passer automatiquement à la vidéo suivante. Pendant le compte à rebours, vous pouvez relancer la vidéo en cours, annuler le passage à la suivante ou lancer immédiatement la vidéo suivante.</string>
     <string name="autoplay_countdown_up_next">À suivre</string>
     <string name="autoplay_countdown_next_video">Vidéo suivante</string>
@@ -1847,14 +1801,12 @@
     <string name="onboarding_channels_search_placeholder">Recherche de chaînes…</string>
     <string name="onboarding_channels_empty_prompt">Saisissez le nom d\'une chaîne pour lancer la recherche</string>
     <string name="onboarding_channels_no_results">Aucune chaîne trouvée pour « %1$s »</string>
-    <string name="onboarding_channels_added_count">%1$d chaînes ajoutées</string>
     <string name="onboarding_channels_subscribers">%1$s abonnés</string>
     <string name="onboarding_channels_subscribed">Abonné</string>
     <string name="onboarding_channels_subscribe">S\'abonner</string>
     <string name="onboarding_import_title">Importez vos données</string>
     <string name="onboarding_import_subtitle">Importez vos abonnements et votre historique depuis d\'autres applications. Tout est facultatif.</string>
     <string name="onboarding_backup_restore_section">Sauvegarde &amp; Restauration</string>
-    <string name="onboarding_n_selected">%1$d sélectionnés</string>
     <string name="onboarding_topic_selected">Sélectionné</string>
     <string name="onboarding_topic_not_selected">Non sélectionné</string>
     <string name="onboarding_import_failed_template">Échec de l\'importation : %1$s</string>
@@ -2053,7 +2005,6 @@
     <string name="equalizer">Égaliseur</string>
     <string name="action_save_preset">Enregistrer le préréglage</string>
     <string name="label_preset_name">Nom du préréglage</string>
-    <string name="ui_downloading_videos">Téléchargement de %1$d vidéos…</string>
     <string name="ui_playlist_saved_to_library">Playlist enregistrée dans la bibliothèque</string>
     <string name="ui_playlist_removed_from_library">Playlist supprimée de la bibliothèque</string>
     <string name="ui_download_audio">Téléchargement du fichier audio : %1$skbps %2$s</string>
@@ -2075,10 +2026,8 @@
     <string name="toast_playlist_deleted">Playlist supprimée</string>
     <string name="toast_playlist_renamed">Playlist renommée</string>
     <string name="toast_starting_playlist_download">Début du téléchargement de %1$s…</string>
-    <string name="toast_downloaded_tracks_from_playlist">%1$d titres téléchargés depuis %2$s</string>
     <string name="toast_failed_to_download_playlist">Échec du téléchargement de la playlist</string>
     <string name="toast_error_downloading_playlist">Erreur lors du téléchargement de la playlist</string>
-    <string name="toast_downloaded_tracks">%1$d titres téléchargés</string>
     <string name="toast_added_to_playlist">Ajouté à la playlist</string>
     <string name="toast_failed_to_add_track">Échec de l\'ajout du titre</string>
     <string name="toast_removed_from_playlist">Supprimé de la playlist</string>
@@ -2095,7 +2044,6 @@
     <string name="notification_download_failed">Échec du téléchargement</string>
     <string name="notification_more">+%1$d de plus</string>
     <string name="notification_new_videos">Nouvelles vidéos</string>
-    <string name="notification_new_videos_from_subscriptions">%1$d nouvelles vidéos issues de vos abonnements</string>
     <string name="notification_update_available">Mise à jour disponible : %1$s</string>
     <string name="notification_tap_to_update">Appuyez ici pour effectuer la mise à jour vers la dernière version.</string>
     <string name="notification_watch_later_reminder">Rappel « À regarder plus tard »</string>
@@ -2260,7 +2208,6 @@
     <string name="import_manage_backups">Gérer vos sauvegardes Flow</string>
     <string name="import_external_services">Services externes</string>
     <string name="import_other_youtube_clients">Importer depuis d\'autres clients YouTube</string>
-    <string name="imported_count">%1$d %2$s importé</string>
     <string name="fallback_your_saved_shorts">Vos shorts enregistrés</string>
     <string name="discord_presence_playing_fallback">Joué dans Flow</string>
     <string name="about_creator_name">A-EDev</string>
@@ -2360,11 +2307,9 @@
     <string name="subscriptions_failed_channels_more">%1$s et %2$d de plus</string>
     <string name="comment_edited">modifié</string>
     <string name="comment_time_edited_template">%1$s (%2$s)</string>
-    <string name="deep_flow_duration_hours">%1$d heures</string>
     <string name="audio_track_original">Original</string>
     <string name="audio_track_dubbed">Surnommé</string>
     <string name="duration_hours_minutes">%1$d h %2$d min</string>
-    <string name="duration_minutes">%1$d min</string>
     <string name="duration_hours_short">%1$dh</string>
     <string name="duration_minutes_short">%1$dm</string>
     <string name="empty_saved_shorts">Aucun court métrage enregistré pour l\'instant</string>
@@ -2429,5 +2374,4 @@
     <string name="sync_receive_option_body">Fusionner la bibliothèque d\'un autre appareil avec celle-ci.</string>
     <string name="sync_select_all">Tout sélectionner</string>
     <string name="sync_select_none">Effacer</string>
-    <string name="sync_selected_count">%1$d sur %2$d sélectionnés</string>
 </resources>

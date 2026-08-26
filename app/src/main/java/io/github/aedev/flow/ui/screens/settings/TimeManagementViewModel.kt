@@ -28,7 +28,12 @@ class TimeManagementViewModel
         private val localDataManager: LocalDataManager,
         @ApplicationContext private val applicationContext: Context,
     ) : ViewModel() {
-        private val initialDuration = applicationContext.getString(R.string.duration_minutes, 0)
+        private val initialDuration =
+            applicationContext.resources.getQuantityString(
+                R.plurals.duration_minutes,
+                0,
+                0,
+            )
         private val _uiState =
             MutableStateFlow(
                 TimeManagementState(
@@ -146,7 +151,11 @@ class TimeManagementViewModel
             return if (hours > 0) {
                 applicationContext.getString(R.string.duration_hours_minutes, hours, minutes)
             } else {
-                applicationContext.getString(R.string.duration_minutes, minutes)
+                applicationContext.resources.getQuantityString(
+                    R.plurals.duration_minutes,
+                    minutes.toInt(),
+                    minutes,
+                )
             }
         }
 

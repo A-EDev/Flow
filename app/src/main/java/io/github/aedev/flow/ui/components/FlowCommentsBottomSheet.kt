@@ -76,6 +76,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
@@ -724,7 +725,11 @@ fun FlowCommentItem(
                                     R.string.hide_replies,
                                 )
                             } else {
-                                stringResource(R.string.view_replies_template, comment.replyCount)
+                                pluralStringResource(
+                                    R.plurals.view_replies_template,
+                                    comment.replyCount,
+                                    comment.replyCount,
+                                )
                             },
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium,

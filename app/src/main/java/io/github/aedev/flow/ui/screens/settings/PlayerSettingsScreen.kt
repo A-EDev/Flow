@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -376,8 +377,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                                 }
 
                                 "auto_interval" -> {
-                                    stringResource(
-                                        R.string.player_settings_shorts_playback_mode_auto_interval_summary,
+                                    pluralStringResource(
+                                        R.plurals.player_settings_shorts_playback_mode_auto_interval_summary,
+                                        shortsAutoScrollSeconds,
                                         shortsAutoScrollSeconds,
                                     )
                                 }
@@ -430,8 +432,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                             if (autoplayCountdownSeconds <= 0) {
                                 stringResource(R.string.player_settings_autoplay_countdown_none)
                             } else {
-                                stringResource(
-                                    R.string.player_settings_autoplay_countdown_seconds_template,
+                                pluralStringResource(
+                                    R.plurals.player_settings_autoplay_countdown_seconds_template,
+                                    autoplayCountdownSeconds,
                                     autoplayCountdownSeconds,
                                 )
                             },
@@ -957,8 +960,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                         ) {
                             Text(
                                 text =
-                                    stringResource(
-                                        R.string.player_settings_shorts_auto_scroll_seconds_template,
+                                    pluralStringResource(
+                                        R.plurals.player_settings_shorts_auto_scroll_seconds_template,
+                                        shortsAutoScrollSeconds,
                                         shortsAutoScrollSeconds,
                                     ),
                                 style = MaterialTheme.typography.labelLarge,
@@ -1028,8 +1032,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                                     if (seconds == 0) {
                                         stringResource(R.string.player_settings_autoplay_countdown_none)
                                     } else {
-                                        stringResource(
-                                            R.string.player_settings_autoplay_countdown_seconds_template,
+                                        pluralStringResource(
+                                            R.plurals.player_settings_autoplay_countdown_seconds_template,
+                                            seconds,
                                             seconds,
                                         )
                                     },

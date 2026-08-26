@@ -578,8 +578,9 @@ fun SubscriptionsScreen(
                                                 )
                                                 Text(
                                                     text =
-                                                        stringResource(
-                                                            R.string.subscriptions_refresh_progress_template,
+                                                        pluralStringResource(
+                                                            R.plurals.subscriptions_refresh_progress_template,
+                                                            uiState.refreshTotalChannels,
                                                             uiState.refreshProcessedChannels,
                                                             uiState.refreshTotalChannels,
                                                         ),
@@ -591,8 +592,9 @@ fun SubscriptionsScreen(
                                                 Text(
                                                     text =
                                                         if (uiState.showLastRefreshVideoCount) {
-                                                            stringResource(
-                                                                R.string.subscriptions_last_refreshed_template,
+                                                            pluralStringResource(
+                                                                R.plurals.subscriptions_last_refreshed_template,
+                                                                uiState.lastRefreshVideoCount,
                                                                 uiState.lastRefreshText!!,
                                                                 uiState.lastRefreshVideoCount,
                                                             )

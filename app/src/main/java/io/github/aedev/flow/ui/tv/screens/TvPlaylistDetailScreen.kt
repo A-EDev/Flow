@@ -12,6 +12,7 @@ import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,7 +47,7 @@ fun TvPlaylistDetailScreen(
     TvScreenScaffold(
         title = state.playlistName.ifBlank { stringResource(R.string.tv_library_playlists) },
         modifier = modifier,
-        subtitle = stringResource(R.string.videos_count_template, videos.size),
+        subtitle = pluralStringResource(R.plurals.videos_count_template, videos.size, videos.size),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -54,9 +55,10 @@ fun TvPlaylistDetailScreen(
         ) {
             if (videos.isNotEmpty()) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = dimens.overscanHorizontal),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = dimens.overscanHorizontal),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     TvButton(
@@ -76,9 +78,10 @@ fun TvPlaylistDetailScreen(
             if (videos.isEmpty()) {
                 TvMessageState(
                     title = stringResource(R.string.tv_library_empty),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = dimens.overscanHorizontal),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = dimens.overscanHorizontal),
                 )
             } else {
                 val indexed = videos.mapIndexed { index, video -> index to video }

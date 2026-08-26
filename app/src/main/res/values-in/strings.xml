@@ -43,9 +43,6 @@
     <string name="view_artist">Lihat Artis</string>
     <string name="view_album">Lihat Album</string>
     <string name="artist">Artis</string>
-    <string name="videos_count_template">%1$d video</string>
-    <string name="songs_count_template">%1$d lagu</string>
-    <string name="shorts_count_template">%1$d shorts</string>
     <string name="explicit">E</string>
     <string name="filter_hd">HD</string>
     <string name="filter_4k">4K</string>
@@ -124,8 +121,6 @@
     <string name="appearance_category_light">Terang</string>
     <string name="appearance_category_dark">Gelap</string>
     <string name="appearance_category_special">Spesial</string>
-    <string name="appearance_themes_count_all">%1$d tema</string>
-    <string name="appearance_themes_count_filtered">%1$d tema %2$s</string>
     <string name="app_icon_apply_toast">Ikon diperbarui - launcher Anda akan disegarkan</string>
     <string name="icon_name_flow_red">Flow Merah</string>
     <string name="icon_name_amoled">AMOLED Gelap</string>
@@ -173,7 +168,6 @@
     <string name="empty_liked_body">Konten yang Anda sukai akan muncul di sini</string>
     <string name="downloaded">Diunduh</string>
     <string name="download_all">Unduh semua</string>
-    <string name="download_all_confirmation">Unduh semua %1$d video? Ini mungkin menggunakan ruang penyimpanan yang cukup besar.</string>
     <string name="saved">Disimpan</string>
     <string name="up_next">SELANJUTNYA</string>
     <string name="related">TERKAIT</string>
@@ -269,7 +263,6 @@
     <string name="read_more">Baca selengkapnya</string>
     <string name="reply">Balas</string>
     <string name="hide_replies">Sembunyikan balasan</string>
-    <string name="view_replies_template">Lihat %1$d balasan</string>
     <string name="load_more_replies">Muat lebih banyak balasan</string>
     <string name="select_text">Pilih Teks</string>
     <string name="pinned_comment">Komentar yang disematkan</string>
@@ -297,7 +290,6 @@
     <string name="chapters">Bab</string>
     <string name="playlist">Daftar Putar</string>
     <string name="personalized_feed">Umpan personal Anda</string>
-    <string name="videos_curated_template">%1$d video yang dikurasi khusus untuk Anda</string>
     <string name="import_newpipe_backup">Impor Cadangan NewPipe</string>
     <string name="importing_from_backup">Mengimpor langganan dari cadangan NewPipe...</string>
     <string name="search_subscriptions">Cari Langganan</string>
@@ -311,11 +303,9 @@
     <string name="search_channels_hint">Cari saluran…</string>
     <string name="toggle_view_mode">Alihkan Mode Tampilan</string>
     <string name="unsubscribed_from_template">Berhenti berlangganan dari %1$s</string>
-    <string name="playlists_count_template">%1$d daftar putar</string>
     <string name="empty_downloads">Belum ada unduhan</string>
     <string name="play_all">Putar semua</string>
     <string name="remove_from_watch_later">Hapus dari Tonton Nanti</string>
-    <string name="playlist_metadata_template">"Daftar putar -  Pribadi -  %1$d video"</string>
     <string name="no_videos_saved">Tidak ada video yang disimpan</string>
     <string name="no_videos_saved_body">Video yang Anda simpan untuk ditonton nanti akan muncul di sini</string>
     <string name="search_hint">Cari</string>
@@ -790,8 +780,6 @@
     <string name="content_preferences_subtitle">Sesuaikan apa yang Anda lihat</string>
     <string name="interests_tab">Minat</string>
     <string name="blocked_tab">Diblokir</string>
-    <string name="topics_count_template">%1$d topik</string>
-    <string name="hidden_count_template">%1$d disembunyikan</string>
     <string name="your_interests_title">Minat Anda</string>
     <string name="your_interests_desc">Topik yang Anda pilih membantu Flow merekomendasikan konten yang lebih baik. Ketuk topik di bawah untuk menambah atau menghapusnya.</string>
     <string name="currently_following">Sedang Diikuti</string>
@@ -807,10 +795,8 @@
     <string name="quick_add">Tambah Cepat</string>
     <string name="common_topics_to_block">Topik umum untuk diblokir</string>
     <string name="currently_blocked">Sedang Diblokir</string>
-    <string name="topics_blocked_count_plural">%1$d topik%2$s</string>
     <string name="desc_remove_topic">Hapus %1$s</string>
     <string name="desc_unblock_topic">Buka blokir %1$s</string>
-    <string name="selected_count_template">%1$d dipilih</string>
     <string name="time_management_title">Manajemen waktu</string>
     <string name="time_management_subtitle">Lacak dan kendalikan waktu layar Anda</string>
     <string name="stats_disclaimer">Statistik didasarkan pada riwayat tontonan Anda di aplikasi ini. Penggunaan sebenarnya mungkin berbeda.</string>
@@ -821,12 +807,10 @@
     <string name="bedtime_notification_note">Notifikasi akan dikirim pada waktu mulai.</string>
     <string name="remind_break">Ingatkan saya untuk beristirahat</string>
     <string name="reminder_frequency">Frekuensi pengingat</string>
-    <string name="every_min_template">Setiap %1$d menit</string>
     <string name="daily_average_label">Rata-rata Harian</string>
     <string name="stats_today">Hari ini</string>
     <string name="stats_last_7_days">7 hari terakhir</string>
     <string name="frequency_dialog_title">Frekuensi</string>
-    <string name="every_minutes_template">Setiap %1$d menit</string>
     <string name="this_week">Minggu Ini</string>
     <string name="total_hours_template">Total: %s jam</string>
     <string name="no_watch_data">Belum ada data tontonan</string>
@@ -842,7 +826,6 @@
     <string name="confirm">Konfirmasi</string>
     <string name="sleep_timer">Timer Tidur</string>
     <string name="sleep_timer_duration">Durasi</string>
-    <string name="sleep_timer_minutes">%1$d menit</string>
     <string name="sleep_timer_min_label">5 menit</string>
     <string name="sleep_timer_max_label">120 menit</string>
     <string name="sleep_timer_custom_label">Waktu kustom</string>
@@ -864,31 +847,24 @@
     <string name="search_suggestions_title">Saran Pencarian</string>
     <string name="show_suggestions_subtitle">Tampilkan saran saat mengetik</string>
     <string name="max_history_size_title">Ukuran Riwayat Maksimum</string>
-    <string name="currently_searches_template">Saat ini: %1$d pencarian</string>
     <string name="auto_delete_history_title">Hapus Otomatis Riwayat</string>
-    <string name="delete_after_days_template">Hapus setelah %1$d hari</string>
     <string name="never_delete_automatically">Jangan pernah hapus otomatis</string>
     <string name="retention_period_title">Periode Penyimpanan</string>
-    <string name="delete_older_than_template">Hapus pencarian yang lebih lama dari %1$d hari</string>
     <string name="clear_history_item_title">Hapus Riwayat Pencarian</string>
     <string name="remove_all_queries">Hapus semua kueri pencarian</string>
     <string name="clear_history_dialog_title">Hapus Riwayat Pencarian?</string>
     <string name="clear_history_dialog_text">Hapus permanen semua riwayat pencarian.</string>
     <string name="choose_history_size">Pilih berapa banyak pencarian yang disimpan:</string>
-    <string name="searches_count_template">%1$d pencarian</string>
     <string name="delete_searches_older_than">Hapus pencarian yang lebih lama dari:</string>
     <string name="period_one_week">1 minggu</string>
     <string name="period_one_month">1 bulan</string>
     <string name="period_three_months">3 bulan</string>
     <string name="period_six_months">6 bulan</string>
     <string name="period_one_year">1 tahun</string>
-    <string name="days_count_template">%1$d hari</string>
     <string name="import_data_title">Impor Data</string>
     <string name="import_flow_backup_success">Cadangan Flow berhasil diimpor</string>
     <string name="import_flow_backup_failed_template">Gagal mengimpor cadangan Flow: %1$s</string>
-    <string name="import_newpipe_success_template">Berhasil mengimpor %1$d langganan dari NewPipe</string>
     <string name="import_newpipe_failed_template">Gagal mengimpor cadangan NewPipe: %1$s</string>
-    <string name="import_youtube_success_template">Berhasil mengimpor %1$d langganan dari YouTube</string>
     <string name="import_youtube_failed_template">Gagal mengimpor cadangan YouTube: %1$s</string>
     <string name="import_flow_backup_item_title">Impor Cadangan Flow</string>
     <string name="import_flow_backup_desc">Pulihkan riwayat, pengaturan, dan langganan Anda dari file cadangan Flow.</string>
@@ -924,9 +900,7 @@
     <string name="import_yt_playlist_desc">Impor daftar putar dari CSV YouTube Takeout (Playlist-&lt;nama&gt;.csv).</string>
     <string name="import_yt_music_playlist">Impor Daftar Putar YouTube Music</string>
     <string name="import_yt_music_playlist_desc">Impor daftar putar musik dari CSV YouTube Music Takeout. Muncul di bawah Daftar Putar Musik.</string>
-    <string name="import_yt_history_success_template">Berhasil mengimpor %1$d entri dari riwayat tontonan YouTube Anda</string>
     <string name="import_yt_history_failed_template">Gagal mengimpor riwayat tontonan: %1$s</string>
-    <string name="import_yt_playlist_success_template">Berhasil mengimpor daftar putar \"%1$s\" dengan %2$d video</string>
     <string name="import_yt_playlist_failed_template">Gagal mengimpor daftar putar: %1$s</string>
     <string name="import_yt_history_empty_error">Tidak ada entri riwayat tontonan yang ditemukan dalam file ini. Pastikan file tersebut adalah file watch-history.html dari YouTube Takeout.</string>
     <string name="import_yt_playlist_empty_error">Tidak ada video yang ditemukan dalam CSV ini. Pastikan file tersebut adalah file CSV daftar putar YouTube Takeout.</string>
@@ -955,7 +929,6 @@
     <string name="parallel_downloading_title">Unduhan Paralel</string>
     <string name="parallel_downloading_subtitle">Unduh file dalam beberapa bagian untuk kecepatan maksimal.</string>
     <string name="concurrent_threads_title">Thread Bersamaan</string>
-    <string name="threads_per_download_template">%1$d thread per unduhan</string>
     <string name="performance_optimization_note">Menggunakan lebih banyak thread dapat meningkatkan kecepatan tetapi mungkin menggunakan lebih banyak baterai dan membuat perangkat panas.</string>
     <string name="location_dialog_subtitle">Pilih tempat penyimpanan file yang diunduh di perangkat Anda.</string>
     <string name="location_preset_header">Lokasi Prasetel</string>
@@ -974,7 +947,6 @@
     <string name="location_badge_recommended">Direkomendasikan</string>
     <string name="location_badge_active">Aktif</string>
     <string name="select_threads_count_desc">Pilih jumlah thread (1-8):</string>
-    <string name="threads_count_label">%1$d thread</string>
     <string name="support_donations_title">Dukungan &amp; Donasi</string>
     <string name="support_flow_dev_title">Dukung Pengembangan Flow</string>
     <string name="support_flow_dev_desc">Jika Anda merasa Flow bermanfaat dan ingin mendukung pengembangannya, Anda dapat mendukungnya di Patreon atau berdonasi melalui alamat kripto di bawah. Dukungan Anda membantu menjaga proyek ini tetap hidup!</string>
@@ -1030,12 +1002,9 @@
     <string name="playlist_empty_desc">Tambahkan video dari pemutar video\nuntuk membangun daftar putar Anda</string>
     <string name="delete_playlist_dialog_title">Hapus daftar putar?</string>
     <string name="delete_playlist_dialog_text">Ini akan menghapus secara permanen \'%1$s\' beserta semua videonya.</string>
-    <string name="playlist_metadata_private_template">"Daftar putar -  Pribadi -  %1$d video"</string>
-    <string name="playlist_metadata_public_template">"Daftar putar -  Publik -  %1$d video"</string>
     <string name="welcome_to_flow">Selamat Datang di Flow</string>
     <string name="onboarding_subtitle">Ceritakan apa yang Anda minati</string>
     <string name="onboarding_instructions">Pilih minimal 3 topik untuk mempersonalisasi pengalaman Anda</string>
-    <string name="selected_with_more_needed_template">%1$d dipilih (%2$d lagi diperlukan)</string>
     <string name="btn_skip_for_now">Lewati untuk sekarang</string>
     <string name="onboarding_btn_continue">Lanjutkan</string>
     <string name="cd_collapse_category">Ciutkan</string>
@@ -1073,7 +1042,6 @@
     <string name="stats_interactions">Interaksi</string>
     <string name="stats_topics">Topik</string>
     <string name="empty_bubble_cloud_message">Tonton beberapa video untuk mengisi nebula minat Anda!</string>
-    <string name="interactions_level_template">"%1$d interaksi -  Level %2$d"</string>
     <string name="export_profile_data">Ekspor Data Profil</string>
     <string name="flow_neural_profile_export_subject">Ekspor Profil Neural Flow</string>
     <string name="screen_title_music_library">Pustaka Musik</string>
@@ -1093,8 +1061,6 @@
     <string name="artist_views_template">"%1$s -  %2$s penayangan"</string>
     <string name="action_view_all">Lihat semua</string>
     <string name="search_content_description">Cari</string>
-    <string name="views_count_format">%1$s penayangan</string>
-    <string name="playlist_footer_template">"%1$d lagu -  %2$s"</string>
     <string name="unknown_error">Kesalahan tidak diketahui</string>
     <string name="action_retry">Coba Lagi</string>
     <string name="empty_moods_genres">Tidak ada suasana &amp; genre yang tersedia</string>
@@ -1169,7 +1135,6 @@
     <string name="subtitle_playlist_template">"Daftar putar -  %1$s"</string>
     <string name="plays_count_template">"-  %1$s pemutaran"</string>
     <string name="album_year_template">"Album -  %1$s -  %2$s"</string>
-    <string name="artist_audience_template">"Artis -  %1$s pendengar bulanan"</string>
     <string name="search_source_template">Pencarian: %1$s</string>
     <string name="artist_source_template">Artis: %1$s</string>
     <string name="top_picks_for_you">Pilihan Terbaik untuk Anda</string>
@@ -1181,7 +1146,6 @@
     <string name="empty_playlists_subtitle">Buat daftar putar pertama Anda untuk mengatur lagu favorit</string>
     <string name="empty_favorites_title">Belum Ada Favorit</string>
     <string name="empty_favorites_subtitle">Ketuk ikon hati pada lagu mana saja untuk menambahkannya ke favorit Anda</string>
-    <string name="favorites_count_template">%1$d lagu favorit</string>
     <string name="empty_history_title">Belum Ada Riwayat</string>
     <string name="empty_history_subtitle">Mulai mendengarkan musik untuk melihat riwayat Anda di sini</string>
     <string name="empty_downloads_title">Belum Ada Unduhan</string>
@@ -1367,7 +1331,6 @@
     <string name="diagnostics_copied">Laporan disalin ke papan klip</string>
     <string name="add_all_to_playlist">Tambahkan ke daftar putar saya</string>
     <string name="merge_playlist_dialog_title">Tambahkan semua lagu ke…</string>
-    <string name="merge_playlist_success">%1$d lagu ditambahkan ke \"%2$s\"</string>
     <string name="merge_playlist_no_playlists">Belum ada daftar putar. Buat satu terlebih dahulu!</string>
     <string name="profile_export_success">Profil berhasil diekspor</string>
     <string name="profile_export_failed">Ekspor gagal</string>
@@ -1403,7 +1366,6 @@
     <string name="taste_live_affinity">Afinitas siaran langsung</string>
     <string name="taste_live_affinity_detail">Seberapa cocok konten siaran langsung dengan profil</string>
     <string name="taste_topic_breadth">Keluasan topik</string>
-    <string name="taste_topic_breadth_detail">%1$d topik dalam vektor global</string>
     <string name="interest_weights_title">Bobot Minat</string>
     <string name="interest_weights_subtitle">Topik dengan bobot tertinggi setelah pemeriksaan probasi dan bukti</string>
     <string name="interest_weights_empty">Belum ada bobot topik.</string>
@@ -1463,8 +1425,6 @@
     <string name="taste_chart_profile">Profil</string>
     <string name="taste_chart_now">Sekarang</string>
     <string name="topic_score_prefix">Skor</string>
-    <string name="subscriptions_refresh_progress_template">Menyegarkan %1$d dari %2$d channel</string>
-    <string name="subscriptions_last_refreshed_template">Terakhir disegarkan %1$s - %2$d video diperiksa</string>
     <string name="search_watch_history">Cari riwayat tonton</string>
     <string name="history_filter_all_years">Semua tahun</string>
     <string name="history_sort_newest">Terbaru terlebih dahulu</string>
@@ -1478,7 +1438,6 @@
     <string name="empty_liked_music_body">Lagu yang Anda sukai akan muncul di sini</string>
     <string name="hide_channel_shorts">Sembunyikan Shorts dari channel ini</string>
     <string name="show_channel_shorts">Tampilkan Shorts dari channel ini</string>
-    <string name="likes_count_template">%1$d suka</string>
     <string name="appearance_system_defaults_title">Tema Default Sistem</string>
     <string name="appearance_system_defaults_subtitle">Pilih tema yang digunakan saat perangkat Anda beralih antara mode terang dan gelap.</string>
     <string name="appearance_system_light_theme">Tema mode terang</string>
@@ -1505,8 +1464,6 @@
     <string name="content_settings_nav_order_title">Urutan tab dan default</string>
     <string name="content_settings_nav_order_subtitle">Gunakan panah untuk menyusun ulang tab. Pilih tab default dengan tombol radio.</string>
     <string name="player_settings_shorts_playback_mode_auto_interval">Gulir otomatis setelah waktu kustom</string>
-    <string name="player_settings_shorts_playback_mode_auto_interval_summary">Gulir otomatis setiap %1$d detik</string>
-    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d detik</string>
     <string name="playlist_sort_options">Opsi urut playlist</string>
     <string name="playlist_sort_manual">Manual</string>
     <string name="playlist_sort_date_added_newest">Tanggal ditambahkan (terbaru)</string>
@@ -1514,14 +1471,12 @@
     <string name="playlist_sort_most_popular">Paling populer</string>
     <string name="playlist_sort_date_published_newest">Tanggal dipublikasikan (terbaru)</string>
     <string name="playlist_sort_date_published_oldest">Tanggal dipublikasikan (terlama)</string>
-    <string name="remove_selected_videos_title">Hapus %1$d video?</string>
     <string name="remove_selected_playlist_text">Video akan dihapus dari playlist ini.</string>
     <string name="remove_selected_watch_later_text">Video akan dihapus dari Tonton nanti.</string>
     <string name="shorts_auto_scroll_active_template">Otomatis %1$ds</string>
     <string name="section_incomplete_downloads">Unduhan belum selesai</string>
     <string name="download_status_cancelled">Dibatalkan</string>
     <string name="remove_incomplete_downloads">Hapus unduhan yang belum selesai</string>
-    <string name="remove_incomplete_downloads_message">Hapus %1$d unduhan yang dijeda, gagal, atau sebagian? Unduhan yang sudah selesai tidak akan diubah.</string>
     <string name="player_lock_controls">Kunci kontrol</string>
     <string name="player_unlock_controls">Buka kunci kontrol</string>
     <string name="player_settings_overlay_lock_mode">Tombol Mode Kunci</string>
@@ -1678,7 +1633,6 @@
     <string name="player_appearance_controls_while_loading_subtitle">Tampilkan kontrol pemutar sebelum video selesai memuat sehingga Anda dapat menyesuaikan volume segera</string>
     <string name="player_settings_autoplay_countdown_title">Jeda putar otomatis</string>
     <string name="player_settings_autoplay_countdown_none">Nihil (langsung ganti)</string>
-    <string name="player_settings_autoplay_countdown_seconds_template">%1$d detik</string>
     <string name="player_settings_autoplay_countdown_dialog_body">Tampilkan hitungan mundur sebelum secara otomatis beralih ke video berikutnya. Selama hitungan mundur Anda dapat me-restart video saat ini, membatalkan saklar, atau memutar yang berikutnya segera.</string>
     <string name="autoplay_countdown_up_next">Berikutnya</string>
     <string name="autoplay_countdown_next_video">Video selanjutnya</string>
@@ -1809,14 +1763,12 @@
     <string name="onboarding_channels_search_placeholder">Cari channel…</string>
     <string name="onboarding_channels_empty_prompt">Ketik nama channel untuk mencari</string>
     <string name="onboarding_channels_no_results">Tidak ada channel yang ditemukan untuk \"%1$s\"</string>
-    <string name="onboarding_channels_added_count">%1$d channel ditambahkan</string>
     <string name="onboarding_channels_subscribers">%1$s subscriber</string>
     <string name="onboarding_channels_subscribed">Sudah subscribe</string>
     <string name="onboarding_channels_subscribe">Subscribe</string>
     <string name="onboarding_import_title">Impor data Anda</string>
     <string name="onboarding_import_subtitle">Bawa subscription dan riwayat Anda dari aplikasi lain. Semuanya bersifat opsional.</string>
     <string name="onboarding_backup_restore_section">Backup &amp; Restore</string>
-    <string name="onboarding_n_selected">%1$d dipilih</string>
     <string name="onboarding_topic_selected">Dipilih</string>
     <string name="onboarding_topic_not_selected">Tidak dipilih</string>
     <string name="onboarding_import_failed_template">Impor gagal: %1$s</string>
@@ -2168,7 +2120,6 @@
     <string name="update_download_prompt">Versi baru Flow tersedia (%1$s). Unduh APK terbaru?</string>
     <string name="ui_instrumental">I N S T R U M E N T A L</string>
     <string name="ui_playlist_empty">Playlist kosong</string>
-    <string name="ui_downloading_videos">Mengunduh %1$d video…</string>
     <string name="ui_playlist_saved_to_library">Playlist disimpan ke koleksi</string>
     <string name="ui_playlist_removed_from_library">Playlist dihapus dari koleksi</string>
     <string name="ui_download_audio">Mengunduh audio: %1$skbps %2$s</string>
@@ -2190,10 +2141,8 @@
     <string name="toast_playlist_deleted">Playlist dihapus</string>
     <string name="toast_playlist_renamed">Playlist diubah namanya</string>
     <string name="toast_starting_playlist_download">Memulai unduhan untuk %1$s…</string>
-    <string name="toast_downloaded_tracks_from_playlist">Mengunduh %1$d trek dari %2$s</string>
     <string name="toast_failed_to_download_playlist">Gagal mengunduh playlist</string>
     <string name="toast_error_downloading_playlist">Kesalahan saat mengunduh playlist</string>
-    <string name="toast_downloaded_tracks">Mengunduh %1$d trek</string>
     <string name="toast_added_to_playlist">Ditambahkan ke playlist</string>
     <string name="toast_failed_to_add_track">Gagal menambahkan trek</string>
     <string name="toast_removed_from_playlist">Dihapus dari playlist</string>
@@ -2210,7 +2159,6 @@
     <string name="notification_download_failed">Unduhan gagal</string>
     <string name="notification_more">+%1$d lainnya</string>
     <string name="notification_new_videos">Video baru</string>
-    <string name="notification_new_videos_from_subscriptions">%1$d video baru dari langganan Anda</string>
     <string name="notification_update_available">Pembaruan Tersedia: %1$s</string>
     <string name="notification_tap_to_update">Ketuk untuk memperbarui ke versi terbaru.</string>
     <string name="notification_watch_later_reminder">Pengingat Tonton Nanti</string>
@@ -2281,7 +2229,6 @@
     <string name="import_manage_backups">Kelola cadangan Flow Anda</string>
     <string name="import_external_services">Layanan Eksternal</string>
     <string name="import_other_youtube_clients">Impor dari klien YouTube lain</string>
-    <string name="imported_count">Mengimpor %1$d %2$s</string>
     <string name="imported_successfully">%1$s berhasil diimpor</string>
     <string name="importing_label">Mengimpor %1$s…</string>
     <string name="imported_from_google_takeout">Diimpor dari Google Takeout</string>
@@ -2309,7 +2256,6 @@
     <string name="comment_edited">diedit</string>
     <string name="comment_time_edited_template">%1$s (%2$s)</string>
     <string name="desc_more">...lebih lanjut</string>
-    <string name="deep_flow_duration_hours">%1$d jam</string>
     <string name="notif_background_restricted_title">Pemeriksaan latar belakang dibatasi</string>
     <string name="notif_background_restricted_subtitle">Android memblokir Flow untuk memeriksa video baru saat aplikasi ditutup, sehingga peringatan hanya muncul saat Anda membuka aplikasi. Ketuk untuk mengizinkan aktivitas latar belakang tanpa batasan.</string>
     <string name="shorts_showing_more_like_this">Kami akan menampilkan lebih banyak seperti ini</string>
@@ -2347,7 +2293,6 @@
     <string name="sync_receive_option_body">Gabungkan perpustakaan perangkat lain ke dalam perangkat ini.</string>
     <string name="sync_select_all">Pilih semua</string>
     <string name="sync_select_none">Hapus</string>
-    <string name="sync_selected_count">%1$d dari %2$d dipilih</string>
     <string name="sync_collection_playlists_body">Daftar putar, album, dan Tonton Nanti Anda.</string>
     <string name="sync_collection_watch_history_body">Apa yang telah Anda tonton dan sejauh mana Anda menonton.</string>
     <string name="sync_collection_likes_body">Video dan musik yang disukai dan tidak disukai.</string>
@@ -2378,7 +2323,6 @@
     <string name="import_invalid_format">Format cadangan tidak dikenali — pastikan Anda memilih file yang benar</string>
     <string name="import_failed_template">Pengimporan gagal: %1$s</string>
     <string name="duration_hours_minutes">%1$d jam %2$d mnt</string>
-    <string name="duration_minutes">%1$d mnt</string>
     <string name="duration_hours_short">%1$dh</string>
     <string name="duration_minutes_short">%1$dm</string>
 </resources>

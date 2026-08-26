@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -522,7 +523,12 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
                         SettingsItem(
                             icon = Icons.Outlined.Speed,
                             title = stringResource(R.string.concurrent_threads_title),
-                            subtitle = stringResource(R.string.threads_per_download_template, threadCount),
+                            subtitle =
+                                pluralStringResource(
+                                    R.plurals.threads_per_download_template,
+                                    threadCount,
+                                    threadCount,
+                                ),
                             onClick = { showThreadDialog = true },
                         )
                     }
@@ -563,7 +569,7 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
-                        text = stringResource(R.string.threads_count_label, threadCount),
+                        text = pluralStringResource(R.plurals.threads_count_label, threadCount, threadCount),
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                         fontWeight = FontWeight.Bold,

@@ -421,7 +421,12 @@ fun AppearanceScreen(
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
-                val countText = context.getString(R.string.appearance_themes_count_all, allThemes.size)
+                val countText =
+                    context.resources.getQuantityString(
+                        R.plurals.appearance_themes_count_all,
+                        allThemes.size,
+                        allThemes.size,
+                    )
                 Text(
                     text = countText,
                     style = MaterialTheme.typography.labelLarge,
