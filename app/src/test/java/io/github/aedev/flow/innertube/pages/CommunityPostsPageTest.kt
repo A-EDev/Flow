@@ -18,48 +18,52 @@ class CommunityPostsPageTest {
         )
         assertEquals(
             "Mixed runs",
-            Json.parseToJsonElement(
-                """{"runs":[{"text":"Mixed "},{"content":"runs"}]}"""
-            ).youtubeText(),
+            Json
+                .parseToJsonElement(
+                    """{"runs":[{"text":"Mixed "},{"content":"runs"}]}""",
+                ).youtubeText(),
         )
     }
 
     @Test
     fun `parses community post and sign-in wrapped comment endpoint`() {
-        val response = Json.parseToJsonElement(
-            """
-            {
-              "contents": [{
-                "richItemRenderer": {
-                  "content": {
-                    "backstagePostThreadRenderer": {
-                      "post": {
-                        "backstagePostRenderer": {
-                          "postId": "post-1",
-                          "authorText": {"runs": [{"text": "Flow"}]},
-                          "authorThumbnail": {"thumbnails": [
-                            {"url": "//avatar-small", "width": 40, "height": 40},
-                            {"url": "//avatar-large", "width": 80, "height": 80}
-                          ]},
-                          "contentText": {"runs": [{"text": "Hello "}, {"text": "community"}]},
-                          "publishedTimeText": {"simpleText": "2 hours ago"},
-                          "voteCount": {"simpleText": "1.2K"},
-                          "backstageAttachment": {
-                            "backstageImageRenderer": {
-                              "image": {"thumbnails": [
-                                {"url": "//post-small", "width": 320, "height": 180},
-                                {"url": "//post-large", "width": 1280, "height": 720}
-                              ]}
-                            }
-                          },
-                          "actionButtons": {
-                            "commentActionButtonsRenderer": {
-                              "replyButton": {
-                                "buttonRenderer": {
-                                  "accessibilityData": {"accessibilityData": {"label": "Comment (45)"}},
-                                  "navigationEndpoint": {
-                                    "signInEndpoint": {
-                                      "nextEndpoint": {"browseEndpoint": {"params": "post-params"}}
+        val response =
+            Json.parseToJsonElement(
+                """
+                {
+                  "contents": [{
+                    "richItemRenderer": {
+                      "content": {
+                        "backstagePostThreadRenderer": {
+                          "post": {
+                            "backstagePostRenderer": {
+                              "postId": "post-1",
+                              "authorText": {"runs": [{"text": "Flow"}]},
+                              "authorThumbnail": {"thumbnails": [
+                                {"url": "//avatar-small", "width": 40, "height": 40},
+                                {"url": "//avatar-large", "width": 80, "height": 80}
+                              ]},
+                              "contentText": {"runs": [{"text": "Hello "}, {"text": "community"}]},
+                              "publishedTimeText": {"simpleText": "2 hours ago"},
+                              "voteCount": {"simpleText": "1.2K"},
+                              "backstageAttachment": {
+                                "backstageImageRenderer": {
+                                  "image": {"thumbnails": [
+                                    {"url": "//post-small", "width": 320, "height": 180},
+                                    {"url": "//post-large", "width": 1280, "height": 720}
+                                  ]}
+                                }
+                              },
+                              "actionButtons": {
+                                "commentActionButtonsRenderer": {
+                                  "replyButton": {
+                                    "buttonRenderer": {
+                                      "accessibilityData": {"accessibilityData": {"label": "Comment (45)"}},
+                                      "navigationEndpoint": {
+                                        "signInEndpoint": {
+                                          "nextEndpoint": {"browseEndpoint": {"params": "post-params"}}
+                                        }
+                                      }
                                     }
                                   }
                                 }
@@ -69,16 +73,14 @@ class CommunityPostsPageTest {
                         }
                       }
                     }
-                  }
+                  }, {
+                    "continuationItemRenderer": {
+                      "continuationEndpoint": {"continuationCommand": {"token": "posts-next"}}
+                    }
+                  }]
                 }
-              }, {
-                "continuationItemRenderer": {
-                  "continuationEndpoint": {"continuationCommand": {"token": "posts-next"}}
-                }
-              }]
-            }
-            """.trimIndent()
-        )
+                """.trimIndent(),
+            )
 
         val page = response.toCommunityPostsPage("Fallback", "fallback-avatar")
         val post = page.posts.single()
@@ -95,62 +97,63 @@ class CommunityPostsPageTest {
 
     @Test
     fun `parses modern entity comments with reply and page continuations`() {
-        val response = Json.parseToJsonElement(
-            """
-            {
-              "onResponseReceivedEndpoints": [{
-                "appendContinuationItemsAction": {
-                  "continuationItems": [{
-                    "commentThreadRenderer": {
-                      "commentViewModel": {
-                        "commentKey": "comment-key",
-                        "commentId": "comment-fallback"
-                      },
-                      "replies": {
-                        "commentRepliesRenderer": {
-                          "contents": [{
-                            "continuationItemRenderer": {
-                              "continuationEndpoint": {"continuationCommand": {"token": "replies-next"}}
+        val response =
+            Json.parseToJsonElement(
+                """
+                {
+                  "onResponseReceivedEndpoints": [{
+                    "appendContinuationItemsAction": {
+                      "continuationItems": [{
+                        "commentThreadRenderer": {
+                          "commentViewModel": {
+                            "commentKey": "comment-key",
+                            "commentId": "comment-fallback"
+                          },
+                          "replies": {
+                            "commentRepliesRenderer": {
+                              "contents": [{
+                                "continuationItemRenderer": {
+                                  "continuationEndpoint": {"continuationCommand": {"token": "replies-next"}}
+                                }
+                              }]
                             }
-                          }]
+                          }
                         }
-                      }
-                    }
-                  }, {
-                    "continuationItemRenderer": {
-                      "continuationEndpoint": {"continuationCommand": {"token": "comments-next"}}
-                    }
-                  }]
-                }
-              }],
-              "frameworkUpdates": {
-                "entityBatchUpdate": {
-                  "mutations": [{
-                    "entityKey": "comment-key",
-                    "payload": {
-                      "commentEntityPayload": {
-                        "properties": {
-                          "commentId": "comment-1",
-                          "content": "Modern comment",
-                          "publishedTime": "5 hours ago"
-                        },
-                        "author": {
-                          "displayName": "Viewer",
-                          "channelId": "UCviewer",
-                          "avatar": {"image": {"sources": [{"url": "//viewer-avatar"}]}}
-                        },
-                        "toolbar": {
-                          "replyCount": "3 replies",
-                          "likeCountNotliked": "42"
+                      }, {
+                        "continuationItemRenderer": {
+                          "continuationEndpoint": {"continuationCommand": {"token": "comments-next"}}
                         }
-                      }
+                      }]
                     }
-                  }]
+                  }],
+                  "frameworkUpdates": {
+                    "entityBatchUpdate": {
+                      "mutations": [{
+                        "entityKey": "comment-key",
+                        "payload": {
+                          "commentEntityPayload": {
+                            "properties": {
+                              "commentId": "comment-1",
+                              "content": "Modern comment",
+                              "publishedTime": "5 hours ago"
+                            },
+                            "author": {
+                              "displayName": "Viewer",
+                              "channelId": "UCviewer",
+                              "avatar": {"image": {"sources": [{"url": "//viewer-avatar"}]}}
+                            },
+                            "toolbar": {
+                              "replyCount": "3 replies",
+                              "likeCountNotliked": "42"
+                            }
+                          }
+                        }
+                      }]
+                    }
+                  }
                 }
-              }
-            }
-            """.trimIndent()
-        )
+                """.trimIndent(),
+            )
 
         val page = response.toCommunityCommentsPage()
         val comment = page.comments.single()
@@ -165,28 +168,64 @@ class CommunityPostsPageTest {
         assertEquals("comments-next", page.continuation)
     }
 
+    /** #904: post comments name the avatar with a flat author URL and carry no `avatar` object. */
     @Test
-    fun `parses legacy comment renderer`() {
-        val response = Json.parseToJsonElement(
-            """
-            {
-              "commentThreadRenderer": {
-                "comment": {
-                  "commentRenderer": {
-                    "commentId": "legacy-1",
-                    "authorText": {"simpleText": "Legacy viewer"},
-                    "authorThumbnail": {"thumbnails": [{"url": "https://legacy-avatar"}]},
-                    "contentText": {"simpleText": "Legacy comment"},
-                    "publishedTimeText": {"simpleText": "1 day ago"},
-                    "voteCount": {"simpleText": "1.5K"},
-                    "replyCount": 0,
-                    "authorEndpoint": {"browseEndpoint": {"browseId": "UClegacy"}}
+    fun `reads the avatar from the flat author url`() {
+        val response =
+            Json.parseToJsonElement(
+                """
+                {
+                  "commentThreadRenderer": {
+                    "commentViewModel": {"commentKey": "comment-key"}
+                  },
+                  "frameworkUpdates": {
+                    "entityBatchUpdate": {
+                      "mutations": [{
+                        "entityKey": "comment-key",
+                        "payload": {
+                          "commentEntityPayload": {
+                            "properties": {"commentId": "comment-1", "content": "Nice post"},
+                            "author": {
+                              "displayName": "@viewer",
+                              "channelId": "UCviewer",
+                              "avatarThumbnailUrl": "https://yt3.ggpht.com/viewer=s88-c-k-c0x00ffffff-no-rj"
+                            }
+                          }
+                        }
+                      }]
+                    }
                   }
                 }
-              }
-            }
-            """.trimIndent()
-        )
+                """.trimIndent(),
+            )
+
+        val comment = response.toCommunityCommentsPage().comments.single()
+        assertEquals("https://yt3.ggpht.com/viewer=s88-c-k-c0x00ffffff-no-rj", comment.authorThumbnail)
+    }
+
+    @Test
+    fun `parses legacy comment renderer`() {
+        val response =
+            Json.parseToJsonElement(
+                """
+                {
+                  "commentThreadRenderer": {
+                    "comment": {
+                      "commentRenderer": {
+                        "commentId": "legacy-1",
+                        "authorText": {"simpleText": "Legacy viewer"},
+                        "authorThumbnail": {"thumbnails": [{"url": "https://legacy-avatar"}]},
+                        "contentText": {"simpleText": "Legacy comment"},
+                        "publishedTimeText": {"simpleText": "1 day ago"},
+                        "voteCount": {"simpleText": "1.5K"},
+                        "replyCount": 0,
+                        "authorEndpoint": {"browseEndpoint": {"browseId": "UClegacy"}}
+                      }
+                    }
+                  }
+                }
+                """.trimIndent(),
+            )
 
         val page = response.toCommunityCommentsPage()
         val comment = page.comments.single()

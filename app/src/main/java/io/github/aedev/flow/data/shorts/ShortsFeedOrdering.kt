@@ -19,18 +19,29 @@ internal fun <T> diversifySubscriptions(
         val subscriptionAllowed = recentSubscriptionFlags.count { it } < maxSubscribedInWindow
         val nextSubscribed = subscribed.firstOrNull()
         val nextDiscovery = discovery.firstOrNull()
-        val takeSubscribed = when {
-            nextSubscribed == null -> false
-            nextDiscovery == null -> true
-            !subscriptionAllowed -> false
-            else -> nextSubscribed.index < nextDiscovery.index
-        }
+        val takeSubscribed =
+            when {
+                nextSubscribed == null -> false
+                nextDiscovery == null -> true
+                !subscriptionAllowed -> false
+                else -> nextSubscribed.index < nextDiscovery.index
+            }
         val next = if (takeSubscribed) subscribed.removeFirst() else discovery.removeFirst()
         result += next.value
         recentSubscriptionFlags += takeSubscribed
         if (recentSubscriptionFlags.size >= windowSize) recentSubscriptionFlags.removeFirst()
     }
     return result
+}
+
+internal fun <T> openingOnSeed(
+    items: List<T>,
+    seed: T,
+    id: (T) -> String,
+): List<T> {
+    val seedId = id(seed)
+    val opening = items.firstOrNull { id(it) == seedId } ?: seed
+    return listOf(opening) + items.filterNot { id(it) == seedId }
 }
 
 internal fun <T> mergeDiscoveryCandidates(

@@ -177,17 +177,49 @@ class ShortsRepository private constructor(
                     null
                 }
 
-            if (rawResult != null && rawResult.shorts.isNotEmpty()) {
-                Log.d(TAG, "✓ InnerTube seed returned ${rawResult.shorts.size} shorts")
-                val filtered = rawResult.copy(shorts = filterWatchedShorts(rawResult.shorts))
-                filtered.shorts.forEach { shortsCache.put(it.id, it) }
-                markAsShown(filtered.shorts.map { it.id })
-                return@withContext filtered
-            }
+            val sequence =
+                if (rawResult != null && rawResult.shorts.isNotEmpty()) {
+                    Log.d(TAG, "✓ InnerTube seed returned ${rawResult.shorts.size} shorts")
+                    rawResult.copy(shorts = filterWatchedShorts(rawResult.shorts, keepId = seedVideoId))
+                } else {
+                    Log.w(TAG, "InnerTube seed failed — falling back to discovery feed")
+                    fetchDiscoveryFeed()
+                }
 
-            Log.w(TAG, "InnerTube seed failed — falling back to discovery feed")
-            fetchDiscoveryFeed()
+            val seeded = sequence.copy(shorts = sequence.shorts.openingOn(seedVideoId))
+            seeded.shorts.forEach { shortsCache.put(it.id, it) }
+            markAsShown(seeded.shorts.map { it.id })
+            seeded
         }
+
+    /** Anchors the sequence on [videoId], resolving what to show for it from cache or a placeholder. */
+    private fun List<ShortVideo>.openingOn(videoId: String): List<ShortVideo> {
+        val opened =
+            openingOnSeed(
+                items = this,
+                seed = shortsCache.get(videoId) ?: placeholderShort(videoId),
+                id = ShortVideo::id,
+            )
+        opened.first().takeIf { it.needsEnrichment }?.let { seed ->
+            repositoryScope.launch {
+                enrichMissingMetadata(listOf(seed)).forEach { shortsCache.put(it.id, it) }
+            }
+        }
+        return opened
+    }
+
+    /**
+     * A Short known only by its id. Carries the sentinels [enrichMissingMetadata] looks for, so the
+     * real title and channel arrive over [enrichmentUpdates] once the player lookup returns.
+     */
+    private fun placeholderShort(videoId: String) =
+        ShortVideo(
+            id = videoId,
+            title = "Short",
+            channelName = "Unknown",
+            channelId = "",
+            thumbnailUrl = "https://i.ytimg.com/vi/$videoId/oar2.jpg",
+        )
 
     private suspend fun fetchDiscoveryFeed(): ShortsSequenceResult {
         // Issued before anything else touches the network or the database. This single
@@ -985,10 +1017,7 @@ class ShortsRepository private constructor(
     // INTERNAL — Metadata Enrichment
     private suspend fun enrichMissingMetadata(shorts: List<ShortVideo>): List<ShortVideo> =
         supervisorScope {
-            val needsEnrichment =
-                shorts.filter {
-                    it.title == "Short" || it.channelName == "Unknown" || it.channelName.isBlank()
-                }
+            val needsEnrichment = shorts.filter { it.needsEnrichment }
 
             if (needsEnrichment.isEmpty()) return@supervisorScope shorts
 
@@ -1110,7 +1139,16 @@ class ShortsRepository private constructor(
         return ShortsSequenceResult(shorts, null)
     }
 
-    private suspend fun filterWatchedShorts(shorts: List<ShortVideo>): List<ShortVideo> {
+    /**
+     * Drops Shorts the user has already watched or been shown in the last week.
+     *
+     * [keepId] survives regardless: it is the Short the user just asked for by name, and having
+     * watched it once is no reason to refuse to open it again.
+     */
+    private suspend fun filterWatchedShorts(
+        shorts: List<ShortVideo>,
+        keepId: String? = null,
+    ): List<ShortVideo> {
         if (shorts.isEmpty()) return shorts
         val threshold = PlayerPreferences(context).watchedThreshold.first()
         val watchedIds =
@@ -1123,7 +1161,7 @@ class ShortsRepository private constructor(
                 FlowNeuroEngine.getRecentlySeenShorts()
             }.getOrDefault(emptySet())
         if (watchedIds.isEmpty() && recentlySeenIds.isEmpty()) return shorts
-        return shorts.filter { it.id !in watchedIds && it.id !in recentlySeenIds }
+        return shorts.filter { it.id == keepId || (it.id !in watchedIds && it.id !in recentlySeenIds) }
     }
 
     suspend fun recordShown(videoId: String) {
@@ -1188,6 +1226,10 @@ class ShortsRepository private constructor(
         return getShortsFeed()
     }
 }
+
+/** The placeholder title and channel a reel entry carries when it arrived without metadata. */
+private val ShortVideo.needsEnrichment: Boolean
+    get() = title == "Short" || channelName == "Unknown" || channelName.isBlank()
 
 data class ShortPlaybackStreams(
     val videoUrl: String,

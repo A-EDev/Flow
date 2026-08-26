@@ -3217,17 +3217,21 @@ object YouTube {
         }
 
     /**
-     * Fetch a Shorts reel sequence starting from a specific video.
-     * Uses 'params' to seed the sequence from a particular video ID.
+     * Fetch the Shorts reel sequence that *follows* [videoId].
+     *
+     * The seed belongs in `sequenceParams` — the field YouTube's own Shorts player sends. Seeding
+     * through `params` instead is rejected outright (HTTP 400), which is what used to send callers
+     * to the unseeded feed and open an unrelated Short (#931).
+     *
+     * The response never contains the seed itself, because the client that asked is already
+     * playing it; whoever opens a queue on [videoId] has to supply it.
      */
     suspend fun shortsFromVideo(videoId: String): Result<ShortsPage> =
         runCatching {
-            val seedParams = buildShortsParams(videoId)
             innerTube
                 .reel(
                     client = YouTubeClient.ANDROID,
-                    params = seedParams,
-                    sequenceParams = null,
+                    sequenceParams = buildShortsSequenceParams(videoId),
                 ).toShortsPage()
         }
 
@@ -3246,11 +3250,9 @@ object YouTube {
                 ).body<PlayerResponse>()
         }
 
-    /**
-     * Build InnerTube params string for seeding a reel sequence from a video ID.
-     */
-    private fun buildShortsParams(videoId: String): String {
-        val bytes = byteArrayOf(0x12) + videoId.length.toByte() + videoId.toByteArray(Charsets.UTF_8)
+    /** Protobuf `{1: videoId}`, base64url — how the reel sequence names the Short it continues from. */
+    private fun buildShortsSequenceParams(videoId: String): String {
+        val bytes = byteArrayOf(0x0A) + videoId.length.toByte() + videoId.toByteArray(Charsets.UTF_8)
         return java.util.Base64
             .getUrlEncoder()
             .withoutPadding()
