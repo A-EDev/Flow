@@ -2398,4 +2398,30 @@
     <string name="content_settings_shorts_content_title">عرض Shorts</string>
     <string name="content_settings_shorts_content_subtitle">يمكنك إخفاء جميع المقاطع القصيرة في التطبيق. يتم الاحتفاظ بالمقاطع القصيرة المحفوظة وسجل المشاهدة، ولا يتم حذفها.</string>
     <string name="player_settings_shorts_pip">نافذة عائمة لمقاطع Shorts</string>
+    <string name="top_bar_clear_search">مسح البحث</string>
+    <string name="top_bar_close_search">إغلاق البحث</string>
+    <string name="download_size_estimate_mb">~%1$s MB</string>
+    <string name="download_size_estimate_gb">~%1$s GB</string>
+    <string name="subtitle_load_failed">تعذّر تحميل %1$s من ترجمات ‏ — حاول مرة أخرى</string>
+    <string name="notification_channel_downloads_name">تنزيلات Flow</string>
+    <string name="notification_download_paused">متوقف مؤقتًا — ‏%1$s</string>
+    <string name="notification_download_paused_hint">اضغط للاستئناف</string>
+    <string name="notification_download_progress">%1$d%% • %2$s / %3$s</string>
+    <plurals name="notification_downloads_active">
+        <item quantity="zero">لا تنزيل</item>
+        <item quantity="one">جارٍ تنزيل عنصر واحد</item>
+        <item quantity="two">جارٍ تنزيل عنصرين</item>
+        <item quantity="few">جارٍ تنزيل %1$d عناصر</item>
+        <item quantity="many">جارٍ تنزيل %1$d عنصرًا</item>
+        <item quantity="other">جارٍ تنزيل %1$d عنصر</item>
+    </plurals>
+    <plurals name="notification_downloads_paused">
+        <item quantity="zero">لا تنزيل متوقف مؤقتًا</item>
+        <item quantity="one">تنزيل واحد متوقف مؤقتًا</item>
+        <item quantity="two">تنزيلان متوقفان مؤقتًا</item>
+        <item quantity="few">%1$d تنزيلات متوقفة مؤقتًا</item>
+        <item quantity="many">%1$d تنزيلًا متوقفًا مؤقتًا</item>
+        <item quantity="other">%1$d تنزيل متوقف مؤقتًا</item>
+    </plurals>
+    <string name="download_stream_blocked_403">تم حظر البث أو انتهت صلاحيته (HTTP 403). جرّب جودة أو ترميزًا آخر، أو حاول لاحقًا.</string>
 </resources>
