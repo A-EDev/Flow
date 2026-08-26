@@ -2424,4 +2424,6 @@
         <item quantity="other">%1$d تنزيل متوقف مؤقتًا</item>
     </plurals>
     <string name="download_stream_blocked_403">تم حظر البث أو انتهت صلاحيته (HTTP 403). جرّب جودة أو ترميزًا آخر، أو حاول لاحقًا.</string>
+    <string name="import_yt_watch_later">استيراد المشاهدة لاحقاً</string>
+    <string name="import_yt_watch_later_desc">قم باستيراد ملف CSV الخاص بـ YouTube Takeout مباشرة إلى قائمة \"المشاهدة لاحقًا\" الخاصة بك، بغض النظر عن اسم الملف.</string>
 </resources>
