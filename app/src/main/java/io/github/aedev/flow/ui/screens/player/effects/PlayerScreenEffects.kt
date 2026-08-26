@@ -31,6 +31,7 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
+import io.github.aedev.flow.ui.utils.isTabletFormFactor
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -583,8 +584,8 @@ fun FullscreenEffect(
                     act.window.attributes = layoutParams
                 }
             } else {
-                val cfgLandscape =
-                    act.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                val configuration = act.resources.configuration
+                val cfgLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 val autoRotateOn =
                     try {
                         Settings.System.getInt(
@@ -595,7 +596,12 @@ fun FullscreenEffect(
                         false
                     }
 
-                if (cfgLandscape && autoRotateOn) {
+                // A phone has no landscape layout outside fullscreen, so it is held in portrait
+                // until the user physically rotates back. A tablet's landscape layout is the
+                // primary one and the release listener below can never fire on a device whose
+                // natural orientation is portrait but is being held sideways, so pinning one here
+                // would strand it in portrait for the rest of the session (#918).
+                if (cfgLandscape && autoRotateOn && !configuration.isTabletFormFactor) {
                     act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     forcePortraitLock = true
                 } else {

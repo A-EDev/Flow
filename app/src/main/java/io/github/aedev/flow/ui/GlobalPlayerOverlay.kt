@@ -18,7 +18,6 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -68,18 +67,16 @@ import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.player.dlna.DlnaDevice
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
-import io.github.aedev.flow.ui.components.CommentSortFilterChips
 import io.github.aedev.flow.ui.components.DraggablePlayerLayout
 import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
-import io.github.aedev.flow.ui.components.FlowCommentsList
 import io.github.aedev.flow.ui.components.Media3SubtitleOverlay
+import io.github.aedev.flow.ui.components.PlayerCommentsPanel
 import io.github.aedev.flow.ui.components.PlayerDraggableState
 import io.github.aedev.flow.ui.components.PlayerSheetValue
 import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.SubtitleStyle
 import io.github.aedev.flow.ui.components.commentTimestampToMs
 import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
-import io.github.aedev.flow.ui.components.sortCommentsByFilter
 import io.github.aedev.flow.ui.screens.player.EnhancedVideoPlayerScreen
 import io.github.aedev.flow.ui.screens.player.PremiumControlsOverlay
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
@@ -98,12 +95,15 @@ import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
 import io.github.aedev.flow.ui.screens.player.effects.*
+import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
+import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
 import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.utils.isTabletFormFactor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -192,10 +192,6 @@ fun GlobalPlayerOverlay(
         scope.launch { playerPreferences.setPreferredSubtitleLanguage(language) }
     }
     val isCommentsAvailable = commentsEnabled && playerUiState.hlsUrl.isNullOrEmpty()
-    val sortedComments =
-        remember(comments, screenState.commentSortFilter) {
-            sortCommentsByFilter(comments, screenState.commentSortFilter)
-        }
 
     LaunchedEffect(allowVolumeBoost) {
         if (!allowVolumeBoost && screenState.volumeLevel > 1f) {
@@ -382,7 +378,8 @@ fun GlobalPlayerOverlay(
 
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val isTablet = config.smallestScreenWidthDp >= 600
+    val isTablet = config.isTabletFormFactor
+    val playerLayoutMode = playerLayoutModeFor(config, screenState.isFullscreen, localIsInPipMode)
     val windowInsetDensity = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val sponsorSkipEndPadding =
@@ -1565,56 +1562,23 @@ fun GlobalPlayerOverlay(
                         )
                     }
                 } else if (showCommentsSidePanel) {
-                    Column(Modifier.fillMaxSize()) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.comments),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Spacer(Modifier.weight(1f))
-                            IconButton(onClick = { closeFullscreenSidePanel() }) {
-                                Icon(
-                                    Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.close),
-                                )
-                            }
-                        }
-                        CommentSortFilterChips(
-                            selectedFilter = screenState.commentSortFilter,
-                            onFilterChanged = { screenState.commentSortFilter = it },
-                            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-                        val commentsListState = rememberLazyListState()
-                        LaunchedEffect(screenState.commentSortFilter) {
-                            commentsListState.scrollToItem(0)
-                        }
-                        FlowCommentsList(
-                            comments = sortedComments,
-                            isLoading = isLoadingComments,
-                            listState = commentsListState,
-                            selectedFilter = screenState.commentSortFilter,
-                            onTimestampClick = { EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(it)) },
-                            onLoadReplies = { playerViewModel.loadCommentReplies(it) },
-                            onLoadMoreReplies = { playerViewModel.loadMoreCommentReplies(it) },
-                            onAuthorClick = { authorChannelRef ->
-                                closeFullscreenSidePanel()
-                                onNavigateToChannel(authorChannelRef)
-                            },
-                            onAvatarClick = {},
-                            isLoadingMore = isLoadingMoreComments,
-                            onLoadMore = { playerViewModel.loadMoreComments(video.id) },
-                            hasMore = hasMoreComments,
-                            modifier = Modifier.fillMaxWidth().weight(1f),
-                        )
-                    }
+                    PlayerCommentsPanel(
+                        comments = comments,
+                        isLoading = isLoadingComments,
+                        isLoadingMore = isLoadingMoreComments,
+                        hasMore = hasMoreComments,
+                        selectedFilter = screenState.commentSortFilter,
+                        onFilterChanged = { screenState.commentSortFilter = it },
+                        onTimestampClick = { EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(it)) },
+                        onLoadReplies = { playerViewModel.loadCommentReplies(it) },
+                        onLoadMoreReplies = { playerViewModel.loadMoreCommentReplies(it) },
+                        onAuthorClick = { authorChannelRef ->
+                            closeFullscreenSidePanel()
+                            onNavigateToChannel(authorChannelRef)
+                        },
+                        onLoadMore = { playerViewModel.loadMoreComments(video.id) },
+                        onClose = { closeFullscreenSidePanel() },
+                    )
                 }
             }
         }
@@ -1710,6 +1674,7 @@ fun GlobalPlayerOverlay(
             onNavigateToChannel = { channelId ->
                 onNavigateToChannel(channelId)
             },
+            renderCommentsSheet = playerLayoutMode != PlayerLayoutMode.WIDE,
             renderChaptersSheet = !canUseFullscreenSidePanel,
             renderSleepTimerSheet = !canUseFullscreenSidePanel,
             onMediaSheetProgressChange = updateMediaSheetProgress,

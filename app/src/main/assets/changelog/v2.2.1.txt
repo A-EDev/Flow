@@ -36,6 +36,7 @@ IMPROVEMENTS
 - Apply your preferred video codec to live streams #727
 - Show which address this device is advertising on the sync QR screen, so a failed connection is easier to place
 - Rebuild the device sync screens on Material 3, with clearer send and receive options, a line explaining everything you can sync, and an easier-to-read pairing code
+- Open comments beside the video on tablets in landscape instead of covering it with a sheet #918
 
 PERFORMANCE
 - Faster cold start and smoother scrolling
@@ -101,6 +102,9 @@ FIXES AND STABILITY
 - Fix Back abandoning the whole sync screen instead of returning to the previous step
 - Fix the empty band above the title on the sync screen
 - Fix Settings and Notifications being unreachable after turning off the home tab
+- Fix tablets dropping to the phone layout after leaving and returning to the app #909
+- Fix tablets being locked into portrait after leaving fullscreen, with no way back to landscape #918
+- Fix casting to Kodi and other players built on ffmpeg ending the moment it started #916
 
 DEPENDENCY
 - Bump NewPipeExtractor to v0.26.5

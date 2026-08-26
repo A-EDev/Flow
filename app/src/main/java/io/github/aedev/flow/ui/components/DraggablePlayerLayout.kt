@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
+import io.github.aedev.flow.ui.utils.TABLET_SMALLEST_WIDTH_DP
+import io.github.aedev.flow.ui.utils.isTabletFormFactor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -348,10 +350,10 @@ fun DraggablePlayerLayout(
     val density = LocalDensity.current
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val isTablet = config.smallestScreenWidthDp >= 600
+    val isTablet = config.isTabletFormFactor
     val isFoldable =
         remember(config) {
-            config.smallestScreenWidthDp in 480..599
+            config.smallestScreenWidthDp in 480 until TABLET_SMALLEST_WIDTH_DP
         }
     val isLargeScreen = isTablet || isFoldable
 

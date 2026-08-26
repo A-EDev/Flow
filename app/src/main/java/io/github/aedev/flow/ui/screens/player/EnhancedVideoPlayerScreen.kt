@@ -16,23 +16,24 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
-import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
-
-// Modular components
-import io.github.aedev.flow.ui.screens.player.content.VideoInfoContent
-import io.github.aedev.flow.ui.screens.player.content.relatedVideosContent
-import io.github.aedev.flow.ui.screens.player.content.relatedVideosGridContent
-import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
-import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.PlaylistQueueDock
+import io.github.aedev.flow.ui.screens.player.content.PlayerDetailSideColumn
+import io.github.aedev.flow.ui.screens.player.content.VideoInfoContent
+import io.github.aedev.flow.ui.screens.player.content.relatedVideosContent
+import io.github.aedev.flow.ui.screens.player.content.relatedVideosGridContent
+import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
+import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
+import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 
 /**
  * EnhancedVideoPlayerScreen - Simplified version for DraggablePlayerLayout
- * 
+ *
  * This composable only renders the VIDEO DETAILS (description, comments, related videos).
  * The video player surface and all effects are handled by FlowApp.kt
  */
@@ -46,16 +47,16 @@ fun EnhancedVideoPlayerScreen(
     videoPlayerHeight: androidx.compose.ui.unit.Dp = 0.dp,
     screenState: PlayerScreenState, // Shared screenState from FlowApp
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit
+    onChannelClick: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val config = androidx.compose.ui.platform.LocalConfiguration.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    
+
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val comments by viewModel.commentsState.collectAsStateWithLifecycle()
-    
+
     val preferences = remember { PlayerPreferences(context) }
     val showRelatedVideosPref by preferences.showRelatedVideos.collectAsState(initial = true)
     val commentsEnabledPref by preferences.commentsEnabled.collectAsState(initial = true)
@@ -66,17 +67,16 @@ fun EnhancedVideoPlayerScreen(
     val relatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     Box(
-        modifier = Modifier
-        .fillMaxSize()
-        .graphicsLayer { this.alpha = alpha() }
-        .background(MaterialTheme.colorScheme.background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { this.alpha = alpha() }
+                .background(MaterialTheme.colorScheme.background),
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val isTablet = config.smallestScreenWidthDp >= 600
-            val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            
-            val isWideLayout = isTablet && isLandscape && !screenState.isFullscreen && !isInPipMode
-            val isTabletPortrait = isTablet && !isLandscape && !screenState.isFullscreen && !isInPipMode
+            val layoutMode = playerLayoutModeFor(config, screenState.isFullscreen, isInPipMode)
+            val isWideLayout = layoutMode == PlayerLayoutMode.WIDE
+            val isTabletPortrait = layoutMode == PlayerLayoutMode.TABLET_PORTRAIT
 
             if (isWideLayout) {
                 val descriptionWeight = if (maxWidth < 840.dp) 0.55f else 0.65f
@@ -88,12 +88,12 @@ fun EnhancedVideoPlayerScreen(
                         Modifier
                             .weight(descriptionWeight)
                             .fillMaxHeight()
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(rememberScrollState()),
                     ) {
                         if (videoPlayerHeight > 0.dp) {
                             Spacer(Modifier.height(videoPlayerHeight))
                         }
-                        
+
                         VideoInfoContent(
                             video = video,
                             uiState = uiState,
@@ -105,65 +105,30 @@ fun EnhancedVideoPlayerScreen(
                             context = context,
                             scope = scope,
                             snackbarHostState = snackbarHostState,
-                            onChannelClick = onChannelClick
+                            onChannelClick = onChannelClick,
                         )
                     }
-                    if (uiState.isLiveChatAvailable && screenState.showLiveChatPanel) {
-                        Column(Modifier.weight(relatedWeight).fillMaxHeight()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.live_chat),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(Modifier.weight(1f))
-                                TextButton(onClick = { screenState.showLiveChatPanel = false }) {
-                                    Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.live_chat_hide))
-                                }
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-                            io.github.aedev.flow.ui.components.LiveChatList(
-                                messages = uiState.liveChatMessages,
-                                isLoading = uiState.isLiveChatLoading,
-                                modifier = Modifier.fillMaxWidth().weight(1f),
-                                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 0.dp)
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            Modifier.weight(relatedWeight),
-                            contentPadding = PaddingValues(bottom = 80.dp)
-                        ) {
-                            if (uiState.isLiveChatAvailable) {
-                                item {
-                                    io.github.aedev.flow.ui.components.LiveChatPreview(
-                                        onClick = { screenState.showLiveChatPanel = true }
-                                    )
-                                }
-                            }
-                            if (showRelatedVideos) {
-                                relatedVideosContent(
-                                    relatedVideos = uiState.relatedVideos,
-                                    onVideoClick = onVideoClick,
-                                    onChannelClick = onChannelClick,
-                                    cardStyle = relatedCardStyle
-                                )
-                            }
-                        }
-                    }
+                    PlayerDetailSideColumn(
+                        video = video,
+                        uiState = uiState,
+                        viewModel = viewModel,
+                        screenState = screenState,
+                        comments = comments,
+                        commentsEnabled = commentsEnabled,
+                        showRelatedVideos = showRelatedVideos,
+                        relatedCardStyle = relatedCardStyle,
+                        onVideoClick = onVideoClick,
+                        onChannelClick = onChannelClick,
+                        modifier = Modifier.weight(relatedWeight),
+                    )
                 }
             } else {
                 // Phone Portrait or Tablet Portrait Layout
                 Column(Modifier.fillMaxSize()) {
                     if (!screenState.isFullscreen && !isInPipMode) {
                         LazyColumn(
-                            Modifier.weight(1f), 
-                            contentPadding = PaddingValues(bottom = 80.dp)
+                            Modifier.weight(1f),
+                            contentPadding = PaddingValues(bottom = 80.dp),
                         ) {
                             item {
                                 VideoInfoContent(
@@ -177,7 +142,7 @@ fun EnhancedVideoPlayerScreen(
                                     context = context,
                                     scope = scope,
                                     snackbarHostState = snackbarHostState,
-                                    onChannelClick = onChannelClick
+                                    onChannelClick = onChannelClick,
                                 )
                             }
                             if (showRelatedVideos) {
@@ -187,14 +152,14 @@ fun EnhancedVideoPlayerScreen(
                                         columns = 2,
                                         onVideoClick = onVideoClick,
                                         onChannelClick = onChannelClick,
-                                        cardStyle = relatedCardStyle
+                                        cardStyle = relatedCardStyle,
                                     )
                                 } else {
                                     relatedVideosContent(
                                         relatedVideos = uiState.relatedVideos,
                                         onVideoClick = onVideoClick,
                                         onChannelClick = onChannelClick,
-                                        cardStyle = relatedCardStyle
+                                        cardStyle = relatedCardStyle,
                                     )
                                 }
                             }
@@ -202,18 +167,21 @@ fun EnhancedVideoPlayerScreen(
                     }
                 }
             }
-            
+
             // Playlist Queue Dock
             val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
             val queueVideos by EnhancedPlayerManager.getInstance().queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
-            val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(initialValue = -1)
+            val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(
+                initialValue = -1,
+            )
 
             if ((playerState.queueTitle != null && queueVideos.isNotEmpty()) || (playerState.queueTitle == null && queueVideos.size > 1)) {
-                val nextVideoTitle = when {
-                    currentQueueIndex < queueVideos.lastIndex -> queueVideos[currentQueueIndex + 1].title
-                    playerState.isQueueLooping -> queueVideos.firstOrNull()?.title
-                    else -> null
-                }
+                val nextVideoTitle =
+                    when {
+                        currentQueueIndex < queueVideos.lastIndex -> queueVideos[currentQueueIndex + 1].title
+                        playerState.isQueueLooping -> queueVideos.firstOrNull()?.title
+                        else -> null
+                    }
 
                 PlaylistQueueDock(
                     nextVideoTitle = nextVideoTitle,
@@ -221,20 +189,22 @@ fun EnhancedVideoPlayerScreen(
                     currentIndex = currentQueueIndex,
                     queueSize = queueVideos.size,
                     onClick = { screenState.showPlaylistQueueSheet = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = if (isWideLayout) 24.dp else 16.dp)
-                        .widthIn(max = 600.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = if (isWideLayout) 24.dp else 16.dp)
+                            .widthIn(max = 600.dp),
                 )
             }
 
             // Snackbar host
             SnackbarHost(
-                hostState = snackbarHostState, 
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    // Move snackbar up if dock is visible
-                    .padding(bottom = if (playerState.queueTitle != null && queueVideos.isNotEmpty()) 80.dp else 0.dp)
+                hostState = snackbarHostState,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        // Move snackbar up if dock is visible
+                        .padding(bottom = if (playerState.queueTitle != null && queueVideos.isNotEmpty()) 80.dp else 0.dp),
             )
         }
     }

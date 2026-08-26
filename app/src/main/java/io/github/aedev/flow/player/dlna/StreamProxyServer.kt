@@ -50,30 +50,38 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   proxy.stop()
  */
 class StreamProxyServer private constructor() {
-
     companion object {
         private const val TAG = "StreamProxy"
         private const val BUFFER_SIZE = 64 * 1024 // 64KB chunks
         private const val MAX_CONNECTIONS = 8
 
+        internal fun segmentFileExtension(contentType: String): String =
+            when {
+                contentType.startsWith("audio/") && contentType.contains("webm") -> "weba"
+                contentType.startsWith("audio/") -> "m4a"
+                contentType.contains("webm") -> "webm"
+                else -> "mp4"
+            }
+
         @Volatile
         private var instance: StreamProxyServer? = null
 
-        fun getInstance(): StreamProxyServer {
-            return instance ?: synchronized(this) {
+        fun getInstance(): StreamProxyServer =
+            instance ?: synchronized(this) {
                 instance ?: StreamProxyServer().also { instance = it }
             }
-        }
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .build()
+    private val http =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
 
     private var serverSocket: ServerSocket? = null
     private val isRunning = AtomicBoolean(false)
@@ -90,9 +98,8 @@ class StreamProxyServer private constructor() {
     private data class StreamEntry(
         val realUrl: String,
         val contentType: String,
-        val contentLength: Long = -1
+        val contentLength: Long = -1,
     )
-
 
     private val hlsPlaylists = ConcurrentHashMap<String, String>()
 
@@ -155,16 +162,23 @@ class StreamProxyServer private constructor() {
      *
      * @param realUrl The actual googlevideo.com stream URL
      * @param contentType MIME type (e.g., "video/mp4", "audio/mp4")
-     * @return Local URL like "http://192.168.1.5:8080/s/abc123"
+     * @return Local URL like "http://192.168.1.5:8080/s/abc123.mp4"
      */
-    fun registerStream(realUrl: String, contentType: String = "video/mp4"): String {
+    fun registerStream(
+        realUrl: String,
+        contentType: String = "video/mp4",
+    ): String {
         if (!isRunning.get()) {
             Log.w(TAG, "Proxy not running, cannot register stream")
             return realUrl
         }
 
-        val pathId = java.util.UUID.randomUUID().toString().take(8)
-        val path = "/s/$pathId"
+        val pathId =
+            java.util.UUID
+                .randomUUID()
+                .toString()
+                .take(8)
+        val path = "/s/$pathId.${segmentFileExtension(contentType)}"
 
         val contentLength = probeContentLength(realUrl)
 
@@ -194,14 +208,18 @@ class StreamProxyServer private constructor() {
         audioMime: String = "audio/mp4",
         audioBitrate: Int = 128_000,
         audioCodec: String = "mp4a.40.2",
-        durationSeconds: Long = 0
+        durationSeconds: Long = 0,
     ): String {
         if (!isRunning.get() || videoVariants.isEmpty()) {
             Log.w(TAG, "Proxy not running or no variants, cannot register HLS")
             return videoVariants.firstOrNull()?.url ?: ""
         }
 
-        val sessionId = java.util.UUID.randomUUID().toString().take(8)
+        val sessionId =
+            java.util.UUID
+                .randomUUID()
+                .toString()
+                .take(8)
         val durationSec = if (durationSeconds > 0) durationSeconds else 7200
         val targetDuration = durationSec + 1
 
@@ -215,35 +233,43 @@ class StreamProxyServer private constructor() {
         data class VariantEntry(
             val mediaUrl: String,
             val variant: CastStreamVariant,
-            val proxyUrl: String
+            val proxyUrl: String,
         )
 
-        val variantEntries = videoVariants.mapIndexed { index, variant ->
-            val proxyVideoUrl = registerStream(variant.url, variant.mime)
-            val videoMediaPath = "/h/v${variant.height}p_${sessionId}_$index.m3u8"
-            val videoMediaPlaylist = buildMediaPlaylist(proxyVideoUrl, durationSec, targetDuration)
-            hlsPlaylists[videoMediaPath] = videoMediaPlaylist
+        val variantEntries =
+            videoVariants.mapIndexed { index, variant ->
+                val proxyVideoUrl = registerStream(variant.url, variant.mime)
+                val videoMediaPath = "/h/v${variant.height}p_${sessionId}_$index.m3u8"
+                val videoMediaPlaylist = buildMediaPlaylist(proxyVideoUrl, durationSec, targetDuration)
+                hlsPlaylists[videoMediaPath] = videoMediaPlaylist
 
-            val videoMediaUrl = "http://$localAddress:$localPort$videoMediaPath"
-            VariantEntry(videoMediaUrl, variant, proxyVideoUrl)
-        }
+                val videoMediaUrl = "http://$localAddress:$localPort$videoMediaPath"
+                VariantEntry(videoMediaUrl, variant, proxyVideoUrl)
+            }
 
-        val masterPlaylist = buildMasterPlaylist(
-            variantEntries = variantEntries.map { Triple(it.mediaUrl, it.variant, it.proxyUrl) },
-            audioMediaUrl = audioMediaUrl,
-            audioBitrate = audioBitrate,
-            audioCodec = audioCodec
-        )
+        val masterPlaylist =
+            buildMasterPlaylist(
+                variantEntries = variantEntries.map { Triple(it.mediaUrl, it.variant, it.proxyUrl) },
+                audioMediaUrl = audioMediaUrl,
+                audioBitrate = audioBitrate,
+                audioCodec = audioCodec,
+            )
 
         val masterPath = "/h/master_$sessionId.m3u8"
         hlsPlaylists[masterPath] = masterPlaylist
 
         val masterUrl = "http://$localAddress:$localPort$masterPath"
-        Log.i(TAG, "Registered HLS cast: $masterUrl " +
-            "(${variantEntries.size} variants, audio=${audioBitrate/1000}kbps)")
+        Log.i(
+            TAG,
+            "Registered HLS cast: $masterUrl " +
+                "(${variantEntries.size} variants, audio=${audioBitrate / 1000}kbps)",
+        )
         variantEntries.forEach { entry ->
-            Log.d(TAG, "  Variant: ${entry.variant.width}x${entry.variant.height} " +
-                "${entry.variant.bitrate/1000}kbps")
+            Log.d(
+                TAG,
+                "  Variant: ${entry.variant.width}x${entry.variant.height} " +
+                    "${entry.variant.bitrate / 1000}kbps",
+            )
         }
 
         return masterUrl
@@ -257,18 +283,17 @@ class StreamProxyServer private constructor() {
     private fun buildMediaPlaylist(
         proxyStreamUrl: String,
         durationSeconds: Long,
-        targetDuration: Long
-    ): String {
-        return buildString {
+        targetDuration: Long,
+    ): String =
+        buildString {
             appendLine("#EXTM3U")
             appendLine("#EXT-X-VERSION:3")
             appendLine("#EXT-X-TARGETDURATION:$targetDuration")
             appendLine("#EXT-X-PLAYLIST-TYPE:VOD")
-            appendLine("#EXTINF:${durationSeconds}.0,")
+            appendLine("#EXTINF:$durationSeconds.0,")
             appendLine(proxyStreamUrl)
             appendLine("#EXT-X-ENDLIST")
         }
-    }
 
     /**
      * Builds the HLS master playlist with:
@@ -279,32 +304,37 @@ class StreamProxyServer private constructor() {
         variantEntries: List<Triple<String, CastStreamVariant, String>>,
         audioMediaUrl: String,
         audioBitrate: Int,
-        audioCodec: String
+        audioCodec: String,
     ): String {
         val sorted = variantEntries.sortedBy { it.second.height }
 
         return buildString {
             appendLine("#EXTM3U")
-            appendLine("#EXT-X-VERSION:3")
+            // EXT-X-MEDIA rendition groups require protocol version 4.
+            appendLine("#EXT-X-VERSION:4")
             appendLine()
 
             // Audio group
-            appendLine("#EXT-X-MEDIA:TYPE=AUDIO," +
-                "GROUP-ID=\"audio\"," +
-                "NAME=\"Default\"," +
-                "DEFAULT=YES," +
-                "AUTOSELECT=YES," +
-                "URI=\"$audioMediaUrl\"")
+            appendLine(
+                "#EXT-X-MEDIA:TYPE=AUDIO," +
+                    "GROUP-ID=\"audio\"," +
+                    "NAME=\"Default\"," +
+                    "DEFAULT=YES," +
+                    "AUTOSELECT=YES," +
+                    "URI=\"$audioMediaUrl\"",
+            )
             appendLine()
 
             // Video variants
             for ((mediaUrl, variant, _) in sorted) {
                 val totalBandwidth = variant.bitrate + audioBitrate
-                appendLine("#EXT-X-STREAM-INF:" +
-                    "BANDWIDTH=$totalBandwidth," +
-                    "RESOLUTION=${variant.width}x${variant.height}," +
-                    "CODECS=\"${variant.codec},$audioCodec\"," +
-                    "AUDIO=\"audio\"")
+                appendLine(
+                    "#EXT-X-STREAM-INF:" +
+                        "BANDWIDTH=$totalBandwidth," +
+                        "RESOLUTION=${variant.width}x${variant.height}," +
+                        "CODECS=\"${variant.codec},$audioCodec\"," +
+                        "AUDIO=\"audio\"",
+                )
                 appendLine(mediaUrl)
             }
         }
@@ -345,7 +375,8 @@ class StreamProxyServer private constructor() {
             }
 
             val method = parts[0].uppercase()
-            val path = parts[1]
+            // Renderers may append their own query parameters; the proxy keys purely on the path.
+            val path = parts[1].substringBefore('?')
 
             // HLS playlist endpoint (/h/…)
             if (path.startsWith("/h/") && path.endsWith(".m3u8")) {
@@ -357,8 +388,8 @@ class StreamProxyServer private constructor() {
                 }
                 when (method) {
                     "HEAD" -> handlePlaylistHead(output, playlist)
-                    "GET"  -> handlePlaylistGet(output, playlist)
-                    else   -> sendError(output, 405, "Method Not Allowed")
+                    "GET" -> handlePlaylistGet(output, playlist)
+                    else -> sendError(output, 405, "Method Not Allowed")
                 }
                 return
             }
@@ -381,36 +412,45 @@ class StreamProxyServer private constructor() {
         } finally {
             try {
                 clientSocket.close()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 
     // ── HLS playlist serving ──────────────────────────────────────────────────
 
-    private fun handlePlaylistHead(output: OutputStream, playlist: String) {
+    private fun handlePlaylistHead(
+        output: OutputStream,
+        playlist: String,
+    ) {
         val bytes = playlist.toByteArray(Charsets.UTF_8)
-        val headers = buildString {
-            append("HTTP/1.1 200 OK\r\n")
-            append("Content-Type: application/vnd.apple.mpegurl\r\n")
-            append("Content-Length: ${bytes.size}\r\n")
-            append("Access-Control-Allow-Origin: *\r\n")
-            append("Connection: close\r\n")
-            append("\r\n")
-        }
+        val headers =
+            buildString {
+                append("HTTP/1.1 200 OK\r\n")
+                append("Content-Type: application/vnd.apple.mpegurl\r\n")
+                append("Content-Length: ${bytes.size}\r\n")
+                append("Access-Control-Allow-Origin: *\r\n")
+                append("Connection: close\r\n")
+                append("\r\n")
+            }
         output.write(headers.toByteArray())
         output.flush()
     }
 
-    private fun handlePlaylistGet(output: OutputStream, playlist: String) {
+    private fun handlePlaylistGet(
+        output: OutputStream,
+        playlist: String,
+    ) {
         val bytes = playlist.toByteArray(Charsets.UTF_8)
-        val headers = buildString {
-            append("HTTP/1.1 200 OK\r\n")
-            append("Content-Type: application/vnd.apple.mpegurl\r\n")
-            append("Content-Length: ${bytes.size}\r\n")
-            append("Access-Control-Allow-Origin: *\r\n")
-            append("Connection: close\r\n")
-            append("\r\n")
-        }
+        val headers =
+            buildString {
+                append("HTTP/1.1 200 OK\r\n")
+                append("Content-Type: application/vnd.apple.mpegurl\r\n")
+                append("Content-Length: ${bytes.size}\r\n")
+                append("Access-Control-Allow-Origin: *\r\n")
+                append("Connection: close\r\n")
+                append("\r\n")
+            }
         output.write(headers.toByteArray())
         output.write(bytes)
         output.flush()
@@ -423,18 +463,22 @@ class StreamProxyServer private constructor() {
      * Handles HEAD requests. DLNA renderers use this to probe
      * content type and length before starting playback.
      */
-    private fun handleHead(output: OutputStream, entry: StreamEntry) {
-        val headers = buildString {
-            append("HTTP/1.1 200 OK\r\n")
-            append("Content-Type: ${entry.contentType}\r\n")
-            if (entry.contentLength > 0) {
-                append("Content-Length: ${entry.contentLength}\r\n")
+    private fun handleHead(
+        output: OutputStream,
+        entry: StreamEntry,
+    ) {
+        val headers =
+            buildString {
+                append("HTTP/1.1 200 OK\r\n")
+                append("Content-Type: ${entry.contentType}\r\n")
+                if (entry.contentLength > 0) {
+                    append("Content-Length: ${entry.contentLength}\r\n")
+                }
+                append("Accept-Ranges: bytes\r\n")
+                append("Access-Control-Allow-Origin: *\r\n")
+                append("Connection: close\r\n")
+                append("\r\n")
             }
-            append("Accept-Ranges: bytes\r\n")
-            append("Access-Control-Allow-Origin: *\r\n")
-            append("Connection: close\r\n")
-            append("\r\n")
-        }
         output.write(headers.toByteArray())
         output.flush()
     }
@@ -446,7 +490,7 @@ class StreamProxyServer private constructor() {
     private fun handleGet(
         output: OutputStream,
         entry: StreamEntry,
-        rangeHeader: String?
+        rangeHeader: String?,
     ) {
         try {
             val requestBuilder = Request.Builder().url(entry.realUrl)
@@ -464,37 +508,39 @@ class StreamProxyServer private constructor() {
                 return
             }
 
-            val body = response.body ?: run {
-                sendError(output, 502, "No Body")
-                response.close()
-                return
-            }
+            val body =
+                response.body ?: run {
+                    sendError(output, 502, "No Body")
+                    response.close()
+                    return
+                }
 
-            val responseHeaders = buildString {
-                if (response.code == 206) {
-                    append("HTTP/1.1 206 Partial Content\r\n")
-                    response.header("Content-Range")?.let {
-                        append("Content-Range: $it\r\n")
+            val responseHeaders =
+                buildString {
+                    if (response.code == 206) {
+                        append("HTTP/1.1 206 Partial Content\r\n")
+                        response.header("Content-Range")?.let {
+                            append("Content-Range: $it\r\n")
+                        }
+                    } else {
+                        append("HTTP/1.1 200 OK\r\n")
                     }
-                } else {
-                    append("HTTP/1.1 200 OK\r\n")
+
+                    val contentType = response.header("Content-Type") ?: entry.contentType
+                    append("Content-Type: $contentType\r\n")
+
+                    val contentLength = response.header("Content-Length")
+                    if (contentLength != null) {
+                        append("Content-Length: $contentLength\r\n")
+                    }
+
+                    append("Accept-Ranges: bytes\r\n")
+                    append("Access-Control-Allow-Origin: *\r\n")
+                    append("Connection: close\r\n")
+                    append("transferMode.dlna.org: Streaming\r\n")
+                    append("contentFeatures.dlna.org: DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000\r\n")
+                    append("\r\n")
                 }
-
-                val contentType = response.header("Content-Type") ?: entry.contentType
-                append("Content-Type: $contentType\r\n")
-
-                val contentLength = response.header("Content-Length")
-                if (contentLength != null) {
-                    append("Content-Length: $contentLength\r\n")
-                }
-
-                append("Accept-Ranges: bytes\r\n")
-                append("Access-Control-Allow-Origin: *\r\n")
-                append("Connection: close\r\n")
-                append("transferMode.dlna.org: Streaming\r\n")
-                append("contentFeatures.dlna.org: DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000\r\n")
-                append("\r\n")
-            }
 
             output.write(responseHeaders.toByteArray())
             output.flush()
@@ -518,28 +564,38 @@ class StreamProxyServer private constructor() {
             output.flush()
             response.close()
             Log.d(TAG, "Streamed ${bytesWritten / 1024}KB to renderer")
-
         } catch (e: Exception) {
             Log.e(TAG, "GET handler error: ${e.message}")
             try {
                 sendError(output, 502, "Proxy Error")
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 
     // ── Utility ───────────────────────────────────────────────────────────────
 
-    private fun sendError(output: OutputStream, code: Int, message: String) {
+    private fun sendError(
+        output: OutputStream,
+        code: Int,
+        message: String,
+    ) {
         val response = "HTTP/1.1 $code $message\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
         try {
             output.write(response.toByteArray())
             output.flush()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
-    private fun probeContentLength(url: String): Long {
-        return try {
-            val request = Request.Builder().url(url).head().build()
+    private fun probeContentLength(url: String): Long =
+        try {
+            val request =
+                Request
+                    .Builder()
+                    .url(url)
+                    .head()
+                    .build()
             val response = http.newCall(request).execute()
             val length = response.header("Content-Length")?.toLongOrNull() ?: -1
             response.close()
@@ -548,12 +604,12 @@ class StreamProxyServer private constructor() {
             Log.d(TAG, "Content length probe failed: ${e.message}")
             -1
         }
-    }
 
     private fun getDeviceIpAddress(context: Context): String {
         try {
-            val wifiManager = context.applicationContext
-                .getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            val wifiManager =
+                context.applicationContext
+                    .getSystemService(Context.WIFI_SERVICE) as? WifiManager
             val wifiInfo = wifiManager?.connectionInfo
             val ip = wifiInfo?.ipAddress ?: 0
             if (ip != 0) {
@@ -562,7 +618,7 @@ class StreamProxyServer private constructor() {
                     ip and 0xff,
                     (ip shr 8) and 0xff,
                     (ip shr 16) and 0xff,
-                    (ip shr 24) and 0xff
+                    (ip shr 24) and 0xff,
                 )
             }
         } catch (e: Exception) {

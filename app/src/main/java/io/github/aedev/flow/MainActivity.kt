@@ -630,6 +630,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun releaseOrientationLock() {
+        if (requestedOrientation != android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) {
+            requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
     private fun clearWindowBrightnessOverride() {
         val layoutParams = window.attributes
         if (layoutParams.screenBrightness != android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE) {
@@ -705,7 +711,7 @@ class MainActivity : ComponentActivity() {
         videoLifecycleLog("onStop")
         if (!isInPictureInPictureMode && !PictureInPictureHelper.isPopupActive) {
             if (cachedAppUiRoot == AppUiRoot.MOBILE) {
-                requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                releaseOrientationLock()
             }
             if (!cachedShortsBackgroundPlay) {
                 io.github.aedev.flow.player.shorts.ShortsPlayerPool

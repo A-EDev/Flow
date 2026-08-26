@@ -61,6 +61,7 @@ fun PlayerBottomSheetsContainer(
     onLoadReplies: (Comment) -> Unit = {},
     onLoadMoreReplies: (Comment) -> Unit = {},
     onNavigateToChannel: ((String) -> Unit)? = null,
+    renderCommentsSheet: Boolean = true,
     renderChaptersSheet: Boolean = true,
     renderSleepTimerSheet: Boolean = true,
     onMediaSheetProgressChange: (Float) -> Unit = {},
@@ -133,7 +134,7 @@ fun PlayerBottomSheetsContainer(
     }
 
     // Comments Bottom Sheet
-    if (screenState.showCommentsSheet && commentsEnabled) {
+    if (screenState.showCommentsSheet && commentsEnabled && renderCommentsSheet) {
         FlowCommentsBottomSheet(
             comments = sortedComments,
             isLoading = isLoadingComments,
