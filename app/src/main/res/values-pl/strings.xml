@@ -758,7 +758,7 @@
     <string name="download_menu_style_classic">Klasyczny</string>
     <string name="download_menu_style_classic_desc">Pełna lista wszystkich formatów i kodeków</string>
     <string name="download_menu_style_compact">Kompaktowy</string>
-    <string name="download_menu_style_compact_desc">Edycja tytułu, ilości wątków oraz rozwijany wybór formatów</string>
+    <string name="download_menu_style_compact_desc">Edycja nazwy, wątków i rozwijany wybór formatu</string>
     <string name="content_settings_home_layout_title">Tryb Wyświetlania Strony Głównej</string>
     <string name="content_settings_home_layout_subtitle">Wybierz sposób wyświetlania filmów na ekranie głównym</string>
     <string name="content_settings_show_app_logo_title">Wyświetlaj logo aplikacji</string>
@@ -837,8 +837,8 @@
     <string name="pip_mode">Obraz w Obrazie</string>
     <string name="player_settings_overlay_pip">Przycisk Obraz w Obrazie</string>
     <string name="player_settings_auto_pip_title">Automatyczny tryb Obraz w Obrazie</string>
-    <string name="player_settings_overlay_pip_subtitle">Pokaż przycisk Obraz w Obrazie na nakładce odtwarzacza wideo</string>
-    <string name="player_settings_auto_pip_subtitle">Automatycznie przełącz do trybu Obraz w Obrazie po opuszczeniu aplikacji. Wyłącz tę opcję, aby korzystać z trybu Obraz w Obrazie wyłącznie za pomocą przycisku ręcznego.</string>
+    <string name="player_settings_overlay_pip_subtitle">Pokaż przycisk „Obraz w Obrazie” na nakładce odtwarzacza wideo</string>
+    <string name="player_settings_auto_pip_subtitle">Automatycznie przełączaj w tryb „Obraz w Obrazie” po wyjściu z aplikacji. Wyłącz, aby przełączać ręcznie przyciskiem.</string>
     <string name="player_settings_overlay_autoplay">Przycisk Autoodtwarzania</string>
     <string name="player_settings_overlay_autoplay_subtitle">Wyświetl przycisk automatycznego odtwarzania na nakładce odtwarzacza</string>
     <string name="player_settings_overlay_sleep_timer">Przycisk Wyłącznika Czasowego</string>
@@ -1609,7 +1609,7 @@
     <string name="channel_blocked_toast">%1$s nie będzie się pojawiał w Twoim strumieniu</string>
     <string name="btn_cancel">Anuluj</string>
     <string name="player_settings_show_pip">Pokaż Przycisk Obraz w Obrazie</string>
-    <string name="player_settings_show_pip_subtitle">Pokaż ręczny przycisk Obraz w Obrazie na nakładce odtwarzacza</string>
+    <string name="player_settings_show_pip_subtitle">Pokaż ręczny przycisk „Obraz w Obrazie” na nakładce odtwarzacza</string>
     <string name="player_settings_header_video">Wideo</string>
     <string name="btn_back">Powrót</string>
     <string name="back">Powrót</string>
@@ -2144,15 +2144,19 @@
     <string name="sync_cancel_session">Anuluj synchronizację</string>
     <string name="sync_step_title_merge">Scal</string>
     <string name="sync_step_title_syncing">Synchronizowanie</string>
-    <string name="sync_send_option_body">Skopiuj bibliotekę z tego urządzenia na inne urządzenie.</string>
-    <string name="sync_receive_option_body">Scal bibliotekę z innego urządzenia z tą na tym urządzeniu.</string>
+    <string name="sync_send_option_body">Skopiuj bibliotekę z tego urządzenia na inne.</string>
+    <string name="sync_receive_option_body">Połącz bibliotekę innego urządzenia z tym.</string>
     <string name="sync_done_stats_summary">%1$d dodano · %2$d zmieniono · %3$d pominięto</string>
-    <string name="sync_step_title_scan">Skanuj kod</string>
+    <string name="sync_step_title_scan">Skanowanie kodu</string>
     <string name="sync_step_title_code">Twój kod</string>
     <string name="sync_step_title_send">Wyślij</string>
     <string name="sync_step_title_receive">Otrzymaj</string>
-    <string name="sync_step_title_pair">Sparuj urządzenia</string>
+    <string name="sync_step_title_pair">Parowanie urządzeń</string>
     <string name="sync_step_title_verify">Sprawdź</string>
     <string name="sync_scanning_hint">Przytrzymaj kod z drugiego urządzenia wewnątrz ramki.</string>
     <string name="ui_sync_lyrics">Synchronizuj tekst</string>
+    <string name="player_settings_shorts_pip">Shorts w trybie Obraz w Obrazie</string>
+    <string name="player_settings_shorts_pip_subtitle">Przełączaj Shorts w tryb „Obraz w Obrazie” po wyjściu z aplikacji</string>
+    <string name="content_settings_shorts_content_title">Włącz Shorts</string>
+    <string name="content_settings_shorts_content_subtitle">Pokazuj Shorts w aplikacji. Wyłączenie funkcji nie wpływa na zapisane Shorts i historię.</string>
 </resources>
