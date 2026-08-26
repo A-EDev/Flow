@@ -18,6 +18,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
@@ -545,10 +546,19 @@ fun FullscreenEffect(
 ) {
     var resumeTrigger by remember { mutableIntStateOf(0) }
     var forcePortraitLock by remember { mutableStateOf(false) }
+    var wasFullscreen by remember { mutableStateOf(false) }
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) resumeTrigger++
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> resumeTrigger++
+
+                    // MainActivity drops the activity's own lock in onStop, so holding on to ours
+                    // would re-pin portrait on the next resume and never let go again (#841).
+                    Lifecycle.Event.ON_STOP -> forcePortraitLock = false
+
+                    else -> Unit
+                }
             }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -560,6 +570,7 @@ fun FullscreenEffect(
             if (suppressFullscreenRequest && isFullscreen) return@let
             if (isFullscreen) {
                 forcePortraitLock = false
+                wasFullscreen = true
                 val orientation =
                     when {
                         isPortrait -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -584,6 +595,8 @@ fun FullscreenEffect(
                     act.window.attributes = layoutParams
                 }
             } else {
+                val leavingFullscreen = wasFullscreen
+                wasFullscreen = false
                 val configuration = act.resources.configuration
                 val cfgLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 val autoRotateOn =
@@ -601,12 +614,19 @@ fun FullscreenEffect(
                 // primary one and the release listener below can never fire on a device whose
                 // natural orientation is portrait but is being held sideways, so pinning one here
                 // would strand it in portrait for the rest of the session (#918).
-                if (cfgLandscape && autoRotateOn && !configuration.isTabletFormFactor) {
-                    act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    forcePortraitLock = true
-                } else {
-                    act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                    forcePortraitLock = false
+                //
+                // Only an actual fullscreen exit may pin: this effect also re-runs on every resume
+                // and on the first composition, where pinning locks an app that was merely
+                // backgrounded in landscape into portrait until it is force-restarted (#841).
+                when {
+                    leavingFullscreen && cfgLandscape && autoRotateOn && !configuration.isTabletFormFactor -> {
+                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        forcePortraitLock = true
+                    }
+
+                    !forcePortraitLock -> {
+                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    }
                 }
 
                 // Reset screen brightness to default when exiting fullscreen
@@ -857,6 +877,7 @@ fun OrientationListenerEffect(
     onExitFullscreen: () -> Unit,
 ) {
     var physicalOrientation by remember { mutableIntStateOf(-1) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val currentIsFullscreen by rememberUpdatedState(isFullscreen)
     val currentAspectRatio by rememberUpdatedState(videoAspectRatio)
@@ -864,7 +885,7 @@ fun OrientationListenerEffect(
     val currentEnter by rememberUpdatedState(onEnterFullscreen)
     val currentExit by rememberUpdatedState(onExitFullscreen)
 
-    DisposableEffect(context) {
+    DisposableEffect(context, lifecycleOwner) {
         val listener =
             object : OrientationEventListener(context) {
                 override fun onOrientationChanged(orientation: Int) {
@@ -891,8 +912,21 @@ fun OrientationListenerEffect(
                     }
                 }
             }
-        listener.enable()
-        onDispose { listener.disable() }
+        // Sensor-driven fullscreen changes are only meaningful while the user is looking at the
+        // player, and an accelerometer left registered in the background costs battery for nothing.
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> listener.enable()
+                    Lifecycle.Event.ON_PAUSE -> listener.disable()
+                    else -> Unit
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            listener.disable()
+        }
     }
 
     LaunchedEffect(physicalOrientation, isExpanded) {

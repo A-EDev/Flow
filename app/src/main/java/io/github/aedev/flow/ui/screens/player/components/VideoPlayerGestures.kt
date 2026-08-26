@@ -487,92 +487,100 @@ fun Modifier.videoPlayerControls(
                 currentOnSeekDragChange(false)
             }
 
-            detectPlayerDrags(
-                onDragStart = { offset ->
-                    lastVolumeStep = -1
-                    lastBrightnessEdge = 0
-                    seekDragStarted = false
+            try {
+                detectPlayerDrags(
+                    onDragStart = { offset ->
+                        lastVolumeStep = -1
+                        lastBrightnessEdge = 0
+                        seekDragStarted = false
 
-                    val nearEdge =
-                        offset.y < DRAG_EDGE_IGNORE_PX ||
-                            size.height - offset.y < DRAG_EDGE_IGNORE_PX
-                    if (nearEdge) {
-                        false
-                    } else {
-                        val width = size.width
-                        isCenterZone = offset.x > width * 0.33f && offset.x < width * 0.67f
-                        true
-                    }
-                },
-                onAxisAccepted = { axis ->
-                    when (axis) {
-                        PlayerDragAxis.HORIZONTAL -> currentSeekSwipeGesturesEnabled && currentDuration > 0L
-                        PlayerDragAxis.VERTICAL -> true
-                    }
-                },
-                onDrag = { change, delta, axis ->
-                    when (axis) {
-                        PlayerDragAxis.HORIZONTAL -> {
-                            if (!seekDragStarted) {
-                                seekDragStarted = true
-                                beginSeekDrag()
-                            }
-                            updateSeekDrag(delta.x)
-                        }
-
-                        PlayerDragAxis.VERTICAL -> {
+                        val nearEdge =
+                            offset.y < DRAG_EDGE_IGNORE_PX ||
+                                size.height - offset.y < DRAG_EDGE_IGNORE_PX
+                        if (nearEdge) {
+                            false
+                        } else {
                             val width = size.width
-                            when {
-                                isCenterZone -> {
-                                    applyExitDrag(delta.y)
+                            isCenterZone = offset.x > width * 0.33f && offset.x < width * 0.67f
+                            true
+                        }
+                    },
+                    onAxisAccepted = { axis ->
+                        when (axis) {
+                            PlayerDragAxis.HORIZONTAL -> currentSeekSwipeGesturesEnabled && currentDuration > 0L
+                            PlayerDragAxis.VERTICAL -> true
+                        }
+                    },
+                    onDrag = { change, delta, axis ->
+                        when (axis) {
+                            PlayerDragAxis.HORIZONTAL -> {
+                                if (!seekDragStarted) {
+                                    seekDragStarted = true
+                                    beginSeekDrag()
                                 }
+                                updateSeekDrag(delta.x)
+                            }
 
-                                change.position.x < width / 2 -> {
-                                    if (currentBrightnessSwipeGesturesEnabled) applyBrightnessDrag(delta.y)
-                                }
+                            PlayerDragAxis.VERTICAL -> {
+                                val width = size.width
+                                when {
+                                    isCenterZone -> {
+                                        applyExitDrag(delta.y)
+                                    }
 
-                                else -> {
-                                    if (currentVolumeSwipeGesturesEnabled) applyVolumeDrag(delta.y)
+                                    change.position.x < width / 2 -> {
+                                        if (currentBrightnessSwipeGesturesEnabled) applyBrightnessDrag(delta.y)
+                                    }
+
+                                    else -> {
+                                        if (currentVolumeSwipeGesturesEnabled) applyVolumeDrag(delta.y)
+                                    }
                                 }
                             }
                         }
-                    }
-                },
-                onDragEnd = { axis ->
-                    when (axis) {
-                        PlayerDragAxis.HORIZONTAL -> {
-                            if (seekDragStarted) endSeekDrag(commit = true)
-                            endExitDrag(commit = false)
-                        }
+                    },
+                    onDragEnd = { axis ->
+                        when (axis) {
+                            PlayerDragAxis.HORIZONTAL -> {
+                                if (seekDragStarted) endSeekDrag(commit = true)
+                                endExitDrag(commit = false)
+                            }
 
-                        PlayerDragAxis.VERTICAL -> {
-                            endExitDrag(commit = isCenterZone)
-                            scope.launch {
-                                delay(500) // Delay hiding controls
-                                currentOnShowBrightnessChange(false)
-                                currentOnShowVolumeChange(false)
+                            PlayerDragAxis.VERTICAL -> {
+                                endExitDrag(commit = isCenterZone)
+                                scope.launch {
+                                    delay(500) // Delay hiding controls
+                                    currentOnShowBrightnessChange(false)
+                                    currentOnShowVolumeChange(false)
+                                }
                             }
                         }
-                    }
-                    isCenterZone = false
-                },
-                onDragCancel = { axis ->
-                    endExitDrag(commit = false)
-                    when (axis) {
-                        PlayerDragAxis.HORIZONTAL -> {
-                            if (seekDragStarted) endSeekDrag(commit = false)
-                        }
+                        isCenterZone = false
+                    },
+                    onDragCancel = { axis ->
+                        endExitDrag(commit = false)
+                        when (axis) {
+                            PlayerDragAxis.HORIZONTAL -> {
+                                if (seekDragStarted) endSeekDrag(commit = false)
+                            }
 
-                        PlayerDragAxis.VERTICAL -> {
-                            scope.launch {
-                                currentOnShowBrightnessChange(false)
-                                currentOnShowVolumeChange(false)
+                            PlayerDragAxis.VERTICAL -> {
+                                scope.launch {
+                                    currentOnShowBrightnessChange(false)
+                                    currentOnShowVolumeChange(false)
+                                }
                             }
                         }
-                    }
-                    isCenterZone = false
-                },
-            )
+                        isCenterZone = false
+                    },
+                )
+            } finally {
+                // A system takeover (the status bar sliding in over the video) cancels this
+                // coroutine outright, so neither onDragEnd nor onDragCancel runs (#906).
+                exitSettleJob?.cancel()
+                currentOnExitFullscreenDrag(0f, 0f)
+                if (seekDragStarted) currentOnSeekDragChange(false)
+            }
         }
 }
 
