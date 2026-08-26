@@ -25,6 +25,10 @@ class SponsorBlockHandler(
 ) {
     companion object {
         private const val TAG = "SponsorBlockHandler"
+
+        /** A skip only re-arms for a rewind this far before the segment, so a seek that lands slightly
+         * short of the requested end (SABR rebuilds at a segment boundary) cannot loop the skip. */
+        private const val SEEK_BACK_REARM_MARGIN_SEC = 1f
     }
 
     private val sponsorBlockRepository = SponsorBlockRepository()
@@ -151,7 +155,7 @@ class SponsorBlockHandler(
         // Handle seek-back: reset last skipped/muted segment if we've gone before it
         if (lastSkippedSegmentUuid != null) {
             val lastSegment = segments.find { it.uuid == lastSkippedSegmentUuid }
-            if (lastSegment != null && posSec < lastSegment.startTime) {
+            if (lastSegment != null && posSec < lastSegment.startTime - SEEK_BACK_REARM_MARGIN_SEC) {
                 Log.d(TAG, "Seek back detected, resetting last skipped segment: ${lastSegment.category}")
                 lastSkippedSegmentUuid = null
             }

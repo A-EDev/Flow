@@ -17,6 +17,8 @@ import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.bestImageUrl
 import io.github.aedev.flow.utils.distinctBestImageUrls
+import io.github.aedev.flow.utils.newPipeContentCountry
+import io.github.aedev.flow.utils.newPipeLocalization
 import io.github.aedev.flow.utils.parseToTimestamp
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +37,6 @@ import org.schabi.newpipe.extractor.comments.CommentsInfoItem
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.kiosk.KioskExtractor
 import org.schabi.newpipe.extractor.localization.ContentCountry
-import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.stream.ContentAvailability
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -246,10 +247,10 @@ class YouTubeRepository
             withContext(Dispatchers.IO) {
                 try {
                     val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
-                    // Update localization based on region
-                    val country = ContentCountry(effectiveRegion)
-                    val localization = Localization.fromLocale(java.util.Locale.ENGLISH)
-                    NewPipe.init(NewPipe.getDownloader(), localization, country)
+                    NewPipe.setupLocalization(
+                        newPipeLocalization(playerPreferences.appLanguage.first()),
+                        newPipeContentCountry(effectiveRegion),
+                    )
 
                     val kioskList = service.kioskList
                     val trendingExtractor = kioskList.getExtractorById("Trending", null) as KioskExtractor<*>
@@ -562,9 +563,11 @@ class YouTubeRepository
 
                         // Re-init NewPipe to potentially clear internal state
                         try {
-                            val country = ContentCountry("US")
-                            val localization = Localization.fromLocale(java.util.Locale.ENGLISH)
-                            NewPipe.init(NewPipe.getDownloader(), localization, country)
+                            NewPipe.init(
+                                NewPipe.getDownloader(),
+                                NewPipe.getPreferredLocalization(),
+                                NewPipe.getPreferredContentCountry(),
+                            )
                         } catch (initEx: Exception) {
                             Log.e("YouTubeRepository", "Failed to re-init NewPipe", initEx)
                         }
@@ -850,9 +853,8 @@ class YouTubeRepository
         ): List<Video> =
             withContext(Dispatchers.IO) {
                 val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
-                val country = ContentCountry(effectiveRegion)
-                val localization = Localization.fromLocale(java.util.Locale.ENGLISH)
-                NewPipe.init(NewPipe.getDownloader(), localization, country)
+                val country = newPipeContentCountry(effectiveRegion)
+                NewPipe.setupLocalization(newPipeLocalization(playerPreferences.appLanguage.first()), country)
 
                 when (category) {
                     TrendingCategory.ALL -> {

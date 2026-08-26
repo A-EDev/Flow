@@ -18,7 +18,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 class PlaybackTracker(
     private val scope: CoroutineScope,
     private val stateFlow: MutableStateFlow<EnhancedPlayerState>,
-    private val onSponsorBlockCheck: (Long) -> Long?, // Returns seek position if skip needed
+    private val onSponsorBlockTick: (Long) -> Unit,
     private val onBufferingDetected: () -> Unit,
     private val onSmoothPlayback: () -> Unit,
     private val onBandwidthCheckNeeded: () -> Unit,
@@ -98,12 +98,7 @@ class PlaybackTracker(
                 lastSaveTime = currentTime
             }
 
-            // SponsorBlock Skip Logic
-            val skipPosition = onSponsorBlockCheck(currentPos)
-            if (skipPosition != null) {
-                Log.d(TAG, "Skipping to $skipPosition ms")
-                player.seekTo(skipPosition)
-            }
+            onSponsorBlockTick(currentPos)
             
             // Smart stall detection
             if (player.playbackState == Player.STATE_BUFFERING) {

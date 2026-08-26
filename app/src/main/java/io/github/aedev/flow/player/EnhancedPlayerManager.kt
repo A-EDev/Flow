@@ -559,7 +559,11 @@ class EnhancedPlayerManager private constructor() {
             PlaybackTracker(
                 scope = scope,
                 stateFlow = _playerState,
-                onSponsorBlockCheck = { pos -> sponsorBlockHandler?.checkForSkip(pos) },
+                // skipToSegmentEnd, not a raw seek: a CLOSEST_SYNC seek lands on the keyframe before a
+                // short segment, which re-arms the skip and loops the outro forever (#814).
+                onSponsorBlockTick = { pos ->
+                    sponsorBlockHandler?.checkForSkip(pos)?.let { skipToSegmentEnd(it) }
+                },
                 onBufferingDetected = {
                     qualityManager?.let { qm ->
                         qm.incrementBufferingCount()

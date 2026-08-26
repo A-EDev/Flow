@@ -47,11 +47,36 @@ private const val DISMISSED_ANCHOR = 0
 private const val COLLAPSED_ANCHOR = 1
 private const val EXPANDED_ANCHOR = 2
 
+/** Where a released drag should settle. */
+internal enum class MusicSheetFlingTarget { Expand, Collapse, Dismiss }
+
+/**
+ * A downward fling dismisses once the sheet has been pulled below the mini-player bar; a slow drag
+ * that ends most of the way down dismisses too, so dragging the bar off-screen never snaps back.
+ */
+internal fun musicSheetFlingTarget(
+    velocity: Float,
+    currentDp: Float,
+    collapsedDp: Float,
+    expandedDp: Float,
+    canDismiss: Boolean,
+): MusicSheetFlingTarget =
+    when {
+        velocity > 300f -> MusicSheetFlingTarget.Expand
+        velocity < -300f ->
+            if (canDismiss && currentDp < collapsedDp) MusicSheetFlingTarget.Dismiss
+            else MusicSheetFlingTarget.Collapse
+        currentDp >= collapsedDp + (expandedDp - collapsedDp) * 0.5f -> MusicSheetFlingTarget.Expand
+        canDismiss && currentDp < collapsedDp * 0.5f -> MusicSheetFlingTarget.Dismiss
+        else -> MusicSheetFlingTarget.Collapse
+    }
+
 @Stable
 class MusicPlayerSheetState(
     private val draggableState: DraggableState,
     private val coroutineScope: CoroutineScope,
     private val animatable: Animatable<Dp, AnimationVector1D>,
+    initialAnchor: Int,
     private val onAnchorChanged: (Int) -> Unit,
     val collapsedBound: Dp,
 ) : DraggableState by draggableState {
@@ -61,9 +86,17 @@ class MusicPlayerSheetState(
 
     val value by animatable.asState()
 
+    private var anchor by mutableStateOf(initialAnchor)
+
     val isDismissed: Boolean by derivedStateOf { value == dismissedBound }
     val isCollapsed: Boolean by derivedStateOf { value == collapsedBound }
     val isExpanded: Boolean by derivedStateOf { value == expandedBound }
+
+    /** A drag can push [value] onto the dismissed bound without the gesture ending in a dismissal —
+     * unmounting there would kill the gesture before it can stop playback (#820). */
+    internal val isDismissCommitted: Boolean by derivedStateOf {
+        anchor == DISMISSED_ANCHOR && isDismissed
+    }
 
     val progress: Float by derivedStateOf {
         if (expandedBound == collapsedBound) 1f
@@ -72,23 +105,22 @@ class MusicPlayerSheetState(
     }
 
     fun collapse() {
-        onAnchorChanged(COLLAPSED_ANCHOR)
-        coroutineScope.launch {
-            animatable.animateTo(collapsedBound, spring(stiffness = Spring.StiffnessMediumLow))
-        }
+        settleAt(COLLAPSED_ANCHOR, collapsedBound)
     }
 
     fun expand() {
-        onAnchorChanged(EXPANDED_ANCHOR)
-        coroutineScope.launch {
-            animatable.animateTo(expandedBound, spring(stiffness = Spring.StiffnessMediumLow))
-        }
+        settleAt(EXPANDED_ANCHOR, expandedBound)
     }
 
     fun dismiss() {
-        onAnchorChanged(DISMISSED_ANCHOR)
+        settleAt(DISMISSED_ANCHOR, dismissedBound)
+    }
+
+    private fun settleAt(targetAnchor: Int, target: Dp) {
+        anchor = targetAnchor
+        onAnchorChanged(targetAnchor)
         coroutineScope.launch {
-            animatable.animateTo(dismissedBound, spring(stiffness = Spring.StiffnessMediumLow))
+            animatable.animateTo(target, spring(stiffness = Spring.StiffnessMediumLow))
         }
     }
 
@@ -97,18 +129,20 @@ class MusicPlayerSheetState(
     }
 
     fun performFling(velocity: Float, onDismiss: (() -> Unit)? = null) {
-        when {
-            velocity > 300f -> expand()
-            velocity < -300f -> {
-                if (animatable.value < collapsedBound && onDismiss != null) {
-                    dismiss(); onDismiss()
-                } else {
-                    collapse()
-                }
-            }
-            else -> {
-                val mid = collapsedBound + (expandedBound - collapsedBound) * 0.5f
-                if (animatable.value >= mid) expand() else collapse()
+        val target =
+            musicSheetFlingTarget(
+                velocity = velocity,
+                currentDp = animatable.value.value,
+                collapsedDp = collapsedBound.value,
+                expandedDp = expandedBound.value,
+                canDismiss = onDismiss != null,
+            )
+        when (target) {
+            MusicSheetFlingTarget.Expand -> expand()
+            MusicSheetFlingTarget.Collapse -> collapse()
+            MusicSheetFlingTarget.Dismiss -> {
+                dismiss()
+                onDismiss?.invoke()
             }
         }
     }
@@ -178,6 +212,7 @@ fun rememberMusicPlayerSheetState(
             },
             coroutineScope = scope,
             animatable = animatable,
+            initialAnchor = previousAnchor,
             onAnchorChanged = { previousAnchor = it },
             collapsedBound = collapsedBound,
         )
@@ -206,7 +241,7 @@ fun MusicPlayerBottomSheet(
     collapsedContent: @Composable BoxScope.() -> Unit,
     expandedContent: @Composable BoxScope.() -> Unit,
 ) {
-    if (state.isDismissed) return
+    if (state.isDismissCommitted) return
 
     if (!state.isCollapsed) {
         BackHandler(onBack = state::collapse)
