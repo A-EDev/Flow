@@ -2126,4 +2126,33 @@
         <item quantity="other">Nie udało się wczytać %d kanałów</item>
     </plurals>
     <string name="subscriptions_failed_channels_body">Nie znaleziono najnowszych filmów z: %1$s</string>
+    <string name="sync_qr_advertised_address">To urządzenie: %1$s</string>
+    <string name="sync_collection_playlists_body">Twoje playlisty, albumy i Obejrzyj później.</string>
+    <string name="sync_collection_watch_history_body">Obejrzane filmy oraz postęp ich oglądania.</string>
+    <string name="sync_collection_likes_body">Polubione i niepolubione filmy oraz muzyka.</string>
+    <string name="sync_collection_subscriptions_body">Kanały, które obserwujesz.</string>
+    <string name="sync_collection_settings_body">Ustawienia odtwarzania, wyglądu i pobierania.</string>
+    <string name="sync_select_none">Wyczyść</string>
+    <string name="sync_selected_count">Wybrano %1$d z %2$d</string>
+    <string name="sync_select_all">Wybierz wszystko</string>
+    <string name="sync_collection_subscription_groups_body">Foldery w których porządkujesz obserwowane kanały.</string>
+    <string name="sync_collection_subscription_groups">Grupy subskrypcji</string>
+    <string name="sync_collection_recommendation_profile_body">Czego Flow nauczył się o tym co oglądasz.</string>
+    <string name="sync_expires_label">Kod wygasa za:</string>
+    <string name="sync_expires_seconds">%1$ds</string>
+    <string name="sync_waiting_for_peer">Oczekiwanie na połączenie drugiego urządzenia…</string>
+    <string name="sync_cancel_session">Anuluj synchronizację</string>
+    <string name="sync_step_title_merge">Scal</string>
+    <string name="sync_step_title_syncing">Synchronizowanie</string>
+    <string name="sync_send_option_body">Skopiuj bibliotekę z tego urządzenia na inne urządzenie.</string>
+    <string name="sync_receive_option_body">Scal bibliotekę z innego urządzenia z tą na tym urządzeniu.</string>
+    <string name="sync_done_stats_summary">%1$d dodano · %2$d zmieniono · %3$d pominięto</string>
+    <string name="sync_step_title_scan">Skanuj kod</string>
+    <string name="sync_step_title_code">Twój kod</string>
+    <string name="sync_step_title_send">Wyślij</string>
+    <string name="sync_step_title_receive">Otrzymaj</string>
+    <string name="sync_step_title_pair">Sparuj urządzenia</string>
+    <string name="sync_step_title_verify">Sprawdź</string>
+    <string name="sync_scanning_hint">Przytrzymaj kod z drugiego urządzenia wewnątrz ramki.</string>
+    <string name="ui_sync_lyrics">Synchronizuj tekst</string>
 </resources>
