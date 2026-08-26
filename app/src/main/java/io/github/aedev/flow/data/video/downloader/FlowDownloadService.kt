@@ -38,14 +38,18 @@ import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -82,6 +86,10 @@ class FlowDownloadService : Service() {
 
     // WiFi connectivity callback
     private var connectivityCallback: ConnectivityManager.NetworkCallback? = null
+
+    // Last text posted on the foreground summary, so an unchanged summary is not re-posted 4x/second
+    @Volatile
+    private var lastForegroundSummary: String? = null
 
     private enum class DownloadRetryAction {
         NONE,
@@ -336,7 +344,7 @@ class FlowDownloadService : Service() {
                     "onStartCommand: handleStartDownload for '$title', audioOnly=$audioOnly, codec=$videoCodec, sabr=${!sabrStreamingUrl
                         .isNullOrEmpty()}",
                 )
-                startDataSyncForeground(createStartingNotification(title, videoId))
+                startForegroundPlaceholder()
                 serviceScope.launch {
                     try {
                         handleStartDownload(
@@ -678,7 +686,10 @@ class FlowDownloadService : Service() {
                 }
 
             val downloadSuccess = parallelDownloader.start(mission) { /* no-op: progress polled above */ }
-            progressJob.cancel()
+            // Joined, not just cancelled: the loop can be past its status check when cancellation
+            // arrives, and the progress frame it then posts would land on top of the terminal
+            // notification and strand it on a percentage.
+            progressJob.cancelAndJoin()
 
             Log.d(TAG, "executeDownload: parallelDownloader.start finished. Result=$downloadSuccess")
 
@@ -734,6 +745,9 @@ class FlowDownloadService : Service() {
                     Log.d(TAG, "executeDownload: Muxing result=$muxSuccess")
 
                     if (muxSuccess) {
+                        // `error` doubles as the notification subtitle for every non-running state,
+                        // so the merging text must not outlive the merge.
+                        mission.error = null
                         File(videoTmp).delete()
                         File(audioTmp).delete()
                     } else {
@@ -758,62 +772,8 @@ class FlowDownloadService : Service() {
 
                 if (finalSuccess) {
                     Log.d(TAG, "executeDownload: Download SUCCESS")
-                    mission.status = MissionStatus.FINISHED
-                    mission.finishTime = System.currentTimeMillis()
-
-                    // Update Room with final info
-                    val fileSize = File(mission.savePath).length()
-                    Log.d(TAG, "executeDownload: Final file size=$fileSize")
-
-                    val ids = itemIds[videoId]
-                    if (!ids.isNullOrEmpty()) {
-                        downloadManager.updateItemFull(ids.first(), fileSize, fileSize, DownloadItemStatus.COMPLETED)
-                    }
-
-                    try {
-                        val mimeType =
-                            when {
-                                audioOnly -> audioMimeTypeForPath(mission.savePath, audioMimeType)
-                                mission.savePath.endsWith(".webm") -> "video/webm"
-                                mission.savePath.endsWith(".mkv") -> "video/x-matroska"
-                                else -> "video/mp4"
-                            }
-                        downloadManager.scanFile(mission.savePath, mimeType)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "executeDownload: MediaScanner indexing failed (non-fatal)", e)
-                    }
-
-                    // Emit final progress
-                    val ids2 = itemIds[videoId]
-                    if (!ids2.isNullOrEmpty()) {
-                        downloadManager.emitProgress(
-                            DownloadProgressUpdate(
-                                videoId = videoId,
-                                itemId = ids2.first(),
-                                downloadedBytes = fileSize,
-                                totalBytes = fileSize,
-                                status = DownloadItemStatus.COMPLETED,
-                            ),
-                        )
-                    }
-
-                    val nmComplete = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                    nmComplete.notify(getNotificationId(videoId), createNotification(mission, videoId, isComplete = true))
-
-                    // Fetch and persist SponsorBlock segments inline (awaited) so it completes
-                    // before the service's finally-block calls stopSelf() → onDestroy() → serviceScope.cancel().
-                    try {
-                        val segments = sponsorBlockRepository.getSegments(videoId)
-                        if (segments.isNotEmpty()) {
-                            val json = gson.toJson(segments)
-                            downloadManager.saveSponsorBlockData(videoId, json)
-                            Log.d(TAG, "Saved ${segments.size} SponsorBlock segments for $videoId")
-                        } else {
-                            Log.d(TAG, "No SponsorBlock segments found for $videoId")
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "SponsorBlock fetch failed for $videoId (non-fatal)", e)
-                    }
+                    commitFinishedDownload(mission, videoId, audioOnly, audioMimeType)
+                    persistSponsorBlockSegments(videoId)
                 } else {
                     Log.e(TAG, "executeDownload: Final success check failed after download/mux")
                     updateNotification(mission, videoId)
@@ -837,7 +797,7 @@ class FlowDownloadService : Service() {
                 mission.status = MissionStatus.FAILED
                 mission.error =
                     if (mission.gatedHttp403) {
-                        "Stream blocked or expired (HTTP 403). Try another quality/codec or try again later."
+                        getString(R.string.download_stream_blocked_403)
                     } else {
                         mission.error ?: getString(R.string.download_failed_try_again)
                     }
@@ -854,6 +814,9 @@ class FlowDownloadService : Service() {
         } finally {
             val currentStatus = activeMissions[videoId]?.status
             Log.d(TAG, "executeDownload: Cleanup for $videoId (status=$currentStatus)")
+            if (retryAction == DownloadRetryAction.NONE) {
+                settleNotification(mission, videoId)
+            }
             if (currentStatus != MissionStatus.PAUSED) {
                 activeMissions.remove(videoId)
                 itemIds.remove(videoId)
@@ -1059,7 +1022,7 @@ class FlowDownloadService : Service() {
                     if (estimated > 0) mission.totalBytes = estimated
                 }
 
-            progressJob.cancel()
+            progressJob.cancelAndJoin()
             activeSabrEngines.remove(videoId)
 
             if (downloadSuccess) {
@@ -1097,6 +1060,7 @@ class FlowDownloadService : Service() {
                         }
 
                     if (muxSuccess) {
+                        mission.error = null
                         File(videoTmp).delete()
                         File(audioTmp).delete()
                     } else {
@@ -1117,53 +1081,8 @@ class FlowDownloadService : Service() {
                 }
 
                 if (finalSuccess) {
-                    mission.status = MissionStatus.FINISHED
-                    mission.finishTime = System.currentTimeMillis()
-                    val fileSize = File(mission.savePath).length()
-
-                    val ids = itemIds[videoId]
-                    if (!ids.isNullOrEmpty()) {
-                        downloadManager.updateItemFull(ids.first(), fileSize, fileSize, DownloadItemStatus.COMPLETED)
-                    }
-
-                    try {
-                        val mimeType =
-                            when {
-                                audioOnly -> audioMimeTypeForPath(mission.savePath, audioMimeType)
-                                mission.savePath.endsWith(".webm") -> "video/webm"
-                                mission.savePath.endsWith(".mkv") -> "video/x-matroska"
-                                else -> "video/mp4"
-                            }
-                        downloadManager.scanFile(mission.savePath, mimeType)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "executeSabrDownload: MediaScanner failed (non-fatal)", e)
-                    }
-
-                    val ids2 = itemIds[videoId]
-                    if (!ids2.isNullOrEmpty()) {
-                        downloadManager.emitProgress(
-                            DownloadProgressUpdate(
-                                videoId = videoId,
-                                itemId = ids2.first(),
-                                downloadedBytes = fileSize,
-                                totalBytes = fileSize,
-                                status = DownloadItemStatus.COMPLETED,
-                            ),
-                        )
-                    }
-
-                    val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                    nm.notify(getNotificationId(videoId), createNotification(mission, videoId, isComplete = true))
-
-                    try {
-                        val segments = sponsorBlockRepository.getSegments(videoId)
-                        if (segments.isNotEmpty()) {
-                            downloadManager.saveSponsorBlockData(videoId, gson.toJson(segments))
-                            Log.d(TAG, "Saved ${segments.size} SponsorBlock segments for $videoId")
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "SponsorBlock fetch failed (non-fatal)", e)
-                    }
+                    commitFinishedDownload(mission, videoId, audioOnly, audioMimeType)
+                    persistSponsorBlockSegments(videoId)
                 } else {
                     updateNotification(mission, videoId)
                 }
@@ -1188,6 +1107,7 @@ class FlowDownloadService : Service() {
             updateNotification(mission, videoId)
         } finally {
             activeSabrEngines.remove(videoId)
+            settleNotification(mission, videoId)
             val currentStatus = activeMissions[videoId]?.status
             if (currentStatus != MissionStatus.PAUSED) {
                 activeMissions.remove(videoId)
@@ -1248,8 +1168,7 @@ class FlowDownloadService : Service() {
         }
         Log.d(TAG, "handleResume: Resuming $videoId")
 
-        val notification = createNotification(mission, videoId)
-        startDataSyncForeground(notification)
+        startForegroundPlaceholder()
 
         val previousJob = downloadJobs[videoId]
         val job =
@@ -1315,6 +1234,76 @@ class FlowDownloadService : Service() {
         }
     }
 
+    /**
+     * Commits a finished download: Room row, media scan, final progress event, terminal notification.
+     *
+     * [NonCancellable] because by this point the media file is complete and sitting at its final
+     * path. Losing the rest to a cancelled scope (the service stopping, the process winding down)
+     * left the row on DOWNLOADING and the notification on whatever transient phase it last showed.
+     */
+    private suspend fun commitFinishedDownload(
+        mission: FlowDownloadMission,
+        videoId: String,
+        audioOnly: Boolean,
+        audioMimeType: String,
+    ) = withContext(NonCancellable) {
+        mission.status = MissionStatus.FINISHED
+        mission.finishTime = System.currentTimeMillis()
+
+        val fileSize = File(mission.savePath).length()
+        Log.d(TAG, "commitFinishedDownload: $videoId final file size=$fileSize")
+
+        val ids = itemIds[videoId]
+        if (!ids.isNullOrEmpty()) {
+            downloadManager.updateItemFull(ids.first(), fileSize, fileSize, DownloadItemStatus.COMPLETED)
+        }
+
+        try {
+            val mimeType =
+                when {
+                    audioOnly -> audioMimeTypeForPath(mission.savePath, audioMimeType)
+                    mission.savePath.endsWith(".webm") -> "video/webm"
+                    mission.savePath.endsWith(".mkv") -> "video/x-matroska"
+                    else -> "video/mp4"
+                }
+            downloadManager.scanFile(mission.savePath, mimeType)
+        } catch (e: Exception) {
+            Log.w(TAG, "commitFinishedDownload: MediaScanner indexing failed (non-fatal)", e)
+        }
+
+        if (!ids.isNullOrEmpty()) {
+            downloadManager.emitProgress(
+                DownloadProgressUpdate(
+                    videoId = videoId,
+                    itemId = ids.first(),
+                    downloadedBytes = fileSize,
+                    totalBytes = fileSize,
+                    status = DownloadItemStatus.COMPLETED,
+                ),
+            )
+        }
+
+        updateNotification(mission, videoId, isComplete = true)
+    }
+
+    /**
+     * Awaited rather than launched, so it finishes before the service's cleanup reaches stopSelf()
+     * and cancels [serviceScope].
+     */
+    private suspend fun persistSponsorBlockSegments(videoId: String) {
+        try {
+            val segments = sponsorBlockRepository.getSegments(videoId)
+            if (segments.isEmpty()) {
+                Log.d(TAG, "No SponsorBlock segments found for $videoId")
+                return
+            }
+            downloadManager.saveSponsorBlockData(videoId, gson.toJson(segments))
+            Log.d(TAG, "Saved ${segments.size} SponsorBlock segments for $videoId")
+        } catch (e: Exception) {
+            Log.w(TAG, "SponsorBlock fetch failed for $videoId (non-fatal)", e)
+        }
+    }
+
     private fun audioMimeTypeForPath(
         path: String,
         fallback: String,
@@ -1377,33 +1366,71 @@ class FlowDownloadService : Service() {
 
     // ===== Notifications =====
 
-    private fun createStartingNotification(
-        title: String,
-        videoId: String,
-    ): android.app.Notification {
+    private fun openAppIntent(requestCode: Int): PendingIntent {
         val tapIntent =
             Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
-        val tapPendingIntent =
-            PendingIntent.getActivity(
-                this,
-                videoId.hashCode(),
-                tapIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
+        return PendingIntent.getActivity(
+            this,
+            requestCode,
+            tapIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
 
-        return NotificationCompat
+    /**
+     * The service's own foreground notification, describing the whole queue rather than one video.
+     *
+     * It is the group summary, so Android folds it away while a single download is running and only
+     * shows it once there are several. Marking it as such is what stops it from reading as a second,
+     * frozen copy of the download that is already listed below it.
+     */
+    private fun buildSummaryNotification(
+        text: String,
+        indeterminate: Boolean,
+    ): android.app.Notification =
+        NotificationCompat
             .Builder(this, CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(getString(R.string.download_started_toast))
+            .setContentTitle(getString(R.string.notification_channel_downloads_name))
+            .setContentText(text)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
-            .setProgress(0, 0, true)
-            .setContentIntent(tapPendingIntent)
+            .setProgress(0, 0, indeterminate)
+            .setContentIntent(openAppIntent(FOREGROUND_NOTIFICATION_ID))
             .setGroup(NOTIFICATION_GROUP)
+            .setGroupSummary(true)
             .build()
+
+    /**
+     * Repoints the foreground notification at what the service is currently doing.
+     *
+     * Previously it was posted once, from [onStartCommand], and never touched again — it stayed on
+     * "Download started…" for the rest of the service's life. That is most visible after a pause,
+     * where the service deliberately stays alive so the download can be resumed.
+     */
+    private fun refreshForegroundSummary() {
+        val outstanding = activeMissions.values.filterNot { it.isFinished() || it.isFailed() }
+        if (outstanding.isEmpty()) return
+        val active = outstanding.count { it.status == MissionStatus.RUNNING || it.status == MissionStatus.PENDING }
+        val summary =
+            if (active > 0) {
+                resources.getQuantityString(R.plurals.notification_downloads_active, active, active)
+            } else {
+                resources.getQuantityString(R.plurals.notification_downloads_paused, outstanding.size, outstanding.size)
+            }
+        if (summary == lastForegroundSummary) return
+        lastForegroundSummary = summary
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(FOREGROUND_NOTIFICATION_ID, buildSummaryNotification(summary, indeterminate = active > 0))
+    }
+
+    private fun startForegroundPlaceholder() {
+        lastForegroundSummary = null
+        startDataSyncForeground(
+            buildSummaryNotification(getString(R.string.download_started_toast), indeterminate = true),
+        )
     }
 
     private fun startDataSyncForeground(notification: android.app.Notification) {
@@ -1428,30 +1455,36 @@ class FlowDownloadService : Service() {
         val progress = (mission.progress * 100).toInt()
         val contentText =
             when {
-                isComplete -> "Download complete"
+                isComplete -> {
+                    getString(R.string.notification_download_complete)
+                }
 
-                isMuxing -> "Merging audio & video..."
+                isMuxing -> {
+                    getString(R.string.download_merging_audio_video)
+                }
 
-                mission.isFailed() -> mission.error ?: "Download failed"
+                mission.isFailed() -> {
+                    mission.error ?: getString(R.string.notification_download_failed)
+                }
 
-                mission.status == MissionStatus.PAUSED -> "Paused — ${mission.error ?: "tap to resume"}"
+                mission.status == MissionStatus.PAUSED -> {
+                    getString(
+                        R.string.notification_download_paused,
+                        mission.error ?: getString(R.string.notification_download_paused_hint),
+                    )
+                }
 
-                else -> "$progress% • ${formatBytes(
-                    mission.downloadedBytes + mission.audioDownloadedBytes,
-                )} / ${formatBytes(mission.totalBytes + mission.audioTotalBytes)}"
+                else -> {
+                    getString(
+                        R.string.notification_download_progress,
+                        progress,
+                        formatBytes(mission.downloadedBytes + mission.audioDownloadedBytes),
+                        formatBytes(mission.totalBytes + mission.audioTotalBytes),
+                    )
+                }
             }
 
-        val tapIntent =
-            Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            }
-        val tapPendingIntent =
-            PendingIntent.getActivity(
-                this,
-                videoId.hashCode(),
-                tapIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
+        val tapPendingIntent = openAppIntent(videoId.hashCode())
 
         val builder =
             NotificationCompat
@@ -1483,7 +1516,7 @@ class FlowDownloadService : Service() {
                             resumeIntent,
                             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                         )
-                    builder.addAction(android.R.drawable.ic_media_play, "Resume", resumePending)
+                    builder.addAction(android.R.drawable.ic_media_play, getString(R.string.resume), resumePending)
                 } else {
                     // Show Pause button
                     val pauseIntent =
@@ -1498,7 +1531,7 @@ class FlowDownloadService : Service() {
                             pauseIntent,
                             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                         )
-                    builder.addAction(android.R.drawable.ic_media_pause, "Pause", pausePending)
+                    builder.addAction(android.R.drawable.ic_media_pause, getString(R.string.pause), pausePending)
                 }
 
                 // Cancel button
@@ -1514,7 +1547,7 @@ class FlowDownloadService : Service() {
                         cancelIntent,
                         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                     )
-                builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", cancelPending)
+                builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.cancel), cancelPending)
             }
         } else {
             builder.setProgress(0, 0, false)
@@ -1535,6 +1568,36 @@ class FlowDownloadService : Service() {
     ) {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(getNotificationId(videoId), createNotification(mission, videoId, isComplete, isMuxing))
+        refreshForegroundSummary()
+    }
+
+    /**
+     * Leaves a download's notification on a state the download can actually be in.
+     *
+     * Called from `finally`, so it also runs when the coroutine is cancelled part-way — the case
+     * that used to leave "Merging audio & video…" on screen beside a file that was already finished
+     * and moved to its destination. A mission that is no longer tracked was cancelled by the user,
+     * and `handleCancel` has already taken its notification down.
+     */
+    private fun settleNotification(
+        mission: FlowDownloadMission,
+        videoId: String,
+    ) {
+        when (settledNotificationFor(mission.status, tracked = activeMissions[videoId] === mission)) {
+            SettledNotification.COMPLETE -> {
+                updateNotification(mission, videoId, isComplete = true)
+            }
+
+            SettledNotification.KEEP_STATE -> {
+                updateNotification(mission, videoId)
+            }
+
+            SettledNotification.DISMISS -> {
+                val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.cancel(getNotificationId(videoId))
+                refreshForegroundSummary()
+            }
+        }
     }
 
     private fun createNotificationChannel() {
@@ -1542,7 +1605,7 @@ class FlowDownloadService : Service() {
             val channel =
                 NotificationChannel(
                     CHANNEL_ID,
-                    "Flow Downloads",
+                    getString(R.string.notification_channel_downloads_name),
                     NotificationManager.IMPORTANCE_LOW,
                 ).apply {
                     description = getString(R.string.notification_download_progress_description)
@@ -1564,6 +1627,7 @@ class FlowDownloadService : Service() {
     private fun stopServiceIfIdle() {
         mainHandler.post {
             if (activeMissions.isEmpty() && pendingDownloadStarts.get() == 0) {
+                lastForegroundSummary = null
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -1585,9 +1649,9 @@ class FlowDownloadService : Service() {
 
     private fun formatBytes(bytes: Long): String =
         when {
-            bytes >= 1024 * 1024 * 1024 -> String.format("%.1f GB", bytes / (1024 * 1024 * 1024.0))
-            bytes >= 1024 * 1024 -> String.format("%.1f MB", bytes / (1024 * 1024.0))
-            bytes >= 1024 -> String.format("%.1f KB", bytes / 1024.0)
+            bytes >= 1024 * 1024 * 1024 -> String.format(Locale.getDefault(), "%.1f GB", bytes / (1024 * 1024 * 1024.0))
+            bytes >= 1024 * 1024 -> String.format(Locale.getDefault(), "%.1f MB", bytes / (1024 * 1024.0))
+            bytes >= 1024 -> String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0)
             else -> "$bytes B"
         }
 

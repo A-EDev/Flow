@@ -2383,6 +2383,20 @@
     <string name="notification_downloading">Downloading: %1$s</string>
     <string name="notification_download_complete">Download complete</string>
     <string name="notification_download_failed">Download failed</string>
+    <string name="notification_channel_downloads_name">Flow Downloads</string>
+    <!-- Download notification subtitle while paused; %1$s is the reason or a hint -->
+    <string name="notification_download_paused">Paused — %1$s</string>
+    <string name="notification_download_paused_hint">tap to resume</string>
+    <!-- Download notification subtitle: percent, bytes so far, total bytes -->
+    <string name="notification_download_progress">%1$d%% • %2$s / %3$s</string>
+    <plurals name="notification_downloads_active">
+        <item quantity="one">Downloading %1$d item</item>
+        <item quantity="other">Downloading %1$d items</item>
+    </plurals>
+    <plurals name="notification_downloads_paused">
+        <item quantity="one">%1$d download paused</item>
+        <item quantity="other">%1$d downloads paused</item>
+    </plurals>
     <string name="notification_more">+%1$d more</string>
     <string name="notification_new_videos">New videos</string>
     <string name="notification_new_videos_from_subscriptions">%1$d new videos from your subscriptions</string>
@@ -2446,6 +2460,7 @@
     <string name="download_muxing_incompatible">Muxing failed â€” audio format incompatible with video container. Try re-downloading.</string>
     <string name="download_muxing_failed_retry">Muxing failed — try re-downloading.</string>
     <string name="download_url_expired">URL expired (403). Re-fetch needed.</string>
+    <string name="download_stream_blocked_403">Stream blocked or expired (HTTP 403). Try another quality or codec, or try again later.</string>
     <string name="download_sabr_failed">SABR download failed</string>
     <string name="download_sabr_failed_try_again">SABR download failed. Please try again.</string>
     <string name="download_failed_video_length">Failed to get video content length</string>
