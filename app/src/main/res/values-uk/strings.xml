@@ -2393,4 +2393,26 @@
     <string name="sync_expires_seconds">%1$d с</string>
     <string name="sync_done_stats_summary">Додано: %1$d · Оновлено: %2$d · Пропущено: %3$d</string>
     <string name="sync_scanning_hint">Тримайте код іншого пристрою в межах рамки.</string>
+    <string name="top_bar_clear_search">Очистити пошук</string>
+    <string name="top_bar_close_search">Закрити пошук</string>
+    <string name="download_size_estimate_mb">~%1$s МБ</string>
+    <string name="download_size_estimate_gb">~%1$s ГБ</string>
+    <string name="subtitle_load_failed">Не вдалося завантажити субтитри %1$s. Спробуйте ще раз</string>
+    <string name="notification_channel_downloads_name">Завантаження Flow</string>
+    <string name="notification_download_paused">Призупинено: %1$s</string>
+    <string name="notification_download_paused_hint">торкніться, щоби продовжити</string>
+    <string name="notification_download_progress">%1$d%% • %2$s / %3$s</string>
+    <plurals name="notification_downloads_active">
+        <item quantity="one">Завантаження %1$d елемента</item>
+        <item quantity="few">Завантаження %1$d елементів</item>
+        <item quantity="many">Завантаження %1$d елементів</item>
+        <item quantity="other">Завантаження %1$d елементів</item>
+    </plurals>
+    <plurals name="notification_downloads_paused">
+        <item quantity="one">%1$d завантаження призупинено</item>
+        <item quantity="few">%1$d завантаження призупинено</item>
+        <item quantity="many">%1$d завантажень призупинено</item>
+        <item quantity="other">%1$d завантажень призупинено</item>
+    </plurals>
+    <string name="download_stream_blocked_403">Стрим заблоковано або термін дії посилання закінчився (HTTP 403). Спробуйте іншу якість чи кодек або повторіть спробу пізніше.</string>
 </resources>
