@@ -7,12 +7,13 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Test
 
 class SponsorBlockHandlerTest {
-    private val outro = SponsorBlockSegment(
-        category = "outro",
-        segment = listOf(156.5f, 157.2f),
-        uuid = "outro-id",
-        actionType = "skip",
-    )
+    private val outro =
+        SponsorBlockSegment(
+            category = "outro",
+            segment = listOf(156.5f, 157.2f),
+            uuid = "outro-id",
+            actionType = "skip",
+        )
 
     private fun handler() =
         SponsorBlockHandler(CoroutineScope(UnconfinedTestDispatcher())).apply {

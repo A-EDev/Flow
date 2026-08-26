@@ -28,8 +28,7 @@ fun newPipeLocalization(languageTag: String): Localization {
         ?: FALLBACK_LOCALIZATION
 }
 
-private fun Localization.hasTimeAgoPatterns(): Boolean =
-    TimeAgoPatternsManager.getTimeAgoParserFor(this) != null
+private fun Localization.hasTimeAgoPatterns(): Boolean = TimeAgoPatternsManager.getTimeAgoParserFor(this) != null
 
 /** Two-letter country for YouTube's `gl`, falling back to the device country and then to US. */
 fun normalizeYouTubeCountry(region: String): String {

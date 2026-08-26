@@ -62,13 +62,29 @@ internal fun musicSheetFlingTarget(
     canDismiss: Boolean,
 ): MusicSheetFlingTarget =
     when {
-        velocity > 300f -> MusicSheetFlingTarget.Expand
-        velocity < -300f ->
-            if (canDismiss && currentDp < collapsedDp) MusicSheetFlingTarget.Dismiss
-            else MusicSheetFlingTarget.Collapse
-        currentDp >= collapsedDp + (expandedDp - collapsedDp) * 0.5f -> MusicSheetFlingTarget.Expand
-        canDismiss && currentDp < collapsedDp * 0.5f -> MusicSheetFlingTarget.Dismiss
-        else -> MusicSheetFlingTarget.Collapse
+        velocity > 300f -> {
+            MusicSheetFlingTarget.Expand
+        }
+
+        velocity < -300f -> {
+            if (canDismiss && currentDp < collapsedDp) {
+                MusicSheetFlingTarget.Dismiss
+            } else {
+                MusicSheetFlingTarget.Collapse
+            }
+        }
+
+        currentDp >= collapsedDp + (expandedDp - collapsedDp) * 0.5f -> {
+            MusicSheetFlingTarget.Expand
+        }
+
+        canDismiss && currentDp < collapsedDp * 0.5f -> {
+            MusicSheetFlingTarget.Dismiss
+        }
+
+        else -> {
+            MusicSheetFlingTarget.Collapse
+        }
     }
 
 @Stable
@@ -80,7 +96,6 @@ class MusicPlayerSheetState(
     private val onAnchorChanged: (Int) -> Unit,
     val collapsedBound: Dp,
 ) : DraggableState by draggableState {
-
     val dismissedBound: Dp get() = animatable.lowerBound!!
     val expandedBound: Dp get() = animatable.upperBound!!
 
@@ -99,9 +114,12 @@ class MusicPlayerSheetState(
     }
 
     val progress: Float by derivedStateOf {
-        if (expandedBound == collapsedBound) 1f
-        else ((animatable.value - collapsedBound) / (expandedBound - collapsedBound))
-            .coerceIn(0f, 1f)
+        if (expandedBound == collapsedBound) {
+            1f
+        } else {
+            ((animatable.value - collapsedBound) / (expandedBound - collapsedBound))
+                .coerceIn(0f, 1f)
+        }
     }
 
     fun collapse() {
@@ -116,7 +134,10 @@ class MusicPlayerSheetState(
         settleAt(DISMISSED_ANCHOR, dismissedBound)
     }
 
-    private fun settleAt(targetAnchor: Int, target: Dp) {
+    private fun settleAt(
+        targetAnchor: Int,
+        target: Dp,
+    ) {
         anchor = targetAnchor
         onAnchorChanged(targetAnchor)
         coroutineScope.launch {
@@ -128,7 +149,10 @@ class MusicPlayerSheetState(
         coroutineScope.launch { animatable.snapTo(value) }
     }
 
-    fun performFling(velocity: Float, onDismiss: (() -> Unit)? = null) {
+    fun performFling(
+        velocity: Float,
+        onDismiss: (() -> Unit)? = null,
+    ) {
         val target =
             musicSheetFlingTarget(
                 velocity = velocity,
@@ -138,8 +162,14 @@ class MusicPlayerSheetState(
                 canDismiss = onDismiss != null,
             )
         when (target) {
-            MusicSheetFlingTarget.Expand -> expand()
-            MusicSheetFlingTarget.Collapse -> collapse()
+            MusicSheetFlingTarget.Expand -> {
+                expand()
+            }
+
+            MusicSheetFlingTarget.Collapse -> {
+                collapse()
+            }
+
             MusicSheetFlingTarget.Dismiss -> {
                 dismiss()
                 onDismiss?.invoke()
@@ -148,33 +178,53 @@ class MusicPlayerSheetState(
     }
 
     /** Nested scroll connection: drag-to-collapse when content is scrolled to top */
-    val nestedScrollConnection: NestedScrollConnection get() = object : NestedScrollConnection {
-        var isTopReached = false
+    val nestedScrollConnection: NestedScrollConnection get() =
+        object : NestedScrollConnection {
+            var isTopReached = false
 
-        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-            if (isExpanded && available.y < 0) isTopReached = false
-            return if (isTopReached && available.y < 0 && source == NestedScrollSource.UserInput) {
-                dispatchRawDelta(available.y); available
-            } else Offset.Zero
-        }
+            override fun onPreScroll(
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                if (isExpanded && available.y < 0) isTopReached = false
+                return if (isTopReached && available.y < 0 && source == NestedScrollSource.UserInput) {
+                    dispatchRawDelta(available.y)
+                    available
+                } else {
+                    Offset.Zero
+                }
+            }
 
-        override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-            if (!isTopReached) isTopReached = consumed.y == 0f && available.y > 0
-            return if (isTopReached && source == NestedScrollSource.UserInput) {
-                dispatchRawDelta(available.y); available
-            } else Offset.Zero
-        }
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                if (!isTopReached) isTopReached = consumed.y == 0f && available.y > 0
+                return if (isTopReached && source == NestedScrollSource.UserInput) {
+                    dispatchRawDelta(available.y)
+                    available
+                } else {
+                    Offset.Zero
+                }
+            }
 
-        override suspend fun onPreFling(available: Velocity): Velocity {
-            return if (isTopReached) {
-                performFling(-available.y); available
-            } else Velocity.Zero
-        }
+            override suspend fun onPreFling(available: Velocity): Velocity =
+                if (isTopReached) {
+                    performFling(-available.y)
+                    available
+                } else {
+                    Velocity.Zero
+                }
 
-        override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-            isTopReached = false; return Velocity.Zero
+            override suspend fun onPostFling(
+                consumed: Velocity,
+                available: Velocity,
+            ): Velocity {
+                isTopReached = false
+                return Velocity.Zero
+            }
         }
-    }
 }
 
 @Composable
@@ -190,26 +240,28 @@ fun rememberMusicPlayerSheetState(
     val animatable = remember { Animatable(0.dp, Dp.VectorConverter) }
 
     return remember(dismissedBound, expandedBound, collapsedBound, scope) {
-        val initialValue = when (previousAnchor) {
-            EXPANDED_ANCHOR -> expandedBound
-            COLLAPSED_ANCHOR -> collapsedBound
-            else -> dismissedBound
-        }
+        val initialValue =
+            when (previousAnchor) {
+                EXPANDED_ANCHOR -> expandedBound
+                COLLAPSED_ANCHOR -> collapsedBound
+                else -> dismissedBound
+            }
         animatable.updateBounds(
             dismissedBound.coerceAtMost(expandedBound),
-            expandedBound
+            expandedBound,
         )
         scope.launch { animatable.snapTo(initialValue) }
 
         MusicPlayerSheetState(
-            draggableState = DraggableState { delta ->
-                scope.launch {
-                    animatable.snapTo(
-                        (animatable.value - with(density) { delta.toDp() })
-                            .coerceIn(dismissedBound.coerceAtMost(expandedBound), expandedBound)
-                    )
-                }
-            },
+            draggableState =
+                DraggableState { delta ->
+                    scope.launch {
+                        animatable.snapTo(
+                            (animatable.value - with(density) { delta.toDp() })
+                                .coerceIn(dismissedBound.coerceAtMost(expandedBound), expandedBound),
+                        )
+                    }
+                },
             coroutineScope = scope,
             animatable = animatable,
             initialAnchor = previousAnchor,
@@ -249,84 +301,85 @@ fun MusicPlayerBottomSheet(
 
     Box(
         modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
+        contentAlignment = Alignment.BottomCenter,
     ) {
-       val lift = bottomPadding * (1f - state.progress)
+        val lift = bottomPadding * (1f - state.progress)
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(state.value.coerceAtLeast(0.dp))
-                .offset { IntOffset(x = 0, y = -lift.roundToPx()) }
-                .clip(RectangleShape)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(state.value.coerceAtLeast(0.dp))
+                    .offset { IntOffset(x = 0, y = -lift.roundToPx()) }
+                    .clip(RectangleShape),
         ) {
             // ── Full player (expanded content) ──────────────────────────────
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .nestedScroll(state.nestedScrollConnection)
-                    .pointerInput(state) {
-                        val velocityTracker = VelocityTracker()
-                        var handleSheetDrag = false
-                        detectVerticalDragGestures(
-                            onDragStart = { startOffset ->
-                                handleSheetDrag = startOffset.y > size.height * 0.58f
-                                velocityTracker.resetTracking()
-                            },
-                            onVerticalDrag = { change, dragAmount ->
-                                if (!handleSheetDrag) return@detectVerticalDragGestures
-                                velocityTracker.addPointerInputChange(change)
-                                if (dragAmount > 0f || state.value < state.expandedBound) {
-                                    state.dispatchRawDelta(dragAmount)
-                                    change.consume()
-                                }
-                            },
-                            onDragCancel = {
-                                if (!handleSheetDrag) return@detectVerticalDragGestures
-                                velocityTracker.resetTracking()
-                                state.expand()
-                            },
-                            onDragEnd = {
-                                if (!handleSheetDrag) return@detectVerticalDragGestures
-                                val velocity = -velocityTracker.calculateVelocity().y
-                                velocityTracker.resetTracking()
-                                state.performFling(velocity, onDismiss)
-                            }
-                        )
-                    }
-                    .graphicsLayer {
-                        alpha = ((state.progress - 0.15f) * 4f).coerceIn(0f, 1f)
-                    },
-                content = expandedContent
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .nestedScroll(state.nestedScrollConnection)
+                        .pointerInput(state) {
+                            val velocityTracker = VelocityTracker()
+                            var handleSheetDrag = false
+                            detectVerticalDragGestures(
+                                onDragStart = { startOffset ->
+                                    handleSheetDrag = startOffset.y > size.height * 0.58f
+                                    velocityTracker.resetTracking()
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    if (!handleSheetDrag) return@detectVerticalDragGestures
+                                    velocityTracker.addPointerInputChange(change)
+                                    if (dragAmount > 0f || state.value < state.expandedBound) {
+                                        state.dispatchRawDelta(dragAmount)
+                                        change.consume()
+                                    }
+                                },
+                                onDragCancel = {
+                                    if (!handleSheetDrag) return@detectVerticalDragGestures
+                                    velocityTracker.resetTracking()
+                                    state.expand()
+                                },
+                                onDragEnd = {
+                                    if (!handleSheetDrag) return@detectVerticalDragGestures
+                                    val velocity = -velocityTracker.calculateVelocity().y
+                                    velocityTracker.resetTracking()
+                                    state.performFling(velocity, onDismiss)
+                                },
+                            )
+                        }.graphicsLayer {
+                            alpha = ((state.progress - 0.15f) * 4f).coerceIn(0f, 1f)
+                        },
+                content = expandedContent,
             )
 
             // ── Mini player with drag gesture (collapsed content) ────────────
             if (!state.isExpanded) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(state.collapsedBound)
-                        .pointerInput(state) {
-                            val velocityTracker = VelocityTracker()
-                            detectVerticalDragGestures(
-                                onVerticalDrag = { change, dragAmount ->
-                                    velocityTracker.addPointerInputChange(change)
-                                    state.dispatchRawDelta(dragAmount)
-                                },
-                                onDragCancel = {
-                                    velocityTracker.resetTracking()
-                                    state.collapse()
-                                },
-                                onDragEnd = {
-                                    val velocity = -velocityTracker.calculateVelocity().y
-                                    velocityTracker.resetTracking()
-                                    state.performFling(velocity, onDismiss)
-                                }
-                            )
-                        }
-                        .graphicsLayer {
-                            alpha = (1f - state.progress * 4f).coerceIn(0f, 1f)
-                        },
-                    content = collapsedContent
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(state.collapsedBound)
+                            .pointerInput(state) {
+                                val velocityTracker = VelocityTracker()
+                                detectVerticalDragGestures(
+                                    onVerticalDrag = { change, dragAmount ->
+                                        velocityTracker.addPointerInputChange(change)
+                                        state.dispatchRawDelta(dragAmount)
+                                    },
+                                    onDragCancel = {
+                                        velocityTracker.resetTracking()
+                                        state.collapse()
+                                    },
+                                    onDragEnd = {
+                                        val velocity = -velocityTracker.calculateVelocity().y
+                                        velocityTracker.resetTracking()
+                                        state.performFling(velocity, onDismiss)
+                                    },
+                                )
+                            }.graphicsLayer {
+                                alpha = (1f - state.progress * 4f).coerceIn(0f, 1f)
+                            },
+                    content = collapsedContent,
                 )
             }
         }

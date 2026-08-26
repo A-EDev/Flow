@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
  * Supported actions: SKIP (seek to end), MUTE (emit mute/unmute events), SHOW_TOAST (notify only), IGNORE.
  */
 class SponsorBlockHandler(
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
 ) {
     companion object {
         private const val TAG = "SponsorBlockHandler"
@@ -52,6 +52,7 @@ class SponsorBlockHandler(
     private var lastSkippedSegmentUuid: String? = null
     private var currentMutedSegmentUuid: String? = null
     private var currentVideoId: String? = null
+
     /** True when segments were loaded via [loadSegmentsFromList] (offline DB). Prevents
      * [setEnabled] from wiping them with a network refresh that will fail offline.
      */
@@ -90,7 +91,10 @@ class SponsorBlockHandler(
      * Bypasses the network API call. Safe to call even when [isEnabled] is false —
      * the segments are stored and will be used if SponsorBlock is later enabled.
      */
-    fun loadSegmentsFromList(videoId: String, segments: List<SponsorBlockSegment>) {
+    fun loadSegmentsFromList(
+        videoId: String,
+        segments: List<SponsorBlockSegment>,
+    ) {
         currentVideoId = videoId
         loadJob?.cancel()
         lastSkippedSegmentUuid = null
@@ -114,18 +118,19 @@ class SponsorBlockHandler(
         lastSkippedSegmentUuid = null
         currentMutedSegmentUuid = null
 
-        loadJob = scope.launch {
-            try {
-                val segments = sponsorBlockRepository.getSegments(videoId)
-                _sponsorSegments.value = segments
-                Log.d(TAG, "Loaded ${segments.size} segments for video $videoId")
-                segments.forEach {
-                    Log.d(TAG, "Segment: ${it.category} [${it.startTime} - ${it.endTime}]")
+        loadJob =
+            scope.launch {
+                try {
+                    val segments = sponsorBlockRepository.getSegments(videoId)
+                    _sponsorSegments.value = segments
+                    Log.d(TAG, "Loaded ${segments.size} segments for video $videoId")
+                    segments.forEach {
+                        Log.d(TAG, "Segment: ${it.category} [${it.startTime} - ${it.endTime}]")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to load segments for video $videoId", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load segments for video $videoId", e)
             }
-        }
     }
 
     /**
@@ -184,6 +189,7 @@ class SponsorBlockHandler(
                     _skipEvent.tryEmit(segment)
                     (segment.endTime * 1000).toLong()
                 }
+
                 SponsorBlockAction.MUTE -> {
                     if (currentMutedSegmentUuid != segment.uuid) {
                         currentMutedSegmentUuid = segment.uuid
@@ -191,12 +197,16 @@ class SponsorBlockHandler(
                     }
                     null
                 }
+
                 SponsorBlockAction.SHOW_TOAST -> {
                     lastSkippedSegmentUuid = segment.uuid
                     _toastEvent.tryEmit(segment)
                     null
                 }
-                SponsorBlockAction.IGNORE -> null
+
+                SponsorBlockAction.IGNORE -> {
+                    null
+                }
             }
         }
 
