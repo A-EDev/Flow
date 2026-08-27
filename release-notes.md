@@ -1,87 +1,134 @@
-# Flow v2.2.0
+# Flow v2.2.1
 
-**Release date:** 2026-07-18
-**Status:** Release
+**Release date:** 2026-08-28
+
+Enjoying Flow? Consider supporting its development on [Patreon](https://patreon.com/A_EDev) to help keep the app free, open source, ad-free, and improving!
 
 ## New features
 
-- Add a local media library (play local on-device media)
-- Add new logo #605 by @AnharHussainMiah
-- Add new music recognizer feature (Based on Metrolist's implementation see https://github.com/MetrolistGroup/Metrolist)
-- Add custom mark as watched threshold settings
-- Add bottom navbar scroll events toggle
-- Add queue/playlist autoplay toggle
-- Add shorts search tab
-- Add new video ambient mode
-- Add shorts UI customizations
-- Add new native local cross-platform sync
-- Add default codec selection for downloads #675
-- Add hide music artwork option #639
-- Add channel sorting options in subscriptions (default, name A–Z, recently updated) #498
-- Add new vetrical video fullscreen drag gesture
-- Add community posts support
-- Add playlist loop and shuffle actions
-- Add app widgets
+- Discord RPC support by @PastaHimself
+- TV UI support by @PastaHimself
+- Drag left or right on the video to seek, with a toggle in Player Appearance settings
+- Hide Shorts across the whole app with a single switch, without deleting your saved reels
+- Play your subscriptions' Shorts as one queue in date order instead of a handful from a shelf #823
+- Keep going with older Shorts from your subscribed channels once the recent ones run out
+- Show a progress line and a watched badge on Shorts you have already seen, in feeds and channel tabs #787
+- Picture-in-picture for Shorts, off by default #571
+- Choose whether a finished Shorts queue continues with recommendations or stops at the end
+- Choose a fallback video codec for videos that do not offer your preferred one, instead of always dropping to H.264 #812
 
 ## Improvements
 
-- Improve media notification handling #577
-- Improve video player settings sheet positioning #572
-- Improve double tap seek gesture #520
-- Add remove button "X" on continue watching shelf's cards
-- Improve SABR implementation
-- Bump NewPipeExtractor to v0.26.3 and set it as primary source with native SABR fallback
-- Bump Media3/ExoPlayer to 1.6.1 for more reliable background playback notifications
-- Apply default quality settings to live streams #576
-- Add a full list of audio languages to the preferred audio language setting #580
-- List all available captions, including auto-translated tracks
-- Improve AV1 codec handling
-- Improve mark as watched percentage
-- Add new share context toggle
-- Add toggle to show/hide overlay #604
-- Add a delay config for autoplay #620
-- Improve Emojis handling in live chat #617
-- Improve chapters container #588
-- Improve player Lock mode #619
-- Improve player overlays and icons symmetry #654 #634
-- Improve player drawer handling #659
-- Update download settings screen's dialog heights #648
-- Add support for all Youtube Music, piped and invidious Url formats
-- Add comment drawer in landscape #644
-- Video Quality selection menu redesign #660
-- Improve upcoming videos reminder #470
-- Improve volume gesture and rotation handling
-- Improve Theme color schemes and add Theme Variants (Light, Dark, AMOLED)
-- Refine the subscriptions feed cards to match the home layout #678
-- Onboarding screen redesign
-- Faster playback startup
-- Library screen redesign
+- Slimmer player seekbar segment gaps #786
+- Improve restricted content filtering #783
+- Improve EQ and add it for video player #781
+- Improve playback speed
+- Use standard media icons so Android Auto, Wear and system controls render them correctly
+- Show the player controls the moment you tap instead of waiting to see if a second tap follows
+- Add haptic feedback to seeking, the speed boost and the gesture controls
+- Follow your finger when swiping down to leave fullscreen, springing back if you let go early
+- Zoom the video as you drag up to enter fullscreen
+- Let pinch-to-zoom stretch past its limits and settle back when released
+- Scale the long-press speed boost from the current speed so it can never slow playback down #867
+- Restyle the long-press speed indicator as a pill showing the speed it will actually apply
+- Ripple the tapped side of the screen when double-tap seeking
+- Offer every dubbed audio track and the full quality ladder on videos that provide them
+- Open the same Shorts queue from every surface, starting on the reel you tapped and letting you swipe back through the ones before it
+- Swipe through a channel's Shorts in the sort order its tab is showing #547
+- Shrink the reel when the comments or settings sheet opens instead of hiding it behind them
+- Close the Shorts comments by tapping above them instead of pausing the video #891
+- Apply your preferred video codec to live streams #727
+- Show the frame rate in the quality selector, so a 60 fps ladder reads as 1080p60 rather than plain 1080p #847
+- Show which address this device is advertising on the sync QR screen, so a failed connection is easier to place
+- Rebuild the device sync screens on Material 3, with clearer send and receive options, a line explaining everything you can sync, and an easier-to-read pairing code
+- Open comments beside the video on tablets in landscape instead of covering it with a sheet #918
+
+## Performance
+
+- Faster cold start and smoother scrolling
+- Lower idle CPU and battery drain
+- Ship a baseline profile and enable strong skipping
+- Rebuild ambient mode on a lighter render path
+- Move player setup off the startup path
+- Share card settings and watch progress across feeds
+- Consolidate playback position onto one tick
+- Add stable list keys across feeds and search
+- Load thumbnails at display size
+- Draw waveform and mini-player progress instead of laying them out
+- Start videos sooner by keeping remote signature decoding off the path to first frame
+- Reuse one attestation session across videos instead of re-running it on every open
+- Skip stream resolution for downloaded videos while offline
+- Stop paying for work Shorts never uses
+- Read audio preferences once per video instead of once per client attempt
+- Load the Shorts and music feeds before the work that only appends to them
+- Animate the seek bar without re-measuring it on every frame
+- Read the player overlay settings in a single pass instead of twelve
+- Stop pinch-to-zoom redrawing the whole player overlay on every frame
+- Keep the playhead from recomposing the controls several times a second
+- Draw the seek bar through one system instead of three overlapping ones
+
+## Build and ci
+
+- Add automated Kotlin formatting checks with ktlint and Spotless
+- Reduce APK size with ABI-specific releases, resource shrinking, and dependency cleanup
+- Improve ABI-aware app updates and GitHub/FOSS release packaging
+- Speed up builds with KSP, Gradle caching, improved parallelism, and CI daemon reuse
+- Remove obsolete playback and download code
+- Fix ktlint rules not being applied by Spotless
 
 ## Fixes and stability
 
-- Fix Crashes from missing media notification provider #578
-- Fix missing metadata on come live streams #574
-- Fix video player stuck in a 403 retry loop #573
-- Fix music audio equilizer settings saving issues
-- Fix out-of-memory crashes when refreshing or importing large subscription lists #603
-- Fix lag when the bottom navigation bar hides or shows while scrolling
-- Fix playback crashes
-- Fix missing audio tracks
-- Fix "Failed to parse video data" errors
-- Fix videos playing in the wrong (AI-dubbed) audio language on some networks by always preferring the original audio track
-- Fix missing Shorts metadata
-- Fix missing playlist videos metadata
-- Fix icon backup crashes
-- Fix low-quality thumbnails in the subscriptions feed #678
-- Fix custom player brightness leaking into PiP and the rest of the app #679
+- Fix playback media-session notifications missing metadata, artwork, controls, and seek state
+- Fix background subscription and update notifications not being delivered until the app is opened
+- Fix missing channel avatars in comments and replies with cached channel-avatar fallback
+- Fix a crash when playback notification artwork finished loading in the background
+- Fix the playback notification disappearing when the queue auto-advanced in the background
+- Fix videos cutting out around the one-minute mark on auto-dubbed titles
+- Fix playback stopping about a minute in and then retrying until it gave up #921 #922
+- Fix the wrong audio track being requested on auto-dubbed videos
+- Fix the mini player expanding back to the full player while metadata was still loading
+- Fix playback on videos that only offer a server-side adaptive stream
+- Fix downloaded videos failing to play when offline
+- Add a mobile web fallback and a newer VR client for stream extraction
+- Fix crash issues
+- Fix a crash while typing in search when a suggestion contained certain non-Latin characters #934
+- Stop music background tasks from running after the player is closed
+- Fix custom SponsorBlock category colours having no effect on the seek bar
+- Fix the cast and sleep timer buttons appearing a moment after the rest of the controls
+- Fix the brightness readout vanishing while you were still adjusting it
+- Fix swiping down to leave fullscreen committing even after you dragged back up
+- Remove the auto-translated subtitle languages, which YouTube almost always refused to serve, so picking one showed nothing
+- Fix a subtitle track other than the one you picked being used when two of them share a language
+- Fix Shorts stalling and playing only in H.264 #917
+- Fix Shorts showing in the subscription feed while Shorts were turned off #903
+- Fix Shorts appearing among the videos in your home feed
+- Fix the comments sheet sticking to the bottom of the screen in vertical fullscreen
+- Fix device sync failing whenever one of the selected collections was empty on this device
+- Fix your recommendation brain barely transferring during device sync, and never arriving from the desktop app at all
+- Fix unblocking a topic or channel never reaching your other device, which kept re-blocking it on the next sync
+- Fix sync sending your desktop the tunnel address instead of your Wi-Fi one when a VPN was connected
+- Keep every device's learned interests when syncing with a device that has synced with a third one
+- Fix Back abandoning the whole sync screen instead of returning to the previous step
+- Fix the empty band above the title on the sync screen
+- Fix Settings and Notifications being unreachable after turning off the home tab
+- Fix tablets dropping to the phone layout after leaving and returning to the app #909
+- Fix tablets being locked into portrait after leaving fullscreen, with no way back to landscape #918
+- Fix casting to Kodi and other players built on ffmpeg ending the moment it started #916
 
-## Engine
+## Dependency
 
-- Improve measurements foundation, add evaluation harness and deterministic scorers
-- Imrove correctness and clean dead interest profile
-- Improve Signal integrity, ranking and impressions
-- Introduce related-graph for improved feed quality
-- Improve feed quotas to 40/25/25/10 instead of previous 50/40/10
-- Fix scalar relevance dilution
-- Improve persona handling, and remove novilty cliff and filter bubble
-- Improve engine performace and avoid over-supression
+- Bump NewPipeExtractor to v0.26.5
+- Update Gradle to 9.6.1 and Android Gradle Plugin to 9.3.1
+- Update Kotlin to 2.4.10 with the Compose compiler plugin and KSP 2.3.11
+- Update Hilt to 2.60.1 and Room to 2.8.4
+- Update Coroutines and Serialization to 1.11.0
+- Update baseline profile and benchmark tooling to 1.5.0-beta01
+- Update Compose BOM to 2026.06.01 with Material 3 1.4
+- Raise compileSdk to 37
+- Update Navigation, Lifecycle, Activity, Core, WorkManager, Paging and CameraX
+- Update Gson to 2.14.0, Conscrypt to 2.6.1 and core library desugaring to 2.1.5
+- Remove unused RxJava and multidex dependencies
+- Raise targetSdk to 36 for Android 16 platform behaviour
+- Update OkHttp to 5.4.0 and Media3/ExoPlayer to 1.11.0
+- Update Coil image loading to 3.5.0
+- Update Ktor networking to 3.5.2

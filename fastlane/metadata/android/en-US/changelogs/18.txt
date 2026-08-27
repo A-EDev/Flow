@@ -1,0 +1,8 @@
+- Added Discord Rich Presence and an Android TV interface
+- Added Shorts queues, Shorts PiP, and a hide-Shorts switch
+- Added drag-to-seek, a video equalizer, and a fallback codec option
+- Added dubbed audio tracks, the full quality ladder, and 60 fps labels
+- Faster cold start, lower battery use, and smoother scrolling
+- Fixed playback cutting out, notifications, and offline downloads
+- Fixed tablet layouts, casting, and device sync
+- Upgraded NewPipeExtractor to v0.26.5 and Media3 to 1.11.0
