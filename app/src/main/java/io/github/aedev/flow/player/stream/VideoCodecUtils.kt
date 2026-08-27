@@ -5,6 +5,13 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 
 object VideoCodecUtils {
     private val QUALITY_HEIGHT_REGEX = Regex("""(\d+)p""")
+    private val FRAME_RATE_LABEL_REGEX = Regex("""\d+p(\d+)""")
+
+    /**
+     * YouTube only spells the frame rate out on its high-frame-rate ladder ("1080p60"); 24/25/30 fps
+     * stay bare. Flow's quality selector follows the same convention.
+     */
+    private const val HIGH_FRAME_RATE_FPS = 50
     private val CODECS_PARAMETER_REGEX = Regex("""codecs\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
 
     private val AV1_ITAGS = setOf(394, 395, 396, 397, 398, 399, 400, 401, 402, 571, 694, 695, 696, 697, 698, 699, 700, 701)
@@ -164,6 +171,32 @@ object VideoCodecUtils {
         return normalizeQualityHeight(stream.height)
     }
 
+    fun frameRateFromStream(stream: VideoStream): Int {
+        if (stream.fps > 0) return stream.fps
+        // A stream built without ItagItem metadata carries the frame rate only inside its label.
+        return frameRateFromLabel(stream.resolution)
+            ?: frameRateFromLabel(stream.itagItem?.resolutionString)
+            ?: 0
+    }
+
+    fun frameRateFromLabel(label: String?): Int? {
+        if (label.isNullOrBlank()) return null
+        return FRAME_RATE_LABEL_REGEX
+            .find(label)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+    }
+
+    /**
+     * Resolution label for the quality selector: "1080p", or "1080p60" once the stream is above the
+     * standard frame rate, so a 60 fps ladder is recognisable without opening the stream.
+     */
+    fun qualityLabelWithFrameRate(
+        height: Int,
+        fps: Int,
+    ): String = if (fps >= HIGH_FRAME_RATE_FPS) "${height}p$fps" else "${height}p"
+
     fun qualityLabelFromStream(stream: VideoStream): String =
         stream.resolution
             .takeIf { it.isNotBlank() && it != VideoStream.RESOLUTION_UNKNOWN }
@@ -181,15 +214,32 @@ object VideoCodecUtils {
             else -> 5
         }
 
+    /**
+     * Parses the user's codec preference into an ordered priority list, most-preferred first.
+     *
+     * The preference is a comma-separated list of codec keys ("av1,vp9") so a single string can
+     * carry the preferred codec plus the fallback the user picked for videos that do not offer it.
+     * "auto" and blanks mean "no preference" and yield an empty list, which leaves every ranking on
+     * the built-in [playbackCodecRank] order.
+     */
+    fun codecPriorityList(preference: String?): List<String> {
+        if (preference.isNullOrBlank()) return emptyList()
+        return preference
+            .split(',')
+            .map { it.trim().lowercase() }
+            .filter { it.isNotEmpty() && it != "auto" }
+            .distinct()
+    }
+
     fun codecRankWithPreference(
         codecKey: String,
         preferred: String?,
-    ): Int =
-        if (!preferred.isNullOrBlank() && preferred != "auto" && codecKey == preferred) {
-            -1
-        } else {
-            playbackCodecRank(codecKey)
-        }
+    ): Int {
+        val priority = codecPriorityList(preferred)
+        val index = priority.indexOf(codecKey)
+        // Negative so any listed codec outranks the built-in order, earlier entries ranking lower.
+        return if (index >= 0) index - priority.size else playbackCodecRank(codecKey)
+    }
 
     fun codecRankWithPreference(
         stream: VideoStream,
@@ -216,8 +266,11 @@ object VideoCodecUtils {
 
     @JvmOverloads
     fun preferredVideoMimeTypes(preferredCodecKey: String? = null): Array<String> {
-        val preferred = MIME_TYPE_BY_CODEC_KEY[preferredCodecKey?.lowercase()] ?: return DEFAULT_VIDEO_MIME_TYPES
-        return arrayOf(preferred) + DEFAULT_VIDEO_MIME_TYPES.filterNot { it == preferred }
+        val preferred =
+            codecPriorityList(preferredCodecKey)
+                .mapNotNull { MIME_TYPE_BY_CODEC_KEY[it] }
+        if (preferred.isEmpty()) return DEFAULT_VIDEO_MIME_TYPES
+        return (preferred + DEFAULT_VIDEO_MIME_TYPES.filterNot { it in preferred }).toTypedArray()
     }
 
     private fun itagFromUrl(url: String): Int? {

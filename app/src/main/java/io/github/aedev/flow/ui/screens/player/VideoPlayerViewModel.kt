@@ -1092,7 +1092,7 @@ class VideoPlayerViewModel
                     isAdaptiveMode = latest.isAdaptiveMode,
                     resumeOverrideRequested = false,
                     loadToken = loadToken,
-                    preferredVideoCodec = playerPreferences.defaultVideoCodec.first().codecKey,
+                    preferredVideoCodec = playerPreferences.videoCodecPriority.first(),
                 )
             }
         }
@@ -1398,7 +1398,7 @@ class VideoPlayerViewModel
                                                 playerPreferences.defaultQualityCellular.first()
                                             }
                                         val preferredAudioLang = playerPreferences.preferredAudioLanguage.first()
-                                        val preferredCodec = playerPreferences.defaultVideoCodec.first().codecKey
+                                        val preferredCodec = playerPreferences.videoCodecPriority.first()
                                         Triple(preferredQuality, preferredAudioLang, preferredCodec)
                                     }
 
@@ -2281,7 +2281,7 @@ class VideoPlayerViewModel
                 hlsUrl = result.liveHlsUrl,
                 streamType = StreamType.LIVE_STREAM,
                 startPosition = 0L,
-                preferredVideoCodec = playerPreferences.defaultVideoCodec.first().codecKey,
+                preferredVideoCodec = playerPreferences.videoCodecPriority.first(),
                 preferredLiveQualityHeight = preferredDefaultQualityHeight(),
             )
             applyRememberedPlaybackSpeed(isLive = true, manager = manager)
@@ -2941,7 +2941,7 @@ class VideoPlayerViewModel
             val streamInfo = state.streamInfo ?: return
             viewModelScope.launch {
                 val audioLangPref = playerPreferences.preferredAudioLanguage.first()
-                val codecPref = playerPreferences.defaultVideoCodec.first().codecKey
+                val codecPref = playerPreferences.videoCodecPriority.first()
                 val innerTubeVideoStreams = InnerTubeStreamBridge.convertVideoFormats(state.innerTubeVideoFormats)
                 val innerTubeAudioStreams = InnerTubeStreamBridge.convertAudioFormats(state.innerTubeAudioFormats)
                 val effectiveVideo =

@@ -1724,7 +1724,7 @@ class EnhancedPlayerManager private constructor() {
                             prefs.defaultQualityCellular.first()
                         }
                     val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
-                    val preferredCodecKey = prefs.defaultVideoCodec.first().codecKey
+                    val preferredCodecKey = prefs.videoCodecPriority.first()
                     val innerTubeVideoStreams =
                         extraction
                             ?.let {
@@ -1877,7 +1877,7 @@ class EnhancedPlayerManager private constructor() {
                     prefs.defaultQualityCellular.first()
                 }
             val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
-            val preferredCodecKey = prefs.defaultVideoCodec.first().codecKey
+            val preferredCodecKey = prefs.videoCodecPriority.first()
             val innerTubeVideoStreams =
                 extraction
                     ?.let {
@@ -2401,7 +2401,7 @@ class EnhancedPlayerManager private constructor() {
     private fun qualityLabelFromFormat(format: PlayerResponse.StreamingData.Format): String =
         format.qualityLabel
             ?.takeIf { it.isNotBlank() }
-            ?: "${qualityHeightFromFormat(format)}p"
+            ?: VideoCodecUtils.qualityLabelWithFrameRate(qualityHeightFromFormat(format), format.fps ?: 0)
 
     // ===== Quality & Audio Management =====
 
@@ -2443,8 +2443,7 @@ class EnhancedPlayerManager private constructor() {
         val options =
             listOf(QualityOption(height = 0, label = "Auto", bitrate = 0L)) +
                 heights.map { h ->
-                    val fps = heightToFps[h] ?: 0
-                    val label = if (fps >= 50) "${h}p$fps" else "${h}p"
+                    val label = VideoCodecUtils.qualityLabelWithFrameRate(h, heightToFps[h] ?: 0)
                     QualityOption(height = h, label = label, bitrate = 0L, streamKey = "$LIVE_QUALITY_KEY_PREFIX$h")
                 }
         val manualHeight =

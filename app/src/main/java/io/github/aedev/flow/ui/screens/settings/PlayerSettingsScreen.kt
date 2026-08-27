@@ -185,6 +185,7 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
         .collectAsState(initial = CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
     val autoEnableSubtitles by playerPreferences.autoEnableSubtitles.collectAsState(initial = false)
     val defaultVideoCodec by playerPreferences.defaultVideoCodec.collectAsState(initial = VideoCodec.H264)
+    val fallbackVideoCodec by playerPreferences.fallbackVideoCodec.collectAsState(initial = VideoCodec.AUTO)
     val playDuringCalls by playerPreferences.playDuringCalls.collectAsState(initial = false)
     val lyricsProviderOrder by playerPreferences.lyricsProviderOrder.collectAsState(initial = "")
     val lyricsEnabledStates by playerPreferences.allLyricsProviderEnabledStates().collectAsState(initial = emptyMap())
@@ -197,6 +198,7 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
     var showAudioLanguageDialog by remember { mutableStateOf(false) }
     var showSubtitleLanguageDialog by remember { mutableStateOf(false) }
     var showVideoCodecDialog by remember { mutableStateOf(false) }
+    var showFallbackVideoCodecDialog by remember { mutableStateOf(false) }
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
     var showSeekDurationDialog by remember { mutableStateOf(false) }
     var showShortsPlaybackModeDialog by remember { mutableStateOf(false) }
@@ -601,6 +603,19 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                         subtitle = defaultVideoCodec.label,
                         onClick = { showVideoCodecDialog = true },
                     )
+                    if (defaultVideoCodec != VideoCodec.AUTO) {
+                        SettingsClickItem(
+                            icon = Icons.Outlined.SwapHoriz,
+                            title = stringResource(R.string.player_settings_video_codec_fallback),
+                            subtitle =
+                                if (fallbackVideoCodec == VideoCodec.AUTO) {
+                                    stringResource(R.string.player_settings_video_codec_fallback_auto)
+                                } else {
+                                    fallbackVideoCodec.label
+                                },
+                            onClick = { showFallbackVideoCodecDialog = true },
+                        )
+                    }
                 }
             }
 
@@ -848,69 +863,39 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
         )
     }
 
-    // Default Video Codec Selection Dialog
     if (showVideoCodecDialog) {
-        AlertDialog(
-            onDismissRequest = { showVideoCodecDialog = false },
-            title = {
-                Text(
-                    stringResource(R.string.player_settings_video_codec_dialog_title),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            },
-            text = {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                ) {
-                    Text(
-                        stringResource(R.string.player_settings_video_codec_dialog_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 16.dp),
-                    )
-                    VideoCodec.values().forEach { codec ->
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        coroutineScope.launch {
-                                            playerPreferences.setDefaultVideoCodec(codec)
-                                        }
-                                        showVideoCodecDialog = false
-                                    }.padding(vertical = 12.dp, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(
-                                selected = defaultVideoCodec == codec,
-                                onClick = null,
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = codec.label,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                                if (codec == VideoCodec.AUTO) {
-                                    Text(
-                                        text = stringResource(R.string.player_settings_video_codec_auto_desc),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
+        VideoCodecPickerDialog(
+            title = stringResource(R.string.player_settings_video_codec_dialog_title),
+            description = stringResource(R.string.player_settings_video_codec_dialog_body),
+            options = VideoCodec.values().toList(),
+            selectedCodec = defaultVideoCodec,
+            autoDescription = stringResource(R.string.player_settings_video_codec_auto_desc),
+            onCodecSelected = { codec ->
+                coroutineScope.launch {
+                    playerPreferences.setDefaultVideoCodec(codec)
+                    // A fallback that matches the preferred codec is no fallback at all.
+                    if (fallbackVideoCodec == codec) {
+                        playerPreferences.setFallbackVideoCodec(VideoCodec.AUTO)
                     }
                 }
+                showVideoCodecDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = { showVideoCodecDialog = false }) {
-                    Text(stringResource(R.string.btn_close))
-                }
+            onDismissRequest = { showVideoCodecDialog = false },
+        )
+    }
+
+    if (showFallbackVideoCodecDialog) {
+        VideoCodecPickerDialog(
+            title = stringResource(R.string.player_settings_video_codec_fallback),
+            description = stringResource(R.string.player_settings_video_codec_fallback_dialog_body),
+            options = VideoCodec.values().filterNot { it == defaultVideoCodec },
+            selectedCodec = fallbackVideoCodec,
+            autoDescription = stringResource(R.string.player_settings_video_codec_fallback_auto_desc),
+            onCodecSelected = { codec ->
+                coroutineScope.launch { playerPreferences.setFallbackVideoCodec(codec) }
+                showFallbackVideoCodecDialog = false
             },
+            onDismissRequest = { showFallbackVideoCodecDialog = false },
         )
     }
 

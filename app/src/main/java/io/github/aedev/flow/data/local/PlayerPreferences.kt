@@ -46,6 +46,7 @@ class PlayerPreferences(
         val DEFAULT_QUALITY_WIFI = stringPreferencesKey("default_quality_wifi")
         val DEFAULT_QUALITY_CELLULAR = stringPreferencesKey("default_quality_cellular")
         val DEFAULT_VIDEO_CODEC = stringPreferencesKey("default_video_codec")
+        val FALLBACK_VIDEO_CODEC = stringPreferencesKey("fallback_video_codec")
         val BACKGROUND_PLAY_ENABLED = booleanPreferencesKey("background_play_enabled")
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
         val QUEUE_AUTOPLAY_ENABLED = booleanPreferencesKey("queue_autoplay_enabled")
@@ -1040,6 +1041,37 @@ class PlayerPreferences(
             preferences[Keys.DEFAULT_VIDEO_CODEC] = codec.label
         }
     }
+
+    /** Codec to use when a video carries no [defaultVideoCodec] variant. AUTO keeps the built-in order. */
+    val fallbackVideoCodec: Flow<VideoCodec> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                VideoCodec.fromString(preferences[Keys.FALLBACK_VIDEO_CODEC] ?: VideoCodec.AUTO.label)
+            }
+
+    suspend fun setFallbackVideoCodec(codec: VideoCodec) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.FALLBACK_VIDEO_CODEC] = codec.label
+        }
+    }
+
+    /**
+     * Both codec preferences as one comma-separated priority string ("av1,vp9"), which is what every
+     * stream selector ranks against. "auto" means no preference, leaving the built-in codec order.
+     * A fallback without a preferred codec is meaningless, so AUTO on the primary wins outright.
+     */
+    val videoCodecPriority: Flow<String> =
+        combine(defaultVideoCodec, fallbackVideoCodec) { preferred, fallback ->
+            if (preferred == VideoCodec.AUTO) {
+                VideoCodec.AUTO.codecKey
+            } else {
+                listOf(preferred, fallback)
+                    .filter { it != VideoCodec.AUTO }
+                    .map { it.codecKey }
+                    .distinct()
+                    .joinToString(",")
+            }
+        }.distinctUntilChanged()
 
     // Shorts quality preferences (default to 720p WiFi, 480p Cellular)
     val shortsQualityWifi: Flow<VideoQuality> =

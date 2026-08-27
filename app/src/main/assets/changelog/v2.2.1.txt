@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.2.1
-DATE: 2026-08-25
+DATE: 2026-08-28
 STATUS: PRE-RELEASE
 
 NEW FEATURES
@@ -13,6 +13,7 @@ NEW FEATURES
 - Show a progress line and a watched badge on Shorts you have already seen, in feeds and channel tabs #787
 - Picture-in-picture for Shorts, off by default #571
 - Choose whether a finished Shorts queue continues with recommendations or stops at the end
+- Choose a fallback video codec for videos that do not offer your preferred one, instead of always dropping to H.264 #812
 
 IMPROVEMENTS
 - Slimmer player seekbar segment gaps #786
@@ -34,6 +35,7 @@ IMPROVEMENTS
 - Shrink the reel when the comments or settings sheet opens instead of hiding it behind them
 - Close the Shorts comments by tapping above them instead of pausing the video #891
 - Apply your preferred video codec to live streams #727
+- Show the frame rate in the quality selector, so a 60 fps ladder reads as 1080p60 rather than plain 1080p #847
 - Show which address this device is advertising on the sync QR screen, so a failed connection is easier to place
 - Rebuild the device sync screens on Material 3, with clearer send and receive options, a line explaining everything you can sync, and an easier-to-read pairing code
 - Open comments beside the video on tablets in landscape instead of covering it with a sheet #918
@@ -83,6 +85,7 @@ FIXES AND STABILITY
 - Fix downloaded videos failing to play when offline
 - Add a mobile web fallback and a newer VR client for stream extraction
 - Fix crash issues
+- Fix a crash while typing in search when a suggestion contained certain non-Latin characters #934
 - Stop music background tasks from running after the player is closed
 - Fix custom SponsorBlock category colours having no effect on the seek bar
 - Fix the cast and sleep timer buttons appearing a moment after the rest of the controls

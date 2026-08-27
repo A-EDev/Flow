@@ -2,6 +2,7 @@ package io.github.aedev.flow.player.stream
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -38,5 +39,55 @@ class VideoCodecUtilsPreferenceTest {
     @Test
     fun `an unknown codec key falls back rather than dropping the list`() {
         assertArrayEquals(defaultOrder, VideoCodecUtils.preferredVideoMimeTypes("theora"))
+    }
+
+    @Test
+    fun `a preferred codec plus its fallback lead, in that order`() {
+        val reordered = VideoCodecUtils.preferredVideoMimeTypes("av1,vp9")
+
+        assertEquals("video/av01", reordered[0])
+        assertEquals("video/x-vnd.on2.vp9", reordered[1])
+        assertEquals(defaultOrder.toSet(), reordered.toSet())
+        assertEquals(reordered.size, reordered.distinct().size)
+    }
+
+    @Test
+    fun `a fallback only outranks the built-in order, never the preferred codec`() {
+        val preference = "av1,vp9"
+
+        assertTrue(
+            VideoCodecUtils.codecRankWithPreference("av1", preference) <
+                VideoCodecUtils.codecRankWithPreference("vp9", preference),
+        )
+        assertTrue(
+            VideoCodecUtils.codecRankWithPreference("vp9", preference) <
+                VideoCodecUtils.codecRankWithPreference("h264", preference),
+        )
+    }
+
+    // Without a fallback the decode-cost order still applies, which puts H.264 ahead of VP9 (#812).
+    @Test
+    fun `a lone preferred codec leaves the rest in the built-in order`() {
+        assertEquals(-1, VideoCodecUtils.codecRankWithPreference("av1", "av1"))
+        assertTrue(
+            VideoCodecUtils.codecRankWithPreference("h264", "av1") <
+                VideoCodecUtils.codecRankWithPreference("vp9", "av1"),
+        )
+    }
+
+    @Test
+    fun `an empty or auto preference ranks nothing above the built-in order`() {
+        listOf(null, "", "auto", " , auto ").forEach { preference ->
+            assertEquals(emptyList<String>(), VideoCodecUtils.codecPriorityList(preference))
+            assertEquals(
+                VideoCodecUtils.playbackCodecRank("av1"),
+                VideoCodecUtils.codecRankWithPreference("av1", preference),
+            )
+        }
+    }
+
+    @Test
+    fun `the priority list is normalised and deduplicated`() {
+        assertEquals(listOf("av1", "vp9"), VideoCodecUtils.codecPriorityList(" AV1 , vp9 , av1 "))
     }
 }

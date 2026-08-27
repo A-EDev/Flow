@@ -110,7 +110,7 @@ class ShortsRepository private constructor(
 
     init {
         repositoryScope.launch {
-            playerPreferences.defaultVideoCodec.collect { preferredCodecKey.value = it.codecKey }
+            playerPreferences.videoCodecPriority.collect { preferredCodecKey.value = it }
         }
     }
 
@@ -744,7 +744,7 @@ class ShortsRepository private constructor(
                             val codecKey = VideoCodecUtils.codecKeyFromMimeType(best.mimeType)
                             ShortVideoQuality(
                                 heightClass = cls,
-                                label = "${cls}p",
+                                label = VideoCodecUtils.qualityLabelWithFrameRate(cls, best.fps ?: 0),
                                 videoUrl = url,
                                 codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
                                 codecKey = codecKey,
@@ -772,7 +772,7 @@ class ShortsRepository private constructor(
                     val codecKey = VideoCodecUtils.codecKeyFromStream(best)
                     ShortVideoQuality(
                         heightClass = cls,
-                        label = "${cls}p",
+                        label = VideoCodecUtils.qualityLabelWithFrameRate(cls, VideoCodecUtils.frameRateFromStream(best)),
                         videoUrl = url,
                         codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
                         codecKey = codecKey,

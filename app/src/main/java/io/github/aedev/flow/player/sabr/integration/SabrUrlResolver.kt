@@ -285,29 +285,28 @@ object SabrUrlResolver {
     private fun selectBestVideo(
         videoFormats: List<PlayerResponse.StreamingData.Format>,
         preferredCodec: String?,
-    ): PlayerResponse.StreamingData.Format? {
-        val normalizedCodec = preferredCodec?.trim()?.lowercase()?.takeIf { it.isNotBlank() && it != "auto" }
-        return videoFormats
+    ): PlayerResponse.StreamingData.Format? =
+        videoFormats
             .sortedWith(
                 compareByDescending<PlayerResponse.StreamingData.Format> { it.height ?: 0 }
                     .thenBy {
                         VideoCodecUtils.codecRankWithPreference(
                             VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
-                            normalizedCodec,
+                            preferredCodec,
                         )
                     }.thenByDescending { it.averageBitrate ?: it.bitrate },
             ).firstOrNull()
-    }
 
     private fun selectVideoForHeight(
         videoFormats: List<PlayerResponse.StreamingData.Format>,
         targetHeight: Int,
         preferredCodec: String?,
     ): PlayerResponse.StreamingData.Format? {
-        val normalizedCodec = preferredCodec?.trim()?.lowercase()?.takeIf { it.isNotBlank() && it != "auto" }
-        if (normalizedCodec != null) {
+        // Walk the preference in order so a video without the preferred codec still lands on the
+        // user's fallback at the requested height instead of dropping to the itag table.
+        for (codecKey in VideoCodecUtils.codecPriorityList(preferredCodec)) {
             videoFormats
-                .filter { it.height == targetHeight && VideoCodecUtils.codecKeyFromMimeType(it.mimeType) == normalizedCodec }
+                .filter { it.height == targetHeight && VideoCodecUtils.codecKeyFromMimeType(it.mimeType) == codecKey }
                 .maxByOrNull { it.averageBitrate ?: it.bitrate }
                 ?.let { return it }
         }
@@ -326,7 +325,7 @@ object SabrUrlResolver {
                     compareBy<PlayerResponse.StreamingData.Format> {
                         VideoCodecUtils.codecRankWithPreference(
                             VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
-                            normalizedCodec,
+                            preferredCodec,
                         )
                     }.thenByDescending { it.averageBitrate ?: it.bitrate },
                 ).firstOrNull()
@@ -338,7 +337,7 @@ object SabrUrlResolver {
                     .thenBy {
                         VideoCodecUtils.codecRankWithPreference(
                             VideoCodecUtils.codecKeyFromMimeType(it.mimeType),
-                            normalizedCodec,
+                            preferredCodec,
                         )
                     }.thenByDescending { it.averageBitrate ?: it.bitrate },
             ).firstOrNull()
