@@ -29,7 +29,10 @@ object DownloadStreamHelpers {
         return if (raw > 1000) raw / 1000 else raw.coerceAtLeast(0)
     }
 
-    fun audioFormatLabel(stream: AudioStream): String {
+    fun audioFormatLabel(
+        stream: AudioStream,
+        unknownLabel: String = "",
+    ): String {
         val mime =
             stream.format
                 ?.mimeType
@@ -46,7 +49,7 @@ object DownloadStreamHelpers {
             "mp4" in mime || "m4a" in name -> "M4A"
             "mpeg" in mime || "mp3" in name -> "MP3"
             name.isNotBlank() -> name.uppercase()
-            else -> "Audio"
+            else -> unknownLabel
         }
     }
 

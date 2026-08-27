@@ -110,7 +110,7 @@ fun NotificationSettingsScreen(onNavigateBack: () -> Unit) {
         )
     val currentIntervalLabel =
         intervalOptions.firstOrNull { it.first == subCheckInterval }?.second
-            ?: "${subCheckInterval}min"
+            ?: stringResource(R.string.duration_minutes_short, subCheckInterval)
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),

@@ -69,9 +69,9 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         when (val s = importState) {
             is ImportViewModel.State.Success -> {
                 importMessage = s.message ?: if ((s.count ?: 0) > 0) {
-                    "Imported ${s.count} ${s.label.lowercase()}"
+                    context.getString(R.string.onboarding_imported_count, s.count, s.label.lowercase())
                 } else {
-                    "${s.label} imported"
+                    context.getString(R.string.onboarding_imported, s.label)
                 }
                 importViewModel.dismiss()
             }
@@ -105,7 +105,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         } else {
                             context.getString(
                                 R.string.import_flow_backup_failed_template,
-                                result.exceptionOrNull()?.message ?: "unknown",
+                                result.exceptionOrNull()?.message ?: context.getString(R.string.unknown),
                             )
                         }
                 }
@@ -186,7 +186,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         } else {
                             context.getString(
                                 R.string.import_yt_playlist_failed_template,
-                                result.exceptionOrNull()?.message ?: "unknown",
+                                result.exceptionOrNull()?.message ?: context.getString(R.string.unknown),
                             )
                         }
                 }
@@ -212,7 +212,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         } else {
                             context.getString(
                                 R.string.import_yt_playlist_failed_template,
-                                result.exceptionOrNull()?.message ?: "unknown",
+                                result.exceptionOrNull()?.message ?: context.getString(R.string.unknown),
                             )
                         }
                 }

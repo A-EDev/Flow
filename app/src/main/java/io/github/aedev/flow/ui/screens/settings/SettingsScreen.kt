@@ -159,7 +159,15 @@ fun SettingsScreen(
             val remainingMs = expiresAt - System.currentTimeMillis()
             if (remainingMs <= 0) return@remember null
             val remainingMins = remainingMs / 60_000
-            if (remainingMins < 60) "${remainingMins}m" else "${remainingMins / 60}h ${remainingMins % 60}m"
+            if (remainingMins < 60) {
+                context.getString(R.string.duration_minutes_short, remainingMins)
+            } else {
+                context.getString(
+                    R.string.duration_hours_minutes_short,
+                    remainingMins / 60,
+                    remainingMins % 60,
+                )
+            }
         }
 
     // Optimize Region Dialog: compute list only once

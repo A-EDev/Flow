@@ -242,7 +242,7 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
                     "Flow",
                 ).absolutePath
             } catch (e: Exception) {
-                "Internal App Storage"
+                context.getString(R.string.internal_app_storage_label)
             }
         }
     val defaultMusicPath =
@@ -253,7 +253,7 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
                     "Flow",
                 ).absolutePath
             } catch (e: Exception) {
-                "Internal App Storage"
+                context.getString(R.string.internal_app_storage_label)
             }
         }
     val displayPath = downloadLocation ?: defaultVideoPath
@@ -279,8 +279,8 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
             val availableGB = available / (1024f * 1024f * 1024f)
             val totalGB = total / (1024f * 1024f * 1024f)
 
-            freeSpace = String.format("%.1f GB", availableGB)
-            totalSpace = String.format("%.1f GB", totalGB)
+            freeSpace = context.getString(R.string.storage_size_gb, availableGB)
+            totalSpace = context.getString(R.string.storage_size_gb, totalGB)
 
             if (total > 0) {
                 usedSpacePercentage = (total - available).toFloat() / total.toFloat()

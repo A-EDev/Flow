@@ -40,6 +40,7 @@
     <string name="collaborators">Collaborators</string>
     <string name="collaborator">Collaborator</string>
     <string name="conjunction_and">and</string>
+    <string name="streamed_date_template">Streamed %1$s</string>
     <string name="channel_and_more_template">%1$s and %2$d more</string>
     <string name="stats">Stats</string>
     <string name="library">Library</string>
@@ -358,6 +359,9 @@
         <item quantity="one">%1$d song</item>
         <item quantity="other">%1$d songs</item>
     </plurals>
+    <string name="metadata_separator">·</string>
+    <string name="player_time_separator"> / </string>
+    <string name="you">You</string>
     <string name="empty_downloads">No downloads yet</string>
     <string name="play_all">Play all</string>
     <string name="remove_from_watch_later">Remove from Watch Later</string>
@@ -367,8 +371,15 @@
     <!-- Search Screen -->
     <string name="search_hint">Search</string>
     <string name="search_videos_channels_placeholder">Search videos, channels...</string>
+    <string name="search_voice_prompt">Speak to search…</string>
+    <string name="shared_video">Shared Video</string>
+    <string name="search_failed">Search failed</string>
+    <string name="loading_more">Loading more…</string>
+    <string name="load_failed">Load failed</string>
     <string name="recent_searches">Recent Searches</string>
     <string name="search_empty_prompt">Search for videos, music and more</string>
+    <string name="import_success_count">Imported %1$d %2$s</string>
+    <string name="import_success">%1$s imported successfully</string>
     <string name="trending">Trending</string>
     <string name="channels_header">Channels</string>
     <string name="videos_header">Videos</string>
@@ -704,6 +715,10 @@
     <!-- Lyrics Provider -->
     <string name="lyrics_provider_title">Lyrics Provider</string>
     <string name="lyrics_provider_subtitle">Choose your preferred source for song lyrics</string>
+    <plurals name="lyrics_providers_enabled">
+        <item quantity="one">%1$d / %2$d provider enabled</item>
+        <item quantity="other">%1$d / %2$d providers enabled</item>
+    </plurals>
     <string name="lyrics_provider_lrclib">LrcLib</string>
     <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
     <string name="lyrics_provider_simpmusic">SimpMusic</string>
@@ -1055,7 +1070,10 @@
     <!-- Player Gestures -->
     <string name="player_settings_header_gestures">Gestures</string>
     <string name="player_settings_double_tap_seek">Double-Tap Seek Duration</string>
-    <string name="player_settings_double_tap_seek_subtitle_template">%ds per side double-tap</string>
+    <plurals name="player_settings_double_tap_seek_subtitle">
+        <item quantity="one">%1$d second per side double-tap</item>
+        <item quantity="other">%1$d seconds per side double-tap</item>
+    </plurals>
     <string name="player_settings_double_tap_seek_dialog_title">Double-Tap Seek Duration</string>
     <string name="player_settings_double_tap_seek_dialog_body">Choose how many seconds to seek when double-tapping the left or right side of the player.</string>
     <!-- Video and Music Quality Settings -->
@@ -1292,6 +1310,16 @@
     <string name="import_from_metrolist_desc">Import music playlists from a Metrolist backup file (.zip). Playlists appear in your Music Library.</string>
     <string name="import_from_youtube">Import from YouTube</string>
     <string name="import_from_youtube_desc">Import subscriptions from YouTube Takeout (CSV).</string>
+    <string name="import_label_newpipe_subscriptions">NewPipe subscriptions</string>
+    <string name="import_label_youtube_subscriptions">YouTube subscriptions</string>
+    <string name="import_label_youtube_watch_history">YouTube watch history</string>
+    <string name="import_label_freetube_watch_history">FreeTube watch history</string>
+    <string name="import_label_newpipe_watch_history">NewPipe watch history</string>
+    <string name="import_label_libretube_subscriptions">LibreTube subscriptions</string>
+    <string name="import_label_metrolist_playlists">Metrolist music playlists</string>
+    <string name="import_label_newpipe_playlists">NewPipe playlists</string>
+    <string name="import_label_libretube_playlists">LibreTube playlists</string>
+    <string name="import_label_youtube_takeout">YouTube Takeout</string>
     <string name="import_subscriptions_section_title">Subs</string>
     <string name="import_history_section_title">History</string>
     <string name="import_freetube_history">Import FreeTube History</string>
@@ -1441,6 +1469,9 @@
     <string name="remove_from_playlist_action">Remove from playlist</string>
     <string name="playlist_empty_title">This playlist is empty</string>
     <string name="playlist_empty_desc">Add videos from the video player\nto build your playlist</string>
+    <string name="playlist_downloading_template">Downloading: %1$s</string>
+    <string name="playlist_downloads_queued">Queued %1$d/%2$d downloads</string>
+    <string name="playlist_download_queue_empty">Could not queue any downloads from this playlist</string>
     <string name="delete_playlist_dialog_title">Delete playlist?</string>
     <string name="delete_playlist_dialog_text">This will permanently delete \'%1$s\' and all its videos.</string>
     <plurals name="playlist_metadata_private_template">
@@ -1489,6 +1520,11 @@
     <string name="onboarding_topic_selected">Selected</string>
     <string name="onboarding_topic_not_selected">Not selected</string>
     <string name="onboarding_import_failed_template">Import failed: %1$s</string>
+    <string name="onboarding_step_interests">Interests</string>
+    <string name="onboarding_step_channels">Channels</string>
+    <string name="onboarding_step_import">Import</string>
+    <string name="onboarding_imported_count">Imported %1$d %2$s</string>
+    <string name="onboarding_imported">%1$s imported</string>
     <string name="onboarding_btn_skip">Skip</string>
     <string name="onboarding_btn_finish">Finish</string>
     <string name="btn_skip_for_now">Skip for now</string>
@@ -1736,6 +1772,7 @@
     <string name="download_format_label">Format</string>
     <string name="download_threads_label">Threads</string>
     <string name="download_no_compatible_audio">No compatible audio stream — download cannot proceed</string>
+    <string name="audio_format_unknown">Audio</string>
     <!-- Approximate download size shown beside a quality; %1$s is a formatted number -->
     <string name="download_size_estimate_mb">~%1$s MB</string>
     <string name="download_size_estimate_gb">~%1$s GB</string>
@@ -2026,6 +2063,7 @@
     <string name="settings_item_diagnostics">Diagnostics</string>
     <string name="settings_item_diagnostics_subtitle">View error logs and crash reports</string>
     <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_report_subject">Flow Diagnostics Report</string>
     <string name="diagnostics_tab_session">Session Logs</string>
     <string name="diagnostics_tab_crashes">Crash Reports</string>
     <string name="diagnostics_copy">Copy report</string>
@@ -2604,6 +2642,9 @@
         <item quantity="other">%1$d min</item>
     </plurals>
     <string name="duration_hours_short">%1$dh</string>
+    <string name="duration_hours_minutes_short">%1$dh %2$dm</string>
+    <string name="storage_size_gb">%1$.1f GB</string>
+    <string name="duration_hours_decimal">%1$.1fh</string>
     <string name="duration_minutes_short">%1$dm</string>
     <string name="fallback_unknown_title">Unknown Title</string>
     <string name="fallback_unknown_channel">Unknown Channel</string>

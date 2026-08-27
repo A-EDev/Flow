@@ -127,7 +127,7 @@ fun CommunityPlaylistCard(
                             item.playlist.author.ifBlank {
                                 item.playlist.trackCount
                                     .takeIf { it > 0 }
-                                    ?.let { "$it tracks" } ?: ""
+                                    ?.let { stringResource(R.string.tracks_count_template, it) } ?: ""
                             },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

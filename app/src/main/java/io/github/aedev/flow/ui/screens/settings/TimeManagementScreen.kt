@@ -439,7 +439,7 @@ private fun WeeklyChartCard(data: List<DailyStat>) {
                         val labels = (yMax.toInt() downTo 0 step gridStep).toList()
                         labels.forEach { value ->
                             Text(
-                                "${value}h",
+                                stringResource(R.string.duration_hours_short, value),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = textColor,
                                 fontSize = 10.sp,
@@ -524,7 +524,7 @@ private fun ChartBar(
         // Value label above bar
         if (stat.isToday && stat.durationH > 0) {
             Text(
-                String.format("%.1fh", stat.durationH),
+                stringResource(R.string.duration_hours_decimal, stat.durationH),
                 style = MaterialTheme.typography.labelSmall,
                 color = primaryColor,
                 fontWeight = FontWeight.Bold,
@@ -1038,7 +1038,13 @@ private fun FrequencyPickerDialog(
                                 )
                                 if (minutes >= 60) {
                                     Text(
-                                        "${minutes / 60}h${if (minutes % 60 > 0) " ${minutes % 60}m" else ""}",
+                                        buildString {
+                                            append(stringResource(R.string.duration_hours_short, minutes / 60))
+                                            if (minutes % 60 > 0) {
+                                                append(" ")
+                                                append(stringResource(R.string.duration_minutes_short, minutes % 60))
+                                            }
+                                        },
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 11.sp,

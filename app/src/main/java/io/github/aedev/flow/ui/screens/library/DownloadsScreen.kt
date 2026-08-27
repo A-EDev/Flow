@@ -705,7 +705,7 @@ private fun ActiveVideoDownloadCard(
             val statusText =
                 when {
                     isMerging -> {
-                        "Merging audio & video…"
+                        stringResource(R.string.download_merging_audio_video)
                     }
 
                     else -> {

@@ -142,7 +142,7 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
         val intent =
             Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, "Flow Diagnostics Report")
+                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.diagnostics_report_subject))
                 putExtra(Intent.EXTRA_TEXT, report)
             }
         context.startActivity(Intent.createChooser(intent, context.getString(R.string.diagnostics_share)))
@@ -414,7 +414,7 @@ private fun CrashContent(
     text: String,
     onClearRequest: () -> Unit,
 ) {
-    val noCrashes = text.isBlank() || text.trim() == "No crash logs"
+    val noCrashes = text.isBlank() || text.trim() == stringResource(R.string.ui_no_crash_logs)
 
     Column(Modifier.fillMaxSize()) {
         if (noCrashes) {

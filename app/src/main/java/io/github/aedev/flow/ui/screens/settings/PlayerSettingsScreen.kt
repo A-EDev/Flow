@@ -509,7 +509,7 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Text(
-                                            text = "${speed}x",
+                                            text = stringResource(R.string.playback_speed_multiplier, speed.toString()),
                                             style = MaterialTheme.typography.bodyLarge,
                                             modifier = Modifier.weight(1f),
                                         )
@@ -673,7 +673,12 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                     SettingsClickItem(
                         icon = Icons.Outlined.TouchApp,
                         title = stringResource(R.string.player_settings_double_tap_seek),
-                        subtitle = stringResource(R.string.player_settings_double_tap_seek_subtitle_template, doubleTapSeekSeconds),
+                        subtitle =
+                            pluralStringResource(
+                                R.plurals.player_settings_double_tap_seek_subtitle,
+                                doubleTapSeekSeconds,
+                                doubleTapSeekSeconds,
+                            ),
                         onClick = { showSeekDurationDialog = true },
                     )
                 }
@@ -690,7 +695,12 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                             run {
                                 val enabledCount = lyricsEnabledStates.count { it.value }
                                 val total = registry.providerNames.size
-                                "$enabledCount / $total providers enabled"
+                                pluralStringResource(
+                                    R.plurals.lyrics_providers_enabled,
+                                    enabledCount,
+                                    enabledCount,
+                                    total,
+                                )
                             },
                         onClick = { showLyricsProviderSheet = true },
                     )
@@ -1176,7 +1186,12 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = stringResource(R.string.player_settings_double_tap_seek_subtitle_template, seconds),
+                                text =
+                                    pluralStringResource(
+                                        R.plurals.player_settings_double_tap_seek_subtitle,
+                                        seconds,
+                                        seconds,
+                                    ),
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         }

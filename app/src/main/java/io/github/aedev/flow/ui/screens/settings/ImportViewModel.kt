@@ -4,10 +4,11 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.aedev.flow.data.local.BackupRepository
-import io.github.aedev.flow.notification.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.BackupRepository
+import io.github.aedev.flow.notification.NotificationHelper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,227 +31,260 @@ import javax.inject.Inject
  *   val importViewModel: ImportViewModel = hiltViewModel(activity)
  */
 @HiltViewModel
-class ImportViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
-) : ViewModel() {
-
-    init {
-        NotificationHelper.cancelImportNotification(context)
-    }
-
-    sealed class State {
-        object Idle : State()
-
-        /**
-         * Import is running.
-         * [current] / [total] are 0/0 while the file is being parsed (indeterminate phase).
-         * Once avatar fetching starts, total is the channel count and current increments.
-         */
-        data class Running(val label: String, val current: Int, val total: Int) : State()
-
-        /** Import finished successfully. Call [dismiss] to return to [Idle]. */
-        data class Success(val label: String, val count: Int? = null, val message: String? = null) : State()
-
-        /** Import failed. Call [dismiss] to return to [Idle]. */
-        data class Error(val label: String, val message: String) : State()
-    }
-
-    private val backupRepo = BackupRepository(context)
-
-    private val _state = MutableStateFlow<State>(State.Idle)
-    val state: StateFlow<State> = _state.asStateFlow()
-
-    val isRunning: Boolean get() = _state.value is State.Running
-
-    // ── Public import launchers ───────────────────────────────────────────────
-
-    fun importNewPipe(uri: Uri) {
-        if (isRunning) return
-        val label = "NewPipe subscriptions"
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            val result = backupRepo.importNewPipe(uri) { current, total ->
-                updateProgress(label, current, total)
-            }
-            handleResult(label, result)
+class ImportViewModel
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context,
+    ) : ViewModel() {
+        init {
+            NotificationHelper.cancelImportNotification(context)
         }
-    }
 
-    fun importYouTube(uri: Uri) {
-        if (isRunning) return
-        val label = "YouTube subscriptions"
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            val result = backupRepo.importYouTube(uri) { current, total ->
-                updateProgress(label, current, total)
-            }
-            handleResult(label, result)
+        sealed class State {
+            object Idle : State()
+
+            /**
+             * Import is running.
+             * [current] / [total] are 0/0 while the file is being parsed (indeterminate phase).
+             * Once avatar fetching starts, total is the channel count and current increments.
+             */
+            data class Running(
+                val label: String,
+                val current: Int,
+                val total: Int,
+            ) : State()
+
+            /** Import finished successfully. Call [dismiss] to return to [Idle]. */
+            data class Success(
+                val label: String,
+                val count: Int? = null,
+                val message: String? = null,
+            ) : State()
+
+            /** Import failed. Call [dismiss] to return to [Idle]. */
+            data class Error(
+                val label: String,
+                val message: String,
+            ) : State()
         }
-    }
 
-    fun importYouTubeWatchHistory(uri: Uri) {
-        importWatchHistory(uri, "YouTube watch history")
-    }
+        private val backupRepo = BackupRepository(context)
 
-    fun importFreeTubeWatchHistory(uri: Uri) {
-        importWatchHistory(uri, "FreeTube watch history")
-    }
+        private val _state = MutableStateFlow<State>(State.Idle)
+        val state: StateFlow<State> = _state.asStateFlow()
 
-    fun importNewPipeWatchHistory(uri: Uri) {
-        if (isRunning) return
-        val label = "NewPipe watch history"
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            val result = backupRepo.importNewPipeWatchHistory(uri)
-            handleResult(label, result)
-        }
-    }
+        val isRunning: Boolean get() = _state.value is State.Running
 
-    fun importLibreTube(uri: Uri) {
-        if (isRunning) return
-        val label = "LibreTube subscriptions"
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            val result = backupRepo.importLibreTube(uri) { current, total ->
-                updateProgress(label, current, total)
-            }
-            handleResult(label, result)
-        }
-    }
+        // ── Public import launchers ───────────────────────────────────────────────
 
-    fun importMetrolist(uri: Uri) {
-        if (isRunning) return
-        val label = "Metrolist music playlists"
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            val result = backupRepo.importMetrolist(uri) { current, total ->
-                updateProgress(label, current, total)
-            }
-            handleResult(label, result)
-        }
-    }
-
-    fun importNewPipePlaylists(uri: Uri) {
-        if (isRunning) return
-        val label = "NewPipe playlists"
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            val result = backupRepo.importNewPipePlaylists(uri) { current, total ->
-                updateProgress(label, current, total)
-            }
-            handleResult(label, result)
-        }
-    }
-
-    fun importLibreTubePlaylists(uri: Uri) {
-        if (isRunning) return
-        val label = "LibreTube playlists"
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            val result = backupRepo.importLibreTubePlaylists(uri) { current, total ->
-                updateProgress(label, current, total)
-            }
-            handleResult(label, result)
-        }
-    }
-
-    fun importYouTubeTakeout(uri: Uri) {
-        if (isRunning) return
-        val label = "YouTube Takeout"
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            try {
-                val result = backupRepo.importYouTubeTakeout(uri) { stepLabel, current, total ->
-                    updateProgress("$label – $stepLabel", current, total)
-                }
-                if (result.isSuccess) {
-                    val summary = result.getOrNull() ?: ""
-                    _state.value = State.Success(label, message = summary)
-                    if (NotificationHelper.hasNotificationPermission(context)) {
-                        NotificationHelper.showImportComplete(context, label, 0, summary)
+        fun importNewPipe(uri: Uri) {
+            if (isRunning) return
+            val label = context.getString(R.string.import_label_newpipe_subscriptions)
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                val result =
+                    backupRepo.importNewPipe(uri) { current, total ->
+                        updateProgress(label, current, total)
                     }
-                } else {
-                    val msg = result.exceptionOrNull()?.message ?: "Unknown error"
-                    _state.value = State.Error(label, msg)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _state.value = State.Error(label, e.message ?: "Unknown error")
-            } finally {
-                NotificationHelper.cancelImportNotification(context)
+                handleResult(label, result)
             }
         }
-    }
 
-    fun importMasterBackup(uri: Uri) {
-        if (isRunning) return
-        val label = "Master backup"
-        val successMessage = "Master backup restored successfully"
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            try {
-                val result = backupRepo.importMasterBackup(uri)
-                if (result.isSuccess) {
-                    _state.value = State.Success(label, message = successMessage)
-                    if (NotificationHelper.hasNotificationPermission(context)) {
-                        NotificationHelper.showImportComplete(context, label, 0, successMessage)
+        fun importYouTube(uri: Uri) {
+            if (isRunning) return
+            val label = context.getString(R.string.import_label_youtube_subscriptions)
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                val result =
+                    backupRepo.importYouTube(uri) { current, total ->
+                        updateProgress(label, current, total)
                     }
-                } else {
-                    val msg = result.exceptionOrNull()?.message ?: "Unknown error"
-                    _state.value = State.Error(label, msg)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _state.value = State.Error(label, e.message ?: "Unknown error")
-            } finally {
-                NotificationHelper.cancelImportNotification(context)
+                handleResult(label, result)
             }
         }
-    }
 
-    /** Reset state back to [State.Idle] after the caller has handled a Success or Error. */
-    fun dismiss() {
-        _state.value = State.Idle
-    }
-
-    // ── Private helpers ───────────────────────────────────────────────────────
-
-    private fun startProgress(label: String, current: Int, total: Int) {
-        _state.value = State.Running(label, current, total)
-        if (NotificationHelper.hasNotificationPermission(context)) {
-            NotificationHelper.showImportProgress(context, label, current, total)
+        fun importYouTubeWatchHistory(uri: Uri) {
+            importWatchHistory(uri, context.getString(R.string.import_label_youtube_watch_history))
         }
-    }
 
-    private fun updateProgress(label: String, current: Int, total: Int) {
-        _state.value = State.Running(label, current, total)
-        if (NotificationHelper.hasNotificationPermission(context)) {
-            NotificationHelper.showImportProgress(context, label, current, total)
+        fun importFreeTubeWatchHistory(uri: Uri) {
+            importWatchHistory(uri, context.getString(R.string.import_label_freetube_watch_history))
         }
-    }
 
-    private fun importWatchHistory(uri: Uri, label: String) {
-        if (isRunning) return
-        viewModelScope.launch {
-            startProgress(label, 0, 0)
-            val result = backupRepo.importYouTubeWatchHistory(uri)
-            handleResult(label, result)
+        fun importNewPipeWatchHistory(uri: Uri) {
+            if (isRunning) return
+            val label = context.getString(R.string.import_label_newpipe_watch_history)
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                val result = backupRepo.importNewPipeWatchHistory(uri)
+                handleResult(label, result)
+            }
         }
-    }
 
-    private fun handleResult(label: String, result: Result<Int>) {
-        NotificationHelper.cancelImportNotification(context)
-        if (result.isSuccess) {
-            val count = result.getOrNull() ?: 0
-            _state.value = State.Success(label, count = count)
+        fun importLibreTube(uri: Uri) {
+            if (isRunning) return
+            val label = context.getString(R.string.import_label_libretube_subscriptions)
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                val result =
+                    backupRepo.importLibreTube(uri) { current, total ->
+                        updateProgress(label, current, total)
+                    }
+                handleResult(label, result)
+            }
+        }
+
+        fun importMetrolist(uri: Uri) {
+            if (isRunning) return
+            val label = context.getString(R.string.import_label_metrolist_playlists)
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                val result =
+                    backupRepo.importMetrolist(uri) { current, total ->
+                        updateProgress(label, current, total)
+                    }
+                handleResult(label, result)
+            }
+        }
+
+        fun importNewPipePlaylists(uri: Uri) {
+            if (isRunning) return
+            val label = context.getString(R.string.import_label_newpipe_playlists)
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                val result =
+                    backupRepo.importNewPipePlaylists(uri) { current, total ->
+                        updateProgress(label, current, total)
+                    }
+                handleResult(label, result)
+            }
+        }
+
+        fun importLibreTubePlaylists(uri: Uri) {
+            if (isRunning) return
+            val label = context.getString(R.string.import_label_libretube_playlists)
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                val result =
+                    backupRepo.importLibreTubePlaylists(uri) { current, total ->
+                        updateProgress(label, current, total)
+                    }
+                handleResult(label, result)
+            }
+        }
+
+        fun importYouTubeTakeout(uri: Uri) {
+            if (isRunning) return
+            val label = context.getString(R.string.import_label_youtube_takeout)
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                try {
+                    val result =
+                        backupRepo.importYouTubeTakeout(uri) { stepLabel, current, total ->
+                            updateProgress("$label – $stepLabel", current, total)
+                        }
+                    if (result.isSuccess) {
+                        val summary = result.getOrNull() ?: ""
+                        _state.value = State.Success(label, message = summary)
+                        if (NotificationHelper.hasNotificationPermission(context)) {
+                            NotificationHelper.showImportComplete(context, label, 0, summary)
+                        }
+                    } else {
+                        val msg = result.exceptionOrNull()?.message ?: context.getString(R.string.unknown_error)
+                        _state.value = State.Error(label, msg)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _state.value = State.Error(label, e.message ?: context.getString(R.string.unknown_error))
+                } finally {
+                    NotificationHelper.cancelImportNotification(context)
+                }
+            }
+        }
+
+        fun importMasterBackup(uri: Uri) {
+            if (isRunning) return
+            val label = context.getString(R.string.master_backup_title)
+            val successMessage = context.getString(R.string.import_master_backup_success)
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                try {
+                    val result = backupRepo.importMasterBackup(uri)
+                    if (result.isSuccess) {
+                        _state.value = State.Success(label, message = successMessage)
+                        if (NotificationHelper.hasNotificationPermission(context)) {
+                            NotificationHelper.showImportComplete(context, label, 0, successMessage)
+                        }
+                    } else {
+                        val msg = result.exceptionOrNull()?.message ?: context.getString(R.string.unknown_error)
+                        _state.value = State.Error(label, msg)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _state.value = State.Error(label, e.message ?: context.getString(R.string.unknown_error))
+                } finally {
+                    NotificationHelper.cancelImportNotification(context)
+                }
+            }
+        }
+
+        /** Reset state back to [State.Idle] after the caller has handled a Success or Error. */
+        fun dismiss() {
+            _state.value = State.Idle
+        }
+
+        // ── Private helpers ───────────────────────────────────────────────────────
+
+        private fun startProgress(
+            label: String,
+            current: Int,
+            total: Int,
+        ) {
+            _state.value = State.Running(label, current, total)
             if (NotificationHelper.hasNotificationPermission(context)) {
-                NotificationHelper.showImportComplete(context, label, count)
+                NotificationHelper.showImportProgress(context, label, current, total)
             }
-        } else {
-            val msg = result.exceptionOrNull()?.message ?: "Unknown error"
-            _state.value = State.Error(label, msg)
+        }
+
+        private fun updateProgress(
+            label: String,
+            current: Int,
+            total: Int,
+        ) {
+            _state.value = State.Running(label, current, total)
+            if (NotificationHelper.hasNotificationPermission(context)) {
+                NotificationHelper.showImportProgress(context, label, current, total)
+            }
+        }
+
+        private fun importWatchHistory(
+            uri: Uri,
+            label: String,
+        ) {
+            if (isRunning) return
+            viewModelScope.launch {
+                startProgress(label, 0, 0)
+                val result = backupRepo.importYouTubeWatchHistory(uri)
+                handleResult(label, result)
+            }
+        }
+
+        private fun handleResult(
+            label: String,
+            result: Result<Int>,
+        ) {
+            NotificationHelper.cancelImportNotification(context)
+            if (result.isSuccess) {
+                val count = result.getOrNull() ?: 0
+                _state.value = State.Success(label, count = count)
+                if (NotificationHelper.hasNotificationPermission(context)) {
+                    NotificationHelper.showImportComplete(context, label, count)
+                }
+            } else {
+                val msg = result.exceptionOrNull()?.message ?: context.getString(R.string.unknown_error)
+                _state.value = State.Error(label, msg)
+            }
         }
     }
-}

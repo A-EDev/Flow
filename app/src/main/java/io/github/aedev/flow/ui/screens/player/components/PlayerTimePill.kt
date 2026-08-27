@@ -123,7 +123,7 @@ fun PlayerTimePill(
 @Composable
 private fun TimeSeparator() {
     Text(
-        text = " / ",
+        text = stringResource(R.string.player_time_separator),
         style = MaterialTheme.typography.labelMedium,
         color = PlayerScrimContent.copy(alpha = 0.5f),
         modifier = Modifier.padding(horizontal = 2.dp),

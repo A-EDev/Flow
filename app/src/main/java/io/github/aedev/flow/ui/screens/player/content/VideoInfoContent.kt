@@ -91,7 +91,7 @@ fun VideoInfoContent(
                 .map { it.name }
                 .filter { it.isNotBlank() }
                 .takeIf { it.size > 1 }
-                ?.joinToString(" and ")
+                ?.joinToString(" ${context.getString(R.string.conjunction_and)} ")
                 ?: uiState.streamInfo?.uploaderName
                 ?: video.channelName
         }
@@ -102,9 +102,17 @@ fun VideoInfoContent(
                     ?: streamInfo.uploadDate?.toString()
             val isArchivedLivestream = streamInfo.streamType == StreamType.POST_LIVE_STREAM
             when {
-                rawDate.isNullOrBlank() -> null
-                isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true) -> "Streamed $rawDate"
-                else -> rawDate
+                rawDate.isNullOrBlank() -> {
+                    null
+                }
+
+                isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true) -> {
+                    context.getString(R.string.streamed_date_template, rawDate)
+                }
+
+                else -> {
+                    rawDate
+                }
             }
         }
     val dialogVideo =
