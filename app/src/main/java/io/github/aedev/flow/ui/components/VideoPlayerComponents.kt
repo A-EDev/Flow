@@ -144,7 +144,9 @@ fun VideoInfoSection(
                     onClick = {},
                     onLongClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Video Title", title))
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(context.getString(R.string.title_label), title),
+                        )
                         Toast.makeText(context, context.getString(R.string.title_copied), Toast.LENGTH_SHORT).show()
                     },
                 ),
@@ -171,12 +173,11 @@ fun VideoInfoSection(
 
             if (!isUpcoming && !uploadDate.isNullOrBlank()) {
                 Text(
-                    text = " • ",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = dateSettings.format(uploadDate, DateContext.WATCH, video.timestamp),
+                    text =
+                        stringResource(
+                            R.string.duration_with_dot_template,
+                            dateSettings.format(uploadDate, DateContext.WATCH, video.timestamp),
+                        ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

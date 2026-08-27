@@ -39,6 +39,7 @@
     <string name="subscribers">Subscribers</string>
     <string name="collaborators">Collaborators</string>
     <string name="collaborator">Collaborator</string>
+    <string name="conjunction_and">and</string>
     <string name="channel_and_more_template">%1$s and %2$d more</string>
     <string name="stats">Stats</string>
     <string name="library">Library</string>
@@ -145,6 +146,7 @@
     <string name="filter_workout">Workout</string>
     <string name="track_details">Track Details</string>
     <string name="title_label">Title</string>
+    <string name="explicit_badge">E</string>
     <string name="artist_label">Artist</string>
     <string name="album_label">Album</string>
     <string name="video_id_label">Video ID</string>
@@ -1579,6 +1581,11 @@
     <string name="status_playing">Playing</string>
     <string name="label_explicit">Explicit</string>
     <string name="duration_with_dot_template"> • %1$s</string>
+    <string name="queue_position_template">%1$d / %2$d</string>
+    <string name="next_up_template">%1$s: %2$s</string>
+    <string name="equalizer_frequency_label">F</string>
+    <string name="equalizer_gain_label">G</string>
+    <string name="equalizer_q_label">Q</string>
     <string name="status_downloaded">Downloaded</string>
     <string name="title_create_playlist">Create Playlist</string>
     <string name="label_playlist_name">Playlist Name</string>

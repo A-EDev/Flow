@@ -366,7 +366,7 @@ fun FlowDescriptionBottomSheet(
                         )
                         VerticalHorizontalDivider()
                         StatItem(
-                            value = formatViewCount(video.viewCount).replace(" views", ""),
+                            value = formatViewCount(video.viewCount),
                             label = stringResource(R.string.views),
                         )
                         VerticalHorizontalDivider()
