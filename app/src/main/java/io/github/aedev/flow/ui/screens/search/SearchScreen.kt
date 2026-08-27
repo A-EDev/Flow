@@ -1560,9 +1560,7 @@ private fun SuggestionRow(
         )
         Text(
             buildAnnotatedString {
-                val lo = suggestion.lowercase()
-                val qlo = query.lowercase()
-                val idx = lo.indexOf(qlo)
+                val idx = suggestion.indexOf(query, ignoreCase = true)
                 if (idx >= 0) {
                     append(suggestion.substring(0, idx))
                     withStyle(
