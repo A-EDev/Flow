@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -241,7 +242,7 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
                     "Flow",
                 ).absolutePath
             } catch (e: Exception) {
-                "Internal App Storage"
+                context.getString(R.string.internal_app_storage_label)
             }
         }
     val defaultMusicPath =
@@ -252,7 +253,7 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
                     "Flow",
                 ).absolutePath
             } catch (e: Exception) {
-                "Internal App Storage"
+                context.getString(R.string.internal_app_storage_label)
             }
         }
     val displayPath = downloadLocation ?: defaultVideoPath
@@ -278,8 +279,8 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
             val availableGB = available / (1024f * 1024f * 1024f)
             val totalGB = total / (1024f * 1024f * 1024f)
 
-            freeSpace = String.format("%.1f GB", availableGB)
-            totalSpace = String.format("%.1f GB", totalGB)
+            freeSpace = context.getString(R.string.storage_size_gb, availableGB)
+            totalSpace = context.getString(R.string.storage_size_gb, totalGB)
 
             if (total > 0) {
                 usedSpacePercentage = (total - available).toFloat() / total.toFloat()
@@ -522,7 +523,12 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
                         SettingsItem(
                             icon = Icons.Outlined.Speed,
                             title = stringResource(R.string.concurrent_threads_title),
-                            subtitle = stringResource(R.string.threads_per_download_template, threadCount),
+                            subtitle =
+                                pluralStringResource(
+                                    R.plurals.threads_per_download_template,
+                                    threadCount,
+                                    threadCount,
+                                ),
                             onClick = { showThreadDialog = true },
                         )
                     }
@@ -563,7 +569,7 @@ fun DownloadSettingsScreen(onNavigateBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
-                        text = stringResource(R.string.threads_count_label, threadCount),
+                        text = pluralStringResource(R.plurals.threads_count_label, threadCount, threadCount),
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                         fontWeight = FontWeight.Bold,

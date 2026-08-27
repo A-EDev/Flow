@@ -159,7 +159,15 @@ fun SettingsScreen(
             val remainingMs = expiresAt - System.currentTimeMillis()
             if (remainingMs <= 0) return@remember null
             val remainingMins = remainingMs / 60_000
-            if (remainingMins < 60) "${remainingMins}m" else "${remainingMins / 60}h ${remainingMins % 60}m"
+            if (remainingMins < 60) {
+                context.getString(R.string.duration_minutes_short, remainingMins)
+            } else {
+                context.getString(
+                    R.string.duration_hours_minutes_short,
+                    remainingMins / 60,
+                    remainingMins % 60,
+                )
+            }
         }
 
     // Optimize Region Dialog: compute list only once
@@ -847,15 +855,45 @@ fun SettingsScreen(
                                             R.string.deep_flow_expire_duration_subtitle,
                                             deepFlowExpireHours.let { hours ->
                                                 when (hours) {
-                                                    DEEP_FLOW_NEVER_EXPIRES_HOURS -> context.getString(R.string.deep_flow_duration_never)
-                                                    1 -> context.getString(R.string.deep_flow_duration_1h)
-                                                    2 -> context.getString(R.string.deep_flow_duration_2h)
-                                                    4 -> context.getString(R.string.deep_flow_duration_4h)
-                                                    6 -> context.getString(R.string.deep_flow_duration_6h)
-                                                    8 -> context.getString(R.string.deep_flow_duration_8h)
-                                                    12 -> context.getString(R.string.deep_flow_duration_12h)
-                                                    24 -> context.getString(R.string.deep_flow_duration_24h)
-                                                    else -> context.getString(R.string.deep_flow_duration_hours, hours)
+                                                    DEEP_FLOW_NEVER_EXPIRES_HOURS -> {
+                                                        context.getString(R.string.deep_flow_duration_never)
+                                                    }
+
+                                                    1 -> {
+                                                        context.getString(R.string.deep_flow_duration_1h)
+                                                    }
+
+                                                    2 -> {
+                                                        context.getString(R.string.deep_flow_duration_2h)
+                                                    }
+
+                                                    4 -> {
+                                                        context.getString(R.string.deep_flow_duration_4h)
+                                                    }
+
+                                                    6 -> {
+                                                        context.getString(R.string.deep_flow_duration_6h)
+                                                    }
+
+                                                    8 -> {
+                                                        context.getString(R.string.deep_flow_duration_8h)
+                                                    }
+
+                                                    12 -> {
+                                                        context.getString(R.string.deep_flow_duration_12h)
+                                                    }
+
+                                                    24 -> {
+                                                        context.getString(R.string.deep_flow_duration_24h)
+                                                    }
+
+                                                    else -> {
+                                                        context.resources.getQuantityString(
+                                                            R.plurals.deep_flow_duration_hours,
+                                                            hours,
+                                                            hours,
+                                                        )
+                                                    }
                                                 }
                                             },
                                         ),

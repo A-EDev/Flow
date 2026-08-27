@@ -115,7 +115,6 @@
     <string name="channel_and_more_template">A další</string>
     <string name="local_media_empty_title">Není nalezeno</string>
     <string name="local_media_permission_body">Povolte přístup k médiím, aby Flow mohl vyhledávat a přehrávat místní videa a hudbu.</string>
-    <string name="download_all_confirmation">Stáhnout všechna videa? To může zabrat značné množství úložného prostoru.</string>
     <string name="failed_to_save_to_library">"Nepovedlo se uložit do  knihovny"</string>
     <string name="lyrics">karaoke</string>
     <string name="related">SOUVISEJÍCÍ</string>

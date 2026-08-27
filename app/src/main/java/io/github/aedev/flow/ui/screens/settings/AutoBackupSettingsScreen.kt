@@ -278,7 +278,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                     SettingsItem(
                         icon = if (isRunningNow) Icons.Outlined.HourglassEmpty else Icons.Outlined.Backup,
                         title = stringResource(R.string.auto_backup_run_now),
-                        subtitle = if (isRunningNow) "…" else "",
+                        subtitle = if (isRunningNow) stringResource(R.string.loading_ellipsis) else "",
                         onClick = {
                             if (!isRunningNow && folderUriStr != null) {
                                 isRunningNow = true

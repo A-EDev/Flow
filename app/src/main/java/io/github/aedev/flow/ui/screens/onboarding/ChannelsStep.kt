@@ -49,6 +49,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -169,7 +170,12 @@ internal fun ChannelsStep(
             if (subscribedInSession.isNotEmpty()) {
                 item {
                     Text(
-                        text = stringResource(R.string.onboarding_channels_added_count, subscribedInSession.size),
+                        text =
+                            pluralStringResource(
+                                R.plurals.onboarding_channels_added_count,
+                                subscribedInSession.size,
+                                subscribedInSession.size,
+                            ),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary,

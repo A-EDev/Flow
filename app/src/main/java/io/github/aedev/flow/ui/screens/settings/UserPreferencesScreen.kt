@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -171,7 +172,12 @@ fun UserPreferencesScreen(onNavigateBack: () -> Unit) {
                             item {
                                 PreferencesSectionHeader(
                                     title = stringResource(R.string.currently_following),
-                                    subtitle = stringResource(R.string.topics_count_template, preferredTopics.size),
+                                    subtitle =
+                                        pluralStringResource(
+                                            R.plurals.topics_count_template,
+                                            preferredTopics.size,
+                                            preferredTopics.size,
+                                        ),
                                 )
                             }
 
@@ -446,10 +452,10 @@ fun UserPreferencesScreen(onNavigateBack: () -> Unit) {
                                 PreferencesSectionHeader(
                                     title = stringResource(R.string.currently_blocked),
                                     subtitle =
-                                        stringResource(
-                                            R.string.topics_blocked_count_plural,
+                                        pluralStringResource(
+                                            R.plurals.topics_blocked_count_plural,
                                             blockedTopics.size,
-                                            if (blockedTopics.size > 1) "s" else "",
+                                            blockedTopics.size,
                                         ),
                                 )
                             }
@@ -648,9 +654,13 @@ private fun TopicCategoryExpandableCard(
                     Text(
                         text =
                             if (selectedCount > 0) {
-                                stringResource(R.string.selected_count_template, selectedCount)
+                                pluralStringResource(R.plurals.selected_count_template, selectedCount, selectedCount)
                             } else {
-                                stringResource(R.string.topics_count_template, category.topics.size)
+                                pluralStringResource(
+                                    R.plurals.topics_count_template,
+                                    category.topics.size,
+                                    category.topics.size,
+                                )
                             },
                         style = MaterialTheme.typography.labelSmall,
                         color =

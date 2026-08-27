@@ -14,8 +14,14 @@
     <string name="no_subscriptions_yet">No Subscriptions Yet</string>
     <string name="empty_subscriptions_body">Subscribe to channels to see their\nlatest videos here</string>
     <string name="home_refresh_feed">Refresh Feed</string>
-    <string name="subscriptions_refresh_progress_template">Refreshing %1$d of %2$d channels</string>
-    <string name="subscriptions_last_refreshed_template">Last refreshed %1$s - %2$d videos checked</string>
+    <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="one">Refreshing %1$d of %2$d channel</item>
+        <item quantity="other">Refreshing %1$d of %2$d channels</item>
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="one">Last refreshed %1$s - %2$d video checked</item>
+        <item quantity="other">Last refreshed %1$s - %2$d videos checked</item>
+    </plurals>
     <string name="subscriptions_last_refreshed_time_only_template">Last refreshed %1$s</string>
     <plurals name="subscriptions_failed_channels_title">
         <item quantity="one">%d channel couldn\'t be loaded</item>
@@ -33,6 +39,8 @@
     <string name="subscribers">Subscribers</string>
     <string name="collaborators">Collaborators</string>
     <string name="collaborator">Collaborator</string>
+    <string name="conjunction_and">and</string>
+    <string name="streamed_date_template">Streamed %1$s</string>
     <string name="channel_and_more_template">%1$s and %2$d more</string>
     <string name="stats">Stats</string>
     <string name="library">Library</string>
@@ -92,7 +100,10 @@
     <string name="downloaded">Downloaded</string>
     <string name="download">Download</string>
     <string name="download_all">Download all</string>
-    <string name="download_all_confirmation">Download all %1$d videos? This may use significant storage.</string>
+    <plurals name="download_all_confirmation">
+        <item quantity="one">Download %1$d video? This may use significant storage.</item>
+        <item quantity="other">Download all %1$d videos? This may use significant storage.</item>
+    </plurals>
     <string name="save">Save</string>
     <string name="saved">Saved</string>
     <string name="playlist_filter_owned">Owned</string>
@@ -136,6 +147,7 @@
     <string name="filter_workout">Workout</string>
     <string name="track_details">Track Details</string>
     <string name="title_label">Title</string>
+    <string name="explicit_badge">E</string>
     <string name="artist_label">Artist</string>
     <string name="album_label">Album</string>
     <string name="video_id_label">Video ID</string>
@@ -256,7 +268,10 @@
     <string name="desc_more">...more</string>
     <string name="reply">Reply</string>
     <string name="hide_replies">Hide replies</string>
-    <string name="view_replies_template">View %1$d replies</string>
+    <plurals name="view_replies_template">
+        <item quantity="one">View %1$d reply</item>
+        <item quantity="other">View %1$d replies</item>
+    </plurals>
     <string name="load_more_replies">Load more replies</string>
     <string name="select_text">Select Text</string>
     <string name="pinned_comment">Pinned comment</string>
@@ -316,7 +331,10 @@
     <string name="app_name_uppercase">FLOW</string>
     <string name="notification_badge_9_plus">9+</string>
     <string name="personalized_feed">Your personalized feed</string>
-    <string name="videos_curated_template">%1$d videos curated just for you</string>
+    <plurals name="videos_curated_template">
+        <item quantity="one">%1$d video curated just for you</item>
+        <item quantity="other">%1$d videos curated just for you</item>
+    </plurals>
     <string name="import_newpipe_backup">Import NewPipe Backup</string>
     <string name="importing_from_backup">Importing subscriptions from NewPipe backup...</string>
     <string name="search_subscriptions">Search Subscriptions</string>
@@ -333,23 +351,35 @@
     <string name="unsubscribed_from_template">Unsubscribed from %1$s</string>
     <string name="hide_channel_shorts">Hide Shorts from this channel</string>
     <string name="show_channel_shorts">Show Shorts from this channel</string>
-    <string name="videos_count_template">%1$d videos</string>
-    <string name="likes_count_template">%1$d likes</string>
-    <string name="playlists_count_template">%1$d playlists</string>
-    <string name="shorts_count_template">%1$d shorts</string>
-    <string name="songs_count_template">%1$d songs</string>
+    <plurals name="videos_count_template">
+        <item quantity="one">%1$d video</item>
+        <item quantity="other">%1$d videos</item>
+    </plurals>
+    <plurals name="songs_count_template">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
+    <string name="metadata_separator">·</string>
+    <string name="player_time_separator"> / </string>
+    <string name="you">You</string>
     <string name="empty_downloads">No downloads yet</string>
     <string name="play_all">Play all</string>
     <string name="remove_from_watch_later">Remove from Watch Later</string>
-    <string name="playlist_metadata_template">Playlist • Private • %1$d videos</string>
     <string name="explicit">E</string>
     <string name="no_videos_saved">No videos saved</string>
     <string name="no_videos_saved_body">Videos you save to watch later will appear here</string>
     <!-- Search Screen -->
     <string name="search_hint">Search</string>
     <string name="search_videos_channels_placeholder">Search videos, channels...</string>
+    <string name="search_voice_prompt">Speak to search…</string>
+    <string name="shared_video">Shared Video</string>
+    <string name="search_failed">Search failed</string>
+    <string name="loading_more">Loading more…</string>
+    <string name="load_failed">Load failed</string>
     <string name="recent_searches">Recent Searches</string>
     <string name="search_empty_prompt">Search for videos, music and more</string>
+    <string name="import_success_count">Imported %1$d %2$s</string>
+    <string name="import_success">%1$s imported successfully</string>
     <string name="trending">Trending</string>
     <string name="channels_header">Channels</string>
     <string name="videos_header">Videos</string>
@@ -450,7 +480,10 @@
     <string name="deep_flow_duration_8h">8 hours</string>
     <string name="deep_flow_duration_12h">12 hours</string>
     <string name="deep_flow_duration_24h">24 hours</string>
-    <string name="deep_flow_duration_hours">%1$d hours</string>
+    <plurals name="deep_flow_duration_hours">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
     <string name="settings_header_appearance">Appearance</string>
     <string name="settings_header_content_playback">Content &amp; Playback</string>
     <string name="settings_header_data_management">Data Management</string>
@@ -535,8 +568,10 @@
     <string name="appearance_category_dark">Dark</string>
     <string name="appearance_category_custom">Custom</string>
     <string name="appearance_category_special">Special</string>
-    <string name="appearance_themes_count_all">%1$d themes</string>
-    <string name="appearance_themes_count_filtered">%1$d %2$s themes</string>
+    <plurals name="appearance_themes_count_all">
+        <item quantity="one">%1$d theme</item>
+        <item quantity="other">%1$d themes</item>
+    </plurals>
     <string name="appearance_applied_toast">Applied: %1$s</string>
     <string name="appearance_customize_theme">Customize Theme</string>
     <string name="appearance_customizer_title">Custom Theme Editor</string>
@@ -680,6 +715,10 @@
     <!-- Lyrics Provider -->
     <string name="lyrics_provider_title">Lyrics Provider</string>
     <string name="lyrics_provider_subtitle">Choose your preferred source for song lyrics</string>
+    <plurals name="lyrics_providers_enabled">
+        <item quantity="one">%1$d / %2$d provider enabled</item>
+        <item quantity="other">%1$d / %2$d providers enabled</item>
+    </plurals>
     <string name="lyrics_provider_lrclib">LrcLib</string>
     <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
     <string name="lyrics_provider_simpmusic">SimpMusic</string>
@@ -894,17 +933,26 @@
     <string name="player_settings_shorts_playback_mode_loop">Loop (repeat current short)</string>
     <string name="player_settings_shorts_playback_mode_auto_next">Auto Play Next (advance to next short)</string>
     <string name="player_settings_shorts_playback_mode_auto_interval">Auto-scroll after custom time</string>
-    <string name="player_settings_shorts_playback_mode_auto_interval_summary">Auto-scroll every %1$d seconds</string>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+        <item quantity="one">Auto-scroll every %1$d second</item>
+        <item quantity="other">Auto-scroll every %1$d seconds</item>
+    </plurals>
     <string name="player_settings_shorts_playback_mode_dialog_title">Shorts Playback Mode</string>
     <string name="player_settings_shorts_playback_mode_dialog_body">Choose how Shorts should behave when the current short finishes playing:</string>
-    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d seconds</string>
+    <plurals name="player_settings_shorts_auto_scroll_seconds_template">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
     <string name="player_settings_autoplay">Autoplay related videos</string>
     <string name="player_settings_autoplay_subtitle">When nothing is queued, automatically play a suggested video next</string>
     <string name="player_settings_queue_autoplay">Autoplay queued videos</string>
     <string name="player_settings_queue_autoplay_subtitle">Automatically play the next video in a playlist or Watch Later queue. When off, you can still skip manually.</string>
     <string name="player_settings_autoplay_countdown_title">Autoplay delay</string>
     <string name="player_settings_autoplay_countdown_none">None (switch immediately)</string>
-    <string name="player_settings_autoplay_countdown_seconds_template">%1$d seconds</string>
+    <plurals name="player_settings_autoplay_countdown_seconds_template">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
     <string name="player_settings_autoplay_countdown_dialog_body">Show a countdown before automatically switching to the next video. During the countdown you can restart the current video, cancel the switch, or play the next one right away.</string>
     <string name="autoplay_countdown_up_next">Up next</string>
     <string name="autoplay_countdown_next_video">Next video</string>
@@ -1022,7 +1070,10 @@
     <!-- Player Gestures -->
     <string name="player_settings_header_gestures">Gestures</string>
     <string name="player_settings_double_tap_seek">Double-Tap Seek Duration</string>
-    <string name="player_settings_double_tap_seek_subtitle_template">%ds per side double-tap</string>
+    <plurals name="player_settings_double_tap_seek_subtitle">
+        <item quantity="one">%1$d second per side double-tap</item>
+        <item quantity="other">%1$d seconds per side double-tap</item>
+    </plurals>
     <string name="player_settings_double_tap_seek_dialog_title">Double-Tap Seek Duration</string>
     <string name="player_settings_double_tap_seek_dialog_body">Choose how many seconds to seek when double-tapping the left or right side of the player.</string>
     <!-- Video and Music Quality Settings -->
@@ -1099,8 +1150,10 @@
     <string name="content_preferences_subtitle">Customize what you see</string>
     <string name="interests_tab">Interests</string>
     <string name="blocked_tab">Blocked</string>
-    <string name="topics_count_template">%1$d topics</string>
-    <string name="hidden_count_template">%1$d hidden</string>
+    <plurals name="topics_count_template">
+        <item quantity="one">%1$d topic</item>
+        <item quantity="other">%1$d topics</item>
+    </plurals>
     <string name="your_interests_title">Your Interests</string>
     <string name="your_interests_desc">Topics you\'ve selected help Flow recommend better content. Tap topics below to add or remove them.</string>
     <string name="currently_following">Currently Following</string>
@@ -1116,10 +1169,16 @@
     <string name="quick_add">Quick Add</string>
     <string name="common_topics_to_block">Common topics to block</string>
     <string name="currently_blocked">Currently Blocked</string>
-    <string name="topics_blocked_count_plural">%1$d topic%2$s</string>
+    <plurals name="topics_blocked_count_plural">
+        <item quantity="one">%1$d topic</item>
+        <item quantity="other">%1$d topics</item>
+    </plurals>
     <string name="desc_remove_topic">Remove %1$s</string>
     <string name="desc_unblock_topic">Unblock %1$s</string>
-    <string name="selected_count_template">%1$d selected</string>
+    <plurals name="selected_count_template">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
     <string name="select_videos">Select</string>
     <string name="cancel_selection">Cancel selection</string>
     <string name="select_all">Select all</string>
@@ -1136,12 +1195,18 @@
     <string name="bedtime_notification_note">A notification will be sent at start time.</string>
     <string name="remind_break">Remind me to take a break</string>
     <string name="reminder_frequency">Reminder frequency</string>
-    <string name="every_min_template">Every %1$d min</string>
+    <plurals name="every_min_template">
+        <item quantity="one">Every %1$d min</item>
+        <item quantity="other">Every %1$d min</item>
+    </plurals>
     <string name="daily_average_label">Daily Average</string>
     <string name="stats_today">Today</string>
     <string name="stats_last_7_days">Last 7 days</string>
     <string name="frequency_dialog_title">Frequency</string>
-    <string name="every_minutes_template">Every %1$d minutes</string>
+    <plurals name="every_minutes_template">
+        <item quantity="one">Every %1$d minute</item>
+        <item quantity="other">Every %1$d minutes</item>
+    </plurals>
     <string name="this_week">This Week</string>
     <string name="total_hours_template">Total: %s hours</string>
     <string name="no_watch_data">No watch data yet</string>
@@ -1158,7 +1223,10 @@
     <!-- Sleep Timer -->
     <string name="sleep_timer">Sleep Timer</string>
     <string name="sleep_timer_duration">Duration</string>
-    <string name="sleep_timer_minutes">%1$d min</string>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
     <string name="sleep_timer_min_label">5 min</string>
     <string name="sleep_timer_max_label">120 min</string>
     <string name="sleep_timer_custom_label">Custom time</string>
@@ -1181,32 +1249,45 @@
     <string name="search_suggestions_title">Search Suggestions</string>
     <string name="show_suggestions_subtitle">Show suggestions while typing</string>
     <string name="max_history_size_title">Max History Size</string>
-    <string name="currently_searches_template">Currently: %1$d searches</string>
+    <plurals name="currently_searches_template">
+        <item quantity="one">Currently: %1$d search</item>
+        <item quantity="other">Currently: %1$d searches</item>
+    </plurals>
     <string name="auto_delete_history_title">Auto-Delete History</string>
-    <string name="delete_after_days_template">Delete after %1$d days</string>
+    <plurals name="delete_after_days_template">
+        <item quantity="one">Delete after %1$d day</item>
+        <item quantity="other">Delete after %1$d days</item>
+    </plurals>
     <string name="never_delete_automatically">Never delete automatically</string>
     <string name="retention_period_title">Retention Period</string>
-    <string name="delete_older_than_template">Delete searches older than %1$d days</string>
+    <plurals name="delete_older_than_template">
+        <item quantity="one">Delete searches older than %1$d day</item>
+        <item quantity="other">Delete searches older than %1$d days</item>
+    </plurals>
     <string name="clear_history_item_title">Clear Search History</string>
     <string name="remove_all_queries">Remove all search queries</string>
     <string name="clear_history_dialog_title">Clear Search History?</string>
     <string name="clear_history_dialog_text">Permanently delete all search history.</string>
     <string name="choose_history_size">Choose how many searches to keep:</string>
-    <string name="searches_count_template">%1$d searches</string>
+    <plurals name="searches_count_template">
+        <item quantity="one">%1$d search</item>
+        <item quantity="other">%1$d searches</item>
+    </plurals>
     <string name="delete_searches_older_than">Delete searches older than:</string>
     <string name="period_one_week">1 week</string>
     <string name="period_one_month">1 month</string>
     <string name="period_three_months">3 months</string>
     <string name="period_six_months">6 months</string>
     <string name="period_one_year">1 year</string>
-    <string name="days_count_template">%1$d days</string>
+    <plurals name="days_count_template">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
     <!-- Import Data Screen -->
     <string name="import_data_title">Import Data</string>
     <string name="import_flow_backup_success">Flow backup imported successfully</string>
     <string name="import_flow_backup_failed_template">Failed to import Flow backup: %1$s</string>
-    <string name="import_newpipe_success_template">Imported %1$d subscriptions from NewPipe</string>
     <string name="import_newpipe_failed_template">Failed to import NewPipe backup: %1$s</string>
-    <string name="import_youtube_success_template">Imported %1$d subscriptions from YouTube</string>
     <string name="import_youtube_failed_template">Failed to import YouTube backup: %1$s</string>
     <string name="import_flow_backup_item_title">Import Flow Backup</string>
     <string name="import_flow_backup_desc">Restore your history, settings, and subscriptions from a Flow backup file.</string>
@@ -1229,6 +1310,16 @@
     <string name="import_from_metrolist_desc">Import music playlists from a Metrolist backup file (.zip). Playlists appear in your Music Library.</string>
     <string name="import_from_youtube">Import from YouTube</string>
     <string name="import_from_youtube_desc">Import subscriptions from YouTube Takeout (CSV).</string>
+    <string name="import_label_newpipe_subscriptions">NewPipe subscriptions</string>
+    <string name="import_label_youtube_subscriptions">YouTube subscriptions</string>
+    <string name="import_label_youtube_watch_history">YouTube watch history</string>
+    <string name="import_label_freetube_watch_history">FreeTube watch history</string>
+    <string name="import_label_newpipe_watch_history">NewPipe watch history</string>
+    <string name="import_label_libretube_subscriptions">LibreTube subscriptions</string>
+    <string name="import_label_metrolist_playlists">Metrolist music playlists</string>
+    <string name="import_label_newpipe_playlists">NewPipe playlists</string>
+    <string name="import_label_libretube_playlists">LibreTube playlists</string>
+    <string name="import_label_youtube_takeout">YouTube Takeout</string>
     <string name="import_subscriptions_section_title">Subs</string>
     <string name="import_history_section_title">History</string>
     <string name="import_freetube_history">Import FreeTube History</string>
@@ -1246,9 +1337,11 @@
     <string name="import_yt_watch_later_desc">Import a YouTube Takeout CSV straight into your Watch Later list, whatever the file is named.</string>
     <string name="import_yt_music_playlist">Import YouTube Music Playlist</string>
     <string name="import_yt_music_playlist_desc">Import a music playlist from YouTube Music Takeout CSV. Appears under Music Playlists.</string>
-    <string name="import_yt_history_success_template">Imported %1$d entries from your YouTube watch history</string>
     <string name="import_yt_history_failed_template">Failed to import watch history: %1$s</string>
-    <string name="import_yt_playlist_success_template">Imported playlist “%1$s” with %2$d videos</string>
+    <plurals name="import_yt_playlist_success_template">
+        <item quantity="one">Imported playlist “%1$s” with %2$d video</item>
+        <item quantity="other">Imported playlist “%1$s” with %2$d videos</item>
+    </plurals>
     <string name="import_yt_playlist_failed_template">Failed to import playlist: %1$s</string>
     <string name="import_yt_history_empty_error">No watch history entries found in this file. Make sure it is a YouTube Takeout watch-history.html file.</string>
     <string name="import_yt_playlist_empty_error">No videos found in this CSV. Make sure it is a YouTube Takeout playlist CSV file.</string>
@@ -1282,7 +1375,10 @@
     <string name="parallel_downloading_title">Parallel Downloading</string>
     <string name="parallel_downloading_subtitle">Download files in multiple chunks for max speed.</string>
     <string name="concurrent_threads_title">Concurrent Threads</string>
-    <string name="threads_per_download_template">%1$d threads per download</string>
+    <plurals name="threads_per_download_template">
+        <item quantity="one">%1$d thread per download</item>
+        <item quantity="other">%1$d threads per download</item>
+    </plurals>
     <string name="performance_optimization_note">Using more threads can increase speed but may use more battery and heat up the device.</string>
     <string name="location_dialog_subtitle">Choose where downloaded files are saved on your device.</string>
     <string name="location_preset_header">Preset Locations</string>
@@ -1301,7 +1397,10 @@
     <string name="location_badge_recommended">Recommended</string>
     <string name="location_badge_active">Active</string>
     <string name="select_threads_count_desc">Select threads count (1-8):</string>
-    <string name="threads_count_label">%1$d threads</string>
+    <plurals name="threads_count_label">
+        <item quantity="one">%1$d thread</item>
+        <item quantity="other">%1$d threads</item>
+    </plurals>
     <!-- Donations Screen -->
     <string name="support_donations_title">Support &amp; Donations</string>
     <string name="support_flow_dev_title">Support Flow Development</string>
@@ -1370,10 +1469,19 @@
     <string name="remove_from_playlist_action">Remove from playlist</string>
     <string name="playlist_empty_title">This playlist is empty</string>
     <string name="playlist_empty_desc">Add videos from the video player\nto build your playlist</string>
+    <string name="playlist_downloading_template">Downloading: %1$s</string>
+    <string name="playlist_downloads_queued">Queued %1$d/%2$d downloads</string>
+    <string name="playlist_download_queue_empty">Could not queue any downloads from this playlist</string>
     <string name="delete_playlist_dialog_title">Delete playlist?</string>
     <string name="delete_playlist_dialog_text">This will permanently delete \'%1$s\' and all its videos.</string>
-    <string name="playlist_metadata_private_template">Playlist • Private • %1$d videos</string>
-    <string name="playlist_metadata_public_template">Playlist • Public • %1$d videos</string>
+    <plurals name="playlist_metadata_private_template">
+        <item quantity="one">Playlist • Private • %1$d video</item>
+        <item quantity="other">Playlist • Private • %1$d videos</item>
+    </plurals>
+    <plurals name="playlist_metadata_public_template">
+        <item quantity="one">Playlist • Public • %1$d video</item>
+        <item quantity="other">Playlist • Public • %1$d videos</item>
+    </plurals>
     <string name="playlist_sort_options">Playlist sort options</string>
     <string name="playlist_sort_manual">Manual</string>
     <string name="playlist_sort_date_added_newest">Date added (newest)</string>
@@ -1381,14 +1489,16 @@
     <string name="playlist_sort_most_popular">Most popular</string>
     <string name="playlist_sort_date_published_newest">Date published (newest)</string>
     <string name="playlist_sort_date_published_oldest">Date published (oldest)</string>
-    <string name="remove_selected_videos_title">Remove %1$d video(s)?</string>
+    <plurals name="remove_selected_videos_title">
+        <item quantity="one">Remove %1$d video?</item>
+        <item quantity="other">Remove %1$d videos?</item>
+    </plurals>
     <string name="remove_selected_playlist_text">They will be removed from this playlist.</string>
     <string name="remove_selected_watch_later_text">They will be removed from Watch later.</string>
     <!-- Onboarding -->
     <string name="welcome_to_flow">Welcome to Flow</string>
     <string name="onboarding_subtitle">Tell us what you\'re interested in</string>
     <string name="onboarding_instructions">Select at least 3 topics to personalize your experience</string>
-    <string name="selected_with_more_needed_template">%1$d selected (%2$d more needed)</string>
     <string name="onboarding_interests_title">What do you enjoy?</string>
     <string name="onboarding_interests_hint">Pick at least %1$d topics to personalise your feed. %2$d more to go.</string>
     <string name="onboarding_interests_ready">Great selection. You can always update this later in settings.</string>
@@ -1397,17 +1507,24 @@
     <string name="onboarding_channels_search_placeholder">Search channels…</string>
     <string name="onboarding_channels_empty_prompt">Type a channel name to search</string>
     <string name="onboarding_channels_no_results">No channels found for \"%1$s\"</string>
-    <string name="onboarding_channels_added_count">%1$d channels added</string>
+    <plurals name="onboarding_channels_added_count">
+        <item quantity="one">%1$d channel added</item>
+        <item quantity="other">%1$d channels added</item>
+    </plurals>
     <string name="onboarding_channels_subscribers">%1$s subscribers</string>
     <string name="onboarding_channels_subscribed">Subscribed</string>
     <string name="onboarding_channels_subscribe">Subscribe</string>
     <string name="onboarding_import_title">Import your data</string>
     <string name="onboarding_import_subtitle">Bring your subscriptions and history from other apps. Everything is optional.</string>
     <string name="onboarding_backup_restore_section">Backup &amp; Restore</string>
-    <string name="onboarding_n_selected">%1$d selected</string>
     <string name="onboarding_topic_selected">Selected</string>
     <string name="onboarding_topic_not_selected">Not selected</string>
     <string name="onboarding_import_failed_template">Import failed: %1$s</string>
+    <string name="onboarding_step_interests">Interests</string>
+    <string name="onboarding_step_channels">Channels</string>
+    <string name="onboarding_step_import">Import</string>
+    <string name="onboarding_imported_count">Imported %1$d %2$s</string>
+    <string name="onboarding_imported">%1$s imported</string>
     <string name="onboarding_btn_skip">Skip</string>
     <string name="onboarding_btn_finish">Finish</string>
     <string name="btn_skip_for_now">Skip for now</string>
@@ -1470,7 +1587,6 @@
     <string name="stats_interactions">Interactions</string>
     <string name="stats_topics">Topics</string>
     <string name="empty_bubble_cloud_message">Watch some videos to populate your interest nebula!</string>
-    <string name="interactions_level_template">%1$d interactions • Level %2$d</string>
     <string name="export_profile_data">Export Profile Data</string>
     <string name="flow_neural_profile_export_subject">Flow Neural Profile Export</string>
     <!-- Music Playlists Screen -->
@@ -1491,8 +1607,6 @@
     <string name="artist_views_template">%1$s • %2$s views</string>
     <string name="action_view_all">View all</string>
     <string name="search_content_description">Search</string>
-    <string name="views_count_format">%1$s views</string>
-    <string name="playlist_footer_template">%1$d tracks • %2$s</string>
     <string name="unknown_error">Unknown error</string>
     <string name="action_retry">Retry</string>
     <string name="empty_moods_genres">No moods &amp; genres available</string>
@@ -1503,6 +1617,11 @@
     <string name="status_playing">Playing</string>
     <string name="label_explicit">Explicit</string>
     <string name="duration_with_dot_template"> • %1$s</string>
+    <string name="queue_position_template">%1$d / %2$d</string>
+    <string name="next_up_template">%1$s: %2$s</string>
+    <string name="equalizer_frequency_label">F</string>
+    <string name="equalizer_gain_label">G</string>
+    <string name="equalizer_q_label">Q</string>
     <string name="status_downloaded">Downloaded</string>
     <string name="title_create_playlist">Create Playlist</string>
     <string name="label_playlist_name">Playlist Name</string>
@@ -1589,7 +1708,6 @@
     <string name="subtitle_playlist_template">Playlist • %1$s</string>
     <string name="plays_count_template">• %1$s plays</string>
     <string name="album_year_template">Album • %1$s • %2$s</string>
-    <string name="artist_audience_template">Artist • %1$s monthly audience</string>
     <string name="search_source_template">Search: %1$s</string>
     <string name="artist_source_template">Artist: %1$s</string>
     <string name="top_picks_for_you">Top Picks for You</string>
@@ -1602,7 +1720,10 @@
     <string name="empty_playlists_subtitle">Create your first playlist to organize your favorite tracks</string>
     <string name="empty_favorites_title">No Favorites Yet</string>
     <string name="empty_favorites_subtitle">Tap the heart icon on any track to add it to your favorites</string>
-    <string name="favorites_count_template">%1$d favorite tracks</string>
+    <plurals name="favorites_count_template">
+        <item quantity="one">%1$d favorite track</item>
+        <item quantity="other">%1$d favorite tracks</item>
+    </plurals>
     <string name="empty_history_title">No History Yet</string>
     <string name="empty_history_subtitle">Start listening to music to see your history here</string>
     <string name="empty_downloads_title">No Downloads Yet</string>
@@ -1651,6 +1772,7 @@
     <string name="download_format_label">Format</string>
     <string name="download_threads_label">Threads</string>
     <string name="download_no_compatible_audio">No compatible audio stream — download cannot proceed</string>
+    <string name="audio_format_unknown">Audio</string>
     <!-- Approximate download size shown beside a quality; %1$s is a formatted number -->
     <string name="download_size_estimate_mb">~%1$s MB</string>
     <string name="download_size_estimate_gb">~%1$s GB</string>
@@ -1670,7 +1792,10 @@
     <string name="download_status_failed">Failed</string>
     <string name="download_status_cancelled">Cancelled</string>
     <string name="remove_incomplete_downloads">Remove incomplete downloads</string>
-    <string name="remove_incomplete_downloads_message">Remove %1$d paused, failed, or partial download(s)? Completed downloads will not be touched.</string>
+    <plurals name="remove_incomplete_downloads_message">
+        <item quantity="one">Remove %1$d paused, failed, or partial download? Completed downloads will not be touched.</item>
+        <item quantity="other">Remove %1$d paused, failed, or partial downloads? Completed downloads will not be touched.</item>
+    </plurals>
     <string name="audio_track">Audio Track</string>
     <string name="audio_track_number_template">%1$s %2$d</string>
     <string name="subtitle_auto_generated_template">%1$s (%2$s)</string>
@@ -1805,7 +1930,10 @@
     <string name="sync_receive_option_body">Merge another device\'s library into this one.</string>
     <string name="sync_select_all">Select all</string>
     <string name="sync_select_none">Clear</string>
-    <string name="sync_selected_count">%1$d of %2$d selected</string>
+    <plurals name="sync_selected_count">
+        <item quantity="one">%1$d of %2$d selected</item>
+        <item quantity="other">%1$d of %2$d selected</item>
+    </plurals>
     <string name="sync_collection_playlists_body">Your playlists, albums and Watch Later.</string>
     <string name="sync_collection_watch_history_body">What you have watched and how far you got.</string>
     <string name="sync_collection_likes_body">Liked and disliked videos and music.</string>
@@ -1935,6 +2063,7 @@
     <string name="settings_item_diagnostics">Diagnostics</string>
     <string name="settings_item_diagnostics_subtitle">View error logs and crash reports</string>
     <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_report_subject">Flow Diagnostics Report</string>
     <string name="diagnostics_tab_session">Session Logs</string>
     <string name="diagnostics_tab_crashes">Crash Reports</string>
     <string name="diagnostics_copy">Copy report</string>
@@ -1949,7 +2078,10 @@
     <!-- Merge/Add entire playlist into another playlist (#263) -->
     <string name="add_all_to_playlist">Add to my playlist</string>
     <string name="merge_playlist_dialog_title">Add all songs to…</string>
-    <string name="merge_playlist_success">Added %1$d songs to “%2$s”</string>
+    <plurals name="merge_playlist_success">
+        <item quantity="one">Added %1$d song to “%2$s”</item>
+        <item quantity="other">Added %1$d songs to “%2$s”</item>
+    </plurals>
     <string name="merge_playlist_no_playlists">No playlists yet. Create one first!</string>
     <!-- Profile Export/Import Toasts -->
     <string name="profile_export_success">Profile exported successfully</string>
@@ -1989,7 +2121,10 @@
     <string name="taste_live_affinity">Live affinity</string>
     <string name="taste_live_affinity_detail">How much live content fits the profile</string>
     <string name="taste_topic_breadth">Topic breadth</string>
-    <string name="taste_topic_breadth_detail">%1$d topics in the global vector</string>
+    <plurals name="taste_topic_breadth_detail">
+        <item quantity="one">%1$d topic in the global vector</item>
+        <item quantity="other">%1$d topics in the global vector</item>
+    </plurals>
     <!-- Interest Weights Section -->
     <string name="interest_weights_title">Interest Weights</string>
     <string name="interest_weights_subtitle">Highest weighted topics after probation and evidence checks</string>
@@ -2340,7 +2475,10 @@
     <string name="update_download_prompt">A new version of Flow is available (%1$s). Download the latest APK?</string>
     <string name="ui_instrumental">I N S T R U M E N T A L</string>
     <string name="ui_playlist_empty">Playlist is empty</string>
-    <string name="ui_downloading_videos">Downloading %1$d videos…</string>
+    <plurals name="ui_downloading_videos">
+        <item quantity="one">Downloading %1$d video…</item>
+        <item quantity="other">Downloading %1$d videos…</item>
+    </plurals>
     <string name="ui_playlist_saved_to_library">Playlist saved to library</string>
     <string name="ui_playlist_removed_from_library">Playlist removed from library</string>
     <string name="ui_download_audio">Downloading audio: %1$skbps %2$s</string>
@@ -2366,10 +2504,16 @@
     <string name="toast_playlist_deleted">Playlist deleted</string>
     <string name="toast_playlist_renamed">Playlist renamed</string>
     <string name="toast_starting_playlist_download">Starting download for %1$s…</string>
-    <string name="toast_downloaded_tracks_from_playlist">Downloaded %1$d tracks from %2$s</string>
+    <plurals name="toast_downloaded_tracks_from_playlist">
+        <item quantity="one">Downloaded %1$d track from %2$s</item>
+        <item quantity="other">Downloaded %1$d tracks from %2$s</item>
+    </plurals>
     <string name="toast_failed_to_download_playlist">Failed to download playlist</string>
     <string name="toast_error_downloading_playlist">Error downloading playlist</string>
-    <string name="toast_downloaded_tracks">Downloaded %1$d tracks</string>
+    <plurals name="toast_downloaded_tracks">
+        <item quantity="one">Downloaded %1$d track</item>
+        <item quantity="other">Downloaded %1$d tracks</item>
+    </plurals>
     <string name="toast_added_to_playlist">Added to playlist</string>
     <string name="toast_failed_to_add_track">Failed to add track</string>
     <string name="toast_removed_from_playlist">Removed from playlist</string>
@@ -2401,7 +2545,10 @@
     </plurals>
     <string name="notification_more">+%1$d more</string>
     <string name="notification_new_videos">New videos</string>
-    <string name="notification_new_videos_from_subscriptions">%1$d new videos from your subscriptions</string>
+    <plurals name="notification_new_videos_from_subscriptions">
+        <item quantity="one">%1$d new video from your subscriptions</item>
+        <item quantity="other">%1$d new videos from your subscriptions</item>
+    </plurals>
     <string name="notification_update_available">Update Available: %1$s</string>
     <string name="notification_tap_to_update">Tap to update to the latest version.</string>
     <string name="notification_watch_later_reminder">Watch Later Reminder</string>
@@ -2474,7 +2621,6 @@
     <string name="import_manage_backups">Manage your Flow backups</string>
     <string name="import_external_services">External Services</string>
     <string name="import_other_youtube_clients">Import from other YouTube clients</string>
-    <string name="imported_count">Imported %1$d %2$s</string>
     <string name="imported_successfully">%1$s imported successfully</string>
     <string name="importing_label">Importing %1$s…</string>
     <string name="imported_from_google_takeout">Imported from Google Takeout</string>
@@ -2491,8 +2637,14 @@
     <string name="import_invalid_format">Unrecognised backup format — make sure you selected the correct file</string>
     <string name="import_failed_template">Import failed: %1$s</string>
     <string name="duration_hours_minutes">%1$d hr %2$d min</string>
-    <string name="duration_minutes">%1$d min</string>
+    <plurals name="duration_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
     <string name="duration_hours_short">%1$dh</string>
+    <string name="duration_hours_minutes_short">%1$dh %2$dm</string>
+    <string name="storage_size_gb">%1$.1f GB</string>
+    <string name="duration_hours_decimal">%1$.1fh</string>
     <string name="duration_minutes_short">%1$dm</string>
     <string name="fallback_unknown_title">Unknown Title</string>
     <string name="fallback_unknown_channel">Unknown Channel</string>

@@ -28,7 +28,7 @@ fun PlaylistQueueDock(
     currentIndex: Int,
     queueSize: Int,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
     val contentColor = MaterialTheme.colorScheme.onSurface
@@ -43,35 +43,38 @@ fun PlaylistQueueDock(
         shadowElevation = 4.dp,
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .safeDrawingPadding()
-            .height(68.dp)
-            .clickable(onClick = onClick)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .safeDrawingPadding()
+                .height(68.dp)
+                .clickable(onClick = onClick),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 12.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(start = 12.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(accentContainerColor, RoundedCornerShape(12.dp))
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .background(accentContainerColor, RoundedCornerShape(12.dp))
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                            shape = RoundedCornerShape(12.dp),
+                        ),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
                     contentDescription = null,
                     tint = accentContentColor,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 )
             }
 
@@ -79,23 +82,28 @@ fun PlaylistQueueDock(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = if (nextVideoTitle != null) {
-                        stringResource(R.string.next_up) + ": " + nextVideoTitle
-                    } else {
-                        stringResource(R.string.playlist_queue)
-                    },
+                    text =
+                        if (nextVideoTitle != null) {
+                            stringResource(
+                                R.string.next_up_template,
+                                stringResource(R.string.next_up),
+                                nextVideoTitle,
+                            )
+                        } else {
+                            stringResource(R.string.playlist_queue)
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = contentColor,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
-                
+
                 Spacer(modifier = Modifier.height(2.dp))
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = playlistName,
@@ -103,28 +111,28 @@ fun PlaylistQueueDock(
                         color = secondaryContentColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.weight(1f, fill = false),
                     )
-                    
+
                     Text(
                         text = " • ",
                         style = MaterialTheme.typography.labelMedium,
-                        color = secondaryContentColor
+                        color = secondaryContentColor,
                     )
-                    
+
                     Text(
                         text = "${currentIndex + 1}/$queueSize",
                         style = MaterialTheme.typography.labelMedium,
-                        color = secondaryContentColor
+                        color = secondaryContentColor,
                     )
                 }
             }
-            
+
             IconButton(onClick = onClick) {
                 Icon(
                     imageVector = Icons.Default.ExpandLess,
                     contentDescription = stringResource(R.string.playlist_queue),
-                    tint = contentColor
+                    tint = contentColor,
                 )
             }
         }

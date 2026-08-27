@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -375,7 +376,15 @@ fun PlaylistDetailScreen(
             onDismissRequest = { showDownloadAllDialog = false },
             icon = { Icon(Icons.Default.Download, null) },
             title = { Text(stringResource(R.string.download_all)) },
-            text = { Text(stringResource(R.string.download_all_confirmation, uiState.videos.size)) },
+            text = {
+                Text(
+                    pluralStringResource(
+                        R.plurals.download_all_confirmation,
+                        uiState.videos.size,
+                        uiState.videos.size,
+                    ),
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -399,7 +408,13 @@ fun PlaylistDetailScreen(
             onDismissRequest = { showRemoveSelectedDialog = false },
             icon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
             title = {
-                Text(stringResource(R.string.remove_selected_videos_title, selectedIds.size))
+                Text(
+                    pluralStringResource(
+                        R.plurals.remove_selected_videos_title,
+                        selectedIds.size,
+                        selectedIds.size,
+                    ),
+                )
             },
             text = {
                 Text(
@@ -507,7 +522,12 @@ private fun PlaylistDetailTopBar(
             Box(modifier = Modifier.weight(1f)) {
                 if (inSelectionMode || showTitle) {
                     Text(
-                        text = if (inSelectionMode) stringResource(R.string.selected_count_template, selectedCount) else title,
+                        text =
+                            if (inSelectionMode) {
+                                pluralStringResource(R.plurals.selected_count_template, selectedCount, selectedCount)
+                            } else {
+                                title
+                            },
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -691,8 +711,13 @@ private fun PlaylistHeader(
             // Metadata Row
             Text(
                 text =
-                    stringResource(
-                        if (isPrivate) R.string.playlist_metadata_private_template else R.string.playlist_metadata_public_template,
+                    pluralStringResource(
+                        if (isPrivate) {
+                            R.plurals.playlist_metadata_private_template
+                        } else {
+                            R.plurals.playlist_metadata_public_template
+                        },
+                        videoCount,
                         videoCount,
                     ),
                 style = MaterialTheme.typography.bodySmall,
@@ -790,7 +815,7 @@ private fun PlaylistHeader(
                 exit = fadeOut(),
             ) {
                 Text(
-                    text = "Downloading: ${currentDownloadingTitle ?: ""}",
+                    text = stringResource(R.string.playlist_downloading_template, currentDownloadingTitle ?: ""),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -1354,7 +1379,12 @@ private fun MergeIntoPlaylistDialog(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = stringResource(R.string.songs_count_template, playlist.videoCount),
+                                    text =
+                                        pluralStringResource(
+                                            R.plurals.songs_count_template,
+                                            playlist.videoCount,
+                                            playlist.videoCount,
+                                        ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -1438,7 +1468,16 @@ class PlaylistDetailViewModel
 
                 _isDownloadingPlaylist.value = true
                 _playlistDownloadProgress.value = 0f
-                Toast.makeText(context, context.getString(R.string.ui_downloading_videos, videos.size), Toast.LENGTH_SHORT).show()
+                Toast
+                    .makeText(
+                        context,
+                        context.resources.getQuantityString(
+                            R.plurals.ui_downloading_videos,
+                            videos.size,
+                            videos.size,
+                        ),
+                        Toast.LENGTH_SHORT,
+                    ).show()
 
                 var successCount = 0
                 var processedCount = 0
@@ -1562,9 +1601,9 @@ class PlaylistDetailViewModel
 
                 val msg =
                     if (successCount > 0) {
-                        "Queued $successCount/$total downloads"
+                        context.getString(R.string.playlist_downloads_queued, successCount, total)
                     } else {
-                        "Could not queue any downloads from this playlist"
+                        context.getString(R.string.playlist_download_queue_empty)
                     }
                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
@@ -1814,7 +1853,12 @@ class PlaylistDetailViewModel
                     Toast
                         .makeText(
                             context,
-                            context.getString(R.string.merge_playlist_success, videos.size, targetInfo?.name ?: ""),
+                            context.resources.getQuantityString(
+                                R.plurals.merge_playlist_success,
+                                videos.size,
+                                videos.size,
+                                targetInfo?.name ?: "",
+                            ),
                             Toast.LENGTH_SHORT,
                         ).show()
                 } catch (e: Exception) {

@@ -67,9 +67,9 @@ fun ImportDataScreen(onNavigateBack: () -> Unit) {
             is ImportViewModel.State.Success -> {
                 snackbarHostState.showSnackbar(
                     s.message ?: if ((s.count ?: 0) > 0) {
-                        "Imported ${s.count} ${s.label.lowercase()}"
+                        context.getString(R.string.import_success_count, s.count, s.label.lowercase())
                     } else {
-                        "${s.label} imported successfully"
+                        context.getString(R.string.import_success, s.label)
                     },
                 )
                 importViewModel.dismiss()
@@ -483,7 +483,12 @@ private fun rememberTakeoutCsvImportLauncher(
                     val message =
                         result.fold(
                             onSuccess = { (name, count) ->
-                                context.getString(R.string.import_yt_playlist_success_template, name, count)
+                                context.resources.getQuantityString(
+                                    R.plurals.import_yt_playlist_success_template,
+                                    count,
+                                    name,
+                                    count,
+                                )
                             },
                             onFailure = { error ->
                                 when (error.message) {
@@ -707,7 +712,7 @@ internal fun ImportProgressBanner(state: ImportViewModel.State) {
                     )
                     if (running.total > 0) {
                         Text(
-                            text = "${running.current} / ${running.total}",
+                            text = stringResource(R.string.sync_progress_fraction, running.current, running.total),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

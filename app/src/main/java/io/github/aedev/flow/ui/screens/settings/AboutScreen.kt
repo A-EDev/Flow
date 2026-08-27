@@ -116,7 +116,7 @@ fun AboutScreen(
                 null
             }
         }
-    val versionName = packageInfo?.versionName ?: "Unknown"
+    val versionName = packageInfo?.versionName ?: context.getString(R.string.unknown)
     val versionCode =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             packageInfo?.longVersionCode?.toString() ?: "0"
@@ -168,7 +168,7 @@ fun AboutScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "v$versionName ($versionCode)",
+                        text = stringResource(R.string.v_version_template, versionName, versionCode),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

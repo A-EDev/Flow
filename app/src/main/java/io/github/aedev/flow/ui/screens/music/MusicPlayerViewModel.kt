@@ -224,7 +224,7 @@ class MusicPlayerViewModel
                             currentTrack = track,
                             isLoading = false,
                             error = null,
-                            playingFrom = "Local media",
+                            playingFrom = context.getString(R.string.local_media_title),
                             selectedFilter = FILTER_ALL,
                         )
                     }
@@ -233,7 +233,7 @@ class MusicPlayerViewModel
                             track = track,
                             audioUrl = localUris[track.videoId]?.toString() ?: "",
                             queue = activeQueue,
-                            sourceName = "Local media",
+                            sourceName = context.getString(R.string.local_media_title),
                             localUriOverrides = localUris,
                         )
                     }

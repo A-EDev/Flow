@@ -619,13 +619,21 @@ private fun PlaylistCenteredHeader(
         // Metadata line
         val meta =
             buildString {
-                playlistDetails.trackCount.takeIf { it > 0 }?.let { append("$it songs") }
+                playlistDetails.trackCount.takeIf { it > 0 }?.let {
+                    append(
+                        androidx.compose.ui.res.pluralStringResource(
+                            R.plurals.songs_count_template,
+                            it,
+                            it,
+                        ),
+                    )
+                }
                 playlistDetails.durationText?.let {
-                    if (isNotEmpty()) append("  ·  ")
+                    if (isNotEmpty()) append(" ${stringResource(R.string.metadata_separator)} ")
                     append(it)
                 }
                 playlistDetails.dateText?.let {
-                    if (isNotEmpty()) append("  ·  ")
+                    if (isNotEmpty()) append(" ${stringResource(R.string.metadata_separator)} ")
                     append(it)
                 }
             }
@@ -1043,8 +1051,14 @@ private fun PlaylistFooter(
         Text(
             text =
                 buildString {
-                    append("$trackCount songs")
-                    durationText?.let { append("  ·  $it") }
+                    append(
+                        androidx.compose.ui.res.pluralStringResource(
+                            R.plurals.songs_count_template,
+                            trackCount,
+                            trackCount,
+                        ),
+                    )
+                    durationText?.let { append(" ${stringResource(R.string.metadata_separator)} $it") }
                 },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f),
@@ -1161,8 +1175,9 @@ private fun MusicMergeIntoPlaylistDialog(
                                 )
                                 Text(
                                     text =
-                                        androidx.compose.ui.res.stringResource(
-                                            io.github.aedev.flow.R.string.songs_count_template,
+                                        androidx.compose.ui.res.pluralStringResource(
+                                            io.github.aedev.flow.R.plurals.songs_count_template,
+                                            playlist.videoCount,
                                             playlist.videoCount,
                                         ),
                                     style = MaterialTheme.typography.bodySmall,

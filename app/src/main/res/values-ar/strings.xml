@@ -109,10 +109,6 @@
     <string name="search_subscriptions">بحث الإشتراكات</string>
     <string name="toggle_view_mode">تفعيل وضع العرض</string>
     <string name="unsubscribed_from_template">إلغاء الإشتراك من %1$s</string>
-    <string name="videos_count_template">%1$d فيديوهات</string>
-    <string name="playlists_count_template">%1$d قوائم التشغيل</string>
-    <string name="shorts_count_template">%1$d مقاطع قصيرة</string>
-    <string name="songs_count_template">%1$d أغاني</string>
     <string name="empty_downloads">لا يوجد تحميلات بعد</string>
     <string name="play_all">تشغيل الكل</string>
     <string name="remove_from_watch_later">الإزالة من المشاهدة لاحقا</string>
@@ -241,8 +237,6 @@
     <string name="appearance_category_light">فاتح</string>
     <string name="appearance_category_dark">غامق</string>
     <string name="appearance_category_special">خاص</string>
-    <string name="appearance_themes_count_all">%1$d المواضيع</string>
-    <string name="appearance_themes_count_filtered">%1$d %2$s المواضيع</string>
     <string name="appearance_applied_toast">محدد: %1$s</string>
     <string name="app_icon_picker_subtitle">اختر نمط أيقونة المشغل. سيتم تطبيق التغيير فورًا وسيتم تحديث المشغل لفترة وجيزة.</string>
     <string name="app_icon_picker_warning">تنبيه: تغيير الأيقونات يستخدم آلية في نظام أندرويد و التي تؤدي إلى إزالة إختصار التطبيق من شاشتك الرئيسية. اضغط مطولاً على مشغل التطبيقات لإعادتها مرة أخري إذا لزم الأمر.</string>
@@ -526,8 +520,6 @@
     <string name="content_preferences_subtitle">خصّص ما تراه</string>
     <string name="interests_tab">الإهتمامات</string>
     <string name="blocked_tab">محظور</string>
-    <string name="topics_count_template">%1$d موضوع</string>
-    <string name="hidden_count_template">%1$d مخفي</string>
     <string name="your_interests_title">إهتماماتك</string>
     <string name="your_interests_desc">تساعد المواضيع التي اخترتها Flow في اقتراح محتوى أفضل. انقر على المواضيع أدناه لإضافتها أو إزالتها.</string>
     <string name="currently_following">تُتابع حالياً</string>
@@ -543,10 +535,8 @@
     <string name="quick_add">إضافة سريعة</string>
     <string name="common_topics_to_block">المواضيع الشائعة لحظرها</string>
     <string name="currently_blocked">محظور حاليا</string>
-    <string name="topics_blocked_count_plural">%1$d موضوع%2$s</string>
     <string name="desc_remove_topic">إزالة %1$s</string>
     <string name="desc_unblock_topic">إلغاء حظر %1$s</string>
-    <string name="selected_count_template">%1$d محدد</string>
     <string name="time_management_title">إدارة الوقت</string>
     <string name="time_management_subtitle">تتبع وقت استخدامك للشاشة و تحكم فيه</string>
     <string name="stats_disclaimer">تستند الإحصائيات إلى سجل المشاهدة الخاص بك عبر هذا التطبيق. قد يختلف الاستخدام الفعلي.</string>
@@ -557,12 +547,10 @@
     <string name="bedtime_notification_note">سيتم إرسال إشعار عندما يحين وقت النوم.</string>
     <string name="remind_break">ذكرني بأخذ استراحة</string>
     <string name="reminder_frequency">عدد مرات التذكير</string>
-    <string name="every_min_template">كل %1$d دقيقة</string>
     <string name="daily_average_label">المتوسط اليومي</string>
     <string name="stats_today">اليوم</string>
     <string name="stats_last_7_days">أخر 7 أيام</string>
     <string name="frequency_dialog_title">معدل التكرار</string>
-    <string name="every_minutes_template">كل %1$d دقيقة</string>
     <string name="this_week">هذا الأسبوع</string>
     <string name="total_hours_template">المجموع: %s ساعة</string>
     <string name="no_watch_data">لا يوجد بيانات للمشاهدات حتى الآن</string>
@@ -578,7 +566,6 @@
     <string name="confirm">تأكيد</string>
     <string name="sleep_timer">مؤقت النوم</string>
     <string name="sleep_timer_duration">المدة</string>
-    <string name="sleep_timer_minutes">%1$d دقيقة</string>
     <string name="sleep_timer_min_label">5 دقائق</string>
     <string name="sleep_timer_max_label">120 دقيقة</string>
     <string name="sleep_timer_custom_label">وقت مخصص</string>
@@ -600,31 +587,24 @@
     <string name="search_suggestions_title">اقتراحات البحث</string>
     <string name="show_suggestions_subtitle">إظهار الإقتراحات أثناء الكتابة</string>
     <string name="max_history_size_title">الحجم الأقصى للسجل</string>
-    <string name="currently_searches_template">حاليا: %1$d عملية بحث</string>
     <string name="auto_delete_history_title">حذف السجل تلقائيا</string>
-    <string name="delete_after_days_template">الحذف بعد %1$d يوم</string>
     <string name="never_delete_automatically">لا تحذف تلقائياً أبداً</string>
     <string name="retention_period_title">فترة الاحتفاظ</string>
-    <string name="delete_older_than_template">حذف عمليات البحث الأقدم من %1$d يوم</string>
     <string name="clear_history_item_title">مسح سجل البحث</string>
     <string name="remove_all_queries">إزالة كافة عمليات البحث</string>
     <string name="clear_history_dialog_title">هل تريد مسح سجل البحث؟</string>
     <string name="clear_history_dialog_text">حذف كل سجل البحث نهائياً.</string>
     <string name="choose_history_size">اختر عدد عمليات البحث التي تريد الاحتفاظ بها:</string>
-    <string name="searches_count_template">%1$d عملية بحث</string>
     <string name="delete_searches_older_than">حذف عمليات البحث الأقدم من:</string>
     <string name="period_one_week">1 أسبوع</string>
     <string name="period_one_month">1 شهر</string>
     <string name="period_three_months">3 أشهر</string>
     <string name="period_six_months">6 أشهر</string>
     <string name="period_one_year">1 سنة</string>
-    <string name="days_count_template">%1$d أيام</string>
     <string name="import_data_title">استيراد البيانات</string>
     <string name="import_flow_backup_success">تم استيراد النسخة الاحتياطية من Flow بنجاح</string>
     <string name="import_flow_backup_failed_template">فشل استيراد نسخة Flow الاحتياطية: %1$s</string>
-    <string name="import_newpipe_success_template">تم استرداد %1$d اشتراك من NewPipe</string>
     <string name="import_newpipe_failed_template">فشل في استرداد نسخة NewPipe الاحتياطية: %1$s</string>
-    <string name="import_youtube_success_template">تم استرداد %1$d اشتراكات من YouTube</string>
     <string name="import_youtube_failed_template">فشل في استيراد نسخة احتياطية من يوتيوب: %1$s</string>
     <string name="import_flow_backup_item_title">استيراد نسخة احتياطية من Flow</string>
     <string name="import_flow_backup_desc">استرد سجلك، إعداداتك و إشتراكاتك من ملف النسخ الاحتياطي لـ Flow.</string>
@@ -646,9 +626,7 @@
     <string name="import_yt_playlist_desc">استورد قائمة تشغيل من ملف CSV الخاص بـ YouTube Takeout (Playlist-&lt;name&gt;.csv).</string>
     <string name="import_yt_music_playlist">استيراد قائمة تشغيل YouTube Music</string>
     <string name="import_yt_music_playlist_desc">استورد قائمة تشغيل موسيقية من ملف CSV الخاص بخدمة YouTube Music Takeout. تظهر القائمة ضمن قوائم تشغيل الموسيقى.</string>
-    <string name="import_yt_history_success_template">تم استيراد %1$d فيديوهات من سجل مشاهدة YouTube الخاص بك</string>
     <string name="import_yt_history_failed_template">فشل استيراد سجل المشاهدة: %1$s</string>
-    <string name="import_yt_playlist_success_template">قائمة التشغيل المستوردة \"%1$s\" مع %2$d فيديوهات</string>
     <string name="import_yt_playlist_failed_template">فشل استيراد قائمة التشغيل: %1$s</string>
     <string name="import_yt_history_empty_error">لم يتم العثور على أي سجلات مشاهدة في هذا الملف. تأكد من أنه ملف watch-history.html خاص بـ YouTube Takeout.</string>
     <string name="import_yt_playlist_empty_error">لم يتم العثور على أي فيديوهات في ملف CSV هذا. تأكد من أنه ملف CSV لقائمة تشغيل YouTube Takeout.</string>
@@ -667,7 +645,6 @@
     <string name="parallel_downloading_title">التنزيل المتوازي</string>
     <string name="parallel_downloading_subtitle">قم بتنزيل الملفات على دفعات متعددة للحصول على أقصى سرعة.</string>
     <string name="concurrent_threads_title">عدد تقسيمات الفيديو المتزامنة</string>
-    <string name="threads_per_download_template">%1$d تقسيم لكل تحميل</string>
     <string name="performance_optimization_note">إستخدام المزيد من التقسيمات يمكن أن يزيد السرعة ولكنه قد يستهلك المزيد من البطارية ويرفع درجة حرارة الجهاز.</string>
     <string name="location_dialog_subtitle">اختر مكان حفظ الملفات التي تم تنزيلها على جهازك.</string>
     <string name="location_preset_header">المواقع المحددة مسبقًا</string>
@@ -686,7 +663,6 @@
     <string name="location_badge_recommended">مستحسن</string>
     <string name="location_badge_active">نشط</string>
     <string name="select_threads_count_desc">‍حدد عدد التقسيمات (1-8):</string>
-    <string name="threads_count_label">%1$d تقسيمات</string>
     <string name="support_donations_title">الدعم والتبرعات</string>
     <string name="support_flow_dev_title">إدعم تطوير Flow</string>
     <string name="support_flow_dev_desc">إذا وجدتَ تطبيق Flow مفيدًا وترغب في دعم تطويره، يمكنك دعمه عبر منصة Patreon أو التبرع عبر عناوين العملات الرقمية الموضحة أدناه. دعمكم يُسهم في استمرار المشروع!</string>
@@ -741,12 +717,9 @@
     <string name="playlist_empty_desc">أضف مقاطع الفيديو من مشغل الفيديو\nلإنشاء قائمة التشغيل الخاصة بك</string>
     <string name="delete_playlist_dialog_title">هل تريد حذف قائمة التشغيل؟</string>
     <string name="delete_playlist_dialog_text">سيؤدي هذا إلى حذف \'%1$s\' وجميع مقاطع الفيديو فيه بشكل دائم.</string>
-    <string name="playlist_metadata_private_template">قائمة تشغيل • خاصة • فيديوهات %1$d</string>
-    <string name="playlist_metadata_public_template">‎قائمة تشغيل • عامة • فيديوهات %1$d</string>
     <string name="welcome_to_flow">مرحبا بك في Flow</string>
     <string name="onboarding_subtitle">أخبرنا بما يثير اهتمامك</string>
     <string name="onboarding_instructions">إختر 3 مواضيع على الأقل لتخصيص تجربتك</string>
-    <string name="selected_with_more_needed_template">تم اختيار %1$d (يلزم اختيار %2$d إضافي)</string>
     <string name="btn_skip_for_now">تخطي الآن</string>
     <string name="onboarding_btn_continue">إستمرار</string>
     <string name="cd_collapse_category">تصغير</string>
@@ -783,7 +756,6 @@
     <string name="stats_interactions">التفاعلات</string>
     <string name="stats_topics">المواضيع</string>
     <string name="empty_bubble_cloud_message">شاهد بعض الفيديوهات لتوسيع دائرة اهتمامك!</string>
-    <string name="interactions_level_template">%1$d التفاعلات • المستوي %2$d</string>
     <string name="export_profile_data">تصدير بيانات الملف الشخصي</string>
     <string name="flow_neural_profile_export_subject">تصدير ملف تعريف التدفق العصبي لFlow</string>
     <string name="screen_title_music_library">مكتبة الموسيقى</string>
@@ -798,8 +770,6 @@
     <string name="artist_views_template">%1$s • %2$s مشاهدات</string>
     <string name="action_view_all">عرض الكل</string>
     <string name="search_content_description">بحث</string>
-    <string name="views_count_format">%1$s مشاهدات</string>
-    <string name="playlist_footer_template">%1$d مسارات • %2$s</string>
     <string name="unknown_error">خطأ غير معروف</string>
     <string name="action_retry">إعادة المحاولة</string>
     <string name="title_browse">تصفح</string>
@@ -864,7 +834,6 @@
     <string name="subtitle_playlist_template">قائمة تشغيل • %1$s</string>
     <string name="plays_count_template">تم التشغيل • %1$s مرة</string>
     <string name="album_year_template">ألبوم • %1$s • %2$s</string>
-    <string name="artist_audience_template">الفنان • %1$s مستمع شهرياً</string>
     <string name="search_source_template">بحث: %1$s</string>
     <string name="artist_source_template">الفنان: %1$s</string>
     <string name="top_picks_for_you">أفضل الخيارات لك</string>
@@ -876,7 +845,6 @@
     <string name="empty_playlists_subtitle">أنشئ قائمة تشغيلك الأولى لتنظيم أغانيك المفضلة</string>
     <string name="empty_favorites_title">لا يوجد عناصر مفضلة بعد</string>
     <string name="empty_favorites_subtitle">انقر على أيقونة القلب الموجودة على أي اغنية لإضافته إلى مفضلاتك</string>
-    <string name="favorites_count_template">%1$d اغاني مفضلة</string>
     <string name="empty_history_title">لا يوجد سجل بعد</string>
     <string name="empty_history_subtitle">ابدأ الإستماع للموسيقى للاطلاع على سجلاتك هنا</string>
     <string name="empty_downloads_title">لا تنزيلات بعد</string>
@@ -1023,7 +991,6 @@
     <string name="diagnostics_copied">تم نسخ التقرير إلى الحافظة</string>
     <string name="add_all_to_playlist">أضف إلى قائمة التشغيل الخاصة بي</string>
     <string name="merge_playlist_dialog_title">أضف جميع الأغاني إلى…</string>
-    <string name="merge_playlist_success">تمت إضافة أغاني %1$d إلي “%2$s”</string>
     <string name="merge_playlist_no_playlists">لا توجد قوائم تشغيل حتى الآن. أنشئ واحدة أولاً!</string>
     <string name="app_name">Flow</string>
     <string name="library_music_playlists_label">قوائم تشغيل الموسيقى</string>
@@ -1077,7 +1044,6 @@
     <string name="filter_newest">الأحدث</string>
     <string name="no_comments_yet">لا تعليقات بعد</string>
     <string name="read_more">اقرأ المزيد</string>
-    <string name="view_replies_template">عرض %1$d رد</string>
     <string name="pinned_comment">تعليق مثبت</string>
     <string name="pinned_by_creator">تم التثبيت بواسطة منشئ المحتوى</string>
     <string name="nav_shorts">مقاطع قصيرة</string>
@@ -1088,8 +1054,6 @@
     <string name="play_next_desc">أضف إلى بداية قائمة الانتظار</string>
     <string name="app_name_uppercase">FLOW</string>
     <string name="notification_badge_9_plus">9+</string>
-    <string name="videos_curated_template">%1$d فيديوهات مختارة خصيصاً لك</string>
-    <string name="playlist_metadata_template">قوائم التشغيل• خاص • %1$d فيديوهات</string>
     <string name="explicit">صريحة</string>
     <string name="filter_hd">HD</string>
     <string name="filter_4k">4K</string>
@@ -1389,7 +1353,6 @@
     <string name="taste_duration">تفضيلات مدة المشاهدة</string>
     <string name="taste_duration_detail">القيم الأعلى تميل نحو مقاطع الفيديو الأطول</string>
     <string name="taste_topic_breadth">إتساع الموضوع</string>
-    <string name="taste_topic_breadth_detail">‎%1$d موضوع في المتجه العام</string>
     <string name="interest_weights_title">أوزان الإهتمامات</string>
     <string name="interest_weights_subtitle">المواضيع ذات الأهمية القصوى بعد فترة مراقبة الإستخدام و التأكد من الأدلة علي الإهتمام بذلك الموضوع</string>
     <string name="interest_weights_empty">لم يتم تحديد أوزان للمواضيع بعد.</string>
@@ -1441,7 +1404,6 @@
     <string name="profile_action_import">إستيراد الملف الشخصي</string>
     <string name="profile_action_import_detail">إستعادة نسخة احتياطية للملف الشخصي</string>
     <string name="download_all">تحميل الكل</string>
-    <string name="download_all_confirmation">هل تريد تنزيل جميع فيديوهات %1$d؟ قد يستهلك هذا مساحة تخزين كبيرة.</string>
     <string name="title_copied">تم نسخ العنوان إلى الحافظة</string>
     <string name="notif_master_toggle">تمكين الإشعارات</string>
     <string name="notif_master_toggle_subtitle">إسمح لتطبيق Flow بالعمل في الخلفية لإجراء عمليات فحص الإشعارات والتنبيهات</string>
@@ -1459,13 +1421,10 @@
     <string name="section_incomplete_downloads">تنزيلات غير مكتملة</string>
     <string name="download_status_cancelled">تم الإلغاء</string>
     <string name="remove_incomplete_downloads">إزالة التنزيلات غير المكتملة</string>
-    <string name="remove_incomplete_downloads_message">هل تريد حذف %1$d من التنزيلات المتوقفة أو الفاشلة أو الجزئية؟ لن يتم المساس بالتنزيلات المكتملة.</string>
     <string name="player_lock_controls">قفل التحكم</string>
     <string name="player_unlock_controls">إلغاء قفل التحكم</string>
     <string name="player_settings_overlay_lock_mode">زر وضع الغلق</string>
     <string name="player_settings_overlay_lock_mode_subtitle">أظهر زر قفل المشغل لمنع اللمسات الغير مقصودة</string>
-    <string name="subscriptions_refresh_progress_template">إعادة تحديث %1$d من %2$d قناة</string>
-    <string name="subscriptions_last_refreshed_template">أخر تحديث %1$s - %2$d فيديو تم فحصه</string>
     <string name="appearance_system_defaults_title">سمات النظام الإفتراضية</string>
     <string name="appearance_system_defaults_subtitle">إختر السمة التي سيتم استخدامها عند تبديل جهازك بين الوضع الفاتح والوضع الداكن.</string>
     <string name="appearance_system_light_theme">الوضع الفاتح</string>
@@ -1495,8 +1454,6 @@
     <string name="show_channel_shorts">أظهر الفيديوهات القصيرة للقناة</string>
     <string name="proxy_settings_description">قم بتهيئة وكيل HTTP أو SOCKS5 اختياري للطلبات البعيدة. يبقى Local casting و LAN discovery مباشر.</string>
     <string name="player_settings_shorts_playback_mode_auto_interval">التمرير التلقائي بعد وقت محدد</string>
-    <string name="player_settings_shorts_playback_mode_auto_interval_summary">التمرير التلقائي كل %1$d ثانية</string>
-    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d ثانية</string>
     <string name="shorts_auto_scroll_active_template">تلقائي %1$ds</string>
     <string name="metric_suppressed">Suppressed</string>
     <string name="metric_suppressed_detail">عناصر فترة الهدوء</string>
@@ -1522,12 +1479,10 @@
     <string name="playlist_sort_most_popular">الأكثر رواجاً</string>
     <string name="playlist_sort_date_published_newest">وقت النشر (الأحدث)</string>
     <string name="playlist_sort_date_published_oldest">وقت النشر (الأقدم)</string>
-    <string name="remove_selected_videos_title">هل تريد حذف %1$d فيديو؟</string>
     <string name="remove_selected_playlist_text">سيتم حذفها من قائمة التشغيل هذه.</string>
     <string name="remove_selected_watch_later_text">سيتم حذفها من المشاهدة لاحقاً.</string>
     <string name="empty_liked_music_body">ستظهر الأغاني التي تعجبك هنا</string>
     <string name="empty_liked_music">لا يوجد موسيقى أعجبتك</string>
-    <string name="likes_count_template">%1$d إعجاب</string>
     <string name="playlist_sort_options">‏خيارات فرز قائمة التشغيل</string>
     <string name="playlist_sort_manual">يدوي</string>
     <string name="playlist_sort_date_added_newest">تاريخ الإضافة (الأحدث)</string>
@@ -1692,7 +1647,6 @@
     <string name="player_settings_queue_autoplay_subtitle">تشغيل الفيديو التالي في قائمة التشغيل أو قائمة المشاهدة لاحقًا تلقائيًا. عند إيقاف هذه الخاصية، يمكنك تخطي الفيديوهات يدويًا.</string>
     <string name="player_settings_autoplay_countdown_title">تأخير التشغيل التلقائي</string>
     <string name="player_settings_autoplay_countdown_none">لا يوجد (قم بالتبديل فوراً)</string>
-    <string name="player_settings_autoplay_countdown_seconds_template">%1$d ثانية</string>
     <string name="player_settings_autoplay_countdown_dialog_body">يعرض عدًا تنازليًا قبل الانتقال تلقائيا إلى الفيديو التالي. خلال العد التنازلي، يمكنك إعادة تشغيل الفيديو الحالي، أو إلغاء الانتقال، أو تشغيل الفيديو التالي مباشرةً.</string>
     <string name="autoplay_countdown_up_next">التالي</string>
     <string name="autoplay_countdown_next_video">الفيديو التالي</string>
@@ -1806,7 +1760,6 @@
     <string name="onboarding_channels_search_placeholder">ابحث عن القنوات…</string>
     <string name="onboarding_channels_empty_prompt">اكتب إسم القناة لبدء البحث</string>
     <string name="onboarding_channels_no_results">لم يتم العثور على قنوات لـ \"%1$s\"</string>
-    <string name="onboarding_channels_added_count">تمت إضافة %1$d قناة</string>
     <string name="persona_initiate_description">‏بدأت للتو. لا يزال ملفك الشخصي قيد الإنشاء.</string>
     <string name="persona_audiophile_title">‎عُشاق الصوت</string>
     <string name="persona_audiophile_description">‎تستخدم تطبيق Flow في الغالب للموسيقى. فالأجواء هي كل شيء.</string>
@@ -1832,7 +1785,6 @@
     <string name="onboarding_import_title">استورد بياناتك</string>
     <string name="onboarding_import_subtitle">يمكنك نقل اشتراكاتك وسجلّك من التطبيقات الأخرى. كل شيء اختياري.</string>
     <string name="onboarding_backup_restore_section">النسخ الاحتياطي و الاستعادة</string>
-    <string name="onboarding_n_selected">تم تحديد %1$d</string>
     <string name="onboarding_topic_selected">مُحدد</string>
     <string name="onboarding_topic_not_selected">غير مُحدد</string>
     <string name="onboarding_import_failed_template">فشل الاستيراد: %1$s</string>
@@ -2005,7 +1957,6 @@
     <string name="ui_version">الإصدار %1$s</string>
     <string name="update_download_prompt">يتوفر إصدار جديد من Flow (%1$s). هل تريد تنزيل أحدث ملف APK؟</string>
     <string name="ui_playlist_empty">قائمة التشغيل فارغة</string>
-    <string name="ui_downloading_videos">جاري تنزيل %1$d فيديو…</string>
     <string name="ui_playlist_saved_to_library">تم حفظ قائمة التشغيل في المكتبة</string>
     <string name="ui_playlist_removed_from_library">‎تمت إزالة قائمة التشغيل من المكتبة</string>
     <string name="ui_download_audio">جاري تنزيل الصوت: %1$skbps %2$s</string>
@@ -2024,10 +1975,8 @@
     <string name="toast_playlist_deleted">تم حذف قائمة التشغيل</string>
     <string name="toast_playlist_renamed">تمت إعادة تسمية قائمة التشغيل</string>
     <string name="toast_starting_playlist_download">بدء التنزيل لـ %1$s…</string>
-    <string name="toast_downloaded_tracks_from_playlist">تم تنزيل %1$d مساراً من %2$s</string>
     <string name="toast_failed_to_download_playlist">فشل تنزيل قائمة التشغيل</string>
     <string name="toast_error_downloading_playlist">خطأ في تنزيل قائمة التشغيل</string>
-    <string name="toast_downloaded_tracks">تم تنزيل %1$d مساراً</string>
     <string name="toast_added_to_playlist">تمت إضافته إلى قائمة التشغيل</string>
     <string name="toast_failed_to_add_track">فشل إضافة المسار</string>
     <string name="toast_removed_from_playlist">تمت إزالته من قائمة التشغيل</string>
@@ -2052,7 +2001,6 @@
     <string name="notification_download_failed">فشل التنزيل</string>
     <string name="notification_more">+%1$d المزيد</string>
     <string name="notification_new_videos">فيديوهات جديدة</string>
-    <string name="notification_new_videos_from_subscriptions">%1$d فيديو جديد من اشتراكاتك</string>
     <string name="notification_update_available">التحديث متاح: %1$s</string>
     <string name="notification_tap_to_update">انقر للتحديث لأحدث إصدار.</string>
     <string name="notification_watch_later_reminder">تذكير بالمشاهدة لاحقاً</string>
@@ -2123,7 +2071,6 @@
     <string name="import_manage_backups">إدارة نُسخ Flow الإحتياطية</string>
     <string name="import_external_services">خدمات خارجية</string>
     <string name="import_other_youtube_clients">الاستيراد من تطبيقات YouTube الأخرى</string>
-    <string name="imported_count">تم استيراد %1$d %2$s</string>
     <string name="imported_successfully">تم استيراد %1$s بنجاح</string>
     <string name="importing_label">استيراد %1$s…</string>
     <string name="imported_from_google_takeout">مستورد من Google Takeout</string>
@@ -2316,7 +2263,6 @@
     <string name="reorder_queue_item">إعادة ترتيب عنصر قائمة الانتظار</string>
     <string name="comment_edited">تم تعديله</string>
     <string name="comment_time_edited_template">%1$s (%2$s)</string>
-    <string name="deep_flow_duration_hours">%1$d ساعة</string>
     <string name="notif_background_restricted_title">تخضع عمليات التحقق من الخلفية لقيود</string>
     <string name="notif_background_restricted_subtitle">يمنع نظام أندرويد تطبيق Flow من التحقق من وجود فيديوهات جديدة أثناء إغلاقه، لذا لن تصلك التنبيهات إلا عند فتح التطبيق. انقر للسماح بنشاط التطبيق في الخلفية دون قيود.</string>
     <string name="audio_track_original">أصلي</string>
@@ -2331,7 +2277,6 @@
     <string name="import_no_content">لم يتم العثور على أي محتوى قابل للاستيراد في هذه النسخة الاحتياطية</string>
     <string name="import_invalid_format">تنسيق النسخة الاحتياطية غير معروف — تأكد من تحديد الملف الصحيح</string>
     <string name="import_failed_template">فشل الاستيراد: %1$s</string>
-    <string name="duration_minutes">%1$d دقيقة</string>
     <string name="duration_hours_minutes">%1$d ساعة و %2$d دقيقة</string>
     <string name="duration_hours_short">%1$dساعة</string>
     <string name="duration_minutes_short">%1$dدقيقة</string>
@@ -2380,7 +2325,6 @@
     <string name="sync_receive_option_body">قم بدمج مكتبة جهاز آخر إلي جهازك.</string>
     <string name="sync_select_all">تحديد الكل</string>
     <string name="sync_select_none">مسح</string>
-    <string name="sync_selected_count">تم اختيار %1$d من %2$d</string>
     <string name="sync_collection_playlists_body">قوائم التشغيل والألبومات وقائمة المشاهدة لاحقًا.</string>
     <string name="sync_collection_watch_history_body">ما شاهدته وإلى أي مدى وصلت.</string>
     <string name="sync_collection_likes_body">مقاطع الفيديو والموسيقى التي أعجبتني والتي لم تعجبني.</string>

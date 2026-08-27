@@ -269,7 +269,12 @@ fun FlowPlaylistQueueBottomSheet(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = "${currentQueueIndex + 1} / ${queueVideos.size}",
+                            text =
+                                stringResource(
+                                    R.string.queue_position_template,
+                                    currentQueueIndex + 1,
+                                    queueVideos.size,
+                                ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

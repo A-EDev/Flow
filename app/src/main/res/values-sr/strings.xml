@@ -11,8 +11,6 @@
     <string name="no_subscriptions_yet">Нема претплата</string>
     <string name="empty_subscriptions_body">Претплатите се на канале да видите\nњихове најновије снимке овде</string>
     <string name="home_refresh_feed">Освежи фид</string>
-    <string name="subscriptions_refresh_progress_template">Освежује се %1$d од %2$d канала</string>
-    <string name="subscriptions_last_refreshed_template">Последњи пут освежено %1$s - %2$d снимака проверених</string>
     <string name="subscriptions_last_refreshed_time_only_template">Последњи пут освежено %1$s</string>
     <string name="retry">Покушај поново</string>
     <string name="copy_logs">Копирај логове</string>

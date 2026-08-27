@@ -138,7 +138,6 @@
     <string name="no_comments_yet">Ainda não há comentários</string>
     <string name="read_more">Leia mais</string>
     <string name="hide_replies">Ocultar respostas</string>
-    <string name="view_replies_template">Ver %1$d respostas</string>
     <string name="pinned_comment">Comentário fixado</string>
     <string name="pinned_by_creator">Fixado pelo criador</string>
     <string name="new_update_available">Nova atualização disponível</string>
@@ -175,18 +174,12 @@
     <string name="artist">Artista</string>
     <string name="notification_badge_9_plus">9+</string>
     <string name="personalized_feed">O seu feed personalizado</string>
-    <string name="videos_curated_template">%1$d vídeos selecionados especialmente para si</string>
     <string name="import_newpipe_backup">Importar Backup do NewPipe</string>
     <string name="importing_from_backup">A importar assinaturas do backup do NewPipe...</string>
     <string name="toggle_view_mode">Alternar modo de visualização</string>
     <string name="unsubscribed_from_template">Inscrição cancelada em %1$s</string>
-    <string name="videos_count_template">%1$d vídeos</string>
-    <string name="playlists_count_template">%1$d Playlists</string>
-    <string name="shorts_count_template">%1$d Calções</string>
-    <string name="songs_count_template">%1$d músicas</string>
     <string name="empty_downloads">Ainda não há downloads</string>
     <string name="remove_from_watch_later">Remover da lista de Assistir mais tarde</string>
-    <string name="playlist_metadata_template">Playlist • Privada • %1$d vídeos</string>
     <string name="explicit">E</string>
     <string name="no_videos_saved">Nenhum vídeo gravado</string>
     <string name="no_videos_saved_body">Os vídeos que gravar para assistir mais tarde aparecerão aqui</string>
@@ -271,7 +264,6 @@
     <string name="subscriptions_sort_default">Padrão</string>
     <string name="subscriptions_sort_name">Nome (A-Z)</string>
     <string name="subscriptions_sort_recent">Atualizado recentemente</string>
-    <string name="subscriptions_refresh_progress_template">Atualizando %1$d de %2$d canais</string>
     <string name="subscriptions_last_refreshed_time_only_template">Último atualizado %1$s</string>
     <string name="copy_logs">Copiar registros</string>
     <string name="logs_copied">Registros copiados</string>
@@ -302,7 +294,6 @@
     <string name="history_tab_local_videos">Vídeos locais</string>
     <string name="history_tab_local_music">Músicas locais</string>
     <string name="download_all">Baixar tudo</string>
-    <string name="download_all_confirmation">Baixar todos os %1$d vídeos? Isso pode ocupar uma grande quantidade de armazenamento.</string>
     <string name="saved">Salvo</string>
     <string name="playlist_creation_menu_open">Criar playlist</string>
     <string name="playlist_creation_menu_close">Fechar menu de criação de playlist</string>

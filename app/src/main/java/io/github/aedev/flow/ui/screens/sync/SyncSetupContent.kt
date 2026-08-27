@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -85,7 +86,13 @@ internal fun SyncSelectContent(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = stringResource(R.string.sync_selected_count, selected.size, COLLECTION_KEYS.size),
+            text =
+                pluralStringResource(
+                    R.plurals.sync_selected_count,
+                    selected.size,
+                    selected.size,
+                    COLLECTION_KEYS.size,
+                ),
             style = MaterialTheme.typography.titleMedium,
         )
         TextButton(onClick = { onSelectedChange(if (allSelected) emptySet() else COLLECTION_KEYS.toSet()) }) {

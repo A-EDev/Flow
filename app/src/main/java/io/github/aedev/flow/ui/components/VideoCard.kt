@@ -108,11 +108,12 @@ private fun VideoCollaborator.hasChannelCollaboratorSignal(): Boolean =
 internal fun List<VideoCollaborator>.displayCollaboratorChannelName(
     fallback: String,
     moreCollaboratorsText: String? = null,
+    conjunction: String,
 ): String {
     val names = map { it.name }.filter { it.isNotBlank() }
     return when {
         names.size > 2 && moreCollaboratorsText != null -> moreCollaboratorsText
-        names.size > 1 -> names.joinToString(" and ")
+        names.size > 1 -> names.joinToString(" $conjunction ")
         else -> fallback
     }
 }
@@ -129,8 +130,9 @@ internal fun rememberCollaboratorChannelDisplayName(
             firstName,
             (collaborators.size - 1).coerceAtLeast(0),
         )
-    return remember(fallback, collaborators, compactName) {
-        collaborators.displayCollaboratorChannelName(fallback, compactName)
+    val conjunction = stringResource(R.string.conjunction_and)
+    return remember(fallback, collaborators, compactName, conjunction) {
+        collaborators.displayCollaboratorChannelName(fallback, compactName, conjunction)
     }
 }
 
@@ -333,7 +335,7 @@ fun VideoCardHorizontal(
                                 displayDate,
                             )
                         } else {
-                            "$displayChannelName · $displayDate"
+                            stringResource(R.string.video_metadata_short_template, displayChannelName, displayDate)
                         },
                     style = MaterialTheme.typography.bodySmall,
                     color =
@@ -576,7 +578,7 @@ fun VideoCardFullWidth(
                                 displayDate,
                             )
                         } else {
-                            "$displayChannelName · $displayDate"
+                            stringResource(R.string.video_metadata_short_template, displayChannelName, displayDate)
                         },
                     style = MaterialTheme.typography.bodySmall,
                     color =

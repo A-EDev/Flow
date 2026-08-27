@@ -599,13 +599,14 @@ private fun HistoryVideoCard(
                 emptyList()
             }
     }
+    val conjunction = stringResource(R.string.conjunction_and)
     val displayChannelName =
-        remember(entry.channelName, resolvedCollaborators) {
+        remember(entry.channelName, resolvedCollaborators, conjunction) {
             resolvedCollaborators
                 .map { it.name }
                 .filter { it.isNotBlank() }
                 .takeIf { it.size > 1 }
-                ?.joinToString(" and ")
+                ?.joinToString(" $conjunction ")
                 ?: entry.channelName
         }
 

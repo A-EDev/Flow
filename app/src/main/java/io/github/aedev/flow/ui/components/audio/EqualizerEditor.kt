@@ -75,7 +75,10 @@ fun EqualizerEditor(modifier: Modifier = Modifier) {
     }
 
     // Any manual edit becomes the live "Custom" curve — applied to the players and persisted.
-    fun pushCustom(newBands: List<ParametricEQBand> = bands, newPreamp: Float = preamp) {
+    fun pushCustom(
+        newBands: List<ParametricEQBand> = bands,
+        newPreamp: Float = preamp,
+    ) {
         bands = newBands
         preamp = newPreamp
         AudioEffectsController.setCustomEq(ParametricEQ(newPreamp.toDouble(), newBands))
@@ -98,20 +101,27 @@ fun EqualizerEditor(modifier: Modifier = Modifier) {
                             AudioEffectsController.availablePresetNames().forEach { presetName ->
                                 DropdownMenuItem(
                                     text = { Text(presetName) },
-                                    trailingIcon = if (AudioEffectsController.isCustomPreset(presetName)) {
-                                        {
-                                            IconButton(
-                                                onClick = { AudioEffectsController.deleteCustomPreset(presetName) },
-                                                modifier = Modifier.size(24.dp)
-                                            ) {
-                                                Icon(Icons.Default.Delete, stringResource(R.string.delete), modifier = Modifier.size(16.dp))
+                                    trailingIcon =
+                                        if (AudioEffectsController.isCustomPreset(presetName)) {
+                                            {
+                                                IconButton(
+                                                    onClick = { AudioEffectsController.deleteCustomPreset(presetName) },
+                                                    modifier = Modifier.size(24.dp),
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Delete,
+                                                        contentDescription = stringResource(R.string.delete),
+                                                        modifier = Modifier.size(16.dp),
+                                                    )
+                                                }
                                             }
-                                        }
-                                    } else null,
+                                        } else {
+                                            null
+                                        },
                                     onClick = {
                                         AudioEffectsController.setEqProfile(presetName)
                                         expanded = false
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -124,7 +134,7 @@ fun EqualizerEditor(modifier: Modifier = Modifier) {
                     value = bassBoost,
                     onValueChange = { AudioEffectsController.setBassBoost(it) },
                     valueRange = 0f..15f,
-                    steps = 15
+                    steps = 15,
                 )
             }
         }
@@ -147,7 +157,7 @@ fun EqualizerEditor(modifier: Modifier = Modifier) {
             Slider(
                 value = preamp,
                 onValueChange = { pushCustom(newPreamp = it) },
-                valueRange = -20f..20f
+                valueRange = -20f..20f,
             )
         }
 
@@ -159,7 +169,7 @@ fun EqualizerEditor(modifier: Modifier = Modifier) {
                 },
                 onRemove = {
                     pushCustom(newBands = bands.toMutableList().also { it.removeAt(index) })
-                }
+                },
             )
         }
     }
@@ -169,7 +179,7 @@ fun EqualizerEditor(modifier: Modifier = Modifier) {
             onSave = { name ->
                 if (AudioEffectsController.saveCustomPreset(name)) showSaveDialog = false
             },
-            onDismiss = { showSaveDialog = false }
+            onDismiss = { showSaveDialog = false },
         )
     }
 }
@@ -177,7 +187,7 @@ fun EqualizerEditor(modifier: Modifier = Modifier) {
 @Composable
 private fun SavePresetDialog(
     onSave: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
     AlertDialog(
@@ -188,7 +198,7 @@ private fun SavePresetDialog(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text(stringResource(R.string.label_preset_name)) },
-                singleLine = true
+                singleLine = true,
             )
         },
         confirmButton = {
@@ -200,7 +210,7 @@ private fun SavePresetDialog(
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.cancel))
             }
-        }
+        },
     )
 }
 
@@ -208,11 +218,11 @@ private fun SavePresetDialog(
 private fun BandControl(
     band: ParametricEQBand,
     onUpdate: (ParametricEQBand) -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -228,34 +238,53 @@ private fun BandControl(
 
             if (band.enabled) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("F", fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp), fontSize = 12.sp)
+                    Text(
+                        text = stringResource(R.string.equalizer_frequency_label),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(20.dp),
+                        fontSize = 12.sp,
+                    )
                     Slider(
                         value = freqToLog(band.frequency),
                         onValueChange = { onUpdate(band.copy(frequency = logToFreq(it))) },
                         valueRange = 0f..1f,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
-                    Text(stringResource(R.string.template_freq, band.frequency.roundToInt()), modifier = Modifier.width(50.dp), fontSize = 12.sp)
+                    Text(
+                        stringResource(R.string.template_freq, band.frequency.roundToInt()),
+                        modifier = Modifier.width(50.dp),
+                        fontSize = 12.sp,
+                    )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("G", fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp), fontSize = 12.sp)
+                    Text(
+                        text = stringResource(R.string.equalizer_gain_label),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(20.dp),
+                        fontSize = 12.sp,
+                    )
                     Slider(
                         value = band.gain.toFloat(),
                         onValueChange = { onUpdate(band.copy(gain = it.toDouble())) },
                         valueRange = -15f..15f,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     Text(stringResource(R.string.template_gain, band.gain), modifier = Modifier.width(50.dp), fontSize = 12.sp)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Q", fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp), fontSize = 12.sp)
+                    Text(
+                        text = stringResource(R.string.equalizer_q_label),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(20.dp),
+                        fontSize = 12.sp,
+                    )
                     Slider(
                         value = band.q.toFloat(),
                         onValueChange = { onUpdate(band.copy(q = it.toDouble())) },
                         valueRange = 0.1f..10f,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     Text(stringResource(R.string.template_q, band.q), modifier = Modifier.width(50.dp), fontSize = 12.sp)
                 }
@@ -265,7 +294,10 @@ private fun BandControl(
 }
 
 @Composable
-private fun FilterTypeButton(current: FilterType, onChange: (FilterType) -> Unit) {
+private fun FilterTypeButton(
+    current: FilterType,
+    onChange: (FilterType) -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         TextButton(onClick = { expanded = true }, contentPadding = PaddingValues(0.dp)) {
@@ -275,7 +307,10 @@ private fun FilterTypeButton(current: FilterType, onChange: (FilterType) -> Unit
             FilterType.values().forEach { type ->
                 DropdownMenuItem(
                     text = { Text(type.name) },
-                    onClick = { onChange(type); expanded = false }
+                    onClick = {
+                        onChange(type)
+                        expanded = false
+                    },
                 )
             }
         }
@@ -297,10 +332,11 @@ private fun logToFreq(norm: Float): Double {
 }
 
 // Editing scaffold shown when the active profile has no bands (e.g. Flat).
-private fun defaultEditingBands(): List<ParametricEQBand> = listOf(
-    ParametricEQBand(60.0, 0.0, 1.41, FilterType.LSC),
-    ParametricEQBand(230.0, 0.0, 1.41, FilterType.PK),
-    ParametricEQBand(910.0, 0.0, 1.41, FilterType.PK),
-    ParametricEQBand(3600.0, 0.0, 1.41, FilterType.PK),
-    ParametricEQBand(14000.0, 0.0, 1.41, FilterType.HSC)
-)
+private fun defaultEditingBands(): List<ParametricEQBand> =
+    listOf(
+        ParametricEQBand(60.0, 0.0, 1.41, FilterType.LSC),
+        ParametricEQBand(230.0, 0.0, 1.41, FilterType.PK),
+        ParametricEQBand(910.0, 0.0, 1.41, FilterType.PK),
+        ParametricEQBand(3600.0, 0.0, 1.41, FilterType.PK),
+        ParametricEQBand(14000.0, 0.0, 1.41, FilterType.HSC),
+    )

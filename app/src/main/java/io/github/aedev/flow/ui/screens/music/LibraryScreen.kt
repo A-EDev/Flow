@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -250,7 +251,7 @@ private fun FavoritesTab(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        stringResource(R.string.favorites_count_template, favorites.size),
+                        pluralStringResource(R.plurals.favorites_count_template, favorites.size, favorites.size),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )

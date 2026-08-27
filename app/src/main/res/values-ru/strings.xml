@@ -163,7 +163,6 @@
     <string name="read_more">Читать дальше</string>
     <string name="reply">Ответить</string>
     <string name="hide_replies">Скрыть ответы</string>
-    <string name="view_replies_template">Посмотреть ответы (%1$d)</string>
     <string name="new_update_available">Доступно обновление</string>
     <string name="update_available_template">Версия %1$s уже доступна</string>
     <string name="release_notes">ПРИМЕЧАНИЯ К ВЫПУСКУ</string>
@@ -204,20 +203,14 @@
     <string name="app_name_uppercase">FLOW</string>
     <string name="notification_badge_9_plus">9+</string>
     <string name="personalized_feed">Ваша персональная лента</string>
-    <string name="videos_curated_template">%1$d видео специально для вас</string>
     <string name="import_newpipe_backup">Импорт резервной копии NewPipe</string>
     <string name="importing_from_backup">Импорт подписок из резервной копии NewPipe...</string>
     <string name="search_subscriptions">Поиск в подписках</string>
     <string name="toggle_view_mode">Переключить режим просмотра</string>
     <string name="unsubscribed_from_template">Вы отписались от %1$s</string>
-    <string name="videos_count_template">%1$d видео</string>
-    <string name="playlists_count_template">Плейлистов: %1$d</string>
-    <string name="shorts_count_template">Shorts: %1$d</string>
-    <string name="songs_count_template">Треков: %1$d</string>
     <string name="empty_downloads">Скачанных файлов пока нет</string>
     <string name="play_all">Воспроизвести все</string>
     <string name="remove_from_watch_later">Удалить из «Смотреть позже»</string>
-    <string name="playlist_metadata_template">Плейлист • Ограниченный доступ • %1$d видео</string>
     <string name="explicit">E</string>
     <string name="no_videos_saved">Нет сохраненных видео</string>
     <string name="no_videos_saved_body">Здесь появятся видео для отложенного просмотра</string>
@@ -354,8 +347,6 @@
     <string name="appearance_category_light">Светлые</string>
     <string name="appearance_category_dark">Темные</string>
     <string name="appearance_category_special">Особые</string>
-    <string name="appearance_themes_count_all">Тем: %1$d</string>
-    <string name="appearance_themes_count_filtered">Тем (%2$s): %1$d</string>
     <string name="appearance_applied_toast">Применено: %1$s</string>
     <string name="app_icon_picker_subtitle">Выберите стиль значка. Изменения вступят в силу сразу, а рабочий стол перезапустится.</string>
     <string name="app_icon_picker_warning">Внимание: смена значка использует системный механизм Android, который может временно удалить ярлык приложения с главного экрана. Зажмите свободное место на рабочем столе, чтобы добавить его снова при необходимости.</string>
@@ -665,8 +656,6 @@
     <string name="content_preferences_subtitle">Настройте видимое</string>
     <string name="interests_tab">Предпочтения</string>
     <string name="blocked_tab">Заблокировано</string>
-    <string name="topics_count_template">Тем: %1$d</string>
-    <string name="hidden_count_template">Скрыто: %1$d</string>
     <string name="your_interests_title">Ваши предпочтения</string>
     <string name="your_interests_desc">Выбранные темы помогают Flow лучше рекомендовать контент. Нажмите на темы ниже, чтобы добавить или удалить их.</string>
     <string name="tap_to_remove">Нажмите для удаления</string>
@@ -697,7 +686,6 @@
     <string name="no_groups_yet">Пока нет групп. Создайте группу, чтобы настроить фильтр ленты.</string>
     <string name="search_channels_hint">Поиск каналов…</string>
     <string name="download_all">Скачать все</string>
-    <string name="download_all_confirmation">Скачать %1$d видео? Это может занять много места на устройстве.</string>
     <string name="saved">Сохранено</string>
     <string name="resume">Возобновить</string>
     <string name="filter_oldest">Старые</string>
@@ -769,8 +757,6 @@
     <string name="import_engine_data">Импорт данных движка Flow</string>
     <string name="import_engine_data_desc">Восстановите свой профиль личности ИИ из файла резервной копии</string>
     <string name="error_age_restricted">Контент с возрастными ограничениями</string>
-    <string name="subscriptions_refresh_progress_template">Обновление каналов: %1$d из %2$d</string>
-    <string name="subscriptions_last_refreshed_template">Последнее обновление: %1$s - %2$d видео проверено</string>
     <string name="appearance_role_error">Ошибка</string>
     <string name="appearance_role_on_error">На ошибке</string>
     <string name="appearance_role_outline">Контур</string>
@@ -807,7 +793,6 @@
     <string name="empty_liked_music_body">Здесь появятся понравившиеся вам треки</string>
     <string name="hide_channel_shorts">Скрывать Shorts с этого канала</string>
     <string name="show_channel_shorts">Показывать Shorts с этого канала</string>
-    <string name="likes_count_template">Нравится: %1$d</string>
     <string name="appearance_role_on_primary">На первичном</string>
     <string name="appearance_role_on_secondary">На вторичном</string>
     <string name="appearance_role_on_tertiary">На третичном</string>
@@ -841,10 +826,8 @@
     <string name="proxy_settings_password">Пароль</string>
     <string name="proxy_settings_saved">Настройки прокси сохранены</string>
     <string name="player_settings_shorts_playback_mode_auto_interval">Автопрокрутка через заданное время</string>
-    <string name="player_settings_shorts_playback_mode_auto_interval_summary">Автопрокрутка каждые %1$d сек</string>
     <string name="player_settings_shorts_playback_mode_dialog_title">Режим воспроизведения Shorts</string>
     <string name="player_settings_shorts_playback_mode_dialog_body">Выберите действие по окончании видео Shorts:</string>
-    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d сек</string>
     <string name="player_settings_shorts_playback_mode_loop">Зациклить (повтор текущего Shorts)</string>
     <string name="player_settings_rytd_title">Вернуть дизлайки YouTube</string>
     <string name="player_settings_rytd_subtitle">Получать счетчик дизлайков через сервис Return YouTube Dislike</string>
@@ -863,7 +846,6 @@
     <string name="subtitle_artist">Исполнитель</string>
     <string name="action_view_all">Посмотреть все</string>
     <string name="search_content_description">Поиск</string>
-    <string name="views_count_format">%1$s просмотров</string>
     <string name="unknown_error">Неизвестная ошибка</string>
     <string name="action_retry">Повторить</string>
     <string name="title_browse">Обзор</string>
@@ -966,7 +948,6 @@
     <string name="player_settings_video_codec">Видеокодек по умолчанию</string>
     <string name="sleep_timer_end_of_song">По окончании трека / видео</string>
     <string name="sleep_timer_duration">Продолжительность</string>
-    <string name="sleep_timer_minutes">%1$d мин</string>
     <string name="sleep_timer_min_label">5 мин</string>
     <string name="sleep_timer_max_label">120 мин</string>
     <string name="sleep_timer_unit">мин</string>
@@ -1054,34 +1035,27 @@
     <string name="delete_selected">Удалить выбранное</string>
     <string name="remind_break">Напоминать мне делать перерыв</string>
     <string name="reminder_frequency">Частота напоминаний</string>
-    <string name="every_min_template">Каждые %1$d мин</string>
-    <string name="every_minutes_template">Каждые %1$d мин</string>
     <string name="this_week">На этой неделе</string>
     <string name="confirm">Подтвердить</string>
     <string name="sleep_timer_end_of_media">В конце текущего трека</string>
     <string name="sleep_timer_active_label">Таймер сна активен</string>
     <string name="show_suggestions_subtitle">Показывать подсказки при вводе</string>
     <string name="retention_period_title">Срок хранения</string>
-    <string name="delete_older_than_template">Удалять поисковые запросы старше %1$d дней</string>
     <string name="clear_history_item_title">Очистить историю поиска</string>
     <string name="remove_all_queries">Удалить все поисковые запросы</string>
     <string name="clear_history_dialog_title">Очистить историю поиска?</string>
     <string name="clear_history_dialog_text">Безвозвратно удалить всю историю поиска.</string>
     <string name="choose_history_size">Выберите, сколько поисковых запросов сохранять:</string>
-    <string name="searches_count_template">%1$d поисковых запросов</string>
     <string name="delete_searches_older_than">Удалять запросы старше чем:</string>
     <string name="period_one_week">1 неделя</string>
     <string name="period_one_month">1 месяц</string>
     <string name="period_three_months">3 месяца</string>
     <string name="period_six_months">6 месяцев</string>
     <string name="period_one_year">1 год</string>
-    <string name="days_count_template">%1$d дней</string>
     <string name="import_data_title">Импорт данных</string>
     <string name="import_flow_backup_success">Резервная копия Flow импортирована</string>
     <string name="import_flow_backup_failed_template">Ошибка импорта резервной копии Flow: %1$s</string>
-    <string name="import_newpipe_success_template">Импортировано %1$d подписок из NewPipe</string>
     <string name="import_newpipe_failed_template">Ошибка импорта резервной копии NewPipe: %1$s»</string>
-    <string name="import_youtube_success_template">Импортировано подписок из YouTube: %1$d»</string>
     <string name="import_youtube_failed_template">Ошибка импорта резервной копии YouTube: %1$s»</string>
     <string name="import_flow_backup_item_title">Импорт резервной копии Flow</string>
     <string name="import_flow_backup_desc">Восстановление истории, настроек и подписок из файла резервной копии Flow.</string>
@@ -1106,7 +1080,6 @@
     <string name="parallel_downloading_title">Параллельная загрузка</string>
     <string name="parallel_downloading_subtitle">Загрузка файлов в несколько потоков для максимальной скорости.</string>
     <string name="concurrent_threads_title">Количество потоков</string>
-    <string name="threads_per_download_template">Потоков на загрузку: %1$d</string>
     <string name="performance_optimization_note">Увеличение числа потоков ускоряет загрузку, но может приводить к повышенному расходу батареи и нагреву устройства.</string>
     <string name="location_dialog_subtitle">Выбор места для сохранения скачанных файлов.</string>
     <string name="location_preset_header">Предустановленные папки</string>
@@ -1141,9 +1114,7 @@
     <string name="delete_playlist_dialog_title">Удалить плейлист?</string>
     <string name="onboarding_channels_empty_prompt">Введите название канала для поиска</string>
     <string name="onboarding_channels_no_results">Каналы по запросу «%1$s» не найдены</string>
-    <string name="onboarding_channels_added_count">Добавлено каналов: %1$d</string>
     <string name="onboarding_channels_subscribers">Подписчики: %1$s</string>
-    <string name="onboarding_n_selected">Выбрано: %1$d</string>
     <string name="onboarding_import_failed_template">Ошибка импорта: %1$s</string>
     <string name="onboarding_btn_finish">Завершить</string>
     <string name="onboarding_btn_continue">Продолжить</string>
@@ -1174,7 +1145,6 @@
     <string name="stats_interactions">Взаимодействия</string>
     <string name="stats_topics">Темы</string>
     <string name="empty_bubble_cloud_message">Смотрите видео, чтобы сформировать карту предпочтений!</string>
-    <string name="interactions_level_template">%1$d взаимодействий • Уровень %2$d</string>
     <string name="flow_neural_profile_export_subject">Экспорт нейропрофиля Flow</string>
     <string name="screen_title_music_library">Музыкальная библиотека</string>
     <string name="header_your_collection">Ваша коллекция</string>
@@ -1209,7 +1179,6 @@
     <string name="empty_playlists_subtitle">Создай свой первый плейлист, чтобы собрать любимые треки</string>
     <string name="empty_favorites_title">В избранном пока пусто</string>
     <string name="empty_favorites_subtitle">Нажмите на иконку сердечка у любого трека, чтобы добавить его в избранное</string>
-    <string name="favorites_count_template">Любимых треков: %1$d</string>
     <string name="empty_history_title">Здесь пока нет истории</string>
     <string name="empty_history_subtitle">Начните слушать музыку, чтобы здесь появилась история прослушиваний</string>
     <string name="empty_downloads_title">Здесь пока нет скачанных треков</string>
@@ -1226,7 +1195,6 @@
     <string name="download_status_paused">Приостановлено</string>
     <string name="download_status_failed">Сбой загрузки</string>
     <string name="remove_incomplete_downloads">Удалить незавершенные загрузки</string>
-    <string name="remove_incomplete_downloads_message">Удалить приостановленные, прерванные или незавершенные загрузки (%1$d)? Скачанные треки не будут затронуты.</string>
     <string name="cast_connected">Трансляция</string>
     <string name="cast_disconnected">Трансляция отключена</string>
     <string name="flow_is_up_to_date">Установлена последняя версия Flow!</string>
@@ -1426,7 +1394,6 @@
     <string name="player_settings_queue_autoplay_subtitle">Автоматически включать следующее видео в плейлисте или очереди «Смотреть позже». Когда опция отключена, переключать ролики можно вручную.</string>
     <string name="player_settings_autoplay_countdown_title">Задержка автовоспроизведения</string>
     <string name="player_settings_autoplay_countdown_none">Нет (сразу переключать)</string>
-    <string name="player_settings_autoplay_countdown_seconds_template">%1$d сек</string>
     <string name="player_settings_autoplay_countdown_dialog_body">Показать обратный отсчет перед автоматическим переключением. Во время отсчета можно перезапустить текущий ролик, отменить переход или сразу включить следующий.</string>
     <string name="autoplay_countdown_up_next">Далее</string>
     <string name="autoplay_countdown_next_video">Следующее видео</string>
@@ -1470,7 +1437,6 @@
     <string name="location_badge_recommended">Рекомендовано</string>
     <string name="location_badge_active">Активный</string>
     <string name="select_threads_count_desc">Выберите количество потоков (1-8):</string>
-    <string name="threads_count_label">Количество потоков: %1$d</string>
     <string name="address_copied_toast">Адрес скопирован в буфер обмена</string>
     <string name="donation_address_clip_label">Адрес для пожертвований</string>
     <string name="similar_to">Похоже на</string>
@@ -1495,21 +1461,17 @@
     <string name="playlist_sort_options">Параметры сортировки плейлиста</string>
     <string name="playlist_sort_date_published_newest">Дата публикации (сначала новые)</string>
     <string name="playlist_sort_date_published_oldest">Дата публикации (сначала старые)</string>
-    <string name="remove_selected_videos_title">Удалить %1$d видео?</string>
     <string name="remove_selected_playlist_text">Они будут удалены из этого плейлиста.</string>
     <string name="remove_selected_watch_later_text">Они будут удалены из «Смотреть позже».</string>
     <string name="welcome_to_flow">Добро пожаловать в Flow</string>
     <string name="onboarding_subtitle">Расскажите нам о ваших предпочтениях</string>
     <string name="onboarding_instructions">Выберите как минимум 3 темы для персонализации</string>
-    <string name="selected_with_more_needed_template">Выбрано: %1$d (еще требуется: %2$d)</string>
     <string name="onboarding_interests_title">Что вам нравится?</string>
     <string name="import_music_apps_section_subtitle">Импорт музыкальной библиотеки из других плееров</string>
     <string name="shorts_saved">Short сохранен</string>
     <string name="shorts_unsaved">Short не сохранен</string>
     <string name="max_history_size_title">Максимальный размер истории</string>
-    <string name="currently_searches_template">Сейчас: %1$d поисковых запросов</string>
     <string name="auto_delete_history_title">Автоматическое удаление истории</string>
-    <string name="delete_after_days_template">Удалять через %1$d дней</string>
     <string name="never_delete_automatically">Не удалять автоматически</string>
     <string name="export_data_screen_title">Экспорт данных</string>
     <string name="export_data_section_header">Выберите тип экспорта</string>
@@ -1546,9 +1508,7 @@
     <string name="import_yt_playlist_desc">Импорт плейлиста из CSV-файла YouTube Архиватора (Playlist-&lt;name&gt;.csv).</string>
     <string name="import_yt_playlist">Импорт плейлиста YouTube</string>
     <string name="import_yt_music_playlist">Импорт плейлиста YouTube Music</string>
-    <string name="import_yt_history_success_template">Импортировано записей из истории просмотра YouTube: %1$d</string>
     <string name="import_yt_history_failed_template">Не удалось импортировать историю просмотра: %1$s</string>
-    <string name="import_yt_playlist_success_template">Импортирован плейлист «%1$s» с %2$d видео</string>
     <string name="import_yt_playlist_failed_template">Не удалось импортировать плейлист: %1$s</string>
     <string name="onboarding_backup_restore_section">Резервное копирование и восстановление</string>
     <string name="onboarding_topic_selected">Выбрано</string>
@@ -1593,7 +1553,6 @@
     <string name="diagnostics_no_session_logs">Никаких предупреждений или ошибок в этом сеансе.</string>
     <string name="diagnostics_copied">Отчет скопирован в буфер обмена</string>
     <string name="diagnostics_loading">Чтение журналов…</string>
-    <string name="merge_playlist_success">В «%2$s» добавлено треков: %1$d</string>
     <string name="profile_export_success">Профиль успешно экспортирован</string>
     <string name="profile_export_failed">Экспорт не удался</string>
     <string name="profile_import_success">Профиль успешно импортирован</string>
@@ -1609,9 +1568,7 @@
     <string name="live_chat_empty">Ожидание сообщений…</string>
     <string name="live_chat_show">Показать чат</string>
     <string name="no_watch_data">Данных о просмотрах пока нет</string>
-    <string name="playlist_metadata_private_template">Плейлист • Ограниченный доступ • %1$d видео</string>
     <string name="error_private_video">Видео с ограниченным доступом</string>
-    <string name="playlist_metadata_public_template">Плейлист • Публичный • %1$d видео</string>
     <string name="download_no_compatible_audio">Нет совместимого аудиопотока – загрузка невозможна</string>
     <string name="subtitle_song_prefix">Трек • %1$s</string>
     <string name="recognition_search_history">Поиск распознанных треков</string>
@@ -1653,10 +1610,8 @@
     <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
     <string name="lyrics_provider_lyrics_plus">LyricsPlus</string>
     <string name="currently_blocked">В данный момент заблокировано</string>
-    <string name="topics_blocked_count_plural">Тем: %1$d</string>
     <string name="desc_remove_topic">Удалить %1$s</string>
     <string name="desc_unblock_topic">Разблокировать %1$s</string>
-    <string name="selected_count_template">%1$d выбрано</string>
     <string name="select_videos">Выбор</string>
     <string name="time_management_title">Контроль времени</string>
     <string name="time_management_subtitle">Отслеживайте и контролируйте экранное время</string>
@@ -1710,7 +1665,6 @@
     <string name="channel_memory_subtitle">Косвенные предпочтения из вашей истории просмотра</string>
     <string name="filters_title">Фильтры</string>
     <string name="export_profile_data">Экспорт данных профиля</string>
-    <string name="playlist_footer_template">Треков: %1$d • %2$s</string>
     <string name="year_artist_template">%1$s • %2$s</string>
     <string name="label_explicit">Explicit</string>
     <string name="duration_with_dot_template">• %1$s</string>
@@ -1743,7 +1697,6 @@
     <string name="subtitle_playlist_template">Плейлист • %1$s</string>
     <string name="plays_count_template">• %1$s прослушиваний</string>
     <string name="album_year_template">Альбом • %1$s • %2$s</string>
-    <string name="artist_audience_template">Исполнитель • %1$s слушателей за месяц</string>
     <string name="search_source_template">Поиск: %1$s</string>
     <string name="artist_source_template">Исполнитель: %1$s</string>
     <string name="fullscreen">Полный экран</string>
@@ -1837,7 +1790,6 @@
     <string name="taste_live_affinity">Интерес к стримам</string>
     <string name="taste_live_affinity_detail">Какое количество стримов подходит вашему профилю</string>
     <string name="taste_topic_breadth">Разнообразие тем</string>
-    <string name="taste_topic_breadth_detail">Тем в глобальном векторе: %1$d</string>
     <string name="interest_weights_title">Значимость предпочтений</string>
     <string name="interest_weights_subtitle">Самые значимые темы после проверки испытательного срока и исходных данных</string>
     <string name="interest_weights_empty">Значимость тем еще не рассчитана.</string>
@@ -2149,7 +2101,6 @@
     <string name="ui_version">Версия %1$s</string>
     <string name="update_download_prompt">Доступна новая версия Flow (%1$s). Скачать последнюю версию APK?</string>
     <string name="ui_playlist_empty">Плейлист пуст</string>
-    <string name="ui_downloading_videos">Скачивается %1$d видео…</string>
     <string name="ui_playlist_saved_to_library">Плейлист добавлен в библиотеку</string>
     <string name="ui_playlist_removed_from_library">Плейлист удален из библиотеки</string>
     <string name="ui_download_audio">Скачивание аудио: %1$s кбит/с (%2$s)</string>
@@ -2173,10 +2124,8 @@
     <string name="toast_playlist_deleted">Плейлист удален</string>
     <string name="toast_playlist_renamed">Плейлист переименован</string>
     <string name="toast_starting_playlist_download">Начинается скачивание: %1$s…</string>
-    <string name="toast_downloaded_tracks_from_playlist">Из плейлиста «%2$s» скачано треков: %1$d</string>
     <string name="toast_failed_to_download_playlist">Не удалось скачать плейлист</string>
     <string name="toast_error_downloading_playlist">Ошибка скачивания плейлиста</string>
-    <string name="toast_downloaded_tracks">Скачано треков: %1$d</string>
     <string name="toast_added_to_playlist">Добавлено в плейлист</string>
     <string name="toast_failed_to_add_track">Не удалось добавить трек</string>
     <string name="toast_removed_from_playlist">Удалено из плейлиста</string>
@@ -2193,7 +2142,6 @@
     <string name="notification_download_failed">Сбой скачивания</string>
     <string name="notification_more">Еще %1$d</string>
     <string name="notification_new_videos">Новые видео</string>
-    <string name="notification_new_videos_from_subscriptions">Новых видео в подписках: %1$d</string>
     <string name="notification_update_available">Доступно обновление: %1$s</string>
     <string name="notification_tap_to_update">Нажмите для обновления до последней версии.</string>
     <string name="notification_watch_later_reminder">Напоминание «Смотреть позже»</string>
@@ -2263,7 +2211,6 @@
     <string name="import_manage_backups">Управление резервными копиями Flow</string>
     <string name="import_external_services">Сторонние сервисы</string>
     <string name="import_other_youtube_clients">Импорт из других клиентов YouTube</string>
-    <string name="imported_count">Импорт (%2$s): %1$d</string>
     <string name="imported_successfully">Успешно импортировано: %1$s</string>
     <string name="importing_label">Импорт: %1$s…</string>
     <string name="imported_from_google_takeout">Импортировано из Google Архиватора</string>
@@ -2320,7 +2267,6 @@
     <string name="subscriptions_failed_channels_body">Не удалось загрузить новые видео с этих каналов: %1$s</string>
     <string name="comment_edited">изменено</string>
     <string name="comment_time_edited_template">%1$s (%2$s)</string>
-    <string name="deep_flow_duration_hours">%1$d ч</string>
     <string name="audio_track_original">Оригинал</string>
     <string name="audio_track_dubbed">Дубляж</string>
     <string name="empty_saved_shorts">Нет сохраненных Shorts</string>
@@ -2334,7 +2280,6 @@
     <string name="import_invalid_format">Неподдерживаемый формат – убедитесь, что выбрали корректный файл</string>
     <string name="import_failed_template">Ошибка импорта: %1$s</string>
     <string name="duration_hours_minutes">%1$d ч %2$d мин</string>
-    <string name="duration_minutes">%1$d мин</string>
     <string name="duration_hours_short">%1$dч</string>
     <string name="duration_minutes_short">%1$dмин</string>
     <string name="player_appearance_seek_gesture_title">Жест перемотки</string>
@@ -2377,7 +2322,6 @@
     <string name="sync_receive_option_body">Объединить библиотеку другого устройства с текущей.</string>
     <string name="sync_select_all">Выбрать все</string>
     <string name="sync_select_none">Сбросить выбор</string>
-    <string name="sync_selected_count">Выбрано: %1$d из %2$d</string>
     <string name="sync_collection_playlists_body">Ваши плейлисты, альбомы и отложенные видео.</string>
     <string name="sync_collection_watch_history_body">История просмотра и прогресс воспроизведения.</string>
     <string name="sync_collection_likes_body">«Нравится» и «Не нравится» для видео и музыки.</string>

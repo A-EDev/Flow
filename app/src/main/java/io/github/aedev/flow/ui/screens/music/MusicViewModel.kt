@@ -887,7 +887,7 @@ class MusicViewModel
                             id = localPlaylist.id,
                             title = localPlaylist.name,
                             thumbnailUrl = localPlaylist.thumbnailUrl,
-                            author = "You",
+                            author = context.getString(R.string.you),
                             trackCount = tracks.size,
                             description = localPlaylist.description,
                             tracks = tracks,

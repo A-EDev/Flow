@@ -60,7 +60,6 @@
     <string name="empty_watch_history">Vaatamiste ajalugu on tühi</string>
     <string name="empty_watch_history_body">Sinu vaadatud videod saavad olema siin näha</string>
     <string name="download_all">Laadi kõik alla</string>
-    <string name="download_all_confirmation">Kas laadid alla kõik %1$d videot? See võib hõivata märgatava osa andmeruumist.</string>
     <string name="saved">Salvestatud</string>
     <string name="up_next">ESITAMISEL JÄRGMISENA</string>
     <string name="more_options">Lisavalikud</string>
@@ -143,7 +142,6 @@
     <string name="play_mode_suggestion_title">Esitusrežiimi soovitus</string>
     <string name="play_mode_suggestion_body">Selle video kestus jääb alla 2 minuti. Kas tahaksid kasutada asjakohast esitusvaadet?</string>
     <string name="shorts_player">Lühivideote esitaja</string>
-    <string name="shorts_count_template">%1$d lühivideot</string>
     <string name="tab_shorts">Lühivideod</string>
     <string name="no_shorts_found">Lühivideoid ei leidu</string>
     <string name="content_settings_disable_shorts_player_title">Ära kasuta lühivideote esitajajat</string>
@@ -217,7 +215,6 @@
     <string name="close_player">Sulge meediaesitaja</string>
     <string name="views_template">%1$s vaatamist</string>
     <string name="personalized_feed">Sinu isiklik sisuvoog</string>
-    <string name="videos_curated_template">%1$d videot valitud just sinu jaoks</string>
     <string name="import_newpipe_backup">Impordi NewPipe\'i varukoopia</string>
     <string name="importing_from_backup">Impordin tellimusi NewPipe\'i varukoopiast…</string>
     <string name="search_subscriptions">Otsi tellimusi</string>
@@ -227,17 +224,10 @@
     <string name="edit_group">Muuda gruppi</string>
     <string name="delete_group">Kustuta grupp</string>
     <string name="group_name_label">Grupi nimi</string>
-    <string name="videos_count_template">%1$d videot</string>
-    <string name="playlists_count_template">%1$d esitusloendit</string>
-    <string name="songs_count_template">%1$d lugu</string>
     <string name="empty_downloads">Allalaadimisi veel pole</string>
     <string name="play_all">Esita kõik</string>
     <string name="remove_from_watch_later">Eemalda hilisemate vaatamiste loendist</string>
-    <string name="playlist_metadata_template">Esitusloend • Privaatne • %1$d videot</string>
-    <string name="subscriptions_refresh_progress_template">Uuendan kanaleid: %1$d / %2$d</string>
-    <string name="subscriptions_last_refreshed_template">Viimati uuendatud %1$s - %2$d videot on kontrollitud</string>
     <string name="premiere_date_prefix">Esilinastus %1$s</string>
-    <string name="view_replies_template">Vaata %1$d vastust</string>
     <string name="release_notes">VERSIOONI MÄRKUSED</string>
     <string name="search_channels_hint">Otsi kanaleid…</string>
     <string name="no_videos_saved">Ühtegi videot pole salvestatud</string>

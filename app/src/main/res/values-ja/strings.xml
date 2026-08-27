@@ -36,7 +36,6 @@
     <string name="views_template">%1$s回視聴</string>
     <string name="views_count_short_template">%1$s回視聴</string>
     <string name="artist_views_template">%1$s • %2$s回視聴</string>
-    <string name="views_count_format">%1$s回視聴</string>
     <string name="app_name">Flow</string>
     <string name="history_tab_shorts">ショート</string>
     <string name="library_liked_videos_label">高く評価した動画</string>
@@ -51,7 +50,6 @@
     <string name="like">高評価</string>
     <string name="likes">高評価</string>
     <string name="dislikes">低評価</string>
-    <string name="likes_count_template">高評価 %1$d 件</string>
     <string name="player_settings_rytd_title">Return YouTube Dislike</string>
     <string name="cd_liked">高評価</string>
     <string name="action_like">高評価</string>
@@ -73,7 +71,6 @@
     <string name="filter_popular">人気の動画</string>
     <string name="filter_oldest">古い順</string>
     <string name="channel_sort_latest">新しい順</string>
-    <string name="deep_flow_duration_hours">%1$d 時間</string>
     <string name="notif_interval_6h">6 時間 (デフォルト)</string>
     <string name="notif_interval_12h">12 時間</string>
     <string name="notif_interval_24h">24 時間</string>
@@ -88,7 +85,6 @@
     <string name="deep_flow_duration_24h">24 時間</string>
     <string name="notif_interval_2h">2 時間</string>
     <string name="notif_interval_3h">3 時間</string>
-    <string name="days_count_template">%1$d 日</string>
     <string name="ago">前</string>
     <string name="speed_2x">2 倍速</string>
     <string name="continue_watching_title">続きを見る</string>
@@ -105,15 +101,11 @@
     <string name="playlist_description_optional">説明 (オプション)</string>
     <string name="playlist">再生リスト</string>
     <string name="playlist_visibility_metadata">%1$s • %2$s</string>
-    <string name="playlists_count_template">%1$d 件の再生リスト</string>
-    <string name="playlist_metadata_template">再生リスト • 非公開 • %1$d 本の動画</string>
     <string name="playlist_private">非公開</string>
-    <string name="playlist_metadata_private_template">再生リスト • 非公開 • %1$d 本の動画</string>
     <string name="error_private_video">非公開動画</string>
     <string name="playlist_public">公開</string>
     <string name="make_public_action">公開する</string>
     <string name="make_private_action">非公開にする</string>
-    <string name="playlist_metadata_public_template">再生リスト • 公開 • %1$d 本の動画</string>
     <string name="top_bar_subscriptions_title">登録チャンネル</string>
     <string name="view_all_button_label">すべて</string>
     <string name="no_subscriptions_yet">登録したチャンネルがありません</string>

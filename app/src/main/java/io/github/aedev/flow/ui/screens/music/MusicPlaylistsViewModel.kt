@@ -220,7 +220,12 @@ class MusicPlaylistsViewModel
                         Toast
                             .makeText(
                                 context,
-                                context.getString(R.string.toast_downloaded_tracks_from_playlist, successCount, playlist.name),
+                                context.resources.getQuantityString(
+                                    R.plurals.toast_downloaded_tracks_from_playlist,
+                                    successCount,
+                                    successCount,
+                                    playlist.name,
+                                ),
                                 Toast.LENGTH_LONG,
                             ).show()
                     } else {
@@ -301,7 +306,16 @@ class MusicPlaylistsViewModel
                     successCount = tracks.size
 
                     if (successCount > 0) {
-                        Toast.makeText(context, context.getString(R.string.toast_downloaded_tracks, successCount), Toast.LENGTH_LONG).show()
+                        Toast
+                            .makeText(
+                                context,
+                                context.resources.getQuantityString(
+                                    R.plurals.toast_downloaded_tracks,
+                                    successCount,
+                                    successCount,
+                                ),
+                                Toast.LENGTH_LONG,
+                            ).show()
                     }
                 } catch (e: Exception) {
                     Log.e("MusicViewModel", "Error downloading playlist details", e)
@@ -505,8 +519,9 @@ class MusicPlaylistsViewModel
                         Toast
                             .makeText(
                                 context,
-                                context.getString(
-                                    io.github.aedev.flow.R.string.merge_playlist_success,
+                                context.resources.getQuantityString(
+                                    io.github.aedev.flow.R.plurals.merge_playlist_success,
+                                    tracks.size,
                                     tracks.size,
                                     targetInfo?.name ?: "",
                                 ),

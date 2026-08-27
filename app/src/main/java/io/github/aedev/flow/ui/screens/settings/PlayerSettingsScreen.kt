@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -376,8 +377,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                                 }
 
                                 "auto_interval" -> {
-                                    stringResource(
-                                        R.string.player_settings_shorts_playback_mode_auto_interval_summary,
+                                    pluralStringResource(
+                                        R.plurals.player_settings_shorts_playback_mode_auto_interval_summary,
+                                        shortsAutoScrollSeconds,
                                         shortsAutoScrollSeconds,
                                     )
                                 }
@@ -430,8 +432,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                             if (autoplayCountdownSeconds <= 0) {
                                 stringResource(R.string.player_settings_autoplay_countdown_none)
                             } else {
-                                stringResource(
-                                    R.string.player_settings_autoplay_countdown_seconds_template,
+                                pluralStringResource(
+                                    R.plurals.player_settings_autoplay_countdown_seconds_template,
+                                    autoplayCountdownSeconds,
                                     autoplayCountdownSeconds,
                                 )
                             },
@@ -506,7 +509,7 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Text(
-                                            text = "${speed}x",
+                                            text = stringResource(R.string.playback_speed_multiplier, speed.toString()),
                                             style = MaterialTheme.typography.bodyLarge,
                                             modifier = Modifier.weight(1f),
                                         )
@@ -670,7 +673,12 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                     SettingsClickItem(
                         icon = Icons.Outlined.TouchApp,
                         title = stringResource(R.string.player_settings_double_tap_seek),
-                        subtitle = stringResource(R.string.player_settings_double_tap_seek_subtitle_template, doubleTapSeekSeconds),
+                        subtitle =
+                            pluralStringResource(
+                                R.plurals.player_settings_double_tap_seek_subtitle,
+                                doubleTapSeekSeconds,
+                                doubleTapSeekSeconds,
+                            ),
                         onClick = { showSeekDurationDialog = true },
                     )
                 }
@@ -687,7 +695,12 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                             run {
                                 val enabledCount = lyricsEnabledStates.count { it.value }
                                 val total = registry.providerNames.size
-                                "$enabledCount / $total providers enabled"
+                                pluralStringResource(
+                                    R.plurals.lyrics_providers_enabled,
+                                    enabledCount,
+                                    enabledCount,
+                                    total,
+                                )
                             },
                         onClick = { showLyricsProviderSheet = true },
                     )
@@ -957,8 +970,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                         ) {
                             Text(
                                 text =
-                                    stringResource(
-                                        R.string.player_settings_shorts_auto_scroll_seconds_template,
+                                    pluralStringResource(
+                                        R.plurals.player_settings_shorts_auto_scroll_seconds_template,
+                                        shortsAutoScrollSeconds,
                                         shortsAutoScrollSeconds,
                                     ),
                                 style = MaterialTheme.typography.labelLarge,
@@ -1028,8 +1042,9 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                                     if (seconds == 0) {
                                         stringResource(R.string.player_settings_autoplay_countdown_none)
                                     } else {
-                                        stringResource(
-                                            R.string.player_settings_autoplay_countdown_seconds_template,
+                                        pluralStringResource(
+                                            R.plurals.player_settings_autoplay_countdown_seconds_template,
+                                            seconds,
                                             seconds,
                                         )
                                     },
@@ -1171,7 +1186,12 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = stringResource(R.string.player_settings_double_tap_seek_subtitle_template, seconds),
+                                text =
+                                    pluralStringResource(
+                                        R.plurals.player_settings_double_tap_seek_subtitle,
+                                        seconds,
+                                        seconds,
+                                    ),
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         }

@@ -12,8 +12,6 @@
     <string name="no_subscriptions_yet">තවම දායකත්වයන් නොමැත</string>
     <string name="empty_subscriptions_body">නාලිකා නැරඹීමට දායක වන්න\nනවතම වීඩියෝ නරඹන්න</string>
     <string name="home_refresh_feed">ෆීඩ් එක අලුත් කරන්න</string>
-    <string name="subscriptions_refresh_progress_template">නැවුම් කරමින් %1$d වල %2$d නාලිකා</string>
-    <string name="subscriptions_last_refreshed_template">අවසන් වරට නැවුම් කළේ %1$s-%2$d වීඩියෝ පරීක්ෂා කරන ලදී</string>
     <string name="subscriptions_last_refreshed_time_only_template">අවසන් වරට නැවුම් කළේ %1$s</string>
     <string name="retry">නැවත උත්සාහ කරන්න</string>
     <string name="copy_logs">ලොග් පිටපත් කරන්න</string>
@@ -84,7 +82,6 @@
     <string name="downloaded">බාගත කරන ලද</string>
     <string name="download">බාගත කරන්න</string>
     <string name="download_all">සියල්ල බාගත කරන්න</string>
-    <string name="download_all_confirmation">සියලු %1$dවීඩියෝ බගත කරන්නද ? මෙය සැලකිය යුතු ඉඩක් වැයකරයි.</string>
     <string name="save">සුරකින්න</string>
     <string name="saved">සුරකින ලද</string>
     <string name="playlist_filter_owned">හිමිකාරීත්වය දරන</string>

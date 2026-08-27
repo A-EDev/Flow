@@ -7,8 +7,6 @@
     <string name="no_subscriptions_yet">未訂閲</string>
     <string name="empty_subscriptions_body">訂閲頻道，在此觀看最新影片</string>
     <string name="home_refresh_feed">刷新訂閱</string>
-    <string name="subscriptions_refresh_progress_template">正在刷新 %1$d 個頻道（共 %2$d 個）</string>
-    <string name="subscriptions_last_refreshed_template">最後刷新 %1$s ——已檢查 %2$d 個影片</string>
     <string name="retry">重試</string>
     <string name="shorts">Shorts</string>
     <string name="failed_to_load_channel">頻道加載失敗</string>
@@ -60,7 +58,6 @@
     <string name="downloaded">已下載</string>
     <string name="download">下載</string>
     <string name="download_all">下載全部</string>
-    <string name="download_all_confirmation">確定下載全部 %1$d 條影片？這會佔用不少儲存空間。</string>
     <string name="save">儲存</string>
     <string name="saved">已儲存</string>
     <string name="add_to_library">加入媒體庫</string>

@@ -220,7 +220,7 @@ fun DownloadQualityDialog(
                                             android.widget.Toast
                                                 .makeText(
                                                     context,
-                                                    "No compatible audio stream — download cannot proceed",
+                                                    context.getString(R.string.download_no_compatible_audio),
                                                     android.widget.Toast.LENGTH_LONG,
                                                 ).show()
                                             return@downloadVideo
@@ -316,7 +316,8 @@ fun DownloadQualityDialog(
 
                         items(audioStreams) { audioStream ->
                             val bitrate = DownloadStreamHelpers.audioBitrateKbps(audioStream)
-                            val audioFormat = DownloadStreamHelpers.audioFormatLabel(audioStream)
+                            val audioFormat =
+                                DownloadStreamHelpers.audioFormatLabel(audioStream, stringResource(R.string.audio_format_unknown))
                             val audioUrl = audioStream.getContent().takeIf { it.isNotBlank() }
                             val languageLabel = DownloadStreamHelpers.audioLanguageLabel(audioStream)
                             val trackTypeLabel =
@@ -385,7 +386,9 @@ fun DownloadQualityDialog(
                                             fontWeight = FontWeight.SemiBold,
                                         )
                                         Text(
-                                            text = listOfNotNull(languageLabel, trackTypeLabel, "Audio only").joinToString(" • "),
+                                            text =
+                                                listOfNotNull(languageLabel, trackTypeLabel, stringResource(R.string.ui_audio_only))
+                                                    .joinToString(" • "),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )

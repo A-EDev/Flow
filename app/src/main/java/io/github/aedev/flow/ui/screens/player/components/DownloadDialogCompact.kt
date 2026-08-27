@@ -89,6 +89,7 @@ fun DownloadQualityDialogCompact(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val audioFormatUnknownLabel = stringResource(R.string.audio_format_unknown)
     val prefs = remember(context) { PlayerPreferences(context) }
     val preferredLang by prefs.preferredAudioLanguage.collectAsState(initial = "")
     val defaultThreads by prefs.downloadThreads.collectAsState(initial = 3)
@@ -166,7 +167,7 @@ fun DownloadQualityDialogCompact(
     }
     var selectedAudioIndex by remember(audioStreams, lastAudioLabel) {
         mutableStateOf(
-            audioStreams.indexOfFirst { audioOptionLabel(it) == lastAudioLabel }.takeIf { it >= 0 }
+            audioStreams.indexOfFirst { audioOptionLabel(it, audioFormatUnknownLabel) == lastAudioLabel }.takeIf { it >= 0 }
                 ?: audioStreams.indices.maxByOrNull { DownloadStreamHelpers.audioBitrateKbps(audioStreams[it]) }
                 ?: 0,
         )
@@ -192,9 +193,14 @@ fun DownloadQualityDialogCompact(
                 audioMimeType = stream.format?.mimeType,
                 threads = threads,
             )
-            Toast.makeText(context, context.getString(R.string.downloading_template, audioOptionLabel(stream)), Toast.LENGTH_SHORT).show()
+            Toast
+                .makeText(
+                    context,
+                    context.getString(R.string.downloading_template, audioOptionLabel(stream, audioFormatUnknownLabel)),
+                    Toast.LENGTH_SHORT,
+                ).show()
             downloadPrefsScope.launch {
-                prefs.setLastDownloadAudioChoice(audioOptionLabel(stream))
+                prefs.setLastDownloadAudioChoice(audioOptionLabel(stream, audioFormatUnknownLabel))
                 prefs.setDownloadThreads(threads)
             }
             onDismiss()
@@ -350,10 +356,10 @@ fun DownloadQualityDialogCompact(
                 } else if (isAudioMode && hasAudio) {
                     DownloadDropdownRow(
                         label = stringResource(R.string.download_audio),
-                        value = audioStreams.getOrNull(selectedAudioIndex)?.let { audioOptionLabel(it) } ?: "",
+                        value = audioStreams.getOrNull(selectedAudioIndex)?.let { audioOptionLabel(it, audioFormatUnknownLabel) } ?: "",
                         options =
                             audioStreams.mapIndexed { index, stream ->
-                                audioOptionLabel(stream) to { selectedAudioIndex = index }
+                                audioOptionLabel(stream, audioFormatUnknownLabel) to { selectedAudioIndex = index }
                             },
                     )
                 } else {
@@ -418,8 +424,11 @@ fun DownloadQualityDialogCompact(
     }
 }
 
-private fun audioOptionLabel(stream: AudioStream): String {
-    val format = DownloadStreamHelpers.audioFormatLabel(stream)
+private fun audioOptionLabel(
+    stream: AudioStream,
+    unknownLabel: String,
+): String {
+    val format = DownloadStreamHelpers.audioFormatLabel(stream, unknownLabel)
     val bitrate = DownloadStreamHelpers.audioBitrateKbps(stream)
     val lang = DownloadStreamHelpers.audioLanguageLabel(stream)
     val base = "$format · ${bitrate}kbps"

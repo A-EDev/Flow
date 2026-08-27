@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -82,7 +83,12 @@ fun SearchHistorySettingsScreen(onNavigateBack: () -> Unit) {
                     SettingsItem(
                         icon = Icons.Outlined.Storage,
                         title = stringResource(R.string.max_history_size_title),
-                        subtitle = stringResource(R.string.currently_searches_template, maxHistorySize),
+                        subtitle =
+                            pluralStringResource(
+                                R.plurals.currently_searches_template,
+                                maxHistorySize,
+                                maxHistorySize,
+                            ),
                         onClick = { showHistorySizeDialog = true },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -91,8 +97,9 @@ fun SearchHistorySettingsScreen(onNavigateBack: () -> Unit) {
                         title = stringResource(R.string.auto_delete_history_title),
                         subtitle =
                             if (autoDeleteHistory) {
-                                stringResource(
-                                    R.string.delete_after_days_template,
+                                pluralStringResource(
+                                    R.plurals.delete_after_days_template,
+                                    historyRetentionDays,
                                     historyRetentionDays,
                                 )
                             } else {
@@ -110,7 +117,12 @@ fun SearchHistorySettingsScreen(onNavigateBack: () -> Unit) {
                         SettingsItem(
                             icon = Icons.Outlined.Schedule,
                             title = stringResource(R.string.retention_period_title),
-                            subtitle = stringResource(R.string.delete_older_than_template, historyRetentionDays),
+                            subtitle =
+                                pluralStringResource(
+                                    R.plurals.delete_older_than_template,
+                                    historyRetentionDays,
+                                    historyRetentionDays,
+                                ),
                             onClick = { showRetentionDaysDialog = true },
                         )
                     }
@@ -165,7 +177,7 @@ fun SearchHistorySettingsScreen(onNavigateBack: () -> Unit) {
                         ) {
                             RadioButton(selected = selectedSize == size, onClick = { selectedSize = size })
                             Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.searches_count_template, size))
+                            Text(pluralStringResource(R.plurals.searches_count_template, size, size))
                         }
                     }
                 }
@@ -212,7 +224,7 @@ fun SearchHistorySettingsScreen(onNavigateBack: () -> Unit) {
                                     90 -> stringResource(R.string.period_three_months)
                                     180 -> stringResource(R.string.period_six_months)
                                     365 -> stringResource(R.string.period_one_year)
-                                    else -> stringResource(R.string.days_count_template, days)
+                                    else -> pluralStringResource(R.plurals.days_count_template, days, days)
                                 },
                             )
                         }

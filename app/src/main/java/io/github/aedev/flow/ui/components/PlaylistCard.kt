@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -113,7 +114,7 @@ private fun PlaylistCardContent(
                 it,
                 stringResource(R.string.playlist),
             )
-        } ?: stringResource(R.string.videos_count_template, videoCount)
+        } ?: pluralStringResource(R.plurals.videos_count_template, videoCount, videoCount)
 
     if (layout == PlaylistCardLayout.SHELF) {
         Column(

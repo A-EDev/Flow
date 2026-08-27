@@ -39,7 +39,7 @@ object BadgeIcon {
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Text(
-                text = "E",
+                text = stringResource(R.string.explicit_badge),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 fontSize = 9.sp,
