@@ -128,7 +128,11 @@ internal object NeuroBenchmark {
             topicAffinities = affinities,
             topicEvidence = evidence,
             channelScores = channelScores,
-            preferredTopics = universe.groups.filter { it.strength >= 0.40 }.map { it.topics[0] }.toSet(),
+            preferredTopics =
+                universe.groups
+                    .filter { it.strength >= 0.40 }
+                    .map { it.topics[0] }
+                    .toSet(),
             totalInteractions = 200,
             hasCompletedOnboarding = true,
         )
@@ -239,13 +243,23 @@ internal object NeuroBenchmark {
         val discovery = NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer)
         val catalog = Catalog(universe, seed)
         var brain = brainFor(universe)
-        val userSubs = setOf(universe.groups.first().channels.first())
+        val userSubs =
+            setOf(
+                universe.groups
+                    .first()
+                    .channels
+                    .first(),
+            )
         val preferredLemmas = brain.preferredTopics.map { tokenizer.normalizeLemma(it) }.toSet()
 
         val feedHistory = mutableMapOf<String, FeedEntry>()
         val watchHistory = mutableMapOf<String, WatchEntry>()
         val servedSoFar = mutableSetOf<String>()
-        val weakGroups = universe.groups.filter { it.strength < 0.30 }.map { it.name }.toSet()
+        val weakGroups =
+            universe.groups
+                .filter { it.strength < 0.30 }
+                .map { it.name }
+                .toSet()
         val servedGroupsCumulative = mutableSetOf<String>()
 
         val perRefresh = mutableListOf<RefreshMetrics>()
@@ -313,7 +327,10 @@ internal object NeuroBenchmark {
             }
             feedIds
                 .firstOrNull { id ->
-                    universe.groups.firstOrNull { it.name == groupOf(id) }?.strength?.let { it >= 0.40 } == true &&
+                    universe.groups
+                        .firstOrNull { it.name == groupOf(id) }
+                        ?.strength
+                        ?.let { it >= 0.40 } == true &&
                         id !in watchHistory
                 }?.let { watchedId -> watchHistory[watchedId] = WatchEntry(0.9f, now) }
 
@@ -405,7 +422,13 @@ internal object NeuroBenchmark {
             serving.perRefresh.forEach { m ->
                 appendLine(
                     "  %7d | %6.2f | %8.2f | %5.3f | %5.3f | %5.3f | %s".format(
-                        m.refresh, m.repeatRate, m.groupCoverage, m.ndcg, m.ild, m.concentration, m.servedGroups,
+                        m.refresh,
+                        m.repeatRate,
+                        m.groupCoverage,
+                        m.ndcg,
+                        m.ild,
+                        m.concentration,
+                        m.servedGroups,
                     ),
                 )
             }
