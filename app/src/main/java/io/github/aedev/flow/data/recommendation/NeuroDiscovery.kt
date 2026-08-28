@@ -314,7 +314,7 @@ internal class NeuroDiscovery(
         val base = NeuroScoring.stripDomainTag(topic)
         return base.length < 6 ||
             base in ambiguousQueryWords ||
-            base in tokenizer.POLYSEMOUS_WORDS
+            base in tokenizer.polysemousWords
     }
 
     /**

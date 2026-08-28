@@ -266,6 +266,7 @@ class FlowNeuroEngine(
     private val tokenizer = NeuroTokenizer()
     private val storage = NeuroStorage(appContext)
     private val contentStore = NeuroContentStore(appContext)
+    private val playerPreferences by lazy { PlayerPreferences(appContext) }
     private val discovery by lazy {
         NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer)
     }
@@ -1637,7 +1638,7 @@ class FlowNeuroEngine(
         percentWatched: Float = 0f,
     ) {
         // Deep Flow mode: freeze vector learning while active and not yet expired
-        if (PlayerPreferences(appContext).isDeepFlowCurrentlyActive()) return
+        if (playerPreferences.isDeepFlowCurrentlyActive()) return
 
         val idfSnapshot = brainMutex.withLock { takeIdfSnapshot() }
         val videoVector = getOrExtractFeatures(video, idfSnapshot)
