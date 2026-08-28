@@ -161,6 +161,8 @@ class FlowNeuroEngine(
 
         suspend fun getRecentlyShownVideoIds(withinHours: Long = 48L): Set<String> = requireInstance().getRecentlyShownVideoIds(withinHours)
 
+        suspend fun getExcludedChannelIds(): Set<String> = requireInstance().getExcludedChannelIds()
+
         suspend fun completeOnboarding(selectedTopics: Set<String>) = requireInstance().completeOnboarding(selectedTopics)
 
         suspend fun completeOnboarding(
@@ -1300,6 +1302,16 @@ class FlowNeuroEngine(
             selected
         }
 
+    /** Blocked + actively suppressed channels, for assembly paths that bypass rank(). */
+    suspend fun getExcludedChannelIds(): Set<String> =
+        brainMutex.withLock {
+            val cutoff = System.currentTimeMillis() - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
+            currentUserBrain.blockedChannels +
+                currentUserBrain.suppressedChannels
+                    .filter { (_, ts) -> ts > cutoff }
+                    .keys
+        }
+
     /** Feed-history ids shown within the window — for assembly-time exclusion sets. */
     suspend fun getRecentlyShownVideoIds(withinHours: Long = 48L): Set<String> =
         brainMutex.withLock {
@@ -1397,33 +1409,13 @@ class FlowNeuroEngine(
                     .filter { (_, ts) -> ts > channelSuppressionCutoff }
                     .keys
 
-            // Precompute blocked topic expansion ONCE
-            val expandedBlockedKeywords: Set<String> =
-                brain.blockedTopics.flatMapTo(
-                    mutableSetOf(),
-                ) { blocked ->
-                    val blockedLower = blocked.lowercase()
-                    val matchingCategory =
-                        NeuroTopicCatalog.TOPIC_CATEGORIES.find { cat ->
-                            cat.topics.any { it.lowercase() == blockedLower }
-                        }
-                    val keywords =
-                        if (matchingCategory != null) {
-                            matchingCategory.topics
-                                .mapTo(mutableListOf()) { it.lowercase() }
-                                .also { it.add(blockedLower) }
-                        } else {
-                            mutableListOf(blockedLower)
-                        }
-                    keywords
-                }
-
-            val expandedWithLemmas: Set<String> =
-                expandedBlockedKeywords.flatMapTo(
-                    mutableSetOf(),
-                ) { keyword ->
-                    setOf(keyword, tokenizer.normalizeLemma(keyword))
-                }
+            // Precompute blocked matchers ONCE (precision blocking — see NeuroScoring).
+            val blockedMatchers =
+                NeuroScoring.buildBlockedMatchers(
+                    brain.blockedTopics,
+                    NeuroTopicCatalog.TOPIC_CATEGORIES,
+                    tokenizer::normalizeLemma,
+                )
 
             // ── Feed overlap ratio (for adaptive jitter + feed history penalty) ──
             val feedOverlapRatio =
@@ -1448,12 +1440,12 @@ class FlowNeuroEngine(
                     if (brain.blockedChannels.contains(video.channelId)) {
                         return@filter false
                     }
-                    val titleLower = video.title.lowercase()
-                    val channelLower = video.channelName.lowercase()
-
-                    !expandedWithLemmas.any { blocked ->
-                        titleLower.contains(blocked) || channelLower.contains(blocked)
-                    }
+                    !NeuroScoring.isBlockedByText(
+                        video.title,
+                        video.channelName,
+                        blockedMatchers,
+                        tokenizer::normalizeLemma,
+                    )
                 }
 
             if (filtered.isEmpty()) return@withContext emptyList()
@@ -1481,9 +1473,12 @@ class FlowNeuroEngine(
                                 .sortedByDescending { it.value }
                                 .take(3)
                                 .map { it.key }
+                        // Token-precise: "art" must block "art", not "startup".
                         !topVideoTopics.any { topic ->
+                            val base = NeuroScoring.stripDomainTag(topic)
+                            val parts = base.split(' ')
                             blockedTopicLemmas.any { blocked ->
-                                topic.contains(blocked) || blocked.contains(topic)
+                                base == blocked || parts.contains(blocked)
                             }
                         }
                     }
@@ -1557,12 +1552,25 @@ class FlowNeuroEngine(
                     feedOverlapRatio,
                 )
 
+            // Score first, then jitter RELATIVE to the live score distribution.
+            // Absolute jitter (0.12-0.20) frequently exceeded typical post-penalty
+            // scores, degrading ranking to a shuffle exactly when the feed was stale.
+            val baseScored =
+                vectorFiltered.map { (video, videoVector) ->
+                    Triple(video, videoVector, NeuroScoring.scoreCandidate(video, videoVector, scoringParams))
+                }
+            val medianScore =
+                baseScored
+                    .map { it.third }
+                    .sorted()
+                    .let { sortedScores ->
+                        if (sortedScores.isEmpty()) 0.0 else sortedScores[sortedScores.size / 2]
+                    }.coerceAtLeast(0.05)
+            val jitterUnit = jitterMagnitude * medianScore
             val scored =
-                vectorFiltered
-                    .map { (video, videoVector) ->
-                        val base = NeuroScoring.scoreCandidate(video, videoVector, scoringParams)
-                        val jitter = random.nextDouble() * jitterMagnitude
-                        ScoredVideo(video, base + jitter, videoVector)
+                baseScored
+                    .map { (video, videoVector, base) ->
+                        ScoredVideo(video, base + random.nextDouble() * jitterUnit, videoVector)
                     }.toMutableList()
 
             // Apply diversity reranking

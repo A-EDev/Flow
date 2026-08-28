@@ -26,6 +26,9 @@ internal object NeuroScoring {
     // ── Scoring Weight Constants ──
     const val SUBSCRIPTION_BOOST = 0.15
     const val SUBSCRIPTION_BOOST_MAX = 0.30
+
+    /** Channel-boredom multiplier at the 0.5 starting EMA — the neutral point. */
+    const val CHANNEL_SIGNAL_NEUTRAL = 0.7801
     const val SERENDIPITY_BONUS = 0.10
     const val CURIOSITY_GAP_BONUS = 0.10
     const val NOT_INTERESTED_CHANNEL_FLOOR = 0.20
@@ -51,8 +54,10 @@ internal object NeuroScoring {
     const val COLD_START_ENGAGEMENT_FLOOR_MIN_VIEWS = 10_000L
     const val BINGE_THRESHOLD = 20
     const val BINGE_NOVELTY_FACTOR = 0.15
-    const val JITTER_COLD_START = 0.20
-    const val JITTER_NORMAL = 0.02
+
+    // Jitter is a FRACTION of the median candidate score (see rank()), not absolute.
+    const val JITTER_COLD_START = 0.40
+    const val JITTER_NORMAL = 0.05
     const val TITLE_SIMILARITY_STRICT = 0.55
     const val TITLE_SIMILARITY_RELAXED = 0.60
     const val CLASSIC_VIEW_THRESHOLD = 5_000_000L
@@ -328,14 +333,15 @@ internal object NeuroScoring {
             signal += (subBoost * freshnessMultiplier).coerceAtMost(SUBSCRIPTION_BOOST_MAX)
         }
 
-        // V9.3 Fix 4: Sigmoid channel boredom
+        // V9.3 Fix 4 + V11 recenter: sigmoid channel boredom, neutral at the EMA
+        // start (0.5). The old form subtracted 1.0, which handed EVERY known
+        // channel an additive penalty (-0.22 at the 0.5 starting EMA) and made
+        // familiar channels rank below never-seen ones for ~20 interactions.
         if (brain.channelScores.containsKey(video.channelId)) {
             val channelClickRate = brain.channelScores[video.channelId] ?: 0.5
-            // Sigmoid: 0.01→0.10x, 0.20→0.25x, 0.35→0.52x, 0.50→0.77x, 0.70→0.93x
             val channelQuality = 1.0 / (1.0 + exp(-8.0 * (channelClickRate - 0.35)))
             val channelMultiplier = 0.05 + 0.95 * channelQuality
-            // Encode as additive penalty/bonus relative to 1.0
-            signal += (channelMultiplier - 1.0)
+            signal += (channelMultiplier - CHANNEL_SIGNAL_NEUTRAL)
         }
 
         return signal
@@ -632,6 +638,69 @@ internal object NeuroScoring {
         return basePenalty + (1.0 - basePenalty) * (1.0 - scarcityRelaxation)
     }
 
+    // ── Precision topic blocking ──
+
+    data class BlockedMatchers(
+        val phrases: Set<String>,
+        val tokens: Set<String>,
+    ) {
+        fun isEmpty(): Boolean = phrases.isEmpty() && tokens.isEmpty()
+    }
+
+    /**
+     * A block is precise: the term and its lemma, token-matched. Expanding to a
+     * whole catalog category happens ONLY when the user blocked the category
+     * NAME itself — blocking "Fortnite" must not silently erase all of Gaming.
+     */
+    fun buildBlockedMatchers(
+        blockedTopics: Set<String>,
+        categories: List<TopicCategory>,
+        normalizeLemma: (String) -> String,
+    ): BlockedMatchers {
+        val phrases = mutableSetOf<String>()
+        val tokens = mutableSetOf<String>()
+
+        fun addTerm(term: String) {
+            val lower = term.lowercase().trim()
+            if (lower.isEmpty()) return
+            if (lower.contains(' ')) {
+                phrases += lower
+            } else {
+                tokens += lower
+                tokens += normalizeLemma(lower)
+            }
+        }
+
+        blockedTopics.forEach { blocked ->
+            val blockedLower = blocked.lowercase()
+            categories
+                .find { it.name.lowercase() == blockedLower }
+                ?.topics
+                ?.forEach(::addTerm)
+            addTerm(blockedLower)
+        }
+        return BlockedMatchers(phrases, tokens)
+    }
+
+    /** Token-boundary matching: blocking "art" hides "art", never "startup". */
+    fun isBlockedByText(
+        title: String,
+        channelName: String,
+        matchers: BlockedMatchers,
+        normalizeLemma: (String) -> String,
+    ): Boolean {
+        if (matchers.isEmpty()) return false
+        val titleLower = title.lowercase()
+        val channelLower = channelName.lowercase()
+        if (matchers.phrases.any { titleLower.contains(it) || channelLower.contains(it) }) return true
+        if (matchers.tokens.isEmpty()) return false
+        return sequenceOf(titleLower, channelLower)
+            .flatMap { it.splitToSequence(' ', '-', '_', '|', ',', '.', ':', '(', ')', '[', ']', '#') }
+            .map { it.trim { c -> !c.isLetterOrDigit() } }
+            .filter { it.length > 1 }
+            .any { token -> token in matchers.tokens || normalizeLemma(token) in matchers.tokens }
+    }
+
     /**
      * Hard seen-gate: industry practice (Twitter home-mixer's "previously seen
      * removal") treats recent repeats as a FILTER, not a score penalty — a
@@ -698,10 +767,11 @@ internal object NeuroScoring {
     }
 
     /**
-     * Calculates adaptive jitter based on feed staleness.
-     * When most candidates were recently shown, increases randomization
-     * to break deterministic ordering. When fresh candidates arrive,
-     * drops back to minimal jitter to let quality ranking dominate.
+     * Adaptive jitter based on feed staleness, expressed as a FRACTION of the
+     * median candidate score (the caller multiplies). When most candidates were
+     * recently shown, randomization rises to break deterministic ordering; with
+     * fresh candidates it drops so quality ranking dominates. Relative scaling
+     * keeps noise proportional — it can no longer drown the signal outright.
      */
     fun calculateAdaptiveJitter(
         totalInteractions: Int,
@@ -713,11 +783,11 @@ internal object NeuroScoring {
             }
 
             feedOverlapRatio > 0.5 -> {
-                0.12
+                0.25
             }
 
             feedOverlapRatio > 0.2 -> {
-                0.06
+                0.12
             }
 
             else -> {

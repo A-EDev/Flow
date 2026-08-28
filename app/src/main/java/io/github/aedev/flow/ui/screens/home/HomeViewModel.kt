@@ -1096,7 +1096,16 @@ class HomeViewModel
 
                     // Filter to regular videos for the main feed
                     val watched = watchedVideoIds.value
-                    val subsPool = rawSubs.filterValid().filterWatched(watched).enrichAvatars()
+                    // The fresh-subs lane bypasses rank(): exclude blocked/suppressed
+                    // channels here so they cannot resurface through it.
+                    val excludedChannels =
+                        runCatching { FlowNeuroEngine.getExcludedChannelIds() }.getOrDefault(emptySet())
+                    val subsPool =
+                        rawSubs
+                            .filterValid()
+                            .filterWatched(watched)
+                            .filter { it.channelId.isBlank() || it.channelId !in excludedChannels }
+                            .enrichAvatars()
                     val discoveryPool =
                         rawDiscovery
                             .filterValid()
