@@ -108,23 +108,37 @@ internal class NeuroDiscovery(
     // the feed across sessions instead of the top topics monopolizing.
     // ═══════════════════════════════════════════════
 
+    /**
+     * One served cluster's contribution to this feed. At depth 0 the query is the
+     * cluster's anchor; at depth d > 0 it becomes "anchor member_d" — walking the
+     * cluster's members like a tree so each load-more digs a branch deeper.
+     */
+    private data class ClusterChoice(
+        val topic: MatureTopic,
+        val comboWith: String?,
+    )
+
     private data class TopicSelection(
-        val primary: List<MatureTopic>,
-        val secondary: List<MatureTopic>,
+        val choices: List<ClusterChoice>,
         val emerging: List<MatureTopic>,
         val crossCategory: List<MatureTopic>,
     ) {
-        fun allTopics(): List<MatureTopic> = (primary + secondary + emerging + crossCategory).distinctBy { it.name }
+        val primary: List<MatureTopic> get() = choices.take(1).map { it.topic }
+        val secondary: List<MatureTopic> get() = choices.drop(1).map { it.topic }
+
+        fun allTopics(): List<MatureTopic> = (choices.map { it.topic } + emerging + crossCategory).distinctBy { it.name }
 
         fun uniqueTopicCount(): Int = allTopics().map { it.name }.distinct().size
     }
 
-    private fun emptySelection() = TopicSelection(emptyList(), emptyList(), emptyList(), emptyList())
+    private fun emptySelection() = TopicSelection(emptyList(), emptyList(), emptyList())
 
     private fun selectDiverseTopics(
         matureTopics: List<MatureTopic>,
         brain: UserBrain,
         now: Long,
+        depth: Int,
+        maxClusters: Int,
     ): TopicSelection {
         if (matureTopics.isEmpty()) return emptySelection()
 
@@ -141,42 +155,67 @@ internal class NeuroDiscovery(
 
         val scheduled = NeuroClusters.schedule(clusters, brain.clusterRotation, now)
 
-        // Resolve each scheduled cluster back to its strongest MatureTopic.
         val byBase = HashMap<String, MatureTopic>()
         matureTopics.forEach { topic ->
             byBase.putIfAbsent(NeuroScoring.stripDomainTag(topic.name), topic)
         }
-        val reps =
-            scheduled.mapNotNull { cluster ->
-                cluster.topics
-                    .firstNotNullOfOrNull { byBase[it] }
-                    ?.copy(clusterKey = cluster.representative)
+
+        // The user's MAJOR interests (top clusters by mass) are in EVERY feed —
+        // never rotated away by staleness. Rotation governs only the tail slots,
+        // cycling micro-interests and fresh seeds through the remaining budget.
+        val budget = maxClusters.coerceAtLeast(1)
+        val majorKeys =
+            clusters
+                .sortedByDescending { it.mass }
+                .take(NeuroScoring.MAJOR_CLUSTER_SLOTS.coerceAtMost(budget))
+                .filter { it.mass > 0.0 }
+                .map { it.representative }
+                .toSet()
+        val served =
+            (
+                scheduled.filter { it.representative in majorKeys } +
+                    scheduled.filter { it.representative !in majorKeys && it.mass > 0.0 }
+            ).take(budget)
+        val choices =
+            served.mapNotNull { cluster ->
+                val members = cluster.topics.mapNotNull { byBase[it] }
+                if (members.isEmpty()) return@mapNotNull null
+                val anchor = members.first().copy(clusterKey = cluster.representative)
+                val comboWith =
+                    if (depth > 0 && members.size > 1) {
+                        val branch = members[1 + ((depth - 1) % (members.size - 1))]
+                        NeuroScoring.stripDomainTag(branch.name).takeIf { it != NeuroScoring.stripDomainTag(anchor.name) }
+                    } else {
+                        null
+                    }
+                ClusterChoice(anchor, comboWith)
             }
-        if (reps.isEmpty()) return emptySelection()
+        if (choices.isEmpty()) return emptySelection()
 
-        val primary = reps.firstOrNull { it.maturityLevel >= TopicMaturity.DEVELOPING } ?: reps.first()
-        val secondary = reps.filter { it.name != primary.name }.take(4)
+        val representedNames = choices.map { it.topic.name }.toSet()
+        val leftoverReps =
+            scheduled
+                .drop(served.size)
+                .mapNotNull { cluster ->
+                    cluster.topics
+                        .firstNotNullOfOrNull { byBase[it] }
+                        ?.copy(clusterKey = cluster.representative)
+                }.filter { it.name !in representedNames }
 
-        val representedNames = (listOf(primary) + secondary).map { it.name }.toSet()
-        val emerging =
-            reps
-                .filter { it.name !in representedNames }
-                .take(2)
-
+        val emerging = leftoverReps.take(2)
         val representedCategories =
-            (listOf(primary) + secondary + emerging)
+            (choices.map { it.topic } + emerging)
                 .mapNotNull { categoryNameOf(it.name) }
                 .toSet()
         val crossCategory =
-            reps
+            leftoverReps
                 .filter { topic ->
-                    topic.name !in representedNames &&
+                    topic !in emerging &&
                         categoryNameOf(topic.name)?.let { it !in representedCategories } == true
                 }.take(2)
 
         return TopicSelection(
-            primary = listOf(primary),
-            secondary = secondary,
+            choices = choices,
             emerging = emerging,
             crossCategory = crossCategory,
         )
@@ -312,9 +351,9 @@ internal class NeuroDiscovery(
 
     private fun needsQueryEnrichment(topic: String): Boolean {
         val base = NeuroScoring.stripDomainTag(topic)
-        return base.length < 6 ||
-            base in ambiguousQueryWords ||
-            base in tokenizer.polysemousWords
+        // Only genuinely AMBIGUOUS words need a qualifier. The old length<6 rule
+        // polluted short-but-specific anchors: "mma" became "mma android".
+        return base in ambiguousQueryWords || base in tokenizer.polysemousWords
     }
 
     /**
@@ -424,6 +463,7 @@ internal class NeuroDiscovery(
     fun generateQueries(
         brain: UserBrain,
         now: Long = System.currentTimeMillis(),
+        depth: Int = 0,
         personaProvider: (UserBrain) -> FlowPersona,
     ): List<DiscoveryQuery> {
         val persona = personaProvider(brain)
@@ -444,13 +484,19 @@ internal class NeuroDiscovery(
 
         val matureTopics = analyzeMatureTopics(brain, timeTopicSet)
 
-        // Step 2: Select diverse topics (cluster rotation)
-        val selection = selectDiverseTopics(matureTopics, brain, now)
+        // Step 2: Select topics — EVERY served cluster contributes to EVERY feed,
+        // and depth walks each cluster's members like a tree on load-more.
+        val maxClusters =
+            when (persona) {
+                FlowPersona.SPECIALIST -> 3
+                else -> NeuroScoring.MAX_CLUSTERS_PER_REFRESH
+            }
+        val selection = selectDiverseTopics(matureTopics, brain, now, depth, maxClusters)
 
         // Step 3: Generate queries — every strategy is interest-rooted
         val queries = mutableListOf<DiscoveryQuery>()
 
-        addDirectQueries(queries, selection, persona, brain, isMatureBrain)
+        addDirectQueries(queries, selection, brain, isMatureBrain, depth)
         addCombinationQueries(queries, selection, isMatureBrain)
         addAffinityQueries(queries, brain)
         addTimeContextQueries(queries, brain, bucket, selection)
@@ -481,49 +527,36 @@ internal class NeuroDiscovery(
     private fun addDirectQueries(
         queries: MutableList<DiscoveryQuery>,
         selection: TopicSelection,
-        persona: FlowPersona,
         brain: UserBrain,
         isMatureBrain: Boolean,
+        depth: Int,
     ) {
-        // Primary interest — always included
-        selection.primary.filter { isDiscoveryEligible(it, isMatureBrain) }.forEach { topic ->
+        // EVERY served cluster contributes one direct query per feed — that is the
+        // whole point of a multi-interest feed. Depth > 0 digs the cluster's branch
+        // ("android" → "android machine learning") instead of repeating the anchor.
+        selection.choices.forEachIndexed { index, choice ->
+            val topic = choice.topic
+            if (!isDiscoveryEligible(topic, isMatureBrain)) return@forEachIndexed
+
+            val anchorBase = NeuroScoring.stripDomainTag(topic.name)
+            val query =
+                if (choice.comboWith != null) {
+                    "$anchorBase ${choice.comboWith}"
+                } else {
+                    buildNaturalQuery(topic.name, brain)
+                }
+            val label = if (index == 0) "Core interest" else "Cluster interest"
+            val branch = choice.comboWith?.let { " → $it" } ?: ""
             queries.add(
                 DiscoveryQuery(
-                    buildNaturalQuery(topic.name, brain),
+                    query,
                     QueryStrategy.DEEP_DIVE,
-                    calculateConfidence(topic),
-                    "Core interest: ${topic.name}",
+                    calculateConfidence(topic) - (if (index == 0) 0.0 else 0.05) - depth * 0.02,
+                    "$label: ${topic.name}$branch",
                     clusterKey = topic.clusterKey,
                 ),
             )
         }
-
-        // Secondary interests — count varies by persona
-        val secondaryCount =
-            when (persona) {
-                FlowPersona.SPECIALIST -> 1
-                FlowPersona.EXPLORER -> 4
-                FlowPersona.SKIMMER -> 3
-                else -> 2
-            }
-
-        selection.secondary
-            .filter { isDiscoveryEligible(it, isMatureBrain) }
-            .take(secondaryCount)
-            .forEach { topic ->
-                queries.add(
-                    DiscoveryQuery(
-                        buildNaturalQuery(topic.name, brain),
-                        QueryStrategy.DEEP_DIVE,
-                        calculateConfidence(topic) - 0.05,
-                        "Secondary interest: ${topic.name}",
-                        clusterKey = topic.clusterKey,
-                    ),
-                )
-            }
-
-        // Emerging interests — requires DEVELOPING threshold before generating queries
-        // (removed: premature EMERGING queries flood feed on first interaction)
     }
 
     // ═══════════════════════════════════════════════
@@ -1124,7 +1157,14 @@ internal class NeuroDiscovery(
         val deduped = mutableListOf<DiscoveryQuery>()
         val seenTokenSets = mutableListOf<Set<String>>()
 
-        val sorted = queries.sortedByDescending { it.confidence }
+        // Cluster ANCHORS (direct deep-dives) enter dedup first: they are each
+        // community's flag query. Otherwise a cross-combo like "android mma" can
+        // out-confidence a developing cluster's own "mma" and absorb its tokens.
+        val sorted =
+            queries.sortedWith(
+                compareByDescending<DiscoveryQuery> { it.strategy == QueryStrategy.DEEP_DIVE && it.clusterKey != null }
+                    .thenByDescending { it.confidence },
+            )
 
         for (query in sorted) {
             val tokens =
@@ -1143,7 +1183,14 @@ internal class NeuroDiscovery(
                     (intersection.toDouble() / union) > 0.3
                 }
 
-            if (!isDuplicate) {
+            // A cluster's sole representative always survives dedup — token overlap
+            // with another cluster's query must not erase a community from the feed.
+            val keepForClusterCoverage =
+                isDuplicate &&
+                    query.clusterKey != null &&
+                    deduped.none { it.clusterKey == query.clusterKey }
+
+            if (!isDuplicate || keepForClusterCoverage) {
                 deduped.add(query)
                 seenTokenSets.add(tokens)
             }
@@ -1161,6 +1208,20 @@ internal class NeuroDiscovery(
         val balanced = mutableListOf<DiscoveryQuery>()
         val topicsCovered = mutableSetOf<String>()
 
+        // Phase 0: cluster coverage is the FIRST guarantee — every served cluster's
+        // best query makes the cut before any strategy or confidence balancing.
+        // This is what puts mma + android + anime in the SAME feed.
+        deduped
+            .filter { it.clusterKey != null }
+            .groupBy { it.clusterKey }
+            .forEach { (_, clusterQueries) ->
+                val best = clusterQueries.maxByOrNull { it.confidence } ?: return@forEach
+                if (best !in balanced) {
+                    balanced.add(best)
+                    extractTopicRoot(best.query)?.let { topicsCovered.add(it) }
+                }
+            }
+
         // Phase 1: Ensure strategy diversity (1 per strategy)
         val strategyPriority =
             listOf(
@@ -1175,10 +1236,12 @@ internal class NeuroDiscovery(
 
         val byStrategy = deduped.groupBy { it.strategy }
         strategyPriority.forEach { strategy ->
-            byStrategy[strategy]?.firstOrNull()?.let { best ->
-                balanced.add(best)
-                extractTopicRoot(best.query)?.let {
-                    topicsCovered.add(it)
+            byStrategy[strategy]?.firstOrNull { it !in balanced }?.let { best ->
+                if (balanced.none { it.strategy == strategy }) {
+                    balanced.add(best)
+                    extractTopicRoot(best.query)?.let {
+                        topicsCovered.add(it)
+                    }
                 }
             }
         }

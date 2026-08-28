@@ -949,7 +949,9 @@ class HomeViewModel
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 try {
                     discoveryQueries.clear()
-                    discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries())
+                    // A refresh restarts the discovery tree at its roots (broad pass);
+                    // load-more regenerations then dig deeper per cluster.
+                    discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries(resetDepth = true))
                     currentQueryIndex = 0
 
                     val userSubs = subscriptionRepository.getAllSubscriptionIds()

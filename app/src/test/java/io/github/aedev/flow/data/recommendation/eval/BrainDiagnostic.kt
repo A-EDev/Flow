@@ -10,6 +10,7 @@ package io.github.aedev.flow.data.recommendation.eval
 import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.recommendation.NeuroClusters
 import io.github.aedev.flow.data.recommendation.NeuroDiscovery
+import io.github.aedev.flow.data.recommendation.NeuroMaintenance
 import io.github.aedev.flow.data.recommendation.NeuroScoring
 import io.github.aedev.flow.data.recommendation.NeuroStorage
 import io.github.aedev.flow.data.recommendation.NeuroTokenizer
@@ -69,6 +70,9 @@ internal object BrainDiagnostic {
     data class ReportDto(
         val totalInteractions: Int,
         val persona: String,
+        val maintenanceApplied: Boolean = false,
+        val topicsBeforeMaintenance: Int = 0,
+        val affinitiesBeforeMaintenance: Int = 0,
         val topicCount: Int,
         val clusterCount: Int,
         val effectiveClusterCount: Double,
@@ -90,11 +94,14 @@ internal object BrainDiagnostic {
     )
 
     fun diagnose(
-        brain: UserBrain,
+        rawBrain: UserBrain,
         now: Long = System.currentTimeMillis(),
         sessions: Int = 3,
     ): ReportDto {
         val tokenizer = NeuroTokenizer()
+        // Diagnose the brain AS THE APP WILL RUN IT: apply pending maintenance
+        // migrations first (identical code path to engine initialize()).
+        val brain = NeuroMaintenance.runV15IfNeeded(rawBrain, tokenizer)
         val discovery = NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer)
         val persona =
             FlowPersona.entries.find { it.name == brain.lastPersona } ?: FlowPersona.EXPLORER
@@ -137,9 +144,10 @@ internal object BrainDiagnostic {
         var rotation = brain.clusterRotation
         var clock = now
         val sessionDtos = mutableListOf<SessionDto>()
-        repeat(sessions) {
+        repeat(sessions) { round ->
+            // Round index doubles as tree depth: refresh (0), then deeper pages.
             val queries =
-                discovery.generateQueries(brain.copy(clusterRotation = rotation), clock) { persona }
+                discovery.generateQueries(brain.copy(clusterRotation = rotation), clock, depth = round) { persona }
             val served = queries.mapNotNull { it.clusterKey }.distinct()
             sessionDtos +=
                 SessionDto(
@@ -168,6 +176,9 @@ internal object BrainDiagnostic {
         return ReportDto(
             totalInteractions = brain.totalInteractions,
             persona = persona.name,
+            maintenanceApplied = brain !== rawBrain,
+            topicsBeforeMaintenance = rawBrain.globalVector.topics.size,
+            affinitiesBeforeMaintenance = rawBrain.topicAffinities.size,
             topicCount = brain.globalVector.topics.size,
             clusterCount = clusters.size,
             effectiveClusterCount = if (herfindahl > 0) 1.0 / herfindahl else 0.0,
@@ -205,6 +216,12 @@ internal object BrainDiagnostic {
         buildString {
             appendLine("═══ Brain Diagnostic ═══")
             appendLine("interactions=${r.totalInteractions}  persona=${r.persona}  topics=${r.topicCount}")
+            if (r.maintenanceApplied) {
+                appendLine(
+                    "V15 maintenance applied: topics ${r.topicsBeforeMaintenance} → ${r.topicCount}, " +
+                        "affinities ${r.affinitiesBeforeMaintenance} → ${r.topicAffinityEdges}",
+                )
+            }
             appendLine(
                 "clusters=${r.clusterCount}  effectiveClusters=%.1f  topClusterShare=%.0f%%"
                     .format(r.effectiveClusterCount, r.topClusterMassShare * 100),

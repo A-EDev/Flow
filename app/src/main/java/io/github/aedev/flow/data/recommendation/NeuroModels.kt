@@ -120,7 +120,7 @@ data class UserBrain(
     val clusterRotation: Map<String, Long> = emptyMap(),
     /** Tag co-occurrence edges from opened videos ("a|b" → weight), for clustering. */
     val tagAffinities: Map<String, Double> = emptyMap(),
-    val schemaVersion: Int = 14,
+    val schemaVersion: Int = 15,
 )
 
 // ── Interaction Types ──

@@ -22,7 +22,6 @@ import kotlin.math.*
  * Easy to unit test in isolation.
  */
 internal object NeuroVectorMath {
-
     // ── Weight Constants ──
     const val TOPIC_SIMILARITY_WEIGHT = 0.70
     const val DURATION_SIMILARITY_WEIGHT = 0.10
@@ -36,13 +35,16 @@ internal object NeuroVectorMath {
 
     /** Topics above this score are core interests — decay extremely slowly */
     const val ESTABLISHED_TOPIC_THRESHOLD = 0.30
+
     /** Topics above this score are developing — decay slowly */
     const val DEVELOPING_TOPIC_THRESHOLD = 0.10
 
     /** Established interests: half-life ~1400 interactions */
     const val ESTABLISHED_DECAY_RATE = 0.998
+
     /** Developing interests: half-life ~330 interactions */
     const val DEVELOPING_DECAY_RATE = 0.993
+
     /** Emerging/noisy topics: half-life ~46 interactions*/
     const val EMERGING_DECAY_RATE = 0.97
 
@@ -56,19 +58,24 @@ internal object NeuroVectorMath {
 
     fun calculateCosineSimilarity(
         user: ContentVector,
-        content: ContentVector
+        content: ContentVector,
     ): Double {
-        val (smallMap, largeMap) = if (
-            user.topics.size <= content.topics.size
-        ) user.topics to content.topics
-        else content.topics to user.topics
+        val (smallMap, largeMap) =
+            if (
+                user.topics.size <= content.topics.size
+            ) {
+                user.topics to content.topics
+            } else {
+                content.topics to user.topics
+            }
 
         val durationSim = 1.0 - abs(user.duration - content.duration)
         val pacingSim = 1.0 - abs(user.pacing - content.pacing)
         val complexitySim = 1.0 - abs(user.complexity - content.complexity)
-        val scalarScore = (durationSim * DURATION_SIMILARITY_WEIGHT) +
-            (pacingSim * PACING_SIMILARITY_WEIGHT) +
-            (complexitySim * COMPLEXITY_SIMILARITY_WEIGHT)
+        val scalarScore =
+            (durationSim * DURATION_SIMILARITY_WEIGHT) +
+                (pacingSim * PACING_SIMILARITY_WEIGHT) +
+                (complexitySim * COMPLEXITY_SIMILARITY_WEIGHT)
 
         if (smallMap.isEmpty()) return scalarScore * SCALAR_ONLY_DAMP
 
@@ -118,9 +125,12 @@ internal object NeuroVectorMath {
         user.topics.values.forEach { magnitudeA += it * it }
         content.topics.values.forEach { magnitudeB += it * it }
 
-        val topicSim = if (magnitudeA > 0 && magnitudeB > 0) {
-            dotProduct / (sqrt(magnitudeA) * sqrt(magnitudeB))
-        } else 0.0
+        val topicSim =
+            if (magnitudeA > 0 && magnitudeB > 0) {
+                dotProduct / (sqrt(magnitudeA) * sqrt(magnitudeB))
+            } else {
+                0.0
+            }
 
         return (topicSim * TOPIC_SIMILARITY_WEIGHT) + scalarScore
     }
@@ -128,7 +138,7 @@ internal object NeuroVectorMath {
     fun adjustVector(
         current: ContentVector,
         target: ContentVector,
-        baseRate: Double
+        baseRate: Double,
     ): ContentVector {
         val newTopics = current.topics.toMutableMap()
         val isNegative = baseRate < 0
@@ -136,20 +146,22 @@ internal object NeuroVectorMath {
         target.topics.forEach { (key, targetVal) ->
             val currentVal = newTopics[key] ?: 0.0
 
-            val delta = if (isNegative) {
-                val proportional = currentVal *
-                    currentVal.pow(NEGATIVE_PROPORTIONAL_EXPONENT) * baseRate
-                val absoluteFloor = baseRate * NEGATIVE_FLOOR_FACTOR
-                minOf(proportional, absoluteFloor)
-            } else {
-                val saturationPenalty = (1.0 - currentVal).pow(2)
-                // Cold-topic damping: brand-new topics (currentVal near 0) learn at reduced
-                // rate, requiring sustained engagement to build up.
-                // At 0.0: 50% of base rate. At 0.10: 75%. At 0.20+: ~100%.
-                val coldTopicDamping = (0.5 + 0.5 * (currentVal / 0.20).coerceAtMost(1.0))
-                val effectiveRate = baseRate * saturationPenalty * coldTopicDamping
-                (targetVal - currentVal) * effectiveRate
-            }
+            val delta =
+                if (isNegative) {
+                    val proportional =
+                        currentVal *
+                            currentVal.pow(NEGATIVE_PROPORTIONAL_EXPONENT) * baseRate
+                    val absoluteFloor = baseRate * NEGATIVE_FLOOR_FACTOR
+                    minOf(proportional, absoluteFloor)
+                } else {
+                    val saturationPenalty = (1.0 - currentVal).pow(2)
+                    // Cold-topic damping: brand-new topics (currentVal near 0) learn at reduced
+                    // rate, requiring sustained engagement to build up.
+                    // At 0.0: 50% of base rate. At 0.10: 75%. At 0.20+: ~100%.
+                    val coldTopicDamping = (0.5 + 0.5 * (currentVal / 0.20).coerceAtMost(1.0))
+                    val effectiveRate = baseRate * saturationPenalty * coldTopicDamping
+                    (targetVal - currentVal) * effectiveRate
+                }
 
             newTopics[key] = (currentVal + delta).coerceIn(0.0, 1.0)
         }
@@ -159,11 +171,12 @@ internal object NeuroVectorMath {
             val entry = iterator.next()
             val isCurrentTarget = target.topics.containsKey(entry.key)
             if (baseRate > 0 && !isCurrentTarget) {
-                val tieredDecay = when {
-                    entry.value >= ESTABLISHED_TOPIC_THRESHOLD -> ESTABLISHED_DECAY_RATE
-                    entry.value >= DEVELOPING_TOPIC_THRESHOLD -> DEVELOPING_DECAY_RATE
-                    else -> EMERGING_DECAY_RATE
-                }
+                val tieredDecay =
+                    when {
+                        entry.value >= ESTABLISHED_TOPIC_THRESHOLD -> ESTABLISHED_DECAY_RATE
+                        entry.value >= DEVELOPING_TOPIC_THRESHOLD -> DEVELOPING_DECAY_RATE
+                        else -> EMERGING_DECAY_RATE
+                    }
                 entry.setValue(entry.value * tieredDecay)
             }
             if (!isCurrentTarget && entry.value < TOPIC_PRUNE_THRESHOLD) {
@@ -178,12 +191,15 @@ internal object NeuroVectorMath {
             if (totalMagnitude > 0 &&
                 maxScore / totalMagnitude > COMPRESSION_THRESHOLD
             ) {
-                val compressed = newTopics.mapValues { (_, v) ->
-                    if (v > COMPRESSION_CEILING)
-                        COMPRESSION_CEILING +
-                            (v - COMPRESSION_CEILING) * COMPRESSION_FACTOR
-                    else v
-                }
+                val compressed =
+                    newTopics.mapValues { (_, v) ->
+                        if (v > COMPRESSION_CEILING) {
+                            COMPRESSION_CEILING +
+                                (v - COMPRESSION_CEILING) * COMPRESSION_FACTOR
+                        } else {
+                            v
+                        }
+                    }
                 newTopics.clear()
                 newTopics.putAll(compressed)
             }
@@ -191,11 +207,12 @@ internal object NeuroVectorMath {
 
         fun updateScalar(
             currentScalar: Double,
-            targetScalar: Double
-        ): Double {
-            return if (isNegative) {
-                val proportional = currentScalar * baseRate *
-                    NEGATIVE_SCALAR_PROPORTIONAL
+            targetScalar: Double,
+        ): Double =
+            if (isNegative) {
+                val proportional =
+                    currentScalar * baseRate *
+                        NEGATIVE_SCALAR_PROPORTIONAL
                 val floor = baseRate * NEGATIVE_SCALAR_FLOOR
                 currentScalar + minOf(proportional, floor)
             } else {
@@ -203,31 +220,59 @@ internal object NeuroVectorMath {
                 currentScalar + (targetScalar - currentScalar) *
                     baseRate * saturation
             }.coerceIn(0.0, 1.0)
-        }
 
         return current.copy(
             topics = newTopics,
             duration = updateScalar(current.duration, target.duration),
             pacing = updateScalar(current.pacing, target.pacing),
             complexity = updateScalar(current.complexity, target.complexity),
-            isLive = updateScalar(current.isLive, target.isLive)
+            isLive = updateScalar(current.isLive, target.isLive),
         )
     }
 
-    fun normalizeTopicVector(
-        topics: MutableMap<String, Double>
-    ): Map<String, Double> {
+    /**
+     * Plants the strongest topics of a STRONG-signal video (real watch, like,
+     * save, search) at a survivable weight. Fixes the acquisition wall: on
+     * mature brains, maturity damping × cold-topic damping left new topics
+     * gaining ~0.002/interaction against the 0.03 prune floor — new interests
+     * could mathematically never establish. A planted topic sits just above
+     * the prune line; sustained engagement grows it, abandonment lets the
+     * emerging-tier decay remove it within ~30 interactions.
+     */
+    fun plantTopics(
+        current: ContentVector,
+        source: ContentVector,
+        floor: Double,
+        topK: Int,
+    ): ContentVector {
+        if (source.topics.isEmpty()) return current
+        val planted = current.topics.toMutableMap()
+        source.topics.entries
+            .sortedByDescending { it.value }
+            .asSequence()
+            .filter { it.key.length >= 3 }
+            .take(topK)
+            .forEach { (topic, _) ->
+                if ((planted[topic] ?: 0.0) < floor) planted[topic] = floor
+            }
+        return current.copy(topics = planted)
+    }
+
+    fun normalizeTopicVector(topics: MutableMap<String, Double>): Map<String, Double> {
         if (topics.isEmpty()) return topics
         var magnitude = 0.0
         topics.values.forEach { magnitude += it * it }
         magnitude = sqrt(magnitude)
-        return if (magnitude > 0) topics.mapValues { (_, v) -> v / magnitude }
-        else topics
+        return if (magnitude > 0) {
+            topics.mapValues { (_, v) -> v / magnitude }
+        } else {
+            topics
+        }
     }
 
     fun calculateTitleSimilarity(
         tokens1: Set<String>,
-        tokens2: Set<String>
+        tokens2: Set<String>,
     ): Double {
         if (tokens1.isEmpty() || tokens2.isEmpty()) return 0.0
         val intersection = tokens1.intersect(tokens2).size

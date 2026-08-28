@@ -86,9 +86,12 @@ internal object NeuroScoring {
     const val SEEN_SHORTS_MAX = 3000
     const val SEEN_SHORT_PENALTY = 0.05
     const val SEEN_SHORT_EXPIRY_DAYS = 7
-    const val AFFINITY_INCREMENT = 0.01
+
+    // 0.03/co-watch: one shared session creates a cluster edge (min 0.02), five
+    // reach the affinity-query threshold (0.15). The old 0.01 could never outlive
+    // the per-update prune that used to sit at 0.05.
+    const val AFFINITY_INCREMENT = 0.03
     const val AFFINITY_MAX = 1.0
-    const val AFFINITY_PRUNE_THRESHOLD = 0.05
     const val AFFINITY_MAX_ENTRIES = 500
     const val AFFINITY_KEEP_TOP = 300
     const val AFFINITY_MAX_BOOST_PER_VIDEO = 0.15
@@ -148,6 +151,16 @@ internal object NeuroScoring {
 
     // ── Interest-cluster rotation state cap ──
     const val CLUSTER_ROTATION_MAX = 40
+
+    /** Clusters contributing to EVERY feed; staleness rotation gates only the tail beyond this. */
+    const val MAX_CLUSTERS_PER_REFRESH = 6
+
+    /** Top-mass clusters guaranteed a slot in every feed regardless of staleness. */
+    const val MAJOR_CLUSTER_SLOTS = 3
+
+    // ── Topic acquisition floor (strong signals plant new interests) ──
+    const val TOPIC_ACQUISITION_FLOOR = 0.05
+    const val TOPIC_ACQUISITION_TOP_K = 3
 
     // ── Tag co-occurrence edges (from opened videos' real tags) ──
     const val TAG_AFFINITY_TOKENS = 6

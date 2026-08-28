@@ -405,9 +405,10 @@ internal object NeuroBenchmark {
         var clusterRotation = mapOf<String, Long>()
         var now = NeuroEval.FIXED_NOW
 
-        repeat(sessions) {
+        repeat(sessions) { round ->
             val discoveryBrain = brain.copy(clusterRotation = clusterRotation)
-            val sessionResult = discovery.generateQueries(discoveryBrain, now) { FlowPersona.EXPLORER }
+            // Round index doubles as tree depth — models refresh + successive pages.
+            val sessionResult = discovery.generateQueries(discoveryBrain, now, depth = round) { FlowPersona.EXPLORER }
             val queries = sessionResult.map { it.query }
             val servedClusters = sessionResult.mapNotNull { it.clusterKey }.toSet()
             if (servedClusters.isNotEmpty()) {

@@ -39,12 +39,14 @@ class NeuroBenchmarkTest {
         // Relevance and diversity must never collapse.
         assertThat(s.meanNdcg).isAtLeast(0.55)
         assertThat(s.meanIld).isAtLeast(0.20)
-        // Interest coverage: the cluster scheduler must keep cycling ALL saved
-        // interests into the feed (baseline before R3 was flat 0.50 / 0.50 with
-        // weak-tail groups never served at all).
-        assertThat(s.meanGroupCoverage).isAtLeast(0.55)
-        assertThat(s.cumulativeGroupCoverage).isAtLeast(0.65)
-        assertThat(s.weakGroupServiceRate).isAtLeast(0.30)
+        // Interest coverage: every saved interest belongs in EVERY feed (majors
+        // guaranteed, tail rotating). Baseline before the cluster work was a flat
+        // 0.50 / 0.50 with weak-tail groups never served at all; the multi-cluster
+        // feed model reached 1.0 across the board.
+        assertThat(s.meanGroupCoverage).isAtLeast(0.85)
+        assertThat(s.cumulativeGroupCoverage).isAtLeast(0.95)
+        assertThat(s.weakGroupServiceRate).isAtLeast(0.80)
+        assertThat(s.meanSeenRepeatRate).isAtMost(0.10)
         // User-experienced repetition (already-impressed items reappearing) must
         // stay low — the seen-gate's whole job. Served-repeat is looser: items the
         // user never actually saw may legitimately return.

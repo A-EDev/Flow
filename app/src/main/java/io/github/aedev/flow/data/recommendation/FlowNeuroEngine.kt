@@ -98,7 +98,8 @@ class FlowNeuroEngine(
 
         suspend fun recordFeedImpressions(ids: List<String>) = requireInstance().recordFeedImpressions(ids)
 
-        suspend fun generateDiscoveryQueries(): List<String> = requireInstance().generateDiscoveryQueries()
+        suspend fun generateDiscoveryQueries(resetDepth: Boolean = false): List<String> =
+            requireInstance().generateDiscoveryQueries(resetDepth)
 
         suspend fun selectRelatedSeeds(
             candidates: List<GraphSeedInput>,
@@ -289,6 +290,10 @@ class FlowNeuroEngine(
     // Session tracking
     private var sessionStartTime: Long = System.currentTimeMillis()
     private var sessionVideoCount: Int = 0
+
+    // Discovery tree depth: 0 on refresh, +1 per load-more regeneration —
+    // each round digs one level deeper into every cluster's branches.
+    private var discoveryRound: Int = 0
     private val sessionTopicHistory = mutableListOf<String>()
     private val recentInteractions = mutableListOf<MomentumEntry>()
 
@@ -348,6 +353,12 @@ class FlowNeuroEngine(
                 storage.deleteLegacyFile()
             }
 
+            val maintained = runV15MaintenanceIfNeeded(currentUserBrain)
+            if (maintained !== currentUserBrain) {
+                currentUserBrain = maintained
+                storage.save(currentUserBrain)
+            }
+
             idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
             idfTotalDocuments = currentUserBrain.idfTotalDocuments
 
@@ -365,6 +376,20 @@ class FlowNeuroEngine(
     fun shutdown() {
         pendingSaveJob?.cancel()
         saveScope.cancel()
+    }
+
+    /** One-time V15 maintenance — see NeuroMaintenance for the rationale. */
+    private fun runV15MaintenanceIfNeeded(brain: UserBrain): UserBrain {
+        val updated = NeuroMaintenance.runV15IfNeeded(brain, tokenizer)
+        if (updated !== brain) {
+            Log.i(
+                TAG,
+                "V15 maintenance: topics ${brain.globalVector.topics.size} → " +
+                    "${updated.globalVector.topics.size}, affinities ${brain.topicAffinities.size} → " +
+                    "${updated.topicAffinities.size}",
+            )
+        }
+        return updated
     }
 
     suspend fun getBrainSnapshot(): UserBrain = brainMutex.withLock { currentUserBrain }
@@ -396,6 +421,7 @@ class FlowNeuroEngine(
         impressionCache.clear()
         recentInteractions.clear()
         sessionImpressed.clear()
+        discoveryRound = 0
     }
 
     fun getSessionDurationMinutes(): Long = (System.currentTimeMillis() - sessionStartTime) / 60_000L
@@ -1144,14 +1170,19 @@ class FlowNeuroEngine(
     // DISCOVERY QUERY GENERATION
     // =================================================
 
-    suspend fun generateDiscoveryQueries(): List<String> =
+    suspend fun generateDiscoveryQueries(resetDepth: Boolean = false): List<String> =
         withContext(Dispatchers.Default) {
             brainMutex.withLock {
                 val brain = currentUserBrain
                 val blocked = brain.blockedTopics
 
-                // V3 discovery engine
-                val discoveryQueries = discovery.generateQueries(brain) { b -> getPersona(b) }
+                // Tree depth: a refresh starts broad (depth 0); each load-more
+                // regeneration digs one level deeper into every cluster's branches.
+                if (resetDepth) discoveryRound = 0
+                val depth = discoveryRound
+                discoveryRound++
+
+                val discoveryQueries = discovery.generateQueries(brain, depth = depth) { b -> getPersona(b) }
 
                 var candidates =
                     if (discoveryQueries.isNotEmpty()) {
@@ -1723,12 +1754,29 @@ class FlowNeuroEngine(
             }
 
             // 1. Update global vector
-            val newGlobal =
+            var newGlobal =
                 NeuroVectorMath.adjustVector(
                     currentUserBrain.globalVector,
                     videoVector,
                     learningRate,
                 )
+
+            // 1a. Acquisition floor: a real watch, like, or save is proof of interest —
+            // plant its top topics at a survivable weight so mature brains can still
+            // pick up NEW interests (see NeuroVectorMath.plantTopics).
+            val isStrongSignal =
+                interactionType == InteractionType.LIKED ||
+                    interactionType == InteractionType.SAVED ||
+                    (interactionType == InteractionType.WATCHED && percentWatched >= 0.40f)
+            if (isStrongSignal && !video.isShort) {
+                newGlobal =
+                    NeuroVectorMath.plantTopics(
+                        newGlobal,
+                        videoVector,
+                        NeuroScoring.TOPIC_ACQUISITION_FLOOR,
+                        NeuroScoring.TOPIC_ACQUISITION_TOP_K,
+                    )
+            }
 
             // 1b. Shorts-specific vector (not dampened by SHORTS_LEARNING_PENALTY)
             val newShortsVector =
@@ -1824,9 +1872,11 @@ class FlowNeuroEngine(
                                     .coerceAtMost(NeuroScoring.AFFINITY_MAX)
                         }
                     }
-                    newAffinities =
-                        mutableAffinities
-                            .filter { it.value > NeuroScoring.AFFINITY_PRUNE_THRESHOLD }
+                    // No per-update value pruning: the old filter (> 0.05) deleted every
+                    // newborn edge in the same update that created it (+0.01), so no pair
+                    // could EVER accumulate organically. The size cap alone bounds growth —
+                    // it evicts the weakest pairs first, which is the pruning we wanted.
+                    newAffinities = mutableAffinities
                     if (newAffinities.size > NeuroScoring.AFFINITY_MAX_ENTRIES) {
                         newAffinities =
                             newAffinities.entries
@@ -2144,13 +2194,22 @@ class FlowNeuroEngine(
                     )
             }
             val queryVector = ContentVector(topics = usable.associateWith { 1.0 / usable.size })
+            val learned =
+                NeuroVectorMath.adjustVector(
+                    currentUserBrain.globalVector,
+                    queryVector,
+                    0.05,
+                )
             currentUserBrain =
                 currentUserBrain.copy(
+                    // Typing a query is explicit intent — plant its topics so they
+                    // survive pruning and can seed discovery immediately.
                     globalVector =
-                        NeuroVectorMath.adjustVector(
-                            currentUserBrain.globalVector,
+                        NeuroVectorMath.plantTopics(
+                            learned,
                             queryVector,
-                            0.05,
+                            NeuroScoring.TOPIC_ACQUISITION_FLOOR,
+                            NeuroScoring.TOPIC_ACQUISITION_TOP_K,
                         ),
                     topicEvidence = capEvidence(updated),
                 )
@@ -2246,7 +2305,8 @@ class FlowNeuroEngine(
                         ?: return@withContext false
 
                 brainMutex.withLock {
-                    currentUserBrain = finalBrain
+                    // Imported brains may pre-date V15 — run the same maintenance.
+                    currentUserBrain = runV15MaintenanceIfNeeded(finalBrain)
                     idfWordFrequency = finalBrain.idfWordFrequency.toMutableMap()
                     idfTotalDocuments = finalBrain.idfTotalDocuments
                     watchHistory.clear()

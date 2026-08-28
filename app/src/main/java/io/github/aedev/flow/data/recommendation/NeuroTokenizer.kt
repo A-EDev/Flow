@@ -411,6 +411,15 @@ internal class NeuroTokenizer {
             "than",
             "well",
             "even",
+            // Filler adverbs that leaked into topic vectors as junk unigrams and
+            // bigram halves ("laptops right" from "laptops right now").
+            "right",
+            "gonna",
+            "wanna",
+            "gotta",
+            "honestly",
+            "maybe",
+            "probably",
         )
 
     // ── Tag Spam Filter ──
@@ -711,6 +720,24 @@ internal class NeuroTokenizer {
             .filter { !stopWords.contains(it) && !YEAR_TAG_REGEX.matches(it) }
 
     fun tokenizeForSimilarity(text: String): Set<String> = tokenize(text).toSet()
+
+    /**
+     * True when a learned topic key is vocabulary noise rather than an interest:
+     * too short, numeric, a stop word, or a uni/bigram whose parts are stop words.
+     * Used to scrub historical junk from vectors and to gate rehydration seeds.
+     */
+    fun isNoiseTopic(topic: String): Boolean {
+        val base = topic.substringBefore(':').lowercase().trim()
+        if (base.length < 3) return true
+        if (base.all { it.isDigit() } || YEAR_TAG_REGEX.matches(base)) return true
+        val parts = base.split(' ').filter { it.isNotBlank() }
+        if (parts.isEmpty()) return true
+        // Degenerate bigrams like "code code" are tokenizer echoes, not topics.
+        if (parts.size > 1 && parts.distinct().size < parts.size) return true
+        return parts.any { part ->
+            part in stopWords || normalizeLemma(part) in stopWords || part.length < 3
+        }
+    }
 
     fun calculateIdfWeight(
         word: String,
