@@ -159,23 +159,8 @@ internal class NeuroStorage(
             isLive = isLive,
         )
 
-    fun SerializableVector.toContentVector() =
-        ContentVector(
-            topics = topics,
-            duration = duration,
-            pacing = pacing,
-            complexity = complexity,
-            isLive = isLive,
-        )
-
     fun FeedEntry.toSerializable() =
         SerializableFeedEntry(
-            lastShown = lastShown,
-            showCount = showCount,
-        )
-
-    fun SerializableFeedEntry.toFeedEntry() =
-        FeedEntry(
             lastShown = lastShown,
             showCount = showCount,
         )
@@ -186,26 +171,8 @@ internal class NeuroStorage(
             lastRejectedAt = lastRejectedAt,
         )
 
-    fun SerializableRejectionSignal.toRejectionSignal() =
-        RejectionSignal(
-            count = count,
-            lastRejectedAt = lastRejectedAt,
-        )
-
     fun TopicEvidence.toSerializable() =
         SerializableTopicEvidence(
-            positiveSignals = positiveSignals,
-            watchSignals = watchSignals,
-            explicitSignals = explicitSignals,
-            positiveScore = positiveScore,
-            videoIds = videoIds,
-            channelIds = channelIds,
-            firstSeenAt = firstSeenAt,
-            lastSeenAt = lastSeenAt,
-        )
-
-    fun SerializableTopicEvidence.toTopicEvidence() =
-        TopicEvidence(
             positiveSignals = positiveSignals,
             watchSignals = watchSignals,
             explicitSignals = explicitSignals,
@@ -255,47 +222,6 @@ internal class NeuroStorage(
             clusterRotation = clusterRotation,
             tagAffinities = tagAffinities,
         )
-
-    fun SerializableBrain.toUserBrain(): UserBrain {
-        val vectors =
-            TimeBucket.entries.associateWith { bucket ->
-                val serialized = timeVectors[bucket.name]
-                serialized?.toContentVector() ?: ContentVector()
-            }
-        return UserBrain(
-            timeVectors = vectors,
-            globalVector = global.toContentVector(),
-            channelScores = channelScores,
-            topicAffinities = topicAffinities,
-            totalInteractions = interactions,
-            consecutiveSkips = consecutiveSkips,
-            blockedTopics = blockedTopics,
-            blockedChannels = blockedChannels,
-            preferredTopics = preferredTopics,
-            hasCompletedOnboarding = hasCompletedOnboarding,
-            lastPersona = lastPersona,
-            personaStability = personaStability,
-            idfWordFrequency = idfWordFrequency,
-            idfTotalDocuments = idfTotalDocuments,
-            watchHistoryMap = watchHistoryMap,
-            seenShortsHistory = seenShortsHistory,
-            channelTopicProfiles = channelTopicProfiles,
-            shortsVector = shortsVector.toContentVector(),
-            suppressedVideoIds = suppressedVideoIds,
-            suppressedChannels = suppressedChannels,
-            rejectionPatterns =
-                rejectionPatterns.mapValues { (_, v) ->
-                    v.toRejectionSignal()
-                },
-            feedHistory = feedHistory.mapValues { (_, v) -> v.toFeedEntry() },
-            recentQueryTokens = recentQueryTokens.map { it.toSet() },
-            topicEvidence = topicEvidence.mapValues { (_, v) -> v.toTopicEvidence() },
-            recentRelatedSeeds = recentRelatedSeeds,
-            staleQueries = staleQueries,
-            clusterRotation = clusterRotation,
-            tagAffinities = tagAffinities,
-        )
-    }
 
     // ── Persistence operations ──
 
@@ -651,4 +577,82 @@ internal class NeuroStorage(
             isLive = jsonObj.optDouble("isLive", 0.0),
         )
     }
+}
+
+// ── Reverse conversions (pure, Context-free) ──
+// Top-level so offline diagnostics can parse an exported brain without an
+// Android Context. The forward (save) direction stays inside NeuroStorage.
+
+internal fun NeuroStorage.SerializableVector.toContentVector() =
+    ContentVector(
+        topics = topics,
+        duration = duration,
+        pacing = pacing,
+        complexity = complexity,
+        isLive = isLive,
+    )
+
+internal fun NeuroStorage.SerializableFeedEntry.toFeedEntry() =
+    FeedEntry(
+        lastShown = lastShown,
+        showCount = showCount,
+    )
+
+internal fun NeuroStorage.SerializableRejectionSignal.toRejectionSignal() =
+    RejectionSignal(
+        count = count,
+        lastRejectedAt = lastRejectedAt,
+    )
+
+internal fun NeuroStorage.SerializableTopicEvidence.toTopicEvidence() =
+    TopicEvidence(
+        positiveSignals = positiveSignals,
+        watchSignals = watchSignals,
+        explicitSignals = explicitSignals,
+        positiveScore = positiveScore,
+        videoIds = videoIds,
+        channelIds = channelIds,
+        firstSeenAt = firstSeenAt,
+        lastSeenAt = lastSeenAt,
+    )
+
+internal fun NeuroStorage.SerializableBrain.toUserBrain(): UserBrain {
+    val vectors =
+        TimeBucket.entries.associateWith { bucket ->
+            val serialized = timeVectors[bucket.name]
+            serialized?.toContentVector() ?: ContentVector()
+        }
+    return UserBrain(
+        timeVectors = vectors,
+        globalVector = global.toContentVector(),
+        channelScores = channelScores,
+        topicAffinities = topicAffinities,
+        totalInteractions = interactions,
+        consecutiveSkips = consecutiveSkips,
+        blockedTopics = blockedTopics,
+        blockedChannels = blockedChannels,
+        preferredTopics = preferredTopics,
+        hasCompletedOnboarding = hasCompletedOnboarding,
+        lastPersona = lastPersona,
+        personaStability = personaStability,
+        idfWordFrequency = idfWordFrequency,
+        idfTotalDocuments = idfTotalDocuments,
+        watchHistoryMap = watchHistoryMap,
+        seenShortsHistory = seenShortsHistory,
+        channelTopicProfiles = channelTopicProfiles,
+        shortsVector = shortsVector.toContentVector(),
+        suppressedVideoIds = suppressedVideoIds,
+        suppressedChannels = suppressedChannels,
+        rejectionPatterns =
+            rejectionPatterns.mapValues { (_, v) ->
+                v.toRejectionSignal()
+            },
+        feedHistory = feedHistory.mapValues { (_, v) -> v.toFeedEntry() },
+        recentQueryTokens = recentQueryTokens.map { it.toSet() },
+        topicEvidence = topicEvidence.mapValues { (_, v) -> v.toTopicEvidence() },
+        recentRelatedSeeds = recentRelatedSeeds,
+        staleQueries = staleQueries,
+        clusterRotation = clusterRotation,
+        tagAffinities = tagAffinities,
+    )
 }
