@@ -15,7 +15,7 @@ class GraphSeedSelectorTest {
         timestamp: Long = now,
         durationSec: Int = 600,
         percentWatched: Double = 100.0,
-        isShort: Boolean = false
+        isShort: Boolean = false,
     ) = GraphSeedInput(
         id = id,
         title = title,
@@ -25,64 +25,70 @@ class GraphSeedSelectorTest {
         timestamp = timestamp,
         durationSec = durationSec,
         percentWatched = percentWatched,
-        isShort = isShort
+        isShort = isShort,
     )
 
     @Test
     fun `explicit liked seeds outrank equally recent watch seeds`() {
-        val selected = GraphSeedSelector.select(
-            listOf(
-                seed("watch", source = GraphSeedSource.WATCH_HISTORY),
-                seed("liked", source = GraphSeedSource.LIKED)
-            ),
-            maxSeeds = 1,
-            now = now
-        )
+        val selected =
+            GraphSeedSelector.select(
+                listOf(
+                    seed("watch", source = GraphSeedSource.WATCH_HISTORY),
+                    seed("liked", source = GraphSeedSource.LIKED),
+                ),
+                maxSeeds = 1,
+                now = now,
+            )
 
         assertThat(selected).containsExactly("liked")
     }
 
     @Test
     fun `long partial watches qualify while short partial watches do not`() {
-        val selected = GraphSeedSelector.select(
-            listOf(
-                seed("long_partial", durationSec = 600, percentWatched = 40.0, engagementWeight = 0.4),
-                seed("short_partial", durationSec = 200, percentWatched = 40.0, engagementWeight = 0.4)
-            ),
-            maxSeeds = 4,
-            now = now
-        )
+        val selected =
+            GraphSeedSelector.select(
+                listOf(
+                    seed("long_partial", durationSec = 600, percentWatched = 40.0, engagementWeight = 0.4),
+                    seed("short_partial", durationSec = 200, percentWatched = 40.0, engagementWeight = 0.4),
+                ),
+                maxSeeds = 4,
+                now = now,
+            )
 
         assertThat(selected).containsExactly("long_partial")
     }
 
     @Test
     fun `selection caps dense title clusters at two seeds`() {
-        val selected = GraphSeedSelector.select(
-            listOf(
-                seed("a1", title = "alpha one", engagementWeight = 1.0),
-                seed("a2", title = "alpha two", engagementWeight = 0.9),
-                seed("a3", title = "alpha three", engagementWeight = 0.8),
-                seed("b1", title = "beta one", engagementWeight = 0.1)
-            ),
-            maxSeeds = 4,
-            now = now
-        )
+        val selected =
+            GraphSeedSelector.select(
+                listOf(
+                    seed("a1", title = "alpha one", engagementWeight = 1.0),
+                    seed("a2", title = "alpha two", engagementWeight = 0.9),
+                    seed("a3", title = "alpha three", engagementWeight = 0.8),
+                    seed("b1", title = "beta one", engagementWeight = 0.1),
+                ),
+                maxSeeds = 4,
+                now = now,
+            )
 
-        assertThat(selected).containsExactly("a1", "a2", "b1").inOrder()
+        // Progressive fill: every cluster gets its first seed (a1, b1) before any
+        // cluster gets a second (a2); the dense cluster stays capped at two.
+        assertThat(selected).containsExactly("a1", "b1", "a2").inOrder()
     }
 
     @Test
     fun `selection excludes known blocked or suppressed channels`() {
-        val selected = GraphSeedSelector.select(
-            listOf(
-                seed("blocked", channelId = "UC_blocked", engagementWeight = 1.0),
-                seed("allowed", channelId = "UC_allowed", engagementWeight = 0.5)
-            ),
-            maxSeeds = 2,
-            now = now,
-            excludedChannelIds = setOf("UC_blocked")
-        )
+        val selected =
+            GraphSeedSelector.select(
+                listOf(
+                    seed("blocked", channelId = "UC_blocked", engagementWeight = 1.0),
+                    seed("allowed", channelId = "UC_allowed", engagementWeight = 0.5),
+                ),
+                maxSeeds = 2,
+                now = now,
+                excludedChannelIds = setOf("UC_blocked"),
+            )
 
         assertThat(selected).containsExactly("allowed")
     }

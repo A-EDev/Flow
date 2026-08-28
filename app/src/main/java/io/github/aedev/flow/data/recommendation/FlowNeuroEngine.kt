@@ -164,6 +164,15 @@ class FlowNeuroEngine(
 
         suspend fun getExcludedChannelIds(): Set<String> = requireInstance().getExcludedChannelIds()
 
+        suspend fun onChannelTagsLearned(
+            context: Context,
+            channelId: String,
+            tags: List<String>,
+            description: String?,
+        ) = getInstance(context).onChannelTagsLearned(channelId, tags, description)
+
+        suspend fun onChannelUploadsObserved(uploads: List<Video>) = requireInstance().onChannelUploadsObserved(uploads)
+
         suspend fun completeOnboarding(selectedTopics: Set<String>) = requireInstance().completeOnboarding(selectedTopics)
 
         suspend fun completeOnboarding(
@@ -294,6 +303,9 @@ class FlowNeuroEngine(
     // Discovery tree depth: 0 on refresh, +1 per load-more regeneration —
     // each round digs one level deeper into every cluster's branches.
     private var discoveryRound: Int = 0
+
+    // Channels passively profiled from upload titles this session (once each).
+    private val passiveProfiledChannels = HashSet<String>()
     private val sessionTopicHistory = mutableListOf<String>()
     private val recentInteractions = mutableListOf<MomentumEntry>()
 
@@ -422,6 +434,7 @@ class FlowNeuroEngine(
         recentInteractions.clear()
         sessionImpressed.clear()
         discoveryRound = 0
+        passiveProfiledChannels.clear()
     }
 
     fun getSessionDurationMinutes(): Long = (System.currentTimeMillis() - sessionStartTime) / 60_000L
@@ -1293,7 +1306,9 @@ class FlowNeuroEngine(
             val excludedChannelIds: Set<String>
             val recentSeedIds: Set<String>
             val topicScores: Map<String, Double>
+            val brainSnapshot: UserBrain
             brainMutex.withLock {
+                brainSnapshot = currentUserBrain
                 val channelSuppressionCutoff = now - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
                 excludedChannelIds = currentUserBrain.blockedChannels +
                     currentUserBrain.suppressedChannels
@@ -1306,13 +1321,36 @@ class FlowNeuroEngine(
                 topicScores = currentUserBrain.globalVector.topics
             }
 
+            // Map seed topic keys to interest communities so the spread-first pick
+            // allocates one related seed per MAJOR interest (mma, android, anime…)
+            // before any interest gets a second one.
+            val topicToCommunity =
+                NeuroClusters
+                    .buildClusters(
+                        topicScores = brainSnapshot.globalVector.topics,
+                        affinities = brainSnapshot.topicAffinities,
+                        channelTopicProfiles = brainSnapshot.channelTopicProfiles,
+                        categories = NeuroTopicCatalog.TOPIC_CATEGORIES,
+                        normalizeLemma = tokenizer::normalizeLemma,
+                        tagAffinities = brainSnapshot.tagAffinities,
+                    ).flatMap { cluster -> cluster.topics.map { it to cluster.representative } }
+                    .toMap()
+
             // Seed rotation: newest-first selection kept picking the same seeds every
             // refresh, making the RELATED lane byte-identical. Cool recently used seeds
             // down unless that would starve the selection.
             val rotated = candidates.filterNot { it.id in recentSeedIds }
             val pool = if (rotated.size >= maxSeeds) rotated else candidates
 
-            val selected = GraphSeedSelector.select(pool, maxSeeds, now, excludedChannelIds, topicScores = topicScores)
+            val selected =
+                GraphSeedSelector.select(
+                    pool,
+                    maxSeeds,
+                    now,
+                    excludedChannelIds,
+                    topicScores = topicScores,
+                    communityOf = { key -> topicToCommunity[NeuroScoring.stripDomainTag(key)] ?: key },
+                )
             if (selected.isNotEmpty()) {
                 brainMutex.withLock {
                     val updated = currentUserBrain.recentRelatedSeeds.toMutableMap()
@@ -1343,6 +1381,95 @@ class FlowNeuroEngine(
                     .filter { (_, ts) -> ts > cutoff }
                     .keys
         }
+
+    /**
+     * Learns a channel's creator-declared keyword tags (+ description lead) into
+     * its topic profile and the tag-affinity graph. Authored identity — the
+     * strongest channel-level signal available; fetched on subscribe.
+     */
+    suspend fun onChannelTagsLearned(
+        channelId: String,
+        tags: List<String>,
+        description: String?,
+    ) {
+        if (channelId.isBlank()) return
+        val additions = NeuroChannelKnowledge.profileFromChannelTags(tags, description, tokenizer)
+        if (additions.isEmpty()) return
+        brainMutex.withLock {
+            val profiles = currentUserBrain.channelTopicProfiles.toMutableMap()
+            profiles[channelId] = NeuroChannelKnowledge.mergeProfile(profiles[channelId].orEmpty(), additions)
+
+            // Creator-authored co-occurrence: declared tags belong together.
+            val tagAffinities = currentUserBrain.tagAffinities.toMutableMap()
+            val tokens = additions.keys.take(5).toList()
+            for (i in tokens.indices) {
+                for (j in i + 1 until tokens.size) {
+                    val key = NeuroScoring.makeAffinityKey(tokens[i], tokens[j])
+                    tagAffinities[key] =
+                        ((tagAffinities[key] ?: 0.0) + NeuroScoring.TAG_AFFINITY_INCREMENT)
+                            .coerceAtMost(NeuroScoring.AFFINITY_MAX)
+                }
+            }
+            val cappedTagAffinities =
+                if (tagAffinities.size > NeuroScoring.TAG_AFFINITY_MAX_ENTRIES) {
+                    tagAffinities.entries
+                        .sortedByDescending { it.value }
+                        .take(NeuroScoring.TAG_AFFINITY_KEEP_TOP)
+                        .associate { it.key to it.value }
+                } else {
+                    tagAffinities
+                }
+
+            currentUserBrain =
+                currentUserBrain.copy(
+                    channelTopicProfiles = capChannelProfiles(profiles),
+                    tagAffinities = cappedTagAffinities,
+                )
+            scheduleDebouncedSave()
+        }
+    }
+
+    /**
+     * Passive channel profiling from upload titles the subs lane already fetched.
+     * Low weight, once per channel per session — teaches what each subscribed
+     * channel is about without waiting for the user to click anything.
+     */
+    suspend fun onChannelUploadsObserved(uploads: List<Video>) {
+        if (uploads.isEmpty()) return
+        val byChannel = uploads.filter { it.channelId.isNotBlank() }.groupBy { it.channelId }
+        if (byChannel.isEmpty()) return
+        brainMutex.withLock {
+            var profiles: MutableMap<String, Map<String, Double>>? = null
+            byChannel.forEach { (channelId, videos) ->
+                if (!passiveProfiledChannels.add(channelId)) return@forEach
+                val additions =
+                    NeuroChannelKnowledge.profileFromUploadTitles(
+                        videos.take(6).map { it.title },
+                        tokenizer,
+                    )
+                if (additions.isEmpty()) return@forEach
+                val target =
+                    profiles ?: currentUserBrain.channelTopicProfiles.toMutableMap().also { profiles = it }
+                target[channelId] = NeuroChannelKnowledge.mergeProfile(target[channelId].orEmpty(), additions)
+            }
+            profiles?.let {
+                currentUserBrain = currentUserBrain.copy(channelTopicProfiles = capChannelProfiles(it))
+                scheduleDebouncedSave()
+            }
+        }
+    }
+
+    // Evicts the lowest-quality channels' profiles when over the cap. Call under brainMutex.
+    private fun capChannelProfiles(profiles: MutableMap<String, Map<String, Double>>): Map<String, Map<String, Double>> {
+        if (profiles.size <= NeuroScoring.CHANNEL_PROFILE_MAX_CHANNELS) return profiles
+        val channelScores = currentUserBrain.channelScores
+        profiles.entries
+            .sortedBy { (id, _) -> channelScores[id] ?: 0.0 }
+            .take(profiles.size - NeuroScoring.CHANNEL_PROFILE_MAX_CHANNELS)
+            .map { it.key }
+            .forEach { profiles.remove(it) }
+        return profiles.toMap()
+    }
 
     /** Feed-history ids shown within the window — for assembly-time exclusion sets. */
     suspend fun getRecentlyShownVideoIds(withinHours: Long = 48L): Set<String> =

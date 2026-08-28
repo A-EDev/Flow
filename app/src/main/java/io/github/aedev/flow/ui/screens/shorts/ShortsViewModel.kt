@@ -357,6 +357,10 @@ class ShortsViewModel
                     subscribed = !isSubscribed,
                 )
             }
+            if (!isSubscribed) {
+                // Newly subscribed: learn the channel's declared keyword tags.
+                runCatching { repository.learnChannelTags(context, channelId) }
+            }
         }
 
         fun toggleSaveShort(short: ShortVideo) {

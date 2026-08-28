@@ -11,6 +11,7 @@ internal object GraphSeedSelector {
         excludedChannelIds: Set<String> = emptySet(),
         maxPerCluster: Int = 2,
         topicScores: Map<String, Double> = emptyMap(),
+        communityOf: ((String) -> String)? = null,
     ): List<String> {
         if (candidates.isEmpty() || maxSeeds <= 0) return emptyList()
         val tokenizer = NeuroTokenizer()
@@ -19,9 +20,12 @@ internal object GraphSeedSelector {
                 .asSequence()
                 .filter { it.isEligible(excludedChannelIds) }
                 .map { seed ->
+                    val rawKey = clusterKey(seed.title, tokenizer, topicScores)
                     ScoredSeed(
                         id = seed.id,
-                        clusterKey = clusterKey(seed.title, tokenizer, topicScores),
+                        // Mapping topic keys to interest COMMUNITIES makes the
+                        // spread-first pick allocate one seed per major interest.
+                        clusterKey = communityOf?.invoke(rawKey) ?: rawKey,
                         weight = seed.score(now),
                     )
                 }.filter { it.weight > 0.0 }

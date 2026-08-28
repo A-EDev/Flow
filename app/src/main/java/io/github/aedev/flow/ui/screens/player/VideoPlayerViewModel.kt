@@ -3188,6 +3188,10 @@ class VideoPlayerViewModel
                         subscribed = !isSubscribed,
                     )
                 }.onFailure { Log.w("VideoPlayerViewModel", "Failed to record subscription signal", it) }
+                if (!isSubscribed) {
+                    // Newly subscribed: learn the channel's declared keyword tags.
+                    runCatching { repository.learnChannelTags(context, channelId) }
+                }
             }
         }
 

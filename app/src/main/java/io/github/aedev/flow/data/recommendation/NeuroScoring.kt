@@ -957,24 +957,30 @@ internal object NeuroScoring {
     }
 
     /**
-     * Greedy cluster-diversified seed pick: highest weight first, at most
-     * maxPerCluster per cluster, capped at maxSeeds — prevents seed monoculture.
+     * Cluster-diversified seed pick with PROGRESSIVE fill: pass 1 takes at most
+     * one seed per cluster (spread-first, so with community-mapped keys each
+     * major interest gets a related seed before any interest gets two); later
+     * passes relax up to maxPerCluster only when slots remain.
      */
     fun pickDiverseSeeds(
         seeds: List<SeedRank>,
         maxSeeds: Int,
         maxPerCluster: Int,
     ): List<String> {
-        val out = mutableListOf<String>()
+        val sortedSeeds = seeds.sortedByDescending { it.weight }
+        val out = LinkedHashSet<String>()
         val perCluster = HashMap<String, Int>()
-        for (s in seeds.sortedByDescending { it.weight }) {
-            if (out.size >= maxSeeds) break
-            val count = perCluster[s.clusterKey] ?: 0
-            if (count >= maxPerCluster) continue
-            out.add(s.id)
-            perCluster[s.clusterKey] = count + 1
+        for (allowed in 1..maxPerCluster.coerceAtLeast(1)) {
+            for (s in sortedSeeds) {
+                if (out.size >= maxSeeds) return out.toList()
+                if (s.id in out) continue
+                val count = perCluster[s.clusterKey] ?: 0
+                if (count >= allowed) continue
+                out.add(s.id)
+                perCluster[s.clusterKey] = count + 1
+            }
         }
-        return out
+        return out.toList()
     }
 
     // ── Topic probation (damp brand-new, unconfirmed topics on mature brains) ──

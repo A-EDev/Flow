@@ -155,6 +155,10 @@ class QuickActionsViewModel
                             subscribed = !isCurrentlySubscribed,
                         )
                     }
+                    if (!isCurrentlySubscribed) {
+                        // Newly subscribed: learn the channel's declared keyword tags.
+                        runCatching { repository.learnChannelTags(context, channelId) }
+                    }
                 } catch (e: Exception) {
                     Toast
                         .makeText(
