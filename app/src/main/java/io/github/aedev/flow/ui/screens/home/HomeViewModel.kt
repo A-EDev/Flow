@@ -565,6 +565,7 @@ class HomeViewModel
     constructor(
         private val repository: YouTubeRepository,
         private val subscriptionRepository: SubscriptionRepository,
+        private val subscriptionFeedRepository: io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository,
         private val shortsRepository: ShortsRepository,
         private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
         private val shortsQueueHandoff: io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff,
@@ -1045,6 +1046,10 @@ class HomeViewModel
                     val relatedFetch = results.related
                     val rawRelated = relatedFetch.candidates
 
+                    // Passive channel profiling: the upload titles we just fetched
+                    // teach the engine what each subscribed channel is about.
+                    runCatching { FlowNeuroEngine.onChannelUploadsObserved(rawSubs) }
+
                     // Stale-query feedback: queries whose results are mostly
                     // already-shown get skipped by the next generation cycle.
                     reportQueryNovelty(discoveryPairs)
@@ -1126,9 +1131,24 @@ class HomeViewModel
 
                     val subsByRecency = subsPool.sortedByDescending { it.timestamp }
                     val freshSlotTarget = dynamicFreshSubSlots(userSubs.size)
+
+                    // Fresh-subs lane is RSS-FIRST: the subscription feed store covers
+                    // ALL subscribed channels with real publish timestamps, so a fresh
+                    // upload is visible even when its channel missed this refresh's
+                    // rotating 10-18 channel fetch window.
+                    val rssFresh =
+                        runCatching { subscriptionFeedRepository.observeFeed().first() }
+                            .getOrDefault(emptyList())
+                            .asSequence()
+                            .filter { !it.isShort && !it.isUpcoming && (it.duration > 0 || it.isLive) }
+                            .filter { (now - it.timestamp) in 0..FRESH_SUB_WINDOW_MS }
+                            .filter { it.channelId.isBlank() || it.channelId !in excludedChannels }
+                            .toList()
                     val freshSubsLane =
-                        subsByRecency
-                            .filter { isFreshSubscribedCandidate(it, now) }
+                        (rssFresh + subsByRecency.filter { isFreshSubscribedCandidate(it, now) })
+                            .filterWatched(watched)
+                            .distinctBy { it.id }
+                            .sortedByDescending { it.timestamp }
                             .take(freshSlotTarget)
                     val freshIds = freshSubsLane.map { it.id }.toHashSet()
 
