@@ -144,6 +144,12 @@ internal object NeuroScoring {
     // ── Interest-cluster rotation state cap ──
     const val CLUSTER_ROTATION_MAX = 40
 
+    // ── Tag co-occurrence edges (from opened videos' real tags) ──
+    const val TAG_AFFINITY_TOKENS = 6
+    const val TAG_AFFINITY_INCREMENT = 0.05
+    const val TAG_AFFINITY_MAX_ENTRIES = 400
+    const val TAG_AFFINITY_KEEP_TOP = 300
+
     // ── Implicit Disinterest Constants ──
     const val IMPLICIT_DISINTEREST_WINDOW_HOURS = 48.0
     const val IMPLICIT_DISINTEREST_THRESHOLD_HEAVY = 5

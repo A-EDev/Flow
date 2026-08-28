@@ -135,6 +135,7 @@ internal class NeuroDiscovery(
                 channelTopicProfiles = brain.channelTopicProfiles,
                 categories = topicCategories,
                 normalizeLemma = tokenizer::normalizeLemma,
+                tagAffinities = brain.tagAffinities,
             )
         if (clusters.isEmpty()) return emptySelection()
 

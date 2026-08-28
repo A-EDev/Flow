@@ -118,6 +118,8 @@ data class UserBrain(
     val staleQueries: Map<String, Long> = emptyMap(),
     /** Interest-cluster rotation state (cluster representative → lastServedAt). */
     val clusterRotation: Map<String, Long> = emptyMap(),
+    /** Tag co-occurrence edges from opened videos ("a|b" → weight), for clustering. */
+    val tagAffinities: Map<String, Double> = emptyMap(),
     val schemaVersion: Int = 14,
 )
 

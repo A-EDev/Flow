@@ -108,6 +108,7 @@ internal class NeuroStorage(
         val recentRelatedSeeds: Map<String, Long> = emptyMap(),
         val staleQueries: Map<String, Long> = emptyMap(),
         val clusterRotation: Map<String, Long> = emptyMap(),
+        val tagAffinities: Map<String, Double> = emptyMap(),
     )
 
     // ── DataStore setup ──
@@ -252,6 +253,7 @@ internal class NeuroStorage(
             recentRelatedSeeds = recentRelatedSeeds,
             staleQueries = staleQueries,
             clusterRotation = clusterRotation,
+            tagAffinities = tagAffinities,
         )
 
     fun SerializableBrain.toUserBrain(): UserBrain {
@@ -291,6 +293,7 @@ internal class NeuroStorage(
             recentRelatedSeeds = recentRelatedSeeds,
             staleQueries = staleQueries,
             clusterRotation = clusterRotation,
+            tagAffinities = tagAffinities,
         )
     }
 

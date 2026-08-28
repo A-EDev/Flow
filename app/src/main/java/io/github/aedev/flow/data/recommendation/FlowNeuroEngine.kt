@@ -263,6 +263,7 @@ class FlowNeuroEngine(
     // ── Module Instances ──
     private val tokenizer = NeuroTokenizer()
     private val storage = NeuroStorage(appContext)
+    private val contentStore = NeuroContentStore(appContext)
     private val discovery by lazy {
         NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer)
     }
@@ -351,6 +352,8 @@ class FlowNeuroEngine(
                 watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
             }
 
+            contentStore.load()
+
             resetSessionInternal()
             isInitialized = true
         }
@@ -373,6 +376,7 @@ class FlowNeuroEngine(
             watchHistory.clear()
             resetSessionInternal()
             storage.save(currentUserBrain)
+            contentStore.clear()
         }
     }
 
@@ -401,6 +405,7 @@ class FlowNeuroEngine(
                 brainMutex.withLock {
                     storage.save(currentUserBrain)
                 }
+                contentStore.persistIfDirty()
             }
     }
 
@@ -1253,6 +1258,7 @@ class FlowNeuroEngine(
             val seedCooldownCutoff = now - (NeuroScoring.RELATED_SEED_COOLDOWN_HOURS * 60 * 60 * 1000L)
             val excludedChannelIds: Set<String>
             val recentSeedIds: Set<String>
+            val topicScores: Map<String, Double>
             brainMutex.withLock {
                 val channelSuppressionCutoff = now - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
                 excludedChannelIds = currentUserBrain.blockedChannels +
@@ -1263,6 +1269,7 @@ class FlowNeuroEngine(
                     currentUserBrain.recentRelatedSeeds
                         .filter { (_, ts) -> ts > seedCooldownCutoff }
                         .keys
+                topicScores = currentUserBrain.globalVector.topics
             }
 
             // Seed rotation: newest-first selection kept picking the same seeds every
@@ -1271,7 +1278,7 @@ class FlowNeuroEngine(
             val rotated = candidates.filterNot { it.id in recentSeedIds }
             val pool = if (rotated.size >= maxSeeds) rotated else candidates
 
-            val selected = GraphSeedSelector.select(pool, maxSeeds, now, excludedChannelIds)
+            val selected = GraphSeedSelector.select(pool, maxSeeds, now, excludedChannelIds, topicScores = topicScores)
             if (selected.isNotEmpty()) {
                 brainMutex.withLock {
                     val updated = currentUserBrain.recentRelatedSeeds.toMutableMap()
@@ -1821,6 +1828,42 @@ class FlowNeuroEngine(
                 }
             }
 
+            // 5b. Tag-grounded knowledge: persist the tag-rich vector so this video
+            // is scored on real content when it reappears as a bare-title candidate,
+            // and record tag co-occurrence edges for interest clustering.
+            var newTagAffinities = currentUserBrain.tagAffinities
+            if (learningRate > 0 && video.tags.isNotEmpty()) {
+                contentStore.put(video.id, videoVector.topics)
+
+                val tagTokens =
+                    video.tags
+                        .asSequence()
+                        .flatMap { tokenizer.tokenize(it) }
+                        .distinct()
+                        .take(NeuroScoring.TAG_AFFINITY_TOKENS)
+                        .toList()
+                if (tagTokens.size >= 2) {
+                    val mutableTags = newTagAffinities.toMutableMap()
+                    for (i in tagTokens.indices) {
+                        for (j in i + 1 until tagTokens.size) {
+                            val key = NeuroScoring.makeAffinityKey(tagTokens[i], tagTokens[j])
+                            mutableTags[key] =
+                                ((mutableTags[key] ?: 0.0) + NeuroScoring.TAG_AFFINITY_INCREMENT)
+                                    .coerceAtMost(NeuroScoring.AFFINITY_MAX)
+                        }
+                    }
+                    newTagAffinities =
+                        if (mutableTags.size > NeuroScoring.TAG_AFFINITY_MAX_ENTRIES) {
+                            mutableTags.entries
+                                .sortedByDescending { it.value }
+                                .take(NeuroScoring.TAG_AFFINITY_KEEP_TOP)
+                                .associate { it.key to it.value }
+                        } else {
+                            mutableTags
+                        }
+                }
+            }
+
             val topicEvidenceSignal =
                 calculateTopicEvidenceSignal(
                     interactionType,
@@ -1997,6 +2040,7 @@ class FlowNeuroEngine(
                     channelTopicProfiles = newChannelProfiles,
                     shortsVector = newShortsVector,
                     topicEvidence = newTopicEvidence,
+                    tagAffinities = newTagAffinities,
                 )
 
             scheduleDebouncedSave()
@@ -2121,8 +2165,13 @@ class FlowNeuroEngine(
                 featureCache[cacheKey]?.let { return it }
             }
         }
-        val vector = tokenizer.extractFeatures(video, idfSnapshot, channelProfile)
+        var vector = tokenizer.extractFeatures(video, idfSnapshot, channelProfile)
         if (!hasTags) {
+            // A bare-title candidate we have watched before: score it on the
+            // tag-rich vector stored at watch time instead of its title alone.
+            contentStore.topicsFor(video.id)?.let { storedTopics ->
+                vector = vector.copy(topics = storedTopics)
+            }
             synchronized(featureCache) {
                 featureCache[cacheKey] = vector
             }

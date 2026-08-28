@@ -63,6 +63,7 @@ internal object NeuroClusters {
         channelTopicProfiles: Map<String, Map<String, Double>>,
         categories: List<TopicCategory>,
         normalizeLemma: (String) -> String,
+        tagAffinities: Map<String, Double> = emptyMap(),
     ): List<TopicCluster> {
         // Nodes: strip domain tags, keep the strongest score per base word.
         val scores = HashMap<String, Double>()
@@ -87,6 +88,12 @@ internal object NeuroClusters {
 
         // (a) Co-watch affinities — the strongest user evidence.
         affinities.forEach { (key, weight) ->
+            val parts = key.split("|")
+            if (parts.size == 2) addEdge(parts[0], parts[1], weight)
+        }
+
+        // (a2) Creator-declared tag co-occurrence from opened videos.
+        tagAffinities.forEach { (key, weight) ->
             val parts = key.split("|")
             if (parts.size == 2) addEdge(parts[0], parts[1], weight)
         }

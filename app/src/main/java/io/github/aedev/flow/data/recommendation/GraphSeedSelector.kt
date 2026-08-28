@@ -9,35 +9,37 @@ internal object GraphSeedSelector {
         maxSeeds: Int,
         now: Long = System.currentTimeMillis(),
         excludedChannelIds: Set<String> = emptySet(),
-        maxPerCluster: Int = 2
+        maxPerCluster: Int = 2,
+        topicScores: Map<String, Double> = emptyMap(),
     ): List<String> {
         if (candidates.isEmpty() || maxSeeds <= 0) return emptyList()
         val tokenizer = NeuroTokenizer()
-        val ranked = candidates
-            .asSequence()
-            .filter { it.isEligible(excludedChannelIds) }
-            .map { seed ->
-                ScoredSeed(
-                    id = seed.id,
-                    clusterKey = clusterKey(seed.title, tokenizer),
-                    weight = seed.score(now)
-                )
-            }
-            .filter { it.weight > 0.0 }
-            .groupBy { it.id }
-            .values
-            .mapNotNull { seeds -> seeds.maxByOrNull { it.weight } }
-            .map { SeedRank(it.id, it.clusterKey, it.weight) }
-            .toList()
+        val ranked =
+            candidates
+                .asSequence()
+                .filter { it.isEligible(excludedChannelIds) }
+                .map { seed ->
+                    ScoredSeed(
+                        id = seed.id,
+                        clusterKey = clusterKey(seed.title, tokenizer, topicScores),
+                        weight = seed.score(now),
+                    )
+                }.filter { it.weight > 0.0 }
+                .groupBy { it.id }
+                .values
+                .mapNotNull { seeds -> seeds.maxByOrNull { it.weight } }
+                .map { SeedRank(it.id, it.clusterKey, it.weight) }
+                .toList()
 
         return NeuroScoring.pickDiverseSeeds(ranked, maxSeeds, maxPerCluster)
     }
 
-    fun scoreSeed(seed: GraphSeedInput, now: Long = System.currentTimeMillis()): Double =
-        seed.score(now)
+    fun scoreSeed(
+        seed: GraphSeedInput,
+        now: Long = System.currentTimeMillis(),
+    ): Double = seed.score(now)
 
-    fun clusterKey(seed: GraphSeedInput): String =
-        clusterKey(seed.title, NeuroTokenizer())
+    fun clusterKey(seed: GraphSeedInput): String = clusterKey(seed.title, NeuroTokenizer())
 
     private fun GraphSeedInput.isEligible(excludedChannelIds: Set<String>): Boolean {
         if (id.isBlank() || isShort) return false
@@ -52,13 +54,17 @@ internal object GraphSeedSelector {
     private fun GraphSeedInput.score(now: Long): Double =
         engagementWeight.coerceAtLeast(0.0) * sourceWeight() * recencyWeight(timestamp, now)
 
-    private fun GraphSeedInput.sourceWeight(): Double = when (source) {
-        GraphSeedSource.LIKED -> 1.4
-        GraphSeedSource.PLAYLIST -> 1.0
-        GraphSeedSource.WATCH_HISTORY -> if (percentWatched >= 70.0) 1.2 else 0.8
-    }
+    private fun GraphSeedInput.sourceWeight(): Double =
+        when (source) {
+            GraphSeedSource.LIKED -> 1.4
+            GraphSeedSource.PLAYLIST -> 1.0
+            GraphSeedSource.WATCH_HISTORY -> if (percentWatched >= 70.0) 1.2 else 0.8
+        }
 
-    private fun recencyWeight(timestamp: Long, now: Long): Double {
+    private fun recencyWeight(
+        timestamp: Long,
+        now: Long,
+    ): Double {
         if (timestamp <= 0L) return 0.85
         val ageDays = ((now - timestamp).coerceAtLeast(0L) / DAY_MS).toInt()
         return when {
@@ -70,13 +76,34 @@ internal object GraphSeedSelector {
         }
     }
 
-    private fun clusterKey(title: String, tokenizer: NeuroTokenizer): String {
+    private fun clusterKey(
+        title: String,
+        tokenizer: NeuroTokenizer,
+        topicScores: Map<String, Double> = emptyMap(),
+    ): String {
         val tokens = tokenizer.tokenize(title)
+
+        // Prefer the token the user's interest vector knows best — seeds then
+        // cluster by INTEREST, not by whichever word happened to come first.
+        if (topicScores.isNotEmpty()) {
+            val best =
+                tokens
+                    .map { tokenizer.normalizeLemma(it) }
+                    .mapNotNull { lemma ->
+                        val score =
+                            topicScores[lemma]
+                                ?: topicScores.entries.firstOrNull { NeuroScoring.stripDomainTag(it.key) == lemma }?.value
+                        score?.let { lemma to it }
+                    }.maxByOrNull { it.second }
+            if (best != null && best.second >= 0.05) return best.first
+        }
+
         for (token in tokens) {
             val lemma = tokenizer.normalizeLemma(token)
-            val category = NeuroTopicCatalog.TOPIC_CATEGORIES.firstOrNull { c ->
-                c.topics.any { tokenizer.normalizeLemma(it) == lemma }
-            }
+            val category =
+                NeuroTopicCatalog.TOPIC_CATEGORIES.firstOrNull { c ->
+                    c.topics.any { tokenizer.normalizeLemma(it) == lemma }
+                }
             if (category != null) return "cat:${category.name}"
         }
         return tokens.firstOrNull()?.let { tokenizer.normalizeLemma(it) } ?: "misc"
@@ -85,6 +112,6 @@ internal object GraphSeedSelector {
     private data class ScoredSeed(
         val id: String,
         val clusterKey: String,
-        val weight: Double
+        val weight: Double,
     )
 }
