@@ -123,6 +123,24 @@ internal object NeuroScoring {
     const val FEED_HISTORY_MAX = 3000
     const val FEED_HISTORY_EXPIRY_DAYS = 14L
 
+    // ── Hard seen-gate (repetition filter, not penalty) ──
+    const val SEEN_GATE_SHOW_COUNT = 2
+    const val SEEN_GATE_WINDOW_HOURS = 60.0
+
+    /** Even a single viewport impression hides an item for this short window. */
+    const val SEEN_GATE_SINGLE_SHOW_WINDOW_HOURS = 6.0
+    const val SEEN_GATE_MIN_POOL = 25
+    const val SEEN_GATE_MIN_RESULTS = 10
+
+    // ── Related-seed rotation ──
+    const val RELATED_SEED_COOLDOWN_HOURS = 6L
+    const val RECENT_RELATED_SEEDS_MAX = 60
+
+    // ── Stale-query memory (result novelty, not query wording) ──
+    const val STALE_QUERY_NOVELTY_THRESHOLD = 0.4
+    const val STALE_QUERY_EXPIRY_HOURS = 24L
+    const val STALE_QUERY_MAX = 40
+
     // ── Implicit Disinterest Constants ──
     const val IMPLICIT_DISINTEREST_WINDOW_HOURS = 48.0
     const val IMPLICIT_DISINTEREST_THRESHOLD_HEAVY = 5
@@ -603,6 +621,35 @@ internal object NeuroScoring {
 
         // Blend toward 1.0 when pool is scarce
         return basePenalty + (1.0 - basePenalty) * (1.0 - scarcityRelaxation)
+    }
+
+    /**
+     * Hard seen-gate: industry practice (Twitter home-mixer's "previously seen
+     * removal") treats recent repeats as a FILTER, not a score penalty — a
+     * penalty lets high-scoring items punch back into the feed. Items shown
+     * [SEEN_GATE_SHOW_COUNT]+ times within [SEEN_GATE_WINDOW_HOURS] are dropped
+     * entirely, with two scarcity guards: small pools skip the gate, and if the
+     * gate would leave fewer than [SEEN_GATE_MIN_RESULTS] items it backs off.
+     */
+    fun <T> applySeenGate(
+        items: List<T>,
+        feedHistory: Map<String, FeedEntry>,
+        now: Long,
+        idOf: (T) -> String,
+    ): List<T> {
+        if (items.size < SEEN_GATE_MIN_POOL || feedHistory.isEmpty()) return items
+        val kept =
+            items.filter { item ->
+                val entry = feedHistory[idOf(item)] ?: return@filter true
+                val hoursSince = (now - entry.lastShown) / 3_600_000.0
+                // A single impression hides the item briefly (kills the classic
+                // "same video on every refresh"); repeats hide it for days.
+                if (hoursSince < SEEN_GATE_SINGLE_SHOW_WINDOW_HOURS) return@filter false
+                if (entry.showCount < SEEN_GATE_SHOW_COUNT) return@filter true
+                hoursSince >= SEEN_GATE_WINDOW_HOURS
+            }
+        if (kept.size == items.size) return items
+        return if (kept.size >= SEEN_GATE_MIN_RESULTS) kept else items
     }
 
     /**

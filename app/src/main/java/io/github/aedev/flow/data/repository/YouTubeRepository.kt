@@ -13,6 +13,7 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.bestImageUrl
@@ -1687,6 +1688,7 @@ internal object WatchMetadataVideoMapper {
             val id = cv.videoId ?: return@mapNotNull null
             val viewText = cv.viewCountText?.text()
             val isLive = cv.isLive || viewText.isLiveViewCountText()
+            val uploadDateText = cv.publishedTimeText?.text() ?: ""
             Video(
                 id = id,
                 title = cv.title?.text() ?: "",
@@ -1697,7 +1699,11 @@ internal object WatchMetadataVideoMapper {
                         ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
                 duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
                 viewCount = parseAbbreviatedCount(viewText) ?: 0L,
-                uploadDate = cv.publishedTimeText?.text() ?: "",
+                uploadDate = uploadDateText,
+                // Video.timestamp defaults to now(), which made every related item
+                // look brand new — defeating the age filter and shorts-shelf sort.
+                // Parse the real age; 0 means unknown (callers fall back to text).
+                timestamp = RelativeUploadDateParser.parse(uploadDateText) ?: 0L,
                 isLive = isLive,
             )
         }

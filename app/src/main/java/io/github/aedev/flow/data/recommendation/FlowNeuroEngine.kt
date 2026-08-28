@@ -154,6 +154,13 @@ class FlowNeuroEngine(
             query: String,
         ) = getInstance(context).onSearchQuery(query)
 
+        suspend fun reportQueryResultNovelty(
+            query: String,
+            novelRatio: Double,
+        ) = requireInstance().reportQueryResultNovelty(query, novelRatio)
+
+        suspend fun getRecentlyShownVideoIds(withinHours: Long = 48L): Set<String> = requireInstance().getRecentlyShownVideoIds(withinHours)
+
         suspend fun completeOnboarding(selectedTopics: Set<String>) = requireInstance().completeOnboarding(selectedTopics)
 
         suspend fun completeOnboarding(
@@ -1175,6 +1182,24 @@ class FlowNeuroEngine(
                     }
                 }
 
+                // ── Skip queries whose recent RESULTS were mostly already shown ──
+                val staleExpiryCutoff =
+                    System.currentTimeMillis() -
+                        NeuroScoring.STALE_QUERY_EXPIRY_HOURS * 60 * 60 * 1000L
+                val activeStaleKeys =
+                    brain.staleQueries
+                        .filter { (_, ts) -> ts > staleExpiryCutoff }
+                        .keys
+                if (activeStaleKeys.isNotEmpty()) {
+                    val fresh =
+                        candidates.filter { query ->
+                            queryStaleKey(query)?.let { it !in activeStaleKeys } ?: true
+                        }
+                    if (fresh.size >= 3) {
+                        candidates = fresh
+                    }
+                }
+
                 // ── Track used queries for future rotation ──
                 val newQueryTokens = candidates.map { tokenizer.tokenize(it).toSet() }
                 val updatedRecentTokens =
@@ -1200,16 +1225,91 @@ class FlowNeuroEngine(
         withContext(Dispatchers.Default) {
             if (candidates.isEmpty()) return@withContext emptyList()
             val now = System.currentTimeMillis()
-            val excludedChannelIds =
+            val seedCooldownCutoff = now - (NeuroScoring.RELATED_SEED_COOLDOWN_HOURS * 60 * 60 * 1000L)
+            val excludedChannelIds: Set<String>
+            val recentSeedIds: Set<String>
+            brainMutex.withLock {
+                val channelSuppressionCutoff = now - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
+                excludedChannelIds = currentUserBrain.blockedChannels +
+                    currentUserBrain.suppressedChannels
+                        .filter { (_, ts) -> ts > channelSuppressionCutoff }
+                        .keys
+                recentSeedIds =
+                    currentUserBrain.recentRelatedSeeds
+                        .filter { (_, ts) -> ts > seedCooldownCutoff }
+                        .keys
+            }
+
+            // Seed rotation: newest-first selection kept picking the same seeds every
+            // refresh, making the RELATED lane byte-identical. Cool recently used seeds
+            // down unless that would starve the selection.
+            val rotated = candidates.filterNot { it.id in recentSeedIds }
+            val pool = if (rotated.size >= maxSeeds) rotated else candidates
+
+            val selected = GraphSeedSelector.select(pool, maxSeeds, now, excludedChannelIds)
+            if (selected.isNotEmpty()) {
                 brainMutex.withLock {
-                    val channelSuppressionCutoff = now - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
-                    currentUserBrain.blockedChannels +
-                        currentUserBrain.suppressedChannels
-                            .filter { (_, ts) -> ts > channelSuppressionCutoff }
-                            .keys
+                    val updated = currentUserBrain.recentRelatedSeeds.toMutableMap()
+                    updated.entries.removeAll { it.value < seedCooldownCutoff }
+                    selected.forEach { updated[it] = now }
+                    val capped =
+                        if (updated.size > NeuroScoring.RECENT_RELATED_SEEDS_MAX) {
+                            updated.entries
+                                .sortedByDescending { it.value }
+                                .take(NeuroScoring.RECENT_RELATED_SEEDS_MAX)
+                                .associate { it.key to it.value }
+                        } else {
+                            updated
+                        }
+                    currentUserBrain = currentUserBrain.copy(recentRelatedSeeds = capped)
+                    scheduleDebouncedSave()
                 }
-            GraphSeedSelector.select(candidates, maxSeeds, now, excludedChannelIds)
+            }
+            selected
         }
+
+    /** Feed-history ids shown within the window — for assembly-time exclusion sets. */
+    suspend fun getRecentlyShownVideoIds(withinHours: Long = 48L): Set<String> =
+        brainMutex.withLock {
+            val cutoff = System.currentTimeMillis() - withinHours * 60 * 60 * 1000L
+            currentUserBrain.feedHistory.filter { it.value.lastShown > cutoff }.keys
+        }
+
+    /**
+     * Marks a discovery query stale when its RESULTS were mostly already shown —
+     * a stronger repetition signal than query-wording overlap. Stale queries are
+     * skipped by generateDiscoveryQueries for STALE_QUERY_EXPIRY_HOURS; a query
+     * that comes back with fresh results clears its mark.
+     */
+    suspend fun reportQueryResultNovelty(
+        query: String,
+        novelRatio: Double,
+    ) {
+        val key = queryStaleKey(query) ?: return
+        brainMutex.withLock {
+            val now = System.currentTimeMillis()
+            val expiryCutoff = now - NeuroScoring.STALE_QUERY_EXPIRY_HOURS * 60 * 60 * 1000L
+            val updated = currentUserBrain.staleQueries.toMutableMap()
+            updated.entries.removeAll { it.value < expiryCutoff }
+            if (novelRatio < NeuroScoring.STALE_QUERY_NOVELTY_THRESHOLD) {
+                updated[key] = now
+                if (updated.size > NeuroScoring.STALE_QUERY_MAX) {
+                    val oldest = updated.entries.minByOrNull { it.value }
+                    oldest?.let { updated.remove(it.key) }
+                }
+            } else {
+                updated.remove(key)
+            }
+            currentUserBrain = currentUserBrain.copy(staleQueries = updated)
+            scheduleDebouncedSave()
+        }
+    }
+
+    private fun queryStaleKey(query: String): String? {
+        val tokens = tokenizer.tokenize(query)
+        if (tokens.isEmpty()) return null
+        return tokens.sorted().joinToString("|")
+    }
 
     // =================================================
     // MAIN RANKING FUNCTION
@@ -1326,9 +1426,13 @@ class FlowNeuroEngine(
 
             if (filtered.isEmpty()) return@withContext emptyList()
 
+            // Hard seen-gate: recently over-shown items are removed, not just
+            // penalized — score penalties let high-scoring repeats punch back in.
+            val gated = NeuroScoring.applySeenGate(filtered, brain.feedHistory, now) { it.id }
+
             // Extract all features with consistent IDF snapshot
             val videoVectors =
-                filtered.map { video ->
+                gated.map { video ->
                     val channelProfile = brain.channelTopicProfiles[video.channelId]
                     video to getOrExtractFeatures(video, idfSnapshot, channelProfile)
                 }
@@ -1409,7 +1513,7 @@ class FlowNeuroEngine(
                     impressions = impressionSnapshot,
                     watchHistory = watchHistorySnapshot,
                     recentInteractions = recentInteractionsSnapshot,
-                    candidatePoolSize = filtered.size,
+                    candidatePoolSize = gated.size,
                     now = now,
                     exploreWeight = exploreWeight,
                 )

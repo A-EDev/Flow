@@ -24,7 +24,12 @@ class NeuroBenchmarkTest {
     fun `pipeline benchmark - report and regression floors`() {
         val serving = NeuroBenchmark.simulateServing()
         val discovery = NeuroBenchmark.discoveryCoverage()
-        val report = NeuroBenchmark.renderReport("branch", serving, discovery)
+        val ungated = NeuroBenchmark.simulateServing(seenGateEnabled = false)
+        val report =
+            NeuroBenchmark.renderReport("branch", serving, discovery) +
+                "\nCOUNTERFACTUAL (seen-gate OFF, same universe/seed)\n" +
+                "  meanSeenRepeatRate       = %.3f\n".format(ungated.summary.meanSeenRepeatRate) +
+                "  meanServedRepeatRate     = %.3f\n".format(ungated.summary.meanServedRepeatRate)
 
         println(report)
         val out = File("build/reports/neuro-benchmark").apply { mkdirs() }
@@ -37,8 +42,11 @@ class NeuroBenchmarkTest {
         // The user's interests must not vanish from the feed entirely.
         assertThat(s.meanGroupCoverage).isAtLeast(0.30)
         assertThat(s.cumulativeGroupCoverage).isAtLeast(0.50)
-        // Repetition must stay below "mostly reruns".
-        assertThat(s.meanRepeatRate).isAtMost(0.85)
+        // User-experienced repetition (already-impressed items reappearing) must
+        // stay low — the seen-gate's whole job. Served-repeat is looser: items the
+        // user never actually saw may legitimately return.
+        assertThat(s.meanSeenRepeatRate).isAtMost(0.15)
+        assertThat(s.meanServedRepeatRate).isAtMost(0.60)
         // Discovery has to keep producing queries.
         assertThat(discovery.sessions).isNotEmpty()
         assertThat(discovery.sessions.all { it.isNotEmpty() }).isTrue()
@@ -51,6 +59,6 @@ class NeuroBenchmarkTest {
         // Discovery uses unseeded shuffles internally, so query ORDER can vary;
         // the deterministic core must still hold: same relevance envelope.
         assertThat(a.summary.meanNdcg).isWithin(0.15).of(b.summary.meanNdcg)
-        assertThat(a.summary.meanRepeatRate).isWithin(0.20).of(b.summary.meanRepeatRate)
+        assertThat(a.summary.meanSeenRepeatRate).isWithin(0.20).of(b.summary.meanSeenRepeatRate)
     }
 }

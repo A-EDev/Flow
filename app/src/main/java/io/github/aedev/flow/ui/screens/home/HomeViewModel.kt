@@ -168,7 +168,7 @@ internal fun applyGraphBoost(
 
 private data class Wave1FeedResults(
     val subs: List<Video>,
-    val discovery: List<Video>,
+    val discovery: List<Pair<String, List<Video>>>,
     val viral: List<Video>,
     val related: RelatedGraphFetchResult,
 )
@@ -981,12 +981,12 @@ class HomeViewModel
                                     wave1Queries
                                         .map { query ->
                                             async {
-                                                runCatching {
-                                                    repository.searchVideos(query).first
-                                                }.getOrElse { emptyList() }
+                                                query to
+                                                    runCatching {
+                                                        repository.searchVideos(query).first
+                                                    }.getOrElse { emptyList() }
                                             }
                                         }.awaitAll()
-                                        .flatten()
                                 }
 
                             val deferredViral =
@@ -1037,10 +1037,15 @@ class HomeViewModel
                         }
 
                     val rawSubs = results.subs
-                    val rawDiscovery = results.discovery
+                    val discoveryPairs = results.discovery
+                    val rawDiscovery = discoveryPairs.flatMap { it.second }
                     val rawViral = results.viral
                     val relatedFetch = results.related
                     val rawRelated = relatedFetch.candidates
+
+                    // Stale-query feedback: queries whose results are mostly
+                    // already-shown get skipped by the next generation cycle.
+                    reportQueryNovelty(discoveryPairs)
 
                     Log.d(TAG, "Wave 1 fetch completed in ${System.currentTimeMillis() - fetchStart}ms")
 
@@ -1143,6 +1148,19 @@ class HomeViewModel
                     val usedVideoIds = mutableSetOf<String>()
                     var freshAdded = 0
 
+                    // A refresh should produce a fresh feed: exclude what is on
+                    // screen right now, unless the lanes are too thin to afford it.
+                    val onScreenIds = _uiState.value.videos.mapTo(HashSet()) { it.id }
+                    if (onScreenIds.isNotEmpty()) {
+                        val laneCandidates =
+                            freshSubsLane.asSequence() + bestSubs.asSequence() +
+                                bestRelated.asSequence() + bestDiscovery.asSequence() + bestViral.asSequence()
+                        val freshCandidateCount = laneCandidates.distinctBy { it.id }.count { it.id !in onScreenIds }
+                        if (freshCandidateCount >= HOME_TARGET_SIZE / 2) {
+                            usedVideoIds += onScreenIds
+                        }
+                    }
+
                     freshSubsLane.forEach { video ->
                         if (addUnique(video, finalMix, usedChannelCounts, usedVideoIds)) freshAdded++
                     }
@@ -1242,23 +1260,27 @@ class HomeViewModel
                                         wave2Queries
                                             .map { q ->
                                                 async {
-                                                    withTimeoutOrNull(6_000L) {
-                                                        try {
-                                                            repository.searchVideos(q).first
-                                                        } catch (cancellation: CancellationException) {
-                                                            throw cancellation
-                                                        } catch (error: Exception) {
-                                                            Log.d(TAG, "Wave 2 query failed for $q: ${error.message}")
-                                                            emptyList()
-                                                        }
-                                                    } ?: emptyList()
+                                                    q to (
+                                                        withTimeoutOrNull(6_000L) {
+                                                            try {
+                                                                repository.searchVideos(q).first
+                                                            } catch (cancellation: CancellationException) {
+                                                                throw cancellation
+                                                            } catch (error: Exception) {
+                                                                Log.d(TAG, "Wave 2 query failed for $q: ${error.message}")
+                                                                emptyList()
+                                                            }
+                                                        } ?: emptyList()
+                                                    )
                                                 }
                                             }.awaitAll()
-                                            .flatten()
+
+                                    reportQueryNovelty(wave2Raw)
 
                                     val wave2Watched = watchedVideoIds.value
                                     val wave2Valid =
                                         wave2Raw
+                                            .flatMap { it.second }
                                             .filterValid()
                                             .filterWatched(wave2Watched)
                                             .filter { !wave2FinalMixIds.contains(it.id) }
@@ -1307,6 +1329,28 @@ class HomeViewModel
             }
         }
 
+        /**
+         * Reports per-query result novelty to the engine: a query whose results
+         * are mostly videos already shown recently gets marked stale and skipped
+         * by the next discovery-generation cycle.
+         */
+        private suspend fun reportQueryNovelty(pairs: List<Pair<String, List<Video>>>) {
+            if (pairs.isEmpty()) return
+            runCatching {
+                val recentlyShown = FlowNeuroEngine.getRecentlyShownVideoIds(48L)
+                if (recentlyShown.isEmpty()) return
+                pairs.forEach { (query, queryResults) ->
+                    if (queryResults.size >= 5) {
+                        val novel = queryResults.count { it.id !in recentlyShown }
+                        FlowNeuroEngine.reportQueryResultNovelty(
+                            query,
+                            novel.toDouble() / queryResults.size,
+                        )
+                    }
+                }
+            }
+        }
+
         private suspend fun loadNextPrefetchPage(generation: Int): Boolean {
             try {
                 val now = System.currentTimeMillis()
@@ -1339,6 +1383,11 @@ class HomeViewModel
                         usedVideoIds = pageIds,
                         targetSize = MIN_PAGE_SIZE,
                     )
+                if (reserveAdded > 0) {
+                    runCatching {
+                        persistentHomeFeedCache.consumeReserve(page.take(reserveAdded).map { it.id })
+                    }
+                }
                 if (page.size >= MIN_PAGE_SIZE) {
                     val appended = appendLoadMorePage(page, generation)
                     appended?.let { persistentHomeFeedCache.saveLastFeed(it) }

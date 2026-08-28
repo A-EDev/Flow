@@ -195,7 +195,10 @@ internal object NeuroBenchmark {
 
     data class RefreshMetrics(
         val refresh: Int,
-        val repeatRate: Double,
+        /** Share of this refresh the user had ALREADY SEEN (impressed) before — the UX repeat. */
+        val seenRepeatRate: Double,
+        /** Share previously served anywhere (incl. below the fold the user never saw). */
+        val servedRepeatRate: Double,
         val groupCoverage: Double,
         val ndcg: Double,
         val ild: Double,
@@ -204,7 +207,8 @@ internal object NeuroBenchmark {
     )
 
     data class ServingSummary(
-        val meanRepeatRate: Double,
+        val meanSeenRepeatRate: Double,
+        val meanServedRepeatRate: Double,
         val uniqueServedRatio: Double,
         val meanGroupCoverage: Double,
         val cumulativeGroupCoverage: Double,
@@ -238,6 +242,7 @@ internal object NeuroBenchmark {
         perQueryCandidates: Int = 12,
         noisePerRefresh: Int = 6,
         seed: Long = 42L,
+        seenGateEnabled: Boolean = true,
     ): ServingResult {
         val tokenizer = NeuroTokenizer()
         val discovery = NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer)
@@ -255,6 +260,7 @@ internal object NeuroBenchmark {
         val feedHistory = mutableMapOf<String, FeedEntry>()
         val watchHistory = mutableMapOf<String, WatchEntry>()
         val servedSoFar = mutableSetOf<String>()
+        val impressedSoFar = mutableSetOf<String>()
         val weakGroups =
             universe.groups
                 .filter { it.strength < 0.30 }
@@ -285,18 +291,25 @@ internal object NeuroBenchmark {
             catalog.sampleNoise(noisePerRefresh).forEach { pool.putIfAbsent(it.video.id, it) }
 
             // 3. Score + diversity re-rank through the production pipeline (no jitter).
+            // Mirrors rank(): the hard seen-gate runs before scoring.
             val brainNow = brain.copy(feedHistory = feedHistory.toMap())
+            val gatedPool =
+                if (seenGateEnabled) {
+                    NeuroScoring.applySeenGate(pool.values.toList(), brainNow.feedHistory, now) { it.video.id }
+                } else {
+                    pool.values.toList()
+                }
             val params =
                 NeuroEval.params(
                     brain = brainNow,
                     userSubs = userSubs,
                     preferredLemmas = preferredLemmas,
-                    poolSize = pool.size,
+                    poolSize = gatedPool.size,
                     watchHistory = watchHistory.toMap(),
                     now = now,
                 )
             val scored =
-                pool.values
+                gatedPool
                     .map { ScoredVideo(it.video, NeuroScoring.scoreCandidate(it.video, it.vector, params), it.vector) }
                     .toMutableList()
             val feed = NeuroScoring.applySmartDiversity(scored, tokenizer).take(topK)
@@ -304,14 +317,16 @@ internal object NeuroBenchmark {
 
             // 4. Metrics for this refresh.
             val feedIds = feed.map { it.id }
-            val repeats = feedIds.count { it in servedSoFar }
+            val seenRepeats = feedIds.count { it in impressedSoFar }
+            val servedRepeats = feedIds.count { it in servedSoFar }
             val groupsInFeed = feedIds.map { groupOf(it) }.filter { g -> universe.groups.any { it.name == g } }
             val servedGroupCounts = groupsInFeed.groupingBy { it }.eachCount()
             servedGroupsCumulative += servedGroupCounts.keys
             perRefresh +=
                 RefreshMetrics(
                     refresh = r + 1,
-                    repeatRate = if (r == 0) 0.0 else repeats.toDouble() / feedIds.size,
+                    seenRepeatRate = if (r == 0) 0.0 else seenRepeats.toDouble() / feedIds.size,
+                    servedRepeatRate = if (r == 0) 0.0 else servedRepeats.toDouble() / feedIds.size,
                     groupCoverage = servedGroupCounts.size.toDouble() / universe.groups.size,
                     ndcg = NeuroEval.ndcg(feedLabeled, feedIds.size),
                     ild = NeuroEval.ild(feedLabeled, feedIds.size),
@@ -319,6 +334,7 @@ internal object NeuroBenchmark {
                     servedGroups = servedGroupCounts,
                 )
             servedSoFar += feedIds
+            impressedSoFar += feedIds.take(viewportK)
 
             // 5. Feedback: viewport impressions + one watch from a strong interest.
             feedIds.take(viewportK).forEach { id ->
@@ -339,7 +355,8 @@ internal object NeuroBenchmark {
 
         val summary =
             ServingSummary(
-                meanRepeatRate = perRefresh.drop(1).map { it.repeatRate }.averageOrZero(),
+                meanSeenRepeatRate = perRefresh.drop(1).map { it.seenRepeatRate }.averageOrZero(),
+                meanServedRepeatRate = perRefresh.drop(1).map { it.servedRepeatRate }.averageOrZero(),
                 uniqueServedRatio = servedSoFar.size.toDouble() / (refreshes * topK),
                 meanGroupCoverage = perRefresh.map { it.groupCoverage }.averageOrZero(),
                 cumulativeGroupCoverage = servedGroupsCumulative.size.toDouble() / universe.groups.size,
@@ -418,12 +435,13 @@ internal object NeuroBenchmark {
             appendLine("═══ NeuroBenchmark [$label] ═══")
             appendLine()
             appendLine("SERVING (8 refreshes, top-20, finite catalogs)")
-            appendLine("  refresh | repeat | coverage | ndcg  | ild   | conc  | groups")
+            appendLine("  refresh | seenRep | servedRep | coverage | ndcg  | ild   | conc  | groups")
             serving.perRefresh.forEach { m ->
                 appendLine(
-                    "  %7d | %6.2f | %8.2f | %5.3f | %5.3f | %5.3f | %s".format(
+                    "  %7d | %7.2f | %9.2f | %8.2f | %5.3f | %5.3f | %5.3f | %s".format(
                         m.refresh,
-                        m.repeatRate,
+                        m.seenRepeatRate,
+                        m.servedRepeatRate,
                         m.groupCoverage,
                         m.ndcg,
                         m.ild,
@@ -434,7 +452,8 @@ internal object NeuroBenchmark {
             }
             val s = serving.summary
             appendLine()
-            appendLine("  meanRepeatRate (r2+)     = %.3f".format(s.meanRepeatRate))
+            appendLine("  meanSeenRepeatRate (r2+) = %.3f".format(s.meanSeenRepeatRate))
+            appendLine("  meanServedRepeatRate     = %.3f".format(s.meanServedRepeatRate))
             appendLine("  uniqueServedRatio        = %.3f".format(s.uniqueServedRatio))
             appendLine("  meanGroupCoverage        = %.3f".format(s.meanGroupCoverage))
             appendLine("  cumulativeGroupCoverage  = %.3f".format(s.cumulativeGroupCoverage))

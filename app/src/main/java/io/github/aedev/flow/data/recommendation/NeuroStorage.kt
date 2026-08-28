@@ -34,12 +34,13 @@ import java.io.OutputStream
  * All persistence concerns: DataStore, serialization,
  * legacy migration, export/import.
  */
-internal class NeuroStorage(private val appContext: Context) {
-
+internal class NeuroStorage(
+    private val appContext: Context,
+) {
     companion object {
         private const val TAG = "FlowNeuroEngine"
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
-        private const val SCHEMA_VERSION = 13
+        private const val SCHEMA_VERSION = 14
     }
 
     // ── Serializable models ──
@@ -50,19 +51,19 @@ internal class NeuroStorage(private val appContext: Context) {
         val duration: Double = 0.5,
         val pacing: Double = 0.5,
         val complexity: Double = 0.5,
-        val isLive: Double = 0.0
+        val isLive: Double = 0.0,
     )
 
     @Serializable
     data class SerializableFeedEntry(
         val lastShown: Long = 0L,
-        val showCount: Int = 0
+        val showCount: Int = 0,
     )
 
     @Serializable
     data class SerializableRejectionSignal(
         val count: Int = 0,
-        val lastRejectedAt: Long = 0L
+        val lastRejectedAt: Long = 0L,
     )
 
     @Serializable
@@ -74,7 +75,7 @@ internal class NeuroStorage(private val appContext: Context) {
         val videoIds: Set<String> = emptySet(),
         val channelIds: Set<String> = emptySet(),
         val firstSeenAt: Long = 0L,
-        val lastSeenAt: Long = 0L
+        val lastSeenAt: Long = 0L,
     )
 
     @Serializable
@@ -103,7 +104,9 @@ internal class NeuroStorage(private val appContext: Context) {
         val rejectionPatterns: Map<String, SerializableRejectionSignal> = emptyMap(),
         val feedHistory: Map<String, SerializableFeedEntry> = emptyMap(),
         val recentQueryTokens: List<List<String>> = emptyList(),
-        val topicEvidence: Map<String, SerializableTopicEvidence> = emptyMap()
+        val topicEvidence: Map<String, SerializableTopicEvidence> = emptyMap(),
+        val recentRelatedSeeds: Map<String, Long> = emptyMap(),
+        val staleQueries: Map<String, Long> = emptyMap(),
     )
 
     // ── DataStore setup ──
@@ -111,27 +114,28 @@ internal class NeuroStorage(private val appContext: Context) {
     private object BrainSerializer : Serializer<SerializableBrain> {
         override val defaultValue: SerializableBrain = SerializableBrain()
 
-        override suspend fun readFrom(
-            input: InputStream
-        ): SerializableBrain {
-            return try {
+        override suspend fun readFrom(input: InputStream): SerializableBrain =
+            try {
                 val text = input.bufferedReader().readText()
-                if (text.isBlank()) defaultValue
-                else Json { ignoreUnknownKeys = true }
-                    .decodeFromString<SerializableBrain>(text)
+                if (text.isBlank()) {
+                    defaultValue
+                } else {
+                    Json { ignoreUnknownKeys = true }
+                        .decodeFromString<SerializableBrain>(text)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to read brain", e)
                 defaultValue
             }
-        }
 
         override suspend fun writeTo(
             t: SerializableBrain,
-            output: OutputStream
+            output: OutputStream,
         ) {
             output.write(
                 Json { encodeDefaults = true }
-                    .encodeToString(t).toByteArray()
+                    .encodeToString(t)
+                    .toByteArray(),
             )
         }
     }
@@ -139,100 +143,121 @@ internal class NeuroStorage(private val appContext: Context) {
     private val Context.brainDataStore: DataStore<SerializableBrain>
         by dataStore(
             fileName = "flow_neuro_brain_v10.json",
-            serializer = BrainSerializer
+            serializer = BrainSerializer,
         )
 
     // ── Conversion functions ──
 
-    fun ContentVector.toSerializable() = SerializableVector(
-        topics = topics, duration = duration, pacing = pacing,
-        complexity = complexity, isLive = isLive
-    )
+    fun ContentVector.toSerializable() =
+        SerializableVector(
+            topics = topics,
+            duration = duration,
+            pacing = pacing,
+            complexity = complexity,
+            isLive = isLive,
+        )
 
-    fun SerializableVector.toContentVector() = ContentVector(
-        topics = topics, duration = duration, pacing = pacing,
-        complexity = complexity, isLive = isLive
-    )
+    fun SerializableVector.toContentVector() =
+        ContentVector(
+            topics = topics,
+            duration = duration,
+            pacing = pacing,
+            complexity = complexity,
+            isLive = isLive,
+        )
 
-    fun FeedEntry.toSerializable() = SerializableFeedEntry(
-        lastShown = lastShown,
-        showCount = showCount
-    )
+    fun FeedEntry.toSerializable() =
+        SerializableFeedEntry(
+            lastShown = lastShown,
+            showCount = showCount,
+        )
 
-    fun SerializableFeedEntry.toFeedEntry() = FeedEntry(
-        lastShown = lastShown,
-        showCount = showCount
-    )
+    fun SerializableFeedEntry.toFeedEntry() =
+        FeedEntry(
+            lastShown = lastShown,
+            showCount = showCount,
+        )
 
-    fun RejectionSignal.toSerializable() = SerializableRejectionSignal(
-        count = count,
-        lastRejectedAt = lastRejectedAt
-    )
+    fun RejectionSignal.toSerializable() =
+        SerializableRejectionSignal(
+            count = count,
+            lastRejectedAt = lastRejectedAt,
+        )
 
-    fun SerializableRejectionSignal.toRejectionSignal() = RejectionSignal(
-        count = count,
-        lastRejectedAt = lastRejectedAt
-    )
+    fun SerializableRejectionSignal.toRejectionSignal() =
+        RejectionSignal(
+            count = count,
+            lastRejectedAt = lastRejectedAt,
+        )
 
-    fun TopicEvidence.toSerializable() = SerializableTopicEvidence(
-        positiveSignals = positiveSignals,
-        watchSignals = watchSignals,
-        explicitSignals = explicitSignals,
-        positiveScore = positiveScore,
-        videoIds = videoIds,
-        channelIds = channelIds,
-        firstSeenAt = firstSeenAt,
-        lastSeenAt = lastSeenAt
-    )
+    fun TopicEvidence.toSerializable() =
+        SerializableTopicEvidence(
+            positiveSignals = positiveSignals,
+            watchSignals = watchSignals,
+            explicitSignals = explicitSignals,
+            positiveScore = positiveScore,
+            videoIds = videoIds,
+            channelIds = channelIds,
+            firstSeenAt = firstSeenAt,
+            lastSeenAt = lastSeenAt,
+        )
 
-    fun SerializableTopicEvidence.toTopicEvidence() = TopicEvidence(
-        positiveSignals = positiveSignals,
-        watchSignals = watchSignals,
-        explicitSignals = explicitSignals,
-        positiveScore = positiveScore,
-        videoIds = videoIds,
-        channelIds = channelIds,
-        firstSeenAt = firstSeenAt,
-        lastSeenAt = lastSeenAt
-    )
+    fun SerializableTopicEvidence.toTopicEvidence() =
+        TopicEvidence(
+            positiveSignals = positiveSignals,
+            watchSignals = watchSignals,
+            explicitSignals = explicitSignals,
+            positiveScore = positiveScore,
+            videoIds = videoIds,
+            channelIds = channelIds,
+            firstSeenAt = firstSeenAt,
+            lastSeenAt = lastSeenAt,
+        )
 
-    fun UserBrain.toSerializable() = SerializableBrain(
-        schemaVersion = SCHEMA_VERSION,
-        timeVectors = timeVectors.map { (k, v) ->
-            k.name to v.toSerializable()
-        }.toMap(),
-        global = globalVector.toSerializable(),
-        channelScores = channelScores,
-        topicAffinities = topicAffinities,
-        interactions = totalInteractions,
-        consecutiveSkips = consecutiveSkips,
-        blockedTopics = blockedTopics,
-        blockedChannels = blockedChannels,
-        preferredTopics = preferredTopics,
-        hasCompletedOnboarding = hasCompletedOnboarding,
-        lastPersona = lastPersona,
-        personaStability = personaStability,
-        idfWordFrequency = idfWordFrequency,
-        idfTotalDocuments = idfTotalDocuments,
-        watchHistoryMap = watchHistoryMap,
-        seenShortsHistory = seenShortsHistory,
-        channelTopicProfiles = channelTopicProfiles,
-        shortsVector = shortsVector.toSerializable(),
-        suppressedVideoIds = suppressedVideoIds,
-        suppressedChannels = suppressedChannels,
-        rejectionPatterns = rejectionPatterns.mapValues { (_, v) ->
-            v.toSerializable()
-        },
-        feedHistory = feedHistory.mapValues { (_, v) -> v.toSerializable() },
-        recentQueryTokens = recentQueryTokens.map { it.toList() },
-        topicEvidence = topicEvidence.mapValues { (_, v) -> v.toSerializable() }
-    )
+    fun UserBrain.toSerializable() =
+        SerializableBrain(
+            schemaVersion = SCHEMA_VERSION,
+            timeVectors =
+                timeVectors
+                    .map { (k, v) ->
+                        k.name to v.toSerializable()
+                    }.toMap(),
+            global = globalVector.toSerializable(),
+            channelScores = channelScores,
+            topicAffinities = topicAffinities,
+            interactions = totalInteractions,
+            consecutiveSkips = consecutiveSkips,
+            blockedTopics = blockedTopics,
+            blockedChannels = blockedChannels,
+            preferredTopics = preferredTopics,
+            hasCompletedOnboarding = hasCompletedOnboarding,
+            lastPersona = lastPersona,
+            personaStability = personaStability,
+            idfWordFrequency = idfWordFrequency,
+            idfTotalDocuments = idfTotalDocuments,
+            watchHistoryMap = watchHistoryMap,
+            seenShortsHistory = seenShortsHistory,
+            channelTopicProfiles = channelTopicProfiles,
+            shortsVector = shortsVector.toSerializable(),
+            suppressedVideoIds = suppressedVideoIds,
+            suppressedChannels = suppressedChannels,
+            rejectionPatterns =
+                rejectionPatterns.mapValues { (_, v) ->
+                    v.toSerializable()
+                },
+            feedHistory = feedHistory.mapValues { (_, v) -> v.toSerializable() },
+            recentQueryTokens = recentQueryTokens.map { it.toList() },
+            topicEvidence = topicEvidence.mapValues { (_, v) -> v.toSerializable() },
+            recentRelatedSeeds = recentRelatedSeeds,
+            staleQueries = staleQueries,
+        )
 
     fun SerializableBrain.toUserBrain(): UserBrain {
-        val vectors = TimeBucket.entries.associateWith { bucket ->
-            val serialized = timeVectors[bucket.name]
-            serialized?.toContentVector() ?: ContentVector()
-        }
+        val vectors =
+            TimeBucket.entries.associateWith { bucket ->
+                val serialized = timeVectors[bucket.name]
+                serialized?.toContentVector() ?: ContentVector()
+            }
         return UserBrain(
             timeVectors = vectors,
             globalVector = global.toContentVector(),
@@ -254,12 +279,15 @@ internal class NeuroStorage(private val appContext: Context) {
             shortsVector = shortsVector.toContentVector(),
             suppressedVideoIds = suppressedVideoIds,
             suppressedChannels = suppressedChannels,
-            rejectionPatterns = rejectionPatterns.mapValues { (_, v) ->
-                v.toRejectionSignal()
-            },
+            rejectionPatterns =
+                rejectionPatterns.mapValues { (_, v) ->
+                    v.toRejectionSignal()
+                },
             feedHistory = feedHistory.mapValues { (_, v) -> v.toFeedEntry() },
             recentQueryTokens = recentQueryTokens.map { it.toSet() },
             topicEvidence = topicEvidence.mapValues { (_, v) -> v.toTopicEvidence() },
+            recentRelatedSeeds = recentRelatedSeeds,
+            staleQueries = staleQueries,
         )
     }
 
@@ -285,7 +313,7 @@ internal class NeuroStorage(private val appContext: Context) {
                     Log.i(
                         TAG,
                         "Loaded brain v${data.schemaVersion}, " +
-                            "${data.interactions} interactions"
+                            "${data.interactions} interactions",
                     )
                     return@withContext brain
                 }
@@ -321,12 +349,17 @@ internal class NeuroStorage(private val appContext: Context) {
             global.topics.isNotEmpty() ||
             timeVectors.any { (_, vector) -> vector.topics.isNotEmpty() }
 
-    suspend fun exportToStream(brain: UserBrain, output: OutputStream): Boolean =
+    suspend fun exportToStream(
+        brain: UserBrain,
+        output: OutputStream,
+    ): Boolean =
         withContext(Dispatchers.IO) {
             try {
                 val brainCopy = brain.toSerializable()
-                val jsonBytes = Json { encodeDefaults = true }
-                    .encodeToString(brainCopy).toByteArray()
+                val jsonBytes =
+                    Json { encodeDefaults = true }
+                        .encodeToString(brainCopy)
+                        .toByteArray()
                 output.write(jsonBytes)
                 output.flush()
                 Log.i(TAG, "Brain exported")
@@ -343,25 +376,28 @@ internal class NeuroStorage(private val appContext: Context) {
                 val text = input.bufferedReader().readText()
                 val jsonParser = Json { ignoreUnknownKeys = true }
 
-                val imported = jsonParser
-                    .decodeFromString<SerializableBrain>(text)
+                val imported =
+                    jsonParser
+                        .decodeFromString<SerializableBrain>(text)
 
-                val hasTimeData = imported.timeVectors.any { (_, v) ->
-                    v.topics.isNotEmpty()
-                }
+                val hasTimeData =
+                    imported.timeVectors.any { (_, v) ->
+                        v.topics.isNotEmpty()
+                    }
 
-                val finalBrain = if (hasTimeData) {
-                    imported.toUserBrain()
-                } else {
-                    migrateLegacyBackup(text, imported)
-                }
+                val finalBrain =
+                    if (hasTimeData) {
+                        imported.toUserBrain()
+                    } else {
+                        migrateLegacyBackup(text, imported)
+                    }
 
                 Log.i(
                     TAG,
                     "Brain imported (${finalBrain.totalInteractions} " +
                         "interactions, ${finalBrain.timeVectors.count {
                             it.value.topics.isNotEmpty()
-                        }} active time buckets)"
+                        }} active time buckets)",
                 )
                 finalBrain
             } catch (e: Exception) {
@@ -372,28 +408,31 @@ internal class NeuroStorage(private val appContext: Context) {
 
     // ── Migration ──
 
-    suspend fun migrateLegacy(): UserBrain? = withContext(Dispatchers.IO) {
-        val legacyFile = File(appContext.filesDir, BRAIN_FILENAME)
-        if (legacyFile.exists()) {
-            try {
-                Log.i(TAG, "Migrating legacy JSON brain...")
-                val text = legacyFile.readText()
-                val migrated = migrateLegacyBackup(
-                    text, SerializableBrain()
-                )
-                Log.i(
-                    TAG,
-                    "Legacy brain migrated " +
-                        "(${migrated.totalInteractions} interactions)"
-                )
-                return@withContext migrated
-            } catch (e: Exception) {
-                Log.e(TAG, "Legacy JSON migration failed", e)
+    suspend fun migrateLegacy(): UserBrain? =
+        withContext(Dispatchers.IO) {
+            val legacyFile = File(appContext.filesDir, BRAIN_FILENAME)
+            if (legacyFile.exists()) {
+                try {
+                    Log.i(TAG, "Migrating legacy JSON brain...")
+                    val text = legacyFile.readText()
+                    val migrated =
+                        migrateLegacyBackup(
+                            text,
+                            SerializableBrain(),
+                        )
+                    Log.i(
+                        TAG,
+                        "Legacy brain migrated " +
+                            "(${migrated.totalInteractions} interactions)",
+                    )
+                    return@withContext migrated
+                } catch (e: Exception) {
+                    Log.e(TAG, "Legacy JSON migration failed", e)
+                }
             }
-        }
 
-        tryMigrateFromPreviousDataStore()
-    }
+            tryMigrateFromPreviousDataStore()
+        }
 
     fun deleteLegacyFile() {
         val legacyFile = File(appContext.filesDir, BRAIN_FILENAME)
@@ -405,14 +444,15 @@ internal class NeuroStorage(private val appContext: Context) {
 
     fun migrateLegacyBackup(
         rawJson: String,
-        partialParse: SerializableBrain
+        partialParse: SerializableBrain,
     ): UserBrain {
         try {
             val jsonObj = JSONObject(rawJson)
 
             fun parseVector(key: String): ContentVector {
-                val obj = jsonObj.optJSONObject(key)
-                    ?: return ContentVector()
+                val obj =
+                    jsonObj.optJSONObject(key)
+                        ?: return ContentVector()
                 return legacyJsonToVector(obj)
             }
 
@@ -421,9 +461,13 @@ internal class NeuroStorage(private val appContext: Context) {
             val eveningVec = parseVector("evening")
             val nightVec = parseVector("night")
 
-            val hasLegacyData = listOf(
-                morningVec, afternoonVec, eveningVec, nightVec
-            ).any { it.topics.isNotEmpty() }
+            val hasLegacyData =
+                listOf(
+                    morningVec,
+                    afternoonVec,
+                    eveningVec,
+                    nightVec,
+                ).any { it.topics.isNotEmpty() }
 
             val timeVectors: Map<TimeBucket, ContentVector> =
                 if (hasLegacyData) {
@@ -435,29 +479,32 @@ internal class NeuroStorage(private val appContext: Context) {
                         TimeBucket.WEEKDAY_EVENING to eveningVec,
                         TimeBucket.WEEKEND_EVENING to eveningVec,
                         TimeBucket.WEEKDAY_NIGHT to nightVec,
-                        TimeBucket.WEEKEND_NIGHT to nightVec
+                        TimeBucket.WEEKEND_NIGHT to nightVec,
                     )
                 } else {
                     val tvObj = jsonObj.optJSONObject("timeVectors")
                     if (tvObj != null) {
                         TimeBucket.entries.associateWith { bucket ->
                             val bucketObj = tvObj.optJSONObject(bucket.name)
-                            if (bucketObj != null)
+                            if (bucketObj != null) {
                                 legacyJsonToVector(bucketObj)
-                            else ContentVector()
+                            } else {
+                                ContentVector()
+                            }
                         }
                     } else {
                         TimeBucket.entries.associateWith { ContentVector() }
                     }
                 }
 
-            val globalVec = if (partialParse.global.topics.isNotEmpty()) {
-                partialParse.global.toContentVector()
-            } else {
-                parseVector("global").let {
-                    if (it.topics.isEmpty()) parseVector("longTerm") else it
+            val globalVec =
+                if (partialParse.global.topics.isNotEmpty()) {
+                    partialParse.global.toContentVector()
+                } else {
+                    parseVector("global").let {
+                        if (it.topics.isEmpty()) parseVector("longTerm") else it
+                    }
                 }
-            }
 
             val channelScores = mutableMapOf<String, Double>()
             val scoresObj = jsonObj.optJSONObject("channelScores")
@@ -490,37 +537,55 @@ internal class NeuroStorage(private val appContext: Context) {
             return UserBrain(
                 timeVectors = timeVectors,
                 globalVector = globalVec,
-                channelScores = if (channelScores.isNotEmpty())
-                    channelScores
-                else partialParse.channelScores,
-                topicAffinities = if (affinities.isNotEmpty())
-                    affinities
-                else partialParse.topicAffinities,
-                totalInteractions = if (partialParse.interactions > 0)
-                    partialParse.interactions
-                else jsonObj.optInt("interactions", 0),
+                channelScores =
+                    if (channelScores.isNotEmpty()) {
+                        channelScores
+                    } else {
+                        partialParse.channelScores
+                    },
+                topicAffinities =
+                    if (affinities.isNotEmpty()) {
+                        affinities
+                    } else {
+                        partialParse.topicAffinities
+                    },
+                totalInteractions =
+                    if (partialParse.interactions > 0) {
+                        partialParse.interactions
+                    } else {
+                        jsonObj.optInt("interactions", 0)
+                    },
                 consecutiveSkips = partialParse.consecutiveSkips,
-                blockedTopics = partialParse.blockedTopics.ifEmpty {
-                    loadStringSet("blockedTopics")
-                },
-                blockedChannels = partialParse.blockedChannels.ifEmpty {
-                    loadStringSet("blockedChannels")
-                },
-                preferredTopics = partialParse.preferredTopics.ifEmpty {
-                    loadStringSet("preferredTopics")
-                },
+                blockedTopics =
+                    partialParse.blockedTopics.ifEmpty {
+                        loadStringSet("blockedTopics")
+                    },
+                blockedChannels =
+                    partialParse.blockedChannels.ifEmpty {
+                        loadStringSet("blockedChannels")
+                    },
+                preferredTopics =
+                    partialParse.preferredTopics.ifEmpty {
+                        loadStringSet("preferredTopics")
+                    },
                 hasCompletedOnboarding =
-                partialParse.hasCompletedOnboarding ||
-                    jsonObj.optBoolean("hasCompletedOnboarding", false),
+                    partialParse.hasCompletedOnboarding ||
+                        jsonObj.optBoolean("hasCompletedOnboarding", false),
                 lastPersona = partialParse.lastPersona,
                 personaStability = partialParse.personaStability,
-                idfWordFrequency = if (legacyIdfFreq.isNotEmpty())
-                    legacyIdfFreq
-                else partialParse.idfWordFrequency,
-                idfTotalDocuments = if (legacyIdfTotal > 0)
-                    legacyIdfTotal
-                else partialParse.idfTotalDocuments,
-                watchHistoryMap = partialParse.watchHistoryMap
+                idfWordFrequency =
+                    if (legacyIdfFreq.isNotEmpty()) {
+                        legacyIdfFreq
+                    } else {
+                        partialParse.idfWordFrequency
+                    },
+                idfTotalDocuments =
+                    if (legacyIdfTotal > 0) {
+                        legacyIdfTotal
+                    } else {
+                        partialParse.idfTotalDocuments
+                    },
+                watchHistoryMap = partialParse.watchHistoryMap,
             )
         } catch (e: Exception) {
             Log.e(TAG, "Legacy backup migration failed", e)
@@ -532,18 +597,20 @@ internal class NeuroStorage(private val appContext: Context) {
         val versions = listOf("v9", "v8", "v7")
         for (version in versions) {
             try {
-                val file = File(
-                    appContext.filesDir,
-                    "datastore/flow_neuro_brain_$version.json"
-                )
+                val file =
+                    File(
+                        appContext.filesDir,
+                        "datastore/flow_neuro_brain_$version.json",
+                    )
                 if (!file.exists()) continue
 
                 Log.i(TAG, "Found $version DataStore, migrating to V9...")
                 val text = file.readText()
                 if (text.isBlank()) continue
 
-                val data = Json { ignoreUnknownKeys = true }
-                    .decodeFromString<SerializableBrain>(text)
+                val data =
+                    Json { ignoreUnknownKeys = true }
+                        .decodeFromString<SerializableBrain>(text)
 
                 if (data.interactions > 0 ||
                     data.hasCompletedOnboarding ||
@@ -553,7 +620,7 @@ internal class NeuroStorage(private val appContext: Context) {
                     Log.i(
                         TAG,
                         "Migrated $version brain " +
-                            "(${data.interactions} interactions)"
+                            "(${data.interactions} interactions)",
                     )
                     return brain
                 }
@@ -575,7 +642,7 @@ internal class NeuroStorage(private val appContext: Context) {
             duration = jsonObj.optDouble("duration", 0.5),
             pacing = jsonObj.optDouble("pacing", 0.5),
             complexity = jsonObj.optDouble("complexity", 0.5),
-            isLive = jsonObj.optDouble("isLive", 0.0)
+            isLive = jsonObj.optDouble("isLive", 0.0),
         )
     }
 }

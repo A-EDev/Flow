@@ -112,7 +112,11 @@ data class UserBrain(
     val feedHistory: Map<String, FeedEntry> = emptyMap(),
     val recentQueryTokens: List<Set<String>> = emptyList(),
     val topicEvidence: Map<String, TopicEvidence> = emptyMap(),
-    val schemaVersion: Int = 13,
+    /** Related-graph seeds used recently (seedVideoId → lastUsedAt), for rotation. */
+    val recentRelatedSeeds: Map<String, Long> = emptyMap(),
+    /** Discovery queries whose RESULTS were mostly already-shown (staleKey → markedAt). */
+    val staleQueries: Map<String, Long> = emptyMap(),
+    val schemaVersion: Int = 14,
 )
 
 // ── Interaction Types ──
