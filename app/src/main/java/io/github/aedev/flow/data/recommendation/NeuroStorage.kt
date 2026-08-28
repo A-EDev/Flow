@@ -107,6 +107,7 @@ internal class NeuroStorage(
         val topicEvidence: Map<String, SerializableTopicEvidence> = emptyMap(),
         val recentRelatedSeeds: Map<String, Long> = emptyMap(),
         val staleQueries: Map<String, Long> = emptyMap(),
+        val clusterRotation: Map<String, Long> = emptyMap(),
     )
 
     // ── DataStore setup ──
@@ -250,6 +251,7 @@ internal class NeuroStorage(
             topicEvidence = topicEvidence.mapValues { (_, v) -> v.toSerializable() },
             recentRelatedSeeds = recentRelatedSeeds,
             staleQueries = staleQueries,
+            clusterRotation = clusterRotation,
         )
 
     fun SerializableBrain.toUserBrain(): UserBrain {
@@ -288,6 +290,7 @@ internal class NeuroStorage(
             topicEvidence = topicEvidence.mapValues { (_, v) -> v.toTopicEvidence() },
             recentRelatedSeeds = recentRelatedSeeds,
             staleQueries = staleQueries,
+            clusterRotation = clusterRotation,
         )
     }
 

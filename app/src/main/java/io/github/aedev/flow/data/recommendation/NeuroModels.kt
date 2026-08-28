@@ -116,6 +116,8 @@ data class UserBrain(
     val recentRelatedSeeds: Map<String, Long> = emptyMap(),
     /** Discovery queries whose RESULTS were mostly already-shown (staleKey → markedAt). */
     val staleQueries: Map<String, Long> = emptyMap(),
+    /** Interest-cluster rotation state (cluster representative → lastServedAt). */
+    val clusterRotation: Map<String, Long> = emptyMap(),
     val schemaVersion: Int = 14,
 )
 
@@ -166,6 +168,8 @@ data class DiscoveryQuery(
     val strategy: QueryStrategy,
     val confidence: Double,
     val reasoning: String,
+    /** Interest-cluster representative this query serves, for rotation tracking. */
+    val clusterKey: String? = null,
 )
 
 enum class QueryStrategy {

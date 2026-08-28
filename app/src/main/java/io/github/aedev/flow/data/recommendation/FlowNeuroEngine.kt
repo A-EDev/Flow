@@ -1206,9 +1206,34 @@ class FlowNeuroEngine(
                     (brain.recentQueryTokens + newQueryTokens)
                         .takeLast(NeuroScoring.RECENT_QUERY_TOKENS_MAX)
 
+                // ── Advance cluster rotation for the interest clusters actually served ──
+                val candidateSet = candidates.toHashSet()
+                val servedClusters =
+                    discoveryQueries
+                        .asSequence()
+                        .filter { it.query in candidateSet }
+                        .mapNotNull { it.clusterKey }
+                        .toSet()
+                val rotationNow = System.currentTimeMillis()
+                val updatedRotation =
+                    if (servedClusters.isEmpty()) {
+                        brain.clusterRotation
+                    } else {
+                        val merged = brain.clusterRotation + servedClusters.associateWith { rotationNow }
+                        if (merged.size > NeuroScoring.CLUSTER_ROTATION_MAX) {
+                            merged.entries
+                                .sortedByDescending { it.value }
+                                .take(NeuroScoring.CLUSTER_ROTATION_MAX)
+                                .associate { it.key to it.value }
+                        } else {
+                            merged
+                        }
+                    }
+
                 currentUserBrain =
                     currentUserBrain.copy(
                         recentQueryTokens = updatedRecentTokens,
+                        clusterRotation = updatedRotation,
                     )
                 scheduleDebouncedSave()
 

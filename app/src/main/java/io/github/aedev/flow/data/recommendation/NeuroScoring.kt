@@ -141,6 +141,9 @@ internal object NeuroScoring {
     const val STALE_QUERY_EXPIRY_HOURS = 24L
     const val STALE_QUERY_MAX = 40
 
+    // ── Interest-cluster rotation state cap ──
+    const val CLUSTER_ROTATION_MAX = 40
+
     // ── Implicit Disinterest Constants ──
     const val IMPLICIT_DISINTEREST_WINDOW_HOURS = 48.0
     const val IMPLICIT_DISINTEREST_THRESHOLD_HEAVY = 5

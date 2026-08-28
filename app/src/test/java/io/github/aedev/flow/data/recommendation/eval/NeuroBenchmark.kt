@@ -270,14 +270,21 @@ internal object NeuroBenchmark {
 
         val perRefresh = mutableListOf<RefreshMetrics>()
         val queriesPerRefresh = mutableListOf<List<String>>()
+        var clusterRotation = mapOf<String, Long>()
         var now = NeuroEval.FIXED_NOW
 
         repeat(refreshes) { r ->
-            // 1. Discovery decides what to search for (the real production selector).
-            val rawQueries = discovery.generateQueries(brain) { FlowPersona.EXPLORER }.map { it.query }
+            // 1. Discovery decides what to search for (the real production selector),
+            //    with cluster rotation advanced between refreshes as the engine does.
+            val discoveryBrain = brain.copy(clusterRotation = clusterRotation)
+            val discoveryQueries = discovery.generateQueries(discoveryBrain, now) { FlowPersona.EXPLORER }.take(8)
             val queries =
-                rawQueries.ifEmpty { universe.groups.take(4).map { it.topics[0] } }.take(8)
+                discoveryQueries.map { it.query }.ifEmpty { universe.groups.take(4).map { it.topics[0] } }
             queriesPerRefresh += queries
+            val servedClusters = discoveryQueries.mapNotNull { it.clusterKey }.toSet()
+            if (servedClusters.isNotEmpty()) {
+                clusterRotation = clusterRotation + servedClusters.associateWith { now }
+            }
 
             // 2. Each query pulls from the finite catalog of whatever group it targets.
             val pool = LinkedHashMap<String, NeuroEval.Labeled>()
@@ -395,9 +402,18 @@ internal object NeuroBenchmark {
         val perSessionCoverage = mutableListOf<Double>()
         val cumulativeGroups = mutableSetOf<String>()
         val overlaps = mutableListOf<Double>()
+        var clusterRotation = mapOf<String, Long>()
+        var now = NeuroEval.FIXED_NOW
 
         repeat(sessions) {
-            val queries = discovery.generateQueries(brain) { FlowPersona.EXPLORER }.map { it.query }
+            val discoveryBrain = brain.copy(clusterRotation = clusterRotation)
+            val sessionResult = discovery.generateQueries(discoveryBrain, now) { FlowPersona.EXPLORER }
+            val queries = sessionResult.map { it.query }
+            val servedClusters = sessionResult.mapNotNull { it.clusterKey }.toSet()
+            if (servedClusters.isNotEmpty()) {
+                clusterRotation = clusterRotation + servedClusters.associateWith { now }
+            }
+            now += REFRESH_INTERVAL_MS
             val groups =
                 queries
                     .mapNotNull { q ->
