@@ -1,0 +1,39 @@
+FLOW CHANGE LOG
+VERSION: 2.2.5
+DATE: 2026-08-29
+STATUS: PRE-RELEASE
+
+NEW FEATURES
+- Serve every one of your interests in every home feed: your biggest interests are always present and your smaller ones rotate through the remaining slots, instead of the feed looping your top topic
+- Dig deeper as you scroll: each load of more videos descends one level further into every interest's branches, like walking a tree, instead of repeating the surface
+- Keep the feed going forever: when the usual sources thin out, loading more now digs fresh related-video lanes seeded from the videos on screen, your history, likes and playlists
+- Always show fresh uploads from your subscriptions: the fresh-subs slots now draw from the subscription feed covering ALL your channels, not just the handful fetched this refresh
+- Learn from everything you do: real watch time, early skips, downloads, Watch Later, playlist saves, live subscribes and the searches you type now all teach your recommendation brain
+- Learn what each channel is about from its creator-declared tags when you subscribe, and passively from its recent upload titles, improving interest grouping and recommendations
+
+IMPROVEMENTS
+- Stop showing you the same videos over and over: something you actually saw is filtered out of the next refreshes, briefly after one appearance and for days after repeats, and gently returns later
+- Pull-to-refresh now builds a genuinely fresh page instead of reshuffling what is already on screen
+- Cached reserve videos are consumed once served instead of reappearing for hours after every refresh
+- Related videos rotate their seed videos instead of fetching the same neighbours every refresh, and spread one seed per interest so the lane mirrors all your interests
+- Search queries whose results you have mostly already seen are skipped on the next round
+- Blocking a topic is now precise: it no longer silently blocks every topic in the same category, and blocking "art" no longer hides "startup"
+- Channels you interact with are no longer scored below channels you have never seen
+- Only a couple of fresh subscription uploads pin to the top of the feed, and only one per channel, so the first screen is a real mix of sources
+- A one-time brain revitalization recovers your real interests from your channel knowledge, repairing profiles hollowed out by old learning bugs
+
+PERFORMANCE
+- Feed ranking noise now scales with your actual scores instead of drowning them when the feed was stale
+
+FIXES AND STABILITY
+- Fix watch progress on normal videos never reaching your recommendation brain, so it learned almost nothing from what you actually watched
+- Fix topic-pair learning deleting every learned connection the moment it was created, which had left long-time users with zero learned topic links
+- Fix mature recommendation brains being mathematically unable to pick up new interests no matter how much you watched them
+- Fix videos dated "3 days ago" or "2 weeks ago" being treated as seconds old, which let stale subscription uploads crowd out genuinely new ones
+- Fix related videos being stamped with the current time, defeating the old-content filter and mis-sorting the Shorts shelf
+- Fix junk words like "right" leaking into your learned interests and forming meaningless topic groups
+- Fix a liked video silently failing to teach the brain when its details could not be loaded
+
+BUILD AND CI
+- Add an offline recommendation benchmark with regression floors, so feed diversity and repetition are verified by tests instead of claims
+- Add an offline brain diagnostic that inspects a real exported profile through the production clustering and discovery code
