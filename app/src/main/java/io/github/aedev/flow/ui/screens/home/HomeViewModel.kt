@@ -584,10 +584,17 @@ class HomeViewModel
             private const val RELATED_TTL_MS = 45L * 60L * 1000L
             private const val MAX_RELATED_SEEDS = 4
             private const val MIN_PAGE_SIZE = 8
-            private const val LOAD_MORE_GRAPH_SEEDS = 2
+            private const val LOAD_MORE_GRAPH_SEEDS = 3
             private const val MAX_SAVED_SEEDS = 5
             private const val SAVED_RELATED_SLOTS = 8
             private const val SAVED_SEED_COOLDOWN_MS = 3L * 60L * 60L * 1000L
+
+            // Fresh subs pinned to the very top; the rest interleave via the SUBS lane.
+            private const val FRESH_SUBS_PIN_TOP = 2
+
+            // Never-dry load-more: fallback related pass seeded from feed + saved interests.
+            private const val LOAD_MORE_FALLBACK_SEEDS = 4
+            private const val FEED_SEED_POOL = 30
         }
 
         // Saved-interest enrichment sources (history/liked/playlists) + per-seed cooldown.
@@ -1149,8 +1156,17 @@ class HomeViewModel
                             .filterWatched(watched)
                             .distinctBy { it.id }
                             .sortedByDescending { it.timestamp }
+                            // One fresh slot per channel — a channel that uploaded three
+                            // times today must not occupy three fresh slots.
+                            .distinctBy { it.channelId.ifBlank { it.id } }
                             .take(freshSlotTarget)
                     val freshIds = freshSubsLane.map { it.id }.toHashSet()
+
+                    // Only a couple of fresh subs are pinned to the very top; the rest
+                    // ride the SUBS lane so the first screen is a real source MIX
+                    // instead of a wall of subscriptions.
+                    val pinnedFresh = freshSubsLane.take(FRESH_SUBS_PIN_TOP)
+                    val overflowFresh = freshSubsLane.drop(FRESH_SUBS_PIN_TOP)
 
                     val rankedSubs = FlowNeuroEngine.rank(subsPool, userSubs)
                     val bestSubs =
@@ -1192,7 +1208,7 @@ class HomeViewModel
                         }
                     }
 
-                    freshSubsLane.forEach { video ->
+                    pinnedFresh.forEach { video ->
                         if (addUnique(video, finalMix, usedChannelCounts, usedVideoIds)) freshAdded++
                     }
 
@@ -1202,7 +1218,7 @@ class HomeViewModel
                         blendFeedSources(
                             lanes =
                                 mapOf(
-                                    FeedSource.SUBS to bestSubs,
+                                    FeedSource.SUBS to (overflowFresh + bestSubs),
                                     FeedSource.RELATED to bestRelated,
                                     FeedSource.DISCOVERY to bestDiscovery,
                                     FeedSource.VIRAL to bestViral,
@@ -1426,7 +1442,9 @@ class HomeViewModel
                     return appended != null
                 }
 
-                val seedInputs = buildSeedInputs()
+                // Load-more digs related lanes from the widest seed universe:
+                // history + liked + playlists + the feed videos on screen.
+                val seedInputs = loadMoreSeedInputs()
                 val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, LOAD_MORE_GRAPH_SEEDS)
                 if (seedIds.isNotEmpty()) {
                     val graphFetch = fetchRelatedGraph(seedInputs, seedIds)
@@ -1552,6 +1570,44 @@ class HomeViewModel
                         targetSize = MIN_PAGE_SIZE,
                     )
                     subsBacklog = subsBacklog.filterNot { pageIds.contains(it.id) }
+                }
+
+                // Never run dry: when every other source thinned out, escalate with a
+                // wider related pass — more seeds, drawn from the feed itself and saved
+                // interests. The engine's seed cooldown keeps the lanes rotating, and
+                // its scarcity fallback re-admits cooled seeds when the pool is thin.
+                if (page.size < MIN_PAGE_SIZE) {
+                    val fallbackInputs = loadMoreSeedInputs()
+                    val fallbackSeeds =
+                        FlowNeuroEngine.selectRelatedSeeds(fallbackInputs, LOAD_MORE_FALLBACK_SEEDS)
+                    if (fallbackSeeds.isNotEmpty() && homePrefetchQueue.isCurrent(generation)) {
+                        val fallbackFetch = fetchRelatedGraph(fallbackInputs, fallbackSeeds)
+                        val fallbackCandidates =
+                            fallbackFetch.candidates
+                                .filterValidGraph()
+                                .filterWatchedGraph(watchedVideoIds.value)
+                                .filterRecentHomeSuggestionGraph(now)
+                        val fallbackMetadata = fallbackCandidates.associateBy { it.video.id }
+                        val fallbackRanked =
+                            demoteByFit(
+                                applyGraphBoost(
+                                    FlowNeuroEngine.rank(fallbackCandidates.map { it.video }, userSubs),
+                                    fallbackMetadata,
+                                ),
+                                taste,
+                            )
+                        addUniquePageVideos(
+                            candidates = fallbackRanked,
+                            targetList = page,
+                            channelCounts = channelCounts,
+                            usedVideoIds = pageIds,
+                            targetSize = MIN_PAGE_SIZE,
+                        )
+                        persistentHomeFeedCache.saveReserve(
+                            cacheRelatedCandidates(fallbackRanked, fallbackMetadata, pageIds),
+                        )
+                        Log.d(TAG, "Load-more fallback: ${fallbackSeeds.size} feed/saved seeds → page=${page.size}")
+                    }
                 }
 
                 if (page.isNotEmpty()) {
@@ -1735,6 +1791,36 @@ class HomeViewModel
             val history = viewHistory?.getVideoHistoryFlow()?.first() ?: return emptyList()
             return graphSeedInputsFromHistory(history)
         }
+
+        /** Videos currently on screen, usable as related-graph seeds for load-more. */
+        private fun feedSeedInputs(max: Int = FEED_SEED_POOL): List<GraphSeedInput> {
+            val now = System.currentTimeMillis()
+            return _uiState.value.videos
+                .asSequence()
+                .filter { !it.isShort && it.id.isNotBlank() }
+                .take(max)
+                .map { video ->
+                    GraphSeedInput(
+                        id = video.id,
+                        title = video.title,
+                        channelId = video.channelId,
+                        source = GraphSeedSource.FEED,
+                        engagementWeight = 0.6,
+                        timestamp = now,
+                        durationSec = video.duration,
+                        percentWatched = 0.0,
+                    )
+                }.toList()
+        }
+
+        /**
+         * The load-more seed universe: saved interests (history, liked, playlists)
+         * PLUS the feed itself — so paging can always dig another related lane and
+         * the feed never runs dry. The engine's seed cooldown rotates them.
+         */
+        private suspend fun loadMoreSeedInputs(): List<GraphSeedInput> =
+            (savedInterestSeedInputs(gatherSavedSeedSources(), emptySet()) + feedSeedInputs())
+                .distinctBy { it.id }
 
         private suspend fun fetchRelatedVideos(seedId: String): List<Video> {
             val ts = System.currentTimeMillis()

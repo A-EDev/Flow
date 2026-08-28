@@ -61,8 +61,13 @@ internal object GraphSeedSelector {
     private fun GraphSeedInput.sourceWeight(): Double =
         when (source) {
             GraphSeedSource.LIKED -> 1.4
+
             GraphSeedSource.PLAYLIST -> 1.0
+
             GraphSeedSource.WATCH_HISTORY -> if (percentWatched >= 70.0) 1.2 else 0.8
+
+            // Feed items were engine-picked but not user-confirmed — usable, weakest.
+            GraphSeedSource.FEED -> 0.7
         }
 
     private fun recencyWeight(

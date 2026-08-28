@@ -243,6 +243,9 @@ enum class GraphSeedSource {
     WATCH_HISTORY,
     LIKED,
     PLAYLIST,
+
+    /** A video currently in the feed — used to keep load-more digging related lanes. */
+    FEED,
 }
 
 /** A candidate seed for related-graph retrieval, with enough context for one shared selector. */
