@@ -1530,50 +1530,12 @@ class YouTubeRepository
             textualDate: String?,
         ): Long {
             absoluteMillis?.let { if (it > 0L) return it }
-            val parsed = parseRelativeUploadDate(textualDate)
+            // Shared parser: the old private copy carried the plural-"s" bug
+            // ("3 days" matched the seconds branch), which stamped every
+            // plural-dated subs video as seconds old — stale uploads then won
+            // the recency sort and the fresh-subs slots over genuinely new ones.
+            val parsed = RelativeUploadDateParser.parse(textualDate)
             return parsed ?: System.currentTimeMillis()
-        }
-
-        private fun parseRelativeUploadDate(textualDate: String?): Long? {
-            val raw = textualDate?.trim().orEmpty()
-            if (raw.isBlank()) return null
-
-            val normalized =
-                raw
-                    .lowercase(Locale.US)
-                    .replace("streamed", "")
-                    .replace("premiered", "")
-                    .replace("ago", "")
-                    .trim()
-
-            if (normalized.contains("just now") || normalized.contains("today")) {
-                return System.currentTimeMillis()
-            }
-            if (normalized.contains("yesterday")) {
-                return System.currentTimeMillis() - 24L * 60L * 60L * 1000L
-            }
-
-            val value =
-                Regex("(\\d+)")
-                    .find(normalized)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.toLongOrNull()
-                    ?: return null
-
-            val unitMillis =
-                when {
-                    normalized.contains("second") || normalized.endsWith("s") -> 1_000L
-                    normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
-                    normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
-                    normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
-                    normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
-                    normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
-                    normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
-                    else -> return null
-                }
-
-            return System.currentTimeMillis() - (value * unitMillis)
         }
 
         private fun <T> takeRotatingWindow(
