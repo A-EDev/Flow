@@ -2,7 +2,7 @@ name: Android CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feat/flow-ui-redesign ]
     tags:
       - 'v*'
   pull_request:
