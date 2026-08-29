@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
+import io.github.aedev.flow.data.recommendation.music.MusicQuickPicks
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.BrowseEndpoint
 import io.github.aedev.flow.innertube.models.SongItem
@@ -28,6 +29,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -80,25 +82,79 @@ class MusicViewModel
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 var lastTrackId: String? = null
-                EnhancedMusicPlayerManager.currentTrack.collect { activeTrack ->
+                EnhancedMusicPlayerManager.currentTrack.collectLatest { activeTrack ->
                     if (activeTrack != null && !activeTrack.videoId.isNullOrBlank()) {
                         if (activeTrack.videoId != lastTrackId) {
                             lastTrackId = activeTrack.videoId
-                            try {
-                                val related =
-                                    YouTubeMusicService
-                                        .getRelatedMusic(activeTrack.videoId, 24, audioOnly = true)
-                                        .audioMusicOnly()
-                                if (related.isNotEmpty()) {
-                                    val ranked = musicBrain.rankTracks(related, "quick_picks")
-                                    _uiState.update { it.copy(forYouTracks = ranked) }
-                                }
-                            } catch (e: Exception) {
-                                Log.e("MusicViewModel", "Error updating dynamic Quick Picks", e)
-                            }
+                            rebuildQuickPicks(activeTrack)
+                            refreshOnRepeat()
                         }
                     }
                 }
+            }
+        }
+
+        /** True once the multi-lane composer has produced a shelf — YT-home and history fallbacks must not overwrite it. */
+        @Volatile
+        private var quickPicksComposed = false
+
+        /**
+         * Desktop-style Quick Picks: one related lane per seed (current track +
+         * distinct-artist history) ranked on the comfort surface, plus a charts
+         * discovery lane, round-robin interleaved so fresh content always lands.
+         */
+        private suspend fun rebuildQuickPicks(current: MusicTrack?) {
+            try {
+                val history =
+                    playlistRepository.history
+                        .firstOrNull()
+                        .orEmpty()
+                        .audioMusicOnly()
+                val seeds = MusicQuickPicks.selectSeeds(current, history)
+                val relatedLanes =
+                    kotlinx.coroutines.coroutineScope {
+                        seeds
+                            .map { seed ->
+                                async(PerformanceDispatcher.networkIO) {
+                                    runCatching {
+                                        YouTubeMusicService
+                                            .getRelatedMusic(seed.videoId, MusicQuickPicks.LANE_SIZE, audioOnly = true)
+                                            .audioMusicOnly()
+                                    }.getOrDefault(emptyList())
+                                }
+                            }.awaitAll()
+                    }
+                val personalizedLanes =
+                    relatedLanes
+                        .filter { it.isNotEmpty() }
+                        .map { musicBrain.rankTracks(it, "quick_picks") }
+                val discoveryLane =
+                    _uiState.value.trendingSongs
+                        .audioMusicOnly()
+                        .takeIf { it.isNotEmpty() }
+                        ?.let { musicBrain.rankTracks(it, "discover") }
+                val lanes = personalizedLanes + listOfNotNull(discoveryLane)
+                if (lanes.isEmpty()) return
+
+                val excluded = seeds.map { it.videoId }.toSet()
+                val mixed = MusicQuickPicks.interleave(lanes, MusicQuickPicks.TARGET, excluded)
+                if (mixed.size >= 4) {
+                    quickPicksComposed = true
+                    _uiState.update { it.copy(forYouTracks = mixed) }
+                }
+            } catch (e: Exception) {
+                Log.e("MusicViewModel", "Error composing Quick Picks", e)
+            }
+        }
+
+        private suspend fun refreshOnRepeat() {
+            try {
+                val onRepeat = musicBrain.heavyRotationTracks(16).audioMusicOnly()
+                if (onRepeat.size >= 2) {
+                    _uiState.update { it.copy(onRepeatTracks = onRepeat) }
+                }
+            } catch (e: Exception) {
+                Log.e("MusicViewModel", "Error loading On Repeat", e)
             }
         }
 
@@ -146,16 +202,9 @@ class MusicViewModel
 
             // On Repeat — served entirely from the local music brain, zero network.
             // Watch history holds one row per track, so backfill cannot seed relistens;
-            // the shelf earns items only from live sessions. Show it from 2 tracks up.
+            // the shelf earns items only from live sessions and refreshes per track change.
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                try {
-                    val onRepeat = musicBrain.heavyRotationTracks(16).audioMusicOnly()
-                    if (onRepeat.size >= 2) {
-                        _uiState.update { it.copy(onRepeatTracks = onRepeat) }
-                    }
-                } catch (e: Exception) {
-                    Log.e("MusicViewModel", "Error loading On Repeat", e)
-                }
+                refreshOnRepeat()
             }
 
             // 1. CRITICAL: Trending / Charts (Fastest & Most Important)
@@ -188,6 +237,10 @@ class MusicViewModel
                         )
                     }
                 }
+
+                // First composition of the multi-lane Quick Picks: seeds from the
+                // current track (if any) and history, discovery lane from the charts.
+                rebuildQuickPicks(EnhancedMusicPlayerManager.currentTrack.value)
             }
 
             // 2. IMPORTANT: Home Sections (Dynamic Content)
@@ -220,7 +273,9 @@ class MusicViewModel
                 if (homeSections.isNotEmpty()) {
                     processHomeSections(homeSections)
                     _uiState.update { it.copy(homeContinuation = homeContinuation) }
-                } else if (!skippedFreshCache && _uiState.value.forYouTracks.isEmpty() && _uiState.value.dynamicSections.isEmpty()) {
+                } else if (!skippedFreshCache && !quickPicksComposed &&
+                    _uiState.value.forYouTracks.isEmpty() && _uiState.value.dynamicSections.isEmpty()
+                ) {
                     val recs = musicRecommendationAlgorithm.getRecommendations(24).audioMusicOnly()
                     if (recs.isNotEmpty()) {
                         val ranked = musicBrain.rankTracks(recs, "quick_picks")
@@ -247,7 +302,13 @@ class MusicViewModel
                     _uiState.update {
                         it.copy(
                             history = history,
-                            forYouTracks = if (it.forYouTracks.isEmpty()) history.audioMusicOnly().take(24) else it.forYouTracks,
+                            // Raw history is only an emergency placeholder — never over a composed shelf.
+                            forYouTracks =
+                                if (it.forYouTracks.isEmpty() && !quickPicksComposed) {
+                                    history.audioMusicOnly().take(24)
+                                } else {
+                                    it.forYouTracks
+                                },
                             isLoading = false,
                         )
                     }
@@ -775,7 +836,12 @@ class MusicViewModel
 
             _uiState.update { currentState ->
                 currentState.copy(
-                    forYouTracks = quickPicks.ifEmpty { currentState.forYouTracks },
+                    forYouTracks =
+                        if (quickPicksComposed) {
+                            currentState.forYouTracks
+                        } else {
+                            quickPicks.ifEmpty { currentState.forYouTracks }
+                        },
                     recommendedTracks = recommended.ifEmpty { currentState.recommendedTracks },
                     listenAgain = listenAgain,
                     musicVideos = musicVideos,
