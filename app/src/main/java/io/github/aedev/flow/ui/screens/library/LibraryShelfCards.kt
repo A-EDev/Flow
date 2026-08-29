@@ -56,8 +56,7 @@ internal fun LibraryVideoCard(
                     interactionSource = interactionSource,
                     indication = androidx.compose.material3.ripple(),
                     onClick = onClick,
-                )
-                .padding(vertical = 4.dp),
+                ).padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
@@ -135,8 +134,7 @@ internal fun LibraryAlbumCard(
                     interactionSource = interactionSource,
                     indication = androidx.compose.material3.ripple(),
                     onClick = onClick,
-                )
-                .padding(vertical = 4.dp),
+                ).padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Surface(

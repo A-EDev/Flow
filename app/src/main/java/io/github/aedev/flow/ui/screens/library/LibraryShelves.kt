@@ -43,34 +43,35 @@ internal fun LibraryShelf(
     title: String,
     onTitleClick: () -> Unit,
     modifier: Modifier = Modifier,
-    content: LazyListScope.() -> Unit
+    content: LazyListScope.() -> Unit,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onTitleClick)
-                .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onTitleClick)
+                    .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Spacer(modifier = Modifier.weight(1f))
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
             horizontalArrangement = Arrangement.spacedBy(Dimensions.ItemSpacing),
-            content = content
+            content = content,
         )
     }
 }
@@ -84,17 +85,20 @@ internal fun LibraryMediaShelf(
     onVideoClick: (Video) -> Unit,
     onMusicClick: (MusicTrack, List<MusicTrack>, String) -> Unit,
     onDownloadedVideoClick: (List<DownloadedVideo>, Int) -> Unit,
-    onDownloadedMusicClick: (List<DownloadedTrack>, Int) -> Unit
+    onDownloadedMusicClick: (List<DownloadedTrack>, Int) -> Unit,
 ) {
-    val musicQueue = remember(items) {
-        items.mapNotNull { (it as? LibraryMediaItem.MusicItem)?.track }
-    }
-    val downloadedVideoQueue = remember(items) {
-        items.mapNotNull { (it as? LibraryMediaItem.DownloadedVideoItem)?.download }
-    }
-    val downloadedMusicQueue = remember(items) {
-        items.mapNotNull { (it as? LibraryMediaItem.DownloadedMusicItem)?.download }
-    }
+    val musicQueue =
+        remember(items) {
+            items.mapNotNull { (it as? LibraryMediaItem.MusicItem)?.track }
+        }
+    val downloadedVideoQueue =
+        remember(items) {
+            items.mapNotNull { (it as? LibraryMediaItem.DownloadedVideoItem)?.download }
+        }
+    val downloadedMusicQueue =
+        remember(items) {
+            items.mapNotNull { (it as? LibraryMediaItem.DownloadedMusicItem)?.download }
+        }
 
     LibraryShelf(title = title, onTitleClick = onTitleClick) {
         items(
@@ -103,44 +107,60 @@ internal fun LibraryMediaShelf(
             contentType = {
                 when (it) {
                     is LibraryMediaItem.VideoItem,
-                    is LibraryMediaItem.DownloadedVideoItem -> "video"
+                    is LibraryMediaItem.DownloadedVideoItem,
+                    -> "video"
+
                     is LibraryMediaItem.MusicItem,
-                    is LibraryMediaItem.DownloadedMusicItem -> "music"
+                    is LibraryMediaItem.DownloadedMusicItem,
+                    -> "music"
                 }
-            }
+            },
         ) { item ->
             when (item) {
-                is LibraryMediaItem.VideoItem -> LibraryVideoCard(
-                    video = item.video,
-                    onClick = { onVideoClick(item.video) }
-                )
-                is LibraryMediaItem.MusicItem -> LibraryAlbumCard(
-                    title = item.track.title,
-                    subtitle = item.track.artist,
-                    thumbnailUrl = item.track.thumbnailUrl,
-                    onClick = { onMusicClick(item.track, musicQueue, sourceName) }
-                )
-                is LibraryMediaItem.DownloadedVideoItem -> LibraryVideoCard(
-                    video = item.download.video,
-                    onClick = {
-                        val index = downloadedVideoQueue.indexOfFirst {
-                            it.video.id == item.download.video.id
-                        }
-                        if (index >= 0) onDownloadedVideoClick(downloadedVideoQueue, index)
-                    }
-                )
-                is LibraryMediaItem.DownloadedMusicItem -> LibraryAlbumCard(
-                    title = item.download.track.title,
-                    subtitle = item.download.track.artist,
-                    thumbnailUrl = item.download.track.thumbnailUrl,
-                    isDownloaded = true,
-                    onClick = {
-                        val index = downloadedMusicQueue.indexOfFirst {
-                            it.track.videoId == item.download.track.videoId
-                        }
-                        if (index >= 0) onDownloadedMusicClick(downloadedMusicQueue, index)
-                    }
-                )
+                is LibraryMediaItem.VideoItem -> {
+                    LibraryVideoCard(
+                        video = item.video,
+                        onClick = { onVideoClick(item.video) },
+                    )
+                }
+
+                is LibraryMediaItem.MusicItem -> {
+                    LibraryAlbumCard(
+                        title = item.track.title,
+                        subtitle = item.track.artist,
+                        thumbnailUrl = item.track.thumbnailUrl,
+                        onClick = { onMusicClick(item.track, musicQueue, sourceName) },
+                    )
+                }
+
+                is LibraryMediaItem.DownloadedVideoItem -> {
+                    LibraryVideoCard(
+                        video = item.download.video,
+                        onClick = {
+                            val index =
+                                downloadedVideoQueue.indexOfFirst {
+                                    it.video.id == item.download.video.id
+                                }
+                            if (index >= 0) onDownloadedVideoClick(downloadedVideoQueue, index)
+                        },
+                    )
+                }
+
+                is LibraryMediaItem.DownloadedMusicItem -> {
+                    LibraryAlbumCard(
+                        title = item.download.track.title,
+                        subtitle = item.download.track.artist,
+                        thumbnailUrl = item.download.track.thumbnailUrl,
+                        isDownloaded = true,
+                        onClick = {
+                            val index =
+                                downloadedMusicQueue.indexOfFirst {
+                                    it.track.videoId == item.download.track.videoId
+                                }
+                            if (index >= 0) onDownloadedMusicClick(downloadedMusicQueue, index)
+                        },
+                    )
+                }
             }
         }
     }
@@ -151,7 +171,7 @@ internal fun LibraryShortsShelf(
     title: String,
     shorts: List<Video>,
     onTitleClick: () -> Unit,
-    onShortClick: (Video) -> Unit
+    onShortClick: (Video) -> Unit,
 ) {
     LibraryShelf(title = title, onTitleClick = onTitleClick) {
         items(shorts, key = Video::id, contentType = { "short" }) { short ->
@@ -165,54 +185,55 @@ internal fun LibraryNavigationRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .pressScale(interactionSource)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.material3.ripple(),
-                onClick = onClick,
-            )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .pressScale(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
+                    onClick = onClick,
+                ).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

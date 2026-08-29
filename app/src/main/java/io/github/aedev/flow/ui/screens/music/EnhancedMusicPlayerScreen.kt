@@ -350,32 +350,36 @@ fun EnhancedMusicPlayerScreen(
                 AnimatedContent(
                     targetState = showInlineLyrics,
                     transitionSpec = {
-                        (fadeIn(
-                            tween(
-                                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
-                                easing = FlowMotion.EnterEasing,
-                            ),
-                        ) +
-                            scaleIn(
+                        (
+                            fadeIn(
                                 tween(
-                                    FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                                    FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
                                     easing = FlowMotion.EnterEasing,
                                 ),
-                                initialScale = 0.98f,
-                            )) togetherWith
-                            (fadeOut(
-                                tween(
-                                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                                    easing = FlowMotion.ExitEasing,
-                                ),
                             ) +
-                                scaleOut(
+                                scaleIn(
                                     tween(
-                                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                        FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
+                                        easing = FlowMotion.EnterEasing,
+                                    ),
+                                    initialScale = 0.98f,
+                                )
+                        ) togetherWith
+                            (
+                                fadeOut(
+                                    tween(
+                                        FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
                                         easing = FlowMotion.ExitEasing,
                                     ),
-                                    targetScale = 1.02f,
-                                ))
+                                ) +
+                                    scaleOut(
+                                        tween(
+                                            FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
+                                            easing = FlowMotion.ExitEasing,
+                                        ),
+                                        targetScale = 1.02f,
+                                    )
+                            )
                     },
                     label = "artworkInlineLyrics",
                 ) { lyricsVisible ->
@@ -493,16 +497,17 @@ fun EnhancedMusicPlayerScreen(
                             fadeIn(
                                 animationSpec =
                                     tween(
-                                        FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                        FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
                                         easing = FlowMotion.EnterEasing,
                                     ),
-                            ) togetherWith fadeOut(
-                                animationSpec =
-                                    tween(
-                                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                                        easing = FlowMotion.ExitEasing,
-                                    ),
-                            )
+                            ) togetherWith
+                                fadeOut(
+                                    animationSpec =
+                                        tween(
+                                            FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
+                                            easing = FlowMotion.ExitEasing,
+                                        ),
+                                )
                         },
                         label = "title",
                     ) { title ->
@@ -544,32 +549,36 @@ fun EnhancedMusicPlayerScreen(
                 AnimatedContent(
                     targetState = showInlineLyrics,
                     transitionSpec = {
-                        (fadeIn(
-                            tween(
-                                FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                                easing = FlowMotion.EnterEasing,
-                            ),
-                        ) +
-                            scaleIn(
+                        (
+                            fadeIn(
                                 tween(
-                                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                    FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
                                     easing = FlowMotion.EnterEasing,
                                 ),
-                                initialScale = 0.9f,
-                            )) togetherWith
-                            (fadeOut(
-                                tween(
-                                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                                    easing = FlowMotion.ExitEasing,
-                                ),
                             ) +
-                                scaleOut(
+                                scaleIn(
                                     tween(
-                                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                        FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
+                                        easing = FlowMotion.EnterEasing,
+                                    ),
+                                    initialScale = 0.9f,
+                                )
+                        ) togetherWith
+                            (
+                                fadeOut(
+                                    tween(
+                                        FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
                                         easing = FlowMotion.ExitEasing,
                                     ),
-                                    targetScale = 0.9f,
-                                ))
+                                ) +
+                                    scaleOut(
+                                        tween(
+                                            FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
+                                            easing = FlowMotion.ExitEasing,
+                                        ),
+                                        targetScale = 0.9f,
+                                    )
+                            )
                     },
                     label = "lyricsActionsSwap",
                 ) { lyricsActive ->

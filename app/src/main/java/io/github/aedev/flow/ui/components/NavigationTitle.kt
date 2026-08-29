@@ -27,23 +27,23 @@ fun NavigationTitle(
     modifier: Modifier = Modifier,
     label: String? = null,
     thumbnail: (@Composable () -> Unit)? = null,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(enabled = onClick != null) {
-                onClick?.invoke()
-            }
-            .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(enabled = onClick != null) {
+                    onClick?.invoke()
+                }.padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp),
     ) {
         thumbnail?.invoke()
-        
+
         Column(
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             if (label != null) {
                 Text(
@@ -51,25 +51,25 @@ fun NavigationTitle(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     overflow = TextOverflow.Ellipsis,
-                    maxLines = 1
+                    maxLines = 1,
                 )
             }
-            
+
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 overflow = TextOverflow.Ellipsis,
-                maxLines = 1
+                maxLines = 1,
             )
         }
-        
+
         if (onClick != null) {
             Icon(
                 imageVector = Icons.Filled.ArrowForward,
                 contentDescription = stringResource(R.string.ui_navigate),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -79,19 +79,20 @@ fun NavigationTitle(
 fun SectionTitle(
     title: String,
     modifier: Modifier = Modifier,
-    subtitle: String? = null
+    subtitle: String? = null,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp),
     ) {
         if (subtitle != null) {
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 2.dp)
+                modifier = Modifier.padding(bottom = 2.dp),
             )
         }
         Text(

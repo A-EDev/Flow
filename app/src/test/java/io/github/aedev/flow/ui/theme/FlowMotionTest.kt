@@ -7,22 +7,22 @@ import org.junit.Test
 class FlowMotionTest {
     @Test
     fun `motion durations keep enters slower than exits`() {
-        assertTrue(FlowMotion.ExitDurationMillis < FlowMotion.EnterDurationMillis)
-        assertTrue(FlowMotion.EnterDurationMillis <= FlowMotion.ContentDurationMillis)
+        assertTrue(FlowMotion.EXIT_DURATION_MILLIS < FlowMotion.ENTER_DURATION_MILLIS)
+        assertTrue(FlowMotion.ENTER_DURATION_MILLIS <= FlowMotion.CONTENT_DURATION_MILLIS)
     }
 
     @Test
     fun `reduced motion removes timed movement`() {
-        assertEquals(0, FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion = true))
+        assertEquals(0, FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion = true))
         assertEquals(
-            FlowMotion.EnterDurationMillis,
-            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion = false),
+            FlowMotion.ENTER_DURATION_MILLIS,
+            FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion = false),
         )
     }
 
     @Test
     fun `pressed scale is subtle and reversible`() {
-        assertEquals(FlowMotion.PressedScale, FlowMotion.scaleFor(isPressed = true, reduceMotion = false), 0.001f)
+        assertEquals(FlowMotion.PRESSED_SCALE, FlowMotion.scaleFor(isPressed = true, reduceMotion = false), 0.001f)
         assertEquals(1f, FlowMotion.scaleFor(isPressed = false, reduceMotion = false), 0.001f)
         assertEquals(1f, FlowMotion.scaleFor(isPressed = true, reduceMotion = true), 0.001f)
     }

@@ -32,21 +32,22 @@ import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 @Composable
 fun Modifier.pressScale(
     interactionSource: MutableInteractionSource,
-    pressedScale: Float = FlowMotion.PressedScale,
+    pressedScale: Float = FlowMotion.PRESSED_SCALE,
     reduceMotion: Boolean? = null,
 ): Modifier {
     val isPressed by interactionSource.collectIsPressedAsState()
     val systemReduceMotion = rememberFlowReduceMotion()
     val shouldReduceMotion = reduceMotion ?: systemReduceMotion
-    val scale = animateFloatAsState(
-        targetValue = FlowMotion.scaleFor(isPressed, shouldReduceMotion, pressedScale),
-        animationSpec =
-            androidx.compose.animation.core.tween(
-                durationMillis = FlowMotion.durationFor(FlowMotion.ExitDurationMillis, shouldReduceMotion),
-                easing = FlowMotion.ExitEasing,
-            ),
-        label = "pressScale",
-    )
+    val scale =
+        animateFloatAsState(
+            targetValue = FlowMotion.scaleFor(isPressed, shouldReduceMotion, pressedScale),
+            animationSpec =
+                androidx.compose.animation.core.tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, shouldReduceMotion),
+                    easing = FlowMotion.ExitEasing,
+                ),
+            label = "pressScale",
+        )
     return this.graphicsLayer {
         scaleX = scale.value
         scaleY = scale.value
@@ -62,21 +63,24 @@ fun Modifier.pressScale(
 fun Modifier.thumbnailGradientOverlay(
     color: Color = Color.Black,
     alpha: Float = 0.25f,
-    startFraction: Float = 0.6f
-): Modifier = this.drawWithCache {
-    val brush = Brush.verticalGradient(
-        colors = listOf(
-            Color.Transparent,
-            color.copy(alpha = alpha)
-        ),
-        startY = size.height * startFraction,
-        endY = size.height
-    )
-    onDrawWithContent {
-        drawContent()
-        drawRect(brush = brush)
+    startFraction: Float = 0.6f,
+): Modifier =
+    this.drawWithCache {
+        val brush =
+            Brush.verticalGradient(
+                colors =
+                    listOf(
+                        Color.Transparent,
+                        color.copy(alpha = alpha),
+                    ),
+                startY = size.height * startFraction,
+                endY = size.height,
+            )
+        onDrawWithContent {
+            drawContent()
+            drawRect(brush = brush)
+        }
     }
-}
 
 /**
  * Returns a [SheetState] configured for a smooth, polished bottom sheet experience:
@@ -87,8 +91,7 @@ fun Modifier.thumbnailGradientOverlay(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun rememberFlowSheetState(
-    skipPartiallyExpanded: Boolean = true
-): SheetState = rememberModalBottomSheetState(
-    skipPartiallyExpanded = skipPartiallyExpanded
-)
+fun rememberFlowSheetState(skipPartiallyExpanded: Boolean = true): SheetState =
+    rememberModalBottomSheetState(
+        skipPartiallyExpanded = skipPartiallyExpanded,
+    )

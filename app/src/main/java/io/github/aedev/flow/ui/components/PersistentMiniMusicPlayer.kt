@@ -75,7 +75,7 @@ fun PersistentMiniMusicPlayer(
         targetValue = playPauseScale,
         animationSpec =
             tween(
-                FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
                 easing = FlowMotion.ExitEasing,
             ),
         label = "scale",
@@ -100,31 +100,33 @@ fun PersistentMiniMusicPlayer(
                 initialOffsetY = { it },
                 animationSpec =
                     tween(
-                        FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                        FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
                         easing = FlowMotion.EnterEasing,
                     ),
-            ) + fadeIn(
-                animationSpec =
-                    tween(
-                        FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                        easing = FlowMotion.EnterEasing,
-                    ),
-            ),
+            ) +
+                fadeIn(
+                    animationSpec =
+                        tween(
+                            FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
+                            easing = FlowMotion.EnterEasing,
+                        ),
+                ),
         exit =
             slideOutVertically(
                 targetOffsetY = { it },
                 animationSpec =
                     tween(
-                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                        FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
                         easing = FlowMotion.ExitEasing,
                     ),
-            ) + fadeOut(
-                animationSpec =
-                    tween(
-                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                        easing = FlowMotion.ExitEasing,
-                    ),
-            ),
+            ) +
+                fadeOut(
+                    animationSpec =
+                        tween(
+                            FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
+                            easing = FlowMotion.ExitEasing,
+                        ),
+                ),
         modifier = modifier,
     ) {
         currentTrack?.let { track ->

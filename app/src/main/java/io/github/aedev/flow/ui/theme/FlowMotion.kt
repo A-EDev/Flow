@@ -9,10 +9,10 @@ import androidx.compose.ui.platform.LocalContext
 
 /** Shared motion values for the Flow shell and content surfaces. */
 object FlowMotion {
-    const val EnterDurationMillis: Int = 220
-    const val ExitDurationMillis: Int = 160
-    const val ContentDurationMillis: Int = 240
-    const val PressedScale: Float = 0.98f
+    const val ENTER_DURATION_MILLIS: Int = 220
+    const val EXIT_DURATION_MILLIS: Int = 160
+    const val CONTENT_DURATION_MILLIS: Int = 240
+    const val PRESSED_SCALE: Float = 0.98f
 
     /** Fast start with a soft landing for elements entering the screen. */
     val EnterEasing: Easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
@@ -20,15 +20,16 @@ object FlowMotion {
     /** Quick departure that does not make the user wait for the old content. */
     val ExitEasing: Easing = CubicBezierEasing(0.4f, 0.0f, 1.0f, 1.0f)
 
-    fun durationFor(durationMillis: Int, reduceMotion: Boolean): Int =
-        if (reduceMotion) 0 else durationMillis.coerceAtLeast(0)
+    fun durationFor(
+        durationMillis: Int,
+        reduceMotion: Boolean,
+    ): Int = if (reduceMotion) 0 else durationMillis.coerceAtLeast(0)
 
     fun scaleFor(
         isPressed: Boolean,
         reduceMotion: Boolean,
-        pressedScale: Float = PressedScale,
-    ): Float =
-        if (isPressed && !reduceMotion) pressedScale else 1f
+        pressedScale: Float = PRESSED_SCALE,
+    ): Float = if (isPressed && !reduceMotion) pressedScale else 1f
 }
 
 /** Reads Android's animator scale so interactive feedback can respect reduced-motion settings. */

@@ -35,11 +35,12 @@ val Warning = Color(0xFFFF9800)
 val Info = Color(0xFF2196F3)
 
 // Shimmer Colors
-val ShimmerColorShades = listOf(
-    Color(0xFF202730),
-    Color(0xFF2B343F),
-    Color(0xFF202730),
-)
+val ShimmerColorShades =
+    listOf(
+        Color(0xFF202730),
+        Color(0xFF2B343F),
+        Color(0xFF202730),
+    )
 
 // Light Theme Color Scheme
 object LightThemeColors {

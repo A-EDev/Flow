@@ -187,7 +187,7 @@ private fun BottomNavItem(
         targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec =
             tween(
-                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
                 easing = FlowMotion.EnterEasing,
             ),
         label = "iconTint",
@@ -201,7 +201,7 @@ private fun BottomNavItem(
             },
         animationSpec =
             tween(
-                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
                 easing = FlowMotion.EnterEasing,
             ),
         label = "indicatorColor",

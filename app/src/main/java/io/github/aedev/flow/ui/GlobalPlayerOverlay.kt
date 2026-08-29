@@ -790,7 +790,7 @@ fun GlobalPlayerOverlay(
                     targetValue = 0f,
                     animationSpec =
                         tween(
-                            durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                            durationMillis = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
                             easing = FlowMotion.EnterEasing,
                         ),
                 )
@@ -803,7 +803,7 @@ fun GlobalPlayerOverlay(
                     targetValue = fullscreenDrawerWidthPx,
                     animationSpec =
                         tween(
-                            durationMillis = FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                            durationMillis = FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
                             easing = FlowMotion.ExitEasing,
                         ),
                 )
@@ -833,7 +833,7 @@ fun GlobalPlayerOverlay(
                                 targetValue = 0f,
                                 animationSpec =
                                     tween(
-                                        durationMillis = FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                        durationMillis = FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
                                         easing = FlowMotion.EnterEasing,
                                     ),
                             )
@@ -853,7 +853,7 @@ fun GlobalPlayerOverlay(
                                     targetValue = 0f,
                                     animationSpec =
                                         tween(
-                                            durationMillis = FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                            durationMillis = FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
                                             easing = FlowMotion.EnterEasing,
                                         ),
                                 )
@@ -1070,20 +1070,22 @@ fun GlobalPlayerOverlay(
 
                         AnimatedVisibility(
                             visible = screenState.showZoomIndicator,
-                            enter = fadeIn(
-                                animationSpec =
-                                    tween(
-                                        FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                                        easing = FlowMotion.EnterEasing,
-                                    ),
-                            ),
-                            exit = fadeOut(
-                                animationSpec =
-                                    tween(
-                                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                                        easing = FlowMotion.ExitEasing,
-                                    ),
-                            ),
+                            enter =
+                                fadeIn(
+                                    animationSpec =
+                                        tween(
+                                            FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
+                                            easing = FlowMotion.EnterEasing,
+                                        ),
+                                ),
+                            exit =
+                                fadeOut(
+                                    animationSpec =
+                                        tween(
+                                            FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
+                                            easing = FlowMotion.ExitEasing,
+                                        ),
+                                ),
                             modifier =
                                 Modifier
                                     .align(Alignment.TopCenter)

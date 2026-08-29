@@ -360,16 +360,17 @@ fun SubscriptionsScreen(
                     fadeIn(
                         animationSpec =
                             tween(
-                                FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
                                 easing = FlowMotion.EnterEasing,
                             ),
-                    ) togetherWith fadeOut(
-                        animationSpec =
-                            tween(
-                                FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                                easing = FlowMotion.ExitEasing,
-                            ),
-                    )
+                    ) togetherWith
+                        fadeOut(
+                            animationSpec =
+                                tween(
+                                    FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
+                                    easing = FlowMotion.ExitEasing,
+                                ),
+                        )
                 },
                 label = "subscriptionMode",
             ) { manageMode ->
@@ -1143,7 +1144,11 @@ fun SubscriptionManagerItem(
     onNotificationChange: (Boolean) -> Unit = {},
     onShortsExcludeChange: (Boolean) -> Unit = {},
 ) {
-    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val interactionSource =
+        remember {
+            androidx.compose.foundation.interaction
+                .MutableInteractionSource()
+        }
     Row(
         modifier =
             Modifier
@@ -1155,8 +1160,7 @@ fun SubscriptionManagerItem(
                     interactionSource = interactionSource,
                     indication = androidx.compose.material3.ripple(),
                     onClick = onClick,
-                )
-                .padding(16.dp),
+                ).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
