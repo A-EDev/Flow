@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -541,43 +542,7 @@ class ShortsDiscoveryEngine private constructor(
         return parseRelativeUploadDate(item.textualUploadDate)
     }
 
-    private fun parseRelativeUploadDate(textualDate: String?): Long? {
-        val raw = textualDate?.trim().orEmpty()
-        if (raw.isBlank()) return null
-
-        val normalized =
-            raw
-                .lowercase()
-                .replace("streamed", "")
-                .replace("premiered", "")
-                .replace("ago", "")
-                .trim()
-
-        val now = System.currentTimeMillis()
-        if (normalized.contains("just now") || normalized.contains("today")) return now
-        if (normalized.contains("yesterday")) return now - 24L * 60L * 60L * 1000L
-
-        val value =
-            Regex("(\\d+)")
-                .find(normalized)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toLongOrNull()
-                ?: return null
-        val unitMillis =
-            when {
-                normalized.contains("second") || normalized.endsWith("s") -> 1_000L
-                normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
-                normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
-                normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
-                normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
-                normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
-                normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
-                else -> return null
-            }
-
-        return now - (value * unitMillis)
-    }
+    private fun parseRelativeUploadDate(textualDate: String?): Long? = RelativeUploadDateParser.parse(textualDate)
 
     fun clearCaches() {
         synchronized(channelShortsCache) { channelShortsCache.clear() }

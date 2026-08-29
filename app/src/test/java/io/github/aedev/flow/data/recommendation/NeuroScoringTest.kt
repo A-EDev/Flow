@@ -12,7 +12,6 @@ import io.github.aedev.flow.data.recommendation.eval.NeuroEval.video
 import org.junit.Test
 
 class NeuroScoringTest {
-
     private val now = 1_700_000_000_000L
 
     // ── Relevance floor ──
@@ -67,9 +66,12 @@ class NeuroScoringTest {
 
     @Test
     fun `jitter is high at cold start and rises with feed staleness`() {
+        // Values are FRACTIONS of the median candidate score (rank() multiplies).
         assertThat(NeuroScoring.calculateAdaptiveJitter(10, 0.0)).isEqualTo(NeuroScoring.JITTER_COLD_START)
-        assertThat(NeuroScoring.calculateAdaptiveJitter(100, 0.6)).isEqualTo(0.12)
+        assertThat(NeuroScoring.calculateAdaptiveJitter(100, 0.6)).isEqualTo(0.25)
         assertThat(NeuroScoring.calculateAdaptiveJitter(100, 0.0)).isEqualTo(NeuroScoring.JITTER_NORMAL)
+        assertThat(NeuroScoring.calculateAdaptiveJitter(100, 0.6))
+            .isGreaterThan(NeuroScoring.calculateAdaptiveJitter(100, 0.0))
     }
 
     // ── Topic affinity key ──
@@ -84,35 +86,44 @@ class NeuroScoringTest {
 
     @Test
     fun `probation damps unconfirmed mid-weight topics on mature brains`() {
-        val brain = UserBrain(
-            totalInteractions = 200,
-            globalVector = ContentVector(topics = mapOf("foo" to 0.1))
-        )
-        val penalty = NeuroScoring.calculateTopicProbationPenalty(
-            vec("foo" to 0.9), brain, emptySet()
-        )
+        val brain =
+            UserBrain(
+                totalInteractions = 200,
+                globalVector = ContentVector(topics = mapOf("foo" to 0.1)),
+            )
+        val penalty =
+            NeuroScoring.calculateTopicProbationPenalty(
+                vec("foo" to 0.9),
+                brain,
+                emptySet(),
+            )
         assertThat(penalty).isLessThan(1.0)
     }
 
     @Test
     fun `confirmed topic evidence lifts probation`() {
-        val brain = UserBrain(
-            totalInteractions = 200,
-            globalVector = ContentVector(topics = mapOf("foo" to 0.1)),
-            topicEvidence = mapOf("foo" to TopicEvidence(explicitSignals = 1))
-        )
-        val penalty = NeuroScoring.calculateTopicProbationPenalty(
-            vec("foo" to 0.9), brain, emptySet()
-        )
+        val brain =
+            UserBrain(
+                totalInteractions = 200,
+                globalVector = ContentVector(topics = mapOf("foo" to 0.1)),
+                topicEvidence = mapOf("foo" to TopicEvidence(explicitSignals = 1)),
+            )
+        val penalty =
+            NeuroScoring.calculateTopicProbationPenalty(
+                vec("foo" to 0.9),
+                brain,
+                emptySet(),
+            )
         assertThat(penalty).isEqualTo(1.0)
     }
 
     @Test
     fun `probation is inactive during cold start`() {
-        val brain = UserBrain(
-            totalInteractions = 10,
-            globalVector = ContentVector(topics = mapOf("foo" to 0.1))
-        )
+        val brain =
+            UserBrain(
+                totalInteractions = 10,
+                globalVector = ContentVector(topics = mapOf("foo" to 0.1)),
+            )
         assertThat(NeuroScoring.calculateTopicProbationPenalty(vec("foo" to 0.9), brain, emptySet()))
             .isEqualTo(1.0)
     }
@@ -131,10 +142,11 @@ class NeuroScoringTest {
 
     @Test
     fun `novel topics get a larger exploration bonus than well-explored ones`() {
-        val brain = UserBrain(
-            totalInteractions = 200,
-            topicEvidence = mapOf("known" to TopicEvidence(positiveSignals = 50))
-        )
+        val brain =
+            UserBrain(
+                totalInteractions = 200,
+                topicEvidence = mapOf("known" to TopicEvidence(positiveSignals = 50)),
+            )
         val known = NeuroScoring.explorationBonus(vec("known" to 0.9), brain, 1.0)
         val novel = NeuroScoring.explorationBonus(vec("novel" to 0.9), brain, 1.0)
         assertThat(novel).isGreaterThan(known)
@@ -148,10 +160,11 @@ class NeuroScoringTest {
 
     @Test
     fun `repeatedly disliked topics are not explored`() {
-        val brain = UserBrain(
-            totalInteractions = 200,
-            topicEvidence = mapOf("hated" to TopicEvidence(negativeSignals = 40))
-        )
+        val brain =
+            UserBrain(
+                totalInteractions = 200,
+                topicEvidence = mapOf("hated" to TopicEvidence(negativeSignals = 40)),
+            )
         val hated = NeuroScoring.explorationBonus(vec("hated" to 0.9), brain, 1.0)
         val fresh = NeuroScoring.explorationBonus(vec("brandnew" to 0.9), brain, 1.0)
         assertThat(hated).isLessThan(fresh)

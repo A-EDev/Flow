@@ -299,6 +299,9 @@ internal fun ShortVideoPage(
                 (latestHasStartedPlaying || latestPosition >= 1_000L)
             ) {
                 viewModel.recordShortProgress(video.toShortVideo(), latestPosition, latestDuration)
+                // Swiped away before the terminal watch fired — classify the
+                // abandonment so early swipes become negative engine evidence.
+                viewModel.recordShortAbandoned(video.toShortVideo(), latestPosition, latestDuration)
             }
         }
     }

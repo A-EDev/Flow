@@ -18,7 +18,7 @@ import androidx.annotation.StringRes
 import io.github.aedev.flow.R
 import java.util.Calendar
 
-/**
+/*
  * Pure data definitions. No logic, no dependencies.
  * Every other file imports from here.
  */
@@ -30,7 +30,7 @@ data class ContentVector(
     val duration: Double = 0.5,
     val pacing: Double = 0.5,
     val complexity: Double = 0.5,
-    val isLive: Double = 0.0
+    val isLive: Double = 0.0,
 )
 
 // ── Time Buckets ──
@@ -43,15 +43,17 @@ enum class TimeBucket {
     WEEKEND_MORNING,
     WEEKEND_AFTERNOON,
     WEEKEND_EVENING,
-    WEEKEND_NIGHT;
+    WEEKEND_NIGHT,
+    ;
 
     companion object {
         fun current(): TimeBucket {
             val cal = Calendar.getInstance()
             val hour = cal.get(Calendar.HOUR_OF_DAY)
             val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
-            val isWeekend = dayOfWeek == Calendar.SATURDAY ||
-                dayOfWeek == Calendar.SUNDAY
+            val isWeekend =
+                dayOfWeek == Calendar.SATURDAY ||
+                    dayOfWeek == Calendar.SUNDAY
 
             return when {
                 isWeekend && hour in 6..11 -> WEEKEND_MORNING
@@ -70,8 +72,9 @@ enum class TimeBucket {
 // ── User Brain ──
 
 data class UserBrain(
-    val timeVectors: Map<TimeBucket, ContentVector> = TimeBucket.entries
-        .associateWith { ContentVector() },
+    val timeVectors: Map<TimeBucket, ContentVector> =
+        TimeBucket.entries
+            .associateWith { ContentVector() },
     val globalVector: ContentVector = ContentVector(),
     val channelScores: Map<String, Double> = emptyMap(),
     val topicAffinities: Map<String, Double> = emptyMap(),
@@ -100,29 +103,37 @@ data class UserBrain(
      * Maps channelId → timestamp. Escalates to blockedChannels on second signal.
      */
     val suppressedChannels: Map<String, Long> = emptyMap(),
-
     /**
      * Rejection pattern memory. Tracks topic patterns the user
      * repeatedly rejects via "not interested".
      */
     val rejectionPatterns: Map<String, RejectionSignal> = emptyMap(),
-
     // ── Feed repetition prevention ──
-
     val feedHistory: Map<String, FeedEntry> = emptyMap(),
-
     val recentQueryTokens: List<Set<String>> = emptyList(),
-
-
     val topicEvidence: Map<String, TopicEvidence> = emptyMap(),
-
-    val schemaVersion: Int = 13
+    /** Related-graph seeds used recently (seedVideoId → lastUsedAt), for rotation. */
+    val recentRelatedSeeds: Map<String, Long> = emptyMap(),
+    /** Discovery queries whose RESULTS were mostly already-shown (staleKey → markedAt). */
+    val staleQueries: Map<String, Long> = emptyMap(),
+    /** Interest-cluster rotation state (cluster representative → lastServedAt). */
+    val clusterRotation: Map<String, Long> = emptyMap(),
+    /** Tag co-occurrence edges from opened videos ("a|b" → weight), for clustering. */
+    val tagAffinities: Map<String, Double> = emptyMap(),
+    val schemaVersion: Int = 15,
 )
 
 // ── Interaction Types ──
 
 enum class InteractionType {
-    CLICK, LIKED, WATCHED, SKIPPED, DISLIKED
+    CLICK,
+    LIKED,
+    WATCHED,
+    SKIPPED,
+    DISLIKED,
+
+    /** High-intent save: download, Watch Later, playlist add. Positive but weaker than LIKED. */
+    SAVED,
 }
 
 // ── Persona ──
@@ -130,7 +141,7 @@ enum class InteractionType {
 enum class FlowPersona(
     @StringRes val titleRes: Int,
     @StringRes val descriptionRes: Int,
-    val icon: String
+    val icon: String,
 ) {
     INITIATE(R.string.persona_initiate_title, R.string.persona_initiate_description, "🌱"),
     AUDIOPHILE(R.string.persona_audiophile_title, R.string.persona_audiophile_description, "🎧"),
@@ -141,7 +152,7 @@ enum class FlowPersona(
     DEEP_DIVER(R.string.persona_deep_diver_title, R.string.persona_deep_diver_description, "🤿"),
     SKIMMER(R.string.persona_skimmer_title, R.string.persona_skimmer_description, "⚡"),
     SPECIALIST(R.string.persona_specialist_title, R.string.persona_specialist_description, "🎯"),
-    EXPLORER(R.string.persona_explorer_title, R.string.persona_explorer_description, "🧭")
+    EXPLORER(R.string.persona_explorer_title, R.string.persona_explorer_description, "🧭"),
 }
 
 // ── Topic Category (Onboarding) ──
@@ -149,7 +160,7 @@ enum class FlowPersona(
 data class TopicCategory(
     val name: String,
     val icon: String,
-    val topics: List<String>
+    val topics: List<String>,
 )
 
 // ── Discovery Query ──
@@ -158,7 +169,9 @@ data class DiscoveryQuery(
     val query: String,
     val strategy: QueryStrategy,
     val confidence: Double,
-    val reasoning: String
+    val reasoning: String,
+    /** Interest-cluster representative this query serves, for rotation tracking. */
+    val clusterKey: String? = null,
 )
 
 enum class QueryStrategy {
@@ -168,7 +181,7 @@ enum class QueryStrategy {
     ADJACENT_EXPLORATION,
     CHANNEL_DISCOVERY,
     CONTEXTUAL,
-    FORMAT_DRIVEN
+    FORMAT_DRIVEN,
 }
 
 // ── Internal Tracking Structures ──
@@ -176,12 +189,12 @@ enum class QueryStrategy {
 internal data class ScoredVideo(
     val video: io.github.aedev.flow.data.model.Video,
     var score: Double,
-    val vector: ContentVector
+    val vector: ContentVector,
 )
 
 data class RejectionSignal(
     val count: Int,
-    val lastRejectedAt: Long
+    val lastRejectedAt: Long,
 )
 
 data class TopicEvidence(
@@ -193,23 +206,32 @@ data class TopicEvidence(
     val videoIds: Set<String> = emptySet(),
     val channelIds: Set<String> = emptySet(),
     val firstSeenAt: Long = 0L,
-    val lastSeenAt: Long = 0L
+    val lastSeenAt: Long = 0L,
 )
 
-internal data class ImpressionEntry(var count: Int, var lastSeen: Long)
+internal data class ImpressionEntry(
+    var count: Int,
+    var lastSeen: Long,
+)
 
-internal data class WatchEntry(val percentWatched: Float, val timestamp: Long)
+internal data class WatchEntry(
+    val percentWatched: Float,
+    val timestamp: Long,
+)
 
-internal data class MomentumEntry(val topic: String, val positive: Boolean)
+internal data class MomentumEntry(
+    val topic: String,
+    val positive: Boolean,
+)
 
 data class FeedEntry(
     val lastShown: Long,
-    val showCount: Int
+    val showCount: Int,
 )
 
 internal data class IdfSnapshot(
     val wordFrequency: Map<String, Int>,
-    val totalDocs: Int
+    val totalDocs: Int,
 )
 
 /**
@@ -220,7 +242,10 @@ internal data class IdfSnapshot(
 enum class GraphSeedSource {
     WATCH_HISTORY,
     LIKED,
-    PLAYLIST
+    PLAYLIST,
+
+    /** A video currently in the feed — used to keep load-more digging related lanes. */
+    FEED,
 }
 
 /** A candidate seed for related-graph retrieval, with enough context for one shared selector. */
@@ -233,14 +258,14 @@ data class GraphSeedInput(
     val timestamp: Long,
     val durationSec: Int,
     val percentWatched: Double,
-    val isShort: Boolean = false
+    val isShort: Boolean = false,
 )
 
 /** A seed annotated with its interest cluster, for diversified selection. */
 internal data class SeedRank(
     val id: String,
     val clusterKey: String,
-    val weight: Double
+    val weight: Double,
 )
 
 internal data class ScoringParams(
@@ -261,5 +286,5 @@ internal data class ScoringParams(
     val recentInteractions: List<MomentumEntry>,
     val candidatePoolSize: Int,
     val now: Long,
-    val exploreWeight: Double = 0.0
+    val exploreWeight: Double = 0.0,
 )

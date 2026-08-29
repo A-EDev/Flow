@@ -9,22 +9,35 @@ import io.github.aedev.flow.data.local.entity.HomeFeedCacheEntity
 @Dao
 interface HomeFeedCacheDao {
     @Query("SELECT * FROM home_feed_cache WHERE bucket = :bucket AND expiresAt > :now ORDER BY orderIndex ASC")
-    suspend fun getFreshBucket(bucket: String, now: Long): List<HomeFeedCacheEntity>
+    suspend fun getFreshBucket(
+        bucket: String,
+        now: Long,
+    ): List<HomeFeedCacheEntity>
 
-    @Query("""
+    @Query(
+        """
         SELECT * FROM home_feed_cache
         WHERE bucket = 'RELATED' AND relatedSeedId = :seedId AND expiresAt > :now
         ORDER BY orderIndex ASC
-    """)
-    suspend fun getFreshRelated(seedId: String, now: Long): List<HomeFeedCacheEntity>
+    """,
+    )
+    suspend fun getFreshRelated(
+        seedId: String,
+        now: Long,
+    ): List<HomeFeedCacheEntity>
 
-    @Query("""
+    @Query(
+        """
         SELECT * FROM home_feed_cache
         WHERE bucket = 'RESERVE' AND expiresAt > :now
         ORDER BY cachedAt DESC, orderIndex ASC
         LIMIT :limit
-    """)
-    suspend fun getFreshReserve(now: Long, limit: Int): List<HomeFeedCacheEntity>
+    """,
+    )
+    suspend fun getFreshReserve(
+        now: Long,
+        limit: Int,
+    ): List<HomeFeedCacheEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<HomeFeedCacheEntity>)
@@ -41,13 +54,17 @@ interface HomeFeedCacheDao {
     @Query("DELETE FROM home_feed_cache WHERE videoId = :videoId")
     suspend fun deleteVideo(videoId: String)
 
+    @Query("DELETE FROM home_feed_cache WHERE bucket = 'RESERVE' AND videoId IN (:videoIds)")
+    suspend fun deleteReserveVideos(videoIds: List<String>)
+
     @Query("DELETE FROM home_feed_cache WHERE channelId = :channelId")
     suspend fun deleteChannel(channelId: String)
 
     @Query("DELETE FROM home_feed_cache")
     suspend fun clearAll()
 
-    @Query("""
+    @Query(
+        """
         DELETE FROM home_feed_cache
         WHERE bucket = 'RESERVE'
         AND cacheKey NOT IN (
@@ -56,10 +73,12 @@ interface HomeFeedCacheDao {
             ORDER BY cachedAt DESC, orderIndex ASC
             LIMIT :maxRows
         )
-    """)
+    """,
+    )
     suspend fun trimReserve(maxRows: Int)
 
-    @Query("""
+    @Query(
+        """
         DELETE FROM home_feed_cache
         WHERE bucket = 'RELATED' AND relatedSeedId = :seedId
         AND cacheKey NOT IN (
@@ -68,10 +87,15 @@ interface HomeFeedCacheDao {
             ORDER BY orderIndex ASC
             LIMIT :maxRows
         )
-    """)
-    suspend fun trimRelatedSeed(seedId: String, maxRows: Int)
+    """,
+    )
+    suspend fun trimRelatedSeed(
+        seedId: String,
+        maxRows: Int,
+    )
 
-    @Query("""
+    @Query(
+        """
         DELETE FROM home_feed_cache
         WHERE bucket = 'RELATED'
         AND relatedSeedId NOT IN (
@@ -81,6 +105,7 @@ interface HomeFeedCacheDao {
             ORDER BY MAX(cachedAt) DESC
             LIMIT :maxSeeds
         )
-    """)
+    """,
+    )
     suspend fun trimRelatedSeeds(maxSeeds: Int)
 }

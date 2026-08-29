@@ -37,3 +37,6 @@ Flow-desktop/
 
 # Kotlin compiler session/daemon state
 .kotlin/
+
+# Local engine diagnostics (real exported brains - personal data, never commit)
+diagnostics/

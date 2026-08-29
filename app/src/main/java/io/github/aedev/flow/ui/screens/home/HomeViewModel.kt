@@ -168,7 +168,7 @@ internal fun applyGraphBoost(
 
 private data class Wave1FeedResults(
     val subs: List<Video>,
-    val discovery: List<Video>,
+    val discovery: List<Pair<String, List<Video>>>,
     val viral: List<Video>,
     val related: RelatedGraphFetchResult,
 )
@@ -565,6 +565,7 @@ class HomeViewModel
     constructor(
         private val repository: YouTubeRepository,
         private val subscriptionRepository: SubscriptionRepository,
+        private val subscriptionFeedRepository: io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository,
         private val shortsRepository: ShortsRepository,
         private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
         private val shortsQueueHandoff: io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff,
@@ -583,10 +584,17 @@ class HomeViewModel
             private const val RELATED_TTL_MS = 45L * 60L * 1000L
             private const val MAX_RELATED_SEEDS = 4
             private const val MIN_PAGE_SIZE = 8
-            private const val LOAD_MORE_GRAPH_SEEDS = 2
+            private const val LOAD_MORE_GRAPH_SEEDS = 3
             private const val MAX_SAVED_SEEDS = 5
             private const val SAVED_RELATED_SLOTS = 8
             private const val SAVED_SEED_COOLDOWN_MS = 3L * 60L * 60L * 1000L
+
+            // Fresh subs pinned to the very top; the rest interleave via the SUBS lane.
+            private const val FRESH_SUBS_PIN_TOP = 2
+
+            // Never-dry load-more: fallback related pass seeded from feed + saved interests.
+            private const val LOAD_MORE_FALLBACK_SEEDS = 4
+            private const val FEED_SEED_POOL = 30
         }
 
         // Saved-interest enrichment sources (history/liked/playlists) + per-seed cooldown.
@@ -949,7 +957,9 @@ class HomeViewModel
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 try {
                     discoveryQueries.clear()
-                    discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries())
+                    // A refresh restarts the discovery tree at its roots (broad pass);
+                    // load-more regenerations then dig deeper per cluster.
+                    discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries(resetDepth = true))
                     currentQueryIndex = 0
 
                     val userSubs = subscriptionRepository.getAllSubscriptionIds()
@@ -981,12 +991,12 @@ class HomeViewModel
                                     wave1Queries
                                         .map { query ->
                                             async {
-                                                runCatching {
-                                                    repository.searchVideos(query).first
-                                                }.getOrElse { emptyList() }
+                                                query to
+                                                    runCatching {
+                                                        repository.searchVideos(query).first
+                                                    }.getOrElse { emptyList() }
                                             }
                                         }.awaitAll()
-                                        .flatten()
                                 }
 
                             val deferredViral =
@@ -1037,10 +1047,19 @@ class HomeViewModel
                         }
 
                     val rawSubs = results.subs
-                    val rawDiscovery = results.discovery
+                    val discoveryPairs = results.discovery
+                    val rawDiscovery = discoveryPairs.flatMap { it.second }
                     val rawViral = results.viral
                     val relatedFetch = results.related
                     val rawRelated = relatedFetch.candidates
+
+                    // Passive channel profiling: the upload titles we just fetched
+                    // teach the engine what each subscribed channel is about.
+                    runCatching { FlowNeuroEngine.onChannelUploadsObserved(rawSubs) }
+
+                    // Stale-query feedback: queries whose results are mostly
+                    // already-shown get skipped by the next generation cycle.
+                    reportQueryNovelty(discoveryPairs)
 
                     Log.d(TAG, "Wave 1 fetch completed in ${System.currentTimeMillis() - fetchStart}ms")
 
@@ -1091,7 +1110,16 @@ class HomeViewModel
 
                     // Filter to regular videos for the main feed
                     val watched = watchedVideoIds.value
-                    val subsPool = rawSubs.filterValid().filterWatched(watched).enrichAvatars()
+                    // The fresh-subs lane bypasses rank(): exclude blocked/suppressed
+                    // channels here so they cannot resurface through it.
+                    val excludedChannels =
+                        runCatching { FlowNeuroEngine.getExcludedChannelIds() }.getOrDefault(emptySet())
+                    val subsPool =
+                        rawSubs
+                            .filterValid()
+                            .filterWatched(watched)
+                            .filter { it.channelId.isBlank() || it.channelId !in excludedChannels }
+                            .enrichAvatars()
                     val discoveryPool =
                         rawDiscovery
                             .filterValid()
@@ -1110,11 +1138,35 @@ class HomeViewModel
 
                     val subsByRecency = subsPool.sortedByDescending { it.timestamp }
                     val freshSlotTarget = dynamicFreshSubSlots(userSubs.size)
+
+                    // Fresh-subs lane is RSS-FIRST: the subscription feed store covers
+                    // ALL subscribed channels with real publish timestamps, so a fresh
+                    // upload is visible even when its channel missed this refresh's
+                    // rotating 10-18 channel fetch window.
+                    val rssFresh =
+                        runCatching { subscriptionFeedRepository.observeFeed().first() }
+                            .getOrDefault(emptyList())
+                            .asSequence()
+                            .filter { !it.isShort && !it.isUpcoming && (it.duration > 0 || it.isLive) }
+                            .filter { (now - it.timestamp) in 0..FRESH_SUB_WINDOW_MS }
+                            .filter { it.channelId.isBlank() || it.channelId !in excludedChannels }
+                            .toList()
                     val freshSubsLane =
-                        subsByRecency
-                            .filter { isFreshSubscribedCandidate(it, now) }
+                        (rssFresh + subsByRecency.filter { isFreshSubscribedCandidate(it, now) })
+                            .filterWatched(watched)
+                            .distinctBy { it.id }
+                            .sortedByDescending { it.timestamp }
+                            // One fresh slot per channel — a channel that uploaded three
+                            // times today must not occupy three fresh slots.
+                            .distinctBy { it.channelId.ifBlank { it.id } }
                             .take(freshSlotTarget)
                     val freshIds = freshSubsLane.map { it.id }.toHashSet()
+
+                    // Only a couple of fresh subs are pinned to the very top; the rest
+                    // ride the SUBS lane so the first screen is a real source MIX
+                    // instead of a wall of subscriptions.
+                    val pinnedFresh = freshSubsLane.take(FRESH_SUBS_PIN_TOP)
+                    val overflowFresh = freshSubsLane.drop(FRESH_SUBS_PIN_TOP)
 
                     val rankedSubs = FlowNeuroEngine.rank(subsPool, userSubs)
                     val bestSubs =
@@ -1143,7 +1195,20 @@ class HomeViewModel
                     val usedVideoIds = mutableSetOf<String>()
                     var freshAdded = 0
 
-                    freshSubsLane.forEach { video ->
+                    // A refresh should produce a fresh feed: exclude what is on
+                    // screen right now, unless the lanes are too thin to afford it.
+                    val onScreenIds = _uiState.value.videos.mapTo(HashSet()) { it.id }
+                    if (onScreenIds.isNotEmpty()) {
+                        val laneCandidates =
+                            freshSubsLane.asSequence() + bestSubs.asSequence() +
+                                bestRelated.asSequence() + bestDiscovery.asSequence() + bestViral.asSequence()
+                        val freshCandidateCount = laneCandidates.distinctBy { it.id }.count { it.id !in onScreenIds }
+                        if (freshCandidateCount >= HOME_TARGET_SIZE / 2) {
+                            usedVideoIds += onScreenIds
+                        }
+                    }
+
+                    pinnedFresh.forEach { video ->
                         if (addUnique(video, finalMix, usedChannelCounts, usedVideoIds)) freshAdded++
                     }
 
@@ -1153,7 +1218,7 @@ class HomeViewModel
                         blendFeedSources(
                             lanes =
                                 mapOf(
-                                    FeedSource.SUBS to bestSubs,
+                                    FeedSource.SUBS to (overflowFresh + bestSubs),
                                     FeedSource.RELATED to bestRelated,
                                     FeedSource.DISCOVERY to bestDiscovery,
                                     FeedSource.VIRAL to bestViral,
@@ -1242,23 +1307,27 @@ class HomeViewModel
                                         wave2Queries
                                             .map { q ->
                                                 async {
-                                                    withTimeoutOrNull(6_000L) {
-                                                        try {
-                                                            repository.searchVideos(q).first
-                                                        } catch (cancellation: CancellationException) {
-                                                            throw cancellation
-                                                        } catch (error: Exception) {
-                                                            Log.d(TAG, "Wave 2 query failed for $q: ${error.message}")
-                                                            emptyList()
-                                                        }
-                                                    } ?: emptyList()
+                                                    q to (
+                                                        withTimeoutOrNull(6_000L) {
+                                                            try {
+                                                                repository.searchVideos(q).first
+                                                            } catch (cancellation: CancellationException) {
+                                                                throw cancellation
+                                                            } catch (error: Exception) {
+                                                                Log.d(TAG, "Wave 2 query failed for $q: ${error.message}")
+                                                                emptyList()
+                                                            }
+                                                        } ?: emptyList()
+                                                    )
                                                 }
                                             }.awaitAll()
-                                            .flatten()
+
+                                    reportQueryNovelty(wave2Raw)
 
                                     val wave2Watched = watchedVideoIds.value
                                     val wave2Valid =
                                         wave2Raw
+                                            .flatMap { it.second }
                                             .filterValid()
                                             .filterWatched(wave2Watched)
                                             .filter { !wave2FinalMixIds.contains(it.id) }
@@ -1307,6 +1376,28 @@ class HomeViewModel
             }
         }
 
+        /**
+         * Reports per-query result novelty to the engine: a query whose results
+         * are mostly videos already shown recently gets marked stale and skipped
+         * by the next discovery-generation cycle.
+         */
+        private suspend fun reportQueryNovelty(pairs: List<Pair<String, List<Video>>>) {
+            if (pairs.isEmpty()) return
+            runCatching {
+                val recentlyShown = FlowNeuroEngine.getRecentlyShownVideoIds(48L)
+                if (recentlyShown.isEmpty()) return
+                pairs.forEach { (query, queryResults) ->
+                    if (queryResults.size >= 5) {
+                        val novel = queryResults.count { it.id !in recentlyShown }
+                        FlowNeuroEngine.reportQueryResultNovelty(
+                            query,
+                            novel.toDouble() / queryResults.size,
+                        )
+                    }
+                }
+            }
+        }
+
         private suspend fun loadNextPrefetchPage(generation: Int): Boolean {
             try {
                 val now = System.currentTimeMillis()
@@ -1339,6 +1430,11 @@ class HomeViewModel
                         usedVideoIds = pageIds,
                         targetSize = MIN_PAGE_SIZE,
                     )
+                if (reserveAdded > 0) {
+                    runCatching {
+                        persistentHomeFeedCache.consumeReserve(page.take(reserveAdded).map { it.id })
+                    }
+                }
                 if (page.size >= MIN_PAGE_SIZE) {
                     val appended = appendLoadMorePage(page, generation)
                     appended?.let { persistentHomeFeedCache.saveLastFeed(it) }
@@ -1346,7 +1442,9 @@ class HomeViewModel
                     return appended != null
                 }
 
-                val seedInputs = buildSeedInputs()
+                // Load-more digs related lanes from the widest seed universe:
+                // history + liked + playlists + the feed videos on screen.
+                val seedInputs = loadMoreSeedInputs()
                 val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, LOAD_MORE_GRAPH_SEEDS)
                 if (seedIds.isNotEmpty()) {
                     val graphFetch = fetchRelatedGraph(seedInputs, seedIds)
@@ -1472,6 +1570,44 @@ class HomeViewModel
                         targetSize = MIN_PAGE_SIZE,
                     )
                     subsBacklog = subsBacklog.filterNot { pageIds.contains(it.id) }
+                }
+
+                // Never run dry: when every other source thinned out, escalate with a
+                // wider related pass — more seeds, drawn from the feed itself and saved
+                // interests. The engine's seed cooldown keeps the lanes rotating, and
+                // its scarcity fallback re-admits cooled seeds when the pool is thin.
+                if (page.size < MIN_PAGE_SIZE) {
+                    val fallbackInputs = loadMoreSeedInputs()
+                    val fallbackSeeds =
+                        FlowNeuroEngine.selectRelatedSeeds(fallbackInputs, LOAD_MORE_FALLBACK_SEEDS)
+                    if (fallbackSeeds.isNotEmpty() && homePrefetchQueue.isCurrent(generation)) {
+                        val fallbackFetch = fetchRelatedGraph(fallbackInputs, fallbackSeeds)
+                        val fallbackCandidates =
+                            fallbackFetch.candidates
+                                .filterValidGraph()
+                                .filterWatchedGraph(watchedVideoIds.value)
+                                .filterRecentHomeSuggestionGraph(now)
+                        val fallbackMetadata = fallbackCandidates.associateBy { it.video.id }
+                        val fallbackRanked =
+                            demoteByFit(
+                                applyGraphBoost(
+                                    FlowNeuroEngine.rank(fallbackCandidates.map { it.video }, userSubs),
+                                    fallbackMetadata,
+                                ),
+                                taste,
+                            )
+                        addUniquePageVideos(
+                            candidates = fallbackRanked,
+                            targetList = page,
+                            channelCounts = channelCounts,
+                            usedVideoIds = pageIds,
+                            targetSize = MIN_PAGE_SIZE,
+                        )
+                        persistentHomeFeedCache.saveReserve(
+                            cacheRelatedCandidates(fallbackRanked, fallbackMetadata, pageIds),
+                        )
+                        Log.d(TAG, "Load-more fallback: ${fallbackSeeds.size} feed/saved seeds → page=${page.size}")
+                    }
                 }
 
                 if (page.isNotEmpty()) {
@@ -1655,6 +1791,36 @@ class HomeViewModel
             val history = viewHistory?.getVideoHistoryFlow()?.first() ?: return emptyList()
             return graphSeedInputsFromHistory(history)
         }
+
+        /** Videos currently on screen, usable as related-graph seeds for load-more. */
+        private fun feedSeedInputs(max: Int = FEED_SEED_POOL): List<GraphSeedInput> {
+            val now = System.currentTimeMillis()
+            return _uiState.value.videos
+                .asSequence()
+                .filter { !it.isShort && it.id.isNotBlank() }
+                .take(max)
+                .map { video ->
+                    GraphSeedInput(
+                        id = video.id,
+                        title = video.title,
+                        channelId = video.channelId,
+                        source = GraphSeedSource.FEED,
+                        engagementWeight = 0.6,
+                        timestamp = now,
+                        durationSec = video.duration,
+                        percentWatched = 0.0,
+                    )
+                }.toList()
+        }
+
+        /**
+         * The load-more seed universe: saved interests (history, liked, playlists)
+         * PLUS the feed itself — so paging can always dig another related lane and
+         * the feed never runs dry. The engine's seed cooldown rotates them.
+         */
+        private suspend fun loadMoreSeedInputs(): List<GraphSeedInput> =
+            (savedInterestSeedInputs(gatherSavedSeedSources(), emptySet()) + feedSeedInputs())
+                .distinctBy { it.id }
 
         private suspend fun fetchRelatedVideos(seedId: String): List<Video> {
             val ts = System.currentTimeMillis()

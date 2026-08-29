@@ -115,6 +115,17 @@ class VideoPlayerViewModel
 
         // One terminal watch signal per video view; ignores repeat dispose fires.
         private var lastReportedVideoId: String? = null
+
+        // Tracks the max playback position of the current video so a terminal
+        // watch/skip signal can be reported when the session ends (video swap,
+        // ViewModel teardown). Fed by the periodic savePlaybackPosition calls.
+        private class WatchSessionSnapshot(
+            val video: Video,
+            var maxPositionMs: Long,
+            var durationMs: Long,
+        )
+
+        private var watchSession: WatchSessionSnapshot? = null
         private var activeLoadJob: Job? = null
         private var playbackLoadToken: Long = 0L
         private var loadingVideoId: String? = null
@@ -136,6 +147,10 @@ class VideoPlayerViewModel
 
         private companion object {
             const val MAX_STREAM_EXPIRY_RETRIES = 3
+
+            // Minimum playback before an early abandonment counts as a SKIPPED
+            // signal rather than navigation noise.
+            const val MIN_SKIP_SIGNAL_POSITION_MS = 10_000L
 
             const val MAX_LIVE_CHAT_MESSAGES = 200
             const val MAX_LIVE_CHAT_SEEN_IDS = 1500
@@ -268,6 +283,8 @@ class VideoPlayerViewModel
 
         override fun onCleared() {
             super.onCleared()
+            watchSession?.let { finalizeWatchSession(it) }
+            watchSession = null
             stopLiveChat()
         }
 
@@ -3012,6 +3029,9 @@ class VideoPlayerViewModel
                     isLocal = isLocal,
                 )
             }
+            if (!isLocal && !isShort && duration > 0) {
+                trackWatchSession(videoId, position, duration, title, thumbnailUrl, channelName, channelId)
+            }
             maybePrewarmRelatedForPlayback(
                 videoId = videoId,
                 positionMs = position,
@@ -3068,6 +3088,47 @@ class VideoPlayerViewModel
             return if (belongsToCurrentVideo) state.relatedVideos else emptyList()
         }
 
+        private fun trackWatchSession(
+            videoId: String,
+            positionMs: Long,
+            durationMs: Long,
+            title: String,
+            thumbnailUrl: String,
+            channelName: String,
+            channelId: String,
+        ) {
+            val session = watchSession
+            if (session != null && session.video.id == videoId) {
+                session.maxPositionMs = maxOf(session.maxPositionMs, positionMs)
+                session.durationMs = maxOf(session.durationMs, durationMs)
+                return
+            }
+            session?.let { finalizeWatchSession(it) }
+            watchSession =
+                WatchSessionSnapshot(
+                    video =
+                        Video(
+                            id = videoId,
+                            title = title,
+                            channelName = channelName,
+                            channelId = channelId,
+                            thumbnailUrl = thumbnailUrl,
+                            duration = (durationMs / 1000L).toInt(),
+                            viewCount = 0,
+                            uploadDate = "",
+                        ),
+                    maxPositionMs = positionMs,
+                    durationMs = durationMs,
+                )
+        }
+
+        // Reports the terminal watch/skip signal for a finished viewing session.
+        // Uses the rich (tags/description) video when the UI state still has it.
+        private fun finalizeWatchSession(session: WatchSessionSnapshot) {
+            val video = resolveRichVideo(session.video.id) ?: session.video
+            reportWatchProgress(video, session.maxPositionMs, session.durationMs)
+        }
+
         fun reportWatchProgress(
             video: io.github.aedev.flow.data.model.Video,
             position: Long,
@@ -3078,25 +3139,25 @@ class VideoPlayerViewModel
             val watchFraction = position.toDouble() / duration
             // One terminal signal per video view; ignore repeat dispose fires.
             if (video.id == lastReportedVideoId) return
-            if (watchFraction < 0.20) return
+            // Below 20% watched: a meaningful attempt that was abandoned is a skip;
+            // an instant bounce (< 10s of playback) is navigation noise, not signal.
+            if (watchFraction < 0.20 && position < MIN_SKIP_SIGNAL_POSITION_MS) return
 
             lastReportedVideoId = video.id
 
+            // >= 20% routes through WATCHED, whose percent-scaled learning already
+            // grades a 20-40% view as weak-positive "sampled" — no cliff needed.
+            // < 20% after a real attempt is the explicit abandonment signal.
             val interactionType =
-                when {
-                    watchFraction >= 0.85 -> InteractionType.WATCHED
-                    watchFraction >= 0.40 -> InteractionType.WATCHED
-                    else -> InteractionType.SKIPPED
-                }
+                if (watchFraction >= 0.20) InteractionType.WATCHED else InteractionType.SKIPPED
 
-            viewModelScope.launch {
-                FlowNeuroEngine.onVideoInteraction(
-                    context,
-                    video,
-                    interactionType,
-                    percentWatched = watchFraction.toFloat(),
-                )
-            }
+            // Engine-scope dispatch: survives ViewModel teardown (onCleared).
+            FlowNeuroEngine.onVideoInteractionAsync(
+                context,
+                video,
+                interactionType,
+                percentWatched = watchFraction.toFloat(),
+            )
         }
 
         fun toggleSubscription(
@@ -3118,6 +3179,18 @@ class VideoPlayerViewModel
                         ),
                     )
                     _uiState.value = _uiState.value.copy(isSubscribed = true)
+                }
+                runCatching {
+                    FlowNeuroEngine.onChannelSubscriptionChanged(
+                        context,
+                        channelId,
+                        channelName,
+                        subscribed = !isSubscribed,
+                    )
+                }.onFailure { Log.w("VideoPlayerViewModel", "Failed to record subscription signal", it) }
+                if (!isSubscribed) {
+                    // Newly subscribed: learn the channel's declared keyword tags.
+                    runCatching { repository.learnChannelTags(context, channelId) }
                 }
             }
         }
@@ -3184,6 +3257,7 @@ class VideoPlayerViewModel
                         )
                     FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.LIKED)
                 } catch (e: Exception) {
+                    Log.w("VideoPlayerViewModel", "Failed to record like signal", e)
                 }
             }
         }
