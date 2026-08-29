@@ -20,6 +20,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
 import javax.inject.Inject
@@ -61,16 +62,20 @@ class MusicBrainEngine
 
         suspend fun ensureInitialized() {
             if (isInitialized) return
-            mutex.withLock {
-                if (isInitialized) return
-                brain = storage.load() ?: MusicBrain()
-                if (!brain.backfilled) {
-                    backfill.run(brain, System.currentTimeMillis())
-                    brain.backfilled = true
-                    storage.save(brain)
+            // CPU-bound init (backfill replay) runs on Default so it never occupies
+            // the app's limited disk/network dispatcher threads.
+            withContext(Dispatchers.Default) {
+                mutex.withLock {
+                    if (isInitialized) return@withLock
+                    brain = storage.load() ?: MusicBrain()
+                    if (!brain.backfilled) {
+                        backfill.run(brain, System.currentTimeMillis())
+                        brain.backfilled = true
+                        storage.save(brain)
+                    }
+                    isInitialized = true
+                    Log.i(TAG, "Initialized: plays=${brain.totalPlays} artists=${brain.artistAffinity.size}")
                 }
-                isInitialized = true
-                Log.i(TAG, "Initialized: plays=${brain.totalPlays} artists=${brain.artistAffinity.size}")
             }
         }
 
@@ -104,6 +109,24 @@ class MusicBrainEngine
             scheduleDebouncedSave()
         }
 
+        /**
+         * Fire-and-forget wrapper for callers whose own scope may already be dead
+         * (e.g. a Service's lifecycleScope during onDestroy). Runs on the engine's
+         * process-scoped scope so teardown-time sessions are never dropped.
+         */
+        fun onListenSessionAsync(
+            track: MusicTrack,
+            playedFraction: Double,
+        ) {
+            saveScope.launch {
+                try {
+                    onListenSession(track, playedFraction)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Listen session failed: ${e.message}")
+                }
+            }
+        }
+
         /** An explicit like counts as a full play regardless of progress and floors the score at 0.8. */
         suspend fun onExplicitLike(track: MusicTrack) {
             if (track.videoId.isBlank() || track.videoId.startsWith(LOCAL_MEDIA_PREFIX)) return
@@ -131,13 +154,15 @@ class MusicBrainEngine
         ): List<MusicTrack> {
             if (tracks.isEmpty()) return tracks
             ensureInitialized()
-            return mutex.withLock {
-                if (tracks.size == 1) {
-                    val key = tracks[0].primaryArtistKey()
-                    if (brain.isArtistBlocked(key)) emptyList() else tracks
-                } else {
-                    val inputs = tracks.map { MusicRankInput(trackId = it.videoId, artistKey = it.primaryArtistKey()) }
-                    MusicBrainRanker.rank(brain, inputs, surface, System.currentTimeMillis()).map { tracks[it] }
+            return withContext(Dispatchers.Default) {
+                mutex.withLock {
+                    if (tracks.size == 1) {
+                        val key = tracks[0].primaryArtistKey()
+                        if (brain.isArtistBlocked(key)) emptyList() else tracks
+                    } else {
+                        val inputs = tracks.map { MusicRankInput(trackId = it.videoId, artistKey = it.primaryArtistKey()) }
+                        MusicBrainRanker.rank(brain, inputs, surface, System.currentTimeMillis()).map { tracks[it] }
+                    }
                 }
             }
         }

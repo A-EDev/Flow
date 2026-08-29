@@ -41,6 +41,10 @@ class MusicBrainBackfill
             brain: MusicBrain,
             nowMs: Long,
         ) {
+            // Migration is not engagement: replaying history must not move the
+            // discovery appetite (every replayed artist reads as "novel" and pins
+            // it near max, which then skews every surface toward novelty).
+            val appetiteBefore = brain.discoveryAppetite
             try {
                 replayRoomHistory(brain, nowMs)
             } catch (e: Exception) {
@@ -51,6 +55,7 @@ class MusicBrainBackfill
             } catch (e: Exception) {
                 Log.w(TAG, "DataStore history enrichment failed: ${e.message}")
             }
+            brain.discoveryAppetite = appetiteBefore
             Log.i(TAG, "Backfill done: plays=${brain.totalPlays} artists=${brain.artistAffinity.size}")
         }
 

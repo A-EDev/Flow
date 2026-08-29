@@ -145,10 +145,12 @@ class MusicViewModel
             }
 
             // On Repeat — served entirely from the local music brain, zero network.
+            // Watch history holds one row per track, so backfill cannot seed relistens;
+            // the shelf earns items only from live sessions. Show it from 2 tracks up.
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 try {
                     val onRepeat = musicBrain.heavyRotationTracks(16).audioMusicOnly()
-                    if (onRepeat.size >= 4) {
+                    if (onRepeat.size >= 2) {
                         _uiState.update { it.copy(onRepeatTracks = onRepeat) }
                     }
                 } catch (e: Exception) {

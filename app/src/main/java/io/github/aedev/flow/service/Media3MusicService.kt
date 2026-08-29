@@ -419,13 +419,9 @@ class Media3MusicService : MediaLibraryService() {
         val durationMs = track.duration.toLong() * 1000
         if (durationMs <= 0) return
 
-        lifecycleScope.launch(Dispatchers.Default) {
-            try {
-                musicBrain.onListenSession(track, playedMs.toDouble() / durationMs)
-            } catch (e: Exception) {
-                Log.w(TAG, "Music listen signal failed: ${e.message}")
-            }
-        }
+        // Engine-scoped, NOT lifecycleScope: the finalize from onDestroy runs after
+        // this service's scope is already cancelled, and the session must still land.
+        musicBrain.onListenSessionAsync(track, playedMs.toDouble() / durationMs)
     }
 
     /**
