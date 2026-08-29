@@ -12,6 +12,7 @@ import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.pages.HomePage
+import io.github.aedev.flow.ui.screens.music.MusicArtist
 import io.github.aedev.flow.ui.screens.music.MusicItemType
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import kotlinx.coroutines.Dispatchers
@@ -425,6 +426,8 @@ class MusicRecommendationAlgorithm
                 album = song.album?.name ?: "",
                 isExplicit = song.explicit,
                 isVideoSong = song.isVideoSong,
+                albumId = song.album?.id,
+                artists = song.artists.map { MusicArtist(name = it.name, id = it.id) },
             )
 
         suspend fun getGenreContent(genre: String): List<MusicTrack> =

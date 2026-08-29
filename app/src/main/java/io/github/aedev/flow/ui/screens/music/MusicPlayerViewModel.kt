@@ -245,7 +245,7 @@ class MusicPlayerViewModel
                             title = track.title,
                             thumbnailUrl = track.thumbnailUrl,
                             channelName = track.artist,
-                            channelId = "",
+                            channelId = track.channelId,
                             isMusic = true,
                             isLocal = true,
                         )
@@ -321,7 +321,7 @@ class MusicPlayerViewModel
                                 title = track.title,
                                 thumbnailUrl = track.thumbnailUrl,
                                 channelName = track.artist,
-                                channelId = "",
+                                channelId = track.channelId,
                                 isMusic = true,
                             )
                         }
@@ -582,7 +582,7 @@ class MusicPlayerViewModel
                         id = trackToAdd.videoId,
                         title = trackToAdd.title,
                         channelName = trackToAdd.artist,
-                        channelId = "",
+                        channelId = trackToAdd.channelId,
                         thumbnailUrl = trackToAdd.thumbnailUrl,
                         duration = trackToAdd.duration,
                         viewCount = 0,

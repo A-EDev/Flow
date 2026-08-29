@@ -154,7 +154,7 @@ fun musicPairKey(
 ): String = if (a <= b) "$a|$b" else "$b|$a"
 
 /**
- * Every constant, mirroring the desktop values verbatim (§22 of the port spec).
+ * Every constant, mirroring the desktop values verbatim.
  * They are tuned as a set — retune only with MusicBenchmark deltas in hand.
  */
 object MusicBrainParams {
