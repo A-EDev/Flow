@@ -905,6 +905,16 @@ fun NavGraphBuilder.flowAppGraph(
             onRecognizeClick = {
                 navController.navigate("musicRecognize")
             },
+            onCurrentTrackClick = {
+                EnhancedMusicPlayerManager.currentTrack.value?.let { track ->
+                    val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                    val encodedTitle = android.net.Uri.encode(track.title)
+                    val encodedArtist = android.net.Uri.encode(track.artist)
+                    navController.navigate(
+                        "musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl",
+                    )
+                }
+            },
             onAlbumClick = { albumId ->
                 navController.navigate("musicPlaylist/$albumId")
             },

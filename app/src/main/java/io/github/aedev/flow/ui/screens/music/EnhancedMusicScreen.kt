@@ -46,6 +46,11 @@ private fun MusicTrack.isAudioMusicCandidate(): Boolean {
 
 private fun List<MusicTrack>.audioMusicOnly(): List<MusicTrack> = filter { it.isAudioMusicCandidate() }.distinctBy { it.videoId }
 
+internal fun shouldOpenExistingMusicPlayer(
+    currentTrack: MusicTrack?,
+    spotlightTrack: MusicTrack?,
+): Boolean = currentTrack != null && currentTrack.videoId == spotlightTrack?.videoId
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun EnhancedMusicScreen(
@@ -54,6 +59,7 @@ fun EnhancedMusicScreen(
     onArtistClick: (String) -> Unit = {},
     onSearchClick: () -> Unit = {},
     onRecognizeClick: () -> Unit = {},
+    onCurrentTrackClick: (() -> Unit)? = null,
     onAlbumClick: (String) -> Unit = {},
     onMoodsClick: (io.github.aedev.flow.innertube.pages.MoodAndGenres.Item?) -> Unit = {},
     viewModel: MusicViewModel = hiltViewModel(),
@@ -186,6 +192,12 @@ fun EnhancedMusicScreen(
                         remember(uiState.forYouTracks) {
                             uiState.forYouTracks.audioMusicOnly().take(20)
                         }
+                    val spotlightTracks =
+                        remember(currentTrack, uiState.listenAgain, uiState.trendingSongs) {
+                            (listOfNotNull(currentTrack) + uiState.listenAgain + uiState.trendingSongs)
+                                .distinctBy { it.videoId }
+                        }
+                    val spotlightTrack = spotlightTracks.firstOrNull()
 
                     PullToRefreshBox(
                         isRefreshing = uiState.isLoading,
@@ -200,6 +212,22 @@ fun EnhancedMusicScreen(
                                     bottom = 0.dp,
                                 ),
                         ) {
+                            spotlightTrack?.let { track ->
+                                item(key = "music-spotlight") {
+                                    FlowMusicSpotlightCard(
+                                        track = track,
+                                        onClick = {
+                                            if (shouldOpenExistingMusicPlayer(currentTrack, track) && onCurrentTrackClick != null) {
+                                                onCurrentTrackClick()
+                                            } else {
+                                                onSongClick(track, spotlightTracks, "spotlight")
+                                            }
+                                        },
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    )
+                                }
+                            }
+
                             // Listen Again
                             if (uiState.listenAgain.isNotEmpty()) {
                                 item {

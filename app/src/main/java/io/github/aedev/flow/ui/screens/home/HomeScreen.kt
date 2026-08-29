@@ -69,6 +69,13 @@ private data class HomeLayoutConfig(
     val shimmerColumns: Int,
 )
 
+internal fun featuredFeedShortsInsertionIndex(
+    shortsShelfAfterIndex: Int,
+    videoCount: Int,
+): Int =
+    (shortsShelfAfterIndex.coerceIn(0, videoCount) - 1)
+        .coerceIn(0, (videoCount - 1).coerceAtLeast(0))
+
 @Composable
 private fun rememberHomeLayoutConfig(maxWidth: Dp): HomeLayoutConfig {
     val base = rememberFeedGridLayout(maxWidth)
@@ -291,10 +298,38 @@ fun HomeScreen(
                         ) {
                             val videos = uiState.videos
                             if (videos.isNotEmpty()) {
-                                val insertShortsAfter = layoutConfig.shortsShelfAfterIndex.coerceAtMost(videos.size)
+                                val featuredVideo = videos.first()
+                                item(
+                                    span = { GridItemSpan(maxLineSpan) },
+                                    key = featuredVideo.id,
+                                ) {
+                                    LaunchedEffect(
+                                        featuredVideo.id,
+                                        featuredVideo.channelId,
+                                        featuredVideo.channelThumbnailUrl,
+                                    ) {
+                                        viewModel.enrichChannelMetadataIfMissing(featuredVideo.id)
+                                    }
+                                    FlowFeaturedVideoCard(
+                                        video = featuredVideo,
+                                        onClick = { onVideoClick(featuredVideo) },
+                                        onChannelClick = { channelId -> onChannelClick(channelId) },
+                                        modifier =
+                                            Modifier.padding(
+                                                horizontal = if (isListView) Dimensions.ContentPaddingHorizontal else 0.dp,
+                                            ),
+                                    )
+                                }
+
+                                val feedVideos = videos.drop(1)
+                                val insertShortsAfter =
+                                    featuredFeedShortsInsertionIndex(
+                                        shortsShelfAfterIndex = layoutConfig.shortsShelfAfterIndex,
+                                        videoCount = videos.size,
+                                    )
 
                                 // ── Videos before shelves ──
-                                val videosBeforeShorts = videos.take(insertShortsAfter)
+                                val videosBeforeShorts = feedVideos.take(insertShortsAfter)
                                 items(
                                     items = videosBeforeShorts,
                                     key = { it.id },
@@ -376,7 +411,7 @@ fun HomeScreen(
                                 }
 
                                 // ── Remaining Videos ──
-                                val videosAfterShorts = videos.drop(insertShortsAfter)
+                                val videosAfterShorts = feedVideos.drop(insertShortsAfter)
                                 items(
                                     items = videosAfterShorts,
                                     key = { it.id },

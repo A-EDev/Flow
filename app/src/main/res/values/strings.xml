@@ -45,6 +45,7 @@
     <string name="stats">Stats</string>
     <string name="library">Library</string>
     <string name="library_section_header">Your Content</string>
+    <string name="library_overview_subtitle">Jump back into your videos, playlists, and saved media.</string>
     <string name="library_history_label">History</string>
     <string name="library_playlists_label">Playlists</string>
     <string name="library_music_playlists_label">Music Playlists</string>
