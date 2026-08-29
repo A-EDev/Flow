@@ -48,6 +48,7 @@ class MusicViewModel
         private val playlistRepository: io.github.aedev.flow.data.music.PlaylistRepository,
         private val localPlaylistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
         private val downloadManager: DownloadManager,
+        private val musicBrain: io.github.aedev.flow.data.recommendation.music.MusicBrainEngine,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicUiState())
         val uiState: StateFlow<MusicUiState> =
@@ -89,7 +90,8 @@ class MusicViewModel
                                         .getRelatedMusic(activeTrack.videoId, 24, audioOnly = true)
                                         .audioMusicOnly()
                                 if (related.isNotEmpty()) {
-                                    _uiState.update { it.copy(forYouTracks = related) }
+                                    val ranked = musicBrain.rankTracks(related, "quick_picks")
+                                    _uiState.update { it.copy(forYouTracks = ranked) }
                                 }
                             } catch (e: Exception) {
                                 Log.e("MusicViewModel", "Error updating dynamic Quick Picks", e)
@@ -139,6 +141,18 @@ class MusicViewModel
                     }
                 } else {
                     _uiState.update { it.copy(isLoading = true, error = null) }
+                }
+            }
+
+            // On Repeat — served entirely from the local music brain, zero network.
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                try {
+                    val onRepeat = musicBrain.heavyRotationTracks(16).audioMusicOnly()
+                    if (onRepeat.size >= 4) {
+                        _uiState.update { it.copy(onRepeatTracks = onRepeat) }
+                    }
+                } catch (e: Exception) {
+                    Log.e("MusicViewModel", "Error loading On Repeat", e)
                 }
             }
 
@@ -207,7 +221,8 @@ class MusicViewModel
                 } else if (!skippedFreshCache && _uiState.value.forYouTracks.isEmpty() && _uiState.value.dynamicSections.isEmpty()) {
                     val recs = musicRecommendationAlgorithm.getRecommendations(24).audioMusicOnly()
                     if (recs.isNotEmpty()) {
-                        _uiState.update { it.copy(forYouTracks = recs) }
+                        val ranked = musicBrain.rankTracks(recs, "quick_picks")
+                        _uiState.update { it.copy(forYouTracks = ranked) }
                     }
                 }
                 if (_uiState.value.trendingSongs.isNotEmpty() || homeSections.isNotEmpty()) {
@@ -549,7 +564,7 @@ class MusicViewModel
                                                     thumbnailUrl = artistTrack.thumbnailUrl,
                                                     seedId = artistTrack.channelId,
                                                     isArtistSeed = true,
-                                                    tracks = related.take(12),
+                                                    tracks = musicBrain.rankTracks(related, "similar").take(12),
                                                 )
                                             } else {
                                                 null
@@ -584,7 +599,7 @@ class MusicViewModel
                                             thumbnailUrl = recentTrack.thumbnailUrl,
                                             seedId = recentTrack.videoId,
                                             isArtistSeed = false,
-                                            tracks = related.take(12),
+                                            tracks = musicBrain.rankTracks(related, "similar").take(12),
                                         ),
                                     )
                                 }
@@ -1030,9 +1045,9 @@ class MusicViewModel
                                             .getRelatedMusic(seed.videoId, 16, audioOnly = true)
                                             .audioMusicOnly()
                                     val recommendation =
-                                        related.shuffled().firstOrNull {
-                                            it.videoId != seed.videoId && it.isAudioMusicCandidate()
-                                        }
+                                        musicBrain
+                                            .rankTracks(related.filter { it.videoId != seed.videoId }, "discover")
+                                            .firstOrNull { it.isAudioMusicCandidate() }
                                     if (recommendation != null) {
                                         items.add(DailyDiscoverItem(seed, recommendation))
                                     }
@@ -1061,6 +1076,7 @@ class MusicViewModel
 data class MusicUiState(
     val sessionSeed: Long = System.currentTimeMillis(),
     val dailyDiscover: List<DailyDiscoverItem> = emptyList(),
+    val onRepeatTracks: List<MusicTrack> = emptyList(), // On Repeat (local music brain)
     val forYouTracks: List<MusicTrack> = emptyList(), // Quick Picks
     val recommendedTracks: List<MusicTrack> = emptyList(), // Recommended for you
     val listenAgain: List<MusicTrack> = emptyList(), // Listen Again

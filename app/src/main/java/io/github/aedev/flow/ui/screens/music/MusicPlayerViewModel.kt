@@ -361,6 +361,7 @@ class MusicPlayerViewModel
             val mapped =
                 when (key) {
                     "listen_again" -> context.getString(R.string.section_listen_again)
+                    "on_repeat" -> context.getString(R.string.section_on_repeat)
                     "daily_discover" -> context.getString(R.string.section_daily_discover)
                     "quick_picks" -> context.getString(R.string.section_quick_picks)
                     "speed_dial", "speed_dial_shuffle" -> context.getString(R.string.section_speed_dial)
