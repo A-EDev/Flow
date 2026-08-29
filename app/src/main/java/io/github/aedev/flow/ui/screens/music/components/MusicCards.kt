@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -29,8 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.formatViews
+import io.github.aedev.flow.ui.theme.Dimensions
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -43,17 +47,21 @@ fun AlbumCard(
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier =
             modifier
                 .width(160.dp)
+                .pressScale(interactionSource)
                 .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(),
                     onClick = onClick,
                     onLongClick = onLongClick,
                 ),
     ) {
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(Dimensions.CardCornerRadius),
             tonalElevation = 2.dp,
             modifier = Modifier.aspectRatio(1f),
         ) {

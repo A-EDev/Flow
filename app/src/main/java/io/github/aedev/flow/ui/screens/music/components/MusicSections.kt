@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.ui.theme.Dimensions
 
 @Composable
 fun SectionHeader(
@@ -32,7 +33,7 @@ fun SectionHeader(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 16.dp),
     ) {
         if (subtitle != null) {
             Text(
@@ -49,16 +50,16 @@ fun SectionHeader(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground,
             )
             if (onPlayAll != null) {
                 Surface(
                     onClick = onPlayAll,
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.Transparent,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)),
                     modifier = Modifier.height(36.dp),
                 ) {
                     Row(
@@ -69,12 +70,12 @@ fun SectionHeader(
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onBackground,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.size(18.dp),
                         )
                         Text(
                             stringResource(R.string.action_play_all),
-                            color = MaterialTheme.colorScheme.onBackground,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
                         )

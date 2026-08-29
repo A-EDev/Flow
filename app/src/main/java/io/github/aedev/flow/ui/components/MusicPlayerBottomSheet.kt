@@ -141,7 +141,13 @@ class MusicPlayerSheetState(
         anchor = targetAnchor
         onAnchorChanged(targetAnchor)
         coroutineScope.launch {
-            animatable.animateTo(target, spring(stiffness = Spring.StiffnessMediumLow))
+            animatable.animateTo(
+                target,
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            )
         }
     }
 

@@ -103,6 +103,8 @@ import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import io.github.aedev.flow.ui.utils.isTabletFormFactor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -150,6 +152,7 @@ fun GlobalPlayerOverlay(
     val activity = context as ComponentActivity
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
+    val reduceMotion = rememberFlowReduceMotion()
 
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity)
     val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
@@ -785,7 +788,10 @@ fun GlobalPlayerOverlay(
                 }
                 fullscreenDrawerOffsetPx.animateTo(
                     targetValue = 0f,
-                    animationSpec = tween(durationMillis = 260),
+                    animationSpec = tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
+                    ),
                 )
             }
         }
@@ -794,7 +800,10 @@ fun GlobalPlayerOverlay(
             scope.launch {
                 fullscreenDrawerOffsetPx.animateTo(
                     targetValue = fullscreenDrawerWidthPx,
-                    animationSpec = tween(durationMillis = 220),
+                    animationSpec = tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                        easing = FlowMotion.ExitEasing,
+                    ),
                 )
                 screenState.dismissMediaSheets()
                 screenState.showSleepTimerSheet = false
@@ -820,7 +829,10 @@ fun GlobalPlayerOverlay(
                         scope.launch {
                             fullscreenDrawerOffsetPx.animateTo(
                                 targetValue = 0f,
-                                animationSpec = tween(durationMillis = 220),
+                                animationSpec = tween(
+                                    durationMillis = FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                    easing = FlowMotion.EnterEasing,
+                                ),
                             )
                         }
                     },
@@ -836,7 +848,10 @@ fun GlobalPlayerOverlay(
                             scope.launch {
                                 fullscreenDrawerOffsetPx.animateTo(
                                     targetValue = 0f,
-                                    animationSpec = tween(durationMillis = 220),
+                                    animationSpec = tween(
+                                        durationMillis = FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                        easing = FlowMotion.EnterEasing,
+                                    ),
                                 )
                             }
                         }
@@ -1051,8 +1066,18 @@ fun GlobalPlayerOverlay(
 
                         AnimatedVisibility(
                             visible = screenState.showZoomIndicator,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
+                            enter = fadeIn(
+                                animationSpec = tween(
+                                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                    easing = FlowMotion.EnterEasing,
+                                ),
+                            ),
+                            exit = fadeOut(
+                                animationSpec = tween(
+                                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                    easing = FlowMotion.ExitEasing,
+                                ),
+                            ),
                             modifier =
                                 Modifier
                                     .align(Alignment.TopCenter)

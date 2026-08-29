@@ -197,7 +197,7 @@ fun EnhancedMusicScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding =
                                 PaddingValues(
-                                    bottom = 80.dp,
+                                    bottom = 0.dp,
                                 ),
                         ) {
                             // Listen Again

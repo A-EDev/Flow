@@ -53,6 +53,7 @@ import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.theme.Dimensions
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -179,8 +180,8 @@ fun HomeScreen(
                         stringResource(R.string.app_name_uppercase),
                         style =
                             MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.3.sp,
                             ),
                     )
                 },
@@ -241,7 +242,7 @@ fun HomeScreen(
                                     start = if (isListView) 0.dp else layoutConfig.contentPadding,
                                     end = if (isListView) 0.dp else layoutConfig.contentPadding,
                                     top = 8.dp,
-                                    bottom = 80.dp,
+                                    bottom = 0.dp,
                                 ),
                             horizontalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
                             verticalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
@@ -283,7 +284,7 @@ fun HomeScreen(
                                     start = if (isListView) 0.dp else layoutConfig.contentPadding,
                                     end = if (isListView) 0.dp else layoutConfig.contentPadding,
                                     top = 4.dp,
-                                    bottom = 80.dp,
+                                    bottom = 0.dp,
                                 ),
                             horizontalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
                             verticalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),

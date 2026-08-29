@@ -66,6 +66,7 @@ import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -222,7 +223,7 @@ fun VideoCardHorizontal(
                 Modifier
                     .width(140.dp)
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(14.dp)) // Sleek corners
+                    .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             VideoThumbnailImage(
@@ -423,7 +424,7 @@ fun VideoCardFullWidth(
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     .thumbnailGradientOverlay(),
         ) {
@@ -523,7 +524,7 @@ fun VideoCardFullWidth(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp, horizontal = 12.dp),
+                    .padding(vertical = 12.dp, horizontal = Dimensions.ContentPaddingHorizontal),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (showChannelAvatar) {
@@ -1113,7 +1114,7 @@ fun ContinueWatchingShelf(
                 Modifier
                     .fillMaxWidth()
                     .then(if (onSeeAllClick != null) Modifier.clickable(onClick = onSeeAllClick) else Modifier)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -1139,7 +1140,7 @@ fun ContinueWatchingShelf(
             }
         }
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
+            contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(uniqueEntries, key = { it.videoId }) { entry ->
@@ -1229,7 +1230,7 @@ private fun ShelfVideoCardContent(
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .thumbnailGradientOverlay(),
         ) {
@@ -1333,13 +1334,13 @@ fun ShortsShelf(
                 Modifier
                     .fillMaxWidth()
                     .then(if (onSeeAllClick != null) Modifier.clickable(onClick = onSeeAllClick) else Modifier)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_shorts),
                 contentDescription = stringResource(R.string.shorts),
-                tint = Color.Red,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -1360,7 +1361,7 @@ fun ShortsShelf(
         }
 
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
+            contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(uniqueShorts, key = { it.id }) { short ->
@@ -1395,7 +1396,7 @@ fun ShortsCard(
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(9f / 16f)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .thumbnailGradientOverlay(),
         ) {

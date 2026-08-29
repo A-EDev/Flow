@@ -11,11 +11,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.Dimensions
 
 @Composable
 fun ErrorContent(
@@ -27,7 +27,7 @@ fun ErrorContent(
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            modifier = Modifier.padding(32.dp),
+            modifier = Modifier.padding(Dimensions.PlayerHorizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -35,17 +35,17 @@ fun ErrorContent(
                 imageVector = Icons.Outlined.Error,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = Color.Red,
+                tint = MaterialTheme.colorScheme.error,
             )
             Text(
                 text = error,
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Button(
                 onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             ) {
                 Text(stringResource(R.string.action_retry))
             }

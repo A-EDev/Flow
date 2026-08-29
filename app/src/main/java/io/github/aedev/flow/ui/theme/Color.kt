@@ -7,22 +7,26 @@ val YouTubeRed = Color(0xFFFF0000)
 val YouTubeDark = Color(0xFF0F0F0F)
 val YouTubeGray = Color(0xFF282828)
 
+// Flow brand palette. The softer signal red keeps active states expressive without making every
+// surface compete with the media artwork.
+val FlowRed = Color(0xFFFF5262)
+
 // Dark Theme Colors
 val Black = Color(0xFF000000)
-val DarkBackground = Color(0xFF0F0F0F)
-val DarkSurface = Color(0xFF161616)
-val DarkSurfaceVariant = Color(0xFF282828)
+val DarkBackground = Color(0xFF0B0D10)
+val DarkSurface = Color(0xFF12161C)
+val DarkSurfaceVariant = Color(0xFF1B222B)
 
 // Light Theme Colors
 val White = Color(0xFFFFFFFF)
-val LightBackground = Color(0xFFFFFFFF)
-val LightSurface = Color(0xFFF9F9F9)
-val LightSurfaceVariant = Color(0xFFEEEEEE)
+val LightBackground = Color(0xFFFBFCFE)
+val LightSurface = Color(0xFFF3F5F8)
+val LightSurfaceVariant = Color(0xFFE8ECF1)
 
 // Text Colors
-val TextPrimary = Color(0xFFFFFFFF)
-val TextSecondary = Color(0xFFAAAAAA)
-val TextTertiary = Color(0xFF717171)
+val TextPrimary = Color(0xFFF4F6FA)
+val TextSecondary = Color(0xFFA9B2BF)
+val TextTertiary = Color(0xFF727D89)
 
 // Accent Colors
 val SuccessColor = Color(0xFF4CAF50)
@@ -32,52 +36,52 @@ val Info = Color(0xFF2196F3)
 
 // Shimmer Colors
 val ShimmerColorShades = listOf(
-    Color(0xFF3A3A3A),
-    Color(0xFF4A4A4A),
-    Color(0xFF3A3A3A)
+    Color(0xFF202730),
+    Color(0xFF2B343F),
+    Color(0xFF202730),
 )
 
 // Light Theme Color Scheme
 object LightThemeColors {
-    val Primary: Color = YouTubeRed
+    val Primary: Color = Color(0xFFD9364C)
     val OnPrimary: Color = White
-    val Secondary: Color = Color(0xFF606060)
+    val Secondary: Color = Color(0xFF5D6673)
     val OnSecondary: Color = White
     val Background: Color = LightBackground
     val Surface: Color = LightSurface
-    val Text: Color = Color(0xFF0F0F0F)
-    val TextSecondary: Color = Color(0xFF606060)
-    val Border: Color = Color(0xFFE0E0E0)
+    val Text: Color = Color(0xFF161A20)
+    val TextSecondary: Color = Color(0xFF5D6673)
+    val Border: Color = Color(0xFFD8DEE6)
     val Success: Color = SuccessColor
     val Error: Color = ErrorColor
 }
 
 // Dark Theme Color Scheme
 object DarkThemeColors {
-    val Primary: Color = YouTubeRed
-    val OnPrimary: Color = White
-    val Secondary: Color = Color(0xFFAAAAAA)
+    val Primary: Color = FlowRed
+    val OnPrimary: Color = Black
+    val Secondary: Color = Color(0xFFA9B2BF)
     val OnSecondary: Color = Black
     val Background: Color = DarkBackground
     val Surface: Color = DarkSurface
     val Text: Color = TextPrimary
-    val TextSecondary: Color = Color(0xFFAAAAAA)
-    val Border: Color = Color(0xFF3A3A3A)
+    val TextSecondary: Color = Color(0xFFA9B2BF)
+    val Border: Color = DarkSurfaceVariant
     val Success: Color = SuccessColor
     val Error: Color = ErrorColor
 }
 
 // OLED Theme Color Scheme
 object OLEDThemeColors {
-    val Primary: Color = YouTubeRed
-    val OnPrimary: Color = White
-    val Secondary: Color = Color(0xFFAAAAAA)
+    val Primary: Color = FlowRed
+    val OnPrimary: Color = Black
+    val Secondary: Color = Color(0xFFA9B2BF)
     val OnSecondary: Color = Black
     val Background: Color = Black
     val Surface: Color = Color(0xFF121212)
     val Text: Color = TextPrimary
-    val TextSecondary: Color = Color(0xFFAAAAAA)
-    val Border: Color = Color(0xFF2A2A2A)
+    val TextSecondary: Color = Color(0xFFA9B2BF)
+    val Border: Color = Color(0xFF252A31)
     val Success: Color = SuccessColor
     val Error: Color = ErrorColor
 }

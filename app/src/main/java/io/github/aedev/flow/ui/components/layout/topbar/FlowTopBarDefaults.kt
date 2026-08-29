@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Shared look of every non-player top bar.
@@ -31,14 +32,19 @@ object FlowTopBarDefaults {
     internal fun colors(): TopAppBarColors =
         TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f),
             titleContentColor = MaterialTheme.colorScheme.onBackground,
             navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            actionIconContentColor = MaterialTheme.colorScheme.onSurface,
         )
 
     val titleStyle: TextStyle
-        @Composable get() = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+        @Composable
+        get() =
+            MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.15).sp,
+            )
 
     val subtitleStyle: TextStyle
         @Composable get() = MaterialTheme.typography.bodySmall

@@ -2,7 +2,9 @@ package io.github.aedev.flow.ui.screens.music
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.Composable
@@ -10,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.screens.music.components.TrackListItem
+import io.github.aedev.flow.ui.theme.Dimensions
 
 @Composable
 fun MusicTrackRow(
@@ -26,7 +29,10 @@ fun MusicTrackRow(
 
     TrackListItem(
         track = track,
-        modifier = Modifier.background(backgroundColor),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
+                .background(backgroundColor),
         isPlaying = isPlaying,
         isDownloaded = isDownloaded,
         showMenu = trailingContent == null,

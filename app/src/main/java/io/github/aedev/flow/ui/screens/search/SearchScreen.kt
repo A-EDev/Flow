@@ -1343,7 +1343,7 @@ private fun ShimmerResultsScreen(
                     start = if (columns == 1) 0.dp else 16.dp,
                     end = if (columns == 1) 0.dp else 16.dp,
                     top = 8.dp,
-                    bottom = 80.dp,
+                    bottom = 0.dp,
                 ),
             horizontalArrangement =
                 Arrangement.spacedBy(

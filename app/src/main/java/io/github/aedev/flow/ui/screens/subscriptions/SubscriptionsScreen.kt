@@ -4,6 +4,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -126,8 +130,12 @@ import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.VideoCardHorizontal
 import io.github.aedev.flow.ui.components.layout.topbar.FlowSearchTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
@@ -148,6 +156,7 @@ fun SubscriptionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val feedGridState = rememberLazyGridState()
+    val reduceMotion = rememberFlowReduceMotion()
 
     LaunchedEffect(viewModel) { viewModel.ensureStarted() }
 
@@ -345,7 +354,23 @@ fun SubscriptionsScreen(
                     .fillMaxSize()
                     .padding(padding),
         ) {
-            AnimatedContent(targetState = isManagingSubs) { manageMode ->
+            AnimatedContent(
+                targetState = isManagingSubs,
+                transitionSpec = {
+                    fadeIn(
+                        animationSpec = tween(
+                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                            easing = FlowMotion.EnterEasing,
+                        ),
+                    ) togetherWith fadeOut(
+                        animationSpec = tween(
+                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                            easing = FlowMotion.ExitEasing,
+                        ),
+                    )
+                },
+                label = "subscriptionMode",
+            ) { manageMode ->
                 if (manageMode) {
                     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
@@ -500,7 +525,7 @@ fun SubscriptionsScreen(
                                             start = if (uiState.isFullWidthView) feedLayout.contentPadding else 0.dp,
                                             end = if (uiState.isFullWidthView) feedLayout.contentPadding else 0.dp,
                                             top = 4.dp,
-                                            bottom = 80.dp,
+                                            bottom = 0.dp,
                                         ),
                                     verticalArrangement = Arrangement.spacedBy(gridSpacing),
                                     horizontalArrangement = Arrangement.spacedBy(gridSpacing),
@@ -1116,13 +1141,20 @@ fun SubscriptionManagerItem(
     onNotificationChange: (Boolean) -> Unit = {},
     onShortsExcludeChange: (Boolean) -> Unit = {},
 ) {
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                .padding(12.dp),
+                .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .pressScale(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
+                    onClick = onClick,
+                )
+                .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(

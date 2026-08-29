@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,9 +33,11 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.PlayingWaveform
+import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.formatDuration
 import io.github.aedev.flow.ui.screens.music.formatViews
+import io.github.aedev.flow.ui.theme.Dimensions
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -51,12 +55,16 @@ fun TrackListItem(
     onMenuClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .height(Dimensions.ListItemHeight)
+                .pressScale(interactionSource)
                 .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
                     onClick = onClick,
                     onLongClick = onLongClick,
                 ).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -68,8 +76,8 @@ fun TrackListItem(
         }
 
         Surface(
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.size(56.dp),
+            shape = RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
+            modifier = Modifier.size(Dimensions.ListThumbnailSize),
             tonalElevation = 4.dp,
         ) {
             Box(

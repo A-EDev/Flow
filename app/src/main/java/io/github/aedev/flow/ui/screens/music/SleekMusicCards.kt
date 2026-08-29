@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.music
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.pressScale
+import io.github.aedev.flow.ui.theme.Dimensions
 
 /**
  * Compact sleek card for lists
@@ -33,13 +36,19 @@ fun CompactSleekCard(
     onMoreClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Surface(
         modifier =
             modifier
                 .fillMaxWidth()
                 .height(80.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(onClick = onClick),
+                .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
+                .pressScale(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.material3.ripple(),
+                    onClick = onClick,
+                ),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
     ) {
         Row(
@@ -54,7 +63,7 @@ fun CompactSleekCard(
                 modifier =
                     Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius)),
             ) {
                 AsyncImage(
                     model = track.thumbnailUrl,

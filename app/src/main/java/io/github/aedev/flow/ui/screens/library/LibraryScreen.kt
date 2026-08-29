@@ -34,6 +34,7 @@ import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.ui.theme.Dimensions
 
 @Composable
 fun LibraryScreen(
@@ -73,8 +74,8 @@ fun LibraryScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(vertical = Dimensions.ContentPaddingVertical),
+            verticalArrangement = Arrangement.spacedBy(Dimensions.SectionSpacing),
         ) {
             item(key = "history", contentType = "media-shelf") {
                 LibraryMediaShelfRoute(
@@ -147,7 +148,7 @@ fun LibraryScreen(
             }
 
             item(key = "settings-data", contentType = "navigation-section") {
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Column(modifier = Modifier.padding(horizontal = Dimensions.ContentPaddingHorizontal)) {
                     Text(
                         text = stringResource(R.string.library_settings_data_header),
                         style = MaterialTheme.typography.titleMedium,

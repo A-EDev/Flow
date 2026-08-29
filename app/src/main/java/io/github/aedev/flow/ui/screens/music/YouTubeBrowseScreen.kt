@@ -64,7 +64,7 @@ fun YouTubeBrowseScreen(
                 uiState.isLoading -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = 0.dp),
                     ) {
                         item {
                             ShimmerHost {
@@ -124,7 +124,7 @@ fun YouTubeBrowseScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = 0.dp),
                     ) {
                         uiState.sections.forEach { section ->
                             if (section.items.isNotEmpty()) {

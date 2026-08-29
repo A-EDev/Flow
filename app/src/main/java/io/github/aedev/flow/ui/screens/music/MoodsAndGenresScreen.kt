@@ -57,7 +57,7 @@ fun MoodsAndGenresScreen(
                 isLoading && moodAndGenresList == null -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = 0.dp),
                     ) {
                         item(key = "shimmer_loading") {
                             ShimmerHost(
@@ -123,7 +123,7 @@ fun MoodsAndGenresScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = 0.dp),
                     ) {
                         moodAndGenresList?.forEachIndexed { index, moodCategory ->
                             item(key = "category_$index") {

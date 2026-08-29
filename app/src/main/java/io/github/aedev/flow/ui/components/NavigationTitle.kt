@@ -14,11 +14,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.Dimensions
 
 @Composable
 fun NavigationTitle(
@@ -36,7 +37,7 @@ fun NavigationTitle(
             .clickable(enabled = onClick != null) {
                 onClick?.invoke()
             }
-            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp)
     ) {
         thumbnail?.invoke()
         
@@ -56,9 +57,9 @@ fun NavigationTitle(
             
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
                 overflow = TextOverflow.Ellipsis,
                 maxLines = 1
             )
@@ -68,7 +69,7 @@ fun NavigationTitle(
             Icon(
                 imageVector = Icons.Filled.ArrowForward,
                 contentDescription = stringResource(R.string.ui_navigate),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -83,7 +84,7 @@ fun SectionTitle(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp)
     ) {
         if (subtitle != null) {
             Text(
@@ -93,12 +94,11 @@ fun SectionTitle(
                 modifier = Modifier.padding(bottom = 2.dp)
             )
         }
-        
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
     }
 }

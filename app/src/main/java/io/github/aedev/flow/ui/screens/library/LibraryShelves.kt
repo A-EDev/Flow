@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.library
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
@@ -32,7 +34,9 @@ import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.ShortsCard
+import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.ui.theme.Dimensions
 
 @Composable
 internal fun LibraryShelf(
@@ -46,13 +50,13 @@ internal fun LibraryShelf(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onTitleClick)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -64,8 +68,8 @@ internal fun LibraryShelf(
         }
 
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.ItemSpacing),
             content = content
         )
     }
@@ -163,11 +167,19 @@ internal fun LibraryNavigationRow(
     subtitle: String,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+            .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .pressScale(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick,
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {

@@ -37,6 +37,9 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -51,6 +54,7 @@ fun PersistentMiniMusicPlayer(
     val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
     val playerState by EnhancedMusicPlayerManager.playerState.collectAsState()
     val scope = rememberCoroutineScope()
+    val reduceMotion = rememberFlowReduceMotion()
 
     var offsetX by remember { mutableFloatStateOf(0f) }
     var isDismissing by remember { mutableStateOf(false) }
@@ -69,7 +73,11 @@ fun PersistentMiniMusicPlayer(
     var playPauseScale by remember { mutableFloatStateOf(1f) }
     val animatedScale by animateFloatAsState(
         targetValue = playPauseScale,
-        animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f),
+        animationSpec =
+            tween(
+                FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                easing = FlowMotion.ExitEasing,
+            ),
         label = "scale",
     )
 
@@ -90,13 +98,29 @@ fun PersistentMiniMusicPlayer(
         enter =
             slideInVertically(
                 initialOffsetY = { it },
-                animationSpec = spring(dampingRatio = 0.85f, stiffness = 280f),
-            ) + fadeIn(animationSpec = tween(250)),
+                animationSpec = tween(
+                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                ),
+            ) + fadeIn(
+                animationSpec = tween(
+                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                ),
+            ),
         exit =
             slideOutVertically(
                 targetOffsetY = { it },
-                animationSpec = tween(200, easing = FastOutSlowInEasing),
-            ) + fadeOut(animationSpec = tween(150)),
+                animationSpec = tween(
+                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                    easing = FlowMotion.ExitEasing,
+                ),
+            ) + fadeOut(
+                animationSpec = tween(
+                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                    easing = FlowMotion.ExitEasing,
+                ),
+            ),
         modifier = modifier,
     ) {
         currentTrack?.let { track ->
@@ -127,14 +151,14 @@ fun PersistentMiniMusicPlayer(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(64.dp)
-                            .shadow(
+                                .height(Dimensions.MiniPlayerHeight)
+                                .shadow(
                                 16.dp,
-                                RoundedCornerShape(18.dp),
+                                RoundedCornerShape(Dimensions.CardCornerRadius),
                                 ambientColor = Color.Black.copy(alpha = 0.5f),
                                 spotColor = Color.Black.copy(alpha = 0.5f),
                             ).clickable(onClick = onExpandClick),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(Dimensions.CardCornerRadius),
                     color = MaterialTheme.colorScheme.surface,
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -194,7 +218,7 @@ fun PersistentMiniMusicPlayer(
                                     modifier =
                                         Modifier
                                             .size(48.dp)
-                                            .clip(RoundedCornerShape(12.dp)),
+                                            .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius)),
                                 ) {
                                     AsyncImage(
                                         model = track.listThumbnailUrl,
@@ -202,7 +226,7 @@ fun PersistentMiniMusicPlayer(
                                         modifier =
                                             Modifier
                                                 .fillMaxSize()
-                                                .clip(RoundedCornerShape(12.dp)),
+                                                .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius)),
                                         contentScale = ContentScale.Crop,
                                     )
 
@@ -213,7 +237,7 @@ fun PersistentMiniMusicPlayer(
                                                 .border(
                                                     1.dp,
                                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                                                    RoundedCornerShape(12.dp),
+                                                    RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
                                                 ),
                                     )
 

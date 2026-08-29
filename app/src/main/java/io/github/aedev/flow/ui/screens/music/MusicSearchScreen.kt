@@ -274,7 +274,7 @@ fun MusicSearchScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 80.dp),
+                            contentPadding = PaddingValues(bottom = 0.dp),
                         ) {
                             if (uiState.activeFilter == null && uiState.searchSummary != null) {
                                 // Summary view (Top Result + Sections)

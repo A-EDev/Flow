@@ -57,10 +57,13 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.screens.music.player.*
+import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private val PlayerHorizontalPadding = 28.dp
+private val PlayerHorizontalPadding = Dimensions.PlayerHorizontalPadding
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +81,7 @@ fun EnhancedMusicPlayerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val reduceMotion = rememberFlowReduceMotion()
     val playerPreferences = remember { PlayerPreferences(context) }
     val backgroundStyle by playerPreferences.musicPlayerBackgroundStyle.collectAsState(
         initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT,
@@ -346,8 +350,32 @@ fun EnhancedMusicPlayerScreen(
                 AnimatedContent(
                     targetState = showInlineLyrics,
                     transitionSpec = {
-                        (fadeIn(tween(500)) + scaleIn(tween(500), initialScale = 0.98f)) togetherWith
-                            (fadeOut(tween(260)) + scaleOut(tween(260), targetScale = 1.02f))
+                        (fadeIn(
+                            tween(
+                                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                                easing = FlowMotion.EnterEasing,
+                            ),
+                        ) +
+                            scaleIn(
+                                tween(
+                                    FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                                    easing = FlowMotion.EnterEasing,
+                                ),
+                                initialScale = 0.98f,
+                            )) togetherWith
+                            (fadeOut(
+                                tween(
+                                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                    easing = FlowMotion.ExitEasing,
+                                ),
+                            ) +
+                                scaleOut(
+                                    tween(
+                                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                        easing = FlowMotion.ExitEasing,
+                                    ),
+                                    targetScale = 1.02f,
+                                ))
                     },
                     label = "artworkInlineLyrics",
                 ) { lyricsVisible ->
@@ -418,10 +446,10 @@ fun EnhancedMusicPlayerScreen(
                                             scaleY = artworkScale
                                         }.shadow(
                                             elevation = if (uiState.isPlaying) 32.dp else 12.dp,
-                                            shape = RoundedCornerShape(8.dp),
+                                            shape = RoundedCornerShape(Dimensions.CardCornerRadius),
                                             ambientColor = Color.Black.copy(alpha = 0.5f),
                                             spotColor = Color.Black.copy(alpha = 0.6f),
-                                        ).clip(RoundedCornerShape(8.dp)),
+                                        ).clip(RoundedCornerShape(Dimensions.CardCornerRadius)),
                             ) {
                                 PlayerArtwork(
                                     thumbnailUrl = (uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl),
@@ -461,7 +489,19 @@ fun EnhancedMusicPlayerScreen(
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     AnimatedContent(
                         targetState = uiState.currentTrack?.title ?: track.title,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        transitionSpec = {
+                            fadeIn(
+                                animationSpec = tween(
+                                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                    easing = FlowMotion.EnterEasing,
+                                ),
+                            ) togetherWith fadeOut(
+                                animationSpec = tween(
+                                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                    easing = FlowMotion.ExitEasing,
+                                ),
+                            )
+                        },
                         label = "title",
                     ) { title ->
                         Text(
@@ -502,8 +542,32 @@ fun EnhancedMusicPlayerScreen(
                 AnimatedContent(
                     targetState = showInlineLyrics,
                     transitionSpec = {
-                        (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.9f)) togetherWith
-                            (fadeOut(tween(160)) + scaleOut(tween(160), targetScale = 0.9f))
+                        (fadeIn(
+                            tween(
+                                FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                easing = FlowMotion.EnterEasing,
+                            ),
+                        ) +
+                            scaleIn(
+                                tween(
+                                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                    easing = FlowMotion.EnterEasing,
+                                ),
+                                initialScale = 0.9f,
+                            )) togetherWith
+                            (fadeOut(
+                                tween(
+                                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                    easing = FlowMotion.ExitEasing,
+                                ),
+                            ) +
+                                scaleOut(
+                                    tween(
+                                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                        easing = FlowMotion.ExitEasing,
+                                    ),
+                                    targetScale = 0.9f,
+                                ))
                     },
                     label = "lyricsActionsSwap",
                 ) { lyricsActive ->
@@ -596,7 +660,7 @@ fun EnhancedMusicPlayerScreen(
                     modifier = Modifier.weight(1f),
                 ) {
                     Card(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
                         modifier = Modifier.size(42.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                     ) {

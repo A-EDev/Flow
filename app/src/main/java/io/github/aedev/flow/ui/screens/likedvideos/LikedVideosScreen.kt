@@ -126,7 +126,7 @@ fun LikesScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = 0.dp),
                         verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
                         items(

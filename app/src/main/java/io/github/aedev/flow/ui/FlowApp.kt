@@ -2,11 +2,7 @@ package io.github.aedev.flow.ui
 
 import android.app.Activity
 import androidx.compose.animation.*
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -57,9 +53,12 @@ import io.github.aedev.flow.ui.screens.music.EnhancedMusicPlayerScreen
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.theme.CustomThemePalettes
+import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.theme.FlowMotion
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.theme.isEffectivelyDark
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 
@@ -86,6 +85,7 @@ fun FlowApp(
     onWidgetRouteConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val reduceMotion = rememberFlowReduceMotion()
     val activity = context as? androidx.activity.ComponentActivity
     val navController = rememberNavController()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
@@ -273,7 +273,7 @@ fun FlowApp(
 
         val navBarBottomInset = WindowInsets.navigationBars.getBottom(density)
 
-        val bottomNavContentHeightDp = 48.dp
+        val bottomNavContentHeightDp = Dimensions.NavigationBarHeight
 
         val playerSheetState = rememberPlayerDraggableState()
         val playerVisibleState = remember { mutableStateOf(false) }
@@ -484,13 +484,15 @@ fun FlowApp(
                     } else {
                         0.dp
                     },
-                animationSpec = tween(durationMillis = 220),
+                animationSpec = tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                ),
                 label = "musicMiniPlayerContentPadding",
             )
             val bottomNavContentPadding by animateDpAsState(
                 targetValue =
                     if (
-                        !bottomNavHideOnScroll &&
                         !isInPipMode &&
                         showBottomNav.value &&
                         isNavScrolledVisible &&
@@ -500,7 +502,10 @@ fun FlowApp(
                     } else {
                         0.dp
                     },
-                animationSpec = tween(durationMillis = 220),
+                animationSpec = tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                ),
                 label = "bottomNavContentPadding",
             )
 
@@ -552,31 +557,49 @@ fun FlowApp(
                                 navController = navController,
                                 startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
                                 enterTransition = {
-                                    fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
+                                    fadeIn(
+                                        animationSpec = tween(
+                                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                            easing = FlowMotion.EnterEasing,
+                                        ),
+                                    ) +
                                         slideInHorizontally(
                                             initialOffsetX = { (it * 0.06f).toInt() },
-                                            animationSpec =
-                                                spring(
-                                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                                    stiffness = Spring.StiffnessMediumLow,
-                                                ),
+                                            animationSpec = tween(
+                                                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                                                easing = FlowMotion.EnterEasing,
+                                            ),
                                         )
                                 },
                                 exitTransition = {
-                                    fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
+                                    fadeOut(
+                                        animationSpec = tween(
+                                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                            easing = FlowMotion.ExitEasing,
+                                        ),
+                                    )
                                 },
                                 popEnterTransition = {
-                                    fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing))
+                                    fadeIn(
+                                        animationSpec = tween(
+                                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                            easing = FlowMotion.EnterEasing,
+                                        ),
+                                    )
                                 },
                                 popExitTransition = {
-                                    fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing)) +
+                                    fadeOut(
+                                        animationSpec = tween(
+                                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                            easing = FlowMotion.ExitEasing,
+                                        ),
+                                    ) +
                                         slideOutHorizontally(
                                             targetOffsetX = { (it * 0.06f).toInt() },
-                                            animationSpec =
-                                                spring(
-                                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                                    stiffness = Spring.StiffnessMediumLow,
-                                                ),
+                                            animationSpec = tween(
+                                                FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                                easing = FlowMotion.ExitEasing,
+                                            ),
                                         )
                                 },
                             ) {
@@ -626,13 +649,29 @@ fun FlowApp(
                 enter =
                     slideInVertically(
                         initialOffsetY = { it },
-                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 320f),
-                    ) + fadeIn(animationSpec = tween(160, delayMillis = 40)),
+                        animationSpec = tween(
+                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                            easing = FlowMotion.EnterEasing,
+                        ),
+                    ) + fadeIn(
+                        animationSpec = tween(
+                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                            easing = FlowMotion.EnterEasing,
+                        ),
+                    ),
                 exit =
                     slideOutVertically(
                         targetOffsetY = { it },
-                        animationSpec = spring(dampingRatio = 0.85f, stiffness = 350f),
-                    ) + fadeOut(animationSpec = tween(120)),
+                        animationSpec = tween(
+                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                            easing = FlowMotion.ExitEasing,
+                        ),
+                    ) + fadeOut(
+                        animationSpec = tween(
+                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                            easing = FlowMotion.ExitEasing,
+                        ),
+                    ),
             ) {
                 FloatingBottomNavBar(
                     selectedIndex = selectedBottomNavIndex.intValue,
@@ -671,7 +710,10 @@ fun FlowApp(
                 } else {
                     with(density) { navBarBottomInset.toDp() }
                 },
-            animationSpec = tween(220),
+            animationSpec = tween(
+                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                easing = FlowMotion.EnterEasing,
+            ),
             label = "globalBottomPadding",
         )
         val animatedBottomPadding = animatedBottomPaddingRaw.coerceAtLeast(0.dp)
