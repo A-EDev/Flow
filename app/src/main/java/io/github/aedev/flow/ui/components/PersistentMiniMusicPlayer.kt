@@ -98,28 +98,32 @@ fun PersistentMiniMusicPlayer(
         enter =
             slideInVertically(
                 initialOffsetY = { it },
-                animationSpec = tween(
-                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                    easing = FlowMotion.EnterEasing,
-                ),
+                animationSpec =
+                    tween(
+                        FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
+                    ),
             ) + fadeIn(
-                animationSpec = tween(
-                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                    easing = FlowMotion.EnterEasing,
-                ),
+                animationSpec =
+                    tween(
+                        FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
+                    ),
             ),
         exit =
             slideOutVertically(
                 targetOffsetY = { it },
-                animationSpec = tween(
-                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                    easing = FlowMotion.ExitEasing,
-                ),
+                animationSpec =
+                    tween(
+                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                        easing = FlowMotion.ExitEasing,
+                    ),
             ) + fadeOut(
-                animationSpec = tween(
-                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                    easing = FlowMotion.ExitEasing,
-                ),
+                animationSpec =
+                    tween(
+                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                        easing = FlowMotion.ExitEasing,
+                    ),
             ),
         modifier = modifier,
     ) {
@@ -151,8 +155,8 @@ fun PersistentMiniMusicPlayer(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                                .height(Dimensions.MiniPlayerHeight)
-                                .shadow(
+                            .height(Dimensions.MiniPlayerHeight)
+                            .shadow(
                                 16.dp,
                                 RoundedCornerShape(Dimensions.CardCornerRadius),
                                 ambientColor = Color.Black.copy(alpha = 0.5f),

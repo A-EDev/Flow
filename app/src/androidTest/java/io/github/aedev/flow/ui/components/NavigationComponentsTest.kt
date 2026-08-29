@@ -8,11 +8,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.aedev.flow.R
-import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import kotlin.math.abs
 
 class NavigationComponentsTest {
     @get:Rule
@@ -33,12 +33,15 @@ class NavigationComponentsTest {
         }
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val centers = listOf(R.string.nav_home, R.string.nav_subs, R.string.nav_library)
-            .map { stringRes ->
-                val bounds = composeRule.onNodeWithText(context.getString(stringRes))
-                    .getUnclippedBoundsInRoot()
-                (bounds.left + bounds.right) / 2f
-            }
+        val centers =
+            listOf(R.string.nav_home, R.string.nav_subs, R.string.nav_library)
+                .map { stringRes ->
+                    val bounds =
+                        composeRule
+                            .onNodeWithText(context.getString(stringRes))
+                            .getUnclippedBoundsInRoot()
+                    (bounds.left + bounds.right) / 2f
+                }
 
         assertTrue(abs((centers[1] - centers[0]) - (centers[2] - centers[1])) < 1f)
     }

@@ -101,9 +101,9 @@ import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
 import io.github.aedev.flow.ui.screens.player.state.rememberAudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import io.github.aedev.flow.ui.theme.FlowMotion
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
-import io.github.aedev.flow.ui.theme.FlowMotion
 import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import io.github.aedev.flow.ui.utils.isTabletFormFactor
 import kotlinx.coroutines.delay
@@ -788,10 +788,11 @@ fun GlobalPlayerOverlay(
                 }
                 fullscreenDrawerOffsetPx.animateTo(
                     targetValue = 0f,
-                    animationSpec = tween(
-                        durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
-                        easing = FlowMotion.EnterEasing,
-                    ),
+                    animationSpec =
+                        tween(
+                            durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                            easing = FlowMotion.EnterEasing,
+                        ),
                 )
             }
         }
@@ -800,10 +801,11 @@ fun GlobalPlayerOverlay(
             scope.launch {
                 fullscreenDrawerOffsetPx.animateTo(
                     targetValue = fullscreenDrawerWidthPx,
-                    animationSpec = tween(
-                        durationMillis = FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                        easing = FlowMotion.ExitEasing,
-                    ),
+                    animationSpec =
+                        tween(
+                            durationMillis = FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                            easing = FlowMotion.ExitEasing,
+                        ),
                 )
                 screenState.dismissMediaSheets()
                 screenState.showSleepTimerSheet = false
@@ -829,10 +831,11 @@ fun GlobalPlayerOverlay(
                         scope.launch {
                             fullscreenDrawerOffsetPx.animateTo(
                                 targetValue = 0f,
-                                animationSpec = tween(
-                                    durationMillis = FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                                    easing = FlowMotion.EnterEasing,
-                                ),
+                                animationSpec =
+                                    tween(
+                                        durationMillis = FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                        easing = FlowMotion.EnterEasing,
+                                    ),
                             )
                         }
                     },
@@ -848,10 +851,11 @@ fun GlobalPlayerOverlay(
                             scope.launch {
                                 fullscreenDrawerOffsetPx.animateTo(
                                     targetValue = 0f,
-                                    animationSpec = tween(
-                                        durationMillis = FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                                        easing = FlowMotion.EnterEasing,
-                                    ),
+                                    animationSpec =
+                                        tween(
+                                            durationMillis = FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                            easing = FlowMotion.EnterEasing,
+                                        ),
                                 )
                             }
                         }
@@ -1067,16 +1071,18 @@ fun GlobalPlayerOverlay(
                         AnimatedVisibility(
                             visible = screenState.showZoomIndicator,
                             enter = fadeIn(
-                                animationSpec = tween(
-                                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                                    easing = FlowMotion.EnterEasing,
-                                ),
+                                animationSpec =
+                                    tween(
+                                        FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                        easing = FlowMotion.EnterEasing,
+                                    ),
                             ),
                             exit = fadeOut(
-                                animationSpec = tween(
-                                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                                    easing = FlowMotion.ExitEasing,
-                                ),
+                                animationSpec =
+                                    tween(
+                                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                        easing = FlowMotion.ExitEasing,
+                                    ),
                             ),
                             modifier =
                                 Modifier

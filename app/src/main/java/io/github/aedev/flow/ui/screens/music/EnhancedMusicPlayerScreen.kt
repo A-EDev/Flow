@@ -491,15 +491,17 @@ fun EnhancedMusicPlayerScreen(
                         targetState = uiState.currentTrack?.title ?: track.title,
                         transitionSpec = {
                             fadeIn(
-                                animationSpec = tween(
-                                    FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                                    easing = FlowMotion.EnterEasing,
-                                ),
+                                animationSpec =
+                                    tween(
+                                        FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                        easing = FlowMotion.EnterEasing,
+                                    ),
                             ) togetherWith fadeOut(
-                                animationSpec = tween(
-                                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                                    easing = FlowMotion.ExitEasing,
-                                ),
+                                animationSpec =
+                                    tween(
+                                        FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                        easing = FlowMotion.ExitEasing,
+                                    ),
                             )
                         },
                         label = "title",

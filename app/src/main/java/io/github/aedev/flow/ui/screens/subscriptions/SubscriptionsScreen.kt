@@ -4,10 +4,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -132,9 +132,9 @@ import io.github.aedev.flow.ui.components.layout.topbar.FlowSearchTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
-import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -358,15 +358,17 @@ fun SubscriptionsScreen(
                 targetState = isManagingSubs,
                 transitionSpec = {
                     fadeIn(
-                        animationSpec = tween(
-                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                            easing = FlowMotion.EnterEasing,
-                        ),
+                        animationSpec =
+                            tween(
+                                FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                easing = FlowMotion.EnterEasing,
+                            ),
                     ) togetherWith fadeOut(
-                        animationSpec = tween(
-                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                            easing = FlowMotion.ExitEasing,
-                        ),
+                        animationSpec =
+                            tween(
+                                FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                easing = FlowMotion.ExitEasing,
+                            ),
                     )
                 },
                 label = "subscriptionMode",

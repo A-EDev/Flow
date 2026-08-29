@@ -484,10 +484,11 @@ fun FlowApp(
                     } else {
                         0.dp
                     },
-                animationSpec = tween(
-                    durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
-                    easing = FlowMotion.EnterEasing,
-                ),
+                animationSpec =
+                    tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
+                    ),
                 label = "musicMiniPlayerContentPadding",
             )
             val bottomNavContentPadding by animateDpAsState(
@@ -502,10 +503,11 @@ fun FlowApp(
                     } else {
                         0.dp
                     },
-                animationSpec = tween(
-                    durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
-                    easing = FlowMotion.EnterEasing,
-                ),
+                animationSpec =
+                    tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
+                    ),
                 label = "bottomNavContentPadding",
             )
 
@@ -558,48 +560,54 @@ fun FlowApp(
                                 startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
                                 enterTransition = {
                                     fadeIn(
-                                        animationSpec = tween(
-                                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                                            easing = FlowMotion.EnterEasing,
-                                        ),
+                                        animationSpec =
+                                            tween(
+                                                FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                                easing = FlowMotion.EnterEasing,
+                                            ),
                                     ) +
                                         slideInHorizontally(
                                             initialOffsetX = { (it * 0.06f).toInt() },
-                                            animationSpec = tween(
-                                                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
-                                                easing = FlowMotion.EnterEasing,
-                                            ),
+                                            animationSpec =
+                                                tween(
+                                                    FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                                                    easing = FlowMotion.EnterEasing,
+                                                ),
                                         )
                                 },
                                 exitTransition = {
                                     fadeOut(
-                                        animationSpec = tween(
-                                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                                            easing = FlowMotion.ExitEasing,
-                                        ),
+                                        animationSpec =
+                                            tween(
+                                                FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                                easing = FlowMotion.ExitEasing,
+                                            ),
                                     )
                                 },
                                 popEnterTransition = {
                                     fadeIn(
-                                        animationSpec = tween(
-                                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                                            easing = FlowMotion.EnterEasing,
-                                        ),
+                                        animationSpec =
+                                            tween(
+                                                FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                                easing = FlowMotion.EnterEasing,
+                                            ),
                                     )
                                 },
                                 popExitTransition = {
                                     fadeOut(
-                                        animationSpec = tween(
-                                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                                            easing = FlowMotion.ExitEasing,
-                                        ),
-                                    ) +
-                                        slideOutHorizontally(
-                                            targetOffsetX = { (it * 0.06f).toInt() },
-                                            animationSpec = tween(
+                                        animationSpec =
+                                            tween(
                                                 FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
                                                 easing = FlowMotion.ExitEasing,
                                             ),
+                                    ) +
+                                        slideOutHorizontally(
+                                            targetOffsetX = { (it * 0.06f).toInt() },
+                                            animationSpec =
+                                                tween(
+                                                    FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                                    easing = FlowMotion.ExitEasing,
+                                                ),
                                         )
                                 },
                             ) {
@@ -649,28 +657,32 @@ fun FlowApp(
                 enter =
                     slideInVertically(
                         initialOffsetY = { it },
-                        animationSpec = tween(
-                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                            easing = FlowMotion.EnterEasing,
-                        ),
+                        animationSpec =
+                            tween(
+                                FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                easing = FlowMotion.EnterEasing,
+                            ),
                     ) + fadeIn(
-                        animationSpec = tween(
-                            FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
-                            easing = FlowMotion.EnterEasing,
-                        ),
+                        animationSpec =
+                            tween(
+                                FlowMotion.durationFor(FlowMotion.EnterDurationMillis, reduceMotion),
+                                easing = FlowMotion.EnterEasing,
+                            ),
                     ),
                 exit =
                     slideOutVertically(
                         targetOffsetY = { it },
-                        animationSpec = tween(
-                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                            easing = FlowMotion.ExitEasing,
-                        ),
+                        animationSpec =
+                            tween(
+                                FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                easing = FlowMotion.ExitEasing,
+                            ),
                     ) + fadeOut(
-                        animationSpec = tween(
-                            FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
-                            easing = FlowMotion.ExitEasing,
-                        ),
+                        animationSpec =
+                            tween(
+                                FlowMotion.durationFor(FlowMotion.ExitDurationMillis, reduceMotion),
+                                easing = FlowMotion.ExitEasing,
+                            ),
                     ),
             ) {
                 FloatingBottomNavBar(
@@ -710,10 +722,11 @@ fun FlowApp(
                 } else {
                     with(density) { navBarBottomInset.toDp() }
                 },
-            animationSpec = tween(
-                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
-                easing = FlowMotion.EnterEasing,
-            ),
+            animationSpec =
+                tween(
+                    FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                ),
             label = "globalBottomPadding",
         )
         val animatedBottomPadding = animatedBottomPaddingRaw.coerceAtLeast(0.dp)

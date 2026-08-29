@@ -185,10 +185,11 @@ private fun BottomNavItem(
     val reduceMotion = rememberFlowReduceMotion()
     val iconTint by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(
-            FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
-            easing = FlowMotion.EnterEasing,
-        ),
+        animationSpec =
+            tween(
+                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                easing = FlowMotion.EnterEasing,
+            ),
         label = "iconTint",
     )
     val indicatorColor by animateColorAsState(
@@ -198,10 +199,11 @@ private fun BottomNavItem(
             } else {
                 androidx.compose.ui.graphics.Color.Transparent
             },
-        animationSpec = tween(
-            FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
-            easing = FlowMotion.EnterEasing,
-        ),
+        animationSpec =
+            tween(
+                FlowMotion.durationFor(FlowMotion.ContentDurationMillis, reduceMotion),
+                easing = FlowMotion.EnterEasing,
+            ),
         label = "indicatorColor",
     )
 
