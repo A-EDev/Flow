@@ -295,6 +295,9 @@ class Media3MusicService : MediaLibraryService() {
                     mediaItem: androidx.media3.common.MediaItem?,
                     reason: Int,
                 ) {
+                    finalizeListenSession()
+                    startListenSession(mediaItem?.mediaId)
+
                     if (
                         reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
                         reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
@@ -337,6 +340,10 @@ class Media3MusicService : MediaLibraryService() {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     updateLocks(isPlaybackActive())
                     widgetPublisher.publish(player)
+                    if (playbackState == Player.STATE_ENDED) {
+                        // The queue ran out — no transition will fire for the last track.
+                        finalizeListenSession()
+                    }
                     if (playbackState == Player.STATE_READY) {
                         player.currentMediaItem?.mediaId?.let { mediaId ->
                             val lastErrorAt = lastPlaybackErrorAtMap[mediaId] ?: 0L
@@ -359,39 +366,49 @@ class Media3MusicService : MediaLibraryService() {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     updateLocks(isPlaybackActive())
                     widgetPublisher.publish(player)
+                    if (isPlaying) {
+                        if (learnMediaId == null) learnMediaId = player.currentMediaItem?.mediaId
+                        learnPlayingSinceMs = android.os.SystemClock.elapsedRealtime()
+                    } else {
+                        closePlayingSegment()
+                    }
                 }
-            },
-        )
-
-        player.addAnalyticsListener(
-            androidx.media3.exoplayer.analytics.PlaybackStatsListener(false) { eventTime, playbackStats ->
-                onListenSessionEnded(eventTime, playbackStats)
             },
         )
     }
 
-    /**
-     * One playback session ended (track change, repeat loop, or player release).
-     * totalPlayTimeMs is ACTUAL audible play time — pause-free and seek-immune, so a
-     * dragged seekbar can't fake a listen milestone. A relisten is simply a new session.
-     */
-    @OptIn(UnstableApi::class)
-    private fun onListenSessionEnded(
-        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
-        stats: androidx.media3.exoplayer.analytics.PlaybackStats,
-    ) {
-        val timeline = eventTime.timeline
-        if (timeline.isEmpty || eventTime.windowIndex >= timeline.windowCount) return
-        val mediaId =
-            timeline
-                .getWindow(
-                    eventTime.windowIndex,
-                    androidx.media3.common.Timeline
-                        .Window(),
-                ).mediaItem.mediaId
-        if (mediaId.isBlank()) return
-        val playedMs = stats.totalPlayTimeMs
-        if (playedMs <= 0) return
+    // ── Listen-session accounting (feeds MusicBrainEngine) ──
+    // Hand-rolled instead of Media3's PlaybackStatsListener, whose internal state
+    // machine throws IllegalArgumentException on some transition orders (seen on
+    // device with our seekTo(0)-on-transition). Wall-clock time while isPlaying is
+    // pause-free and seek-immune; a repeat loop finalizes and restarts a session,
+    // so relistens still count once each.
+
+    private var learnMediaId: String? = null
+    private var learnPlayedMs = 0L
+    private var learnPlayingSinceMs = -1L
+
+    private fun closePlayingSegment() {
+        if (learnPlayingSinceMs >= 0) {
+            learnPlayedMs += android.os.SystemClock.elapsedRealtime() - learnPlayingSinceMs
+            learnPlayingSinceMs = -1L
+        }
+    }
+
+    private fun startListenSession(mediaId: String?) {
+        learnMediaId = mediaId
+        learnPlayedMs = 0L
+        learnPlayingSinceMs =
+            if (::player.isInitialized && player.isPlaying) android.os.SystemClock.elapsedRealtime() else -1L
+    }
+
+    private fun finalizeListenSession() {
+        closePlayingSegment()
+        val mediaId = learnMediaId
+        val playedMs = learnPlayedMs
+        learnMediaId = null
+        learnPlayedMs = 0L
+        if (mediaId.isNullOrBlank() || playedMs <= 0) return
 
         val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
         val track =
@@ -845,6 +862,9 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        // Flush the in-flight listen session before the player goes away.
+        finalizeListenSession()
+
         // Clear audio session ID so external processors know we're gone
         currentAudioSessionId = 0
         Log.i(TAG, "Audio session destroyed")
