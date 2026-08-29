@@ -1,0 +1,291 @@
+/*
+ * Copyright (C) 2025-2026 Flow | A-EDev
+ *
+ * This file is part of Flow (https://github.com/A-EDev/Flow).
+ */
+
+package io.github.aedev.flow.data.recommendation.music
+
+import kotlin.math.ln
+import kotlin.math.pow
+
+/** Minimal projection of a candidate for ranking. */
+data class MusicRankInput(
+    val trackId: String,
+    val artistKey: String,
+    val genre: String? = null,
+)
+
+/** Per-surface term weights. Surfaces not listed fall through to the balanced default. */
+internal data class MusicSurfaceWeights(
+    val fam: Double,
+    val act: Double,
+    val rot: Double,
+    val prox: Double,
+    val cooc: Double,
+    val ctx: Double,
+    val discovery: Double,
+)
+
+/**
+ * Pure read-side scoring and sequencing. Takes a [MusicBrain] and a candidate
+ * list, returns a permutation of indices. A cold brain is a stable pass-through.
+ */
+internal object MusicBrainRanker {
+    const val SURFACE_QUICK_PICKS = "quick_picks"
+    const val SURFACE_HEAVY_ROTATION = "heavy_rotation"
+    const val SURFACE_RADIO = "radio"
+    const val SURFACE_SIMILAR = "similar"
+    const val SURFACE_DISCOVER = "discover"
+    const val SURFACE_DAILY_DISCOVER = "daily_discover"
+
+    fun squash(x: Double): Double = x / (1 + x)
+
+    /**
+     * ACT-R base-level activation: ln(Σ dtᵢ^-d) over the play-timestamp ring,
+     * clamped at 0 so one stale play never reads as heavy rotation.
+     */
+    fun baseLevelActivation(
+        brain: MusicBrain,
+        trackId: String,
+        nowMs: Long,
+    ): Double {
+        val stamps = brain.trackPlays[trackId] ?: return 0.0
+        var sum = 0.0
+        for (ts in stamps) {
+            val dtHours = ((nowMs - ts) / 3_600_000.0).coerceAtLeast(MusicBrainParams.ACT_DT_FLOOR_HOURS)
+            sum += dtHours.pow(-MusicBrainParams.ACT_DECAY)
+        }
+        if (sum <= 0.0) return 0.0
+        return maxOf(ln(sum), 0.0)
+    }
+
+    internal fun surfaceWeights(surface: String): MusicSurfaceWeights =
+        when (surface) {
+            SURFACE_QUICK_PICKS, SURFACE_HEAVY_ROTATION -> {
+                MusicSurfaceWeights(fam = 0.50, act = 0.35, rot = 0.25, prox = 0.10, cooc = 0.15, ctx = 0.15, discovery = 0.05)
+            }
+
+            SURFACE_RADIO -> {
+                MusicSurfaceWeights(fam = 0.35, act = 0.20, rot = 0.20, prox = 0.15, cooc = 0.25, ctx = 0.20, discovery = 0.25)
+            }
+
+            SURFACE_SIMILAR, SURFACE_DISCOVER, SURFACE_DAILY_DISCOVER -> {
+                MusicSurfaceWeights(fam = 0.15, act = 0.05, rot = 0.10, prox = 0.20, cooc = 0.20, ctx = 0.08, discovery = 0.60)
+            }
+
+            else -> {
+                MusicSurfaceWeights(fam = 0.35, act = 0.20, rot = 0.20, prox = 0.15, cooc = 0.15, ctx = 0.12, discovery = 0.20)
+            }
+        }
+
+    fun coocScore(
+        brain: MusicBrain,
+        artistKey: String,
+        anchors: List<String>,
+    ): Double {
+        if (artistKey.isEmpty() || brain.artistCooc.isEmpty()) return 0.0
+        var best = 0.0
+        for (anchor in anchors) {
+            if (anchor == artistKey) continue
+            val w = brain.artistCooc[musicPairKey(artistKey, anchor)] ?: continue
+            best = maxOf(best, squash(w))
+        }
+        return best
+    }
+
+    /** Time-of-day fit: purely additive, never a filter, damped when the bucket is thin. */
+    fun contextScore(
+        brain: MusicBrain,
+        bucket: MusicTimeBucket,
+        genre: String?,
+    ): Double {
+        if (genre.isNullOrBlank()) return 0.0
+        val hist = brain.timeBuckets[bucket] ?: return 0.0
+        val total = hist.values.sum()
+        if (total <= 0.0) return 0.0
+        val share = (hist[genre] ?: 0.0) / total
+        val confidence = total / (total + MusicBrainParams.CONTEXT_CONFIDENCE_K)
+        return share * confidence
+    }
+
+    fun isInDislikeCooldown(
+        brain: MusicBrain,
+        artistKey: String,
+        nowMs: Long,
+    ): Boolean {
+        val ts = brain.dislikedArtists[artistKey] ?: return false
+        return nowMs - ts < MusicBrainParams.DISLIKE_COOLDOWN_MS
+    }
+
+    private fun scoreCandidate(
+        brain: MusicBrain,
+        input: MusicRankInput,
+        w: MusicSurfaceWeights,
+        anchors: List<String>,
+        bucket: MusicTimeBucket,
+        nowMs: Long,
+    ): Double {
+        val artist = input.artistKey
+        val fam = brain.artistAffinity[artist]?.score ?: 0.0
+        val act = squash(baseLevelActivation(brain, input.trackId, nowMs))
+        val rot = (brain.recentRotation[artist] ?: 0.0).coerceIn(0.0, 1.0)
+        val prox = (input.genre?.let { brain.genreAffinity[it] } ?: 0.0).coerceIn(0.0, 1.0)
+        val cooc = coocScore(brain, artist, anchors)
+        val ctx = contextScore(brain, bucket, input.genre)
+        val novel = if (artist.isEmpty() || artist in brain.seenArtists) 0.0 else 1.0
+        val discovery = w.discovery * novel * brain.discoveryAppetite
+
+        val base = w.fam * fam + w.act * act + w.rot * rot + w.prox * prox + w.cooc * cooc + w.ctx * ctx + discovery
+        val cooldown = if (isInDislikeCooldown(brain, artist, nowMs)) MusicBrainParams.DISLIKE_COOLDOWN_MULTIPLIER else 1.0
+        return base * cooldown
+    }
+
+    fun surfaceTargetNovelty(
+        surface: String,
+        appetite: Double,
+    ): Double {
+        val base =
+            when (surface) {
+                SURFACE_QUICK_PICKS, SURFACE_HEAVY_ROTATION -> 0.15
+                SURFACE_RADIO -> 0.35
+                SURFACE_SIMILAR -> 0.55
+                SURFACE_DISCOVER, SURFACE_DAILY_DISCOVER -> 0.75
+                else -> 0.30
+            }
+        val flex =
+            when (surface) {
+                SURFACE_RADIO, SURFACE_SIMILAR, SURFACE_DISCOVER, SURFACE_DAILY_DISCOVER -> {
+                    (appetite - MusicBrainParams.DISCOVERY_NEUTRAL) * 0.5
+                }
+
+                else -> {
+                    0.0
+                }
+            }
+        return (base + flex).coerceIn(MusicBrainParams.NOVELTY_MIN, MusicBrainParams.NOVELTY_MAX)
+    }
+
+    /** A novel artist only counts as discovery (not noise) when adjacent to existing taste. */
+    fun isTasteAdjacent(
+        brain: MusicBrain,
+        input: MusicRankInput,
+        anchors: List<String>,
+    ): Boolean =
+        coocScore(brain, input.artistKey, anchors) > 0.0 ||
+            (input.genre?.let { brain.genreAffinity[it] } ?: 0.0) > MusicBrainParams.ADJACENT_GENRE_THRESHOLD
+
+    /**
+     * The full pipeline: score → hard-drop blocked → sink dislike-cooldowns to the
+     * end → compose to the surface's novelty target → spread long same-artist runs.
+     */
+    fun rank(
+        brain: MusicBrain,
+        inputs: List<MusicRankInput>,
+        surface: String,
+        nowMs: Long,
+    ): List<Int> {
+        if (inputs.size <= 1) return inputs.indices.toList()
+
+        val w = surfaceWeights(surface)
+        val bucket = MusicTimeBucket.fromTimestamp(nowMs)
+        val anchors = brain.topArtists(MusicBrainParams.COOC_ANCHOR_ARTISTS).map { it.first }
+
+        val scores = inputs.map { scoreCandidate(brain, it, w, anchors, bucket, nowMs) }
+        val order =
+            inputs.indices
+                .sortedWith(compareByDescending<Int> { scores[it] }.thenBy { it })
+                .filterNot { brain.isArtistBlocked(inputs[it].artistKey) }
+
+        val (suppressed, primary) = order.partition { isInDislikeCooldown(brain, inputs[it].artistKey, nowMs) }
+
+        val target = surfaceTargetNovelty(surface, brain.discoveryAppetite)
+        val novel = primary.filter { inputs[it].artistKey.isNotEmpty() && inputs[it].artistKey !in brain.seenArtists }.toSet()
+        val adjacent = primary.filter { it in novel && isTasteAdjacent(brain, inputs[it], anchors) }.toSet()
+        val composed = composeToRatio(primary, novel, adjacent, target)
+
+        return spreadArtists(composed + suppressed, inputs)
+    }
+
+    /** Interleave familiar and novel picks toward the target ratio, adjacent novelty first. */
+    internal fun composeToRatio(
+        order: List<Int>,
+        novel: Set<Int>,
+        adjacent: Set<Int>,
+        target: Double,
+    ): List<Int> {
+        val novelQueue = ArrayDeque(order.filter { it in novel && it in adjacent } + order.filter { it in novel && it !in adjacent })
+        val familiarQueue = ArrayDeque(order.filter { it !in novel })
+        val result = ArrayList<Int>(order.size)
+        var novelCount = 0.0
+        repeat(order.size) {
+            val wantNovel =
+                when {
+                    novelQueue.isEmpty() -> false
+                    familiarQueue.isEmpty() -> true
+                    else -> (novelCount + 0.5) / (result.size + 1.0) < target
+                }
+            if (wantNovel) {
+                result.add(novelQueue.removeFirst())
+                novelCount += 1.0
+            } else {
+                result.add(familiarQueue.removeFirst())
+            }
+        }
+        return result
+    }
+
+    /**
+     * Break same-artist runs longer than [MusicBrainParams.MAX_CONSECUTIVE_ARTIST].
+     * Short runs are GOOD for music (album blocks) — only long ones get broken, and
+     * only when a different-artist candidate actually exists further down.
+     */
+    internal fun spreadArtists(
+        order: List<Int>,
+        inputs: List<MusicRankInput>,
+    ): List<Int> {
+        val remaining = ArrayDeque(order)
+        val result = ArrayList<Int>(order.size)
+        var lastArtist: String? = null
+        var run = 0
+        while (remaining.isNotEmpty()) {
+            var pos = 0
+            if (run >= MusicBrainParams.MAX_CONSECUTIVE_ARTIST) {
+                val alt = remaining.indexOfFirst { inputs[it].artistKey != lastArtist }
+                if (alt >= 0) pos = alt
+            }
+            val idx = remaining.removeAt(pos)
+            val artist = inputs[idx].artistKey
+            if (artist == lastArtist) {
+                run += 1
+            } else {
+                run = 1
+                lastArtist = artist
+            }
+            result.add(idx)
+        }
+        return result
+    }
+
+    /**
+     * On Repeat: tracks ordered by raw ACT-R activation. Zero network — the caller
+     * resolves display data from [MusicBrain.trackMeta]. Blocked artists are skipped;
+     * a track with no meta is kept (it just cannot be attributed).
+     */
+    fun heavyRotation(
+        brain: MusicBrain,
+        nowMs: Long,
+        limit: Int,
+    ): List<String> =
+        brain.trackPlays.keys
+            .asSequence()
+            .filter { trackId ->
+                val meta = brain.trackMeta[trackId]
+                meta == null || !brain.isArtistBlocked(meta.artistKey)
+            }.map { it to baseLevelActivation(brain, it, nowMs) }
+            .filter { it.second > 0.0 }
+            .sortedByDescending { it.second }
+            .take(limit)
+            .map { it.first }
+            .toList()
+}
