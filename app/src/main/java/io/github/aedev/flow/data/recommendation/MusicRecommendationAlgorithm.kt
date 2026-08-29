@@ -21,6 +21,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,33 +56,53 @@ class MusicRecommendationAlgorithm
     ) {
         companion object {
             private const val TAG = "MusicRecAlgo"
+            private const val CACHE_TTL_MS = 4 * 60 * 60 * 1000L
+            private const val KEY_LAST_CACHE_TIME = "last_cache_time"
+            private const val KEY_LAST_CONTINUATION = "last_continuation"
+            private val cacheJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
         }
 
         private val cachePrefs by lazy {
             context.getSharedPreferences("music_home_cache_prefs", Context.MODE_PRIVATE)
         }
 
+        /** True while the cached home is inside its TTL — callers may skip the network refresh. */
+        fun isHomeCacheFresh(): Boolean = System.currentTimeMillis() - cachePrefs.getLong(KEY_LAST_CACHE_TIME, 0L) < CACHE_TTL_MS
+
         suspend fun loadMusicHome(): Pair<List<MusicSection>, String?> =
             withContext(Dispatchers.IO) {
-                val lastCacheTime = cachePrefs.getLong("last_cache_time", 0L)
-                val isCacheExpired = System.currentTimeMillis() - lastCacheTime > 4 * 60 * 60 * 1000L // 4 hours
-
                 val cachedSections = cacheDao.getMusicHomeSections().firstOrNull()
                 if (cachedSections != null && cachedSections.isNotEmpty()) {
-                    Log.d(TAG, "Loaded ${cachedSections.size} sections from cache (${if (isCacheExpired) "stale" else "fresh"})")
                     val musicSections =
-                        cachedSections.map { entity ->
-                            MusicSection(
-                                title = entity.title,
-                                subtitle = entity.subtitle,
-                                tracks = deserializeTracks(entity.tracksJson),
-                            )
-                        }
-                    return@withContext musicSections to null
+                        cachedSections
+                            .map { entity ->
+                                MusicSection(
+                                    title = entity.title,
+                                    subtitle = entity.subtitle,
+                                    tracks = deserializeTracks(entity.tracksJson),
+                                )
+                            }.filter { it.tracks.isNotEmpty() }
+                    // An old-format cache deserializes to nothing — fall through to the network.
+                    if (musicSections.isNotEmpty()) {
+                        Log.d(TAG, "Loaded ${musicSections.size} sections from cache (fresh=${isHomeCacheFresh()})")
+                        return@withContext musicSections to cachePrefs.getString(KEY_LAST_CONTINUATION, null)
+                    }
                 }
 
                 val networkResult = fetchAndCacheHome()
                 return@withContext networkResult
+            }
+
+        /** Network refresh, skipped entirely while the cache is fresh. Returns null when skipped. */
+        suspend fun refreshMusicHomeIfStale(): Pair<List<MusicSection>, String?>? =
+            withContext(Dispatchers.IO) {
+                val hasCache = cacheDao.getMusicHomeSections().firstOrNull()?.isNotEmpty() == true
+                if (hasCache && isHomeCacheFresh()) {
+                    Log.d(TAG, "Music home cache fresh — skipping network refresh")
+                    null
+                } else {
+                    fetchAndCacheHome()
+                }
             }
 
         /**
@@ -159,7 +180,11 @@ class MusicRecommendationAlgorithm
                         }
                     cacheDao.clearMusicHomeCache()
                     cacheDao.insertMusicHomeSections(entities)
-                    cachePrefs.edit().putLong("last_cache_time", System.currentTimeMillis()).apply()
+                    cachePrefs
+                        .edit()
+                        .putLong(KEY_LAST_CACHE_TIME, System.currentTimeMillis())
+                        .putString(KEY_LAST_CONTINUATION, homePage.continuation)
+                        .apply()
 
                     homePage.chips?.let { chips ->
                         val chipEntities =
@@ -185,51 +210,18 @@ class MusicRecommendationAlgorithm
             return emptyList<MusicSection>() to null
         }
 
-        private fun serializeTracks(tracks: List<MusicTrack>): String {
-            val jsonArray = org.json.JSONArray()
-            tracks.forEach { track ->
-                val obj = org.json.JSONObject()
-                obj.put("id", track.videoId)
-                obj.put("title", track.title)
-                obj.put("artist", track.artist)
-                obj.put("thumb", track.thumbnailUrl)
-                obj.put("dur", track.duration)
-                obj.put("cid", track.channelId)
-                obj.put("views", track.views)
-                obj.put("album", track.album)
-                obj.put("expl", track.isExplicit)
-                obj.put("vid", track.isVideoSong)
-                jsonArray.put(obj)
-            }
-            return jsonArray.toString()
-        }
+        // Lossless full-track serialization: the old hand-rolled format dropped artist
+        // browseIds, albumId, and itemType, so every cached item round-tripped as a bare SONG.
+        private fun serializeTracks(tracks: List<MusicTrack>): String = cacheJson.encodeToString(tracks)
 
-        private fun deserializeTracks(json: String): List<MusicTrack> {
-            val tracks = mutableListOf<MusicTrack>()
+        private fun deserializeTracks(json: String): List<MusicTrack> =
             try {
-                val array = org.json.JSONArray(json)
-                for (i in 0 until array.length()) {
-                    val obj = array.getJSONObject(i)
-                    tracks.add(
-                        MusicTrack(
-                            videoId = obj.optString("id"),
-                            title = obj.optString("title"),
-                            artist = obj.optString("artist"),
-                            thumbnailUrl = obj.optString("thumb"),
-                            duration = obj.optInt("dur"),
-                            channelId = obj.optString("cid"),
-                            views = obj.optLong("views"),
-                            album = obj.optString("album"),
-                            isExplicit = obj.optBoolean("expl"),
-                            isVideoSong = obj.optBoolean("vid", false),
-                        ),
-                    )
-                }
+                cacheJson.decodeFromString(json)
             } catch (e: Exception) {
-                Log.e(TAG, "Error deserializing tracks", e)
+                // Old-format (or corrupt) cache rows: treat as empty so callers refetch.
+                Log.w(TAG, "Cache entry unreadable, will refetch: ${e.message}")
+                emptyList()
             }
-            return tracks
-        }
 
         /**
          * Generate personalized music recommendations (Quick Picks / For You).

@@ -104,7 +104,7 @@ class MusicViewModel
          *  PERFORMANCE OPTIMIZED: Load all music content progressively
          *  Each section loads independently to show content as fast as possible
          */
-        private fun loadMusicContent() {
+        private fun loadMusicContent(force: Boolean = false) {
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 val cachedTrending = MusicCache.getTrendingMusic(100)
                 val cachedResult =
@@ -121,6 +121,9 @@ class MusicViewModel
                         // Apply cached data immediately
                         if (cachedSections.isNotEmpty()) {
                             processHomeSections(cachedSections)
+                            cachedResult.second?.let { continuation ->
+                                _uiState.update { it.copy(homeContinuation = continuation) }
+                            }
                         }
 
                         cachedTrending?.let { trend ->
@@ -173,11 +176,18 @@ class MusicViewModel
 
             // 2. IMPORTANT: Home Sections (Dynamic Content)
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                var skippedFreshCache = false
                 val homeResult =
                     withTimeoutOrNull(10_000L) {
                         // Reduced timeout
                         try {
-                            musicRecommendationAlgorithm.refreshMusicHome()
+                            if (force) {
+                                musicRecommendationAlgorithm.refreshMusicHome()
+                            } else {
+                                // Cache inside its 4 h TTL: the cached pass already rendered it.
+                                musicRecommendationAlgorithm.refreshMusicHomeIfStale()
+                                    ?: (emptyList<MusicSection>() to null).also { skippedFreshCache = true }
+                            }
                         } catch (e: Exception) {
                             Log.e("MusicViewModel", "Error refreshing home sections", e)
                             emptyList<MusicSection>() to null
@@ -194,7 +204,7 @@ class MusicViewModel
                 if (homeSections.isNotEmpty()) {
                     processHomeSections(homeSections)
                     _uiState.update { it.copy(homeContinuation = homeContinuation) }
-                } else if (_uiState.value.forYouTracks.isEmpty() && _uiState.value.dynamicSections.isEmpty()) {
+                } else if (!skippedFreshCache && _uiState.value.forYouTracks.isEmpty() && _uiState.value.dynamicSections.isEmpty()) {
                     val recs = musicRecommendationAlgorithm.getRecommendations(24).audioMusicOnly()
                     if (recs.isNotEmpty()) {
                         _uiState.update { it.copy(forYouTracks = recs) }
@@ -787,7 +797,7 @@ class MusicViewModel
 
         fun refresh() {
             _uiState.update { it.copy(isLoading = true) }
-            loadMusicContent()
+            loadMusicContent(force = true)
         }
 
         /**
