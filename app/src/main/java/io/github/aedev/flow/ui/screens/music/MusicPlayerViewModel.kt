@@ -20,6 +20,7 @@ import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.utils.PerformanceDispatcher
@@ -49,6 +50,7 @@ class MusicPlayerViewModel
         private val likedVideosRepository: LikedVideosRepository,
         private val viewHistory: ViewHistory,
         private val localPlaylistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
+        private val musicBrain: MusicBrainEngine,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicPlayerUiState())
         val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
@@ -564,6 +566,7 @@ class MusicPlayerViewModel
                             isMusic = true,
                         ),
                     )
+                    musicBrain.onExplicitLike(currentTrack)
                 } else {
                     likedVideosRepository.removeLikeState(currentTrack.videoId)
                 }

@@ -41,6 +41,7 @@ import io.github.aedev.flow.data.download.DownloadUtil
 import io.github.aedev.flow.data.model.ParametricEQ
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
+import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
@@ -133,6 +134,9 @@ class Media3MusicService : MediaLibraryService() {
 
     @Inject
     lateinit var widgetPublisher: io.github.aedev.flow.widget.nowplaying.NowPlayingWidgetPublisher
+
+    @Inject
+    lateinit var musicBrain: MusicBrainEngine
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -358,6 +362,53 @@ class Media3MusicService : MediaLibraryService() {
                 }
             },
         )
+
+        player.addAnalyticsListener(
+            androidx.media3.exoplayer.analytics.PlaybackStatsListener(false) { eventTime, playbackStats ->
+                onListenSessionEnded(eventTime, playbackStats)
+            },
+        )
+    }
+
+    /**
+     * One playback session ended (track change, repeat loop, or player release).
+     * totalPlayTimeMs is ACTUAL audible play time — pause-free and seek-immune, so a
+     * dragged seekbar can't fake a listen milestone. A relisten is simply a new session.
+     */
+    @OptIn(UnstableApi::class)
+    private fun onListenSessionEnded(
+        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+        stats: androidx.media3.exoplayer.analytics.PlaybackStats,
+    ) {
+        val timeline = eventTime.timeline
+        if (timeline.isEmpty || eventTime.windowIndex >= timeline.windowCount) return
+        val mediaId =
+            timeline
+                .getWindow(
+                    eventTime.windowIndex,
+                    androidx.media3.common.Timeline
+                        .Window(),
+                ).mediaItem.mediaId
+        if (mediaId.isBlank()) return
+        val playedMs = stats.totalPlayTimeMs
+        if (playedMs <= 0) return
+
+        val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
+        val track =
+            manager.queue.value.firstOrNull { it.videoId == mediaId }
+                ?: manager.currentTrack.value?.takeIf { it.videoId == mediaId }
+                ?: manager.automixItems.value.firstOrNull { it.videoId == mediaId }
+                ?: return
+        val durationMs = track.duration.toLong() * 1000
+        if (durationMs <= 0) return
+
+        lifecycleScope.launch(Dispatchers.Default) {
+            try {
+                musicBrain.onListenSession(track, playedMs.toDouble() / durationMs)
+            } catch (e: Exception) {
+                Log.w(TAG, "Music listen signal failed: ${e.message}")
+            }
+        }
     }
 
     /**
