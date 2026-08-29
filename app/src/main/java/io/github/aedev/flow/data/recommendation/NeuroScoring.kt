@@ -26,6 +26,9 @@ internal object NeuroScoring {
     // ── Scoring Weight Constants ──
     const val SUBSCRIPTION_BOOST = 0.15
     const val SUBSCRIPTION_BOOST_MAX = 0.30
+
+    /** Channel-boredom multiplier at the 0.5 starting EMA — the neutral point. */
+    const val CHANNEL_SIGNAL_NEUTRAL = 0.7801
     const val SERENDIPITY_BONUS = 0.10
     const val CURIOSITY_GAP_BONUS = 0.10
     const val NOT_INTERESTED_CHANNEL_FLOOR = 0.20
@@ -51,8 +54,10 @@ internal object NeuroScoring {
     const val COLD_START_ENGAGEMENT_FLOOR_MIN_VIEWS = 10_000L
     const val BINGE_THRESHOLD = 20
     const val BINGE_NOVELTY_FACTOR = 0.15
-    const val JITTER_COLD_START = 0.20
-    const val JITTER_NORMAL = 0.02
+
+    // Jitter is a FRACTION of the median candidate score (see rank()), not absolute.
+    const val JITTER_COLD_START = 0.40
+    const val JITTER_NORMAL = 0.05
     const val TITLE_SIMILARITY_STRICT = 0.55
     const val TITLE_SIMILARITY_RELAXED = 0.60
     const val CLASSIC_VIEW_THRESHOLD = 5_000_000L
@@ -81,9 +86,12 @@ internal object NeuroScoring {
     const val SEEN_SHORTS_MAX = 3000
     const val SEEN_SHORT_PENALTY = 0.05
     const val SEEN_SHORT_EXPIRY_DAYS = 7
-    const val AFFINITY_INCREMENT = 0.01
+
+    // 0.03/co-watch: one shared session creates a cluster edge (min 0.02), five
+    // reach the affinity-query threshold (0.15). The old 0.01 could never outlive
+    // the per-update prune that used to sit at 0.05.
+    const val AFFINITY_INCREMENT = 0.03
     const val AFFINITY_MAX = 1.0
-    const val AFFINITY_PRUNE_THRESHOLD = 0.05
     const val AFFINITY_MAX_ENTRIES = 500
     const val AFFINITY_KEEP_TOP = 300
     const val AFFINITY_MAX_BOOST_PER_VIDEO = 0.15
@@ -122,6 +130,43 @@ internal object NeuroScoring {
     // ── Feed History Constants ──
     const val FEED_HISTORY_MAX = 3000
     const val FEED_HISTORY_EXPIRY_DAYS = 14L
+
+    // ── Hard seen-gate (repetition filter, not penalty) ──
+    const val SEEN_GATE_SHOW_COUNT = 2
+    const val SEEN_GATE_WINDOW_HOURS = 60.0
+
+    /** Even a single viewport impression hides an item for this short window. */
+    const val SEEN_GATE_SINGLE_SHOW_WINDOW_HOURS = 6.0
+    const val SEEN_GATE_MIN_POOL = 25
+    const val SEEN_GATE_MIN_RESULTS = 10
+
+    // ── Related-seed rotation ──
+    const val RELATED_SEED_COOLDOWN_HOURS = 6L
+    const val RECENT_RELATED_SEEDS_MAX = 60
+
+    // ── Stale-query memory (result novelty, not query wording) ──
+    const val STALE_QUERY_NOVELTY_THRESHOLD = 0.4
+    const val STALE_QUERY_EXPIRY_HOURS = 24L
+    const val STALE_QUERY_MAX = 40
+
+    // ── Interest-cluster rotation state cap ──
+    const val CLUSTER_ROTATION_MAX = 40
+
+    /** Clusters contributing to EVERY feed; staleness rotation gates only the tail beyond this. */
+    const val MAX_CLUSTERS_PER_REFRESH = 6
+
+    /** Top-mass clusters guaranteed a slot in every feed regardless of staleness. */
+    const val MAJOR_CLUSTER_SLOTS = 3
+
+    // ── Topic acquisition floor (strong signals plant new interests) ──
+    const val TOPIC_ACQUISITION_FLOOR = 0.05
+    const val TOPIC_ACQUISITION_TOP_K = 3
+
+    // ── Tag co-occurrence edges (from opened videos' real tags) ──
+    const val TAG_AFFINITY_TOKENS = 6
+    const val TAG_AFFINITY_INCREMENT = 0.05
+    const val TAG_AFFINITY_MAX_ENTRIES = 400
+    const val TAG_AFFINITY_KEEP_TOP = 300
 
     // ── Implicit Disinterest Constants ──
     const val IMPLICIT_DISINTEREST_WINDOW_HOURS = 48.0
@@ -301,14 +346,15 @@ internal object NeuroScoring {
             signal += (subBoost * freshnessMultiplier).coerceAtMost(SUBSCRIPTION_BOOST_MAX)
         }
 
-        // V9.3 Fix 4: Sigmoid channel boredom
+        // V9.3 Fix 4 + V11 recenter: sigmoid channel boredom, neutral at the EMA
+        // start (0.5). The old form subtracted 1.0, which handed EVERY known
+        // channel an additive penalty (-0.22 at the 0.5 starting EMA) and made
+        // familiar channels rank below never-seen ones for ~20 interactions.
         if (brain.channelScores.containsKey(video.channelId)) {
             val channelClickRate = brain.channelScores[video.channelId] ?: 0.5
-            // Sigmoid: 0.01→0.10x, 0.20→0.25x, 0.35→0.52x, 0.50→0.77x, 0.70→0.93x
             val channelQuality = 1.0 / (1.0 + exp(-8.0 * (channelClickRate - 0.35)))
             val channelMultiplier = 0.05 + 0.95 * channelQuality
-            // Encode as additive penalty/bonus relative to 1.0
-            signal += (channelMultiplier - 1.0)
+            signal += (channelMultiplier - CHANNEL_SIGNAL_NEUTRAL)
         }
 
         return signal
@@ -605,6 +651,98 @@ internal object NeuroScoring {
         return basePenalty + (1.0 - basePenalty) * (1.0 - scarcityRelaxation)
     }
 
+    // ── Precision topic blocking ──
+
+    data class BlockedMatchers(
+        val phrases: Set<String>,
+        val tokens: Set<String>,
+    ) {
+        fun isEmpty(): Boolean = phrases.isEmpty() && tokens.isEmpty()
+    }
+
+    /**
+     * A block is precise: the term and its lemma, token-matched. Expanding to a
+     * whole catalog category happens ONLY when the user blocked the category
+     * NAME itself — blocking "Fortnite" must not silently erase all of Gaming.
+     */
+    fun buildBlockedMatchers(
+        blockedTopics: Set<String>,
+        categories: List<TopicCategory>,
+        normalizeLemma: (String) -> String,
+    ): BlockedMatchers {
+        val phrases = mutableSetOf<String>()
+        val tokens = mutableSetOf<String>()
+
+        fun addTerm(term: String) {
+            val lower = term.lowercase().trim()
+            if (lower.isEmpty()) return
+            if (lower.contains(' ')) {
+                phrases += lower
+            } else {
+                tokens += lower
+                tokens += normalizeLemma(lower)
+            }
+        }
+
+        blockedTopics.forEach { blocked ->
+            val blockedLower = blocked.lowercase()
+            categories
+                .find { it.name.lowercase() == blockedLower }
+                ?.topics
+                ?.forEach(::addTerm)
+            addTerm(blockedLower)
+        }
+        return BlockedMatchers(phrases, tokens)
+    }
+
+    /** Token-boundary matching: blocking "art" hides "art", never "startup". */
+    fun isBlockedByText(
+        title: String,
+        channelName: String,
+        matchers: BlockedMatchers,
+        normalizeLemma: (String) -> String,
+    ): Boolean {
+        if (matchers.isEmpty()) return false
+        val titleLower = title.lowercase()
+        val channelLower = channelName.lowercase()
+        if (matchers.phrases.any { titleLower.contains(it) || channelLower.contains(it) }) return true
+        if (matchers.tokens.isEmpty()) return false
+        return sequenceOf(titleLower, channelLower)
+            .flatMap { it.splitToSequence(' ', '-', '_', '|', ',', '.', ':', '(', ')', '[', ']', '#') }
+            .map { it.trim { c -> !c.isLetterOrDigit() } }
+            .filter { it.length > 1 }
+            .any { token -> token in matchers.tokens || normalizeLemma(token) in matchers.tokens }
+    }
+
+    /**
+     * Hard seen-gate: industry practice (Twitter home-mixer's "previously seen
+     * removal") treats recent repeats as a FILTER, not a score penalty — a
+     * penalty lets high-scoring items punch back into the feed. Items shown
+     * [SEEN_GATE_SHOW_COUNT]+ times within [SEEN_GATE_WINDOW_HOURS] are dropped
+     * entirely, with two scarcity guards: small pools skip the gate, and if the
+     * gate would leave fewer than [SEEN_GATE_MIN_RESULTS] items it backs off.
+     */
+    fun <T> applySeenGate(
+        items: List<T>,
+        feedHistory: Map<String, FeedEntry>,
+        now: Long,
+        idOf: (T) -> String,
+    ): List<T> {
+        if (items.size < SEEN_GATE_MIN_POOL || feedHistory.isEmpty()) return items
+        val kept =
+            items.filter { item ->
+                val entry = feedHistory[idOf(item)] ?: return@filter true
+                val hoursSince = (now - entry.lastShown) / 3_600_000.0
+                // A single impression hides the item briefly (kills the classic
+                // "same video on every refresh"); repeats hide it for days.
+                if (hoursSince < SEEN_GATE_SINGLE_SHOW_WINDOW_HOURS) return@filter false
+                if (entry.showCount < SEEN_GATE_SHOW_COUNT) return@filter true
+                hoursSince >= SEEN_GATE_WINDOW_HOURS
+            }
+        if (kept.size == items.size) return items
+        return if (kept.size >= SEEN_GATE_MIN_RESULTS) kept else items
+    }
+
     /**
      * Implicit disinterest signal. Videos shown multiple times in a short
      * window but never watched are implicitly uninteresting.
@@ -642,10 +780,11 @@ internal object NeuroScoring {
     }
 
     /**
-     * Calculates adaptive jitter based on feed staleness.
-     * When most candidates were recently shown, increases randomization
-     * to break deterministic ordering. When fresh candidates arrive,
-     * drops back to minimal jitter to let quality ranking dominate.
+     * Adaptive jitter based on feed staleness, expressed as a FRACTION of the
+     * median candidate score (the caller multiplies). When most candidates were
+     * recently shown, randomization rises to break deterministic ordering; with
+     * fresh candidates it drops so quality ranking dominates. Relative scaling
+     * keeps noise proportional — it can no longer drown the signal outright.
      */
     fun calculateAdaptiveJitter(
         totalInteractions: Int,
@@ -657,11 +796,11 @@ internal object NeuroScoring {
             }
 
             feedOverlapRatio > 0.5 -> {
-                0.12
+                0.25
             }
 
             feedOverlapRatio > 0.2 -> {
-                0.06
+                0.12
             }
 
             else -> {
@@ -818,24 +957,30 @@ internal object NeuroScoring {
     }
 
     /**
-     * Greedy cluster-diversified seed pick: highest weight first, at most
-     * maxPerCluster per cluster, capped at maxSeeds — prevents seed monoculture.
+     * Cluster-diversified seed pick with PROGRESSIVE fill: pass 1 takes at most
+     * one seed per cluster (spread-first, so with community-mapped keys each
+     * major interest gets a related seed before any interest gets two); later
+     * passes relax up to maxPerCluster only when slots remain.
      */
     fun pickDiverseSeeds(
         seeds: List<SeedRank>,
         maxSeeds: Int,
         maxPerCluster: Int,
     ): List<String> {
-        val out = mutableListOf<String>()
+        val sortedSeeds = seeds.sortedByDescending { it.weight }
+        val out = LinkedHashSet<String>()
         val perCluster = HashMap<String, Int>()
-        for (s in seeds.sortedByDescending { it.weight }) {
-            if (out.size >= maxSeeds) break
-            val count = perCluster[s.clusterKey] ?: 0
-            if (count >= maxPerCluster) continue
-            out.add(s.id)
-            perCluster[s.clusterKey] = count + 1
+        for (allowed in 1..maxPerCluster.coerceAtLeast(1)) {
+            for (s in sortedSeeds) {
+                if (out.size >= maxSeeds) return out.toList()
+                if (s.id in out) continue
+                val count = perCluster[s.clusterKey] ?: 0
+                if (count >= allowed) continue
+                out.add(s.id)
+                perCluster[s.clusterKey] = count + 1
+            }
         }
-        return out
+        return out.toList()
     }
 
     // ── Topic probation (damp brand-new, unconfirmed topics on mature brains) ──

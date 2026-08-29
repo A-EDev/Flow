@@ -2,6 +2,7 @@
 
 package io.github.aedev.flow.ui.screens.search
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -9,11 +10,13 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchPagingSource
 import io.github.aedev.flow.data.paging.SearchResultItem
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
@@ -27,6 +30,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // ── UI state ─────────────────────────────────────────────────────────────────
@@ -43,10 +47,13 @@ data class SearchUiState(
 class SearchViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val repository: YouTubeRepository,
         private val shortsContentFilter: ShortsContentFilter,
         private val shortsQueueHandoff: ShortsQueueHandoff,
     ) : ViewModel() {
+        // Signal each distinct submitted query once — typing/filter churn stays silent.
+        private var lastSignaledQuery: String? = null
         private val _uiState = MutableStateFlow(SearchUiState())
         val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
@@ -104,6 +111,15 @@ class SearchViewModel
             }
             _uiState.value = SearchUiState(query = query, filters = filters)
             _searchKey.value = SearchKey(query, buildContentFilters(filters), filters)
+
+            // A typed search is the most explicit interest statement the user makes.
+            val normalized = query.trim().lowercase()
+            if (normalized != lastSignaledQuery) {
+                lastSignaledQuery = normalized
+                viewModelScope.launch {
+                    runCatching { FlowNeuroEngine.onSearchQuery(context, query) }
+                }
+            }
         }
 
         fun updateFilters(filters: SearchFilter) {

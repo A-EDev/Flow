@@ -349,6 +349,18 @@ class ShortsViewModel
                     ),
                 )
             }
+            runCatching {
+                FlowNeuroEngine.onChannelSubscriptionChanged(
+                    context,
+                    channelId,
+                    channelName,
+                    subscribed = !isSubscribed,
+                )
+            }
+            if (!isSubscribed) {
+                // Newly subscribed: learn the channel's declared keyword tags.
+                runCatching { repository.learnChannelTags(context, channelId) }
+            }
         }
 
         fun toggleSaveShort(short: ShortVideo) {
@@ -358,6 +370,12 @@ class ShortsViewModel
                     playlistRepository.removeFromSavedShorts(video.id)
                 } else {
                     playlistRepository.addToSavedShorts(video)
+                    runCatching {
+                        FlowNeuroEngine.onVideoInteraction(
+                            video.copy(isShort = true),
+                            InteractionType.SAVED,
+                        )
+                    }
                 }
             }
         }
@@ -391,6 +409,34 @@ class ShortsViewModel
                     isMusic = false,
                     isShort = true,
                 )
+            }
+        }
+
+        /**
+         * Terminal signal for a short the user swiped away from before the watch
+         * threshold fired. Early abandonment emits SKIPPED — the engine's main
+         * source of negative watch evidence on Shorts.
+         */
+        fun recordShortAbandoned(
+            short: ShortVideo,
+            positionMs: Long,
+            durationMs: Long,
+        ) {
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                val video = short.toVideo()
+                val signal = ShortWatchClassifier.classifyAbandon(positionMs, durationMs, video.duration)
+                if (signal != null) {
+                    runCatching {
+                        FlowNeuroEngine.onVideoInteraction(
+                            video.copy(isShort = true),
+                            signal.interaction,
+                            percentWatched = signal.percent,
+                        )
+                        FlowNeuroEngine.recordSeenShorts(listOf(video.id))
+                    }.onFailure { e ->
+                        Log.w(TAG, "Failed to record abandoned short in FlowNeuro", e)
+                    }
+                }
             }
         }
 

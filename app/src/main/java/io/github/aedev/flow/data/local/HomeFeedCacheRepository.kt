@@ -8,19 +8,19 @@ import org.json.JSONArray
 data class CachedHomeVideo(
     val video: Video,
     val source: String,
-    val relatedSeedId: String? = null
+    val relatedSeedId: String? = null,
 )
 
 data class HomeFeedCacheFilters(
     val watchedVideoIds: Set<String> = emptySet(),
     val suppressedVideoIds: Set<String> = emptySet(),
     val blockedChannelIds: Set<String> = emptySet(),
-    val suppressedChannelIds: Set<String> = emptySet()
+    val suppressedChannelIds: Set<String> = emptySet(),
 )
 
 internal fun filterCachedHomeVideos(
     items: List<CachedHomeVideo>,
-    filters: HomeFeedCacheFilters
+    filters: HomeFeedCacheFilters,
 ): List<CachedHomeVideo> =
     items.filter { item ->
         val video = item.video
@@ -33,25 +33,33 @@ internal fun filterCachedHomeVideos(
 internal fun selectReservePageFromCache(
     items: List<CachedHomeVideo>,
     maxRelated: Int = 4,
-    maxDiscovery: Int = 4
+    maxDiscovery: Int = 4,
 ): List<CachedHomeVideo> {
     val related = items.filter { it.source == HomeFeedCacheRepository.SOURCE_RELATED }.take(maxRelated)
     val discovery = items.filter { it.source == HomeFeedCacheRepository.SOURCE_DISCOVERY }.take(maxDiscovery)
     return related + discovery
 }
 
-class HomeFeedCacheRepository(context: Context) {
+class HomeFeedCacheRepository(
+    context: Context,
+) {
     private val dao = AppDatabase.getDatabase(context).homeFeedCacheDao()
 
-    suspend fun loadLastFeed(filters: HomeFeedCacheFilters, now: Long = System.currentTimeMillis()): List<Video> {
+    suspend fun loadLastFeed(
+        filters: HomeFeedCacheFilters,
+        now: Long = System.currentTimeMillis(),
+    ): List<Video> {
         dao.deleteExpired(now)
         return filterCachedHomeVideos(
             dao.getFreshBucket(BUCKET_LAST_FEED, now).map { it.toCachedHomeVideo() },
-            filters
+            filters,
         ).map { it.video }
     }
 
-    suspend fun saveLastFeed(videos: List<Video>, now: Long = System.currentTimeMillis()) {
+    suspend fun saveLastFeed(
+        videos: List<Video>,
+        now: Long = System.currentTimeMillis(),
+    ) {
         dao.clearBucket(BUCKET_LAST_FEED)
         dao.insertAll(
             videos.take(LAST_FEED_CAP).mapIndexed { index, video ->
@@ -61,9 +69,9 @@ class HomeFeedCacheRepository(context: Context) {
                     relatedSeedId = null,
                     orderIndex = index,
                     cachedAt = now,
-                    expiresAt = now + LAST_FEED_TTL_MS
+                    expiresAt = now + LAST_FEED_TTL_MS,
                 )
-            }
+            },
         )
     }
 
@@ -71,22 +79,28 @@ class HomeFeedCacheRepository(context: Context) {
         filters: HomeFeedCacheFilters,
         now: Long = System.currentTimeMillis(),
         maxRelated: Int = 4,
-        maxDiscovery: Int = 4
+        maxDiscovery: Int = 4,
     ): List<CachedHomeVideo> {
         dao.deleteExpired(now)
-        val freshReserve = dao.getFreshReserve(now, RESERVE_CAP)
-            .map { it.toCachedHomeVideo() }
+        val freshReserve =
+            dao
+                .getFreshReserve(now, RESERVE_CAP)
+                .map { it.toCachedHomeVideo() }
         return selectReservePageFromCache(
             filterCachedHomeVideos(freshReserve, filters),
             maxRelated = maxRelated,
-            maxDiscovery = maxDiscovery
+            maxDiscovery = maxDiscovery,
         )
     }
 
-    suspend fun saveReserve(items: List<CachedHomeVideo>, now: Long = System.currentTimeMillis()) {
+    suspend fun saveReserve(
+        items: List<CachedHomeVideo>,
+        now: Long = System.currentTimeMillis(),
+    ) {
         if (items.isEmpty()) return
         dao.insertAll(
-            items.distinctBy { it.video.id }
+            items
+                .distinctBy { it.video.id }
                 .take(RESERVE_CAP)
                 .mapIndexed { index, item ->
                     item.video.toEntity(
@@ -95,9 +109,9 @@ class HomeFeedCacheRepository(context: Context) {
                         relatedSeedId = item.relatedSeedId,
                         orderIndex = index,
                         cachedAt = now,
-                        expiresAt = now + RESERVE_TTL_MS
+                        expiresAt = now + RESERVE_TTL_MS,
                     )
-                }
+                },
         )
         dao.trimReserve(RESERVE_CAP)
     }
@@ -105,19 +119,19 @@ class HomeFeedCacheRepository(context: Context) {
     suspend fun loadRelated(
         seedId: String,
         filters: HomeFeedCacheFilters,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
     ): List<Video> {
         dao.deleteExpired(now)
         return filterCachedHomeVideos(
             dao.getFreshRelated(seedId, now).map { it.toCachedHomeVideo() },
-            filters
+            filters,
         ).map { it.video }
     }
 
     suspend fun saveRelated(
         seedId: String,
         videos: List<Video>,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
     ) {
         if (seedId.isBlank() || videos.isEmpty()) return
         dao.clearRelated(seedId)
@@ -129,9 +143,9 @@ class HomeFeedCacheRepository(context: Context) {
                     relatedSeedId = seedId,
                     orderIndex = index,
                     cachedAt = now,
-                    expiresAt = now + RELATED_TTL_MS
+                    expiresAt = now + RELATED_TTL_MS,
                 )
-            }
+            },
         )
         dao.trimRelatedSeed(seedId, RELATED_PER_SEED_CAP)
         dao.trimRelatedSeeds(RELATED_SEED_CAP)
@@ -139,6 +153,15 @@ class HomeFeedCacheRepository(context: Context) {
 
     suspend fun deleteVideo(videoId: String) {
         if (videoId.isNotBlank()) dao.deleteVideo(videoId)
+    }
+
+    /**
+     * Removes served reserve rows so a later refresh cannot re-serve them.
+     * Without this, reserve rows stayed eligible for their full 12h TTL and
+     * reappeared after every pull-to-refresh.
+     */
+    suspend fun consumeReserve(videoIds: Collection<String>) {
+        if (videoIds.isNotEmpty()) dao.deleteReserveVideos(videoIds.toList())
     }
 
     suspend fun deleteChannel(channelId: String) {
@@ -155,7 +178,7 @@ class HomeFeedCacheRepository(context: Context) {
         relatedSeedId: String?,
         orderIndex: Int,
         cachedAt: Long,
-        expiresAt: Long
+        expiresAt: Long,
     ): HomeFeedCacheEntity {
         val seedPart = relatedSeedId.orEmpty()
         return HomeFeedCacheEntity(
@@ -183,41 +206,43 @@ class HomeFeedCacheRepository(context: Context) {
             relatedSeedId = relatedSeedId,
             cachedAt = cachedAt,
             expiresAt = expiresAt,
-            orderIndex = orderIndex
+            orderIndex = orderIndex,
         )
     }
 
     private fun HomeFeedCacheEntity.toCachedHomeVideo(): CachedHomeVideo =
         CachedHomeVideo(
-            video = Video(
-                id = videoId,
-                title = title,
-                channelName = channelName,
-                channelId = channelId,
-                thumbnailUrl = thumbnailUrl,
-                duration = duration,
-                viewCount = viewCount,
-                likeCount = likeCount,
-                uploadDate = uploadDate,
-                timestamp = timestamp,
-                description = description,
-                channelThumbnailUrl = channelThumbnailUrl,
-                tags = parseTags(tagsJson),
-                isMusic = isMusic,
-                isLive = isLive,
-                isShort = isShort,
-                isUpcoming = isUpcoming,
-                commentCountText = commentCountText
-            ),
+            video =
+                Video(
+                    id = videoId,
+                    title = title,
+                    channelName = channelName,
+                    channelId = channelId,
+                    thumbnailUrl = thumbnailUrl,
+                    duration = duration,
+                    viewCount = viewCount,
+                    likeCount = likeCount,
+                    uploadDate = uploadDate,
+                    timestamp = timestamp,
+                    description = description,
+                    channelThumbnailUrl = channelThumbnailUrl,
+                    tags = parseTags(tagsJson),
+                    isMusic = isMusic,
+                    isLive = isLive,
+                    isShort = isShort,
+                    isUpcoming = isUpcoming,
+                    commentCountText = commentCountText,
+                ),
             source = source,
-            relatedSeedId = relatedSeedId
+            relatedSeedId = relatedSeedId,
         )
 
-    private fun parseTags(raw: String): List<String> = runCatching {
-        val json = JSONArray(raw)
-        List(json.length()) { index -> json.optString(index) }
-            .filter { it.isNotBlank() }
-    }.getOrElse { emptyList() }
+    private fun parseTags(raw: String): List<String> =
+        runCatching {
+            val json = JSONArray(raw)
+            List(json.length()) { index -> json.optString(index) }
+                .filter { it.isNotBlank() }
+        }.getOrElse { emptyList() }
 
     companion object {
         const val SOURCE_SUBS = "SUBS"

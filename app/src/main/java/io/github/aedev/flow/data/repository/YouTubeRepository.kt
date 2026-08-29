@@ -13,6 +13,7 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.bestImageUrl
@@ -761,6 +762,22 @@ class YouTubeRepository
                     null
                 }
             }
+
+        /**
+         * Fetches a channel's creator-declared keyword tags (+ description) and
+         * feeds them to the recommendation engine — authored channel identity,
+         * used for topic profiles and interest clustering. Best-effort.
+         */
+        suspend fun learnChannelTags(
+            context: android.content.Context,
+            channelId: String,
+        ) {
+            val info = getChannelInfo(channelId) ?: return
+            val tags = info.tags.orEmpty()
+            if (tags.isEmpty() && info.description.isNullOrBlank()) return
+            io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+                .onChannelTagsLearned(context, channelId, tags, info.description)
+        }
 
         /**
          * PERFORMANCE OPTIMIZED: Aggregate uploads from multiple channels
@@ -1529,50 +1546,12 @@ class YouTubeRepository
             textualDate: String?,
         ): Long {
             absoluteMillis?.let { if (it > 0L) return it }
-            val parsed = parseRelativeUploadDate(textualDate)
+            // Shared parser: the old private copy carried the plural-"s" bug
+            // ("3 days" matched the seconds branch), which stamped every
+            // plural-dated subs video as seconds old — stale uploads then won
+            // the recency sort and the fresh-subs slots over genuinely new ones.
+            val parsed = RelativeUploadDateParser.parse(textualDate)
             return parsed ?: System.currentTimeMillis()
-        }
-
-        private fun parseRelativeUploadDate(textualDate: String?): Long? {
-            val raw = textualDate?.trim().orEmpty()
-            if (raw.isBlank()) return null
-
-            val normalized =
-                raw
-                    .lowercase(Locale.US)
-                    .replace("streamed", "")
-                    .replace("premiered", "")
-                    .replace("ago", "")
-                    .trim()
-
-            if (normalized.contains("just now") || normalized.contains("today")) {
-                return System.currentTimeMillis()
-            }
-            if (normalized.contains("yesterday")) {
-                return System.currentTimeMillis() - 24L * 60L * 60L * 1000L
-            }
-
-            val value =
-                Regex("(\\d+)")
-                    .find(normalized)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.toLongOrNull()
-                    ?: return null
-
-            val unitMillis =
-                when {
-                    normalized.contains("second") || normalized.endsWith("s") -> 1_000L
-                    normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
-                    normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
-                    normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
-                    normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
-                    normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
-                    normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
-                    else -> return null
-                }
-
-            return System.currentTimeMillis() - (value * unitMillis)
         }
 
         private fun <T> takeRotatingWindow(
@@ -1687,6 +1666,7 @@ internal object WatchMetadataVideoMapper {
             val id = cv.videoId ?: return@mapNotNull null
             val viewText = cv.viewCountText?.text()
             val isLive = cv.isLive || viewText.isLiveViewCountText()
+            val uploadDateText = cv.publishedTimeText?.text() ?: ""
             Video(
                 id = id,
                 title = cv.title?.text() ?: "",
@@ -1697,7 +1677,11 @@ internal object WatchMetadataVideoMapper {
                         ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
                 duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
                 viewCount = parseAbbreviatedCount(viewText) ?: 0L,
-                uploadDate = cv.publishedTimeText?.text() ?: "",
+                uploadDate = uploadDateText,
+                // Video.timestamp defaults to now(), which made every related item
+                // look brand new — defeating the age filter and shorts-shelf sort.
+                // Parse the real age; 0 means unknown (callers fall back to text).
+                timestamp = RelativeUploadDateParser.parse(uploadDateText) ?: 0L,
                 isLive = isLive,
             )
         }
