@@ -40,7 +40,7 @@ class NavigationComponentsTest {
                         composeRule
                             .onNodeWithText(context.getString(stringRes))
                             .getUnclippedBoundsInRoot()
-                    (bounds.left + bounds.right) / 2f
+                    ((bounds.left + bounds.right) / 2f).value
                 }
 
         assertTrue(abs((centers[1] - centers[0]) - (centers[2] - centers[1])) < 1f)
