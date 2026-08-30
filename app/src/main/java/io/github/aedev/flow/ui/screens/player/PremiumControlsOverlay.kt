@@ -31,7 +31,9 @@ import io.github.aedev.flow.ui.screens.player.controls.PlayerSeekbarRow
 import io.github.aedev.flow.ui.screens.player.controls.PlayerTopBar
 import io.github.aedev.flow.ui.screens.player.controls.PlayerTransportControls
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import io.github.aedev.flow.ui.theme.FlowMotion
 import io.github.aedev.flow.ui.theme.PlayerScrim
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -40,12 +42,12 @@ import kotlin.math.abs
 
 private const val LIVE_SCRUB_SEEK_INTERVAL_MS = 80L
 private const val LIVE_SCRUB_IMMEDIATE_DELTA_MS = 750L
-private val OverlayActionButtonSize = 40.dp
+private val OverlayActionButtonSize = 48.dp
 private val OverlayActionIconSize = 24.dp
 private val OverlayActionSpacing = 8.dp
 private val OverlayPillHeight = 28.dp
 private val OverlayExpandIconSize = 18.dp
-private val OverlayControlRowMinHeight = 44.dp
+private val OverlayControlRowMinHeight = 48.dp
 private val OverlayActionIconInset = (OverlayActionButtonSize - OverlayActionIconSize) / 2f
 
 // How long the lock-mode unlock affordance stays on screen before it auto-hides
@@ -114,6 +116,7 @@ fun PremiumControlsOverlay(
     modifier: Modifier = Modifier,
 ) {
     val livePosition by rememberUpdatedState(currentPosition)
+    val reduceMotion = rememberFlowReduceMotion()
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val resizeModes =
@@ -353,14 +356,18 @@ fun PremiumControlsOverlay(
 
         val controlsAlpha = remember { Animatable(if (isVisible) 1f else 0f) }
         var controlsPlaced by remember { mutableStateOf(isVisible) }
-        LaunchedEffect(isVisible) {
+        LaunchedEffect(isVisible, reduceMotion) {
             if (isVisible) controlsPlaced = true
             controlsAlpha.animateTo(
                 targetValue = if (isVisible) 1f else 0f,
                 animationSpec =
                     tween(
-                        durationMillis = if (isVisible) 350 else 300,
-                        easing = FastOutSlowInEasing,
+                        durationMillis =
+                            FlowMotion.durationFor(
+                                if (isVisible) FlowMotion.ENTER_DURATION_MILLIS else FlowMotion.EXIT_DURATION_MILLIS,
+                                reduceMotion,
+                            ),
+                        easing = if (isVisible) FlowMotion.EnterEasing else FlowMotion.ExitEasing,
                     ),
             )
             if (!isVisible) controlsPlaced = false
@@ -466,8 +473,20 @@ fun PremiumControlsOverlay(
 
         AnimatedVisibility(
             visible = !isVisible && !isFullscreen && !isInitialLoading && !isTouchLocked,
-            enter = fadeIn(tween(300, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(350, easing = FastOutSlowInEasing)),
+            enter =
+                fadeIn(
+                    tween(
+                        FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
+                    ),
+                ),
+            exit =
+                fadeOut(
+                    tween(
+                        FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
+                        easing = FlowMotion.ExitEasing,
+                    ),
+                ),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
