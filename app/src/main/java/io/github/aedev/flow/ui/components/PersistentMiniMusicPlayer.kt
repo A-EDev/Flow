@@ -11,11 +11,20 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -23,14 +32,16 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,18 +49,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -72,12 +84,23 @@ fun PersistentMiniMusicPlayer(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
-    val playerState by EnhancedMusicPlayerManager.playerState.collectAsState()
+    val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
+    val playerState by EnhancedMusicPlayerManager.playerState.collectAsStateWithLifecycle()
     val reduceMotion = rememberFlowReduceMotion()
+    val density = LocalDensity.current
+    val fadeStartPx = with(density) { 80.dp.toPx() }
+    val fadeRangePx = with(density) { 200.dp.toPx() }
+    val dismissThresholdPx = with(density) { 140.dp.toPx() }
 
     var offsetX by remember { mutableFloatStateOf(0f) }
     var isDismissing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentTrack?.videoId) {
+        if (currentTrack != null) {
+            isDismissing = false
+            offsetX = 0f
+        }
+    }
 
     val animatedProgress =
         animateFloatAsState(
@@ -142,15 +165,15 @@ fun PersistentMiniMusicPlayer(
                         .graphicsLayer {
                             val dragDistance = abs(offsetX)
                             alpha =
-                                if (dragDistance > 80f) {
-                                    (1f - (dragDistance - 80f) / 200f).coerceIn(0f, 1f)
+                                if (dragDistance > fadeStartPx) {
+                                    (1f - (dragDistance - fadeStartPx) / fadeRangePx).coerceIn(0f, 1f)
                                 } else {
                                     1f
                                 }
-                        }.pointerInput(Unit) {
+                        }.pointerInput(dismissThresholdPx) {
                             detectHorizontalDragGestures(
                                 onDragEnd = {
-                                    if (abs(offsetX) > 140f) {
+                                    if (abs(offsetX) > dismissThresholdPx) {
                                         isDismissing = true
                                         onDismiss()
                                     }
@@ -169,30 +192,12 @@ fun PersistentMiniMusicPlayer(
                             .height(Dimensions.MiniPlayerHeight)
                             .clickable(onClick = onExpandClick),
                     shape = MaterialTheme.shapes.extraLarge,
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 2.dp,
-                    shadowElevation = 4.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        AsyncImage(
-                            model = track.listThumbnailUrl,
-                            contentDescription = null,
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .blur(40.dp),
-                            contentScale = ContentScale.Crop,
-                            alpha = 0.25f,
-                        )
-
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)),
-                        )
-
-                        val progressTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        val progressTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         val progressFillColor = MaterialTheme.colorScheme.primary
                         Box(
                             modifier =
@@ -233,17 +238,6 @@ fun PersistentMiniMusicPlayer(
                                         contentDescription = stringResource(R.string.album_art),
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop,
-                                    )
-
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .border(
-                                                    1.dp,
-                                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                                                    MaterialTheme.shapes.medium,
-                                                ),
                                     )
 
                                     AnimatedVisibility(
@@ -309,19 +303,18 @@ fun PersistentMiniMusicPlayer(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 val playPauseInteractionSource = remember { MutableInteractionSource() }
-                                Box(
+                                FilledIconButton(
+                                    onClick = { EnhancedMusicPlayerManager.togglePlayPause() },
                                     modifier =
                                         Modifier
                                             .size(48.dp)
-                                            .pressScale(playPauseInteractionSource)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primary)
-                                            .clickable(
-                                                interactionSource = playPauseInteractionSource,
-                                                indication = ripple(),
-                                                onClick = { EnhancedMusicPlayerManager.togglePlayPause() },
-                                            ),
-                                    contentAlignment = Alignment.Center,
+                                            .pressScale(playPauseInteractionSource),
+                                    colors =
+                                        IconButtonDefaults.filledIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                                        ),
+                                    interactionSource = playPauseInteractionSource,
                                 ) {
                                     val controlState =
                                         when {
@@ -367,7 +360,6 @@ fun PersistentMiniMusicPlayer(
                                                     imageVector = Icons.Filled.Pause,
                                                     contentDescription = stringResource(R.string.pause),
                                                     modifier = Modifier.size(24.dp),
-                                                    tint = MaterialTheme.colorScheme.onPrimary,
                                                 )
                                             }
 
@@ -376,7 +368,6 @@ fun PersistentMiniMusicPlayer(
                                                     imageVector = Icons.Filled.PlayArrow,
                                                     contentDescription = stringResource(R.string.play),
                                                     modifier = Modifier.size(24.dp),
-                                                    tint = MaterialTheme.colorScheme.onPrimary,
                                                 )
                                             }
                                         }
