@@ -2,10 +2,11 @@ package io.github.aedev.flow.ui.components
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -44,7 +44,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -54,11 +53,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -71,7 +72,10 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.SleepTimerManager
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -102,7 +106,7 @@ fun SleepTimerSheet(
             while (true) {
                 remainingMs = (triggerTimeMs - System.currentTimeMillis()).coerceAtLeast(0L)
                 if (remainingMs == 0L) break
-                delay(500L)
+                delay(1_000L)
             }
         } else {
             remainingMs = 0L
@@ -243,7 +247,9 @@ private fun FlowSleepTimerBottomSheet(
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
+    val reduceMotion = rememberFlowReduceMotion()
     val latestOnDismiss by rememberUpdatedState(onDismiss)
+    val latestOnSheetProgressChange by rememberUpdatedState(onSheetProgressChange)
     val sheetExpandedHeight = expandedHeight ?: (configuration.screenHeightDp.dp * 0.75f)
     val expandedHeightPx = with(density) { sheetExpandedHeight.toPx() }
     val collapsedHeightPx = with(density) { collapsedHeight.toPx() }.coerceIn(0f, expandedHeightPx)
@@ -251,18 +257,17 @@ private fun FlowSleepTimerBottomSheet(
     val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
-    val sheetProgress =
-        if (expandedHeightPx > 0f) {
+
+    LaunchedEffect(sheetHeightPx, collapsedHeightPx, sheetProgressRangePx) {
+        snapshotFlow {
             ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
-        } else {
-            0f
+        }.distinctUntilChanged().collect { progress ->
+            latestOnSheetProgressChange(progress)
         }
-    SideEffect {
-        onSheetProgressChange(sheetProgress)
     }
 
     fun animateToExpanded() {
-        if (!enableVerticalDismiss) {
+        if (!enableVerticalDismiss || reduceMotion) {
             coroutineScope.launch { sheetHeightPx.snapTo(expandedHeightPx) }
             return
         }
@@ -270,9 +275,9 @@ private fun FlowSleepTimerBottomSheet(
             sheetHeightPx.animateTo(
                 targetValue = expandedHeightPx,
                 animationSpec =
-                    spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessLow,
+                    tween(
+                        durationMillis = FlowMotion.CONTENT_DURATION_MILLIS,
+                        easing = FlowMotion.EnterEasing,
                     ),
             )
         }
@@ -286,22 +291,26 @@ private fun FlowSleepTimerBottomSheet(
         }
         isAnimatingOut = true
         coroutineScope.launch {
-            sheetHeightPx.animateTo(
-                targetValue = collapsedHeightPx,
-                animationSpec =
-                    spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessLow,
-                    ),
-            )
+            if (reduceMotion) {
+                sheetHeightPx.snapTo(collapsedHeightPx)
+            } else {
+                sheetHeightPx.animateTo(
+                    targetValue = collapsedHeightPx,
+                    animationSpec =
+                        tween(
+                            durationMillis = FlowMotion.EXIT_DURATION_MILLIS,
+                            easing = FlowMotion.ExitEasing,
+                        ),
+                )
+            }
             latestOnDismiss()
         }
     }
 
-    LaunchedEffect(expandedHeightPx, collapsedHeightPx) {
+    LaunchedEffect(expandedHeightPx, collapsedHeightPx, enableVerticalDismiss, reduceMotion) {
         isAnimatingOut = false
         sheetHeightPx.updateBounds(lowerBound = collapsedHeightPx, upperBound = expandedHeightPx)
-        if (!enableVerticalDismiss) {
+        if (!enableVerticalDismiss || reduceMotion) {
             sheetHeightPx.snapTo(expandedHeightPx)
             return@LaunchedEffect
         }
@@ -311,9 +320,9 @@ private fun FlowSleepTimerBottomSheet(
         sheetHeightPx.animateTo(
             targetValue = expandedHeightPx,
             animationSpec =
-                spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow,
+                tween(
+                    durationMillis = FlowMotion.ENTER_DURATION_MILLIS,
+                    easing = FlowMotion.EnterEasing,
                 ),
         )
     }
@@ -359,7 +368,22 @@ private fun FlowSleepTimerBottomSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(with(density) { sheetHeightPx.value.toDp() }),
+                    .layout { measurable, constraints ->
+                        val height =
+                            sheetHeightPx.value
+                                .roundToInt()
+                                .coerceIn(constraints.minHeight, constraints.maxHeight)
+                        val placeable =
+                            measurable.measure(
+                                constraints.copy(
+                                    minHeight = height,
+                                    maxHeight = height,
+                                ),
+                            )
+                        layout(placeable.width, height) {
+                            placeable.placeRelative(0, 0)
+                        }
+                    },
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp,
         ) {
@@ -433,7 +457,7 @@ private fun SleepTimerHeader(
                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close))
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
@@ -456,33 +480,44 @@ private fun SleepTimerSheetContent(
     onCancelTimer: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.animateContentSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        AnimatedContent(targetState = isActive, label = "sleepTimerContent") { active ->
-            if (active) {
-                ActiveTimerContent(
-                    pauseAtEndOfMedia = pauseAtEndOfMedia,
-                    remainingMs = remainingMs,
-                    closeAppOnExpiry = closeAppOnExpiry,
-                    onReset = onReset,
-                    onCancel = onCancelTimer,
+    val reduceMotion = rememberFlowReduceMotion()
+    val enterDuration = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion)
+    val exitDuration = FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion)
+
+    AnimatedContent(
+        targetState = isActive,
+        transitionSpec = {
+            fadeIn(
+                animationSpec = tween(durationMillis = enterDuration, easing = FlowMotion.EnterEasing),
+            ) togetherWith
+                fadeOut(
+                    animationSpec = tween(durationMillis = exitDuration, easing = FlowMotion.ExitEasing),
                 )
-            } else {
-                InactiveTimerContent(
-                    sliderValue = sliderValue,
-                    onSliderChange = onSliderChange,
-                    customInput = customInput,
-                    onCustomInputChange = onCustomInputChange,
-                    inputError = inputError,
-                    onEndOfMedia = onEndOfMedia,
-                    onCancel = onCancel,
-                    onStart = onStart,
-                    closeAppOnExpiry = closeAppOnExpiry,
-                    onCloseAppToggle = onCloseAppToggle,
-                )
-            }
+        },
+        modifier = modifier,
+        label = "sleepTimerContent",
+    ) { active ->
+        if (active) {
+            ActiveTimerContent(
+                pauseAtEndOfMedia = pauseAtEndOfMedia,
+                remainingMs = remainingMs,
+                closeAppOnExpiry = closeAppOnExpiry,
+                onReset = onReset,
+                onCancel = onCancelTimer,
+            )
+        } else {
+            InactiveTimerContent(
+                sliderValue = sliderValue,
+                onSliderChange = onSliderChange,
+                customInput = customInput,
+                onCustomInputChange = onCustomInputChange,
+                inputError = inputError,
+                onEndOfMedia = onEndOfMedia,
+                onCancel = onCancel,
+                onStart = onStart,
+                closeAppOnExpiry = closeAppOnExpiry,
+                onCloseAppToggle = onCloseAppToggle,
+            )
         }
     }
 }
@@ -582,7 +617,7 @@ private fun InactiveTimerContent(
         Card(
             colors =
                 CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ),
         ) {
             Column(
@@ -679,7 +714,7 @@ private fun InactiveTimerContent(
             modifier = Modifier.fillMaxWidth(),
             colors =
                 CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ),
         ) {
             Row(
@@ -710,7 +745,7 @@ private fun InactiveTimerContent(
             }
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.heightIn(min = 4.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
