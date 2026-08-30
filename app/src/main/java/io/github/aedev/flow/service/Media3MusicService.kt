@@ -81,9 +81,10 @@ class Media3MusicService : MediaLibraryService() {
 
         // Endless radio: append to the real queue when this few tracks remain,
         // this many at a time, and refill the suggestion pool below this size.
-        private const val RADIO_MIN_UPCOMING = 2
-        private const val RADIO_APPEND_BATCH = 5
-        private const val RADIO_POOL_LOW_WATER = 10
+        // LOW_WATER/BATCH mirror the desktop station (3 / 10).
+        private const val RADIO_MIN_UPCOMING = 3
+        private const val RADIO_APPEND_BATCH = 10
+        private const val RADIO_POOL_LOW_WATER = 15
         private const val LOCAL_MEDIA_PREFIX = "local_"
 
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
@@ -1117,8 +1118,10 @@ class Media3MusicService : MediaLibraryService() {
     private fun maybeExtendRadio() {
         if (!radioAutoplayEnabled) return
         if (!::player.isInitialized) return
+        // Repeat and shuffle already produce an endless queue — matching desktop.
         if (player.repeatMode != Player.REPEAT_MODE_OFF) return
         val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
+        if (manager.shuffleEnabled.value) return
         if (manager.currentTrack.value
                 ?.videoId
                 ?.startsWith(LOCAL_MEDIA_PREFIX) == true
