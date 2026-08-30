@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.Downloading
@@ -19,7 +18,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.media3.exoplayer.offline.Download
 import io.github.aedev.flow.R
 
@@ -35,14 +33,13 @@ object BadgeIcon {
                 modifier
                     .padding(end = BadgeSpacing)
                     .size(16.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {
             Text(
                 text = stringResource(R.string.explicit_badge),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                fontSize = 9.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -79,8 +76,8 @@ object BadgeIcon {
             tint = tint,
             modifier =
                 modifier
-                    .size(BadgeSize)
-                    .padding(end = BadgeSpacing),
+                    .padding(end = BadgeSpacing)
+                    .size(BadgeSize),
         )
     }
 
