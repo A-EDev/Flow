@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.HorizontalDivider
@@ -49,6 +51,7 @@ fun PlayerCommentsPanel(
             sortCommentsByFilter(comments, selectedFilter)
         }
     val listState = rememberLazyListState()
+    val filterScrollState = rememberScrollState()
     val reduceMotion = rememberFlowReduceMotion()
 
     LaunchedEffect(selectedFilter, reduceMotion) {
@@ -83,7 +86,11 @@ fun PlayerCommentsPanel(
         CommentSortFilterChips(
             selectedFilter = selectedFilter,
             onFilterChanged = onFilterChanged,
-            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(filterScrollState)
+                    .padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         FlowCommentsList(
