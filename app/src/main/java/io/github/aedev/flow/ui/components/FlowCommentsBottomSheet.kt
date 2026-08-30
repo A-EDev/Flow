@@ -3,13 +3,12 @@ package io.github.aedev.flow.ui.components
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,29 +20,25 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,25 +49,26 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
@@ -83,7 +79,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
@@ -93,10 +88,17 @@ import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatRichText
 import io.github.aedev.flow.utils.formatTimeAgo
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+private const val COMMENTS_DISMISS_FRACTION = 0.55f
+private const val COMMENTS_DISMISS_VELOCITY = 1_200f
 
 enum class CommentSortFilter {
     TOP,
@@ -135,16 +137,22 @@ fun sortCommentsByFilter(
     return pinned + sortedUnpinned
 }
 
-/** Converts a "H:MM:SS" / "MM:SS" comment timestamp into milliseconds. */
+/** Converts a valid `H:MM:SS` or `MM:SS` comment timestamp into milliseconds. */
 fun commentTimestampToMs(timestamp: String): Long {
-    val parts = timestamp.split(":").map { it.toLongOrNull() ?: 0L }
+    val rawParts = timestamp.trim().split(":")
+    if (rawParts.size !in 2..3) return 0L
+    val parts = rawParts.map { it.toLongOrNull() ?: return 0L }
+    if (parts.any { it < 0L }) return 0L
+    if (parts.size == 3 && (parts[1] >= 60L || parts[2] >= 60L)) return 0L
+    if (parts.size == 2 && parts[1] >= 60L) return 0L
+
     val seconds =
         when (parts.size) {
-            3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
-            2 -> parts[0] * 60 + parts[1]
-            else -> 0L
+            3 -> parts[0] * 3_600L + parts[1] * 60L + parts[2]
+            2 -> parts[0] * 60L + parts[1]
+            else -> return 0L
         }
-    return seconds * 1000L
+    return seconds * 1_000L
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -169,37 +177,36 @@ fun FlowCommentsBottomSheet(
     dismissOnOutsideTap: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
+    val reduceMotion = rememberFlowReduceMotion()
     val latestOnDismiss by rememberUpdatedState(onDismiss)
+    val latestOnSheetProgressChange by rememberUpdatedState(onSheetProgressChange)
     val sheetExpandedHeight = expandedHeight ?: (configuration.screenHeightDp.dp * 0.75f)
     val expandedHeightPx = with(density) { sheetExpandedHeight.toPx() }
     val collapsedHeightPx = with(density) { collapsedHeight.toPx() }.coerceIn(0f, expandedHeightPx)
     val sheetProgressRangePx = (expandedHeightPx - collapsedHeightPx).coerceAtLeast(1f)
-    val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
+    val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * COMMENTS_DISMISS_FRACTION
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
-    val sheetProgress =
-        if (expandedHeightPx > 0f) {
-            ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-    SideEffect {
-        onSheetProgressChange(sheetProgress)
-    }
-
     val commentsListState = rememberLazyListState()
+
+    LaunchedEffect(sheetHeightPx, collapsedHeightPx, sheetProgressRangePx) {
+        snapshotFlow {
+            ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+        }.distinctUntilChanged()
+            .collect { progress -> latestOnSheetProgressChange(progress) }
+    }
 
     fun animateToExpanded() {
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = expandedHeightPx,
                 animationSpec =
-                    spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessLow,
+                    tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.EMPHASIZED_DURATION_MILLIS, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
                     ),
             )
         }
@@ -212,16 +219,16 @@ fun FlowCommentsBottomSheet(
             sheetHeightPx.animateTo(
                 targetValue = collapsedHeightPx,
                 animationSpec =
-                    spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessLow,
+                    tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
+                        easing = FlowMotion.ExitEasing,
                     ),
             )
             latestOnDismiss()
         }
     }
 
-    LaunchedEffect(expandedHeightPx, collapsedHeightPx) {
+    LaunchedEffect(expandedHeightPx, collapsedHeightPx, reduceMotion) {
         isAnimatingOut = false
         sheetHeightPx.updateBounds(lowerBound = collapsedHeightPx, upperBound = expandedHeightPx)
         if (sheetHeightPx.value == 0f || sheetHeightPx.value < collapsedHeightPx) {
@@ -230,15 +237,19 @@ fun FlowCommentsBottomSheet(
         sheetHeightPx.animateTo(
             targetValue = expandedHeightPx,
             animationSpec =
-                spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow,
+                tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.EMPHASIZED_DURATION_MILLIS, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
                 ),
         )
     }
 
-    LaunchedEffect(selectedFilter) {
-        commentsListState.scrollToItem(0)
+    LaunchedEffect(selectedFilter, reduceMotion) {
+        if (reduceMotion) {
+            commentsListState.scrollToItem(0)
+        } else {
+            commentsListState.animateScrollToItem(0)
+        }
     }
 
     BackHandler(onBack = ::animateToDismiss)
@@ -251,7 +262,8 @@ fun FlowCommentsBottomSheet(
                     if (isAnimatingOut) return@detectVerticalDragGestures
                     velocityTracker.addPointerInputChange(change)
                     coroutineScope.launch {
-                        val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
+                        val nextValue =
+                            (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
                         sheetHeightPx.snapTo(nextValue)
                     }
                 },
@@ -263,7 +275,9 @@ fun FlowCommentsBottomSheet(
                     val velocityY = velocityTracker.calculateVelocity().y
                     velocityTracker.resetTracking()
                     when {
-                        velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
+                        velocityY > COMMENTS_DISMISS_VELOCITY || sheetHeightPx.value < dismissThresholdPx -> {
+                            animateToDismiss()
+                        }
                         else -> animateToExpanded()
                     }
                 },
@@ -288,8 +302,24 @@ fun FlowCommentsBottomSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(with(density) { sheetHeightPx.value.toDp() }),
-            color = MaterialTheme.colorScheme.surface,
+                    .layout { measurable, constraints ->
+                        val height =
+                            sheetHeightPx.value
+                                .roundToInt()
+                                .coerceIn(constraints.minHeight, constraints.maxHeight)
+                        val placeable =
+                            measurable.measure(
+                                constraints.copy(
+                                    minHeight = height,
+                                    maxHeight = height,
+                                ),
+                            )
+                        layout(placeable.width, height) {
+                            placeable.placeRelative(0, 0)
+                        }
+                    },
+            shape = BottomSheetDefaults.ExpandedShape,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
             tonalElevation = 0.dp,
         ) {
             Column(
@@ -323,13 +353,14 @@ fun FlowCommentsBottomSheet(
                     ) {
                         Text(
                             text = stringResource(R.string.comments),
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         IconButton(
                             onClick = ::animateToDismiss,
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(48.dp),
                         ) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                         }
@@ -340,7 +371,7 @@ fun FlowCommentsBottomSheet(
                         modifier = Modifier.padding(top = 2.dp),
                     )
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 FlowCommentsList(
                     comments = comments,
@@ -371,25 +402,29 @@ fun CommentSortFilterChips(
     onFilterChanged: (CommentSortFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scrollState = rememberScrollState()
     Row(
-        modifier = modifier,
+        modifier = modifier.horizontalScroll(scrollState),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterChip(
-            selected = selectedFilter == CommentSortFilter.TOP,
-            onClick = { onFilterChanged(CommentSortFilter.TOP) },
-            label = { Text(stringResource(R.string.filter_top)) },
-        )
-        FilterChip(
-            selected = selectedFilter == CommentSortFilter.NEWEST,
-            onClick = { onFilterChanged(CommentSortFilter.NEWEST) },
-            label = { Text(stringResource(R.string.filter_newest)) },
-        )
-        FilterChip(
-            selected = selectedFilter == CommentSortFilter.OLDEST,
-            onClick = { onFilterChanged(CommentSortFilter.OLDEST) },
-            label = { Text(stringResource(R.string.filter_oldest)) },
-        )
+        CommentSortFilter.entries.forEach { filter ->
+            FilterChip(
+                selected = selectedFilter == filter,
+                onClick = { onFilterChanged(filter) },
+                label = {
+                    Text(
+                        stringResource(
+                            when (filter) {
+                                CommentSortFilter.TOP -> R.string.filter_top
+                                CommentSortFilter.NEWEST -> R.string.filter_newest
+                                CommentSortFilter.OLDEST -> R.string.filter_oldest
+                            },
+                        ),
+                    )
+                },
+                modifier = Modifier.heightIn(min = 48.dp),
+            )
+        }
     }
 }
 
@@ -411,10 +446,7 @@ fun FlowCommentsList(
     contentPadding: PaddingValues = PaddingValues(bottom = 32.dp),
 ) {
     val latestOnLoadMore by rememberUpdatedState(onLoadMore)
-    val uniqueComments =
-        remember(comments) {
-            comments.distinctByNonBlankKey(Comment::id)
-        }
+    val uniqueComments = remember(comments) { comments.distinctByNonBlankKey(Comment::id) }
     LazyColumn(
         state = listState,
         modifier = modifier,
@@ -442,10 +474,12 @@ fun FlowCommentsList(
                 }
             }
         } else {
-            items(
+            itemsIndexed(
                 items = uniqueComments,
-                key = { comment -> "${selectedFilter.name}_${comment.id}" },
-            ) { comment ->
+                key = { index, comment ->
+                    "${selectedFilter.name}_${comment.id.ifBlank { "comment_$index" }}"
+                },
+            ) { _, comment ->
                 FlowCommentItem(
                     comment = comment,
                     onTimestampClick = onTimestampClick,
@@ -494,16 +528,16 @@ fun FlowCommentItem(
     var showFullSizeImage by remember { mutableStateOf(false) }
 
     val uriHandler = LocalUriHandler.current
+    val reduceMotion = rememberFlowReduceMotion()
 
     LaunchedEffect(comment.replies) {
         isLoadingReplies = false
     }
 
-    // Process text — cached so it isn't rebuilt on every recomposition.
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurface = MaterialTheme.colorScheme.onSurface
     val annotatedText =
-        remember(comment.text, primaryColor) {
+        remember(comment.text, primaryColor, onSurface) {
             formatRichText(
                 text = comment.text,
                 primaryColor = primaryColor,
@@ -511,7 +545,6 @@ fun FlowCommentItem(
             )
         }
 
-    // Full-size image viewer
     if (showFullSizeImage) {
         FullSizeImageDialog(
             imageUrl = toHighQualityAvatarUrl(comment.authorThumbnail),
@@ -525,24 +558,27 @@ fun FlowCommentItem(
                 .fillMaxWidth()
                 .padding(vertical = 12.dp, horizontal = 16.dp),
     ) {
-        ChannelAvatarImage(
-            url = comment.authorThumbnail,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable {
-                        onAvatarClick(comment.authorThumbnail)
-                        showFullSizeImage = true
-                    },
-        )
+        Surface(
+            onClick = {
+                onAvatarClick(comment.authorThumbnail)
+                showFullSizeImage = true
+            },
+            modifier = Modifier.size(48.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                ChannelAvatarImage(
+                    url = comment.authorThumbnail,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            // Pinned indicator
             if (comment.isPinned) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -564,11 +600,10 @@ fun FlowCommentItem(
                 }
             }
 
-            // Header: Author + Time
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = formatAuthorName(comment.author),
-                    style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -592,16 +627,20 @@ fun FlowCommentItem(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Comment Body with "Read More" logic
-            Box(modifier = Modifier.animateContentSize()) {
+            Box(
+                modifier =
+                    Modifier.animateContentSize(
+                        animationSpec =
+                            tween(
+                                durationMillis = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
+                                easing = FlowMotion.EnterEasing,
+                            ),
+                    ),
+            ) {
                 SelectionContainer {
                     BasicText(
                         text = annotatedText,
-                        style =
-                            MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                lineHeight = 20.sp,
-                            ),
+                        style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                         maxLines = if (isExpanded) Int.MAX_VALUE else 4,
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = { result ->
@@ -614,7 +653,7 @@ fun FlowCommentItem(
                                     onTap = { tapOffset ->
                                         commentTextLayoutResult?.let { result ->
                                             val offset = result.getOffsetForPosition(tapOffset)
-                                            val ts =
+                                            val timestamp =
                                                 annotatedText
                                                     .getStringAnnotations("TIMESTAMP", offset, offset)
                                                     .firstOrNull()
@@ -622,16 +661,12 @@ fun FlowCommentItem(
                                                 annotatedText
                                                     .getStringAnnotations("URL", offset, offset)
                                                     .firstOrNull()
-                                            if (ts != null) {
-                                                onTimestampClick(ts.item)
+                                            if (timestamp != null) {
+                                                onTimestampClick(timestamp.item)
                                             } else if (url != null) {
-                                                try {
-                                                    uriHandler.openUri(url.item)
-                                                } catch (e: Exception) {
-                                                    e.printStackTrace()
-                                                }
-                                            } else {
-                                                if (!isExpanded && isOverflowing) isExpanded = true
+                                                runCatching { uriHandler.openUri(url.item) }
+                                            } else if (!isExpanded && isOverflowing) {
+                                                isExpanded = true
                                             }
                                         }
                                     },
@@ -642,88 +677,61 @@ fun FlowCommentItem(
             }
 
             if (isOverflowing && !isExpanded) {
-                Text(
-                    text = stringResource(R.string.read_more),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier =
-                        Modifier
-                            .padding(top = 4.dp)
-                            .clickable { isExpanded = true },
-                )
+                TextButton(onClick = { isExpanded = true }) {
+                    Text(
+                        text = stringResource(R.string.read_more),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Action Bar (Like, Dislike, Reply)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Like
                 Icon(
                     imageVector = Icons.Outlined.ThumbUp,
-                    contentDescription = stringResource(R.string.like),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
                 )
-                Spacer(modifier = Modifier.width(6.dp))
                 if (comment.likeCount > 0) {
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = formatLikeCount(comment.likeCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-
                 Spacer(modifier = Modifier.width(24.dp))
-
-                // Dislike (Visual only usually)
                 Icon(
                     imageVector = Icons.Outlined.ThumbDown,
-                    contentDescription = stringResource(R.string.dislikes),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
                 )
-
                 Spacer(modifier = Modifier.width(24.dp))
-
-                // Replies
                 Icon(
                     imageVector = Icons.Outlined.ChatBubbleOutline,
-                    contentDescription = stringResource(R.string.reply),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
                 )
             }
 
-            // View Replies Button
             if (comment.replyCount > 0) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable {
-                                if (!isRepliesVisible && comment.replies.isEmpty()) {
-                                    isLoadingReplies = true
-                                    onLoadReplies(comment)
-                                }
-                                isRepliesVisible = !isRepliesVisible
-                            }.padding(vertical = 4.dp),
+                Spacer(modifier = Modifier.height(4.dp))
+                TextButton(
+                    onClick = {
+                        if (!isRepliesVisible && comment.replies.isEmpty()) {
+                            isLoadingReplies = true
+                            onLoadReplies(comment)
+                        }
+                        isRepliesVisible = !isRepliesVisible
+                    },
                 ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(24.dp, 1.dp)
-                                .background(MaterialTheme.colorScheme.primary),
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text =
                             if (isRepliesVisible) {
-                                stringResource(
-                                    R.string.hide_replies,
-                                )
+                                stringResource(R.string.hide_replies)
                             } else {
                                 pluralStringResource(
                                     R.plurals.view_replies_template,
@@ -731,7 +739,6 @@ fun FlowCommentItem(
                                     comment.replyCount,
                                 )
                             },
-                        color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                     )
@@ -740,13 +747,11 @@ fun FlowCommentItem(
                         CircularProgressIndicator(
                             modifier = Modifier.size(12.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
             }
 
-            // Display Replies
             if (isRepliesVisible && comment.replies.isNotEmpty()) {
                 Column(
                     modifier =
@@ -764,19 +769,18 @@ fun FlowCommentItem(
                     }
 
                     if (comment.repliesPage != null || comment.continuationToken != null) {
-                        Text(
-                            text = stringResource(R.string.load_more_replies),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier =
-                                Modifier
-                                    .padding(top = 8.dp)
-                                    .clickable {
-                                        isLoadingReplies = true
-                                        onLoadMoreReplies(comment)
-                                    },
-                        )
+                        TextButton(
+                            onClick = {
+                                isLoadingReplies = true
+                                onLoadMoreReplies(comment)
+                            },
+                        ) {
+                            Text(
+                                text = stringResource(R.string.load_more_replies),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -795,7 +799,7 @@ fun FlowReplyItem(
     val onSurface = MaterialTheme.colorScheme.onSurface
     val uriHandler = LocalUriHandler.current
     val annotatedText =
-        remember(reply.text, primaryColor) {
+        remember(reply.text, primaryColor, onSurface) {
             formatRichText(
                 text = reply.text,
                 primaryColor = primaryColor,
@@ -818,28 +822,31 @@ fun FlowReplyItem(
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
     ) {
-        ChannelAvatarImage(
-            url = reply.authorThumbnail,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable {
-                        onAvatarClick(reply.authorThumbnail)
-                        showFullSizeImage = true
-                    },
-        )
+        Surface(
+            onClick = {
+                onAvatarClick(reply.authorThumbnail)
+                showFullSizeImage = true
+            },
+            modifier = Modifier.size(48.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                ChannelAvatarImage(
+                    url = reply.authorThumbnail,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(8.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            // Header: Author + Time
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = formatAuthorName(reply.author),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -856,22 +863,17 @@ fun FlowReplyItem(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = localizedCommentPublishedTime(reply.publishedTime),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // Reply Body
             SelectionContainer {
                 BasicText(
                     text = annotatedText,
-                    style =
-                        MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 16.sp,
-                        ),
+                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
                     onTextLayout = { replyTextLayoutResult = it },
                     modifier =
                         Modifier.pointerInput(annotatedText) {
@@ -879,21 +881,18 @@ fun FlowReplyItem(
                                 onTap = { tapOffset ->
                                     replyTextLayoutResult?.let { result ->
                                         val offset = result.getOffsetForPosition(tapOffset)
-                                        val ts =
+                                        val timestamp =
                                             annotatedText
                                                 .getStringAnnotations("TIMESTAMP", offset, offset)
                                                 .firstOrNull()
-                                        if (ts != null) {
-                                            onTimestampClick(ts.item)
+                                        if (timestamp != null) {
+                                            onTimestampClick(timestamp.item)
                                         } else {
                                             annotatedText
                                                 .getStringAnnotations("URL", offset, offset)
                                                 .firstOrNull()
-                                                ?.let {
-                                                    try {
-                                                        uriHandler.openUri(it.item)
-                                                    } catch (_: Exception) {
-                                                    }
+                                                ?.let { annotation ->
+                                                    runCatching { uriHandler.openUri(annotation.item) }
                                                 }
                                         }
                                     }
@@ -905,19 +904,18 @@ fun FlowReplyItem(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Action Bar (Minimal for replies)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Outlined.ThumbUp,
-                    contentDescription = stringResource(R.string.like),
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(12.dp),
+                    modifier = Modifier.size(14.dp),
                 )
                 if (reply.likeCount > 0) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = formatLikeCount(reply.likeCount),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -938,44 +936,57 @@ private fun localizedCommentPublishedTime(publishedTime: String): String {
     }
 }
 
-// ==========================================
-// SKELETONS
-// ==========================================
-
 @Composable
 fun CommentSkeleton() {
+    val placeholderColor = MaterialTheme.colorScheme.surfaceContainerHighest
     Row(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
-        Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.Gray.copy(0.2f)))
+        Box(modifier = Modifier.size(40.dp).background(placeholderColor, CircleShape))
         Spacer(modifier = Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Box(modifier = Modifier.width(100.dp).height(12.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(4.dp)))
+            Box(
+                modifier =
+                    Modifier
+                        .width(100.dp)
+                        .height(12.dp)
+                        .background(placeholderColor, MaterialTheme.shapes.extraSmall),
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            Box(modifier = Modifier.fillMaxWidth().height(12.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(4.dp)))
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .background(placeholderColor, MaterialTheme.shapes.extraSmall),
+            )
             Spacer(modifier = Modifier.height(4.dp))
-            Box(modifier = Modifier.width(200.dp).height(12.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(4.dp)))
+            Box(
+                modifier =
+                    Modifier
+                        .width(200.dp)
+                        .height(12.dp)
+                        .background(placeholderColor, MaterialTheme.shapes.extraSmall),
+            )
         }
     }
 }
 
-// HELPER COMPOSABLES & UTILITIES
 @Composable
 fun FullSizeImageDialog(
     imageUrl: String,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val reduceMotion = rememberFlowReduceMotion()
 
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.95f))
-                    .clickable { onDismiss() },
-            contentAlignment = Alignment.Center,
+        Surface(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.inverseSurface,
+            contentColor = MaterialTheme.colorScheme.inverseOnSurface,
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -990,7 +1001,7 @@ fun FullSizeImageDialog(
                         ImageRequest
                             .Builder(context)
                             .data(toHighQualityAvatarUrl(imageUrl))
-                            .crossfade(true)
+                            .crossfade(!reduceMotion)
                             .size(1600, 1600)
                             .scale(coil3.size.Scale.FIT)
                             .allowHardware(false)
@@ -1000,14 +1011,14 @@ fun FullSizeImageDialog(
                         Modifier
                             .fillMaxWidth(0.9f)
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .clip(MaterialTheme.shapes.extraLarge),
                     contentScale = ContentScale.Fit,
                     filterQuality = FilterQuality.High,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = stringResource(R.string.tap_to_close),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.inverseOnSurface,
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
@@ -1017,21 +1028,15 @@ fun FullSizeImageDialog(
 
 fun formatAuthorName(author: String): String {
     val trimmed = author.trim()
-    return if (trimmed.startsWith("@")) {
-        trimmed
-    } else {
-        "@$trimmed"
-    }
+    return if (trimmed.startsWith("@")) trimmed else "@$trimmed"
 }
 
 /**
- * Channel reference for a comment author, in one of the forms `youtubeChannelUrl` accepts:
- * a `UC…` channel id, an `@handle`, or a bare handle.
- *
- * Callers must forward the value unchanged — re-prefixing it with `@` turns a channel id into a
- * handle that does not exist, which is why comment authors used to open a 404 page.
+ * Returns the channel reference in the form accepted by the channel navigator.
+ * Keeping a real `UC…` id intact avoids turning it into an invalid handle.
  */
-fun commentAuthorChannelRef(comment: Comment): String = comment.authorChannelId.trim().ifBlank { comment.author.trim().removePrefix("@") }
+fun commentAuthorChannelRef(comment: Comment): String =
+    comment.authorChannelId.trim().ifBlank { comment.author.trim().removePrefix("@") }
 
 private fun toHighQualityAvatarUrl(url: String): String {
     if (url.isBlank()) return url
