@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,8 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,9 +33,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 @Composable
 fun PlayerTimePill(
@@ -48,6 +53,20 @@ fun PlayerTimePill(
     modifier: Modifier = Modifier,
 ) {
     val currentPosition = positionProvider()
+    val reduceMotion = rememberFlowReduceMotion()
+    val interactionSource = remember { MutableInteractionSource() }
+    val interactionModifier =
+        if (onClick != null) {
+            Modifier
+                .pressScale(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(),
+                    onClick = onClick,
+                )
+        } else {
+            Modifier
+        }
 
     Surface(
         color = PlayerScrimAffordance,
@@ -55,7 +74,7 @@ fun PlayerTimePill(
         modifier =
             modifier
                 .clip(CircleShape)
-                .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier),
+                .then(interactionModifier),
     ) {
         Row(
             modifier =
@@ -72,16 +91,22 @@ fun PlayerTimePill(
                     fontWeight = FontWeight.Bold,
                 )
                 TimeSeparator()
-                val dotAlpha by rememberInfiniteTransition(label = "liveDot").animateFloat(
-                    initialValue = 1f,
-                    targetValue = 0.2f,
-                    animationSpec =
-                        infiniteRepeatable(
-                            animation = tween(800, easing = LinearEasing),
-                            repeatMode = RepeatMode.Reverse,
-                        ),
-                    label = "dotAlpha",
-                )
+                val dotAlpha =
+                    if (reduceMotion) {
+                        1f
+                    } else {
+                        val animatedDotAlpha by rememberInfiniteTransition(label = "liveDot").animateFloat(
+                            initialValue = 1f,
+                            targetValue = 0.2f,
+                            animationSpec =
+                                infiniteRepeatable(
+                                    animation = tween(800, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Reverse,
+                                ),
+                            label = "dotAlpha",
+                        )
+                        animatedDotAlpha
+                    }
                 Box(
                     modifier =
                         Modifier
