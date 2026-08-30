@@ -7,11 +7,14 @@ import android.text.Html
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
@@ -48,7 +51,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.ui.theme.FlowMotion
 import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.formatRichText
@@ -290,8 +295,8 @@ fun CommentsPreview(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -317,7 +322,7 @@ fun CommentsPreview(
                             Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .background(Color.Gray),
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                         contentScale = ContentScale.Crop,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -363,34 +368,54 @@ fun SubscribeButton(
     onNotificationChange: (Boolean) -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
-
-    val backgroundColor =
-        if (isSubscribed) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-        } else {
-            MaterialTheme.colorScheme.onBackground
-        }
-
-    val contentColor =
-        if (isSubscribed) {
-            MaterialTheme.colorScheme.onSurface
-        } else {
-            MaterialTheme.colorScheme.surface
-        }
+    val reduceMotion = rememberFlowReduceMotion()
+    val interactionSource = remember { MutableInteractionSource() }
+    val feedbackDuration = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion)
+    val backgroundColor by
+        animateColorAsState(
+            targetValue =
+                if (isSubscribed) {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+            animationSpec = tween(durationMillis = feedbackDuration, easing = FlowMotion.EnterEasing),
+            label = "subscribeContainerColor",
+        )
+    val contentColor by
+        animateColorAsState(
+            targetValue =
+                if (isSubscribed) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onPrimary
+                },
+            animationSpec = tween(durationMillis = feedbackDuration, easing = FlowMotion.EnterEasing),
+            label = "subscribeContentColor",
+        )
 
     Box {
         Surface(
-            onClick = {
-                if (isSubscribed) expanded = true else onSubscribeClick()
-            },
-            shape = RoundedCornerShape(18.dp),
+            shape = CircleShape,
             color = backgroundColor,
-            modifier = Modifier.height(36.dp),
+            contentColor = contentColor,
+            modifier =
+                Modifier
+                    .height(48.dp)
+                    .pressScale(interactionSource)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = ripple(),
+                        onClick = {
+                            if (isSubscribed) expanded = true else onSubscribeClick()
+                        },
+                    ),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = 14.dp),
+                modifier = Modifier.padding(horizontal = 16.dp),
             ) {
                 if (isSubscribed) {
                     Icon(
@@ -433,7 +458,7 @@ fun SubscribeButton(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.on)) },
                 leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
@@ -450,7 +475,7 @@ fun SubscribeButton(
                     expanded = false
                 },
             )
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.unsubscribe)) },
                 leadingIcon = { Icon(Icons.Rounded.PersonRemove, null) },
@@ -553,25 +578,46 @@ fun SegmentedLikeDislikeButton(
     onLikeClick: () -> Unit,
     onDislikeClick: () -> Unit,
 ) {
+    val reduceMotion = rememberFlowReduceMotion()
+    val feedbackDuration = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion)
+    val likeInteractionSource = remember { MutableInteractionSource() }
+    val dislikeInteractionSource = remember { MutableInteractionSource() }
+    val likeColor by
+        animateColorAsState(
+            targetValue = if (likeState == "LIKED") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            animationSpec = tween(durationMillis = feedbackDuration, easing = FlowMotion.EnterEasing),
+            label = "videoLikeColor",
+        )
+    val dislikeColor by
+        animateColorAsState(
+            targetValue = if (likeState == "DISLIKED") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            animationSpec = tween(durationMillis = feedbackDuration, easing = FlowMotion.EnterEasing),
+            label = "videoDislikeColor",
+        )
+
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        modifier = Modifier.height(36.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.height(48.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Like Button
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .clickable(onClick = onLikeClick)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .fillMaxHeight()
+                        .pressScale(likeInteractionSource)
+                        .clickable(
+                            interactionSource = likeInteractionSource,
+                            indication = ripple(),
+                            onClick = onLikeClick,
+                        ).padding(horizontal = 12.dp),
             ) {
                 Icon(
                     imageVector = if (likeState == "LIKED") Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                     contentDescription = stringResource(R.string.like),
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurface,
+                    tint = likeColor,
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 val likeText =
@@ -586,32 +632,35 @@ fun SegmentedLikeDislikeButton(
                 Text(
                     text = likeText,
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = likeColor,
                 )
             }
 
-            // Divider
             Box(
                 modifier =
                     Modifier
                         .width(1.dp)
                         .height(24.dp)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)),
+                        .background(MaterialTheme.colorScheme.outlineVariant),
             )
 
-            // Dislike Button
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .clickable(onClick = onDislikeClick)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .fillMaxHeight()
+                        .pressScale(dislikeInteractionSource)
+                        .clickable(
+                            interactionSource = dislikeInteractionSource,
+                            indication = ripple(),
+                            onClick = onDislikeClick,
+                        ).padding(horizontal = 12.dp),
             ) {
                 Icon(
                     imageVector = if (likeState == "DISLIKED") Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
                     contentDescription = stringResource(R.string.player_action_dislike),
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurface,
+                    tint = dislikeColor,
                 )
 
                 if (dislikeCount != null && dislikeCount > 0) {
@@ -619,7 +668,7 @@ fun SegmentedLikeDislikeButton(
                     Text(
                         text = formatViewCount(dislikeCount),
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = dislikeColor,
                     )
                 }
             }
@@ -634,27 +683,46 @@ fun ActionChip(
     onClick: () -> Unit,
     tint: Color? = null,
 ) {
+    val reduceMotion = rememberFlowReduceMotion()
+    val interactionSource = remember { MutableInteractionSource() }
+    val feedbackDuration = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion)
+    val contentColor by
+        animateColorAsState(
+            targetValue = tint ?: MaterialTheme.colorScheme.onSurface,
+            animationSpec = tween(durationMillis = feedbackDuration, easing = FlowMotion.EnterEasing),
+            label = "videoActionChipColor",
+        )
+
     Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        modifier = Modifier.height(36.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = contentColor,
+        modifier =
+            Modifier
+                .height(48.dp)
+                .pressScale(interactionSource)
+                .clip(CircleShape)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(),
+                    onClick = onClick,
+                ),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp),
+            modifier = Modifier.padding(horizontal = 14.dp),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 modifier = Modifier.size(18.dp),
-                tint = tint ?: MaterialTheme.colorScheme.onSurface,
+                tint = contentColor,
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                color = tint ?: MaterialTheme.colorScheme.onSurface,
+                color = contentColor,
             )
         }
     }
