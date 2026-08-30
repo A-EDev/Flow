@@ -25,6 +25,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -69,7 +70,7 @@ fun ThumbnailWatchProgress(
             progress = { progress },
             modifier = modifier,
             color = MaterialTheme.colorScheme.primary,
-            trackColor = Color.Black.copy(alpha = 0.4f),
+            trackColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f),
         )
     }
 }
@@ -77,28 +78,22 @@ fun ThumbnailWatchProgress(
 @Composable
 fun ReorderHandle(
     modifier: Modifier = Modifier,
-    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     Column(
         modifier = modifier.size(width = 20.dp, height = 28.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(MaterialTheme.shapes.extraSmall)
-                    .background(tint),
-        )
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(MaterialTheme.shapes.extraSmall)
-                    .background(tint),
-        )
+        repeat(2) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(MaterialTheme.shapes.extraSmall)
+                        .background(tint),
+            )
+        }
     }
 }
 
@@ -114,13 +109,10 @@ class ReorderableLazyListState internal constructor(
         private set
 
     private var rawDragOffset by mutableFloatStateOf(0f)
-
     private var layoutShiftOffset by mutableFloatStateOf(0f)
-
     private var scrollOffset by mutableFloatStateOf(0f)
 
     val visualTranslation: Float get() = rawDragOffset - layoutShiftOffset + scrollOffset
-
     val isDragging: Boolean get() = draggingIndex != -1
 
     fun startDrag(index: Int) {
@@ -168,7 +160,6 @@ class ReorderableLazyListState internal constructor(
         if (!shouldSwap) return
 
         layoutShiftOffset += neighborItem.offset - currentItem.offset
-
         onMove(draggingIndex, neighborLocalIndex)
         draggingIndex = neighborLocalIndex
         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -195,9 +186,7 @@ class ReorderableLazyListState internal constructor(
                 (ratio * MAX_SCROLL_PX_PER_FRAME).coerceAtLeast(MIN_SCROLL_PX)
             }
 
-            else -> {
-                0f
-            }
+            else -> 0f
         }
     }
 
@@ -214,9 +203,8 @@ class ReorderableLazyListState internal constructor(
         return Modifier
             .graphicsLayer {
                 translationY = if (isDragging) visualTranslation else 0f
-                scaleX = if (isDragging) 1.03f else 1f
-                scaleY = if (isDragging) 1.03f else 1f
-                shadowElevation = if (isDragging) 12f else 0f
+                scaleX = if (isDragging) 1.02f else 1f
+                scaleY = if (isDragging) 1.02f else 1f
             }.zIndex(if (isDragging) 1f else 0f)
     }
 
@@ -225,11 +213,6 @@ class ReorderableLazyListState internal constructor(
         val latestIndex by rememberUpdatedState(index)
         return Modifier.pointerInput(this@ReorderableLazyListState) {
             awaitEachGesture {
-                // A gesture that begins on the drag handle belongs exclusively to reordering.
-                // Consuming the initial down claims the pointer, so the parent row's
-                // combinedClickable never starts its own click / long-press (quick-actions)
-                // detection here. Long-press on the rest of the row is therefore free to open
-                // quick actions without racing the drag.
                 val down = awaitFirstDown(requireUnconsumed = false)
                 down.consume()
                 val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
@@ -272,18 +255,20 @@ fun rememberReorderableLazyListState(
             )
         }
 
-    LaunchedEffect(state) {
-        while (isActive) {
-            if (state.isDragging) {
-                val delta = state.computeEdgeScrollDelta(edgeThresholdPx)
-                if (delta != 0f) {
-                    val scrolled = listState.scrollBy(delta)
-                    state.onScrolled(scrolled)
-                    state.performSwapIfNeeded()
+    LaunchedEffect(state, edgeThresholdPx) {
+        snapshotFlow { state.draggingIndex }
+            .collectLatest { draggingIndex ->
+                if (draggingIndex == -1) return@collectLatest
+                while (isActive && state.isDragging) {
+                    val delta = state.computeEdgeScrollDelta(edgeThresholdPx)
+                    if (delta != 0f) {
+                        val scrolled = listState.scrollBy(delta)
+                        state.onScrolled(scrolled)
+                        state.performSwapIfNeeded()
+                    }
+                    delay(16L)
                 }
             }
-            delay(16L)
-        }
     }
 
     return state
