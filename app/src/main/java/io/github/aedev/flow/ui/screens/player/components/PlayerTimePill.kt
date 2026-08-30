@@ -27,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import io.github.aedev.flow.ui.theme.PlayerLiveIndicator
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
@@ -112,13 +112,13 @@ fun PlayerTimePill(
                         Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(Color.Red.copy(alpha = dotAlpha)),
+                            .background(PlayerLiveIndicator.copy(alpha = dotAlpha)),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = stringResource(R.string.player_live_label),
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.Red,
+                    color = PlayerLiveIndicator,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.sp,
                 )
