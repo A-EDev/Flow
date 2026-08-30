@@ -1,5 +1,10 @@
 package io.github.aedev.flow.ui.screens.player.controls
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,9 +33,11 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.player.SleekLoadingAnimation
+import io.github.aedev.flow.ui.theme.FlowMotion
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimContentDisabled
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 /**
  * Previous / play-pause / next.
@@ -49,6 +56,8 @@ internal fun PlayerTransportControls(
     actions: PlayerControlActions,
     modifier: Modifier = Modifier,
 ) {
+    val reduceMotion = rememberFlowReduceMotion()
+
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center,
@@ -72,7 +81,7 @@ internal fun PlayerTransportControls(
                 modifier =
                     Modifier
                         .size(62.dp)
-                        .pressScale(playPauseInteractionSource, pressedScale = 0.88f)
+                        .pressScale(playPauseInteractionSource, pressedScale = 0.94f)
                         .clip(CircleShape)
                         .background(PlayerScrimAffordance)
                         .clickable(
@@ -83,22 +92,55 @@ internal fun PlayerTransportControls(
                 if (showBufferingSpinner) {
                     SleekLoadingAnimation(modifier = Modifier.size(48.dp))
                 } else {
-                    Icon(
-                        imageVector =
-                            when {
-                                hasEnded -> Icons.Rounded.Replay
-                                isPlaying -> Icons.Rounded.Pause
-                                else -> Icons.Rounded.PlayArrow
-                            },
-                        contentDescription =
-                            when {
-                                hasEnded -> stringResource(R.string.player_replay)
-                                isPlaying -> stringResource(R.string.pause)
-                                else -> stringResource(R.string.play)
-                            },
-                        tint = PlayerScrimContent,
-                        modifier = Modifier.size(54.dp),
-                    )
+                    val iconState =
+                        when {
+                            hasEnded -> TransportIconState.Replay
+                            isPlaying -> TransportIconState.Pause
+                            else -> TransportIconState.Play
+                        }
+                    val transitionDuration =
+                        FlowMotion.durationFor(
+                            FlowMotion.FEEDBACK_DURATION_MILLIS,
+                            reduceMotion,
+                        )
+
+                    AnimatedContent(
+                        targetState = iconState,
+                        transitionSpec = {
+                            fadeIn(
+                                animationSpec =
+                                    tween(
+                                        durationMillis = transitionDuration,
+                                        easing = FlowMotion.EnterEasing,
+                                    ),
+                            ) togetherWith
+                                fadeOut(
+                                    animationSpec =
+                                        tween(
+                                            durationMillis = transitionDuration,
+                                            easing = FlowMotion.ExitEasing,
+                                        ),
+                                )
+                        },
+                        label = "playerTransportIcon",
+                    ) { state ->
+                        Icon(
+                            imageVector =
+                                when (state) {
+                                    TransportIconState.Replay -> Icons.Rounded.Replay
+                                    TransportIconState.Pause -> Icons.Rounded.Pause
+                                    TransportIconState.Play -> Icons.Rounded.PlayArrow
+                                },
+                            contentDescription =
+                                when (state) {
+                                    TransportIconState.Replay -> stringResource(R.string.player_replay)
+                                    TransportIconState.Pause -> stringResource(R.string.pause)
+                                    TransportIconState.Play -> stringResource(R.string.play)
+                                },
+                            tint = PlayerScrimContent,
+                            modifier = Modifier.size(54.dp),
+                        )
+                    }
                 }
             }
 
@@ -128,7 +170,7 @@ private fun SkipButton(
         modifier =
             Modifier
                 .size(48.dp)
-                .pressScale(interactionSource, pressedScale = 0.82f),
+                .pressScale(interactionSource, pressedScale = 0.96f),
         interactionSource = interactionSource,
     ) {
         Icon(
@@ -138,4 +180,10 @@ private fun SkipButton(
             modifier = Modifier.size(36.dp),
         )
     }
+}
+
+private enum class TransportIconState {
+    Replay,
+    Pause,
+    Play,
 }
