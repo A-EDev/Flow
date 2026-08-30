@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.recognition
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
+import io.github.aedev.flow.ui.components.pressScale
 
 @Composable
 fun RecognitionHistoryScreen(
@@ -60,10 +62,14 @@ fun RecognitionHistoryScreen(
             title = { Text(stringResource(R.string.recognition_clear_history)) },
             text = { Text(stringResource(R.string.recognition_clear_history_body)) },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.clearHistory()
-                    showClearDialog = false
-                }) { Text(stringResource(R.string.clear_all)) }
+                TextButton(
+                    onClick = {
+                        viewModel.clearHistory()
+                        showClearDialog = false
+                    },
+                ) {
+                    Text(stringResource(R.string.clear_all))
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
@@ -85,7 +91,10 @@ fun RecognitionHistoryScreen(
         ) {
             if (history.isNotEmpty()) {
                 IconButton(onClick = { showClearDialog = true }) {
-                    Icon(Icons.Filled.DeleteSweep, stringResource(R.string.clear_all))
+                    Icon(
+                        Icons.Filled.DeleteSweep,
+                        contentDescription = stringResource(R.string.clear_all),
+                    )
                 }
             }
         }
@@ -99,6 +108,7 @@ fun RecognitionHistoryScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             singleLine = true,
             placeholder = { Text(stringResource(R.string.recognition_search_history)) },
+            shape = MaterialTheme.shapes.extraLarge,
         )
 
         if (history.isEmpty()) {
@@ -122,7 +132,10 @@ fun RecognitionHistoryScreen(
                         .fillMaxWidth()
                         .weight(1f),
             ) {
-                items(history, key = { it.id }) { item ->
+                items(
+                    items = history,
+                    key = { it.id },
+                ) { item ->
                     HistoryRow(
                         item = item,
                         onClick = { onItemClick(item) },
@@ -140,12 +153,18 @@ private fun HistoryRow(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .pressScale(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(),
+                    onClick = onClick,
+                ).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -153,7 +172,8 @@ private fun HistoryRow(
             modifier =
                 Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
             contentAlignment = Alignment.Center,
         ) {
             if (!item.coverArtUrl.isNullOrBlank() || !item.coverArtHqUrl.isNullOrBlank()) {
@@ -164,7 +184,11 @@ private fun HistoryRow(
                     contentScale = ContentScale.Crop,
                 )
             } else {
-                Icon(Icons.Filled.MusicNote, contentDescription = null)
+                Icon(
+                    Icons.Filled.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
@@ -186,12 +210,15 @@ private fun HistoryRow(
             Text(
                 text = DateUtils.getRelativeTimeSpanString(item.recognizedAt).toString(),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
         IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, stringResource(R.string.delete))
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.delete),
+            )
         }
     }
 }
