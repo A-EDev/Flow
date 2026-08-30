@@ -1,5 +1,9 @@
 package io.github.aedev.flow.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,22 +20,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 /**
- * "You already watched this reel" marker for a Shorts thumbnail.
+ * Shows watch progress on a Shorts thumbnail and marks reels that already crossed the watched threshold.
  *
- * Reels carry no duration badge and, until now, no progress line either, so a reel you had already
- * swiped through looked exactly like an untouched one. This draws the same progress line long-form
- * cards use, plus an eye badge once the reel counts as watched.
- *
- * Add it as the last child of the thumbnail `Box` so it sits above the image.
- *
- * Progress comes from the shared [LocalVideoWatchProgress] store, so a whole grid of reels still
- * costs a single history observer and only the reel whose entry changed recomposes.
+ * Progress comes from the shared watch-progress store, so a grid keeps one history observer while
+ * only thumbnails whose entries change need to redraw.
  */
 @Composable
 fun ShortWatchedIndicator(
@@ -39,20 +38,39 @@ fun ShortWatchedIndicator(
     modifier: Modifier = Modifier,
 ) {
     val progress = rememberWatchProgress(videoId) ?: return
+    val reduceMotion = rememberFlowReduceMotion()
+
     Box(modifier = modifier.fillMaxSize()) {
-        if (progress >= WATCHED_PROGRESS_THRESHOLD) {
+        AnimatedVisibility(
+            visible = progress >= WATCHED_PROGRESS_THRESHOLD,
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(6.dp),
+            enter =
+                fadeIn(
+                    tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
+                    ),
+                ),
+            exit =
+                fadeOut(
+                    tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                        easing = FlowMotion.ExitEasing,
+                    ),
+                ),
+            label = "shortWatchedBadge",
+        ) {
             Surface(
-                modifier =
-                    Modifier
-                        .align(Alignment.TopStart)
-                        .padding(6.dp),
                 shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Visibility,
                     contentDescription = stringResource(R.string.cd_short_watched),
-                    tint = Color.White,
                     modifier =
                         Modifier
                             .padding(4.dp)
@@ -60,6 +78,7 @@ fun ShortWatchedIndicator(
                 )
             }
         }
+
         LinearProgressIndicator(
             progress = { progress },
             modifier =
@@ -68,7 +87,7 @@ fun ShortWatchedIndicator(
                     .fillMaxWidth()
                     .height(3.dp),
             color = MaterialTheme.colorScheme.primary,
-            trackColor = Color.Black.copy(alpha = 0.4f),
+            trackColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f),
         )
     }
 }
