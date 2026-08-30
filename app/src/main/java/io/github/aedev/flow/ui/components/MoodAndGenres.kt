@@ -1,24 +1,19 @@
 package io.github.aedev.flow.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import io.github.aedev.flow.ui.theme.Dimensions
 
 @Composable
 fun MoodAndGenresButton(
@@ -26,38 +21,31 @@ fun MoodAndGenresButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier =
-            modifier
-                .height(56.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                .clickable(onClick = onClick),
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(56.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.CenterStart,
         ) {
-            // The Text
             Text(
                 text = title,
-                style =
-                    MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.5.sp,
-                    ),
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
     }
 }
 
-/**
- * NEW DESIGN: The "Modern Tag"
- */
 @Composable
 fun ContentFilterChip(
     title: String,
@@ -65,43 +53,17 @@ fun ContentFilterChip(
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
 ) {
-    val backgroundColor =
-        if (isSelected) {
-            MaterialTheme.colorScheme.onSurface
-        } else {
-            // FIXED: Using surface instead of surfaceContainer
-            MaterialTheme.colorScheme.surface
-        }
-
-    val textColor =
-        if (isSelected) {
-            MaterialTheme.colorScheme.inverseOnSurface
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        }
-
-    Box(
-        modifier =
-            modifier
-                .height(36.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(backgroundColor)
-                .border(
-                    width = 1.dp,
-                    color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(12.dp),
-                ).clickable(onClick = onClick)
-                .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = title,
-            style =
-                MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                ),
-            color = textColor,
-            maxLines = 1,
-        )
-    }
+    FilterChip(
+        selected = isSelected,
+        onClick = onClick,
+        modifier = modifier,
+        label = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+        },
+    )
 }
