@@ -331,19 +331,8 @@ class MusicPlayerViewModel
                         launch(PerformanceDispatcher.networkIO) {
                             fetchRelatedContent(track.videoId)
                         }
-
-                        if (queue.size <= 1) {
-                            launch(PerformanceDispatcher.networkIO) {
-                                val relatedTracks =
-                                    withTimeoutOrNull(8_000L) {
-                                        YouTubeMusicService.getRelatedMusic(track.videoId, 20)
-                                    } ?: emptyList()
-
-                                if (relatedTracks.isNotEmpty()) {
-                                    EnhancedMusicPlayerManager.updateAutomixItems(relatedTracks)
-                                }
-                            }
-                        }
+                        // Single-track queues need no special automix fill: the service
+                        // seeds the radio pool for every new queue context.
                     }
                 }
         }
@@ -529,13 +518,14 @@ class MusicPlayerViewModel
                             YouTubeMusicService.getRelatedMusic(videoId, 20)
                         } ?: emptyList()
 
+                    // Related content is display-only here: the radio pool (automix)
+                    // is owned by Media3MusicService and must not churn per track.
                     _uiState.update {
                         it.copy(
                             relatedContent = related,
                             isRelatedLoading = false,
                         )
                     }
-                    EnhancedMusicPlayerManager.updateAutomixItems(related)
                 } catch (e: Exception) {
                     _uiState.update { it.copy(isRelatedLoading = false) }
                 }
