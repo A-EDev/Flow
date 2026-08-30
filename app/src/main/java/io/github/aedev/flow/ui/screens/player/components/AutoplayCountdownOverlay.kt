@@ -122,13 +122,14 @@ private fun CountdownCard(
     onPlayNow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val targetProgress =
+        if (state.totalSeconds > 0) {
+            (state.secondsRemaining.toFloat() / state.totalSeconds.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
     val progress by animateFloatAsState(
-        targetValue =
-            if (state.totalSeconds > 0) {
-                state.secondsRemaining.toFloat() / state.totalSeconds.toFloat()
-            } else {
-                0f
-            },
+        targetValue = targetProgress,
         animationSpec =
             tween(
                 durationMillis = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
@@ -139,7 +140,7 @@ private fun CountdownCard(
 
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.background,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier =
             modifier
                 .padding(horizontal = 20.dp)
