@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material3.Icon
@@ -31,12 +30,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.player.components.LockModeTouchShield
 import io.github.aedev.flow.ui.screens.player.components.PlayerTimePill
 import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
+import io.github.aedev.flow.ui.theme.FlowMotion
 import io.github.aedev.flow.ui.theme.PlayerLiveIndicator
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 /** Backdrop for the unlock button, a shade darker than a normal affordance so it reads as modal. */
 private const val UNLOCK_AFFORDANCE_ALPHA = 0.42f
@@ -57,6 +59,10 @@ internal fun BoxScope.PlayerLockedControls(
     onRevealUnlock: () -> Unit,
     onUnlock: () -> Unit,
 ) {
+    val reduceMotion = rememberFlowReduceMotion()
+    val enterDuration = FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion)
+    val exitDuration = FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion)
+
     LockModeTouchShield(
         onRevealUnlock = onRevealUnlock,
         onUnlock = onUnlock,
@@ -65,10 +71,25 @@ internal fun BoxScope.PlayerLockedControls(
 
     AnimatedVisibility(
         visible = isOverlayVisible,
-        enter = fadeIn(animationSpec = tween(300)),
-        exit = fadeOut(animationSpec = tween(300)),
+        enter =
+            fadeIn(
+                animationSpec =
+                    tween(
+                        durationMillis = enterDuration,
+                        easing = FlowMotion.EnterEasing,
+                    ),
+            ),
+        exit =
+            fadeOut(
+                animationSpec =
+                    tween(
+                        durationMillis = exitDuration,
+                        easing = FlowMotion.ExitEasing,
+                    ),
+            ),
         modifier = Modifier.align(Alignment.TopEnd),
     ) {
+        val interactionSource = remember { MutableInteractionSource() }
         Surface(
             color = PlayerScrim.copy(alpha = UNLOCK_AFFORDANCE_ALPHA),
             shape = CircleShape,
@@ -76,10 +97,11 @@ internal fun BoxScope.PlayerLockedControls(
                 Modifier
                     .padding(top = topPadding)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .size(44.dp)
+                    .size(48.dp)
+                    .pressScale(interactionSource, pressedScale = 0.96f)
                     .clip(CircleShape)
                     .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
+                        interactionSource = interactionSource,
                         indication = ripple(color = PlayerScrimContent),
                         onClick = onUnlock,
                     ),
@@ -97,8 +119,22 @@ internal fun BoxScope.PlayerLockedControls(
 
     AnimatedVisibility(
         visible = isOverlayVisible,
-        enter = fadeIn(animationSpec = tween(300)),
-        exit = fadeOut(animationSpec = tween(300)),
+        enter =
+            fadeIn(
+                animationSpec =
+                    tween(
+                        durationMillis = enterDuration,
+                        easing = FlowMotion.EnterEasing,
+                    ),
+            ),
+        exit =
+            fadeOut(
+                animationSpec =
+                    tween(
+                        durationMillis = exitDuration,
+                        easing = FlowMotion.ExitEasing,
+                    ),
+            ),
         modifier = Modifier.align(Alignment.BottomCenter),
     ) {
         Column(
@@ -150,7 +186,7 @@ private fun LockedSeekbar(
             modifier =
                 modifier
                     .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp))
+                    .clip(CircleShape)
                     .background(PlayerLiveIndicator),
         )
         return
