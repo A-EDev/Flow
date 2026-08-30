@@ -57,11 +57,14 @@ import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.AutoplayCountdownState
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 @Composable
 fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
     val manager = remember { EnhancedPlayerManager.getInstance() }
     val state by manager.autoplayCountdown.collectAsState()
+    val reduceMotion = rememberFlowReduceMotion()
 
     var shown by remember { mutableStateOf(state) }
     LaunchedEffect(state) { if (state.isActive) shown = state }
@@ -69,8 +72,20 @@ fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = state.isActive,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200)),
+            enter =
+                fadeIn(
+                    tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
+                    ),
+                ),
+            exit =
+                fadeOut(
+                    tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion),
+                        easing = FlowMotion.ExitEasing,
+                    ),
+                ),
             modifier = Modifier.fillMaxSize(),
         ) {
             Box(
@@ -85,6 +100,7 @@ fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
                     CountdownCard(
                         state = shown,
                         compactActions = maxWidth < 480.dp,
+                        reduceMotion = reduceMotion,
                         onCancel = { manager.cancelAutoplayCountdown() },
                         onRestart = { manager.restartFromAutoplayCountdown() },
                         onPlayNow = { manager.skipAutoplayCountdown() },
@@ -100,6 +116,7 @@ fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
 private fun CountdownCard(
     state: AutoplayCountdownState,
     compactActions: Boolean,
+    reduceMotion: Boolean,
     onCancel: () -> Unit,
     onRestart: () -> Unit,
     onPlayNow: () -> Unit,
@@ -112,7 +129,11 @@ private fun CountdownCard(
             } else {
                 0f
             },
-        animationSpec = tween(400),
+        animationSpec =
+            tween(
+                durationMillis = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
+                easing = FlowMotion.EnterEasing,
+            ),
         label = "autoplayCountdownProgress",
     )
 
@@ -178,7 +199,7 @@ private fun CountdownCard(
                             ImageRequest
                                 .Builder(LocalContext.current)
                                 .data(thumb)
-                                .crossfade(true)
+                                .crossfade(!reduceMotion)
                                 .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
