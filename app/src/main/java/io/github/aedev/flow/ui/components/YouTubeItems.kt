@@ -4,20 +4,14 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,25 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.innertube.models.AlbumItem
-import io.github.aedev.flow.innertube.models.ArtistItem
-import io.github.aedev.flow.innertube.models.PlaylistItem
-import io.github.aedev.flow.innertube.models.SongItem
-import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.theme.Dimensions
-
-private fun formatDuration(seconds: Int): String {
-    val minutes = seconds / 60
-    val secs = seconds % 60
-    return "$minutes:${secs.toString().padStart(2, '0')}"
-}
-
-private data class Quadruple<A, B, C, D>(
-    val first: A,
-    val second: B,
-    val third: C,
-    val fourth: D,
-)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -84,7 +60,7 @@ fun ChartTrackItem(
             modifier =
                 Modifier
                     .size(Dimensions.ListThumbnailSize)
-                    .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius)),
+                    .clip(MaterialTheme.shapes.medium),
         )
 
         Column(
@@ -103,7 +79,7 @@ fun ChartTrackItem(
                     if (isPlaying) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.onBackground
+                        MaterialTheme.colorScheme.onSurface
                     },
             )
 
@@ -115,6 +91,7 @@ fun ChartTrackItem(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+
         if (isDownloaded) {
             Icon(
                 imageVector = Icons.Rounded.OfflinePin,
