@@ -23,10 +23,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 /**
- * Comments rendered as an inline panel rather than a modal sheet, so the video stays visible.
- * Shared by the fullscreen side drawer and the tablet landscape split layout.
+ * Keeps comments beside the video in fullscreen and tablet split layouts instead of covering playback.
  */
 @Composable
 fun PlayerCommentsPanel(
@@ -49,8 +49,14 @@ fun PlayerCommentsPanel(
             sortCommentsByFilter(comments, selectedFilter)
         }
     val listState = rememberLazyListState()
-    LaunchedEffect(selectedFilter) {
-        listState.scrollToItem(0)
+    val reduceMotion = rememberFlowReduceMotion()
+
+    LaunchedEffect(selectedFilter, reduceMotion) {
+        if (reduceMotion) {
+            listState.scrollToItem(0)
+        } else {
+            listState.animateScrollToItem(0)
+        }
     }
 
     Column(modifier.fillMaxSize()) {
@@ -79,7 +85,7 @@ fun PlayerCommentsPanel(
             onFilterChanged = onFilterChanged,
             modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
         )
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         FlowCommentsList(
             comments = sortedComments,
             isLoading = isLoading,
