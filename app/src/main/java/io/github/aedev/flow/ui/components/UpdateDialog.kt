@@ -1,36 +1,52 @@
 package io.github.aedev.flow.ui.components
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.verticalScroll
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.Hexagon
-import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material3.*
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import io.github.aedev.flow.R
 import io.github.aedev.flow.utils.UpdateInfo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun UpdateDialog(
@@ -38,67 +54,47 @@ fun UpdateDialog(
     onDismiss: () -> Unit,
     onUpdate: () -> Unit,
 ) {
-    val context = LocalContext.current
-
-    val displayedChangelog =
-        remember(updateInfo.changelog, updateInfo.version) {
-            if (updateInfo.version.contains("1.4.0") || updateInfo.changelog.isBlank()) {
-                try {
-                    val filename = if (updateInfo.version.startsWith("v")) updateInfo.version else "v${updateInfo.version}"
-                    try {
-                        context.assets
-                            .open("changelog/$filename.txt")
-                            .bufferedReader()
-                            .use { it.readText() }
-                    } catch (e: Exception) {
-                        // If specific version file not found, try to find the latest
-                        val files = context.assets.list("changelog") ?: emptyArray()
-                        val latestFile =
-                            files
-                                .filter { it.endsWith(".txt") }
-                                .sortedWith(compareByDescending { it })
-                                .firstOrNull()
-
-                        if (latestFile != null) {
-                            context.assets
-                                .open("changelog/$latestFile")
-                                .bufferedReader()
-                                .use { it.readText() }
-                        } else {
-                            updateInfo.changelog
-                        }
-                    }
-                } catch (e: Exception) {
-                    updateInfo.changelog
-                }
-            } else {
-                updateInfo.changelog
-            }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val displayedChangelog by
+        produceState(
+            initialValue = updateInfo.changelog,
+            key1 = updateInfo.changelog,
+            key2 = updateInfo.version,
+        ) {
+            value = withContext(Dispatchers.IO) { resolveDisplayedChangelog(context, updateInfo) }
         }
+    val backdropInteractionSource = remember { MutableInteractionSource() }
 
     Dialog(
         onDismissRequest = onDismiss,
         properties =
-            androidx.compose.ui.window.DialogProperties(
+            DialogProperties(
                 usePlatformDefaultWidth = false,
                 decorFitsSystemWindows = false,
             ),
     ) {
         Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .clickable(onClick = onDismiss),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.BottomCenter,
         ) {
-            Surface(
+            Box(
                 modifier =
                     Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = false) {},
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                color = Color(0xFF1E1E22),
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
+                        .clickable(
+                            interactionSource = backdropInteractionSource,
+                            indication = null,
+                            onClick = onDismiss,
+                        ),
+            )
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = BottomSheetDefaults.ExpandedShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                tonalElevation = 3.dp,
             ) {
                 Column(
                     modifier =
@@ -107,32 +103,27 @@ fun UpdateDialog(
                             .padding(top = 32.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier =
-                            Modifier
-                                .size(72.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                    Surface(
+                        modifier = Modifier.size(72.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_notification_logo),
-                            contentDescription = stringResource(R.string.update_flow),
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(40.dp),
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_notification_logo),
+                                contentDescription = stringResource(R.string.update_flow),
+                                modifier = Modifier.size(40.dp),
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
                         text = stringResource(R.string.new_update_available),
-                        style =
-                            MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 22.sp,
-                            ),
-                        color = Color.White,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -140,7 +131,7 @@ fun UpdateDialog(
                     Text(
                         text = stringResource(R.string.ui_version, updateInfo.version),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.LightGray.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -154,40 +145,28 @@ fun UpdateDialog(
                                 .verticalScroll(rememberScrollState()),
                     ) {
                         Text(
-                            text = stringResource(R.string.release_notes).uppercase(),
-                            style =
-                                MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.2.sp,
-                                ),
+                            text = stringResource(R.string.release_notes),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(bottom = 12.dp),
                         )
 
-                        MarkdownChangelogText(
-                            markdown = displayedChangelog,
-                            textColor = Color.White.copy(alpha = 0.85f),
-                        )
+                        MarkdownChangelogText(markdown = displayedChangelog)
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Button(
+                        OutlinedButton(
                             onClick = onDismiss,
                             modifier =
                                 Modifier
                                     .weight(1f)
                                     .height(52.dp),
-                            colors =
-                                ButtonDefaults.buttonColors(
-                                    containerColor = Color.White.copy(alpha = 0.1f),
-                                    contentColor = Color.White,
-                                ),
-                            shape = RoundedCornerShape(26.dp),
                         ) {
                             Text(
                                 text = stringResource(R.string.maybe_later),
@@ -202,29 +181,18 @@ fun UpdateDialog(
                                 Modifier
                                     .weight(1f)
                                     .height(52.dp),
-                            colors =
-                                ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                                ),
-                            shape = RoundedCornerShape(26.dp),
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                            ) {
-                                Icon(
-                                    Icons.Default.CloudDownload,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(R.string.update_flow),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            }
+                            Icon(
+                                Icons.Default.CloudDownload,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.update_flow),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                         }
                     }
                 }
@@ -233,53 +201,64 @@ fun UpdateDialog(
     }
 }
 
-/**
- * A lightweight Markdown parser for Release Notes.
- * Handles Headers (#), Bullet points (- or *), and Bold (**text**).
- */
+private fun resolveDisplayedChangelog(
+    context: Context,
+    updateInfo: UpdateInfo,
+): String {
+    if (!updateInfo.version.contains("1.4.0") && updateInfo.changelog.isNotBlank()) {
+        return updateInfo.changelog
+    }
+
+    val versionFile = if (updateInfo.version.startsWith("v")) updateInfo.version else "v${updateInfo.version}"
+    val exact =
+        runCatching {
+            context.assets
+                .open("changelog/$versionFile.txt")
+                .bufferedReader()
+                .use { it.readText() }
+        }.getOrNull()
+    if (!exact.isNullOrBlank()) return exact
+
+    return runCatching {
+        val latestFile =
+            context.assets
+                .list("changelog")
+                .orEmpty()
+                .filter { it.endsWith(".txt") }
+                .maxOrNull()
+            ?: return@runCatching updateInfo.changelog
+        context.assets
+            .open("changelog/$latestFile")
+            .bufferedReader()
+            .use { it.readText() }
+    }.getOrDefault(updateInfo.changelog)
+}
+
 @Composable
-fun MarkdownChangelogText(
-    markdown: String,
-    textColor: Color,
-) {
+fun MarkdownChangelogText(markdown: String) {
     val styledText =
         remember(markdown) {
             buildAnnotatedString {
-                val lines = markdown.split("\n")
-
-                lines.forEach { line ->
+                markdown.lineSequence().forEach { line ->
                     val trimmed = line.trim()
-
                     when {
-                        // 1. Headers (### or ## or #)
                         trimmed.startsWith("#") -> {
                             val text = trimmed.trimStart('#').trim()
-                            withStyle(
-                                SpanStyle(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = textColor,
-                                ),
-                            ) {
-                                append("• $text") // Treat headers as bullets in small view
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                append("• $text")
                             }
-                            append("\n")
+                            append('\n')
                         }
 
-                        // 2. Bullet Points (- or *)
                         trimmed.startsWith("-") || trimmed.startsWith("*") -> {
-                            val text = trimmed.substring(1).trim()
-                            append(" • ") // Simple bullet
-                            parseBold(text, textColor)
-                            append("\n")
+                            append(" • ")
+                            parseBold(trimmed.substring(1).trim())
+                            append('\n')
                         }
 
-                        // 3. Normal Text
-                        else -> {
-                            if (trimmed.isNotEmpty()) {
-                                parseBold(trimmed, textColor)
-                                append("\n")
-                            }
+                        trimmed.isNotEmpty() -> {
+                            parseBold(trimmed)
+                            append('\n')
                         }
                     }
                 }
@@ -289,27 +268,18 @@ fun MarkdownChangelogText(
     Text(
         text = styledText,
         style = MaterialTheme.typography.bodySmall,
-        color = textColor.copy(alpha = 0.8f),
-        lineHeight = 18.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
-// Helper to parse **bold** text inside a string
-fun androidx.compose.ui.text.AnnotatedString.Builder.parseBold(
-    text: String,
-    baseColor: Color,
-) {
-    val parts = text.split("**")
-    parts.forEachIndexed { index, part ->
-        // If index is odd, it was inside **, so make it bold
+fun AnnotatedString.Builder.parseBold(text: String) {
+    text.split("**").forEachIndexed { index, part ->
         if (index % 2 == 1) {
-            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = baseColor)) {
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                 append(part)
             }
         } else {
-            withStyle(SpanStyle(color = baseColor)) {
-                append(part)
-            }
+            append(part)
         }
     }
 }
