@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cast
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -54,12 +53,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
+import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 
 /** Alpha the top gradient reaches at the very top of the player. */
 private const val TOP_GRADIENT_ALPHA = 0.38f
+
+private val MinimumTopBarActionSize = 48.dp
 
 /**
  * The row of actions along the top of the player: minimise, title, and the configurable action
@@ -97,6 +99,8 @@ internal fun PlayerTopBar(
     modifier: Modifier = Modifier,
 ) {
     val accentColor = MaterialTheme.colorScheme.primary
+    val interactiveActionButtonSize = maxOf(actionButtonSize, MinimumTopBarActionSize)
+    val interactivePillHeight = maxOf(pillHeight, MinimumTopBarActionSize)
 
     Column(
         modifier =
@@ -123,14 +127,16 @@ internal fun PlayerTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(actionSpacing),
             ) {
+                val backInteractionSource = remember { MutableInteractionSource() }
                 Box(
                     modifier =
                         Modifier
-                            .size(actionButtonSize)
+                            .size(interactiveActionButtonSize)
+                            .pressScale(backInteractionSource)
                             .clip(CircleShape)
                             .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(),
+                                interactionSource = backInteractionSource,
+                                indication = ripple(color = PlayerScrimContent),
                                 onClick = actions.onBack,
                             ),
                     contentAlignment = Alignment.Center,
@@ -169,9 +175,14 @@ internal fun PlayerTopBar(
                 }
 
                 if (sbSubmitEnabled) {
+                    val submitInteractionSource = remember { MutableInteractionSource() }
                     IconButton(
                         onClick = actions.onSbSubmitClick,
-                        modifier = Modifier.size(actionButtonSize),
+                        modifier =
+                            Modifier
+                                .size(interactiveActionButtonSize)
+                                .pressScale(submitInteractionSource),
+                        interactionSource = submitInteractionSource,
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_upload_segment),
@@ -188,14 +199,20 @@ internal fun PlayerTopBar(
                 horizontalArrangement = Arrangement.spacedBy(actionSpacing),
             ) {
                 if (preferences.speedIndicatorEnabled) {
+                    val speedInteractionSource = remember { MutableInteractionSource() }
                     Surface(
                         color = PlayerScrimAffordance,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = CircleShape,
                         modifier =
                             Modifier
-                                .height(pillHeight)
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable(onClick = actions.onSpeedClick),
+                                .height(interactivePillHeight)
+                                .pressScale(speedInteractionSource)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = speedInteractionSource,
+                                    indication = ripple(color = PlayerScrimContent),
+                                    onClick = actions.onSpeedClick,
+                                ),
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
@@ -256,10 +273,15 @@ internal fun PlayerTopBar(
                 }
 
                 if (preferences.autoplayEnabled) {
+                    val autoplayInteractionSource = remember { MutableInteractionSource() }
                     IconButton(
                         onClick = { if (!isLooping) actions.onAutoplayToggle(!isAutoplayOn) },
                         enabled = !isLooping,
-                        modifier = Modifier.size(actionButtonSize),
+                        modifier =
+                            Modifier
+                                .size(interactiveActionButtonSize)
+                                .pressScale(autoplayInteractionSource),
+                        interactionSource = autoplayInteractionSource,
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.SlowMotionVideo,
@@ -328,10 +350,17 @@ private fun TopBarIconButton(
     tint: Color = PlayerScrimContent,
     onLongClick: (() -> Unit)? = null,
 ) {
+    val interactiveButtonSize = maxOf(buttonSize, MinimumTopBarActionSize)
+    val interactionSource = remember { MutableInteractionSource() }
+
     if (onLongClick == null) {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(buttonSize),
+            modifier =
+                Modifier
+                    .size(interactiveButtonSize)
+                    .pressScale(interactionSource),
+            interactionSource = interactionSource,
         ) {
             Icon(
                 imageVector = icon,
@@ -347,11 +376,12 @@ private fun TopBarIconButton(
     Box(
         modifier =
             Modifier
-                .size(buttonSize)
+                .size(interactiveButtonSize)
+                .pressScale(interactionSource)
                 .clip(CircleShape)
                 .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = false, radius = buttonSize / 2),
+                    interactionSource = interactionSource,
+                    indication = ripple(bounded = false, radius = interactiveButtonSize / 2),
                     onClick = onClick,
                     onLongClick = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
