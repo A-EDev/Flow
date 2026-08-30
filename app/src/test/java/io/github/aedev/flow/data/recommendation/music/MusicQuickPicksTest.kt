@@ -71,8 +71,8 @@ class MusicQuickPicksTest {
 
     @Test
     fun `a capped lane stops contributing at its cap while others keep filling`() {
-        val taste = (0 until 10).map { track("t$it", "UC1") }
-        val charts = (0 until 10).map { track("c$it", "UC2") }
+        val taste = (0 until 10).map { track("t$it", "UCt$it") }
+        val charts = (0 until 10).map { track("c$it", "UCc$it") }
         val mixed =
             MusicQuickPicks.interleave(
                 listOf(taste, charts),
@@ -87,8 +87,8 @@ class MusicQuickPicksTest {
 
     @Test
     fun `a capped-out shelf still reaches the limit from uncapped lanes`() {
-        val only = (0 until 6).map { track("t$it", "UC1") }
-        val charts = (0 until 6).map { track("c$it", "UC2") }
+        val only = (0 until 6).map { track("t$it", "UCt$it") }
+        val charts = (0 until 6).map { track("c$it", "UCc$it") }
         val mixed =
             MusicQuickPicks.interleave(
                 listOf(only, charts),
@@ -98,5 +98,20 @@ class MusicQuickPicksTest {
             )
         assertThat(mixed).hasSize(8)
         assertThat(mixed.count { it.videoId.startsWith("c") }).isEqualTo(3)
+    }
+
+    @Test
+    fun `no artist exceeds the shelf-wide cap even across lanes`() {
+        val nfLane = (0 until 8).map { track("nf$it", "UCnf") }
+        val nfHeavyRelated = listOf(track("r0", "UCnf"), track("r1", "UCother"), track("r2", "UCnf"), track("r3", "UCmore"))
+        val mixed =
+            MusicQuickPicks.interleave(
+                listOf(nfLane, nfHeavyRelated),
+                limit = 10,
+                excludedIds = emptySet(),
+                maxPerArtist = 3,
+            )
+        assertThat(mixed.count { it.artists.first().id == "UCnf" }).isEqualTo(3)
+        assertThat(mixed.map { it.videoId }).containsAtLeast("r1", "r3")
     }
 }

@@ -20,14 +20,20 @@ object MusicQuickPicks {
     const val TARGET = 24
 
     /** Artist-graph lanes: how many top artists get a lane, and how many of their related artists join the similar lane. */
-    const val ARTIST_LANE_COUNT = 2
-    const val SIMILAR_ARTIST_COUNT = 2
+    const val ARTIST_LANE_COUNT = 3
+    const val SIMILAR_ARTIST_COUNT = 3
 
     /**
      * Charts can smuggle regional content the taste model never chose, so the
      * discovery lane gets the smallest quota of the shelf.
      */
-    const val DISCOVERY_MAX_PICKS = 3
+    const val DISCOVERY_MAX_PICKS = 2
+
+    /**
+     * Shelf-wide cap per artist. Lanes overlap on a loved artist (their own lane,
+     * related lanes, fans-also-like), which floods the shelf without this.
+     */
+    const val MAX_PER_ARTIST = 3
 
     /**
      * Seed selection: the currently playing track always leads, then history
@@ -63,17 +69,20 @@ object MusicQuickPicks {
      * Round-robin across lanes: one unseen item from each lane per pass, so no
      * single lane (or one dominant artist pool) can own the shelf. A lane with a
      * cap in [laneCaps] stops contributing at its cap (used to keep charts to a
-     * minority quota). Stops at the limit or when a full pass makes no progress.
+     * minority quota), and no artist exceeds [maxPerArtist] picks shelf-wide.
+     * Stops at the limit or when a full pass makes no progress.
      */
     fun interleave(
         lanes: List<List<MusicTrack>>,
         limit: Int,
         excludedIds: Set<String>,
         laneCaps: List<Int>? = null,
+        maxPerArtist: Int = MAX_PER_ARTIST,
     ): List<MusicTrack> {
         val cursors = IntArray(lanes.size)
         val picked = IntArray(lanes.size)
         val seen = HashSet(excludedIds)
+        val artistCounts = HashMap<String, Int>()
         val result = ArrayList<MusicTrack>(limit)
         while (result.size < limit) {
             var progressed = false
@@ -83,14 +92,25 @@ object MusicQuickPicks {
                 if (picked[i] >= cap) continue
                 val lane = lanes[i]
                 var cursor = cursors[i]
-                while (cursor < lane.size && !seen.add(lane[cursor].videoId)) cursor++
-                if (cursor < lane.size) {
-                    result.add(lane[cursor])
-                    picked[i]++
+                var pick: MusicTrack? = null
+                while (cursor < lane.size) {
+                    val candidate = lane[cursor]
                     cursor++
-                    progressed = true
+                    if (!seen.add(candidate.videoId)) continue
+                    val artistKey = candidate.primaryArtistKey()
+                    if (artistKey.isNotEmpty() && (artistCounts[artistKey] ?: 0) >= maxPerArtist) continue
+                    pick = candidate
+                    break
                 }
                 cursors[i] = cursor
+                if (pick != null) {
+                    result.add(pick)
+                    picked[i]++
+                    pick.primaryArtistKey().takeIf { it.isNotEmpty() }?.let {
+                        artistCounts[it] = (artistCounts[it] ?: 0) + 1
+                    }
+                    progressed = true
+                }
             }
             if (!progressed) break
         }

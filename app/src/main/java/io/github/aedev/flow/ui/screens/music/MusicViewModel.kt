@@ -201,7 +201,7 @@ class MusicViewModel
             if (topArtists.isEmpty()) return emptyList()
 
             val lanes = ArrayList<List<MusicTrack>>()
-            val fanKeys = ArrayList<String>()
+            val relatedPerArtist = ArrayList<List<String>>()
             kotlinx.coroutines.coroutineScope {
                 topArtists
                     .map { key -> async(PerformanceDispatcher.networkIO) { key to cachedArtistDetails(key) } }
@@ -216,13 +216,28 @@ class MusicViewModel
                         val related = details.relatedArtists.mapNotNull { r -> r.channelId.takeIf { it.isNotBlank() } }
                         if (related.isNotEmpty()) {
                             musicBrain.recordArtistRelated(key, related)
-                            if (fanKeys.isEmpty()) fanKeys.addAll(related.take(MusicQuickPicks.SIMILAR_ARTIST_COUNT))
+                            relatedPerArtist.add(related)
                         }
                     }
 
+                // One similar artist from each top artist's fans-also-like row in
+                // turn, so the lane isn't a single artist's neighborhood.
+                val fanKeys = LinkedHashSet<String>()
+                var depth = 0
+                while (fanKeys.size < MusicQuickPicks.SIMILAR_ARTIST_COUNT && depth < 10) {
+                    var any = false
+                    for (related in relatedPerArtist) {
+                        val key = related.getOrNull(depth) ?: continue
+                        any = true
+                        if (key !in topArtists) fanKeys.add(key)
+                        if (fanKeys.size >= MusicQuickPicks.SIMILAR_ARTIST_COUNT) break
+                    }
+                    if (!any) break
+                    depth++
+                }
+
                 val similarPool =
                     fanKeys
-                        .filter { it !in topArtists }
                         .map { key -> async(PerformanceDispatcher.networkIO) { cachedArtistDetails(key) } }
                         .awaitAll()
                         .filterNotNull()
