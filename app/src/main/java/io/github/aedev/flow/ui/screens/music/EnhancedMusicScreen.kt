@@ -201,28 +201,6 @@ fun EnhancedMusicScreen(
                                     bottom = 80.dp,
                                 ),
                         ) {
-                            // On Repeat — the local music brain's relistening shelf, zero network
-                            if (uiState.onRepeatTracks.isNotEmpty()) {
-                                item {
-                                    NavigationTitle(title = stringResource(R.string.section_on_repeat))
-                                    val onRepeatThumbnailHeight = currentGridThumbnailHeight()
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    ) {
-                                        items(uiState.onRepeatTracks, key = { it.videoId }) { track ->
-                                            GridItem(
-                                                title = track.title,
-                                                subtitle = track.artist,
-                                                thumbnailUrl = track.thumbnailUrl,
-                                                thumbnailHeight = onRepeatThumbnailHeight,
-                                                onClick = { onSongClick(track, uiState.onRepeatTracks, "on_repeat") },
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
                             // Listen Again
                             if (uiState.listenAgain.isNotEmpty()) {
                                 item {
@@ -306,6 +284,28 @@ fun EnhancedMusicScreen(
                                     }
                                 }
                             } else {
+                                // On Repeat — the local music brain's relistening shelf, zero network
+                                if (uiState.onRepeatTracks.isNotEmpty()) {
+                                    item {
+                                        NavigationTitle(title = stringResource(R.string.section_on_repeat))
+                                        val onRepeatThumbnailHeight = currentGridThumbnailHeight()
+                                        LazyRow(
+                                            contentPadding = PaddingValues(horizontal = 12.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        ) {
+                                            items(uiState.onRepeatTracks, key = { it.videoId }) { track ->
+                                                GridItem(
+                                                    title = track.title,
+                                                    subtitle = track.artist,
+                                                    thumbnailUrl = track.thumbnailUrl,
+                                                    thumbnailHeight = onRepeatThumbnailHeight,
+                                                    onClick = { onSongClick(track, uiState.onRepeatTracks, "on_repeat") },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
                                 if (speedDialTracks.isNotEmpty()) {
                                     item {
                                         SpeedDialSection(
