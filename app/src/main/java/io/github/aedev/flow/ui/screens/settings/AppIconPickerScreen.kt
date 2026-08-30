@@ -6,13 +6,10 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
@@ -25,14 +22,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -52,6 +46,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -153,11 +149,17 @@ fun AppIconPickerScreen(onNavigateBack: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
+            item(
+                key = "icon-warning",
+                span = { GridItemSpan(maxLineSpan) },
+            ) {
                 AppIconWarningCard()
             }
 
-            items(ALL_ICONS) { icon ->
+            items(
+                items = ALL_ICONS,
+                key = AppIconOption::componentSuffix,
+            ) { icon ->
                 IconOptionCard(
                     option = icon,
                     isSelected = selectedSuffix == icon.componentSuffix,
@@ -186,13 +188,13 @@ fun AppIconPickerScreen(onNavigateBack: () -> Unit) {
 private fun AppIconWarningCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
     ) {
         Text(
             text = stringResource(R.string.app_icon_picker_warning),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onErrorContainer,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         )
     }
@@ -204,7 +206,6 @@ private fun IconOptionCard(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
-    val cardShape = RoundedCornerShape(8.dp)
     val previewBackground =
         if (option.usesThemeColors) {
             MaterialTheme.colorScheme.secondaryContainer
@@ -217,35 +218,30 @@ private fun IconOptionCard(
         } else {
             null
         }
-    val borderColor =
-        if (isSelected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.outlineVariant
-        }
 
     Card(
+        onClick = onClick,
         modifier =
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.92f)
-                .border(
-                    width = if (isSelected) 2.dp else 1.dp,
-                    color = borderColor,
-                    shape = cardShape,
-                ).clip(cardShape)
-                .clickable(onClick = onClick),
-        shape = cardShape,
+                .semantics { selected = isSelected },
+        shape = MaterialTheme.shapes.large,
         colors =
             CardDefaults.cardColors(
                 containerColor =
                     if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.26f)
+                        MaterialTheme.colorScheme.primaryContainer
                     } else {
-                        MaterialTheme.colorScheme.surface
+                        MaterialTheme.colorScheme.surfaceContainer
+                    },
+                contentColor =
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
                     },
             ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Box(
             modifier =
@@ -262,7 +258,7 @@ private fun IconOptionCard(
                     modifier =
                         Modifier
                             .size(78.dp)
-                            .clip(RoundedCornerShape(22.dp))
+                            .clip(MaterialTheme.shapes.extraLarge)
                             .background(previewBackground),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -278,29 +274,30 @@ private fun IconOptionCard(
 
                 Text(
                     text = stringResource(option.nameRes),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
 
             if (isSelected) {
-                Box(
+                Surface(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .size(24.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(MaterialTheme.colorScheme.primary),
-                    contentAlignment = Alignment.Center,
+                            .size(24.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(16.dp),
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             }
         }
