@@ -4,9 +4,10 @@ import io.github.aedev.flow.data.model.distinctByNonBlankKeyOrSelf
 import io.github.aedev.flow.data.recommendation.MusicSection
 
 internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
-    val uniqueDailyDiscover = dailyDiscover.distinctByNonBlankKeyOrSelf {
-        it.recommendation.videoId
-    }
+    val uniqueDailyDiscover =
+        dailyDiscover.distinctByNonBlankKeyOrSelf {
+            it.recommendation.videoId
+        }
     val uniqueForYou = forYouTracks.uniqueMusicTracks()
     val uniqueRecommended = recommendedTracks.uniqueMusicTracks()
     val uniqueListenAgain = listenAgain.uniqueMusicTracks()
@@ -18,21 +19,25 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
     val uniqueLongListens = longListens.uniqueMusicTracks()
     val uniqueHistory = history.uniqueMusicTracks()
     val uniqueAllSongs = allSongs.uniqueMusicTracks()
-    val uniqueCommunityPlaylists = communityPlaylists.distinctByNonBlankKeyOrSelf {
-        it.playlist.id
-    }
+    val uniqueCommunityPlaylists =
+        communityPlaylists.distinctByNonBlankKeyOrSelf {
+            it.playlist.id
+        }
     val uniqueFeaturedPlaylists = featuredPlaylists.uniqueMusicPlaylists()
     val uniqueTopAlbums = topAlbums.uniqueMusicPlaylists()
     val uniqueDynamicSections = dynamicSections.uniqueSectionTracks()
+    val uniqueDailyMixSections = dailyMixSections.uniqueSectionTracks()
     val uniqueSimilarSections = similarToSections.uniqueSectionTracks()
     val uniqueHomeChips = homeChips.distinctByNonBlankKeyOrSelf { it.title }
-    val uniqueGenreTracks = genreTracks.mapValuesIfChanged { tracks ->
-        tracks.uniqueMusicTracks()
-    }
+    val uniqueGenreTracks =
+        genreTracks.mapValuesIfChanged { tracks ->
+            tracks.uniqueMusicTracks()
+        }
     val uniqueArtistDetails = artistDetails?.withUniqueLazyContent()
-    val uniqueSearchArtists = searchResultsArtists.distinctByNonBlankKeyOrSelf {
-        it.channelId
-    }
+    val uniqueSearchArtists =
+        searchResultsArtists.distinctByNonBlankKeyOrSelf {
+            it.channelId
+        }
 
     if (
         uniqueDailyDiscover === dailyDiscover &&
@@ -51,6 +56,7 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
         uniqueFeaturedPlaylists === featuredPlaylists &&
         uniqueTopAlbums === topAlbums &&
         uniqueDynamicSections === dynamicSections &&
+        uniqueDailyMixSections === dailyMixSections &&
         uniqueSimilarSections === similarToSections &&
         uniqueHomeChips === homeChips &&
         uniqueGenreTracks === genreTracks &&
@@ -78,30 +84,30 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
         featuredPlaylists = uniqueFeaturedPlaylists,
         topAlbums = uniqueTopAlbums,
         dynamicSections = uniqueDynamicSections,
+        dailyMixSections = uniqueDailyMixSections,
         homeChips = uniqueHomeChips,
         artistDetails = uniqueArtistDetails,
         searchResultsArtists = uniqueSearchArtists,
-        similarToSections = uniqueSimilarSections
+        similarToSections = uniqueSimilarSections,
     )
 }
 
-private fun List<MusicTrack>.uniqueMusicTracks(): List<MusicTrack> =
-    distinctByNonBlankKeyOrSelf(MusicTrack::videoId)
+private fun List<MusicTrack>.uniqueMusicTracks(): List<MusicTrack> = distinctByNonBlankKeyOrSelf(MusicTrack::videoId)
 
-private fun List<MusicPlaylist>.uniqueMusicPlaylists(): List<MusicPlaylist> =
-    distinctByNonBlankKeyOrSelf(MusicPlaylist::id)
+private fun List<MusicPlaylist>.uniqueMusicPlaylists(): List<MusicPlaylist> = distinctByNonBlankKeyOrSelf(MusicPlaylist::id)
 
 private fun List<MusicSection>.uniqueSectionTracks(): List<MusicSection> {
     var changed = false
-    val normalized = map { section ->
-        val uniqueTracks = section.tracks.uniqueMusicTracks()
-        if (uniqueTracks === section.tracks) {
-            section
-        } else {
-            changed = true
-            section.copy(tracks = uniqueTracks)
+    val normalized =
+        map { section ->
+            val uniqueTracks = section.tracks.uniqueMusicTracks()
+            if (uniqueTracks === section.tracks) {
+                section
+            } else {
+                changed = true
+                section.copy(tracks = uniqueTracks)
+            }
         }
-    }
     return if (changed) normalized else this
 }
 
@@ -128,17 +134,18 @@ private fun ArtistDetails.withUniqueLazyContent(): ArtistDetails {
             singles = uniqueSingles,
             videos = uniqueVideos,
             relatedArtists = uniqueRelatedArtists,
-            featuredOn = uniqueFeaturedOn
+            featuredOn = uniqueFeaturedOn,
         )
     }
 }
 
 private fun Map<String, List<MusicTrack>>.mapValuesIfChanged(
-    transform: (List<MusicTrack>) -> List<MusicTrack>
+    transform: (List<MusicTrack>) -> List<MusicTrack>,
 ): Map<String, List<MusicTrack>> {
     var changed = false
-    val normalized = mapValues { (_, tracks) ->
-        transform(tracks).also { if (it !== tracks) changed = true }
-    }
+    val normalized =
+        mapValues { (_, tracks) ->
+            transform(tracks).also { if (it !== tracks) changed = true }
+        }
     return if (changed) normalized else this
 }

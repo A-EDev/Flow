@@ -248,6 +248,56 @@ class MusicViewModel
             return lanes
         }
 
+        /**
+         * Daily Mixes, desktop-style: cluster seeds from the brain's co-listening
+         * graph, each expanded through related recall and ranked on the discovery
+         * surface. Mixes are meant to be stable — no recently-shown avoidance.
+         */
+        private suspend fun refreshDailyMixes() {
+            try {
+                val mixes = musicBrain.dailyMixes(3)
+                if (mixes.isEmpty()) return
+                val used = HashSet<String>()
+                val sections = ArrayList<MusicSection>()
+                for (mix in mixes) {
+                    val related =
+                        kotlinx.coroutines.coroutineScope {
+                            mix.seedTrackIds
+                                .take(3)
+                                .map { seedId ->
+                                    async(PerformanceDispatcher.networkIO) {
+                                        runCatching {
+                                            YouTubeMusicService
+                                                .getRelatedMusic(seedId, MusicQuickPicks.LANE_SIZE, audioOnly = true)
+                                                .audioMusicOnly()
+                                        }.getOrDefault(emptyList())
+                                    }
+                                }.awaitAll()
+                                .flatten()
+                        }
+                    val pool = musicBrain.rankTracks(related.distinctBy { it.videoId }, "discover")
+                    val items = pool.filterNot { it.videoId in used }.take(14)
+                    if (items.size < 4) continue
+                    used.addAll(items.map { it.videoId })
+                    sections.add(
+                        MusicSection(
+                            title = context.getString(R.string.section_daily_mix_title, mix.label),
+                            label = context.getString(R.string.section_daily_mix_label),
+                            thumbnailUrl = items.first().thumbnailUrl,
+                            seedId = null,
+                            isArtistSeed = false,
+                            tracks = items,
+                        ),
+                    )
+                }
+                if (sections.isNotEmpty()) {
+                    _uiState.update { it.copy(dailyMixSections = sections) }
+                }
+            } catch (e: Exception) {
+                Log.e("MusicViewModel", "Error building daily mixes", e)
+            }
+        }
+
         private suspend fun refreshOnRepeat() {
             try {
                 val onRepeat = musicBrain.heavyRotationTracks(16).audioMusicOnly()
@@ -306,6 +356,11 @@ class MusicViewModel
             // the shelf earns items only from live sessions and refreshes per track change.
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 refreshOnRepeat()
+            }
+
+            // Daily Mixes — co-occurrence clusters expanded through related recall.
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                refreshDailyMixes()
             }
 
             // 1. CRITICAL: Trending / Charts (Fastest & Most Important)
@@ -1263,6 +1318,7 @@ data class MusicUiState(
     val featuredPlaylists: List<MusicPlaylist> = emptyList(),
     val topAlbums: List<MusicPlaylist> = emptyList(),
     val dynamicSections: List<MusicSection> = emptyList(),
+    val dailyMixSections: List<MusicSection> = emptyList(),
     val homeChips: List<HomePage.Chip> = emptyList(),
     val selectedHomeChip: HomePage.Chip? = null,
     val explorePage: io.github.aedev.flow.innertube.pages.ExplorePage? = null,

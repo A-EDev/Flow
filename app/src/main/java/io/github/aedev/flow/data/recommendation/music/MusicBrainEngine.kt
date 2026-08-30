@@ -199,6 +199,18 @@ class MusicBrainEngine
             scheduleDebouncedSave()
         }
 
+        /** Co-occurrence-clustered Daily Mix seeds; empty until real multi-artist sessions exist. */
+        suspend fun dailyMixes(maxMixes: Int): List<DailyMixSeed> {
+            ensureInitialized()
+            return mutex.withLock { MusicBrainMixes.dailyMixes(brain, System.currentTimeMillis(), maxMixes) }
+        }
+
+        /** The display-ready taste projection for stats/recap surfaces. */
+        suspend fun tasteProfile(): MusicTasteProfile {
+            ensureInitialized()
+            return mutex.withLock { MusicBrainProfile.tasteProfile(brain, System.currentTimeMillis()) }
+        }
+
         /** On Repeat, rendered entirely from local meta — zero network. */
         suspend fun heavyRotationTracks(limit: Int): List<MusicTrack> {
             ensureInitialized()

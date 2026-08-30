@@ -1646,6 +1646,8 @@
     <string name="screen_title_music">MUSIC</string>
     <string name="section_listen_again">Listen again</string>
     <string name="section_on_repeat">On Repeat</string>
+    <string name="section_daily_mix_title">%1$s Mix</string>
+    <string name="section_daily_mix_label">Daily Mix</string>
     <string name="section_daily_discover">Your Daily Discover</string>
     <string name="section_quick_picks">Quick picks</string>
     <string name="section_speed_dial">Speed dial</string>
