@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +57,8 @@ fun CommunityPostCard(
     var textExpanded by rememberSaveable(post.id) { mutableStateOf(false) }
     var textOverflows by rememberSaveable(post.id) { mutableStateOf(false) }
     var showFullSizeImage by rememberSaveable(post.id) { mutableStateOf(false) }
+    val authorInteractionSource = remember { MutableInteractionSource() }
+    val imageInteractionSource = remember { MutableInteractionSource() }
     val resolvedImageUrl = ThumbnailUrlResolver.resolveCommunityPostImage(post.imageUrl)
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
@@ -91,7 +95,13 @@ fun CommunityPostCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onAuthorClick),
+                        .pressScale(authorInteractionSource)
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable(
+                            interactionSource = authorInteractionSource,
+                            indication = ripple(),
+                            onClick = onAuthorClick,
+                        ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 AsyncImage(
@@ -148,9 +158,14 @@ fun CommunityPostCard(
                         Modifier
                             .fillMaxWidth()
                             .heightIn(min = 120.dp, max = 520.dp)
+                            .pressScale(imageInteractionSource)
                             .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { showFullSizeImage = true },
+                            .clickable(
+                                interactionSource = imageInteractionSource,
+                                indication = ripple(),
+                                onClick = { showFullSizeImage = true },
+                            ),
                     contentScale = ContentScale.Fit,
                 )
             }
