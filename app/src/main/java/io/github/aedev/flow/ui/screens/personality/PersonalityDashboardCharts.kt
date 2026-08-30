@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,38 +39,41 @@ import kotlin.math.sin
 internal fun TasteRadarChart(
     globalVector: ContentVector,
     currentVector: ContentVector,
-    breadth: Double
+    breadth: Double,
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val secondary = MaterialTheme.colorScheme.secondary
     val outline = MaterialTheme.colorScheme.outlineVariant
-    val globalValues = remember(globalVector, breadth) {
-        listOf(
-            globalVector.pacing,
-            globalVector.complexity,
-            globalVector.duration,
-            globalVector.isLive,
-            breadth
-        ).map { it.coerceIn(0.0, 1.0) }
-    }
-    val currentValues = remember(currentVector) {
-        listOf(
-            currentVector.pacing,
-            currentVector.complexity,
-            currentVector.duration,
-            currentVector.isLive,
-            (currentVector.topics.size / 30.0).coerceIn(0.0, 1.0)
-        )
-    }
+    val globalValues =
+        remember(globalVector, breadth) {
+            listOf(
+                globalVector.pacing,
+                globalVector.complexity,
+                globalVector.duration,
+                globalVector.isLive,
+                breadth,
+            ).map { it.coerceIn(0.0, 1.0) }
+        }
+    val currentValues =
+        remember(currentVector) {
+            listOf(
+                currentVector.pacing,
+                currentVector.complexity,
+                currentVector.duration,
+                currentVector.isLive,
+                (currentVector.topics.size / 30.0).coerceIn(0.0, 1.0),
+            )
+        }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(210.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f))
-                .padding(12.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(210.dp)
+                    .clip(MaterialTheme.shapes.large)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .padding(12.dp),
         ) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = min(size.width, size.height) * 0.38f
@@ -87,7 +89,7 @@ internal fun TasteRadarChart(
                     angleStep = angleStep,
                     strokeColor = outline.copy(alpha = 0.55f),
                     fillColor = Color.Transparent,
-                    strokeWidth = 1f
+                    strokeWidth = 1f,
                 )
             }
 
@@ -96,11 +98,12 @@ internal fun TasteRadarChart(
                 drawLine(
                     color = outline.copy(alpha = 0.62f),
                     start = center,
-                    end = Offset(
-                        x = center.x + radius * cos(angle),
-                        y = center.y + radius * sin(angle)
-                    ),
-                    strokeWidth = 1f
+                    end =
+                        Offset(
+                            x = center.x + radius * cos(angle),
+                            y = center.y + radius * sin(angle),
+                        ),
+                    strokeWidth = 1f,
                 )
             }
 
@@ -111,7 +114,7 @@ internal fun TasteRadarChart(
                 angleStep = angleStep,
                 strokeColor = secondary,
                 fillColor = secondary.copy(alpha = 0.12f),
-                strokeWidth = 2.5f
+                strokeWidth = 2.5f,
             )
             drawRadarPolygon(
                 center = center,
@@ -120,14 +123,14 @@ internal fun TasteRadarChart(
                 angleStep = angleStep,
                 strokeColor = primary,
                 fillColor = primary.copy(alpha = 0.16f),
-                strokeWidth = 3f
+                strokeWidth = 3f,
             )
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             StatusChip(label = stringResource(R.string.taste_chart_profile), color = primary)
             StatusChip(label = stringResource(R.string.taste_chart_now), color = secondary)
@@ -142,16 +145,17 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRadarPolygon(
     angleStep: Float,
     strokeColor: Color,
     fillColor: Color,
-    strokeWidth: Float
+    strokeWidth: Float,
 ) {
     val path = Path()
     values.forEachIndexed { index, value ->
         val angle = index * angleStep - (PI / 2).toFloat()
         val pointRadius = radius * value.toFloat()
-        val point = Offset(
-            x = center.x + pointRadius * cos(angle),
-            y = center.y + pointRadius * sin(angle)
-        )
+        val point =
+            Offset(
+                x = center.x + pointRadius * cos(angle),
+                y = center.y + pointRadius * sin(angle),
+            )
         if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
     }
     path.close()
@@ -162,25 +166,27 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRadarPolygon(
     drawPath(
         path = path,
         color = strokeColor,
-        style = Stroke(
-            width = strokeWidth,
-            cap = StrokeCap.Round,
-            join = StrokeJoin.Round
-        )
+        style =
+            Stroke(
+                width = strokeWidth,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round,
+            ),
     )
 }
 
 @Composable
 internal fun TopicDistributionStrip(topics: List<TopicInsight>) {
     val visibleTopics = remember(topics) { topics.take(7).filter { it.score > 0.0 } }
-    val colors = listOf(
-        MaterialTheme.colorScheme.primary,
-        MaterialTheme.colorScheme.secondary,
-        MaterialTheme.colorScheme.tertiary,
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-        MaterialTheme.colorScheme.secondary.copy(alpha = 0.72f),
-        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.72f)
-    )
+    val colors =
+        listOf(
+            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.secondary,
+            MaterialTheme.colorScheme.tertiary,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.72f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.72f),
+        )
 
     if (visibleTopics.isEmpty()) return
 
@@ -188,35 +194,38 @@ internal fun TopicDistributionStrip(topics: List<TopicInsight>) {
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(148.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.26f))
-                .padding(horizontal = 10.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(148.dp)
+                    .clip(MaterialTheme.shapes.large)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .padding(horizontal = 10.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.Bottom
+            verticalAlignment = Alignment.Bottom,
         ) {
             visibleTopics.forEachIndexed { index, topic ->
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Bottom
+                    verticalArrangement = Arrangement.Bottom,
                 ) {
                     Text(
                         text = topic.score.topicWeightLabel(),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
+                        maxLines = 1,
                     )
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.62f)
-                            .fillMaxHeight((topic.score / maxScore).toFloat().coerceIn(0.06f, 0.86f))
-                            .clip(RoundedCornerShape(topStart = 7.dp, topEnd = 7.dp))
-                            .background(colors[index % colors.size])
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(0.62f)
+                                .fillMaxHeight((topic.score / maxScore).toFloat().coerceIn(0.06f, 0.86f))
+                                .clip(MaterialTheme.shapes.small)
+                                .background(colors[index % colors.size]),
                     )
                     Text(
                         text = topic.name.readableTopic(),
@@ -235,14 +244,15 @@ internal fun TopicDistributionStrip(topics: List<TopicInsight>) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Box(
-                        modifier = Modifier
-                            .width(18.dp)
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(colors[index % colors.size])
+                        modifier =
+                            Modifier
+                                .width(18.dp)
+                                .height(8.dp)
+                                .clip(MaterialTheme.shapes.extraLarge)
+                                .background(colors[index % colors.size]),
                     )
                     Text(
                         text = topic.name.readableTopic(),
@@ -250,12 +260,12 @@ internal fun TopicDistributionStrip(topics: List<TopicInsight>) {
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     Text(
                         text = topic.score.topicWeightLabel(),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
