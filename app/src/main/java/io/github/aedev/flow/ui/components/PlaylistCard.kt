@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,7 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
@@ -115,13 +116,21 @@ private fun PlaylistCardContent(
                 stringResource(R.string.playlist),
             )
         } ?: pluralStringResource(R.plurals.videos_count_template, videoCount, videoCount)
+    val interactionSource = remember { MutableInteractionSource() }
+    val interactionModifier =
+        Modifier
+            .pressScale(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                onClick = onClick,
+            )
 
     if (layout == PlaylistCardLayout.SHELF) {
         Column(
             modifier =
-                Modifier
-                    .then(modifier)
-                    .clickable(onClick = onClick)
+                modifier
+                    .then(interactionModifier)
                     .padding(vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -148,7 +157,7 @@ private fun PlaylistCardContent(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .then(interactionModifier)
                 .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -224,33 +233,14 @@ private fun LayeredPlaylistArtwork(
                     .fillMaxSize()
                     .offset(x = (-3).dp, y = (-3).dp)
                     .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            if (thumbnailUrl.isNotBlank()) {
-                AsyncImage(
-                    model = thumbnailUrl,
-                    contentDescription = null,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .blur(10.dp),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.7f,
-                )
-            }
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.18f)),
-            )
-        }
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        )
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
         ) {
             if (thumbnailUrl.isNotBlank()) {
                 AsyncImage(
