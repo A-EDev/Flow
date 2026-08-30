@@ -16,8 +16,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +30,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -46,11 +43,13 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,11 +59,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +72,8 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.recognition.RecognitionResult
 import io.github.aedev.flow.data.recognition.RecognitionStatus
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 @Composable
 fun RecognitionScreen(
@@ -88,6 +85,7 @@ fun RecognitionScreen(
     viewModel: RecognitionViewModel = hiltViewModel(),
 ) {
     val status by viewModel.status.collectAsStateWithLifecycle()
+    val reduceMotion = rememberFlowReduceMotion()
 
     var hasPermission by remember { mutableStateOf(viewModel.hasRecordPermission()) }
     val permissionLauncher =
@@ -122,7 +120,10 @@ fun RecognitionScreen(
             onBackClick = onBackClick,
         ) {
             IconButton(onClick = onHistoryClick) {
-                Icon(Icons.Filled.History, stringResource(R.string.recognition_history))
+                Icon(
+                    Icons.Filled.History,
+                    contentDescription = stringResource(R.string.recognition_history),
+                )
             }
         }
 
@@ -135,10 +136,45 @@ fun RecognitionScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            val enterDuration = FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion)
+            val exitDuration = FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion)
+
             AnimatedContent(
                 targetState = status,
-                transitionSpec = { (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut()) },
-                label = "recognition_content",
+                transitionSpec = {
+                    val enter =
+                        fadeIn(
+                            tween(
+                                durationMillis = enterDuration,
+                                easing = FlowMotion.EnterEasing,
+                            ),
+                        ) +
+                            scaleIn(
+                                animationSpec =
+                                    tween(
+                                        durationMillis = enterDuration,
+                                        easing = FlowMotion.EnterEasing,
+                                    ),
+                                initialScale = 0.98f,
+                            )
+                    val exit =
+                        fadeOut(
+                            tween(
+                                durationMillis = exitDuration,
+                                easing = FlowMotion.ExitEasing,
+                            ),
+                        ) +
+                            scaleOut(
+                                animationSpec =
+                                    tween(
+                                        durationMillis = exitDuration,
+                                        easing = FlowMotion.ExitEasing,
+                                    ),
+                                targetScale = 0.98f,
+                            )
+                    enter togetherWith exit
+                },
+                label = "recognitionStatus",
             ) { state ->
                 when (state) {
                     is RecognitionStatus.Ready -> {
@@ -146,11 +182,14 @@ fun RecognitionScreen(
                     }
 
                     is RecognitionStatus.Listening -> {
-                        ListeningState(onCancel = viewModel::cancel)
+                        ListeningState(
+                            reduceMotion = reduceMotion,
+                            onCancel = viewModel::cancel,
+                        )
                     }
 
                     is RecognitionStatus.Processing -> {
-                        ProcessingState()
+                        ProcessingState(reduceMotion = reduceMotion)
                     }
 
                     is RecognitionStatus.Success -> {
@@ -187,7 +226,7 @@ fun RecognitionScreen(
     }
 }
 
-/** Lightweight header used by the recognition screens; no status-bar inset (the host applies it). */
+/** Keeps recognition navigation consistent without adding another scaffold or inset layer. */
 @Composable
 internal fun RecognitionHeader(
     title: String,
@@ -202,7 +241,10 @@ internal fun RecognitionHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBackClick) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.back),
+            )
         }
         Text(
             text = title,
@@ -223,126 +265,132 @@ private fun ReadyState(onStart: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(200.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                Color.Transparent,
-                            ),
-                        ),
-                    ).clickable { onStart() },
-            contentAlignment = Alignment.Center,
+        Surface(
+            onClick = onStart,
+            modifier = Modifier.size(200.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(160.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center,
-            ) {
+            Box(contentAlignment = Alignment.Center) {
                 Icon(
                     Icons.Filled.Mic,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                )
-            }
-        }
-        Text(stringResource(R.string.tap_to_recognize), style = MaterialTheme.typography.titleMedium)
-    }
-}
-
-@Composable
-private fun ListeningState(onCancel: () -> Unit) {
-    val transition = rememberInfiniteTransition(label = "pulse")
-    val scale by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "scale",
-    )
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-    ) {
-        Box(modifier = Modifier.size(260.dp), contentAlignment = Alignment.Center) {
-            Box(
-                Modifier
-                    .size(200.dp)
-                    .scale(scale)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
-            )
-            Box(
-                Modifier
-                    .size(180.dp)
-                    .scale(scale * 0.9f)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .size(160.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .clickable { onCancel() },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.Mic,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    contentDescription = stringResource(R.string.tap_to_recognize),
+                    modifier = Modifier.size(72.dp),
                 )
             }
         }
         Text(
-            stringResource(R.string.listening),
+            text = stringResource(R.string.tap_to_recognize),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
         )
-        OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
     }
 }
 
 @Composable
-private fun ProcessingState() {
-    val transition = rememberInfiniteTransition(label = "rotate")
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
-        label = "rotation",
-    )
+private fun ListeningState(
+    reduceMotion: Boolean,
+    onCancel: () -> Unit,
+) {
+    val pulseScale =
+        if (reduceMotion) {
+            null
+        } else {
+            val transition = rememberInfiniteTransition(label = "recognitionPulse")
+            transition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.06f,
+                animationSpec =
+                    infiniteRepeatable(
+                        animation =
+                            tween(
+                                durationMillis = FlowMotion.EMPHASIZED_DURATION_MILLIS * 3,
+                                easing = LinearEasing,
+                            ),
+                        repeatMode = RepeatMode.Reverse,
+                    ),
+                label = "pulseScale",
+            )
+        }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        Box(modifier = Modifier.size(160.dp), contentAlignment = Alignment.Center) {
-            Box(
-                Modifier.size(160.dp).clip(CircleShape).rotate(rotation).border(
-                    width = 4.dp,
-                    brush =
-                        Brush.sweepGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                MaterialTheme.colorScheme.primary,
-                            ),
-                        ),
-                    shape = CircleShape,
-                ),
-            )
+        Box(
+            modifier = Modifier.size(260.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                modifier =
+                    Modifier
+                        .size(208.dp)
+                        .graphicsLayer {
+                            val scale = pulseScale?.value ?: 1f
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+            ) {}
+            Surface(
+                modifier = Modifier.size(176.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {}
+            Surface(
+                onClick = onCancel,
+                modifier = Modifier.size(152.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Filled.Mic,
+                        contentDescription = stringResource(R.string.cancel),
+                        modifier = Modifier.size(64.dp),
+                    )
+                }
+            }
+        }
+        Text(
+            text = stringResource(R.string.listening),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        OutlinedButton(onClick = onCancel) {
+            Text(stringResource(R.string.cancel))
+        }
+    }
+}
+
+@Composable
+private fun ProcessingState(reduceMotion: Boolean) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+    ) {
+        Box(
+            modifier = Modifier.size(160.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (reduceMotion) {
+                CircularProgressIndicator(
+                    progress = { 0.66f },
+                    modifier = Modifier.size(144.dp),
+                    strokeWidth = 4.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                )
+            } else {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(144.dp),
+                    strokeWidth = 4.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                )
+            }
             Icon(
                 Icons.Filled.MusicNote,
                 contentDescription = null,
@@ -350,7 +398,10 @@ private fun ProcessingState() {
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
-        Text(stringResource(R.string.processing), style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = stringResource(R.string.processing),
+            style = MaterialTheme.typography.titleMedium,
+        )
     }
 }
 
@@ -371,9 +422,12 @@ private fun SuccessState(
         modifier = Modifier.padding(horizontal = 16.dp),
     ) {
         Card(
-            modifier = Modifier.size(200.dp).aspectRatio(1f),
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            modifier =
+                Modifier
+                    .size(200.dp)
+                    .aspectRatio(1f),
+            shape = MaterialTheme.shapes.extraLarge,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         ) {
             AsyncImage(
                 model = result.coverArtHqUrl ?: result.coverArtUrl,
@@ -399,11 +453,11 @@ private fun SuccessState(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        result.album?.takeIf { it.isNotBlank() }?.let {
+        result.album?.takeIf { it.isNotBlank() }?.let { album ->
             Text(
-                text = it,
+                text = album,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -417,24 +471,52 @@ private fun SuccessState(
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (!result.youtubeVideoId.isNullOrBlank()) {
-                Button(onClick = { onPlay(result) }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(18.dp))
+                Button(
+                    onClick = { onPlay(result) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.play))
                 }
             }
-            FilledTonalButton(onClick = { onSearch(result) }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Search, null, modifier = Modifier.size(18.dp))
+            FilledTonalButton(
+                onClick = { onSearch(result) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    Icons.Filled.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.search_in_flow))
             }
-            OutlinedButton(onClick = onTryAgain, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Mic, null, modifier = Modifier.size(18.dp))
+            OutlinedButton(
+                onClick = onTryAgain,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    Icons.Filled.Mic,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.try_again))
             }
-            OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Close, null, modifier = Modifier.size(18.dp))
+            OutlinedButton(
+                onClick = onClose,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.close))
             }
@@ -457,8 +539,10 @@ private fun MessageState(
             modifier =
                 Modifier
                     .size(120.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.errorContainer),
+                    .background(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = CircleShape,
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -468,7 +552,11 @@ private fun MessageState(
                 tint = MaterialTheme.colorScheme.onErrorContainer,
             )
         }
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
         Text(
             text = message,
             style = MaterialTheme.typography.bodyMedium,
@@ -477,7 +565,11 @@ private fun MessageState(
             modifier = Modifier.padding(horizontal = 32.dp),
         )
         Button(onClick = onTryAgain) {
-            Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(18.dp))
+            Icon(
+                Icons.Filled.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.try_again))
         }
