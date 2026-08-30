@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -80,7 +81,7 @@ fun AlbumCard(
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     ) {
                         Icon(
-                            imageVector = OfflinePin,
+                            imageVector = Icons.Rounded.OfflinePin,
                             contentDescription = stringResource(R.string.status_downloaded),
                             modifier =
                                 Modifier
