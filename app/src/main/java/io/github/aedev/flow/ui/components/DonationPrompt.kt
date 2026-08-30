@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -11,12 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.VolunteerActivism
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,7 +33,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import io.github.aedev.flow.R
@@ -52,7 +48,7 @@ private const val DONATION_PROMPT_SHOW_DELAY_MS = 1_500L
 @Composable
 fun DonationPromptHost(
     enabled: Boolean,
-    onNavigateToDonations: () -> Unit
+    onNavigateToDonations: () -> Unit,
 ) {
     val context = LocalContext.current
     val preferences = remember { PlayerPreferences(context) }
@@ -104,7 +100,7 @@ fun DonationPromptHost(
                     preferences.setDonationPromptShown(System.currentTimeMillis())
                     preferences.setDonationPromptDisabled(true)
                 }
-            }
+            },
         )
     }
 }
@@ -113,35 +109,37 @@ fun DonationPromptHost(
 private fun DonationPromptDialog(
     onSupport: () -> Unit,
     onLater: () -> Unit,
-    onNever: () -> Unit
+    onNever: () -> Unit,
 ) {
     Dialog(
         onDismissRequest = onLater,
-        properties = DialogProperties(usePlatformDefaultWidth = true)
+        properties = DialogProperties(usePlatformDefaultWidth = true),
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 6.dp
+            tonalElevation = 6.dp,
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(MaterialTheme.colorScheme.surface, CircleShape),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(64.dp)
+                            .background(MaterialTheme.colorScheme.surface, CircleShape),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.VolunteerActivism,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(32.dp),
                     )
                 }
 
@@ -152,7 +150,7 @@ private fun DonationPromptDialog(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -162,21 +160,20 @@ private fun DonationPromptDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    lineHeight = 20.sp
                 )
 
                 Spacer(Modifier.height(20.dp))
 
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
                 ) {
                     Text(
                         text = stringResource(R.string.donation_prompt_methods),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     )
                 }
 
@@ -184,25 +181,22 @@ private fun DonationPromptDialog(
 
                 Button(
                     onClick = onSupport,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                    shape = MaterialTheme.shapes.large,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Favorite,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.donation_prompt_support),
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
                     )
                 }
 
@@ -210,18 +204,18 @@ private fun DonationPromptDialog(
 
                 TextButton(
                     onClick = onLater,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(text = stringResource(R.string.donation_prompt_later))
                 }
 
                 TextButton(
                     onClick = onNever,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = stringResource(R.string.donation_prompt_never),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
