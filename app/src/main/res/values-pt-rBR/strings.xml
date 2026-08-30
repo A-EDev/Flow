@@ -20,7 +20,7 @@
     <string name="library_liked_videos_label">Curtidos</string>
     <string name="library_saved_shorts_label">Shorts salvos</string>
     <string name="library_watch_later_label">Assistir mais tarde</string>
-    <string name="library_downloads_label">Baixados</string>
+    <string name="library_downloads_label">Downloads</string>
     <string name="library_settings_data_header"><![CDATA[Configurações e dados]]></string>
     <string name="library_manage_data_label">Gerenciar dados</string>
     <string name="library_manage_data_subtitle">Limpar cache e histórico</string>
@@ -106,7 +106,7 @@
     <string name="empty_offline_body">Seu %1$s baixado aparecerá aqui.\nAproveite seu conteúdo mesmo sem internet.</string>
     <string name="action_go_to_home">Ir para Início</string>
     <string name="action_delete">Excluir</string>
-    <string name="download_deleted">Baixado excluído</string>
+    <string name="download_deleted">Download excluído</string>
     <string name="action_undo">Desfazer</string>
     <string name="cd_delete_download">Excluir %1$s</string>
     <string name="music_player">Reprodutor de Músicas</string>
@@ -270,7 +270,7 @@
     <string name="notif_interval_30m">30 minutos</string>
     <string name="notif_interval_1h">1 hora</string>
     <string name="notif_interval_2h">2 horas</string>
-    <string name="downloads_title">Baixados</string>
+    <string name="downloads_title">Downloads</string>
     <string name="player_action_copy_link">Copiar link</string>
     <string name="error_http_forbidden">Acesso negado (403)</string>
     <string name="dislikes">Não gostei</string>
@@ -908,7 +908,7 @@
     <string name="proxy_settings_enabled_subtitle">Utilize o proxy configurado para tráfego de rede remoto</string>
     <string name="proxy_settings_type">Tipo de proxy</string>
     <string name="proxy_settings_optional_auth">Deixe o nome de usuário e a senha em branco para proxies não autenticados.</string>
-    <string name="proxy_settings_restart_notice">Baixados ativos ou solicitações de reprodução de longa duração podem precisar de reinicialização antes de adotarem completamente uma nova rota de proxy.</string>
+    <string name="proxy_settings_restart_notice">Downloads ativos ou solicitações de reprodução de longa duração podem precisar de reinicialização antes de adotarem completamente uma nova rota de proxy.</string>
     <string name="proxy_type_http">HTTP</string>
     <string name="proxy_type_socks5">SOCKS5</string>
     <string name="proxy_settings_invalid_host">Insira um host proxy antes de ativar o proxy.</string>
@@ -1180,8 +1180,8 @@
     <string name="download_settings_title">Configurações de download</string>
     <string name="permissions_header">Permissões</string>
     <string name="files_access_title">Acesso a arquivos</string>
-    <string name="files_access_granted_subtitle">Permitido — os baixados aparecem imediatamente</string>
-    <string name="files_access_denied_subtitle">Negado — toque para ativar e ver a lista completa de baixados</string>
+    <string name="files_access_granted_subtitle">Permitido — os downloads aparecem imediatamente</string>
+    <string name="files_access_denied_subtitle">Negado — toque para ativar e ver a lista completa de downloads</string>
     <string name="media_access_title">Acesso a fotos e vídeos</string>
     <string name="media_access_granted_subtitle">Permitido</string>
     <string name="media_access_denied_subtitle">Negado — toque para ativar</string>
@@ -1210,7 +1210,7 @@
     <string name="location_dialog_subtitle">Escolher onde os arquivos baixados serão salvos no seu dispositivo.</string>
     <string name="location_preset_header">Locais predefinidos</string>
     <string name="location_custom_header">Local personalizado</string>
-    <string name="location_downloads_label">Baixados / Flow</string>
+    <string name="location_downloads_label">Downloads / Flow</string>
     <string name="location_movies_label">Filmes / Flow</string>
     <string name="location_internal_app_label">Armazenamento interno do aplicativo</string>
     <string name="location_internal_app_desc">Privado ao aplicativo — os arquivos podem ser excluídos se você desinstalar</string>
@@ -1543,13 +1543,13 @@
     <string name="download_menu_style_compact_desc">Título editável, menus suspensos e contagem de núcleos</string>
     <string name="downloading_template">Baixando %1$s...</string>
     <string name="section_downloading">Baixando</string>
-    <string name="section_incomplete_downloads">Baixado incompleto</string>
+    <string name="section_incomplete_downloads">Downloads incompleto</string>
     <string name="section_completed">Completo</string>
     <string name="download_status_queued">Em fila</string>
     <string name="download_status_paused">Pausado</string>
     <string name="download_status_failed">Falhou</string>
     <string name="download_status_cancelled">Cancelado</string>
-    <string name="remove_incomplete_downloads">Remover baixados incompletos</string>
+    <string name="remove_incomplete_downloads">Remover downloads incompletos</string>
     <string name="audio_track">Faixa de áudio</string>
     <string name="audio_track_number_template">%1$s %2$d</string>
     <string name="subtitle_auto_generated_template">%1$s (%2$s)</string>
@@ -1919,10 +1919,10 @@
     <string name="widget_turntable_label">Disco giratório</string>
     <string name="widget_recently_played_label">Tocado recentemente</string>
     <string name="widget_recently_played_description">Retorne para onde parou</string>
-    <string name="widget_downloads_label">Baixados</string>
-    <string name="widget_downloads_description">Tocar seus baixados offline</string>
+    <string name="widget_downloads_label">Downloads</string>
+    <string name="widget_downloads_description">Tocar seus downloads offline</string>
     <string name="widget_recently_played">Tocado recentemente</string>
-    <string name="widget_downloads">Baixados</string>
+    <string name="widget_downloads">Downloads</string>
     <string name="widget_nothing_playing">Nada tocando</string>
     <string name="widget_play">Tocar</string>
     <string name="widget_pause">Pausar</string>
@@ -1930,10 +1930,10 @@
     <string name="widget_previous">Faixa anterior</string>
     <string name="widget_like">Curtir</string>
     <string name="widget_artwork">Capa do álbum</string>
-    <string name="widget_open_downloads">Abrir baixados</string>
+    <string name="widget_open_downloads">Abrir downloads</string>
     <string name="widget_open_history">Abrir histórico</string>
     <string name="widget_no_recent">Vídeos que você assistir aparecerão aqui</string>
-    <string name="widget_no_downloads">Seus baixados aparecerão aqui</string>
+    <string name="widget_no_downloads">Seus downloads aparecerão aqui</string>
     <string name="ui_open_in_youtube">Abrir no YouTube</string>
     <string name="ui_playback_error">Erro de reprodução</string>
     <string name="ui_replay">Tocar novamente</string>
@@ -2131,14 +2131,14 @@
     <string name="audio_track_original">Original</string>
     <string name="audio_track_dubbed">Dublado</string>
     <string name="ui_skipped_segment">%1$s pulado</string>
-    <string name="ui_started_download">Baixado iniciado: %1$s</string>
+    <string name="ui_started_download">Download iniciado: %1$s</string>
     <string name="ui_download_start_failed">Falha ao iniciar download:%1$s</string>
     <string name="toast_unsubscribed_from">Inscrição em %1$s cancelada</string>
     <string name="toast_subscribed_to">Inscreveu-se em %1$s</string>
     <string name="toast_removed_from_watch_later">Removido de Assistir Mais Tarde</string>
     <string name="toast_added_to_watch_later">Adicionada à Assistir Mais Tarde</string>
     <string name="toast_fetching_download_links">Buscando links para download…</string>
-    <string name="toast_download_started">Baixado iniciado: %1$s</string>
+    <string name="toast_download_started">Download iniciado: %1$s</string>
     <string name="toast_trying_sabr_download">Tentando SABR Download…</string>
     <string name="toast_sabr_download_started">SABR Download iniciado</string>
     <string name="toast_sabr_download_started_for_video">SABR download iniciado: %1$s</string>
@@ -2293,4 +2293,28 @@
     <string name="player_settings_auto_enable_subtitles">Ativar Legendas Automaticamente</string>
     <string name="player_settings_auto_enable_subtitles_subtitle">Começa cada vídeo com legendas em seu idioma preferido</string>
     <string name="subtitle_translated">traduzido</string>
+    <plurals name="remove_incomplete_downloads_message">
+        <item quantity="one">Remover %1$d pausado, falhado ou baixado parcialmente? Os downloads concluídos não serão alterados.</item>
+        <item quantity="many">Remover %1$d pausados, falhados ou baixados parcialmente? Os downloads concluídos não serão alterados.</item>
+        <item quantity="other">Remover %1$d pausados, falhados ou baixados parcialmente? Os downloads concluídos não serão alterados.</item>
+    </plurals>
+    <plurals name="notification_downloads_paused">
+        <item quantity="one">Download %1$d pausado</item>
+        <item quantity="many">Downloads %1$d pausados</item>
+        <item quantity="other">Downloads %1$d pausados</item>
+    </plurals>
+    <string name="top_bar_clear_search">Limpar pesquisa</string>
+    <string name="top_bar_close_search">Fechar pesquisa</string>
+    <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="one">Atualizando canal %1$d de %2$d</item>
+        <item quantity="many">Atualizando canais %1$d de %2$d</item>
+        <item quantity="other">Atualizando canais %1$d de %2$d</item>
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="one">Última atualização %1$s - %2$d vídeos verificados</item>
+        <item quantity="many">Última atualização %1$s - %2$d vídeos verificados</item>
+        <item quantity="other">Última atualização %1$s - %2$d vídeos verificados</item>
+    </plurals>
+    <string name="conjunction_and">e</string>
+    <string name="streamed_date_template">Transmitido %1$s</string>
 </resources>
