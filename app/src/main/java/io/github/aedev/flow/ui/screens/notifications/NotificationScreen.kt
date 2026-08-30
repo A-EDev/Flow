@@ -1,26 +1,26 @@
 package io.github.aedev.flow.ui.screens.notifications
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -28,14 +28,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.NotificationEntity
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.pressScale
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -44,7 +47,7 @@ fun NotificationScreen(
     onNotificationClick: (String) -> Unit,
     viewModel: NotificationViewModel = hiltViewModel(),
 ) {
-    val notifications by viewModel.notifications.collectAsState()
+    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -57,7 +60,6 @@ fun NotificationScreen(
                 val calendar = Calendar.getInstance()
                 val now = calendar.timeInMillis
                 val itemTime = entity.timestamp
-
                 val diff = now - itemTime
                 val days = (diff / (1000 * 60 * 60 * 24)).toInt()
 
@@ -69,7 +71,6 @@ fun NotificationScreen(
             }
         }
 
-    // Removed Scaffold completely. Using pure Column for absolute control.
     Column(
         modifier =
             Modifier
@@ -105,7 +106,7 @@ fun NotificationScreen(
 
                     items(
                         items = items,
-                        key = { it.id }, // Keys ensure beautiful swipe animations
+                        key = { it.id },
                     ) { notification ->
                         SwipeToDismissNotification(
                             notification = notification,
@@ -121,15 +122,13 @@ fun NotificationScreen(
 
 @Composable
 private fun NotificationHeader(title: String) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f)) // Slight transparency for sticky effect
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Text(
             text = title,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
@@ -161,16 +160,17 @@ private fun SwipeToDismissNotification(
         enableDismissFromEndToStart = true,
         enableDismissFromStartToEnd = false,
         backgroundContent = {
-            val color =
-                when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error
-                    else -> Color.Transparent
+            val containerColor =
+                if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.surface
                 }
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(color) // Edge-to-edge flat red color to match the item
+                        .background(containerColor)
                         .padding(end = 24.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
@@ -199,32 +199,34 @@ private fun NotificationItem(
 ) {
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val isUnread = !notification.isRead
+    val interactionSource = remember { MutableInteractionSource() }
 
-    // Instead of Card, we use a raw Row. It is perfectly optimized for LazyColumn.
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                // Subtle background tint for unread items
                 .background(
                     if (isUnread) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                        MaterialTheme.colorScheme.surfaceContainerLow
                     } else {
-                        MaterialTheme.colorScheme.background
+                        MaterialTheme.colorScheme.surface
                     },
-                ).clickable(onClick = onClick)
-                .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+                ).pressScale(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(),
+                    onClick = onClick,
+                ).padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        // Thumbnail Section (Clean 16:9 ratio)
         Box(
             modifier =
                 Modifier
                     .width(130.dp)
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
         ) {
             AsyncImage(
                 model = notification.thumbnailUrl,
@@ -234,10 +236,7 @@ private fun NotificationItem(
             )
         }
 
-        // Text Content Section
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
+        Column(modifier = Modifier.weight(1f)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -247,39 +246,37 @@ private fun NotificationItem(
                     text = notification.title,
                     style =
                         MaterialTheme.typography.bodyMedium.copy(
-                            lineHeight = 18.sp,
                             fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal,
                         ),
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
 
-                // Subtle, perfectly aligned close button
                 IconButton(
                     onClick = onDismiss,
-                    modifier =
-                        Modifier
-                            .size(24.dp)
-                            .offset(x = 4.dp, y = (-4).dp),
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.dismiss),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${notification.channelName} • ${timeFormat.format(Date(notification.timestamp))}",
+                    text =
+                        stringResource(
+                            R.string.video_metadata_short_template,
+                            notification.channelName,
+                            timeFormat.format(Date(notification.timestamp)),
+                        ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -287,7 +284,6 @@ private fun NotificationItem(
                     modifier = Modifier.weight(1f, fill = false),
                 )
 
-                // Tiny blue dot indicator moved to the far right for cleaner alignment
                 if (isUnread) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
@@ -317,7 +313,7 @@ private fun EmptyNotificationsState(modifier: Modifier = Modifier) {
                 imageVector = Icons.Outlined.NotificationsNone,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = MaterialTheme.colorScheme.outline,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -326,7 +322,7 @@ private fun EmptyNotificationsState(modifier: Modifier = Modifier) {
                 text = stringResource(R.string.peace_and_quiet),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
             Spacer(modifier = Modifier.height(8.dp))
