@@ -3,9 +3,8 @@ package io.github.aedev.flow.ui.components
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.DraggableState
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -35,11 +34,14 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -94,6 +96,7 @@ class MusicPlayerSheetState(
     private val animatable: Animatable<Dp, AnimationVector1D>,
     initialAnchor: Int,
     private val onAnchorChanged: (Int) -> Unit,
+    private val reduceMotion: Boolean,
     val collapsedBound: Dp,
 ) : DraggableState by draggableState {
     val dismissedBound: Dp get() = animatable.lowerBound!!
@@ -141,13 +144,27 @@ class MusicPlayerSheetState(
         anchor = targetAnchor
         onAnchorChanged(targetAnchor)
         coroutineScope.launch {
-            animatable.animateTo(
-                target,
-                spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-            )
+            if (reduceMotion) {
+                animatable.snapTo(target)
+            } else {
+                animatable.animateTo(
+                    target,
+                    tween(
+                        durationMillis =
+                            if (targetAnchor == EXPANDED_ANCHOR) {
+                                FlowMotion.ENTER_DURATION_MILLIS
+                            } else {
+                                FlowMotion.EXIT_DURATION_MILLIS
+                            },
+                        easing =
+                            if (targetAnchor == EXPANDED_ANCHOR) {
+                                FlowMotion.EnterEasing
+                            } else {
+                                FlowMotion.ExitEasing
+                            },
+                    ),
+                )
+            }
         }
     }
 
@@ -242,10 +259,11 @@ fun rememberMusicPlayerSheetState(
 ): MusicPlayerSheetState {
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
+    val reduceMotion = rememberFlowReduceMotion()
     var previousAnchor by rememberSaveable { mutableStateOf(initialAnchor) }
     val animatable = remember { Animatable(0.dp, Dp.VectorConverter) }
 
-    return remember(dismissedBound, expandedBound, collapsedBound, scope) {
+    return remember(dismissedBound, expandedBound, collapsedBound, scope, reduceMotion) {
         val initialValue =
             when (previousAnchor) {
                 EXPANDED_ANCHOR -> expandedBound
@@ -272,6 +290,7 @@ fun rememberMusicPlayerSheetState(
             animatable = animatable,
             initialAnchor = previousAnchor,
             onAnchorChanged = { previousAnchor = it },
+            reduceMotion = reduceMotion,
             collapsedBound = collapsedBound,
         )
     }
@@ -309,14 +328,30 @@ fun MusicPlayerBottomSheet(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        val lift = bottomPadding * (1f - state.progress)
         Box(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(state.value.coerceAtLeast(0.dp))
-                    .offset { IntOffset(x = 0, y = -lift.roundToPx()) }
-                    .clip(RectangleShape),
+                    .layout { measurable, constraints ->
+                        val height =
+                            state.value
+                                .coerceAtLeast(0.dp)
+                                .roundToPx()
+                                .coerceIn(constraints.minHeight, constraints.maxHeight)
+                        val placeable =
+                            measurable.measure(
+                                constraints.copy(
+                                    minHeight = height,
+                                    maxHeight = height,
+                                ),
+                            )
+                        layout(placeable.width, height) {
+                            placeable.placeRelative(0, 0)
+                        }
+                    }.offset {
+                        val lift = bottomPadding * (1f - state.progress)
+                        IntOffset(x = 0, y = -lift.roundToPx())
+                    }.clip(RectangleShape),
         ) {
             // ── Full player (expanded content) ──────────────────────────────
             Box(
