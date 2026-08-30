@@ -30,7 +30,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
@@ -120,7 +119,6 @@ fun PlayerTimePill(
                     style = MaterialTheme.typography.labelMedium,
                     color = PlayerLiveIndicator,
                     fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp,
                 )
             } else {
                 Text(
