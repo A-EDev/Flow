@@ -12,13 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,7 +34,6 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.VideoThumbnailImage
 import io.github.aedev.flow.ui.components.pressScale
-import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatDuration
 
 internal val LibraryShelfCardWidth = 220.dp
@@ -47,6 +46,7 @@ internal fun LibraryVideoCard(
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+
     Column(
         modifier =
             modifier
@@ -54,7 +54,7 @@ internal fun LibraryVideoCard(
                 .pressScale(interactionSource)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = androidx.compose.material3.ripple(),
+                    indication = ripple(),
                     onClick = onClick,
                 ).padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -64,7 +64,7 @@ internal fun LibraryVideoCard(
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
+                    .clip(MaterialTheme.shapes.large)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             VideoThumbnailImage(
@@ -125,6 +125,7 @@ internal fun LibraryAlbumCard(
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+
     Column(
         modifier =
             modifier
@@ -132,16 +133,15 @@ internal fun LibraryAlbumCard(
                 .pressScale(interactionSource)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = androidx.compose.material3.ripple(),
+                    indication = ripple(),
                     onClick = onClick,
                 ).padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Surface(
             modifier = Modifier.size(LibraryShelfArtworkHeight),
-            shape = RoundedCornerShape(Dimensions.CardCornerRadius),
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surfaceVariant,
-            tonalElevation = 2.dp,
         ) {
             Box {
                 AsyncImage(
