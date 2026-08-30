@@ -1,5 +1,11 @@
 package io.github.aedev.flow.ui.components.layout.topbar
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,14 +30,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
-/**
- * Search variant of [FlowTopBar]: back button, inline field, optional trailing actions.
- *
- * Used for in-place filtering of a screen's own content (Settings search, Subscriptions manage
- * mode), not for the Search tab. Global actions are never shown — the user is in a focused mode and
- * the leading affordance dismisses it rather than navigating back.
- */
+/** Search variant for filtering a screen's own content in place. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FlowSearchTopBar(
@@ -45,6 +47,7 @@ fun FlowSearchTopBar(
     windowInsets: WindowInsets = FlowTopBarDefaults.WindowInsets,
 ) {
     val focusRequester = remember { FocusRequester() }
+    val reduceMotion = rememberFlowReduceMotion()
 
     if (autoFocus) {
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -77,7 +80,36 @@ fun FlowSearchTopBar(
         },
         onBack = onClose,
         actions = {
-            if (query.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = query.isNotEmpty(),
+                enter =
+                    fadeIn(
+                        tween(
+                            durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                            easing = FlowMotion.EnterEasing,
+                        ),
+                    ) +
+                        expandHorizontally(
+                            tween(
+                                durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                                easing = FlowMotion.EnterEasing,
+                            ),
+                        ),
+                exit =
+                    fadeOut(
+                        tween(
+                            durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                            easing = FlowMotion.ExitEasing,
+                        ),
+                    ) +
+                        shrinkHorizontally(
+                            tween(
+                                durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                                easing = FlowMotion.ExitEasing,
+                            ),
+                        ),
+                label = "searchClearAction",
+            ) {
                 IconButton(onClick = { onQueryChange("") }) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
