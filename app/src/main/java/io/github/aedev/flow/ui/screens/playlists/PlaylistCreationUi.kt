@@ -2,11 +2,12 @@ package io.github.aedev.flow.ui.screens.playlists
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,40 +38,76 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 internal enum class PlaylistCreationTarget {
     Video,
-    Music
+    Music,
 }
 
 @Composable
 internal fun PlaylistCreationFabMenu(
     onCreateVideo: () -> Unit,
-    onCreateMusic: () -> Unit
+    onCreateMusic: () -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
-    val iconRotation by animateFloatAsState(
-        targetValue = if (expanded) 45f else 0f,
-        label = "playlist-fab-icon"
-    )
+    val reduceMotion = rememberFlowReduceMotion()
+    val enterDuration = FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion)
+    val exitDuration = FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion)
+    val rotationDuration = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion)
+    val iconRotation by
+        animateFloatAsState(
+            targetValue = if (expanded) 45f else 0f,
+            animationSpec = tween(rotationDuration, easing = FlowMotion.EnterEasing),
+            label = "playlistFabRotation",
+        )
     BackHandler(enabled = expanded) { expanded = false }
 
     Column(
         horizontalAlignment = Alignment.End,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         AnimatedVisibility(
             visible = expanded,
-            enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+            enter =
+                fadeIn(
+                    tween(
+                        durationMillis = enterDuration,
+                        easing = FlowMotion.EnterEasing,
+                    ),
+                ) +
+                    expandVertically(
+                        animationSpec =
+                            tween(
+                                durationMillis = enterDuration,
+                                easing = FlowMotion.EnterEasing,
+                            ),
+                        expandFrom = Alignment.Bottom,
+                    ),
+            exit =
+                fadeOut(
+                    tween(
+                        durationMillis = exitDuration,
+                        easing = FlowMotion.ExitEasing,
+                    ),
+                ) +
+                    shrinkVertically(
+                        animationSpec =
+                            tween(
+                                durationMillis = exitDuration,
+                                easing = FlowMotion.ExitEasing,
+                            ),
+                        shrinkTowards = Alignment.Bottom,
+                    ),
         ) {
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 ExtendedFloatingActionButton(
                     text = { Text(stringResource(R.string.video)) },
@@ -79,8 +116,6 @@ internal fun PlaylistCreationFabMenu(
                         expanded = false
                         onCreateVideo()
                     },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 ExtendedFloatingActionButton(
                     text = { Text(stringResource(R.string.tab_music)) },
@@ -89,27 +124,22 @@ internal fun PlaylistCreationFabMenu(
                         expanded = false
                         onCreateMusic()
                     },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
 
-        FloatingActionButton(
-            onClick = { expanded = !expanded },
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ) {
+        FloatingActionButton(onClick = { expanded = !expanded }) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = stringResource(
-                    if (expanded) {
-                        R.string.playlist_creation_menu_close
-                    } else {
-                        R.string.playlist_creation_menu_open
-                    }
-                ),
-                modifier = Modifier.rotate(iconRotation)
+                contentDescription =
+                    stringResource(
+                        if (expanded) {
+                            R.string.playlist_creation_menu_close
+                        } else {
+                            R.string.playlist_creation_menu_open
+                        },
+                    ),
+                modifier = Modifier.graphicsLayer { rotationZ = iconRotation },
             )
         }
     }
@@ -120,7 +150,7 @@ internal fun PlaylistCreationDialogHost(
     target: PlaylistCreationTarget?,
     onDismiss: () -> Unit,
     onCreateVideo: (name: String, description: String, isPrivate: Boolean) -> Unit,
-    onCreateMusic: (name: String, description: String) -> Unit
+    onCreateMusic: (name: String, description: String) -> Unit,
 ) {
     target ?: return
     key(target) {
@@ -133,7 +163,7 @@ internal fun PlaylistCreationDialogHost(
                     PlaylistCreationTarget.Music -> onCreateMusic(name, description)
                 }
                 onDismiss()
-            }
+            },
         )
     }
 }
@@ -142,7 +172,7 @@ internal fun PlaylistCreationDialogHost(
 private fun PlaylistCreationDialog(
     target: PlaylistCreationTarget,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, description: String, isPrivate: Boolean) -> Unit
+    onConfirm: (name: String, description: String, isPrivate: Boolean) -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -155,14 +185,14 @@ private fun PlaylistCreationDialog(
             Icon(
                 imageVector = if (isVideo) Icons.Default.VideoLibrary else Icons.Default.MusicNote,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
         },
         title = {
             Text(
                 stringResource(
-                    if (isVideo) R.string.create_new_playlist else R.string.new_playlist_button
-                )
+                    if (isVideo) R.string.create_new_playlist else R.string.new_playlist_button,
+                ),
             )
         },
         text = {
@@ -173,7 +203,7 @@ private fun PlaylistCreationDialog(
                     label = { Text(stringResource(R.string.playlist_name)) },
                     placeholder = { Text(stringResource(R.string.my_playlist_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
                 )
                 OutlinedTextField(
                     value = description,
@@ -181,34 +211,35 @@ private fun PlaylistCreationDialog(
                     label = { Text(stringResource(R.string.playlist_description_optional)) },
                     placeholder = { Text(stringResource(R.string.add_description_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
+                    maxLines = 3,
                 )
                 if (isVideo) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
                                 imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.Public,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(20.dp),
                             )
                             Text(
-                                text = stringResource(
-                                    if (isPrivate) R.string.playlist_private else R.string.playlist_public
-                                ),
-                                style = MaterialTheme.typography.bodyMedium
+                                text =
+                                    stringResource(
+                                        if (isPrivate) R.string.playlist_private else R.string.playlist_public,
+                                    ),
+                                style = MaterialTheme.typography.bodyMedium,
                             )
                         }
                         Switch(
                             checked = isPrivate,
-                            onCheckedChange = { isPrivate = it }
+                            onCheckedChange = { isPrivate = it },
                         )
                     }
                 }
@@ -217,7 +248,7 @@ private fun PlaylistCreationDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirm(name, description, isPrivate) },
-                enabled = name.isNotBlank()
+                enabled = name.isNotBlank(),
             ) {
                 Text(stringResource(R.string.create))
             }
@@ -226,6 +257,6 @@ private fun PlaylistCreationDialog(
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.cancel))
             }
-        }
+        },
     )
 }
