@@ -7,8 +7,8 @@ import io.github.aedev.flow.sync.canonical.Lww
 
 /**
  * CRDT merge for the `music_brain` collection, mirroring the desktop's
- * `MergedMusicBrain::merge_snapshot` rule-for-rule (spec §19): commutative,
- * associative, and idempotent, so any merge order converges.
+ * `MergedMusicBrain::merge_snapshot` rule-for-rule: commutative, associative,
+ * and idempotent, so any merge order converges.
  */
 object MusicBrainMerger {
     /** Ring size of `trackPlays` — matches `MusicBrainParams.TRACK_RING`. */

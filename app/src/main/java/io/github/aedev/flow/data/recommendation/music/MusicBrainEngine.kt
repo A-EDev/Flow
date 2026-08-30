@@ -81,7 +81,7 @@ class MusicBrainEngine
 
         /**
          * One completed playback session for [track], with [playedFraction] =
-         * actualPlayedTime / duration (seek-immune, from PlaybackStatsListener).
+         * actualPlayedTime / duration (wall-clock while playing, so seek-immune).
          * Milestones are crossed once from zero — a relisten is simply a new session.
          */
         suspend fun onListenSession(

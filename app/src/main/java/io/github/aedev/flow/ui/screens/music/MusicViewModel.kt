@@ -54,14 +54,20 @@ class MusicViewModel
         private val musicBrain: io.github.aedev.flow.data.recommendation.music.MusicBrainEngine,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicUiState())
+
+        // WhileSubscribed (not Eagerly) is load-bearing for battery: it makes
+        // _uiState.subscriptionCount reflect real UI visibility, which gates the
+        // per-track shelf recomposition below.
         val uiState: StateFlow<MusicUiState> =
             _uiState
                 .map(MusicUiState::withUniqueLazyContent)
                 .stateIn(
                     scope = viewModelScope,
-                    started = SharingStarted.Eagerly,
+                    started = SharingStarted.WhileSubscribed(5_000),
                     initialValue = _uiState.value.withUniqueLazyContent(),
                 )
+
+        private fun isUiVisible(): Boolean = _uiState.subscriptionCount.value > 0
 
         private fun MusicTrack.isAudioMusicCandidate(): Boolean {
             val usableDuration = duration == 0 || duration in 30..1200
@@ -81,19 +87,40 @@ class MusicViewModel
                 }
             }
 
+            // Track changes only recompose the shelves while the Music UI is on
+            // screen; background playback (screen off, other tabs) marks them
+            // stale instead — otherwise endless radio would trigger a full
+            // network + ranking pass every few minutes all night.
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 var lastTrackId: String? = null
                 EnhancedMusicPlayerManager.currentTrack.collectLatest { activeTrack ->
                     if (activeTrack != null && !activeTrack.videoId.isNullOrBlank()) {
                         if (activeTrack.videoId != lastTrackId) {
                             lastTrackId = activeTrack.videoId
-                            rebuildQuickPicks(activeTrack)
-                            refreshOnRepeat()
+                            if (isUiVisible()) {
+                                rebuildQuickPicks(activeTrack)
+                                refreshOnRepeat()
+                            } else {
+                                shelvesStale = true
+                            }
                         }
                     }
                 }
             }
+
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                _uiState.subscriptionCount.collect { count ->
+                    if (count > 0 && shelvesStale) {
+                        shelvesStale = false
+                        rebuildQuickPicks(EnhancedMusicPlayerManager.currentTrack.value)
+                        refreshOnRepeat()
+                    }
+                }
+            }
         }
+
+        @Volatile
+        private var shelvesStale = false
 
         /** True once the multi-lane composer has produced a shelf — YT-home and history fallbacks must not overwrite it. */
         @Volatile
@@ -123,14 +150,7 @@ class MusicViewModel
                     kotlinx.coroutines.coroutineScope {
                         val relatedJobs =
                             seeds.map { seed ->
-                                async(PerformanceDispatcher.networkIO) {
-                                    runCatching {
-                                        YouTubeMusicService
-                                            .getRelatedMusic(seed.videoId, MusicQuickPicks.LANE_SIZE, audioOnly = true)
-                                            .audioMusicOnly()
-                                    }.onFailure { Log.w("MusicViewModel", "Quick Picks lane '${seed.title}' failed: $it") }
-                                        .getOrDefault(emptyList())
-                                }
+                                async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seed.videoId) }
                             }
                         val artistJob =
                             async(PerformanceDispatcher.networkIO) {
@@ -185,6 +205,27 @@ class MusicViewModel
 
         /** Session cache: artist pages are stable, one fetch per artist per process. */
         private val artistDetailsCache = java.util.concurrent.ConcurrentHashMap<String, ArtistDetails>()
+
+        /**
+         * Session cache for related lanes: seeds barely change between composes, so
+         * a track change refetches at most the one new seed lane instead of all five.
+         */
+        private val relatedLaneCache = java.util.concurrent.ConcurrentHashMap<String, List<MusicTrack>>()
+
+        private suspend fun cachedRelatedLane(seedId: String): List<MusicTrack> {
+            relatedLaneCache[seedId]?.let { return it }
+            val lane =
+                runCatching {
+                    YouTubeMusicService
+                        .getRelatedMusic(seedId, MusicQuickPicks.LANE_SIZE, audioOnly = true)
+                        .audioMusicOnly()
+                }.getOrDefault(emptyList())
+            if (lane.isNotEmpty()) {
+                if (relatedLaneCache.size >= 48) relatedLaneCache.clear()
+                relatedLaneCache[seedId] = lane
+            }
+            return lane
+        }
 
         private suspend fun cachedArtistDetails(channelId: String): ArtistDetails? =
             artistDetailsCache[channelId]
@@ -266,13 +307,7 @@ class MusicViewModel
                             mix.seedTrackIds
                                 .take(3)
                                 .map { seedId ->
-                                    async(PerformanceDispatcher.networkIO) {
-                                        runCatching {
-                                            YouTubeMusicService
-                                                .getRelatedMusic(seedId, MusicQuickPicks.LANE_SIZE, audioOnly = true)
-                                                .audioMusicOnly()
-                                        }.getOrDefault(emptyList())
-                                    }
+                                    async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seedId) }
                                 }.awaitAll()
                                 .flatten()
                         }
@@ -1061,6 +1096,8 @@ class MusicViewModel
         }
 
         fun refresh() {
+            relatedLaneCache.clear()
+            artistDetailsCache.clear()
             _uiState.update { it.copy(isLoading = true) }
             loadMusicContent(force = true)
         }

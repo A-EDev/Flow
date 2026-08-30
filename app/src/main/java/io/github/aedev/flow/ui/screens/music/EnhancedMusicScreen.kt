@@ -454,7 +454,6 @@ fun EnhancedMusicScreen(
                                         }
 
                                         HomeSectionType.SIMILAR_TO -> {
-                                            // Daily Mixes render through the same shelf shape.
                                             (uiState.dailyMixSections + uiState.similarToSections).forEach { section ->
                                                 item {
                                                     if (section.label != null) {
