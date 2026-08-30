@@ -226,7 +226,7 @@ private fun resolveDisplayedChangelog(
                 .orEmpty()
                 .filter { it.endsWith(".txt") }
                 .maxOrNull()
-            ?: return@runCatching updateInfo.changelog
+                ?: return@runCatching updateInfo.changelog
         context.assets
             .open("changelog/$latestFile")
             .bufferedReader()

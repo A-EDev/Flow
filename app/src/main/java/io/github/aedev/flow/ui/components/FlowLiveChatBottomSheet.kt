@@ -149,7 +149,9 @@ fun FlowLiveChatBottomSheet(
                             animateToDismiss()
                         }
 
-                        else -> animateToExpanded()
+                        else -> {
+                            animateToExpanded()
+                        }
                     }
                 },
             )

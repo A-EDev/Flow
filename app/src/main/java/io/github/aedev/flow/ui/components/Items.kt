@@ -146,27 +146,26 @@ fun ListItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
     isSelected: Boolean = false,
     isActive: Boolean = false,
-) =
-    ListItem(
-        title = title,
-        subtitle = {
-            badges()
-            if (!subtitle.isNullOrEmpty()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        },
-        thumbnailContent = thumbnailContent,
-        trailingContent = trailingContent,
-        modifier = modifier,
-        isSelected = isSelected,
-        isActive = isActive,
-    )
+) = ListItem(
+    title = title,
+    subtitle = {
+        badges()
+        if (!subtitle.isNullOrEmpty()) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    },
+    thumbnailContent = thumbnailContent,
+    trailingContent = trailingContent,
+    modifier = modifier,
+    isSelected = isSelected,
+    isActive = isActive,
+)
 
 @Composable
 fun GridItem(

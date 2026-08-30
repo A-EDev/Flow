@@ -186,7 +186,9 @@ class ReorderableLazyListState internal constructor(
                 (ratio * MAX_SCROLL_PX_PER_FRAME).coerceAtLeast(MIN_SCROLL_PX)
             }
 
-            else -> 0f
+            else -> {
+                0f
+            }
         }
     }
 

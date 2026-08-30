@@ -100,7 +100,9 @@ fun ItemThumbnail(
             label = "thumbnailOverlay",
         ) { state ->
             when (state) {
-                ThumbnailOverlayState.NONE -> Unit
+                ThumbnailOverlayState.NONE -> {
+                    Unit
+                }
 
                 ThumbnailOverlayState.ACTIVE -> {
                     Box(

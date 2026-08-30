@@ -59,11 +59,15 @@ fun MediaInfoDialog(
                 ?: video?.duration?.takeIf { it > 0 }
         val videoId = track?.videoId ?: video?.id
         if (videoId != null) {
-            mediaInfo = io.github.aedev.flow.data.newmusic.InnertubeMusicService.getMediaInfo(videoId)
+            mediaInfo =
+                io.github.aedev.flow.data.newmusic.InnertubeMusicService
+                    .getMediaInfo(videoId)
             resolvedDurationSeconds =
                 mediaInfo?.durationSeconds?.takeIf { it > 0 }
                     ?: resolvedDurationSeconds
-                    ?: io.github.aedev.flow.data.music.YouTubeMusicService.fetchVideoDuration(videoId).takeIf { it > 0 }
+                    ?: io.github.aedev.flow.data.music.YouTubeMusicService
+                        .fetchVideoDuration(videoId)
+                        .takeIf { it > 0 }
         }
         isLoading = false
     }
@@ -141,7 +145,10 @@ fun MediaInfoDialog(
                     ?: track?.channelId?.takeIf { it.isNotEmpty() }?.let { add(channelIdLabel to it) }
 
                 when {
-                    info?.uploadDate != null -> add(uploadedLabel to dateSettings.format(info.uploadDate, DateContext.WATCH))
+                    info?.uploadDate != null -> {
+                        add(uploadedLabel to dateSettings.format(info.uploadDate, DateContext.WATCH))
+                    }
+
                     video?.uploadDate != null -> {
                         add(uploadedLabel to dateSettings.format(video.uploadDate, DateContext.WATCH, video.timestamp))
                     }
@@ -274,7 +281,10 @@ private fun formatDuration(seconds: Int): String {
     return "%d:%02d".format(minutes, remainingSeconds)
 }
 
-private fun formatFileSize(bytes: Long?, unknownText: String): String {
+private fun formatFileSize(
+    bytes: Long?,
+    unknownText: String,
+): String {
     if (bytes == null) return unknownText
     val mb = bytes / (1024.0 * 1024.0)
     return "%.2f MB".format(mb)
