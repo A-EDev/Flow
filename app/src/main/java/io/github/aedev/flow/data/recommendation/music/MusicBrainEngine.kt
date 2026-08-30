@@ -91,12 +91,18 @@ class MusicBrainEngine
             if (track.videoId.isBlank() || track.videoId.startsWith(LOCAL_MEDIA_PREFIX)) return
             val pct = playedFraction.coerceIn(0.0, 1.0)
             val crossed = MusicBrainLearn.newlyCrossed(0.0, pct)
-            if (crossed.isEmpty()) return
+            if (crossed.isEmpty()) {
+                Log.d(TAG, "listen ${track.videoId} pct=$pct below first milestone")
+                return
+            }
             if (playerPreferences.isDeepFlowCurrentlyActive()) return
             ensureInitialized()
 
             val signal = track.toMusicSignal(pct)
-            if (signal.artistKey.isEmpty()) return
+            if (signal.artistKey.isEmpty()) {
+                Log.w(TAG, "listen ${track.videoId} has no artist key")
+                return
+            }
             val now = System.currentTimeMillis()
             mutex.withLock {
                 val coArtist =
@@ -105,6 +111,7 @@ class MusicBrainEngine
                         ?.first
                 val counted = MusicBrainLearn.applyMusicSignal(brain, signal, crossed, now, coArtist)
                 if (counted) lastCounted = signal.artistKey to now
+                Log.i(TAG, "listen ${track.videoId} pct=${"%.2f".format(pct)} counted=$counted artist=${signal.artistKey}")
             }
             scheduleDebouncedSave()
         }
