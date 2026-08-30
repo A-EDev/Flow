@@ -12,16 +12,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -45,20 +46,26 @@ internal fun LibraryShelf(
     modifier: Modifier = Modifier,
     content: LazyListScope.() -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onTitleClick)
-                    .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp),
+                    .pressScale(interactionSource)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = ripple(),
+                        onClick = onTitleClick,
+                    ).padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(modifier = Modifier.weight(1f))
             Icon(
@@ -188,16 +195,17 @@ internal fun LibraryNavigationRow(
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
+                .clip(MaterialTheme.shapes.large)
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .pressScale(interactionSource)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = androidx.compose.material3.ripple(),
+                    indication = ripple(),
                     onClick = onClick,
                 ).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
