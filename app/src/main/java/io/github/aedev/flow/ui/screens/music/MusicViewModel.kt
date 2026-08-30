@@ -120,7 +120,8 @@ class MusicViewModel
                                         YouTubeMusicService
                                             .getRelatedMusic(seed.videoId, MusicQuickPicks.LANE_SIZE, audioOnly = true)
                                             .audioMusicOnly()
-                                    }.getOrDefault(emptyList())
+                                    }.onFailure { Log.w("MusicViewModel", "Quick Picks lane '${seed.title}' failed: $it") }
+                                        .getOrDefault(emptyList())
                                 }
                             }.awaitAll()
                     }
@@ -138,6 +139,11 @@ class MusicViewModel
 
                 val excluded = seeds.map { it.videoId }.toSet()
                 val mixed = MusicQuickPicks.interleave(lanes, MusicQuickPicks.TARGET, excluded)
+                Log.d(
+                    "MusicViewModel",
+                    "Quick Picks lanes=[${relatedLanes.joinToString { it.size.toString() }}] " +
+                        "charts=${discoveryLane.orEmpty().size} mixed=${mixed.size}",
+                )
                 if (mixed.size >= 4) {
                     quickPicksComposed = true
                     _uiState.update { it.copy(forYouTracks = mixed) }
