@@ -267,6 +267,23 @@ class MusicBrainEngine
             return mutex.withLock { brain.blockedArtists.sorted() }
         }
 
+        /** Blocked artists as (key, display name) — id keys are opaque, the UI needs names. */
+        suspend fun getBlockedArtistsWithNames(): List<Pair<String, String>> {
+            ensureInitialized()
+            return mutex.withLock {
+                brain.blockedArtists
+                    .map { key ->
+                        val display =
+                            brain.artistAffinity[key]?.display?.takeIf { it.isNotBlank() }
+                                ?: brain.trackMeta.values
+                                    .firstOrNull { it.artistKey == key }
+                                    ?.artist
+                                ?: key
+                        key to display
+                    }.sortedBy { it.second.lowercase() }
+            }
+        }
+
         suspend fun exportBrainToStream(out: OutputStream) {
             ensureInitialized()
             mutex.withLock { storage.save(brain) }

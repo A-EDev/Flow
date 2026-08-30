@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
 import io.github.aedev.flow.data.recommendation.music.MusicQuickPicks
+import io.github.aedev.flow.data.recommendation.music.primaryArtistKey
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.BrowseEndpoint
 import io.github.aedev.flow.innertube.models.SongItem
@@ -295,6 +296,31 @@ class MusicViewModel
                 }
             } catch (e: Exception) {
                 Log.e("MusicViewModel", "Error building daily mixes", e)
+            }
+        }
+
+        /**
+         * Instant UI response to "not interested"/"don't recommend": the brain
+         * already learned it; this just clears the artist from the shelves the
+         * user is looking at, in memory, without waiting for the next compose.
+         */
+        fun removeArtistFromShelves(artistKey: String) {
+            if (artistKey.isEmpty()) return
+
+            fun List<MusicTrack>.without() = filterNot { it.primaryArtistKey() == artistKey }
+            _uiState.update { state ->
+                state.copy(
+                    forYouTracks = state.forYouTracks.without(),
+                    onRepeatTracks = state.onRepeatTracks.without(),
+                    dailyMixSections =
+                        state.dailyMixSections
+                            .map { it.copy(tracks = it.tracks.without()) }
+                            .filter { it.tracks.size >= 4 },
+                    similarToSections =
+                        state.similarToSections
+                            .map { it.copy(tracks = it.tracks.without()) }
+                            .filter { it.tracks.isNotEmpty() },
+                )
             }
         }
 

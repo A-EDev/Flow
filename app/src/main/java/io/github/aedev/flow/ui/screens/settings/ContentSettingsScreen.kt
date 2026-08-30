@@ -485,6 +485,14 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
                 }
             }
 
+            // Music recommendations (music brain: endless radio + blocked artists)
+            item {
+                MusicRecommendationsSection(
+                    preferences = preferences,
+                    coroutineScope = coroutineScope,
+                )
+            }
+
             // Content Components Section
             item {
                 SectionHeader(text = stringResource(R.string.content_settings_header_content_components))

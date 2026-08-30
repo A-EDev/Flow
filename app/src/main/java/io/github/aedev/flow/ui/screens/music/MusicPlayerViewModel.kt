@@ -564,6 +564,32 @@ class MusicPlayerViewModel
             }
         }
 
+        /**
+         * "Not interested": soft-suppresses the track's artist for two weeks. A
+         * second one while still suppressed escalates to a permanent block —
+         * mirrored from the desktop two-layer feedback system.
+         */
+        fun notInterested(track: MusicTrack) {
+            val primary = track.artists.firstOrNull()
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                musicBrain.dislikeArtist(
+                    primary?.id ?: track.channelId.takeIf { it.isNotBlank() },
+                    primary?.name ?: track.artist,
+                )
+            }
+        }
+
+        /** "Don't recommend {artist}": an immediate permanent hard block, reversible in settings. */
+        fun dontRecommendArtist(track: MusicTrack) {
+            val primary = track.artists.firstOrNull()
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                musicBrain.blockArtist(
+                    primary?.id ?: track.channelId.takeIf { it.isNotBlank() },
+                    primary?.name ?: track.artist,
+                )
+            }
+        }
+
         fun addToPlaylist(
             playlistId: String,
             track: MusicTrack? = null,
