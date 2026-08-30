@@ -5,14 +5,32 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.VolunteerActivism
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,15 +41,15 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 
-// Icon Ported from Mihon.
+/** Patreon logo path used by the donation action. */
 private val IconPatreon: ImageVector by lazy {
     ImageVector
         .Builder(
@@ -82,7 +100,7 @@ fun DonationsScreen(
                     .padding(paddingValues),
             contentPadding = PaddingValues(bottom = 40.dp),
         ) {
-            item {
+            item(key = "support") {
                 Column(
                     modifier =
                         Modifier
@@ -101,7 +119,7 @@ fun DonationsScreen(
                         text = stringResource(R.string.support_flow_dev_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -117,12 +135,6 @@ fun DonationsScreen(
                             Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.onBackground,
-                                contentColor = MaterialTheme.colorScheme.background,
-                            ),
                     ) {
                         Icon(
                             imageVector = IconPatreon,
@@ -132,31 +144,28 @@ fun DonationsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.support_flow_patreon),
+                            style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
                         )
                     }
                 }
             }
 
-            item { HorizontalDivider() }
+            item(key = "support-divider") { HorizontalDivider() }
 
-            item {
+            item(key = "crypto-header") {
                 Text(
                     text = stringResource(R.string.donations_cryptocurrency),
-                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 4.dp),
                 )
             }
 
-            item {
+            item(key = "crypto-addresses") {
                 Card(
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        ),
-                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    shape = MaterialTheme.shapes.large,
                     modifier =
                         Modifier
                             .fillMaxWidth()
@@ -201,7 +210,7 @@ fun DonationsScreen(
                 }
             }
 
-            item {
+            item(key = "thanks") {
                 Spacer(modifier = Modifier.height(28.dp))
                 Text(
                     text = stringResource(R.string.thank_you_support_message),
@@ -226,12 +235,16 @@ private fun DonationRow(
     address: String,
     context: Context,
 ) {
+    val copyLabel = stringResource(R.string.donation_address_clip_label)
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable { copyToClipboard(context, address) }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .clickable(
+                    onClickLabel = copyLabel,
+                    role = Role.Button,
+                    onClick = { copyToClipboard(context, address) },
+                ).padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -244,13 +257,13 @@ private fun DonationRow(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
                     Text(
                         text = ticker,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                     )
                 }
@@ -267,7 +280,7 @@ private fun DonationRow(
         Spacer(modifier = Modifier.width(12.dp))
         Icon(
             imageVector = Icons.Outlined.ContentCopy,
-            contentDescription = stringResource(R.string.donation_address_clip_label),
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(18.dp),
         )
@@ -278,7 +291,7 @@ private fun DonationRow(
 private fun CryptoDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(start = 16.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.outlineVariant,
     )
 }
 
