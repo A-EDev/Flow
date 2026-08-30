@@ -5,8 +5,13 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -14,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -28,8 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -39,7 +41,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
@@ -51,6 +52,8 @@ import io.github.aedev.flow.ui.components.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.screens.music.components.TrackListItem
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.FlowPreview
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, FlowPreview::class, ExperimentalFoundationApi::class)
@@ -542,6 +545,9 @@ fun MusicSearchBar(
                 .FocusRequester()
         },
 ) {
+    val reduceMotion = rememberFlowReduceMotion()
+    val feedbackDuration = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion)
+
     Row(
         modifier =
             Modifier
@@ -553,79 +559,93 @@ fun MusicSearchBar(
             Icon(
                 imageVector = Icons.Default.ArrowBack,
                 contentDescription = stringResource(R.string.btn_back),
-                tint = MaterialTheme.colorScheme.onBackground,
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         }
 
-        Row(
+        Surface(
             modifier =
                 Modifier
                     .weight(1f)
-                    .height(46.dp)
-                    .clip(RoundedCornerShape(23.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .padding(start = 16.dp, end = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                    .height(56.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                textStyle =
-                    androidx.compose.ui.text.TextStyle(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 16.sp,
-                    ),
-                cursorBrush =
-                    androidx.compose.ui.graphics
-                        .SolidColor(MaterialTheme.colorScheme.primary),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-                singleLine = true,
-                decorationBox = { innerTextField ->
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        if (query.isEmpty()) {
-                            Text(
-                                stringResource(R.string.search_music_placeholder),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 16.sp,
-                            )
+            Row(
+                modifier = Modifier.padding(start = 16.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .focusRequester(focusRequester),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush =
+                        androidx.compose.ui.graphics
+                            .SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
+                            if (query.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.search_music_placeholder),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            innerTextField()
                         }
-                        innerTextField()
-                    }
-                },
-            )
+                    },
+                )
 
-            if (query.isNotEmpty()) {
+                AnimatedVisibility(
+                    visible = query.isNotEmpty(),
+                    enter =
+                        fadeIn(tween(feedbackDuration, easing = FlowMotion.EnterEasing)) +
+                            expandHorizontally(
+                                animationSpec = tween(feedbackDuration, easing = FlowMotion.EnterEasing),
+                                expandFrom = Alignment.End,
+                            ),
+                    exit =
+                        fadeOut(tween(feedbackDuration, easing = FlowMotion.ExitEasing)) +
+                            shrinkHorizontally(
+                                animationSpec = tween(feedbackDuration, easing = FlowMotion.ExitEasing),
+                                shrinkTowards = Alignment.End,
+                            ),
+                    label = "musicSearchClear",
+                ) {
+                    IconButton(
+                        onClick = onClearClick,
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.clear),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+
                 IconButton(
-                    onClick = onClearClick,
-                    modifier = Modifier.size(36.dp),
+                    onClick = onVoiceSearchClick,
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Icon(
-                        Icons.Default.Close,
-                        contentDescription = stringResource(R.string.clear),
-                        tint = MaterialTheme.colorScheme.onSurface,
+                        Icons.Default.Mic,
+                        contentDescription = stringResource(R.string.voice_search_cd),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
                 }
-            }
-
-            IconButton(
-                onClick = onVoiceSearchClick,
-                modifier = Modifier.size(36.dp),
-            ) {
-                Icon(
-                    Icons.Default.Mic,
-                    contentDescription = stringResource(R.string.voice_search_cd),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
             }
         }
     }
@@ -648,30 +668,29 @@ fun SearchFilterChips(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
+                .padding(vertical = 8.dp),
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(filters) { (label, filter) ->
-            Surface(
-                modifier = Modifier.clickable { onFilterClick(if (activeFilter == filter) null else filter) },
-                shape = RoundedCornerShape(8.dp),
-                color = if (activeFilter == filter) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                contentColor =
-                    if (activeFilter ==
-                        filter
-                    ) {
-                        MaterialTheme.colorScheme.onPrimary
+        items(filters, key = { it.second }) { (label, filter) ->
+            FilterChip(
+                selected = activeFilter == filter,
+                onClick = { onFilterClick(if (activeFilter == filter) null else filter) },
+                label = { Text(label) },
+                leadingIcon =
+                    if (activeFilter == filter) {
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize),
+                            )
+                        }
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        null
                     },
-            ) {
-                Text(
-                    text = label,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                )
-            }
+                modifier = Modifier.heightIn(min = 48.dp),
+            )
         }
     }
 }
@@ -685,27 +704,28 @@ fun SearchSuggestionRow(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .heightIn(min = 56.dp)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Default.Search,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp),
         )
-        Spacer(modifier = Modifier.width(24.dp))
+        Spacer(modifier = Modifier.width(20.dp))
         Text(
             text = suggestion,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
-            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
         Icon(
             imageVector = Icons.Default.ArrowOutward,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp),
         )
     }
@@ -748,15 +768,15 @@ fun RecommendedItemRow(
             modifier =
                 Modifier
                     .size(56.dp)
-                    .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(4.dp)),
+                    .clip(if (item is ArtistItem) CircleShape else MaterialTheme.shapes.small),
             contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
-                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -770,7 +790,7 @@ fun RecommendedItemRow(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -779,8 +799,8 @@ fun RecommendedItemRow(
             IconButton(onClick = onMenuClick) {
                 Icon(
                     Icons.Default.MoreVert,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                    contentDescription = stringResource(R.string.more_options),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -824,15 +844,15 @@ fun YTItemRow(
             modifier =
                 Modifier
                     .size(56.dp)
-                    .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(4.dp)),
+                    .clip(if (item is ArtistItem) CircleShape else MaterialTheme.shapes.small),
             contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
-                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -858,7 +878,7 @@ fun YTItemRow(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -867,8 +887,8 @@ fun YTItemRow(
             IconButton(onClick = onMenuClick) {
                 Icon(
                     Icons.Default.MoreVert,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                    contentDescription = stringResource(R.string.more_options),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -885,8 +905,6 @@ fun TopResultCard(
     onLongClick: (() -> Unit)? = null,
     onMenuClick: (() -> Unit)? = null,
 ) {
-    val cardBackground = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-
     Card(
         modifier =
             Modifier
@@ -896,8 +914,8 @@ fun TopResultCard(
                     onClick = onClick,
                     onLongClick = onLongClick,
                 ),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBackground),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
             modifier =
@@ -912,15 +930,17 @@ fun TopResultCard(
                     modifier =
                         Modifier
                             .size(100.dp)
-                            .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(12.dp)),
+                            .clip(if (item is ArtistItem) CircleShape else MaterialTheme.shapes.large),
                     contentScale = ContentScale.Crop,
                 )
                 Spacer(modifier = Modifier.width(20.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.title,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold),
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     val subtitle =
                         when (item) {
@@ -933,6 +953,8 @@ fun TopResultCard(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 if (onMenuClick != null) {
@@ -960,33 +982,19 @@ fun TopResultCard(
                 ) {
                     Button(
                         onClick = onShuffleClick,
-                        modifier = Modifier.weight(1f),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
-                        shape = RoundedCornerShape(28.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     ) {
                         Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.shuffle), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.shuffle), fontWeight = FontWeight.SemiBold)
                     }
-                    Button(
+                    FilledTonalButton(
                         onClick = onRadioClick,
-                        modifier = Modifier.weight(1f),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            ),
-                        shape = RoundedCornerShape(28.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     ) {
                         Icon(Icons.Default.Radio, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.radio), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.radio), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
