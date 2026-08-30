@@ -77,16 +77,6 @@ fun LibraryScreen(
             contentPadding = PaddingValues(vertical = Dimensions.ContentPaddingVertical),
             verticalArrangement = Arrangement.spacedBy(Dimensions.SectionSpacing),
         ) {
-            item(key = "library-overview", contentType = "library-overview") {
-                LibraryOverviewCard(
-                    onHistoryClick = onNavigateToHistory,
-                    onPlaylistsClick = onNavigateToPlaylists,
-                    onWatchLaterClick = onNavigateToWatchLater,
-                    onDownloadsClick = onNavigateToDownloads,
-                    modifier = Modifier.padding(horizontal = Dimensions.ContentPaddingHorizontal),
-                )
-            }
-
             item(key = "history", contentType = "media-shelf") {
                 LibraryMediaShelfRoute(
                     title = historyTitle,
