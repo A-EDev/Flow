@@ -1,9 +1,17 @@
 FLOW CHANGE LOG
 VERSION: 2.2.5
-DATE: 2026-08-29
+DATE: 2026-08-31
 STATUS: PRE-RELEASE
 
 NEW FEATURES
+- A local music taste engine now ranks every music shelf: it learns the artists you love from how much of each song you actually play, entirely on-device
+- Quick Picks are now composed from your taste: similar-song lanes, your top artists' tracks and their fans-also-like neighbours, with global charts held to a small quota
+- New On Repeat shelf surfaces the songs you keep coming back to, rendered with zero network calls
+- New Daily Mixes cluster the artists you listen to together into personal mixes that appear as your listening grows
+- Endless music radio: the queue no longer dead-ends — similar songs are appended as it runs low, and the up-next list stays stable instead of changing on every song
+- Tell the music engine what you don't want: "Not interested" softens an artist for two weeks and "Don't recommend" blocks them everywhere, both reversible
+- The Flow Control Center now shows your music taste: top artists, listening rhythm, discovery appetite and blocked-artist management
+- Your music taste profile now syncs between devices and can be exported and imported as a file
 - Serve every one of your interests in every home feed: your biggest interests are always present and your smaller ones rotate through the remaining slots, instead of the feed looping your top topic
 - Dig deeper as you scroll: each load of more videos descends one level further into every interest's branches, like walking a tree, instead of repeating the surface
 - Keep the feed going forever: when the usual sources thin out, loading more now digs fresh related-video lanes seeded from the videos on screen, your history, likes and playlists
@@ -12,6 +20,8 @@ NEW FEATURES
 - Learn what each channel is about from its creator-declared tags when you subscribe, and passively from its recent upload titles, improving interest grouping and recommendations
 
 IMPROVEMENTS
+- Music content now follows your chosen region setting instead of the device's locale
+- Music home caches invalidate when the region changes, so shelves refresh with the right content immediately
 - Stop showing you the same videos over and over: something you actually saw is filtered out of the next refreshes, briefly after one appearance and for days after repeats, and gently returns later
 - Pull-to-refresh now builds a genuinely fresh page instead of reshuffling what is already on screen
 - Cached reserve videos are consumed once served instead of reappearing for hours after every refresh
@@ -24,8 +34,12 @@ IMPROVEMENTS
 
 PERFORMANCE
 - Feed ranking noise now scales with your actual scores instead of drowning them when the feed was stale
+- Music shelves only recompose while the Music screen is visible and similar-song lanes are cached, so background listening no longer burns network and battery
 
 FIXES AND STABILITY
+- Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
+- Fix listened songs never reaching the music engine when playback was stopped, the queue was replaced, or the track shipped without a duration
+- Fix a playback-statistics crash on some devices by replacing Media3's tracker with a wall-clock session tracker
 - Fix watch progress on normal videos never reaching your recommendation brain, so it learned almost nothing from what you actually watched
 - Fix topic-pair learning deleting every learned connection the moment it was created, which had left long-time users with zero learned topic links
 - Fix mature recommendation brains being mathematically unable to pick up new interests no matter how much you watched them
@@ -37,3 +51,4 @@ FIXES AND STABILITY
 BUILD AND CI
 - Add an offline recommendation benchmark with regression floors, so feed diversity and repetition are verified by tests instead of claims
 - Add an offline brain diagnostic that inspects a real exported profile through the production clustering and discovery code
+- Add an offline music benchmark with regression floors and a music brain diagnostic over real exported data
