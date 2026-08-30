@@ -1,20 +1,43 @@
 package io.github.aedev.flow.ui.screens.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
@@ -33,15 +56,14 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val prefs = remember { PlayerPreferences(context) }
 
-    val globalMode by prefs.dateDisplayMode.collectAsState(initial = DateDisplayMode.RELATIVE)
-    val formatStyle by prefs.dateFormatStyle.collectAsState(initial = DateFormatStyle.SYSTEM)
-    val listsMode by prefs.dateModeLists.collectAsState(initial = DateContextMode.DEFAULT)
-    val watchMode by prefs.dateModeWatch.collectAsState(initial = DateContextMode.DEFAULT)
-    val descriptionMode by prefs.dateModeDescription.collectAsState(initial = DateContextMode.DEFAULT)
+    val globalMode by prefs.dateDisplayMode.collectAsStateWithLifecycle(initialValue = DateDisplayMode.RELATIVE)
+    val formatStyle by prefs.dateFormatStyle.collectAsStateWithLifecycle(initialValue = DateFormatStyle.SYSTEM)
+    val listsMode by prefs.dateModeLists.collectAsStateWithLifecycle(initialValue = DateContextMode.DEFAULT)
+    val watchMode by prefs.dateModeWatch.collectAsStateWithLifecycle(initialValue = DateContextMode.DEFAULT)
+    val descriptionMode by prefs.dateModeDescription.collectAsStateWithLifecycle(initialValue = DateContextMode.DEFAULT)
 
     val sampleTimestamp = remember { System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 215 }
     val sampleRelative = stringResource(R.string.datetime_sample_relative)
-
     val settings = DateDisplaySettings(globalMode, formatStyle, listsMode, watchMode, descriptionMode)
 
     Scaffold(
@@ -54,12 +76,15 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
         },
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).background(MaterialTheme.colorScheme.background),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            // ── Live preview ──
-            item {
+            item(key = "preview") {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                     shape = MaterialTheme.shapes.large,
@@ -69,7 +94,7 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
                         Text(
                             text = stringResource(R.string.datetime_preview_header),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         Spacer(Modifier.height(8.dp))
                         PreviewLine(
@@ -88,8 +113,8 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
-            item { SectionHeader(text = stringResource(R.string.datetime_mode_header)) }
-            item {
+            item(key = "mode-header") { SectionHeader(text = stringResource(R.string.datetime_mode_header)) }
+            item(key = "mode-options") {
                 SettingsGroup {
                     val modes =
                         listOf(
@@ -108,13 +133,18 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
-            item { SectionHeader(text = stringResource(R.string.datetime_format_header)) }
-            item {
+            item(key = "format-header") { SectionHeader(text = stringResource(R.string.datetime_format_header)) }
+            item(key = "format-options") {
                 SettingsGroup {
                     val styles = DateFormatStyle.entries.toList()
                     styles.forEachIndexed { index, style ->
                         val sample = formatExactDate(sampleTimestamp, style)
-                        val title = if (style == DateFormatStyle.SYSTEM) stringResource(R.string.datetime_format_system) else sample
+                        val title =
+                            if (style == DateFormatStyle.SYSTEM) {
+                                stringResource(R.string.datetime_format_system)
+                            } else {
+                                sample
+                            }
                         val subtitle =
                             when (style) {
                                 DateFormatStyle.SYSTEM -> sample
@@ -132,8 +162,8 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
-            item { SectionHeader(text = stringResource(R.string.datetime_overrides_header)) }
-            item {
+            item(key = "overrides-header") { SectionHeader(text = stringResource(R.string.datetime_overrides_header)) }
+            item(key = "overrides-note") {
                 Text(
                     text = stringResource(R.string.datetime_overrides_note),
                     style = MaterialTheme.typography.bodyMedium,
@@ -141,7 +171,7 @@ fun DateTimeSettingsScreen(onNavigateBack: () -> Unit) {
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
-            item {
+            item(key = "overrides-options") {
                 SettingsGroup {
                     OverrideRow(
                         label = stringResource(R.string.datetime_context_lists),
@@ -171,16 +201,22 @@ private fun PreviewLine(
     label: String,
     value: String,
 ) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+    ) {
         Text(
             text = "$label:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.weight(1f),
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
@@ -194,15 +230,30 @@ private fun DateRadioRow(
     onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = selected,
+                    onClick = onClick,
+                    role = Role.RadioButton,
+                ).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = null)
         Spacer(Modifier.width(16.dp))
-        Column {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            if (subtitle != null) {
-                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            subtitle?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -215,8 +266,17 @@ private fun OverrideRow(
     value: DateContextMode,
     onSelect: (DateContextMode) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Text(text = label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
         Spacer(Modifier.height(8.dp))
         val options =
             listOf(
@@ -247,5 +307,8 @@ private fun OverrideRow(
 
 @Composable
 private fun RowDivider() {
-    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 56.dp),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
 }
