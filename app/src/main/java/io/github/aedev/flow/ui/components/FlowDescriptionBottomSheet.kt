@@ -81,8 +81,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-fun parseHtmlDescription(rawHtml: String): AnnotatedString =
-    parseHtmlDescription(rawHtml = rawHtml, accentColor = Color.Unspecified)
+fun parseHtmlDescription(rawHtml: String): AnnotatedString = parseHtmlDescription(rawHtml = rawHtml, accentColor = Color.Unspecified)
 
 private fun parseHtmlDescription(
     rawHtml: String,
