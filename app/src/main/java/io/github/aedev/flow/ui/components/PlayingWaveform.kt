@@ -1,7 +1,7 @@
 package io.github.aedev.flow.ui.components
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.State
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -15,19 +15,16 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 /**
- * The "now playing" equaliser bars.
- *
- * Drawn on a single Canvas rather than a Row of Boxes with animated `height` modifiers. Height is a
- * layout property, so the previous implementations recomposed and re-laid out one node per bar on
- * every animation frame, continuously for as long as audio played — including inside list items
- * while the user scrolled. Reading the animation in the draw scope keeps each frame to a redraw.
- *
- * This replaces three near-identical copies that had drifted apart in bar count, size and timing;
- * the call sites keep their own appearance through the parameters below.
+ * Draws the now-playing equalizer on one Canvas so each animation frame stays in the draw phase.
+ * Reduced-motion mode uses a static bar pattern and does not start an infinite transition.
  */
 @Composable
 fun PlayingWaveform(
@@ -39,46 +36,94 @@ fun PlayingWaveform(
     minBarHeight: Dp = 6.dp,
     maxBarHeight: Dp = 16.dp,
     cycleMillis: Int = 350,
-    staggerMillis: Int = 100
+    staggerMillis: Int = 100,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "waveform")
-    val bars = List(barCount) { index ->
-        infiniteTransition.animateFloat(
-            initialValue = minBarHeight.value,
-            targetValue = maxBarHeight.value,
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = cycleMillis,
-                    delayMillis = index * staggerMillis,
-                    easing = FastOutSlowInEasing
-                ),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "bar$index"
-        )
-    }
+    val safeBarCount = barCount.coerceAtLeast(1)
+    val reduceMotion = rememberFlowReduceMotion()
 
-    Canvas(
-        modifier = modifier.size(
-            width = barWidth * barCount + barSpacing * (barCount - 1),
-            height = maxBarHeight
-        )
-    ) {
-        val barWidthPx = barWidth.toPx()
-        val spacingPx = barSpacing.toPx()
-        // Matches the RoundedCornerShape(barWidth / 2) the Box versions used.
-        val cornerRadius = CornerRadius(barWidthPx / 2f)
-        bars.forEachIndexed { index, bar ->
-            val barHeightPx = bar.value.dp.toPx()
-            drawRoundRect(
-                color = color,
-                topLeft = Offset(
-                    x = index * (barWidthPx + spacingPx),
-                    y = (size.height - barHeightPx) / 2f
+    if (reduceMotion) {
+        Canvas(
+            modifier =
+                modifier.size(
+                    width = barWidth * safeBarCount + barSpacing * (safeBarCount - 1),
+                    height = maxBarHeight,
                 ),
-                size = Size(barWidthPx, barHeightPx),
-                cornerRadius = cornerRadius
+        ) {
+            drawWaveformBars(
+                color = color,
+                barCount = safeBarCount,
+                barWidth = barWidth,
+                barSpacing = barSpacing,
+                heightPxAt = { index ->
+                    val fraction = STATIC_BAR_FRACTIONS[index % STATIC_BAR_FRACTIONS.size]
+                    lerp(minBarHeight.value, maxBarHeight.value, fraction).dp.toPx()
+                },
             )
         }
+        return
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "waveform")
+    val bars: List<State<Float>> =
+        List(safeBarCount) { index ->
+            infiniteTransition.animateFloat(
+                initialValue = minBarHeight.value,
+                targetValue = maxBarHeight.value,
+                animationSpec =
+                    infiniteRepeatable(
+                        animation =
+                            tween(
+                                durationMillis = cycleMillis,
+                                delayMillis = index * staggerMillis,
+                                easing = FlowMotion.EnterEasing,
+                            ),
+                        repeatMode = RepeatMode.Reverse,
+                    ),
+                label = "bar$index",
+            )
+        }
+
+    Canvas(
+        modifier =
+            modifier.size(
+                width = barWidth * safeBarCount + barSpacing * (safeBarCount - 1),
+                height = maxBarHeight,
+            ),
+    ) {
+        drawWaveformBars(
+            color = color,
+            barCount = safeBarCount,
+            barWidth = barWidth,
+            barSpacing = barSpacing,
+            heightPxAt = { index -> bars[index].value.dp.toPx() },
+        )
     }
 }
+
+private fun DrawScope.drawWaveformBars(
+    color: Color,
+    barCount: Int,
+    barWidth: Dp,
+    barSpacing: Dp,
+    heightPxAt: (Int) -> Float,
+) {
+    val barWidthPx = barWidth.toPx()
+    val spacingPx = barSpacing.toPx()
+    val cornerRadius = CornerRadius(barWidthPx / 2f)
+
+    repeat(barCount) { index ->
+        val barHeightPx = heightPxAt(index)
+        drawRoundRect(
+            color = color,
+            topLeft =
+                Offset(
+                    x = index * (barWidthPx + spacingPx),
+                    y = (size.height - barHeightPx) / 2f,
+                ),
+            size = Size(barWidthPx, barHeightPx),
+            cornerRadius = cornerRadius,
+        )
+    }
+}
+
+private val STATIC_BAR_FRACTIONS = floatArrayOf(0.35f, 0.75f, 1f, 0.55f)
