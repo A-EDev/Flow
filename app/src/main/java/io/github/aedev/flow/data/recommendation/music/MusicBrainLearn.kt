@@ -60,6 +60,7 @@ internal object MusicBrainLearn {
             val e = brain.artistAffinity.getOrPut(artist) { MusicAffinity() }
             e.score = ema(e.score, milestoneWeight(m), MusicBrainParams.ALPHA_LONG)
             e.lastPlayed = nowMs
+            if (sig.artistDisplay.isNotBlank()) e.display = sig.artistDisplay
         }
 
         val counted = crossed.any { it >= MusicBrainParams.COUNT_MILESTONE } || sig.isExplicitLike
@@ -181,6 +182,23 @@ internal object MusicBrainLearn {
         brain.blockedArtists.remove(artistKey)
     }
 
+    /** Replace the "fans also like" edges for one artist — platform knowledge, newest fetch wins. */
+    fun recordArtistRelated(
+        brain: MusicBrain,
+        artistKey: String,
+        relatedKeys: List<String>,
+    ) {
+        if (artistKey.isEmpty()) return
+        val edges =
+            relatedKeys
+                .filter { it.isNotEmpty() && it != artistKey }
+                .distinct()
+                .take(MusicBrainParams.ARTIST_RELATED_EDGES)
+        if (edges.isEmpty()) return
+        brain.artistRelated[artistKey] = edges.toMutableList()
+        prune(brain)
+    }
+
     private fun pushPlay(
         brain: MusicBrain,
         trackId: String,
@@ -226,6 +244,7 @@ internal object MusicBrainLearn {
             target.score = maxOf(target.score, old.score)
             target.lastPlayed = maxOf(target.lastPlayed, old.lastPlayed)
             target.liked = target.liked || old.liked
+            if (target.display.isBlank()) target.display = old.display
         }
         brain.recentRotation.remove(nameKey)?.let { old ->
             brain.recentRotation[sig.artistKey] = maxOf(brain.recentRotation[sig.artistKey] ?: 0.0, old)
@@ -273,6 +292,9 @@ internal object MusicBrainLearn {
         }
         keepTopBy(brain.artistCooc, MusicBrainParams.ARTIST_COOC_MAX, MusicBrainParams.ARTIST_COOC_KEEP) {
             brain.artistCooc[it] ?: 0.0
+        }
+        keepTopBy(brain.artistRelated, MusicBrainParams.ARTIST_RELATED_MAX, MusicBrainParams.ARTIST_RELATED_KEEP) {
+            brain.artistAffinity[it]?.score ?: 0.0
         }
         keepTopBy(brain.genreAffinity, MusicBrainParams.GENRE_AFFINITY_MAX, MusicBrainParams.GENRE_AFFINITY_MAX) {
             brain.genreAffinity[it] ?: 0.0

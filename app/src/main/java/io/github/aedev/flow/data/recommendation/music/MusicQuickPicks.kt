@@ -19,6 +19,16 @@ object MusicQuickPicks {
     const val LANE_SIZE = 20
     const val TARGET = 24
 
+    /** Artist-graph lanes: how many top artists get a lane, and how many of their related artists join the similar lane. */
+    const val ARTIST_LANE_COUNT = 2
+    const val SIMILAR_ARTIST_COUNT = 2
+
+    /**
+     * Charts can smuggle regional content the taste model never chose, so the
+     * discovery lane gets the smallest quota of the shelf.
+     */
+    const val DISCOVERY_MAX_PICKS = 3
+
     /**
      * Seed selection: the currently playing track always leads, then history
      * newest-first with one seed per distinct artist; topped up with repeats
@@ -51,26 +61,32 @@ object MusicQuickPicks {
 
     /**
      * Round-robin across lanes: one unseen item from each lane per pass, so no
-     * single lane (or one dominant artist pool) can own the shelf. Stops at the
-     * limit or when a full pass makes no progress.
+     * single lane (or one dominant artist pool) can own the shelf. A lane with a
+     * cap in [laneCaps] stops contributing at its cap (used to keep charts to a
+     * minority quota). Stops at the limit or when a full pass makes no progress.
      */
     fun interleave(
         lanes: List<List<MusicTrack>>,
         limit: Int,
         excludedIds: Set<String>,
+        laneCaps: List<Int>? = null,
     ): List<MusicTrack> {
         val cursors = IntArray(lanes.size)
+        val picked = IntArray(lanes.size)
         val seen = HashSet(excludedIds)
         val result = ArrayList<MusicTrack>(limit)
         while (result.size < limit) {
             var progressed = false
             for (i in lanes.indices) {
                 if (result.size >= limit) break
+                val cap = laneCaps?.getOrNull(i) ?: Int.MAX_VALUE
+                if (picked[i] >= cap) continue
                 val lane = lanes[i]
                 var cursor = cursors[i]
                 while (cursor < lane.size && !seen.add(lane[cursor].videoId)) cursor++
                 if (cursor < lane.size) {
                     result.add(lane[cursor])
+                    picked[i]++
                     cursor++
                     progressed = true
                 }

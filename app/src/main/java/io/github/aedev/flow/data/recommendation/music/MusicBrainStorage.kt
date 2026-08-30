@@ -43,6 +43,7 @@ internal class MusicBrainStorage(
         val score: Double = 0.0,
         val lastPlayed: Long = 0L,
         val liked: Boolean = false,
+        val display: String = "",
     )
 
     @Serializable
@@ -62,6 +63,7 @@ internal class MusicBrainStorage(
         val trackMeta: Map<String, SerializableTrackMeta> = emptyMap(),
         val recentRotation: Map<String, Double> = emptyMap(),
         val artistCooc: Map<String, Double> = emptyMap(),
+        val artistRelated: Map<String, List<String>> = emptyMap(),
         val timeBuckets: Map<String, Map<String, Double>> = emptyMap(),
         val seenArtists: List<String> = emptyList(),
         val dislikedArtists: Map<String, Long> = emptyMap(),
@@ -150,7 +152,7 @@ internal fun MusicBrain.toSerializable(): MusicBrainStorage.SerializableMusicBra
         schemaVersion = schemaVersion,
         artistAffinity =
             artistAffinity.mapValues { (_, a) ->
-                MusicBrainStorage.SerializableAffinity(a.plays, a.score, a.lastPlayed, a.liked)
+                MusicBrainStorage.SerializableAffinity(a.plays, a.score, a.lastPlayed, a.liked, a.display)
             },
         genreAffinity = genreAffinity.toMap(),
         trackPlays = trackPlays.mapValues { it.value.toList() },
@@ -160,6 +162,7 @@ internal fun MusicBrain.toSerializable(): MusicBrainStorage.SerializableMusicBra
             },
         recentRotation = recentRotation.toMap(),
         artistCooc = artistCooc.toMap(),
+        artistRelated = artistRelated.mapValues { it.value.toList() },
         timeBuckets = timeBuckets.entries.associate { (bucket, genres) -> bucket.wireName to genres.toMap() },
         seenArtists = seenArtists.toList(),
         dislikedArtists = dislikedArtists.toMap(),
@@ -174,7 +177,7 @@ internal fun MusicBrainStorage.SerializableMusicBrain.toMusicBrain(): MusicBrain
     val brain = MusicBrain()
     brain.schemaVersion = MusicBrainParams.SCHEMA_VERSION
     artistAffinity.forEach { (k, a) ->
-        brain.artistAffinity[k] = MusicAffinity(a.plays, a.score, a.lastPlayed, a.liked)
+        brain.artistAffinity[k] = MusicAffinity(a.plays, a.score, a.lastPlayed, a.liked, a.display)
     }
     brain.genreAffinity.putAll(genreAffinity)
     trackPlays.forEach { (k, v) -> brain.trackPlays[k] = v.toMutableList() }
@@ -183,6 +186,7 @@ internal fun MusicBrainStorage.SerializableMusicBrain.toMusicBrain(): MusicBrain
     }
     brain.recentRotation.putAll(recentRotation)
     brain.artistCooc.putAll(artistCooc)
+    artistRelated.forEach { (k, v) -> brain.artistRelated[k] = v.toMutableList() }
     timeBuckets.forEach { (wire, genres) ->
         MusicTimeBucket.fromWire(wire)?.let { bucket -> brain.timeBuckets[bucket] = genres.toMutableMap() }
     }

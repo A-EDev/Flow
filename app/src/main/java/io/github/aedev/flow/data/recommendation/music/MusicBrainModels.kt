@@ -24,6 +24,8 @@ class MusicAffinity(
     var score: Double = 0.0,
     var lastPlayed: Long = 0L,
     var liked: Boolean = false,
+    /** Human-readable name, needed because id-keyed entries are opaque browseIds (stats/recap). */
+    var display: String = "",
 )
 
 /** Display metadata kept locally so On Repeat renders with zero network calls. */
@@ -105,6 +107,14 @@ class MusicBrain {
 
     /** Single-user session co-occurrence graph, keyed by [musicPairKey]. Pure user co-listening. */
     val artistCooc: MutableMap<String, Double> = HashMap()
+
+    /**
+     * Passive artist graph from YouTube's "fans also like": artistKey → related
+     * artist browseIds, newest fetch wins. Separate from [artistCooc], which is
+     * the user's own co-listening — this is platform knowledge, cached for lanes
+     * and future mixes.
+     */
+    val artistRelated: MutableMap<String, MutableList<String>> = HashMap()
     val timeBuckets: MutableMap<MusicTimeBucket, MutableMap<String, Double>> = EnumMap(MusicTimeBucket::class.java)
     val seenArtists: MutableSet<String> = HashSet()
 
@@ -187,6 +197,9 @@ object MusicBrainParams {
     const val RECENT_ROTATION_KEEP = 300
     const val ARTIST_COOC_MAX = 2000
     const val ARTIST_COOC_KEEP = 1500
+    const val ARTIST_RELATED_MAX = 300
+    const val ARTIST_RELATED_KEEP = 250
+    const val ARTIST_RELATED_EDGES = 10
     const val GENRE_AFFINITY_MAX = 200
     const val SEEN_ARTISTS_MAX = 3000
     const val SEEN_ARTISTS_KEEP = 2500

@@ -68,4 +68,35 @@ class MusicQuickPicksTest {
         val mixed = MusicQuickPicks.interleave(listOf(listOf(track("x", "UC1"))), limit = 24, excludedIds = emptySet())
         assertThat(mixed).hasSize(1)
     }
+
+    @Test
+    fun `a capped lane stops contributing at its cap while others keep filling`() {
+        val taste = (0 until 10).map { track("t$it", "UC1") }
+        val charts = (0 until 10).map { track("c$it", "UC2") }
+        val mixed =
+            MusicQuickPicks.interleave(
+                listOf(taste, charts),
+                limit = 10,
+                excludedIds = emptySet(),
+                laneCaps = listOf(Int.MAX_VALUE, 2),
+            )
+        assertThat(mixed.count { it.videoId.startsWith("c") }).isEqualTo(2)
+        assertThat(mixed.count { it.videoId.startsWith("t") }).isEqualTo(8)
+        assertThat(mixed.take(4).map { it.videoId }).containsExactly("t0", "c0", "t1", "c1").inOrder()
+    }
+
+    @Test
+    fun `a capped-out shelf still reaches the limit from uncapped lanes`() {
+        val only = (0 until 6).map { track("t$it", "UC1") }
+        val charts = (0 until 6).map { track("c$it", "UC2") }
+        val mixed =
+            MusicQuickPicks.interleave(
+                listOf(only, charts),
+                limit = 8,
+                excludedIds = emptySet(),
+                laneCaps = listOf(Int.MAX_VALUE, 3),
+            )
+        assertThat(mixed).hasSize(8)
+        assertThat(mixed.count { it.videoId.startsWith("c") }).isEqualTo(3)
+    }
 }

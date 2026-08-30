@@ -174,6 +174,31 @@ class MusicBrainEngine
             }
         }
 
+        /**
+         * Highest-affinity artists with routable browseIds — the seeds for artist
+         * and fans-also-like lanes. Blocked artists never surface.
+         */
+        suspend fun topArtistKeys(limit: Int): List<String> {
+            ensureInitialized()
+            return mutex.withLock {
+                brain
+                    .topArtists(limit * 4)
+                    .map { it.first }
+                    .filter { isIdKeyedArtist(it) && !brain.isArtistBlocked(it) }
+                    .take(limit)
+            }
+        }
+
+        /** Store the "fans also like" edges fetched for [artistKey] — platform knowledge for lanes and mixes. */
+        suspend fun recordArtistRelated(
+            artistKey: String,
+            relatedKeys: List<String>,
+        ) {
+            ensureInitialized()
+            mutex.withLock { MusicBrainLearn.recordArtistRelated(brain, artistKey, relatedKeys) }
+            scheduleDebouncedSave()
+        }
+
         /** On Repeat, rendered entirely from local meta — zero network. */
         suspend fun heavyRotationTracks(limit: Int): List<MusicTrack> {
             ensureInitialized()

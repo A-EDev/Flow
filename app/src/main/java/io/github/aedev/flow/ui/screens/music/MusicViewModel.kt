@@ -110,11 +110,18 @@ class MusicViewModel
                         .firstOrNull()
                         .orEmpty()
                         .audioMusicOnly()
-                val seeds = MusicQuickPicks.selectSeeds(current, history)
-                val relatedLanes =
+                val favorites =
+                    runCatching { playlistRepository.favorites.firstOrNull().orEmpty() }
+                        .getOrDefault(emptyList())
+                        .audioMusicOnly()
+                // Liked tracks join the seed pool after history: recency leads, but
+                // saved taste keeps seeding even when recent history is noisy.
+                val seeds = MusicQuickPicks.selectSeeds(current, history + favorites)
+
+                val (relatedLanes, artistLanesRaw) =
                     kotlinx.coroutines.coroutineScope {
-                        seeds
-                            .map { seed ->
+                        val relatedJobs =
+                            seeds.map { seed ->
                                 async(PerformanceDispatcher.networkIO) {
                                     runCatching {
                                         YouTubeMusicService
@@ -123,25 +130,47 @@ class MusicViewModel
                                     }.onFailure { Log.w("MusicViewModel", "Quick Picks lane '${seed.title}' failed: $it") }
                                         .getOrDefault(emptyList())
                                 }
-                            }.awaitAll()
+                            }
+                        val artistJob =
+                            async(PerformanceDispatcher.networkIO) {
+                                runCatching { buildArtistLanes() }
+                                    .onFailure { Log.w("MusicViewModel", "Artist lanes failed: $it") }
+                                    .getOrDefault(emptyList())
+                            }
+                        relatedJobs.awaitAll() to artistJob.await()
                     }
+
                 val personalizedLanes =
                     relatedLanes
                         .filter { it.isNotEmpty() }
                         .map { musicBrain.rankTracks(it, "quick_picks") }
+                val artistLanes =
+                    artistLanesRaw
+                        .filter { it.isNotEmpty() }
+                        .map { musicBrain.rankTracks(it, "similar") }
                 val discoveryLane =
                     _uiState.value.trendingSongs
                         .audioMusicOnly()
                         .takeIf { it.isNotEmpty() }
                         ?.let { musicBrain.rankTracks(it, "discover") }
-                val lanes = personalizedLanes + listOfNotNull(discoveryLane)
+
+                val lanes = personalizedLanes + artistLanes + listOfNotNull(discoveryLane)
                 if (lanes.isEmpty()) return
 
+                // Charts get the smallest quota: taste-driven lanes fill the shelf,
+                // discovery stays a garnish (regional charts must never dominate).
+                val laneCaps =
+                    buildList {
+                        repeat(personalizedLanes.size + artistLanes.size) { add(Int.MAX_VALUE) }
+                        if (discoveryLane != null) add(MusicQuickPicks.DISCOVERY_MAX_PICKS)
+                    }
+
                 val excluded = seeds.map { it.videoId }.toSet()
-                val mixed = MusicQuickPicks.interleave(lanes, MusicQuickPicks.TARGET, excluded)
+                val mixed = MusicQuickPicks.interleave(lanes, MusicQuickPicks.TARGET, excluded, laneCaps)
                 Log.d(
                     "MusicViewModel",
-                    "Quick Picks lanes=[${relatedLanes.joinToString { it.size.toString() }}] " +
+                    "Quick Picks related=[${relatedLanes.joinToString { it.size.toString() }}] " +
+                        "artist=[${artistLanesRaw.joinToString { it.size.toString() }}] " +
                         "charts=${discoveryLane.orEmpty().size} mixed=${mixed.size}",
                 )
                 if (mixed.size >= 4) {
@@ -151,6 +180,57 @@ class MusicViewModel
             } catch (e: Exception) {
                 Log.e("MusicViewModel", "Error composing Quick Picks", e)
             }
+        }
+
+        /** Session cache: artist pages are stable, one fetch per artist per process. */
+        private val artistDetailsCache = java.util.concurrent.ConcurrentHashMap<String, ArtistDetails>()
+
+        private suspend fun cachedArtistDetails(channelId: String): ArtistDetails? =
+            artistDetailsCache[channelId]
+                ?: runCatching { InnertubeMusicService.fetchArtistDetails(channelId) }
+                    .getOrNull()
+                    ?.also { artistDetailsCache[channelId] = it }
+
+        /**
+         * The artist-graph lanes: top tracks of the brain's strongest artists, plus
+         * one lane drawn from their "fans also like" artists — recall the user's
+         * taste has earned, independent of what happens to be in recent history.
+         */
+        private suspend fun buildArtistLanes(): List<List<MusicTrack>> {
+            val topArtists = musicBrain.topArtistKeys(MusicQuickPicks.ARTIST_LANE_COUNT)
+            if (topArtists.isEmpty()) return emptyList()
+
+            val lanes = ArrayList<List<MusicTrack>>()
+            val fanKeys = ArrayList<String>()
+            kotlinx.coroutines.coroutineScope {
+                topArtists
+                    .map { key -> async(PerformanceDispatcher.networkIO) { key to cachedArtistDetails(key) } }
+                    .awaitAll()
+                    .forEach { (key, details) ->
+                        if (details == null) return@forEach
+                        details.topTracks
+                            .audioMusicOnly()
+                            .take(MusicQuickPicks.LANE_SIZE)
+                            .takeIf { it.isNotEmpty() }
+                            ?.let { lanes.add(it) }
+                        val related = details.relatedArtists.mapNotNull { r -> r.channelId.takeIf { it.isNotBlank() } }
+                        if (related.isNotEmpty()) {
+                            musicBrain.recordArtistRelated(key, related)
+                            if (fanKeys.isEmpty()) fanKeys.addAll(related.take(MusicQuickPicks.SIMILAR_ARTIST_COUNT))
+                        }
+                    }
+
+                val similarPool =
+                    fanKeys
+                        .filter { it !in topArtists }
+                        .map { key -> async(PerformanceDispatcher.networkIO) { cachedArtistDetails(key) } }
+                        .awaitAll()
+                        .filterNotNull()
+                        .flatMap { it.topTracks.audioMusicOnly().take(MusicQuickPicks.LANE_SIZE / 2) }
+                        .distinctBy { it.videoId }
+                if (similarPool.isNotEmpty()) lanes.add(similarPool)
+            }
+            return lanes
         }
 
         private suspend fun refreshOnRepeat() {

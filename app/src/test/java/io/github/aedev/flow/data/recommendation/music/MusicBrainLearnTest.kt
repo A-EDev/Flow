@@ -200,4 +200,23 @@ class MusicBrainLearnTest {
         assertThat(MusicTimeBucket.fromParts(2, true)).isEqualTo(MusicTimeBucket.WEEKEND_NIGHT)
         assertThat(MusicTimeBucket.fromWire("WeekdayMorning")).isEqualTo(MusicTimeBucket.WEEKDAY_MORNING)
     }
+
+    @Test
+    fun `a listen stores the artist display name for stats`() {
+        val brain = MusicBrain()
+        listen(brain, signal(display = "Artist One"))
+        assertThat(brain.artistAffinity["UCartist1"]!!.display).isEqualTo("Artist One")
+    }
+
+    @Test
+    fun `recordArtistRelated replaces edges and caps their count`() {
+        val brain = MusicBrain()
+        MusicBrainLearn.recordArtistRelated(brain, "UCa", listOf("UCb", "UCc", "UCa", "UCb"))
+        assertThat(brain.artistRelated["UCa"]).containsExactly("UCb", "UCc").inOrder()
+
+        val many = (0 until 20).map { "UCr$it" }
+        MusicBrainLearn.recordArtistRelated(brain, "UCa", many)
+        assertThat(brain.artistRelated["UCa"]).hasSize(MusicBrainParams.ARTIST_RELATED_EDGES)
+        assertThat(brain.artistRelated["UCa"]!!.first()).isEqualTo("UCr0")
+    }
 }
