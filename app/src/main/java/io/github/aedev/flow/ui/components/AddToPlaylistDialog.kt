@@ -1,21 +1,28 @@
 package io.github.aedev.flow.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.PlaylistAdd
+import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +33,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -49,7 +58,6 @@ fun AddToPlaylistDialog(
     var selectedWatchLater by remember(video.id) { mutableStateOf(false) }
     var watchLaterSelectionInitialized by remember(video.id) { mutableStateOf(false) }
 
-    // Load playlists and watch later
     LaunchedEffect(Unit) {
         launch {
             repo.getAllPlaylistsFlow().collect {
@@ -84,13 +92,12 @@ fun AddToPlaylistDialog(
 
     LaunchedEffect(watchLaterLoaded, watchLaterVideos, video.id) {
         if (watchLaterLoaded && !watchLaterSelectionInitialized) {
-            val isInWatchLater = watchLaterVideos.any { it.id == video.id }
-            selectedWatchLater = isInWatchLater
+            selectedWatchLater = watchLaterVideos.any { it.id == video.id }
             watchLaterSelectionInitialized = true
         }
     }
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val maxHeight = configuration.screenHeightDp.dp * 0.65f
+
+    val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.65f
     val watchLaterThumbnail =
         watchLaterVideos
             .firstOrNull()
@@ -101,9 +108,7 @@ fun AddToPlaylistDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        scrimColor = Color.Transparent,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
         Column(
@@ -117,7 +122,7 @@ fun AddToPlaylistDialog(
             Text(
                 text = stringResource(R.string.save_to),
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
 
@@ -130,8 +135,7 @@ fun AddToPlaylistDialog(
                         .weight(1f, fill = false),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
-                // Watch Later
-                item {
+                item(key = "watch_later") {
                     PlaylistSheetRow(
                         thumbnail = watchLaterThumbnail,
                         name = stringResource(R.string.watch_later),
@@ -157,14 +161,12 @@ fun AddToPlaylistDialog(
                     )
                 }
 
-                // HorizontalDivider
-                item {
+                item(key = "watch_later_divider") {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     )
                 }
 
-                // User Playlists
                 items(
                     items = playlists,
                     key = { it.id },
@@ -174,9 +176,7 @@ fun AddToPlaylistDialog(
                         name = playlist.name,
                         privacy =
                             if (playlist.isPrivate) {
-                                stringResource(
-                                    R.string.playlist_private,
-                                )
+                                stringResource(R.string.playlist_private)
                             } else {
                                 stringResource(R.string.playlist_public)
                             },
@@ -212,15 +212,14 @@ fun AddToPlaylistDialog(
                     )
                 }
 
-                // Create New Playlist
-                item {
+                item(key = "create_playlist") {
                     Surface(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         onClick = { showCreateDialog = true },
                     ) {
                         Row(
@@ -249,7 +248,6 @@ fun AddToPlaylistDialog(
         }
     }
 
-    // Create Playlist Dialog
     if (showCreateDialog) {
         CreateNewPlaylistDialog(
             onDismiss = { showCreateDialog = false },
@@ -274,6 +272,8 @@ private fun PlaylistSheetRow(
     isSaved: Boolean,
     onClick: () -> Unit,
 ) {
+    val reduceMotion = rememberFlowReduceMotion()
+
     Row(
         modifier =
             Modifier
@@ -287,8 +287,8 @@ private fun PlaylistSheetRow(
             modifier =
                 Modifier
                     .size(width = 88.dp, height = 50.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .clip(MaterialTheme.shapes.small)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {
             if (thumbnail.isNotEmpty()) {
                 AsyncImage(
@@ -305,7 +305,7 @@ private fun PlaylistSheetRow(
                         Modifier
                             .size(28.dp)
                             .align(Alignment.Center),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -328,12 +328,32 @@ private fun PlaylistSheetRow(
             )
         }
 
-        Icon(
-            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-            contentDescription = null,
-            tint = if (isSaved) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(28.dp),
-        )
+        AnimatedContent(
+            targetState = isSaved,
+            transitionSpec = {
+                fadeIn(
+                    tween(
+                        durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                        easing = FlowMotion.EnterEasing,
+                    ),
+                ).togetherWith(
+                    fadeOut(
+                        tween(
+                            durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                            easing = FlowMotion.ExitEasing,
+                        ),
+                    ),
+                )
+            },
+            label = "playlistSavedState",
+        ) { saved ->
+            Icon(
+                imageVector = if (saved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                contentDescription = null,
+                tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(28.dp),
+            )
+        }
     }
 }
 
