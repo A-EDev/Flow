@@ -36,6 +36,8 @@ import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.ui.screens.settings.ImportViewModel
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -46,6 +48,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
+    val reduceMotion = rememberFlowReduceMotion()
 
     val subscriptionRepo = remember { SubscriptionRepository.getInstance(context) }
     val backupRepo = remember { BackupRepository(context) }
@@ -66,18 +69,24 @@ fun OnboardingScreen(onComplete: () -> Unit) {
 
     val importState by importViewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(importState) {
-        when (val s = importState) {
+        when (val state = importState) {
             is ImportViewModel.State.Success -> {
-                importMessage = s.message ?: if ((s.count ?: 0) > 0) {
-                    context.getString(R.string.onboarding_imported_count, s.count, s.label.lowercase())
-                } else {
-                    context.getString(R.string.onboarding_imported, s.label)
-                }
+                importMessage =
+                    state.message
+                        ?: if ((state.count ?: 0) > 0) {
+                            context.getString(
+                                R.string.onboarding_imported_count,
+                                state.count,
+                                state.label.lowercase(),
+                            )
+                        } else {
+                            context.getString(R.string.onboarding_imported, state.label)
+                        }
                 importViewModel.dismiss()
             }
 
             is ImportViewModel.State.Error -> {
-                importMessage = context.getString(R.string.onboarding_import_failed_template, s.message)
+                importMessage = context.getString(R.string.onboarding_import_failed_template, state.message)
                 importViewModel.dismiss()
             }
 
@@ -86,8 +95,8 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     }
 
     LaunchedEffect(importMessage) {
-        importMessage?.let {
-            snackbarHostState.showSnackbar(it)
+        importMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
             importMessage = null
         }
     }
@@ -273,21 +282,37 @@ fun OnboardingScreen(onComplete: () -> Unit) {
             )
         },
     ) { innerPadding ->
+        val enterDuration = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion)
+        val fadeDuration = FlowMotion.durationFor(FlowMotion.ENTER_DURATION_MILLIS, reduceMotion)
+        val exitDuration = FlowMotion.durationFor(FlowMotion.EXIT_DURATION_MILLIS, reduceMotion)
+
         AnimatedContent(
             targetState = currentStep,
             transitionSpec = {
                 val forward = targetState.index > initialState.index
                 val enter =
                     if (forward) {
-                        slideInHorizontally(tween(300)) { it / 4 } + fadeIn(tween(250))
+                        slideInHorizontally(
+                            animationSpec = tween(enterDuration, easing = FlowMotion.EnterEasing),
+                        ) { width -> width / 6 } +
+                            fadeIn(tween(fadeDuration, easing = FlowMotion.EnterEasing))
                     } else {
-                        slideInHorizontally(tween(300)) { -it / 4 } + fadeIn(tween(250))
+                        slideInHorizontally(
+                            animationSpec = tween(enterDuration, easing = FlowMotion.EnterEasing),
+                        ) { width -> -width / 6 } +
+                            fadeIn(tween(fadeDuration, easing = FlowMotion.EnterEasing))
                     }
                 val exit =
                     if (forward) {
-                        slideOutHorizontally(tween(250)) { -it / 4 } + fadeOut(tween(200))
+                        slideOutHorizontally(
+                            animationSpec = tween(exitDuration, easing = FlowMotion.ExitEasing),
+                        ) { width -> -width / 8 } +
+                            fadeOut(tween(exitDuration, easing = FlowMotion.ExitEasing))
                     } else {
-                        slideOutHorizontally(tween(250)) { it / 4 } + fadeOut(tween(200))
+                        slideOutHorizontally(
+                            animationSpec = tween(exitDuration, easing = FlowMotion.ExitEasing),
+                        ) { width -> width / 8 } +
+                            fadeOut(tween(exitDuration, easing = FlowMotion.ExitEasing))
                     }
                 enter togetherWith exit
             },
@@ -295,7 +320,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-            label = "step_content",
+            label = "onboardingStep",
         ) { step ->
             when (step) {
                 OnboardingStep.INTERESTS -> {
@@ -319,10 +344,10 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         searchResults = searchResults,
                         isSearching = isSearching,
                         subscribedInSession = subscribedInSession,
-                        onQueryChange = { q ->
-                            searchQuery = q
+                        onQueryChange = { query ->
+                            searchQuery = query
                             searchJob?.cancel()
-                            if (q.isBlank()) {
+                            if (query.isBlank()) {
                                 searchResults = emptyList()
                                 isSearching = false
                                 return@ChannelsStep
@@ -331,7 +356,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                                 scope.launch {
                                     delay(400)
                                     isSearching = true
-                                    searchResults = searchChannels(q)
+                                    searchResults = searchChannels(query)
                                     isSearching = false
                                 }
                         },
@@ -389,15 +414,21 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         onImportNewPipePlaylists = {
                             newPipePlaylistImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                         },
-                        onImportLibreTubePlaylists = { libreTubePlaylistImportLauncher.launch(arrayOf("application/json")) },
+                        onImportLibreTubePlaylists = {
+                            libreTubePlaylistImportLauncher.launch(arrayOf("application/json"))
+                        },
                         onImportYouTubeTakeout = {
                             youtubeTakeoutImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                         },
                         onImportYouTubePlaylist = {
-                            youtubePlaylistImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain"))
+                            youtubePlaylistImportLauncher.launch(
+                                arrayOf("text/comma-separated-values", "text/csv", "text/plain"),
+                            )
                         },
                         onImportYouTubeMusicPlaylist = {
-                            youtubeMusicPlaylistImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain"))
+                            youtubeMusicPlaylistImportLauncher.launch(
+                                arrayOf("text/comma-separated-values", "text/csv", "text/plain"),
+                            )
                         },
                     )
                 }
