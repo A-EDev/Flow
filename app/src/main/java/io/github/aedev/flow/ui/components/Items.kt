@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,15 +18,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +36,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -48,14 +48,9 @@ import io.github.aedev.flow.ui.theme.GridItemSize
 @Composable
 fun currentGridThumbnailHeight(): Dp {
     val context = LocalContext.current
-    val preferences = PlayerPreferences(context)
+    val preferences = remember(context) { PlayerPreferences(context) }
     val gridSizeString by preferences.gridItemSize.collectAsState(initial = "BIG")
-    val gridSize =
-        try {
-            GridItemSize.valueOf(gridSizeString)
-        } catch (e: Exception) {
-            GridItemSize.BIG
-        }
+    val gridSize = remember(gridSizeString) { runCatching { GridItemSize.valueOf(gridSizeString) }.getOrDefault(GridItemSize.BIG) }
     return gridSize.thumbnailHeight
 }
 
@@ -70,12 +65,18 @@ fun ListItem(
     isActive: Boolean = false,
     isAvailable: Boolean = true,
 ) {
-    val backgroundColor =
+    val containerColor =
         when {
-            isActive && isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+            isActive && isSelected -> MaterialTheme.colorScheme.primaryContainer
             isActive -> MaterialTheme.colorScheme.secondaryContainer
-            isSelected -> MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.4f)
+            isSelected -> MaterialTheme.colorScheme.surfaceContainerHighest
             else -> null
+        }
+    val titleColor =
+        when {
+            isActive && isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+            isActive -> MaterialTheme.colorScheme.onSecondaryContainer
+            else -> MaterialTheme.colorScheme.onSurface
         }
 
     Row(
@@ -85,13 +86,11 @@ fun ListItem(
                 .height(Dimensions.ListItemHeight)
                 .padding(horizontal = 8.dp)
                 .then(
-                    if (backgroundColor != null) {
+                    containerColor?.let { color ->
                         Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(backgroundColor)
-                    } else {
-                        Modifier
-                    },
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(color)
+                    } ?: Modifier,
                 ),
     ) {
         Box(
@@ -105,11 +104,9 @@ fun ListItem(
                     modifier =
                         Modifier
                             .size(Dimensions.ListThumbnailSize)
-                            .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius))
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                }
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                )
             }
         }
 
@@ -125,12 +122,7 @@ fun ListItem(
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color =
-                    if (isActive) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onBackground
-                    },
+                color = titleColor,
             )
 
             if (subtitle != null) {
@@ -154,26 +146,27 @@ fun ListItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
     isSelected: Boolean = false,
     isActive: Boolean = false,
-) = ListItem(
-    title = title,
-    subtitle = {
-        badges()
-        if (!subtitle.isNullOrEmpty()) {
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    },
-    thumbnailContent = thumbnailContent,
-    trailingContent = trailingContent,
-    modifier = modifier,
-    isSelected = isSelected,
-    isActive = isActive,
-)
+) =
+    ListItem(
+        title = title,
+        subtitle = {
+            badges()
+            if (!subtitle.isNullOrEmpty()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        },
+        thumbnailContent = thumbnailContent,
+        trailingContent = trailingContent,
+        modifier = modifier,
+        isSelected = isSelected,
+        isActive = isActive,
+    )
 
 @Composable
 fun GridItem(
@@ -212,7 +205,6 @@ fun GridItem(
         }
 
         Spacer(modifier = Modifier.height(6.dp))
-
         title()
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -253,19 +245,27 @@ fun GridItem(
                     Modifier
                         .height(thumbnailHeight)
                         .aspectRatio(aspectRatio)
-                        .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius)),
+                        .clip(MaterialTheme.shapes.medium),
             )
             if (isDownloaded) {
-                Icon(
-                    imageVector = Icons.Rounded.OfflinePin,
-                    contentDescription = stringResource(R.string.status_downloaded),
-                    tint = androidx.compose.ui.graphics.Color.White,
+                Surface(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(18.dp),
-                )
+                            .padding(6.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.OfflinePin,
+                        contentDescription = stringResource(R.string.status_downloaded),
+                        modifier =
+                            Modifier
+                                .padding(4.dp)
+                                .size(16.dp),
+                    )
+                }
             }
         }
 
@@ -317,7 +317,7 @@ fun ListItem(
             modifier =
                 Modifier
                     .size(Dimensions.ListThumbnailSize)
-                    .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius)),
+                    .clip(MaterialTheme.shapes.medium),
         )
 
         Column(
@@ -336,7 +336,7 @@ fun ListItem(
                     if (isPlaying) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.onBackground
+                        MaterialTheme.colorScheme.onSurface
                     },
             )
 
