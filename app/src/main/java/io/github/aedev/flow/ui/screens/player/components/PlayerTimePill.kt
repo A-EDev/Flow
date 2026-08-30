@@ -12,6 +12,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -37,6 +39,8 @@ import io.github.aedev.flow.ui.theme.PlayerLiveIndicator
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
+
+private val InteractiveTimePillMinHeight = 48.dp
 
 @Composable
 fun PlayerTimePill(
@@ -57,10 +61,12 @@ fun PlayerTimePill(
     val interactionModifier =
         if (onClick != null) {
             Modifier
+                .heightIn(min = InteractiveTimePillMinHeight)
                 .pressScale(interactionSource)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = ripple(),
+                    role = Role.Button,
                     onClick = onClick,
                 )
         } else {
