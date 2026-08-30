@@ -1,14 +1,14 @@
 package io.github.aedev.flow.ui.components
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -32,7 +33,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.FlowMotion
 import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
@@ -98,11 +98,11 @@ fun FloatingBottomNavBar(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
-            tonalElevation = 3.dp,
-            shadowElevation = 8.dp,
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            tonalElevation = 2.dp,
+            shadowElevation = 2.dp,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(6.dp),
@@ -183,29 +183,47 @@ private fun BottomNavItem(
     modifier: Modifier = Modifier,
 ) {
     val reduceMotion = rememberFlowReduceMotion()
-    val iconTint by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec =
-            tween(
-                FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
-                easing = FlowMotion.EnterEasing,
-            ),
-        label = "iconTint",
-    )
-    val indicatorColor by animateColorAsState(
-        targetValue =
-            if (selected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-            } else {
-                androidx.compose.ui.graphics.Color.Transparent
+    val selectionTransition = updateTransition(targetState = selected, label = "bottomNavSelection")
+    val iconTint by
+        selectionTransition.animateColor(
+            transitionSpec = {
+                tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                )
             },
-        animationSpec =
-            tween(
-                FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
-                easing = FlowMotion.EnterEasing,
-            ),
-        label = "indicatorColor",
-    )
+            label = "iconTint",
+        ) { isSelected ->
+            if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    val indicatorColor by
+        selectionTransition.animateColor(
+            transitionSpec = {
+                tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                )
+            },
+            label = "indicatorColor",
+        ) { isSelected ->
+            if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0f)
+            }
+        }
+    val iconScale by
+        selectionTransition.animateFloat(
+            transitionSpec = {
+                tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                )
+            },
+            label = "iconScale",
+        ) { isSelected ->
+            if (isSelected && !reduceMotion) 1.05f else 1f
+        }
 
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -218,7 +236,7 @@ private fun BottomNavItem(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(MaterialTheme.shapes.large)
                     .background(indicatorColor)
                     .selectable(
                         selected = selected,
@@ -233,7 +251,13 @@ private fun BottomNavItem(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
-                modifier = Modifier.size(22.dp),
+                modifier =
+                    Modifier
+                        .size(22.dp)
+                        .graphicsLayer {
+                            scaleX = iconScale
+                            scaleY = iconScale
+                        },
             )
 
             Spacer(modifier = Modifier.height(1.dp))
@@ -242,7 +266,6 @@ private fun BottomNavItem(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 color = iconTint,
-                fontSize = 11.sp,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

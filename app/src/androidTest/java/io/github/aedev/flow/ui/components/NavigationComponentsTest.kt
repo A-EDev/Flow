@@ -67,6 +67,25 @@ class NavigationComponentsTest {
     }
 
     @Test
+    fun overflowDestinationKeepsMoreSelected() {
+        composeRule.setContent {
+            MaterialTheme {
+                FloatingBottomNavBar(
+                    selectedIndex = 6,
+                    onItemSelected = {},
+                    isSearchEnabled = true,
+                    isCategoriesEnabled = true,
+                )
+            }
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        composeRule
+            .onNodeWithText(context.getString(R.string.nav_more))
+            .assertIsSelected()
+    }
+
+    @Test
     fun tappingDestinationReportsItsNavigationIndex() {
         var selectedIndex = -1
         composeRule.setContent {
