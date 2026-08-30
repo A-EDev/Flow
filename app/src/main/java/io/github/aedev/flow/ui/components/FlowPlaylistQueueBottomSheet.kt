@@ -2,9 +2,7 @@ package io.github.aedev.flow.ui.components
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,10 +11,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -29,24 +26,23 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -56,7 +52,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 private class QueueDisplayItem(
     val key: String,
@@ -85,7 +85,9 @@ fun FlowPlaylistQueueBottomSheet(
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
+    val reduceMotion = rememberFlowReduceMotion()
     val latestOnDismiss by rememberUpdatedState(onDismiss)
+    val latestOnSheetProgressChange by rememberUpdatedState(onSheetProgressChange)
     val sheetExpandedHeight = expandedHeight ?: (configuration.screenHeightDp.dp * 0.75f)
     val expandedHeightPx = with(density) { sheetExpandedHeight.toPx() }
     val collapsedHeightPx = with(density) { collapsedHeight.toPx() }.coerceIn(0f, expandedHeightPx)
@@ -93,16 +95,16 @@ fun FlowPlaylistQueueBottomSheet(
     val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
-    val sheetProgress =
-        if (expandedHeightPx > 0f) {
-            ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-    SideEffect {
-        onSheetProgressChange(sheetProgress)
-    }
     val listState = rememberLazyListState()
+
+    LaunchedEffect(sheetHeightPx, collapsedHeightPx, sheetProgressRangePx) {
+        snapshotFlow {
+            ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
+        }.distinctUntilChanged().collect { progress ->
+            latestOnSheetProgressChange(progress)
+        }
+    }
+
     val displayItems =
         remember(queueVideos) {
             queueVideos
@@ -142,14 +144,18 @@ fun FlowPlaylistQueueBottomSheet(
 
     fun animateToExpanded() {
         coroutineScope.launch {
-            sheetHeightPx.animateTo(
-                targetValue = expandedHeightPx,
-                animationSpec =
-                    spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessLow,
-                    ),
-            )
+            if (reduceMotion) {
+                sheetHeightPx.snapTo(expandedHeightPx)
+            } else {
+                sheetHeightPx.animateTo(
+                    targetValue = expandedHeightPx,
+                    animationSpec =
+                        tween(
+                            durationMillis = FlowMotion.CONTENT_DURATION_MILLIS,
+                            easing = FlowMotion.EnterEasing,
+                        ),
+                )
+            }
         }
     }
 
@@ -157,37 +163,49 @@ fun FlowPlaylistQueueBottomSheet(
         if (isAnimatingOut) return
         isAnimatingOut = true
         coroutineScope.launch {
-            sheetHeightPx.animateTo(
-                targetValue = collapsedHeightPx,
-                animationSpec =
-                    spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessLow,
-                    ),
-            )
+            if (reduceMotion) {
+                sheetHeightPx.snapTo(collapsedHeightPx)
+            } else {
+                sheetHeightPx.animateTo(
+                    targetValue = collapsedHeightPx,
+                    animationSpec =
+                        tween(
+                            durationMillis = FlowMotion.EXIT_DURATION_MILLIS,
+                            easing = FlowMotion.ExitEasing,
+                        ),
+                )
+            }
             latestOnDismiss()
         }
     }
 
-    LaunchedEffect(expandedHeightPx, collapsedHeightPx) {
+    LaunchedEffect(expandedHeightPx, collapsedHeightPx, reduceMotion) {
         isAnimatingOut = false
         sheetHeightPx.updateBounds(lowerBound = collapsedHeightPx, upperBound = expandedHeightPx)
         if (sheetHeightPx.value == 0f || sheetHeightPx.value < collapsedHeightPx) {
             sheetHeightPx.snapTo(collapsedHeightPx)
         }
-        sheetHeightPx.animateTo(
-            targetValue = expandedHeightPx,
-            animationSpec =
-                spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow,
-                ),
-        )
+        if (reduceMotion) {
+            sheetHeightPx.snapTo(expandedHeightPx)
+        } else {
+            sheetHeightPx.animateTo(
+                targetValue = expandedHeightPx,
+                animationSpec =
+                    tween(
+                        durationMillis = FlowMotion.ENTER_DURATION_MILLIS,
+                        easing = FlowMotion.EnterEasing,
+                    ),
+            )
+        }
     }
 
-    LaunchedEffect(currentQueueIndex) {
+    LaunchedEffect(currentQueueIndex, reduceMotion) {
         if (currentQueueIndex >= 0 && currentQueueIndex < queueVideos.size) {
-            listState.scrollToItem(currentQueueIndex)
+            if (reduceMotion) {
+                listState.scrollToItem(currentQueueIndex)
+            } else {
+                listState.animateScrollToItem(currentQueueIndex)
+            }
         }
     }
 
@@ -213,7 +231,7 @@ fun FlowPlaylistQueueBottomSheet(
                     val velocityY = velocityTracker.calculateVelocity().y
                     velocityTracker.resetTracking()
                     when {
-                        velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
+                        velocityY > 1_200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
                         else -> animateToExpanded()
                     }
                 },
@@ -228,8 +246,24 @@ fun FlowPlaylistQueueBottomSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(with(density) { sheetHeightPx.value.toDp() }),
-            color = MaterialTheme.colorScheme.surface,
+                    .layout { measurable, constraints ->
+                        val height =
+                            sheetHeightPx.value
+                                .roundToInt()
+                                .coerceIn(constraints.minHeight, constraints.maxHeight)
+                        val placeable =
+                            measurable.measure(
+                                constraints.copy(
+                                    minHeight = height,
+                                    maxHeight = height,
+                                ),
+                            )
+                        layout(placeable.width, height) {
+                            placeable.placeRelative(0, 0)
+                        }
+                    },
+            shape = BottomSheetDefaults.ExpandedShape,
+            color = BottomSheetDefaults.ContainerColor,
             tonalElevation = 0.dp,
         ) {
             Column(
@@ -263,7 +297,7 @@ fun FlowPlaylistQueueBottomSheet(
                         Text(
                             text = playlistTitle ?: stringResource(R.string.playlist_queue),
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -291,15 +325,12 @@ fun FlowPlaylistQueueBottomSheet(
                         imageVector = Icons.Default.Repeat,
                         contentDescription = stringResource(R.string.repeat),
                     )
-                    IconButton(
-                        onClick = ::animateToDismiss,
-                        modifier = Modifier.size(40.dp),
-                    ) {
+                    IconButton(onClick = ::animateToDismiss) {
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 LazyColumn(
                     state = listState,
