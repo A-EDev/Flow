@@ -1,18 +1,21 @@
 package io.github.aedev.flow.ui.screens.music
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.screens.music.components.TrackListItem
-import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 @Composable
 fun MusicTrackRow(
@@ -25,13 +28,28 @@ fun MusicTrackRow(
     isPlaying: Boolean = false,
     isDownloaded: Boolean = false,
 ) {
-    val backgroundColor = if (isPlaying) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else Color.Transparent
+    val reduceMotion = rememberFlowReduceMotion()
+    val backgroundColor by
+        animateColorAsState(
+            targetValue =
+                if (isPlaying) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+                },
+            animationSpec =
+                tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                ),
+            label = "musicTrackPlayingBackground",
+        )
 
     TrackListItem(
         track = track,
         modifier =
             Modifier
-                .clip(RoundedCornerShape(Dimensions.CardCornerRadius))
+                .clip(MaterialTheme.shapes.large)
                 .background(backgroundColor),
         isPlaying = isPlaying,
         isDownloaded = isDownloaded,
@@ -41,10 +59,8 @@ fun MusicTrackRow(
                 {
                     Text(
                         text = index.toString(),
-                        style =
-                            MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Normal,
-                            ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Normal,
                         color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.width(32.dp),
                         textAlign = TextAlign.Center,
