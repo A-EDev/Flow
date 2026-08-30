@@ -1,31 +1,45 @@
 package io.github.aedev.flow.ui.screens.music.components
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.rounded.OfflinePin
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -38,6 +52,8 @@ import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.formatDuration
 import io.github.aedev.flow.ui.screens.music.formatViews
 import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -55,7 +71,9 @@ fun TrackListItem(
     onMenuClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val reduceMotion = rememberFlowReduceMotion()
     val interactionSource = remember { MutableInteractionSource() }
+
     Row(
         modifier =
             modifier
@@ -64,7 +82,7 @@ fun TrackListItem(
                 .pressScale(interactionSource)
                 .combinedClickable(
                     interactionSource = interactionSource,
-                    indication = androidx.compose.material3.ripple(),
+                    indication = ripple(),
                     onClick = onClick,
                     onLongClick = onLongClick,
                 ).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -76,9 +94,8 @@ fun TrackListItem(
         }
 
         Surface(
-            shape = RoundedCornerShape(Dimensions.ThumbnailCornerRadius),
+            shape = MaterialTheme.shapes.medium,
             modifier = Modifier.size(Dimensions.ListThumbnailSize),
-            tonalElevation = 4.dp,
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -89,18 +106,43 @@ fun TrackListItem(
                         ImageRequest
                             .Builder(context)
                             .data(track.listThumbnailUrl)
-                            .crossfade(true)
+                            .crossfade(!reduceMotion)
                             .build(),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
-                if (isPlaying) {
+
+                AnimatedVisibility(
+                    visible = isPlaying,
+                    modifier = Modifier.fillMaxSize(),
+                    enter =
+                        fadeIn(
+                            tween(
+                                durationMillis =
+                                    FlowMotion.durationFor(
+                                        FlowMotion.FEEDBACK_DURATION_MILLIS,
+                                        reduceMotion,
+                                    ),
+                            ),
+                        ),
+                    exit =
+                        fadeOut(
+                            tween(
+                                durationMillis =
+                                    FlowMotion.durationFor(
+                                        FlowMotion.FEEDBACK_DURATION_MILLIS,
+                                        reduceMotion,
+                                    ),
+                            ),
+                        ),
+                    label = "trackPlayingOverlay",
+                ) {
                     Box(
                         modifier =
                             Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.46f)),
+                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.46f)),
                         contentAlignment = Alignment.Center,
                     ) {
                         MusicWaveAnimation(
@@ -109,6 +151,7 @@ fun TrackListItem(
                         )
                     }
                 }
+
                 thumbnailOverlay?.invoke(this)
             }
         }
@@ -117,20 +160,20 @@ fun TrackListItem(
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         ) {
             Text(
                 text = track.title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp),
             ) {
                 if (track.isExplicit == true) {
                     ExplicitBadge()
@@ -139,7 +182,7 @@ fun TrackListItem(
                 Text(
                     text = track.musicMetadataLine(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -158,9 +201,7 @@ fun TrackListItem(
             )
         }
 
-        if (trailingContent != null) {
-            trailingContent()
-        }
+        trailingContent?.invoke(this)
 
         if (showMenu) {
             IconButton(onClick = onMenuClick) {
