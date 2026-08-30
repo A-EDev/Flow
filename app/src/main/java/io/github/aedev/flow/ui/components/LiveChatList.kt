@@ -1,12 +1,15 @@
 package io.github.aedev.flow.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
@@ -23,7 +26,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
@@ -33,13 +35,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.LiveChatMessage
 import io.github.aedev.flow.data.model.LiveChatMessageType
 import io.github.aedev.flow.data.model.LiveChatSegment
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -54,6 +56,8 @@ fun LiveChatList(
         remember(messages) {
             messages.distinctByNonBlankKey(LiveChatMessage::id)
         }
+    val reduceMotion = rememberFlowReduceMotion()
+
     when {
         isLoading && uniqueMessages.isEmpty() -> {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -104,7 +108,7 @@ fun LiveChatList(
                     }
             }
 
-            LaunchedEffect(uniqueMessages.lastOrNull()?.id, followLive) {
+            LaunchedEffect(uniqueMessages.lastOrNull()?.id, uniqueMessages.size, followLive) {
                 if (followLive && uniqueMessages.isNotEmpty()) {
                     listState.scrollToItem(uniqueMessages.lastIndex)
                 }
@@ -116,7 +120,13 @@ fun LiveChatList(
                     state = listState,
                     contentPadding = contentPadding,
                 ) {
-                    items(uniqueMessages, key = { it.id }) { message ->
+                    itemsIndexed(
+                        items = uniqueMessages,
+                        key = { index, message ->
+                            message.id.takeIf { it.isNotBlank() }
+                                ?: "chat-${message.timestamp.orEmpty()}-$index"
+                        },
+                    ) { _, message ->
                         when (message.type) {
                             LiveChatMessageType.SUPER_CHAT -> SuperChatRow(message)
                             LiveChatMessageType.MEMBERSHIP -> MembershipRow(message)
@@ -125,19 +135,38 @@ fun LiveChatList(
                     }
                 }
 
-                if (!isAtLiveEdge) {
+                AnimatedVisibility(
+                    visible = !isAtLiveEdge,
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                    enter =
+                        fadeIn(
+                            tween(
+                                durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                                easing = FlowMotion.EnterEasing,
+                            ),
+                        ),
+                    exit =
+                        fadeOut(
+                            tween(
+                                durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                                easing = FlowMotion.ExitEasing,
+                            ),
+                        ),
+                    label = "liveChatJumpAction",
+                ) {
                     SmallFloatingActionButton(
                         onClick = {
                             followLive = true
                             coroutineScope.launch {
-                                listState.animateScrollToItem(uniqueMessages.lastIndex)
+                                if (reduceMotion) {
+                                    listState.scrollToItem(uniqueMessages.lastIndex)
+                                } else {
+                                    listState.animateScrollToItem(uniqueMessages.lastIndex)
+                                }
                             }
                         },
-                        modifier =
-                            Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(end = 16.dp, bottom = 16.dp),
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.padding(end = 16.dp, bottom = 16.dp),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         contentColor = MaterialTheme.colorScheme.primary,
                     ) {
                         Icon(
@@ -153,20 +182,22 @@ fun LiveChatList(
 
 @Composable
 private fun ChatTextRow(message: LiveChatMessage) {
-    val tint =
+    val containerColor =
         when {
-            message.isOwner -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
-            message.isModerator -> MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
-            else -> Color.Transparent
+            message.isOwner -> MaterialTheme.colorScheme.errorContainer
+            message.isModerator -> MaterialTheme.colorScheme.primaryContainer
+            else -> null
         }
+    val rowModifier =
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 1.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .then(containerColor?.let { Modifier.background(it) } ?: Modifier)
+            .padding(horizontal = 8.dp, vertical = 5.dp)
+
     Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 1.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(tint)
-                .padding(horizontal = 8.dp, vertical = 5.dp),
+        modifier = rowModifier,
         verticalAlignment = Alignment.Top,
     ) {
         ChatAvatar(message.authorPhotoUrl, message.memberBadgeUrl)
@@ -190,8 +221,8 @@ private fun MembershipRow(message: LiveChatMessage) {
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 6.dp, vertical = 2.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF0F9D58).copy(alpha = 0.18f))
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.tertiaryContainer)
                 .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -199,8 +230,9 @@ private fun MembershipRow(message: LiveChatMessage) {
             Spacer(Modifier.width(8.dp))
             Text(
                 text = message.author.ifBlank { "—" },
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = Color(0xFF0B8043),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
         }
         if (message.message.isNotBlank() || message.segments.isNotEmpty()) {
@@ -209,7 +241,7 @@ private fun MembershipRow(message: LiveChatMessage) {
                 segments = message.segments,
                 fallback = message.message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
         }
     }
@@ -221,12 +253,13 @@ private fun SuperChatRow(message: LiveChatMessage) {
     val headerColor = message.superChatHeaderArgb?.let { Color(it) } ?: bodyColor
     val onBody = if (bodyColor.luminance() > 0.5f) Color.Black else Color.White
     val onHeader = if (headerColor.luminance() > 0.5f) Color.Black else Color.White
+
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 6.dp, vertical = 3.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(MaterialTheme.shapes.medium)
                 .background(bodyColor),
     ) {
         Row(
@@ -242,13 +275,15 @@ private fun SuperChatRow(message: LiveChatMessage) {
             Column(Modifier.weight(1f)) {
                 Text(
                     text = message.author,
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
                     color = onHeader,
                 )
                 message.superChatAmount?.let {
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
                         color = onHeader,
                     )
                 }
@@ -288,15 +323,14 @@ private fun ChatMessageText(
         return
     }
 
-    val context = LocalContext.current
     val inlineContent = HashMap<String, InlineTextContent>()
     val annotated =
         buildAnnotatedString {
-            segments.forEachIndexed { index, seg ->
-                val imageUrl = seg.emojiImageUrl
+            segments.forEachIndexed { index, segment ->
+                val imageUrl = segment.emojiImageUrl
                 if (imageUrl != null) {
                     val key = "emoji_$index"
-                    appendInlineContent(key, seg.text.ifBlank { ":emoji:" })
+                    appendInlineContent(key, segment.text.ifBlank { ":emoji:" })
                     inlineContent[key] =
                         InlineTextContent(
                             placeholder =
@@ -307,18 +341,13 @@ private fun ChatMessageText(
                                 ),
                         ) {
                             AsyncImage(
-                                model =
-                                    ImageRequest
-                                        .Builder(context)
-                                        .data(imageUrl)
-                                        .crossfade(true)
-                                        .build(),
-                                contentDescription = seg.text,
+                                model = imageUrl,
+                                contentDescription = segment.text,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
                 } else {
-                    append(seg.text)
+                    append(segment.text)
                 }
             }
         }
@@ -335,9 +364,9 @@ private fun ChatMessageText(
 private fun AuthorLine(message: LiveChatMessage) {
     val authorColor =
         when {
-            message.isOwner -> MaterialTheme.colorScheme.error
-            message.isModerator -> MaterialTheme.colorScheme.primary
-            message.isMember -> Color(0xFF0B8043)
+            message.isOwner -> MaterialTheme.colorScheme.onErrorContainer
+            message.isModerator -> MaterialTheme.colorScheme.onPrimaryContainer
+            message.isMember -> MaterialTheme.colorScheme.onTertiaryContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -345,14 +374,15 @@ private fun AuthorLine(message: LiveChatMessage) {
             Icon(
                 Icons.Filled.Shield,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = authorColor,
                 modifier = Modifier.size(13.dp),
             )
             Spacer(Modifier.width(3.dp))
         }
         Text(
             text = message.author.ifBlank { "—" },
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
             color = authorColor,
         )
         if (message.isVerified) {
@@ -369,7 +399,7 @@ private fun AuthorLine(message: LiveChatMessage) {
             Text(
                 text = it,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -386,8 +416,8 @@ fun LiveChatPreview(
             modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -432,16 +462,11 @@ private fun ChatAvatar(
                 Modifier
                     .size(26.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             )
         } else {
             AsyncImage(
-                model =
-                    ImageRequest
-                        .Builder(LocalContext.current)
-                        .data(url)
-                        .crossfade(true)
-                        .build(),
+                model = url,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier =
@@ -452,12 +477,7 @@ private fun ChatAvatar(
         }
         if (!memberBadgeUrl.isNullOrBlank()) {
             AsyncImage(
-                model =
-                    ImageRequest
-                        .Builder(LocalContext.current)
-                        .data(memberBadgeUrl)
-                        .crossfade(true)
-                        .build(),
+                model = memberBadgeUrl,
                 contentDescription = null,
                 modifier =
                     Modifier
