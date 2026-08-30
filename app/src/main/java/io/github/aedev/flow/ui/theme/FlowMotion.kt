@@ -7,17 +7,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 
-/** Shared motion values for the Flow shell and content surfaces. */
 object FlowMotion {
-    const val ENTER_DURATION_MILLIS: Int = 220
+    const val FEEDBACK_DURATION_MILLIS: Int = 120
     const val EXIT_DURATION_MILLIS: Int = 160
+    const val ENTER_DURATION_MILLIS: Int = 220
     const val CONTENT_DURATION_MILLIS: Int = 240
+    const val EMPHASIZED_DURATION_MILLIS: Int = 320
     const val PRESSED_SCALE: Float = 0.98f
 
-    /** Fast start with a soft landing for elements entering the screen. */
     val EnterEasing: Easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
-
-    /** Quick departure that does not make the user wait for the old content. */
     val ExitEasing: Easing = CubicBezierEasing(0.4f, 0.0f, 1.0f, 1.0f)
 
     fun durationFor(
@@ -32,7 +30,6 @@ object FlowMotion {
     ): Float = if (isPressed && !reduceMotion) pressedScale else 1f
 }
 
-/** Reads Android's animator scale so interactive feedback can respect reduced-motion settings. */
 @Composable
 fun rememberFlowReduceMotion(): Boolean {
     val context = LocalContext.current

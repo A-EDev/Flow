@@ -6,9 +6,11 @@ import org.junit.Test
 
 class FlowMotionTest {
     @Test
-    fun `motion durations keep enters slower than exits`() {
+    fun `motion durations stay ordered by interaction weight`() {
+        assertTrue(FlowMotion.FEEDBACK_DURATION_MILLIS <= FlowMotion.EXIT_DURATION_MILLIS)
         assertTrue(FlowMotion.EXIT_DURATION_MILLIS < FlowMotion.ENTER_DURATION_MILLIS)
         assertTrue(FlowMotion.ENTER_DURATION_MILLIS <= FlowMotion.CONTENT_DURATION_MILLIS)
+        assertTrue(FlowMotion.CONTENT_DURATION_MILLIS < FlowMotion.EMPHASIZED_DURATION_MILLIS)
     }
 
     @Test
