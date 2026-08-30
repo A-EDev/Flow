@@ -1,107 +1,100 @@
 package io.github.aedev.flow.ui.components
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import kotlin.math.max
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
+
+private const val SKELETON_PULSE_MILLIS = 900
+private const val SKELETON_MIN_ALPHA = 0.55f
 
 @Composable
 fun Modifier.shimmerEffect(
-    shape: Shape = RoundedCornerShape(8.dp),
-    durationMillis: Int = 1200,
+    shape: Shape = MaterialTheme.shapes.small,
+    durationMillis: Int = SKELETON_PULSE_MILLIS,
     delayMillis: Int = 0,
 ): Modifier {
-    var size by remember { mutableStateOf(IntSize.Zero) }
+    val reduceMotion = rememberFlowReduceMotion()
+    val boneColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val progress by transition.animateFloat(
-        initialValue = -1f,
-        targetValue = 2f,
-        animationSpec =
-            infiniteRepeatable(
-                animation =
-                    tween(
-                        durationMillis = durationMillis,
-                        delayMillis = delayMillis,
-                        easing = LinearEasing,
-                    ),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "shimmer_progress",
-    )
+    if (reduceMotion) {
+        return this
+            .clip(shape)
+            .background(boneColor, shape)
+    }
 
-    val surfaceColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-    val highlightColor = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp).copy(alpha = 0.15f)
-
-    val shimmerColors =
-        listOf(
-            surfaceColor,
-            surfaceColor,
-            highlightColor.copy(alpha = 0.9f),
-            highlightColor,
-            highlightColor.copy(alpha = 0.9f),
-            surfaceColor,
-            surfaceColor,
-        )
-
-    val diagonal = max(size.width.toFloat(), size.height.toFloat()) * 1.5f
-    val startOffset = diagonal * progress
-    val endOffset = startOffset + diagonal * 0.6f
-
-    val brush =
-        Brush.linearGradient(
-            colors = shimmerColors,
-            start = Offset(startOffset, startOffset * 0.5f),
-            end = Offset(endOffset, endOffset * 0.5f),
+    val transition = rememberInfiniteTransition(label = "skeletonPulse")
+    val alpha by
+        transition.animateFloat(
+            initialValue = SKELETON_MIN_ALPHA,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation =
+                        tween(
+                            durationMillis = durationMillis.coerceAtLeast(1),
+                            delayMillis = delayMillis.coerceAtLeast(0),
+                            easing = FlowMotion.EnterEasing,
+                        ),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+            label = "skeletonAlpha",
         )
 
     return this
-        .onGloballyPositioned { coordinates ->
-            size = coordinates.size
-        }.clip(shape)
-        .background(brush, shape)
+        .graphicsLayer { this.alpha = alpha }
+        .clip(shape)
+        .background(boneColor, shape)
 }
 
 @Composable
 fun ShimmerBone(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(8.dp),
+    shape: Shape = MaterialTheme.shapes.small,
     delayMillis: Int = 0,
 ) {
     Box(
-        modifier =
-            modifier
-                .shimmerEffect(shape = shape, delayMillis = delayMillis),
+        modifier = modifier.shimmerEffect(shape = shape, delayMillis = delayMillis),
     )
 }
 
 @Composable
 fun ShimmerVideoCardFullWidth(modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth()) {
-        // Thumbnail
         ShimmerBone(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f),
-            shape = RoundedCornerShape(0.dp),
+            shape = RectangleShape,
         )
 
         Row(
@@ -111,7 +104,6 @@ fun ShimmerVideoCardFullWidth(modifier: Modifier = Modifier) {
                     .padding(horizontal = 12.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Channel avatar
             ShimmerBone(
                 modifier = Modifier.size(40.dp),
                 shape = CircleShape,
@@ -122,7 +114,6 @@ fun ShimmerVideoCardFullWidth(modifier: Modifier = Modifier) {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // Title line 1
                 ShimmerBone(
                     modifier =
                         Modifier
@@ -130,8 +121,6 @@ fun ShimmerVideoCardFullWidth(modifier: Modifier = Modifier) {
                             .height(14.dp),
                     delayMillis = 120,
                 )
-
-                // Title line 2
                 ShimmerBone(
                     modifier =
                         Modifier
@@ -139,21 +128,17 @@ fun ShimmerVideoCardFullWidth(modifier: Modifier = Modifier) {
                             .height(14.dp),
                     delayMillis = 160,
                 )
-
                 Spacer(Modifier.height(2.dp))
-
-                // Channel name + metadata
                 ShimmerBone(
                     modifier =
                         Modifier
                             .fillMaxWidth(0.50f)
                             .height(11.dp),
-                    shape = RoundedCornerShape(4.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                     delayMillis = 200,
                 )
             }
 
-            // Overflow menu dot
             ShimmerBone(
                 modifier = Modifier.size(20.dp),
                 shape = CircleShape,
@@ -163,22 +148,18 @@ fun ShimmerVideoCardFullWidth(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Grid-style shimmer card matching original video card structure.
- */
 @Composable
 fun ShimmerGridVideoCard(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Thumbnail
         ShimmerBone(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f),
-            shape = RoundedCornerShape(12.dp),
+            shape = MaterialTheme.shapes.medium,
         )
 
         Row(
@@ -188,7 +169,6 @@ fun ShimmerGridVideoCard(modifier: Modifier = Modifier) {
                     .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // Channel avatar
             ShimmerBone(
                 modifier = Modifier.size(32.dp),
                 shape = CircleShape,
@@ -199,7 +179,6 @@ fun ShimmerGridVideoCard(modifier: Modifier = Modifier) {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                // Title
                 ShimmerBone(
                     modifier = Modifier.fillMaxWidth(0.95f).height(12.dp),
                     delayMillis = 80,
@@ -208,11 +187,11 @@ fun ShimmerGridVideoCard(modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxWidth(0.7f).height(12.dp),
                     delayMillis = 120,
                 )
-
                 Spacer(modifier = Modifier.height(2.dp))
-
-                // Metadata
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
                     ShimmerBone(
                         modifier = Modifier.width(60.dp).height(10.dp),
                         delayMillis = 160,
@@ -237,17 +216,14 @@ fun ShimmerVideoCardHorizontal(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        // Thumbnail with duration badge placeholder
         Box {
             ShimmerBone(
                 modifier =
                     Modifier
                         .width(160.dp)
                         .aspectRatio(16f / 9f),
-                shape = RoundedCornerShape(8.dp),
+                shape = MaterialTheme.shapes.medium,
             )
-
-            // Duration badge skeleton
             ShimmerBone(
                 modifier =
                     Modifier
@@ -255,7 +231,7 @@ fun ShimmerVideoCardHorizontal(modifier: Modifier = Modifier) {
                         .padding(6.dp)
                         .width(36.dp)
                         .height(16.dp),
-                shape = RoundedCornerShape(4.dp),
+                shape = MaterialTheme.shapes.extraSmall,
                 delayMillis = 150,
             )
         }
@@ -264,43 +240,23 @@ fun ShimmerVideoCardHorizontal(modifier: Modifier = Modifier) {
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            // Title line 1
             ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(13.dp),
+                modifier = Modifier.fillMaxWidth().height(13.dp),
                 delayMillis = 80,
             )
-
-            // Title line 2
             ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.75f)
-                        .height(13.dp),
+                modifier = Modifier.fillMaxWidth(0.75f).height(13.dp),
                 delayMillis = 120,
             )
-
             Spacer(Modifier.height(4.dp))
-
-            // Channel name
             ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.55f)
-                        .height(11.dp),
-                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.fillMaxWidth(0.55f).height(11.dp),
+                shape = MaterialTheme.shapes.extraSmall,
                 delayMillis = 160,
             )
-
-            // View count + date
             ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.40f)
-                        .height(11.dp),
-                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.fillMaxWidth(0.40f).height(11.dp),
+                shape = MaterialTheme.shapes.extraSmall,
                 delayMillis = 200,
             )
         }
@@ -316,31 +272,20 @@ fun ShimmerGridItem(
         modifier = modifier.padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Thumbnail
         ShimmerBone(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(thumbnailAspectRatio),
-            shape = RoundedCornerShape(12.dp),
+            shape = MaterialTheme.shapes.medium,
         )
-
-        // Title
         ShimmerBone(
-            modifier =
-                Modifier
-                    .fillMaxWidth(0.85f)
-                    .height(13.dp),
+            modifier = Modifier.fillMaxWidth(0.85f).height(13.dp),
             delayMillis = 80,
         )
-
-        // Subtitle
         ShimmerBone(
-            modifier =
-                Modifier
-                    .fillMaxWidth(0.55f)
-                    .height(11.dp),
-            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.fillMaxWidth(0.55f).height(11.dp),
+            shape = MaterialTheme.shapes.extraSmall,
             delayMillis = 140,
         )
     }
@@ -357,19 +302,12 @@ fun ShimmerSectionTitle(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ShimmerBone(
-            modifier =
-                Modifier
-                    .width(130.dp)
-                    .height(18.dp),
-            shape = RoundedCornerShape(6.dp),
+            modifier = Modifier.width(130.dp).height(18.dp),
+            shape = MaterialTheme.shapes.small,
         )
-
         ShimmerBone(
-            modifier =
-                Modifier
-                    .width(50.dp)
-                    .height(14.dp),
-            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.width(50.dp).height(14.dp),
+            shape = MaterialTheme.shapes.extraSmall,
             delayMillis = 100,
         )
     }
@@ -393,7 +331,7 @@ fun ShimmerChipRow(
                     Modifier
                         .width((60 + (index * 12) % 40).dp)
                         .height(32.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.extraLarge,
                 delayMillis = index * 60,
             )
         }
@@ -407,29 +345,17 @@ fun ShimmerMoodButton(modifier: Modifier = Modifier) {
             modifier
                 .height(48.dp)
                 .fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
     )
 }
 
-/**
- * Shimmer that mirrors the exact Music screen layout:
- *  - Filter chips row
- *  - "Quick picks" two-column grid (left album art + text + right small album art)
- *  - "Recommended" horizontal card row
- *  - "Recently played" horizontal card row
- */
 @Composable
 fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxSize()) {
-        // Filter chips (Workout, Energize, Relax…)
         ShimmerChipRow(chipCount = 5)
-
         Spacer(Modifier.height(8.dp))
-
-        // ── Quick picks ────────────────────────────────────────────────────
         ShimmerSectionTitle()
 
-        // 4 rows that mimic [left thumb | title+artist | right small thumb]
         repeat(4) { index ->
             Row(
                 modifier =
@@ -439,14 +365,11 @@ fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Left album art square
                 ShimmerBone(
                     modifier = Modifier.size(56.dp),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = MaterialTheme.shapes.medium,
                     delayMillis = index * 40,
                 )
-
-                // Title + artist stacked
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -457,90 +380,56 @@ fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
                     )
                     ShimmerBone(
                         modifier = Modifier.fillMaxWidth(0.50f).height(11.dp),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         delayMillis = 100 + index * 40,
                     )
                 }
-
-                // Right small thumbnail
                 ShimmerBone(
                     modifier = Modifier.size(56.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.medium,
                     delayMillis = 120 + index * 40,
                 )
             }
         }
 
         Spacer(Modifier.height(12.dp))
-
-        // ── Recommended ────────────────────────────────────────────────────
         ShimmerSectionTitle()
-
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            repeat(3) { index ->
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    // Square album art
-                    ShimmerBone(
-                        modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        delayMillis = index * 60,
-                    )
-                    // Title
-                    ShimmerBone(
-                        modifier = Modifier.fillMaxWidth(0.90f).height(12.dp),
-                        delayMillis = 40 + index * 60,
-                    )
-                    // Artist
-                    ShimmerBone(
-                        modifier = Modifier.fillMaxWidth(0.65f).height(10.dp),
-                        shape = RoundedCornerShape(4.dp),
-                        delayMillis = 80 + index * 60,
-                    )
-                }
-            }
-        }
+        ShimmerAlbumRow(staggerMillis = 60)
 
         Spacer(Modifier.height(16.dp))
-
-        // ── Recently played ─────────────────────────────────────────────────
         ShimmerSectionTitle()
+        ShimmerAlbumRow(staggerMillis = 50)
+    }
+}
 
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            repeat(3) { index ->
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    ShimmerBone(
-                        modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        delayMillis = index * 50,
-                    )
-                    ShimmerBone(
-                        modifier = Modifier.fillMaxWidth(0.85f).height(12.dp),
-                        delayMillis = 40 + index * 50,
-                    )
-                    ShimmerBone(
-                        modifier = Modifier.fillMaxWidth(0.60f).height(10.dp),
-                        shape = RoundedCornerShape(4.dp),
-                        delayMillis = 80 + index * 50,
-                    )
-                }
+@Composable
+private fun ShimmerAlbumRow(staggerMillis: Int) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        repeat(3) { index ->
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ShimmerBone(
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                    shape = MaterialTheme.shapes.medium,
+                    delayMillis = index * staggerMillis,
+                )
+                ShimmerBone(
+                    modifier = Modifier.fillMaxWidth(0.90f).height(12.dp),
+                    delayMillis = 40 + index * staggerMillis,
+                )
+                ShimmerBone(
+                    modifier = Modifier.fillMaxWidth(0.65f).height(10.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
+                    delayMillis = 80 + index * staggerMillis,
+                )
             }
         }
     }
