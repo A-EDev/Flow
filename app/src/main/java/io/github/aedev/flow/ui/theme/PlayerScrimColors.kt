@@ -10,8 +10,8 @@ val PlayerScrimAffordance = PlayerScrim.copy(alpha = 0.4f)
 /** Brightness and volume readouts shown mid-gesture. */
 val PlayerScrimGestureHud = PlayerScrim.copy(alpha = 0.54f)
 
-/** Top and bottom edge gradients behind the portrait-fullscreen controls. */
-val PlayerScrimEdgeGradient = PlayerScrim.copy(alpha = 0.72f)
+/** Solid edge scrims behind portrait-fullscreen controls. */
+val PlayerScrimEdge = PlayerScrim.copy(alpha = 0.72f)
 
 val PlayerScrimContent = Color.White
 
