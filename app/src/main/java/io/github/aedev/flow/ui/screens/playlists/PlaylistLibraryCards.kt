@@ -34,7 +34,7 @@ internal fun MusicPlaylistLibraryCard(
     onClick: () -> Unit,
     onDownload: (() -> Unit)?,
     onRename: (() -> Unit)?,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -45,31 +45,31 @@ internal fun MusicPlaylistLibraryCard(
             thumbnailUrl = playlist.thumbnailUrl,
             onClick = onClick,
             onLongClick = { showMenu = true },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
 
         Box(modifier = Modifier.align(Alignment.TopEnd)) {
             Surface(
-                shape = MaterialTheme.shapes.small,
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 2.dp,
-                modifier = Modifier.padding(6.dp)
+                modifier = Modifier.padding(6.dp),
             ) {
                 IconButton(
                     onClick = { showMenu = true },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.more_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
             DropdownMenu(
                 expanded = showMenu,
-                onDismissRequest = { showMenu = false }
+                onDismissRequest = { showMenu = false },
             ) {
                 if (onDownload != null) {
                     DropdownMenuItem(
@@ -78,7 +78,7 @@ internal fun MusicPlaylistLibraryCard(
                             showMenu = false
                             onDownload()
                         },
-                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) },
                     )
                 }
                 if (onRename != null) {
@@ -88,7 +88,7 @@ internal fun MusicPlaylistLibraryCard(
                             showMenu = false
                             onRename()
                         },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                     )
                 }
                 DropdownMenuItem(
@@ -97,7 +97,7 @@ internal fun MusicPlaylistLibraryCard(
                         showMenu = false
                         onDelete()
                     },
-                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                 )
             }
         }
