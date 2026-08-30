@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.player.controls
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +26,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.player.components.PlayerTimePill
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
@@ -46,6 +50,9 @@ import org.schabi.newpipe.extractor.stream.StreamSegment
 
 /** Alpha the bottom gradient reaches at the very bottom of the player. */
 private const val BOTTOM_GRADIENT_ALPHA = 0.44f
+
+/** Minimum interactive size for player actions, independent of the injected visual metrics. */
+private val MinimumPlayerActionSize = 48.dp
 
 /** Sizing shared by the pill row and the seek bar beneath it. */
 data class PlayerBottomBarMetrics(
@@ -81,6 +88,7 @@ internal fun PlayerBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val accentColor = MaterialTheme.colorScheme.primary
+    val interactivePillHeight = maxOf(metrics.pillHeight, MinimumPlayerActionSize)
 
     Column(
         modifier =
@@ -114,13 +122,19 @@ internal fun PlayerBottomBar(
                 modifier = Modifier.weight(1f),
             ) {
                 if (showCommentsButton) {
+                    val interactionSource = remember { MutableInteractionSource() }
                     Box(
                         modifier =
                             Modifier
-                                .size(metrics.pillHeight)
+                                .size(interactivePillHeight)
+                                .pressScale(interactionSource)
                                 .clip(CircleShape)
                                 .background(PlayerScrimAffordance)
-                                .clickable(onClick = actions.onCommentsClick),
+                                .clickable(
+                                    interactionSource = interactionSource,
+                                    indication = ripple(color = PlayerScrimContent),
+                                    onClick = actions.onCommentsClick,
+                                ),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -138,18 +152,24 @@ internal fun PlayerBottomBar(
                     isLive = isLive,
                     showRemainingTime = showRemainingTime,
                     onClick = { if (isLive) actions.onLiveClick() else actions.onToggleRemainingTime() },
-                    modifier = Modifier.height(metrics.pillHeight),
+                    modifier = Modifier.height(interactivePillHeight),
                 )
 
                 if (currentChapter != null) {
+                    val interactionSource = remember { MutableInteractionSource() }
                     Surface(
                         color = PlayerScrimAffordance,
                         shape = CircleShape,
                         modifier =
                             Modifier
-                                .height(metrics.pillHeight)
+                                .height(interactivePillHeight)
+                                .pressScale(interactionSource)
                                 .clip(CircleShape)
-                                .clickable(onClick = actions.onChapterClick),
+                                .clickable(
+                                    interactionSource = interactionSource,
+                                    indication = ripple(color = PlayerScrimContent),
+                                    onClick = actions.onChapterClick,
+                                ),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -181,15 +201,21 @@ internal fun PlayerBottomBar(
                 horizontalArrangement = Arrangement.spacedBy(metrics.actionSpacing),
             ) {
                 if (compactQualityLabel != null) {
+                    val interactionSource = remember { MutableInteractionSource() }
                     Surface(
                         color = PlayerScrimAffordance,
                         shape = CircleShape,
                         modifier =
                             Modifier
-                                .height(metrics.pillHeight)
-                                .widthIn(min = metrics.pillHeight)
+                                .height(interactivePillHeight)
+                                .widthIn(min = interactivePillHeight)
+                                .pressScale(interactionSource)
                                 .clip(CircleShape)
-                                .clickable(onClick = actions.onQualityClick),
+                                .clickable(
+                                    interactionSource = interactionSource,
+                                    indication = ripple(color = PlayerScrimContent),
+                                    onClick = actions.onQualityClick,
+                                ),
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
@@ -206,13 +232,19 @@ internal fun PlayerBottomBar(
                     }
                 }
 
+                val fullscreenInteractionSource = remember { MutableInteractionSource() }
                 Box(
                     modifier =
                         Modifier
-                            .size(metrics.pillHeight)
+                            .size(interactivePillHeight)
+                            .pressScale(fullscreenInteractionSource)
                             .clip(CircleShape)
                             .background(PlayerScrimAffordance)
-                            .clickable(onClick = actions.onFullscreenClick),
+                            .clickable(
+                                interactionSource = fullscreenInteractionSource,
+                                indication = ripple(color = PlayerScrimContent),
+                                onClick = actions.onFullscreenClick,
+                            ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
