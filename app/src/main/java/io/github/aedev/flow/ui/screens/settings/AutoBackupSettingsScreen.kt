@@ -4,22 +4,45 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.HourglassEmpty
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.data.local.LocalDataManager
@@ -40,10 +63,16 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
     val playerPrefs = remember { PlayerPreferences(context) }
     val backupRepo = remember { BackupRepository(context) }
 
-    val frequency by playerPrefs.autoBackupFrequency.collectAsState(initial = LocalDataManager.AutoBackupFrequency.NONE)
-    val folderUriStr by playerPrefs.autoBackupFolderUri.collectAsState(initial = null)
-    val backupType by playerPrefs.autoBackupType.collectAsState(initial = LocalDataManager.AutoBackupType.APP_DATA)
-    val lastRun by ldm.autoBackupLastRun.collectAsState(initial = 0L)
+    val frequency by
+        playerPrefs.autoBackupFrequency.collectAsStateWithLifecycle(
+            initialValue = LocalDataManager.AutoBackupFrequency.NONE,
+        )
+    val folderUriStr by playerPrefs.autoBackupFolderUri.collectAsStateWithLifecycle(initialValue = null)
+    val backupType by
+        playerPrefs.autoBackupType.collectAsStateWithLifecycle(
+            initialValue = LocalDataManager.AutoBackupType.APP_DATA,
+        )
+    val lastRun by ldm.autoBackupLastRun.collectAsStateWithLifecycle(initialValue = 0L)
 
     var isRunningNow by remember { mutableStateOf(false) }
 
@@ -86,7 +115,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item {
+            item(key = "schedule-header") {
                 Text(
                     text = stringResource(R.string.auto_backup_schedule_section),
                     style = MaterialTheme.typography.labelLarge,
@@ -94,7 +123,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                 )
             }
-            item {
+            item(key = "schedule-options") {
                 SettingsGroup {
                     val frequencies =
                         listOf(
@@ -121,26 +150,18 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                                         scope.launch {
                                             playerPrefs.setAutoBackupFrequency(freq)
                                             when (freq) {
-                                                LocalDataManager.AutoBackupFrequency.NONE -> {
-                                                    AutoBackupWorker.cancelBackup(context)
-                                                }
-
-                                                LocalDataManager.AutoBackupFrequency.DAILY -> {
-                                                    AutoBackupWorker.scheduleBackup(context, 1L)
-                                                }
-
-                                                LocalDataManager.AutoBackupFrequency.WEEKLY -> {
-                                                    AutoBackupWorker.scheduleBackup(context, 7L)
-                                                }
-
-                                                LocalDataManager.AutoBackupFrequency.MONTHLY -> {
-                                                    AutoBackupWorker.scheduleBackup(context, 30L)
-                                                }
+                                                LocalDataManager.AutoBackupFrequency.NONE -> AutoBackupWorker.cancelBackup(context)
+                                                LocalDataManager.AutoBackupFrequency.DAILY -> AutoBackupWorker.scheduleBackup(context, 1L)
+                                                LocalDataManager.AutoBackupFrequency.WEEKLY -> AutoBackupWorker.scheduleBackup(context, 7L)
+                                                LocalDataManager.AutoBackupFrequency.MONTHLY -> AutoBackupWorker.scheduleBackup(context, 30L)
                                             }
                                         }
                                     },
                                     label = { Text(label) },
-                                    modifier = Modifier.weight(1f),
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .heightIn(min = 48.dp),
                                 )
                             }
                         }
@@ -155,26 +176,18 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                                         scope.launch {
                                             playerPrefs.setAutoBackupFrequency(freq)
                                             when (freq) {
-                                                LocalDataManager.AutoBackupFrequency.NONE -> {
-                                                    AutoBackupWorker.cancelBackup(context)
-                                                }
-
-                                                LocalDataManager.AutoBackupFrequency.DAILY -> {
-                                                    AutoBackupWorker.scheduleBackup(context, 1L)
-                                                }
-
-                                                LocalDataManager.AutoBackupFrequency.WEEKLY -> {
-                                                    AutoBackupWorker.scheduleBackup(context, 7L)
-                                                }
-
-                                                LocalDataManager.AutoBackupFrequency.MONTHLY -> {
-                                                    AutoBackupWorker.scheduleBackup(context, 30L)
-                                                }
+                                                LocalDataManager.AutoBackupFrequency.NONE -> AutoBackupWorker.cancelBackup(context)
+                                                LocalDataManager.AutoBackupFrequency.DAILY -> AutoBackupWorker.scheduleBackup(context, 1L)
+                                                LocalDataManager.AutoBackupFrequency.WEEKLY -> AutoBackupWorker.scheduleBackup(context, 7L)
+                                                LocalDataManager.AutoBackupFrequency.MONTHLY -> AutoBackupWorker.scheduleBackup(context, 30L)
                                             }
                                         }
                                     },
                                     label = { Text(label) },
-                                    modifier = Modifier.weight(1f),
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .heightIn(min = 48.dp),
                                 )
                             }
                         }
@@ -182,7 +195,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
-            item {
+            item(key = "type-header") {
                 Text(
                     text = stringResource(R.string.auto_backup_type_section),
                     style = MaterialTheme.typography.labelLarge,
@@ -190,7 +203,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                 )
             }
-            item {
+            item(key = "type-options") {
                 SettingsGroup {
                     val types =
                         listOf(
@@ -221,7 +234,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                             if (index < types.size - 1) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(start = 56.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    color = MaterialTheme.colorScheme.outlineVariant,
                                 )
                             }
                         }
@@ -229,7 +242,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
-            item {
+            item(key = "folder-header") {
                 Text(
                     text = stringResource(R.string.auto_backup_folder_section),
                     style = MaterialTheme.typography.labelLarge,
@@ -237,7 +250,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                 )
             }
-            item {
+            item(key = "folder-option") {
                 SettingsGroup {
                     SettingsItem(
                         icon = Icons.Outlined.Folder,
@@ -255,7 +268,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
-            item {
+            item(key = "status-header") {
                 Text(
                     text = stringResource(R.string.auto_backup_status_section),
                     style = MaterialTheme.typography.labelLarge,
@@ -263,7 +276,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                 )
             }
-            item {
+            item(key = "status-options") {
                 SettingsGroup {
                     SettingsItem(
                         icon = Icons.Outlined.History,
@@ -273,7 +286,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.outlineVariant,
                     )
                     SettingsItem(
                         icon = if (isRunningNow) Icons.Outlined.HourglassEmpty else Icons.Outlined.Backup,
@@ -286,17 +299,9 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                                     val folderUri = Uri.parse(folderUriStr)
                                     val result =
                                         when (backupType) {
-                                            LocalDataManager.AutoBackupType.APP_DATA -> {
-                                                backupRepo.exportDataToFolder(folderUri)
-                                            }
-
-                                            LocalDataManager.AutoBackupType.BRAIN -> {
-                                                backupRepo.exportBrainToFolder(folderUri)
-                                            }
-
-                                            LocalDataManager.AutoBackupType.MASTER -> {
-                                                backupRepo.exportMasterToFolder(folderUri)
-                                            }
+                                            LocalDataManager.AutoBackupType.APP_DATA -> backupRepo.exportDataToFolder(folderUri)
+                                            LocalDataManager.AutoBackupType.BRAIN -> backupRepo.exportBrainToFolder(folderUri)
+                                            LocalDataManager.AutoBackupType.MASTER -> backupRepo.exportMasterToFolder(folderUri)
                                         }
                                     if (result.isSuccess) {
                                         ldm.setAutoBackupLastRun(System.currentTimeMillis())
@@ -321,7 +326,7 @@ fun AutoBackupSettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(32.dp)) }
+            item(key = "bottom-spacer") { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }
 }
