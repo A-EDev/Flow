@@ -1,5 +1,11 @@
 package io.github.aedev.flow.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -41,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 @Composable
 internal fun PlaylistQueueItem(
@@ -54,18 +62,37 @@ internal fun PlaylistQueueItem(
     onMoveDown: (() -> Unit)?,
 ) {
     var showRemoveDialog by remember { mutableStateOf(false) }
-    val containerColor =
-        if (isPlaying) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surface
-        }
-    val contentColor =
-        if (isPlaying) {
-            MaterialTheme.colorScheme.onSecondaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        }
+    val reduceMotion = rememberFlowReduceMotion()
+    val containerColor by
+        animateColorAsState(
+            targetValue =
+                if (isPlaying) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLow
+                },
+            animationSpec =
+                tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                ),
+            label = "queueItemContainer",
+        )
+    val contentColor by
+        animateColorAsState(
+            targetValue =
+                if (isPlaying) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+            animationSpec =
+                tween(
+                    durationMillis = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion),
+                    easing = FlowMotion.EnterEasing,
+                ),
+            label = "queueItemContent",
+        )
 
     Row(
         modifier =
@@ -83,7 +110,7 @@ internal fun PlaylistQueueItem(
                     .width(120.dp)
                     .aspectRatio(16f / 9f)
                     .clip(MaterialTheme.shapes.small)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
@@ -93,36 +120,61 @@ internal fun PlaylistQueueItem(
                 modifier = Modifier.fillMaxSize(),
             )
 
-            if (isPlaying) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.GraphicEq,
-                        contentDescription = stringResource(R.string.now_playing),
-                        tint = MaterialTheme.colorScheme.inverseOnSurface,
+            AnimatedContent(
+                targetState = isPlaying,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    fadeIn(
+                        tween(
+                            durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                            easing = FlowMotion.EnterEasing,
+                        ),
+                    ).togetherWith(
+                        fadeOut(
+                            tween(
+                                durationMillis = FlowMotion.durationFor(FlowMotion.FEEDBACK_DURATION_MILLIS, reduceMotion),
+                                easing = FlowMotion.ExitEasing,
+                            ),
+                        ),
                     )
-                }
-            } else if (video.duration > 0) {
-                Box(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.inverseSurface,
-                                shape = MaterialTheme.shapes.extraSmall,
-                            ).padding(horizontal = 4.dp),
-                ) {
-                    Text(
-                        text = formatQueueDuration(video.duration),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
-                    )
+                },
+                label = "queueThumbnailState",
+            ) { playing ->
+                if (playing) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = stringResource(R.string.now_playing),
+                            tint = MaterialTheme.colorScheme.inverseOnSurface,
+                        )
+                    }
+                } else if (video.duration > 0) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.BottomEnd,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .padding(4.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.inverseSurface,
+                                        shape = MaterialTheme.shapes.extraSmall,
+                                    ).padding(horizontal = 4.dp),
+                        ) {
+                            Text(
+                                text = formatQueueDuration(video.duration),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.inverseOnSurface,
+                            )
+                        }
+                    }
                 }
             }
         }
