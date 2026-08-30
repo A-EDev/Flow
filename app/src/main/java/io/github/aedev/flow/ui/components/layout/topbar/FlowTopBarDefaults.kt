@@ -9,30 +9,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
-/**
- * Shared look of every non-player top bar.
- *
- * The values here are not Material defaults on purpose: Flow paints screens on
- * `colorScheme.background` rather than `surface`, and [WindowInsets] owns no status-bar padding
- * because the root `Scaffold` in `FlowApp` already consumes `WindowInsets.systemBars`. Letting a
- * `TopAppBar` apply its own insets would double the status-bar gap on every screen.
- */
+/** Shared styling for non-player top bars. */
 object FlowTopBarDefaults {
-    /** Status bar padding is applied once by the root scaffold, never by an individual bar. */
     val WindowInsets: WindowInsets = WindowInsets(0.dp)
 
-    /**
-     * Internal because [TopAppBarColors] is an experimental Material type: exposing it would force
-     * every calling screen to opt in, which is exactly what this component exists to avoid.
-     */
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     internal fun colors(): TopAppBarColors =
         TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f),
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
             titleContentColor = MaterialTheme.colorScheme.onBackground,
             navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             actionIconContentColor = MaterialTheme.colorScheme.onSurface,
@@ -40,11 +27,7 @@ object FlowTopBarDefaults {
 
     val titleStyle: TextStyle
         @Composable
-        get() =
-            MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-0.15).sp,
-            )
+        get() = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
 
     val subtitleStyle: TextStyle
         @Composable get() = MaterialTheme.typography.bodySmall
