@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.components
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,12 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -61,7 +60,6 @@ data class MusicCollectionActionItem(
             }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicCollectionQuickActionsSheet(
     item: MusicCollectionActionItem,
@@ -74,6 +72,7 @@ fun MusicCollectionQuickActionsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier =
@@ -95,7 +94,8 @@ fun MusicCollectionQuickActionsSheet(
                     modifier =
                         Modifier
                             .size(56.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -116,7 +116,10 @@ fun MusicCollectionQuickActionsSheet(
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
 
             FlowMenuGroup(
                 items =
@@ -161,17 +164,18 @@ class MusicCollectionActionsViewModel
     ) : ViewModel() {
         fun saveToLibrary(item: MusicCollectionActionItem) {
             viewModelScope.launch(Dispatchers.IO) {
-                try {
+                runCatching {
                     playlistRepository.saveExternalMusicPlaylist(
                         id = item.id,
                         name = item.title,
                         description = item.description,
                         thumbnailUrl = item.thumbnailUrl.orEmpty(),
                     )
+                }.onSuccess {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, context.getString(R.string.saved_to_library), Toast.LENGTH_SHORT).show()
                     }
-                } catch (e: Exception) {
+                }.onFailure {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, context.getString(R.string.failed_to_save_to_library), Toast.LENGTH_SHORT).show()
                     }
