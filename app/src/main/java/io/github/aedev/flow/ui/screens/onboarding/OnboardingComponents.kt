@@ -1,10 +1,9 @@
 package io.github.aedev.flow.ui.screens.onboarding
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,12 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,18 +25,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 
 @Composable
 internal fun StepIndicatorBar(currentStep: OnboardingStep) {
+    val reduceMotion = rememberFlowReduceMotion()
+    val transitionDuration = FlowMotion.durationFor(FlowMotion.CONTENT_DURATION_MILLIS, reduceMotion)
+
     Surface(color = MaterialTheme.colorScheme.background) {
         Row(
             modifier =
@@ -52,27 +52,39 @@ internal fun StepIndicatorBar(currentStep: OnboardingStep) {
             OnboardingStep.entries.forEach { step ->
                 val isActive = step == currentStep
                 val isPast = step.index < currentStep.index
-
-                val trackColor by animateColorAsState(
-                    targetValue =
-                        if (isPast || isActive) {
+                val transition = updateTransition(targetState = isPast || isActive, label = "step_${step.name}")
+                val trackColor by
+                    transition.animateColor(
+                        transitionSpec = {
+                            tween(
+                                durationMillis = transitionDuration,
+                                easing = FlowMotion.EnterEasing,
+                            )
+                        },
+                        label = "trackColor",
+                    ) { reached ->
+                        if (reached) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.surfaceContainerHighest
+                        }
+                    }
+                val labelColor by
+                    transition.animateColor(
+                        transitionSpec = {
+                            tween(
+                                durationMillis = transitionDuration,
+                                easing = FlowMotion.EnterEasing,
+                            )
                         },
-                    animationSpec = tween(300),
-                    label = "track_${step.name}",
-                )
-                val labelColor by animateColorAsState(
-                    targetValue =
-                        if (isPast || isActive) {
+                        label = "labelColor",
+                    ) { reached ->
+                        if (reached) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                        },
-                    animationSpec = tween(300),
-                    label = "label_${step.name}",
-                )
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    }
 
                 Column(
                     modifier = Modifier.weight(1f),
@@ -84,7 +96,7 @@ internal fun StepIndicatorBar(currentStep: OnboardingStep) {
                             Modifier
                                 .fillMaxWidth()
                                 .height(4.dp)
-                                .clip(RoundedCornerShape(50))
+                                .clip(MaterialTheme.shapes.extraLarge)
                                 .background(trackColor),
                     )
                     Text(
@@ -110,10 +122,7 @@ internal fun OnboardingBottomBar(
 ) {
     Surface(color = MaterialTheme.colorScheme.background) {
         Column {
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                thickness = 0.5.dp,
-            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(
                 modifier =
                     Modifier
@@ -130,41 +139,30 @@ internal fun OnboardingBottomBar(
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.onboarding_btn_back), style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            text = stringResource(R.string.onboarding_btn_back),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
                     }
                 } else {
                     Spacer(Modifier.width(8.dp))
                 }
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = stringResource(R.string.onboarding_btn_skip),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier =
-                            Modifier
-                                .clip(RoundedCornerShape(50))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onSkip,
-                                ).padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
+                    TextButton(onClick = onSkip) {
+                        Text(
+                            text = stringResource(R.string.onboarding_btn_skip),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
 
                     Button(
                         onClick = onNext,
                         enabled = canAdvance,
                         modifier = Modifier.height(48.dp),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                            ),
                     ) {
                         Text(
                             text =
@@ -207,14 +205,12 @@ internal fun StepHeader(
             text = title,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            letterSpacing = (-0.5).sp,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 22.sp,
         )
     }
 }
