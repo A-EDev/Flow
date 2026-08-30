@@ -2,7 +2,7 @@ package io.github.aedev.flow.ui.screens.music
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -11,22 +11,21 @@ import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
-import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
@@ -42,8 +41,8 @@ fun YouTubeBrowseScreen(
     onPlaylistClick: (String) -> Unit,
     viewModel: YouTubeBrowseViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -199,12 +198,19 @@ fun YouTubeBrowseScreen(
                                                     }
 
                                                     is ArtistItem -> {
+                                                        val interactionSource = remember { MutableInteractionSource() }
                                                         Column(
                                                             horizontalAlignment = Alignment.CenterHorizontally,
                                                             modifier =
                                                                 Modifier
                                                                     .width(100.dp)
-                                                                    .clickable { onArtistClick(item.id) },
+                                                                    .pressScale(interactionSource)
+                                                                    .clip(MaterialTheme.shapes.large)
+                                                                    .clickable(
+                                                                        interactionSource = interactionSource,
+                                                                        indication = ripple(),
+                                                                        onClick = { onArtistClick(item.id) },
+                                                                    ).padding(vertical = 4.dp),
                                                         ) {
                                                             ArtistThumbnail(
                                                                 thumbnailUrl = item.thumbnail,
