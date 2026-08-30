@@ -5,10 +5,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -18,13 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * Single-select row of filter chips for re-ordering the list below it.
- *
- * Extracted from the channel Videos tab so the Shorts and Live tabs get the same chips rather than
- * a lookalike. Renders nothing for fewer than two options: one chip offers no choice, and a surface
- * whose options arrive from the network should not flash a lone chip while it waits.
+ * Keeps sorting controls consistent across channel tabs and stays hidden until there is a real choice.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SortChipRow(
     options: List<String>,
@@ -33,6 +26,7 @@ fun SortChipRow(
     modifier: Modifier = Modifier,
 ) {
     if (options.size < 2) return
+
     LazyRow(
         modifier = modifier,
         contentPadding = PaddingValues(horizontal = 8.dp),
@@ -52,7 +46,6 @@ fun SortChipRow(
                         style = MaterialTheme.typography.labelMedium,
                     )
                 },
-                shape = RoundedCornerShape(20.dp),
                 leadingIcon =
                     if (isSelected) {
                         {
