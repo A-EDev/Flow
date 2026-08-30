@@ -10,8 +10,11 @@ import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.recommendation.music.MusicBrainStorage
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalLike
+import io.github.aedev.flow.sync.canonical.CanonicalMusicBrain
 import io.github.aedev.flow.sync.canonical.CanonicalPlaylist
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscribedChannel
@@ -20,6 +23,7 @@ import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
 import io.github.aedev.flow.sync.identity.Hlc
 import io.github.aedev.flow.sync.mapping.BrainMapper
 import io.github.aedev.flow.sync.mapping.LikesMapper
+import io.github.aedev.flow.sync.mapping.MusicBrainMapper
 import io.github.aedev.flow.sync.mapping.PlaylistMapper
 import io.github.aedev.flow.sync.mapping.SettingsMapper
 import io.github.aedev.flow.sync.mapping.SubscribedChannelsMapper
@@ -28,6 +32,9 @@ import io.github.aedev.flow.sync.mapping.WatchHistoryMapper
 import io.github.aedev.flow.sync.merge.BrainCrdtState
 import io.github.aedev.flow.sync.merge.BrainCrdtStore
 import io.github.aedev.flow.sync.merge.BrainMerger
+import io.github.aedev.flow.sync.merge.MusicBrainCrdtState
+import io.github.aedev.flow.sync.merge.MusicBrainCrdtStore
+import io.github.aedev.flow.sync.merge.MusicBrainMerger
 import kotlinx.coroutines.flow.first
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -51,6 +58,8 @@ class SyncDataAccess
         private val videoDao: VideoDao,
         private val subscriptionGroupDao: SubscriptionGroupDao,
         private val brainCrdtStore: BrainCrdtStore,
+        private val musicBrainCrdtStore: MusicBrainCrdtStore,
+        private val musicBrainEngine: MusicBrainEngine,
         private val subscriptions: SubscriptionRepository,
     ) {
         private val likedVideos: LikedVideosRepository by lazy { LikedVideosRepository.getInstance(context) }
@@ -257,6 +266,62 @@ class SyncDataAccess
             return runCatching { BrainMapper.parse(bytes) }
                 .getOrElse { throw IllegalStateException("the local FlowNeuro brain could not be parsed", it) }
         }
+
+        // --- music brain (stateful: CRDT sidecar, the music twin of the neuro path) ---
+
+        suspend fun readMusicBrain(
+            myDevice: String,
+            hlc: String,
+        ): CanonicalMusicBrain {
+            val local = exportLocalMusicBrain()
+            val sidecar = attributeLocalMusic(musicBrainCrdtStore.load(), myDevice, local, hlc)
+            musicBrainCrdtStore.save(sidecar)
+            return MusicBrainMapper.toCanonical(local, myDevice, hlc, sidecar)
+        }
+
+        /** Read the local music brain, CRDT-merge the incoming one, persist + reload the engine. */
+        suspend fun mergeAndWriteMusicBrain(
+            remote: CanonicalMusicBrain,
+            myDevice: String,
+            hlc: String,
+        ) {
+            val local = exportLocalMusicBrain()
+            val sidecar = attributeLocalMusic(musicBrainCrdtStore.load(), myDevice, local, hlc)
+            val localCanonical = MusicBrainMapper.toCanonical(local, myDevice, hlc, sidecar)
+            val merged = MusicBrainMerger.merge(localCanonical, remote)
+            val mergedBrain = MusicBrainMapper.writeBack(merged, local)
+            musicBrainEngine.importBrainFromStream(ByteArrayInputStream(MusicBrainMapper.serialize(mergedBrain)))
+            musicBrainCrdtStore.save(MusicBrainCrdtState.afterMerge(merged))
+        }
+
+        private suspend fun exportLocalMusicBrain(): MusicBrainStorage.SerializableMusicBrain {
+            val bytes =
+                ByteArrayOutputStream().use { bos ->
+                    musicBrainEngine.exportBrainToStream(bos)
+                    bos.toByteArray()
+                }
+            return runCatching { MusicBrainMapper.parse(bytes) }
+                .getOrElse { throw IllegalStateException("the local music brain could not be parsed", it) }
+        }
+
+        private fun attributeLocalMusic(
+            state: MusicBrainCrdtState,
+            myDevice: String,
+            brain: MusicBrainStorage.SerializableMusicBrain,
+            hlc: String,
+        ): MusicBrainCrdtState =
+            MusicBrainCrdtState.attributeLocal(
+                state = state,
+                myDevice = myDevice,
+                totalPlaysScalar = brain.totalPlays.toLong(),
+                artistPlayScalars = brain.artistAffinity.mapValues { it.value.plays.toLong() },
+                artistScores = brain.artistAffinity.mapValues { it.value.score },
+                seenArtists = brain.seenArtists.toSet(),
+                blockedArtists = brain.blockedArtists.toSet(),
+                dislikedArtists = brain.dislikedArtists,
+                appetite = brain.discoveryAppetite,
+                hlc = hlc,
+            )
 
         /**
          * Fold everything that changed locally since the last sync into the sidecar: counter growth

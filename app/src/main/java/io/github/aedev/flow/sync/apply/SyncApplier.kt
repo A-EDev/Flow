@@ -94,6 +94,10 @@ class SyncApplier
                             SyncSerialization.encodeBrain(dataAccess.readBrain(node, hlc))
                         }
 
+                        SyncCollection.MUSIC_BRAIN -> {
+                            SyncSerialization.encodeMusicBrain(dataAccess.readMusicBrain(node, hlc))
+                        }
+
                         else -> {
                             null
                         }
@@ -198,6 +202,15 @@ class SyncApplier
                     SyncSerialization.decodeBrain(rc.lines)?.let { remote ->
                         dataAccess.mergeAndWriteBrain(remote, myDeviceId, hlc)
                         stats[SyncCollection.FLOW_NEURO_BRAIN] = ApplyStats(updated = 1)
+                    }
+                }
+
+                // Music brain: same stateful CRDT pattern, music twin.
+                fresh[SyncCollection.MUSIC_BRAIN]?.let { rc ->
+                    failedCollection = SyncCollection.MUSIC_BRAIN
+                    SyncSerialization.decodeMusicBrain(rc.lines)?.let { remote ->
+                        dataAccess.mergeAndWriteMusicBrain(remote, myDeviceId, hlc)
+                        stats[SyncCollection.MUSIC_BRAIN] = ApplyStats(updated = 1)
                     }
                 }
                 failedCollection = null

@@ -2,12 +2,14 @@ package io.github.aedev.flow.sync.protocol
 
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalLike
+import io.github.aedev.flow.sync.canonical.CanonicalMusicBrain
 import io.github.aedev.flow.sync.canonical.CanonicalPlaylist
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscribedChannel
 import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
 import io.github.aedev.flow.sync.merge.BrainMerger
+import io.github.aedev.flow.sync.merge.MusicBrainMerger
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -132,6 +134,19 @@ object SyncSerialization {
         val line = enc(CanonicalBrain.serializer(), brain)
         return CollectionWire(listOf(line), 1, sha256Hex(line))
     }
+
+    // --- music brain ---
+    fun encodeMusicBrain(brain: CanonicalMusicBrain): CollectionWire {
+        val line = enc(CanonicalMusicBrain.serializer(), brain)
+        return CollectionWire(listOf(line), 1, sha256Hex(line))
+    }
+
+    /** Fold every record (one snapshot per device the peer knows) so a third device converges. */
+    fun decodeMusicBrain(lines: List<String>): CanonicalMusicBrain? =
+        lines
+            .filter { it.isNotBlank() }
+            .map { json.decodeFromString(CanonicalMusicBrain.serializer(), it) }
+            .reduceOrNull(MusicBrainMerger::merge)
 
     /**
      * Fold **every** record, not just the first: the desktop ships one snapshot per device it knows

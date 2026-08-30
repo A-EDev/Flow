@@ -302,7 +302,7 @@ class SyncManager
                     SyncCollection.FLOW_NEURO_BRAIN to Capability(13, produce = true, consume = true),
                     SyncCollection.SUBSCRIBED_CHANNELS to Capability(1, produce = true, consume = true),
                     SyncCollection.SUBSCRIPTIONS to Capability(1, produce = true, consume = true),
-                    SyncCollection.MUSIC_BRAIN to Capability(0, produce = false, consume = false),
+                    SyncCollection.MUSIC_BRAIN to Capability(1, produce = true, consume = true),
                 ),
             )
 
