@@ -154,6 +154,7 @@ private fun SwipeToDismissNotification(
                 }
             },
         )
+    val isDismissing = dismissState.targetValue == SwipeToDismissBoxValue.EndToStart
 
     SwipeToDismissBox(
         state = dismissState,
@@ -161,7 +162,7 @@ private fun SwipeToDismissNotification(
         enableDismissFromStartToEnd = false,
         backgroundContent = {
             val containerColor =
-                if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                if (isDismissing) {
                     MaterialTheme.colorScheme.error
                 } else {
                     MaterialTheme.colorScheme.surface
@@ -177,7 +178,12 @@ private fun SwipeToDismissNotification(
                 Icon(
                     imageVector = Icons.Outlined.Delete,
                     contentDescription = stringResource(R.string.delete),
-                    tint = MaterialTheme.colorScheme.onError,
+                    tint =
+                        if (isDismissing) {
+                            MaterialTheme.colorScheme.onError
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        },
                 )
             }
         },
