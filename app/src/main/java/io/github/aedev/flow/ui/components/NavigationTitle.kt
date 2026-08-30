@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,9 +12,12 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,15 +33,29 @@ fun NavigationTitle(
     thumbnail: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val interactionModifier =
+        if (onClick != null) {
+            Modifier
+                .pressScale(interactionSource)
+                .clip(MaterialTheme.shapes.large)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(),
+                    onClick = onClick,
+                )
+        } else {
+            Modifier
+        }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(enabled = onClick != null) {
-                    onClick?.invoke()
-                }.padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp),
+                .then(interactionModifier)
+                .padding(horizontal = Dimensions.ContentPaddingHorizontal, vertical = 12.dp),
     ) {
         thumbnail?.invoke()
 
