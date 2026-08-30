@@ -238,6 +238,61 @@ object InnertubeMusicService {
         }
 
     /**
+     * Related music with paging. Page 1 is the related browse (the best-quality
+     * similar tracks); further pages stream from the track's radio queue via
+     * next-continuations — the same primitive endless radio is built on. Results
+     * are deduped and the seed track itself is excluded.
+     */
+    suspend fun getRelatedMusicPaged(
+        videoId: String,
+        limit: Int,
+        maxPages: Int = 3,
+        audioOnly: Boolean = false,
+    ): List<MusicTrack> =
+        withContext(Dispatchers.IO) {
+            val collected = LinkedHashMap<String, MusicTrack>()
+            getRelatedMusic(videoId, audioOnly).forEach { track ->
+                if (track.videoId !in collected) collected[track.videoId] = track
+            }
+            var pagesFetched = 1
+
+            try {
+                var nextResult =
+                    if (collected.size < limit && pagesFetched < maxPages) {
+                        pagesFetched++
+                        YouTube
+                            .next(
+                                io.github.aedev.flow.innertube.models
+                                    .WatchEndpoint(videoId = videoId),
+                            ).getOrNull()
+                    } else {
+                        null
+                    }
+                while (nextResult != null) {
+                    nextResult.items
+                        .filterNot { audioOnly && it.isVideoSong }
+                        .mapNotNull { convertToMusicTrack(it) }
+                        .forEach { track ->
+                            if (track.videoId != videoId && track.videoId !in collected) {
+                                collected[track.videoId] = track
+                            }
+                        }
+                    val continuation = nextResult.continuation
+                    nextResult =
+                        if (collected.size < limit && pagesFetched < maxPages && continuation != null) {
+                            pagesFetched++
+                            YouTube.next(nextResult.endpoint, continuation).getOrNull()
+                        } else {
+                            null
+                        }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("InnertubeMusic", "relatedPaged($videoId): radio page failed: ${e.message}")
+            }
+            collected.values.take(limit)
+        }
+
+    /**
      * Fetch charts from Innertube
      */
     suspend fun fetchCharts(): List<MusicTrack> =
