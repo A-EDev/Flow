@@ -74,7 +74,7 @@ fun FlowLiveChatBottomSheet(
         snapshotFlow {
             ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
         }.distinctUntilChanged()
-            .collect(latestOnSheetProgressChange)
+            .collect { progress -> latestOnSheetProgressChange(progress) }
     }
 
     fun animateToExpanded() {
