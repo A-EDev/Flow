@@ -13,18 +13,16 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.AlertDialog
@@ -37,15 +35,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -57,15 +52,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.VideoHistoryEntry
@@ -94,12 +88,11 @@ fun HistoryScreen(
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchFocusRequester = remember { FocusRequester() }
 
     var showClearDialog by remember { mutableStateOf(false) }
     var showClearShortsDialog by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf(HistoryContentFilter.All) }
     var selectedSort by rememberSaveable { mutableStateOf(HistorySort.Newest) }
@@ -292,7 +285,7 @@ private fun HistorySearchField(
     onQueryChange: (String) -> Unit,
     focusRequester: FocusRequester,
 ) {
-    TextField(
+    OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier =
@@ -318,14 +311,7 @@ private fun HistorySearchField(
             }
         },
         singleLine = true,
-        shape = RoundedCornerShape(16.dp),
-        colors =
-            TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-            ),
+        shape = MaterialTheme.shapes.extraLarge,
     )
 }
 
@@ -348,26 +334,31 @@ private fun HistoryFilterRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(HistoryContentFilter.entries.filter { shortsEnabled || it != HistoryContentFilter.Shorts }) { filter ->
+        items(
+            items = HistoryContentFilter.entries.filter { shortsEnabled || it != HistoryContentFilter.Shorts },
+            key = HistoryContentFilter::name,
+        ) { filter ->
             FilterChip(
                 selected = selectedFilter == filter,
                 onClick = { onFilterSelected(filter) },
                 label = { Text(filter.label()) },
+                modifier = Modifier.heightIn(min = 48.dp),
             )
         }
 
-        item {
+        item(key = "sort") {
             Box {
                 FilterChip(
                     selected = selectedSort != HistorySort.Newest,
                     onClick = { sortExpanded = true },
                     label = { Text(selectedSort.label()) },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
                 DropdownMenu(
                     expanded = sortExpanded,
                     onDismissRequest = { sortExpanded = false },
                 ) {
-                    HistorySort.values().forEach { sort ->
+                    HistorySort.entries.forEach { sort ->
                         DropdownMenuItem(
                             text = { Text(sort.label()) },
                             onClick = {
@@ -380,7 +371,7 @@ private fun HistoryFilterRow(
             }
         }
 
-        item {
+        item(key = "year") {
             Box {
                 FilterChip(
                     selected = selectedYear != null,
@@ -391,6 +382,7 @@ private fun HistoryFilterRow(
                                 ?: stringResource(R.string.history_filter_all_years),
                         )
                     },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
                 DropdownMenu(
                     expanded = yearExpanded,
@@ -428,14 +420,8 @@ private fun HistoryList(
     onMusicClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onRemove: (String) -> Unit,
 ) {
-    val groupedEntries =
-        remember(entries) {
-            entries.groupBy { historySectionKey(it.timestamp) }
-        }
-    val musicQueue =
-        remember(entries) {
-            entries.filter { it.isMusic }.map { it.toMusicTrack() }
-        }
+    val groupedEntries = remember(entries) { entries.groupBy { historySectionKey(it.timestamp) } }
+    val musicQueue = remember(entries) { entries.filter { it.isMusic }.map { it.toMusicTrack() } }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -446,7 +432,8 @@ private fun HistoryList(
             item(key = "header-$sectionKey") {
                 Text(
                     text = sectionTitle(sectionEntries.first().timestamp),
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
             }
@@ -550,10 +537,7 @@ private fun ShortsHistoryRow(
     onShortClick: (row: List<Video>, tapped: Video) -> Unit,
     onRemove: (String) -> Unit,
 ) {
-    val rowVideos =
-        remember(entries, shortVideos) {
-            entries.map { shortVideos[it.videoId] ?: it.toShortVideo() }
-        }
+    val rowVideos = remember(entries, shortVideos) { entries.map { shortVideos[it.videoId] ?: it.toShortVideo() } }
 
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -587,18 +571,19 @@ private fun HistoryVideoCard(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val resolvedCollaborators by produceState<List<VideoCollaborator>>(
-        initialValue = emptyList(),
-        key1 = entry.videoId,
-        key2 = entry.channelName,
-    ) {
-        value =
-            if (entry.channelName.hasLikelyCollaborationByline()) {
-                VideoCollaboratorResolver.resolve(entry.videoId)
-            } else {
-                emptyList()
-            }
-    }
+    val resolvedCollaborators by
+        produceState<List<VideoCollaborator>>(
+            initialValue = emptyList(),
+            key1 = entry.videoId,
+            key2 = entry.channelName,
+        ) {
+            value =
+                if (entry.channelName.hasLikelyCollaborationByline()) {
+                    VideoCollaboratorResolver.resolve(entry.videoId)
+                } else {
+                    emptyList()
+                }
+        }
     val conjunction = stringResource(R.string.conjunction_and)
     val displayChannelName =
         remember(entry.channelName, resolvedCollaborators, conjunction) {
@@ -623,8 +608,8 @@ private fun HistoryVideoCard(
                 Modifier
                     .width(156.dp)
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {
             AsyncImage(
                 model = entry.thumbnailUrl,
@@ -639,13 +624,15 @@ private fun HistoryVideoCard(
                         Modifier
                             .align(Alignment.BottomEnd)
                             .padding(4.dp)
-                            .background(Color.Black.copy(alpha = 0.78f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 5.dp, vertical = 2.dp),
+                            .background(
+                                MaterialTheme.colorScheme.inverseSurface,
+                                MaterialTheme.shapes.extraSmall,
+                            ).padding(horizontal = 5.dp, vertical = 2.dp),
                 ) {
                     Text(
                         text = formatDuration(entry.duration),
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.inverseOnSurface,
                         fontWeight = FontWeight.Bold,
                     )
                 }
@@ -660,7 +647,7 @@ private fun HistoryVideoCard(
                             .fillMaxWidth()
                             .height(3.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Transparent,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 )
             }
         }
@@ -683,10 +670,7 @@ private fun HistoryVideoCard(
                             .padding(end = 4.dp),
                 )
 
-                IconButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier.size(32.dp),
-                ) {
+                IconButton(onClick = onDeleteClick) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.remove),
@@ -725,7 +709,7 @@ private fun EmptyHistoryState(
             imageVector = Icons.Outlined.History,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MaterialTheme.colorScheme.outline,
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
