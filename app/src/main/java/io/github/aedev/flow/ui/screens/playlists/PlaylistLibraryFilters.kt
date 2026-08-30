@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -27,22 +28,24 @@ import io.github.aedev.flow.R
 
 internal enum class PlaylistContentFilter {
     Videos,
-    Music
+    Music,
 }
 
 internal enum class PlaylistOwnershipFilter {
     All,
     Owned,
-    Saved;
+    Saved,
+    ;
 
     fun select(
         owned: List<PlaylistInfo>,
-        saved: List<PlaylistInfo>
-    ): List<PlaylistInfo> = when (this) {
-        All -> (owned + saved).distinctBy(PlaylistInfo::id)
-        Owned -> owned
-        Saved -> saved
-    }
+        saved: List<PlaylistInfo>,
+    ): List<PlaylistInfo> =
+        when (this) {
+            All -> (owned + saved).distinctBy(PlaylistInfo::id)
+            Owned -> owned
+            Saved -> saved
+        }
 }
 
 @Composable
@@ -50,32 +53,34 @@ internal fun PlaylistLibraryFilterRow(
     selectedContent: PlaylistContentFilter,
     onContentSelected: (PlaylistContentFilter) -> Unit,
     selectedOwnership: PlaylistOwnershipFilter,
-    onOwnershipSelected: (PlaylistOwnershipFilter) -> Unit
+    onOwnershipSelected: (PlaylistOwnershipFilter) -> Unit,
 ) {
     var ownershipExpanded by remember { mutableStateOf(false) }
 
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(
             items = PlaylistContentFilter.entries,
-            key = { it.name }
+            key = { it.name },
         ) { filter ->
             FilterChip(
                 selected = selectedContent == filter,
                 onClick = { onContentSelected(filter) },
                 label = {
                     Text(
-                        stringResource(
-                            when (filter) {
-                                PlaylistContentFilter.Videos -> R.string.tab_videos
-                                PlaylistContentFilter.Music -> R.string.tab_music
-                            }
-                        )
+                        text =
+                            stringResource(
+                                when (filter) {
+                                    PlaylistContentFilter.Videos -> R.string.tab_videos
+                                    PlaylistContentFilter.Music -> R.string.tab_music
+                                },
+                            ),
                     )
-                }
+                },
+                modifier = Modifier.heightIn(min = 48.dp),
             )
         }
 
@@ -89,32 +94,34 @@ internal fun PlaylistLibraryFilterRow(
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
-                    }
+                    },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
                 DropdownMenu(
                     expanded = ownershipExpanded,
-                    onDismissRequest = { ownershipExpanded = false }
+                    onDismissRequest = { ownershipExpanded = false },
                 ) {
                     PlaylistOwnershipFilter.entries.forEach { filter ->
                         DropdownMenuItem(
                             text = { Text(filter.label()) },
-                            leadingIcon = if (filter == selectedOwnership) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            } else {
-                                null
-                            },
+                            leadingIcon =
+                                if (filter == selectedOwnership) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
                             onClick = {
                                 ownershipExpanded = false
                                 onOwnershipSelected(filter)
-                            }
+                            },
                         )
                     }
                 }
@@ -124,10 +131,11 @@ internal fun PlaylistLibraryFilterRow(
 }
 
 @Composable
-private fun PlaylistOwnershipFilter.label(): String = stringResource(
-    when (this) {
-        PlaylistOwnershipFilter.All -> R.string.search_filter_all
-        PlaylistOwnershipFilter.Owned -> R.string.playlist_filter_owned
-        PlaylistOwnershipFilter.Saved -> R.string.saved
-    }
-)
+private fun PlaylistOwnershipFilter.label(): String =
+    stringResource(
+        when (this) {
+            PlaylistOwnershipFilter.All -> R.string.search_filter_all
+            PlaylistOwnershipFilter.Owned -> R.string.playlist_filter_owned
+            PlaylistOwnershipFilter.Saved -> R.string.saved
+        },
+    )
