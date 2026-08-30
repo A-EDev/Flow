@@ -2,8 +2,8 @@ package io.github.aedev.flow.ui.components
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,16 +36,13 @@ import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.ui.theme.FlowMotion
+import io.github.aedev.flow.ui.theme.rememberFlowReduceMotion
 import kotlinx.coroutines.launch
-
-private fun sheetSpring() =
-    spring<Float>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessLow,
-    )
 
 private const val DISMISS_PROGRESS_THRESHOLD = 0.55f
 private const val DISMISS_VELOCITY_THRESHOLD = 1_200f
+private const val SHEET_SCRIM_ALPHA = 0.32f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +55,7 @@ fun FlowBottomSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val reduceMotion = rememberFlowReduceMotion()
     val latestOnDismiss by rememberUpdatedState(onDismiss)
     val latestOnVisibleHeightChange by rememberUpdatedState(onVisibleHeightChange)
 
@@ -64,8 +63,19 @@ fun FlowBottomSheet(
     var sheetHeightPx by remember { mutableIntStateOf(0) }
     var isAnimatingOut by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        progress.animateTo(targetValue = 1f, animationSpec = sheetSpring())
+    LaunchedEffect(reduceMotion) {
+        if (reduceMotion) {
+            progress.snapTo(1f)
+        } else {
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec =
+                    tween(
+                        durationMillis = FlowMotion.EMPHASIZED_DURATION_MILLIS,
+                        easing = FlowMotion.EnterEasing,
+                    ),
+            )
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -74,14 +84,38 @@ fun FlowBottomSheet(
     }
 
     fun animateIn() {
-        scope.launch { progress.animateTo(targetValue = 1f, animationSpec = sheetSpring()) }
+        scope.launch {
+            if (reduceMotion) {
+                progress.snapTo(1f)
+            } else {
+                progress.animateTo(
+                    targetValue = 1f,
+                    animationSpec =
+                        tween(
+                            durationMillis = FlowMotion.CONTENT_DURATION_MILLIS,
+                            easing = FlowMotion.EnterEasing,
+                        ),
+                )
+            }
+        }
     }
 
     fun animateOut() {
         if (isAnimatingOut) return
         isAnimatingOut = true
         scope.launch {
-            progress.animateTo(targetValue = 0f, animationSpec = sheetSpring())
+            if (reduceMotion) {
+                progress.snapTo(0f)
+            } else {
+                progress.animateTo(
+                    targetValue = 0f,
+                    animationSpec =
+                        tween(
+                            durationMillis = FlowMotion.EXIT_DURATION_MILLIS,
+                            easing = FlowMotion.ExitEasing,
+                        ),
+                )
+            }
             latestOnDismiss()
         }
     }
@@ -122,10 +156,13 @@ fun FlowBottomSheet(
         contentAlignment = Alignment.BottomCenter,
     ) {
         if (dismissOnOutsideTap) {
+            val scrimColor = MaterialTheme.colorScheme.scrim
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .background(scrimColor)
+                        .graphicsLayer { alpha = SHEET_SCRIM_ALPHA * progress.value }
                         .pointerInput(Unit) {
                             detectTapGestures { animateOut() }
                         },
