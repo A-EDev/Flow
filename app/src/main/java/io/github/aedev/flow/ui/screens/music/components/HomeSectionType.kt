@@ -12,6 +12,7 @@ enum class HomeSectionType {
     GENRES,
     DYNAMIC_HOME,
     TOP_ALBUMS,
+    FAVORITE_ARTIST_ALBUMS,
     NEW_RELEASES,
     CHARTS,
     POPULAR_ARTISTS,

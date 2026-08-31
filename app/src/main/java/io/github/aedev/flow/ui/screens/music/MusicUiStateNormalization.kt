@@ -51,6 +51,10 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
         topAlbums
             .filterNot { it.author.trim().lowercase() in hidden }
             .let { if (it.size == topAlbums.size) topAlbums else it }
+    val filteredFavoriteAlbums =
+        favoriteArtistAlbums
+            .filterNot { it.author.trim().lowercase() in hidden }
+            .let { if (it.size == favoriteArtistAlbums.size) favoriteArtistAlbums else it }
     val filteredCommunity =
         communityPlaylists
             .mapNotNull { item ->
@@ -98,6 +102,7 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
         filteredLongListens === longListens &&
         filteredAllSongs === allSongs &&
         filteredTopAlbums === topAlbums &&
+        filteredFavoriteAlbums === favoriteArtistAlbums &&
         filteredCommunity === communityPlaylists &&
         filteredGenreTracks === genreTracks &&
         filteredDynamicSections === dynamicSections &&
@@ -124,6 +129,7 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
         longListens = filteredLongListens,
         allSongs = filteredAllSongs,
         topAlbums = filteredTopAlbums,
+        favoriteArtistAlbums = filteredFavoriteAlbums,
         communityPlaylists = filteredCommunity,
         genreTracks = filteredGenreTracks,
         dynamicSections = filteredDynamicSections,
@@ -154,6 +160,7 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
         }
     val uniqueFeaturedPlaylists = featuredPlaylists.uniqueMusicPlaylists()
     val uniqueTopAlbums = topAlbums.uniqueMusicPlaylists()
+    val uniqueFavoriteArtistAlbums = favoriteArtistAlbums.uniqueMusicPlaylists()
     val uniqueDynamicSections = dynamicSections.uniqueSectionTracks()
     val uniqueDailyMixSections = dailyMixSections.uniqueSectionTracks()
     val uniqueSimilarSections = similarToSections.uniqueSectionTracks()
@@ -184,6 +191,7 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
         uniqueCommunityPlaylists === communityPlaylists &&
         uniqueFeaturedPlaylists === featuredPlaylists &&
         uniqueTopAlbums === topAlbums &&
+        uniqueFavoriteArtistAlbums === favoriteArtistAlbums &&
         uniqueDynamicSections === dynamicSections &&
         uniqueDailyMixSections === dailyMixSections &&
         uniqueSimilarSections === similarToSections &&
@@ -212,6 +220,7 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
         genreTracks = uniqueGenreTracks,
         featuredPlaylists = uniqueFeaturedPlaylists,
         topAlbums = uniqueTopAlbums,
+        favoriteArtistAlbums = uniqueFavoriteArtistAlbums,
         dynamicSections = uniqueDynamicSections,
         dailyMixSections = uniqueDailyMixSections,
         homeChips = uniqueHomeChips,

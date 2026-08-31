@@ -1649,6 +1649,7 @@
     <string name="section_daily_mix_title">%1$s Mix</string>
     <string name="section_daily_mix_label">Daily Mix</string>
     <string name="section_rediscover">Rediscover</string>
+    <string name="section_from_artists_you_love">From artists you love</string>
     <string name="section_rotation_morning">Your morning rotation</string>
     <string name="section_rotation_afternoon">Your afternoon rotation</string>
     <string name="section_rotation_evening">Your evening rotation</string>

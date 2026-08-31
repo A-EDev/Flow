@@ -730,6 +730,32 @@ fun EnhancedMusicScreen(
                                             }
                                         }
 
+                                        HomeSectionType.FAVORITE_ARTIST_ALBUMS -> {
+                                            if (uiState.favoriteArtistAlbums.isNotEmpty()) {
+                                                item {
+                                                    SectionTitle(title = stringResource(R.string.section_from_artists_you_love))
+                                                    val favoriteAlbumThumbnailHeight = currentGridThumbnailHeight()
+                                                    LazyRow(
+                                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                    ) {
+                                                        items(uiState.favoriteArtistAlbums, key = { it.id }) { album ->
+                                                            GridItem(
+                                                                title = album.title,
+                                                                subtitle = album.author,
+                                                                thumbnailUrl = album.thumbnailUrl,
+                                                                thumbnailHeight = favoriteAlbumThumbnailHeight,
+                                                                onClick = { onAlbumClick(album.id) },
+                                                                onLongClick = {
+                                                                    selectedCollection = album.toCollectionActionItem(isAlbum = true)
+                                                                },
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
                                         HomeSectionType.NEW_RELEASES -> {
                                             if (uiState.newReleases.isNotEmpty()) {
                                                 item {

@@ -167,7 +167,7 @@ class MusicViewModel
                 // saved taste keeps seeding even when recent history is noisy.
                 val seeds = MusicQuickPicks.selectSeeds(current, history + favorites)
 
-                val (relatedLanes, artistLanesRaw) =
+                val (relatedLanes, artistResult) =
                     kotlinx.coroutines.coroutineScope {
                         val relatedJobs =
                             seeds.map { seed ->
@@ -177,10 +177,18 @@ class MusicViewModel
                             async(PerformanceDispatcher.networkIO) {
                                 runCatching { buildArtistLanes() }
                                     .onFailure { Log.w("MusicViewModel", "Artist lanes failed: $it") }
-                                    .getOrDefault(emptyList())
+                                    .getOrDefault(ArtistLanes(emptyList(), emptyList()))
                             }
                         relatedJobs.awaitAll() to artistJob.await()
                     }
+                val artistLanesRaw = artistResult.lanes
+
+                if (artistResult.albums.size >= 4) {
+                    _uiState.update { state ->
+                        val topAlbumIds = state.topAlbums.mapTo(HashSet()) { it.id }
+                        state.copy(favoriteArtistAlbums = artistResult.albums.filterNot { it.id in topAlbumIds })
+                    }
+                }
 
                 val personalizedLanes =
                     relatedLanes
@@ -254,17 +262,24 @@ class MusicViewModel
                     .getOrNull()
                     ?.also { artistDetailsCache[channelId] = it }
 
+        /** Lanes for the Quick Picks composer plus the artists' own releases for the albums shelf. */
+        private data class ArtistLanes(
+            val lanes: List<List<MusicTrack>>,
+            val albums: List<MusicPlaylist>,
+        )
+
         /**
          * The artist-graph lanes: top tracks of the brain's strongest artists, plus
          * one lane drawn from their "fans also like" artists — recall the user's
          * taste has earned, independent of what happens to be in recent history.
          */
-        private suspend fun buildArtistLanes(): List<List<MusicTrack>> {
+        private suspend fun buildArtistLanes(): ArtistLanes {
             val topArtists = musicBrain.topArtistKeys(MusicQuickPicks.ARTIST_LANE_COUNT)
-            if (topArtists.isEmpty()) return emptyList()
+            if (topArtists.isEmpty()) return ArtistLanes(emptyList(), emptyList())
 
             val lanes = ArrayList<List<MusicTrack>>()
             val relatedPerArtist = ArrayList<List<String>>()
+            val releasesPerArtist = ArrayList<List<MusicPlaylist>>()
             kotlinx.coroutines.coroutineScope {
                 topArtists
                     .map { key -> async(PerformanceDispatcher.networkIO) { key to cachedArtistDetails(key) } }
@@ -276,6 +291,12 @@ class MusicViewModel
                             .take(MusicQuickPicks.LANE_SIZE)
                             .takeIf { it.isNotEmpty() }
                             ?.let { lanes.add(it) }
+                        // Artist pages list releases newest-first, so the head of
+                        // each list is that artist's latest work.
+                        (details.albums.take(2) + details.singles.take(2))
+                            .filter { it.id.isNotBlank() }
+                            .takeIf { it.isNotEmpty() }
+                            ?.let { releasesPerArtist.add(it) }
                         val related = details.relatedArtists.mapNotNull { r -> r.channelId.takeIf { it.isNotBlank() } }
                         if (related.isNotEmpty()) {
                             musicBrain.recordArtistRelated(key, related)
@@ -308,7 +329,22 @@ class MusicViewModel
                         .distinctBy { it.videoId }
                 if (similarPool.isNotEmpty()) lanes.add(similarPool)
             }
-            return lanes
+
+            // Round-robin one release per artist per pass, so no artist owns the shelf.
+            val albums = ArrayList<MusicPlaylist>()
+            var depth = 0
+            while (albums.size < 12) {
+                var any = false
+                for (releases in releasesPerArtist) {
+                    releases.getOrNull(depth)?.let {
+                        albums.add(it)
+                        any = true
+                    }
+                }
+                if (!any) break
+                depth++
+            }
+            return ArtistLanes(lanes, albums.distinctBy { it.id })
         }
 
         /**
@@ -1409,6 +1445,7 @@ data class MusicUiState(
     val genres: List<String> = emptyList(),
     val featuredPlaylists: List<MusicPlaylist> = emptyList(),
     val topAlbums: List<MusicPlaylist> = emptyList(),
+    val favoriteArtistAlbums: List<MusicPlaylist> = emptyList(), // Releases from the brain's top artists
     val dynamicSections: List<MusicSection> = emptyList(),
     val dailyMixSections: List<MusicSection> = emptyList(),
     val homeChips: List<HomePage.Chip> = emptyList(),
