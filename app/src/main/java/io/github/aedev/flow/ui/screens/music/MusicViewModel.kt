@@ -373,18 +373,23 @@ class MusicViewModel
         private suspend fun buildDailyMixSections(): List<MusicSection> {
             val mixes = musicBrain.dailyMixes(3)
             if (mixes.isEmpty()) return emptyList()
+            // One parallel round for every mix's lanes — sequential rounds tripled
+            // the wall-clock cost on a cold related-lane cache.
+            val lanesByMix =
+                kotlinx.coroutines.coroutineScope {
+                    mixes
+                        .map { mix ->
+                            mix.seedTrackIds
+                                .take(3)
+                                .map { seedId ->
+                                    async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seedId) }
+                                }
+                        }.map { jobs -> jobs.awaitAll().flatten() }
+                }
             val used = HashSet<String>()
             val sections = ArrayList<MusicSection>()
-            for (mix in mixes) {
-                val related =
-                    kotlinx.coroutines.coroutineScope {
-                        mix.seedTrackIds
-                            .take(3)
-                            .map { seedId ->
-                                async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seedId) }
-                            }.awaitAll()
-                            .flatten()
-                    }
+            for ((index, mix) in mixes.withIndex()) {
+                val related = lanesByMix[index]
                 val pool = musicBrain.rankTracks(related.distinctBy { it.videoId }, "discover")
                 val items = pool.filterNot { it.videoId in used }.take(14)
                 if (items.size < 4) continue

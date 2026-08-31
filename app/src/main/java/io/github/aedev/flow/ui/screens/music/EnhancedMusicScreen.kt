@@ -57,7 +57,7 @@ fun EnhancedMusicScreen(
     onRecognizeClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
     onMoodsClick: (io.github.aedev.flow.innertube.pages.MoodAndGenres.Item?) -> Unit = {},
-    viewModel: MusicViewModel = hiltViewModel(),
+    viewModel: MusicViewModel = sharedMusicViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current

@@ -1116,7 +1116,9 @@ fun NavGraphBuilder.flowAppGraph(
     // Artist Page
     composable("artist/{channelId}") { backStackEntry ->
         val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
-        val musicViewModel: MusicViewModel = hiltViewModel()
+        val musicViewModel: MusicViewModel =
+            io.github.aedev.flow.ui.screens.music
+                .sharedMusicViewModel()
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
         val uiState by musicViewModel.uiState.collectAsState()
 
@@ -1181,7 +1183,9 @@ fun NavGraphBuilder.flowAppGraph(
         val params = backStackEntry.arguments?.getString("params")
         // channelId is available if needed contextually
 
-        val musicViewModel: MusicViewModel = hiltViewModel()
+        val musicViewModel: MusicViewModel =
+            io.github.aedev.flow.ui.screens.music
+                .sharedMusicViewModel()
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
 
         io.github.aedev.flow.ui.screens.music.ArtistItemsScreen(
@@ -1219,7 +1223,9 @@ fun NavGraphBuilder.flowAppGraph(
     // Music Playlist Page
     composable("musicPlaylist/{playlistId}") { backStackEntry ->
         val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
-        val musicViewModel: MusicViewModel = hiltViewModel()
+        val musicViewModel: MusicViewModel =
+            io.github.aedev.flow.ui.screens.music
+                .sharedMusicViewModel()
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
         val musicPlaylistsViewModel: io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel = hiltViewModel()
         val uiState by musicViewModel.uiState.collectAsState()
