@@ -2374,4 +2374,18 @@
     <string name="sync_receive_option_body">Fusionner la bibliothèque d\'un autre appareil avec celle-ci.</string>
     <string name="sync_select_all">Tout sélectionner</string>
     <string name="sync_select_none">Effacer</string>
+    <string name="top_bar_clear_search">Effacer la recherche</string>
+    <string name="top_bar_close_search">Fermer la recherche</string>
+    <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="one">Actualisation de la chaîne %1$d sur %2$d</item>
+        <item quantity="many">Actualisation de %1$d chaînes sur %2$d</item>
+        <item quantity="other">Actualisation de %1$d chaînes sur %2$d</item>
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="one">Dernière mise à jour le %1$s - %2$d vidéos vérifiée</item>
+        <item quantity="many">Dernière mise à jour : %1$s - %2$d vidéos vérifiées</item>
+        <item quantity="other">Dernière mise à jour : %1$s - %2$d vidéos vérifiées</item>
+    </plurals>
+    <string name="conjunction_and">et</string>
+    <string name="streamed_date_template">Diffusé en streaming %1$s</string>
 </resources>
