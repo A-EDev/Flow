@@ -1229,6 +1229,8 @@ fun NavGraphBuilder.flowAppGraph(
             if (playlistId.startsWith("community_")) {
                 val genre = playlistId.substringAfter("community_")
                 musicViewModel.loadCommunityPlaylist(genre)
+            } else if (playlistId.startsWith(MusicViewModel.DAILY_MIX_ID_PREFIX)) {
+                musicViewModel.loadDailyMixPage(playlistId)
             } else {
                 musicViewModel.fetchPlaylistDetails(playlistId)
             }

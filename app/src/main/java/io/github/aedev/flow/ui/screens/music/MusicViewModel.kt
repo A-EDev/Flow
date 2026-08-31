@@ -57,6 +57,11 @@ class MusicViewModel
         private val downloadManager: DownloadManager,
         private val musicBrain: io.github.aedev.flow.data.recommendation.music.MusicBrainEngine,
     ) : ViewModel() {
+        companion object {
+            /** Route prefix for synthesized Daily Mix playlist pages. */
+            const val DAILY_MIX_ID_PREFIX = "daily_mix_"
+        }
+
         private val _uiState = MutableStateFlow(MusicUiState())
 
         // WhileSubscribed (not Eagerly) is load-bearing for battery: it makes
@@ -356,40 +361,85 @@ class MusicViewModel
          */
         private suspend fun refreshDailyMixes() {
             try {
-                val mixes = musicBrain.dailyMixes(3)
-                if (mixes.isEmpty()) return
-                val used = HashSet<String>()
-                val sections = ArrayList<MusicSection>()
-                for (mix in mixes) {
-                    val related =
-                        kotlinx.coroutines.coroutineScope {
-                            mix.seedTrackIds
-                                .take(3)
-                                .map { seedId ->
-                                    async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seedId) }
-                                }.awaitAll()
-                                .flatten()
-                        }
-                    val pool = musicBrain.rankTracks(related.distinctBy { it.videoId }, "discover")
-                    val items = pool.filterNot { it.videoId in used }.take(14)
-                    if (items.size < 4) continue
-                    used.addAll(items.map { it.videoId })
-                    sections.add(
-                        MusicSection(
-                            title = context.getString(R.string.section_daily_mix_title, mix.label),
-                            label = context.getString(R.string.section_daily_mix_label),
-                            thumbnailUrl = items.first().thumbnailUrl,
-                            seedId = null,
-                            isArtistSeed = false,
-                            tracks = items,
-                        ),
-                    )
-                }
+                val sections = buildDailyMixSections()
                 if (sections.isNotEmpty()) {
                     _uiState.update { it.copy(dailyMixSections = sections) }
                 }
             } catch (e: Exception) {
                 Log.e("MusicViewModel", "Error building daily mixes", e)
+            }
+        }
+
+        private suspend fun buildDailyMixSections(): List<MusicSection> {
+            val mixes = musicBrain.dailyMixes(3)
+            if (mixes.isEmpty()) return emptyList()
+            val used = HashSet<String>()
+            val sections = ArrayList<MusicSection>()
+            for (mix in mixes) {
+                val related =
+                    kotlinx.coroutines.coroutineScope {
+                        mix.seedTrackIds
+                            .take(3)
+                            .map { seedId ->
+                                async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seedId) }
+                            }.awaitAll()
+                            .flatten()
+                    }
+                val pool = musicBrain.rankTracks(related.distinctBy { it.videoId }, "discover")
+                val items = pool.filterNot { it.videoId in used }.take(14)
+                if (items.size < 4) continue
+                used.addAll(items.map { it.videoId })
+                sections.add(
+                    MusicSection(
+                        title = context.getString(R.string.section_daily_mix_title, mix.label),
+                        label = context.getString(R.string.section_daily_mix_label),
+                        thumbnailUrl = items.first().thumbnailUrl,
+                        // The synthetic id routes the header tap to a playlist page.
+                        seedId = "$DAILY_MIX_ID_PREFIX${sections.size}",
+                        isArtistSeed = false,
+                        tracks = items,
+                    ),
+                )
+            }
+            return sections
+        }
+
+        /**
+         * A Daily Mix as a full playlist page (play all, shuffle, save to library).
+         * Mixes are deterministic per brain state, so a fresh ViewModel (own nav
+         * destination) rebuilds the same mix when the section isn't in memory.
+         */
+        fun loadDailyMixPage(mixId: String) {
+            val index = mixId.removePrefix(DAILY_MIX_ID_PREFIX).toIntOrNull() ?: return
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                _uiState.update { it.copy(isPlaylistLoading = true, playlistDetails = null) }
+                val section =
+                    _uiState.value.dailyMixSections.getOrNull(index)
+                        ?: runCatching { buildDailyMixSections() }
+                            .onFailure { Log.e("MusicViewModel", "Error rebuilding daily mix", it) }
+                            .getOrDefault(emptyList())
+                            .getOrNull(index)
+                if (section == null) {
+                    _uiState.update { it.copy(isPlaylistLoading = false) }
+                    return@launch
+                }
+                val details =
+                    PlaylistDetails(
+                        id = mixId,
+                        title = section.title,
+                        thumbnailUrl = section.thumbnailUrl ?: section.tracks.first().thumbnailUrl,
+                        author = context.getString(R.string.section_daily_mix_label),
+                        trackCount = section.tracks.size,
+                        description = context.getString(R.string.daily_mix_page_description),
+                        tracks = section.tracks,
+                    )
+                _uiState.update {
+                    it.copy(
+                        isPlaylistLoading = false,
+                        playlistDetails = details,
+                        selectedPlaylist = details,
+                    )
+                }
             }
         }
 

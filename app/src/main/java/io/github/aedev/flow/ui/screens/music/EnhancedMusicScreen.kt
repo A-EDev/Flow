@@ -498,7 +498,8 @@ fun EnhancedMusicScreen(
                                                                     {
                                                                         if (section.isArtistSeed) {
                                                                             onArtistClick(section.seedId)
-                                                                        } else {
+                                                                        } else if (section.seedId.startsWith(MusicViewModel.DAILY_MIX_ID_PREFIX)) {
+                                                                            onAlbumClick(section.seedId)
                                                                         }
                                                                     }
                                                                 } else {

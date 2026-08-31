@@ -1648,6 +1648,7 @@
     <string name="section_on_repeat">On Repeat</string>
     <string name="section_daily_mix_title">%1$s Mix</string>
     <string name="section_daily_mix_label">Daily Mix</string>
+    <string name="daily_mix_page_description">Built from artists you listen to together. Save it to keep today\'s mix.</string>
     <string name="section_rediscover">Rediscover</string>
     <string name="section_from_artists_you_love">From artists you love</string>
     <string name="section_your_history">Your history</string>
