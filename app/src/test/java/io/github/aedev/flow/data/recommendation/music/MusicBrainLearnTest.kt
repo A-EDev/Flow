@@ -231,6 +231,15 @@ class MusicBrainLearnTest {
     }
 
     @Test
+    fun `a counted listen with genre context feeds genre affinity and the time bucket`() {
+        val brain = MusicBrain()
+        listen(brain, signal().copy(genre = "pop"))
+        assertThat(brain.genreAffinity["pop"] ?: 0.0).isGreaterThan(0.0)
+        val bucket = MusicTimeBucket.fromTimestamp(now)
+        assertThat(brain.timeBuckets[bucket]!!["pop"]).isEqualTo(1.0)
+    }
+
+    @Test
     fun `a dislike hides only while its cooldown is active`() {
         val brain = MusicBrain()
         MusicBrainLearn.applyDislike(brain, "UCartist1", now)

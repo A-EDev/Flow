@@ -263,9 +263,21 @@ class MusicPlayerViewModel
             sourceName: String? = null,
         ) {
             loadTrackJob?.cancel()
+            // Genre-scoped surfaces tag their source; the genre becomes listen
+            // context for this queue and is stripped from the display label.
+            // Any non-tagged queue start clears the previous context.
+            val contextGenre =
+                sourceName
+                    ?.trim()
+                    ?.takeIf { it.startsWith(MUSIC_GENRE_SOURCE_PREFIX) }
+                    ?.removePrefix(MUSIC_GENRE_SOURCE_PREFIX)
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+            EnhancedMusicPlayerManager.playContextGenre = contextGenre
+            val displaySourceName = contextGenre ?: sourceName
             loadTrackJob =
                 viewModelScope.launch {
-                    val finalSourceName = resolveSourceName(sourceName, track)
+                    val finalSourceName = resolveSourceName(displaySourceName, track)
                     val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
                     val localUriOverrides =
                         withContext(PerformanceDispatcher.diskIO) {
@@ -351,6 +363,8 @@ class MusicPlayerViewModel
                 when (key) {
                     "listen_again" -> context.getString(R.string.section_listen_again)
                     "on_repeat" -> context.getString(R.string.section_on_repeat)
+                    "rotation" -> context.getString(R.string.source_your_rotation)
+                    "rediscover" -> context.getString(R.string.section_rediscover)
                     "daily_discover" -> context.getString(R.string.section_daily_discover)
                     "quick_picks" -> context.getString(R.string.section_quick_picks)
                     "speed_dial", "speed_dial_shuffle" -> context.getString(R.string.section_speed_dial)

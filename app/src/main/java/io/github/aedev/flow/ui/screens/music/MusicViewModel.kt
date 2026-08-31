@@ -14,7 +14,10 @@ import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
+import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
 import io.github.aedev.flow.data.recommendation.music.MusicQuickPicks
+import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
+import io.github.aedev.flow.data.recommendation.music.musicArtistKey
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.BrowseEndpoint
 import io.github.aedev.flow.innertube.models.SongItem
@@ -31,7 +34,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -52,6 +57,11 @@ class MusicViewModel
         private val downloadManager: DownloadManager,
         private val musicBrain: io.github.aedev.flow.data.recommendation.music.MusicBrainEngine,
     ) : ViewModel() {
+        companion object {
+            /** Route prefix for synthesized Daily Mix playlist pages. */
+            const val DAILY_MIX_ID_PREFIX = "daily_mix_"
+        }
+
         private val _uiState = MutableStateFlow(MusicUiState())
 
         // WhileSubscribed (not Eagerly) is load-bearing for battery: it makes
@@ -99,7 +109,7 @@ class MusicViewModel
                             lastTrackId = activeTrack.videoId
                             if (isUiVisible()) {
                                 rebuildQuickPicks(activeTrack)
-                                refreshOnRepeat()
+                                refreshLocalShelves()
                             } else {
                                 shelvesStale = true
                             }
@@ -113,9 +123,27 @@ class MusicViewModel
                     if (count > 0 && shelvesStale) {
                         shelvesStale = false
                         rebuildQuickPicks(EnhancedMusicPlayerManager.currentTrack.value)
-                        refreshOnRepeat()
+                        refreshLocalShelves()
                     }
                 }
+            }
+
+            // Speed dial ranked by the comfort surface, so the tiles are the
+            // truest "most yours" rather than raw shelf concatenation order.
+            // Writing speedDialTracks re-emits _uiState, but the source triple is
+            // unchanged then, so distinctUntilChanged breaks the loop.
+            viewModelScope.launch {
+                _uiState
+                    .map { Triple(it.history, it.forYouTracks, it.listenAgain) }
+                    .distinctUntilChanged()
+                    .collectLatest { (history, forYou, listenAgain) ->
+                        val pool = (history + forYou + listenAgain).audioMusicOnly().take(40)
+                        if (pool.isEmpty()) return@collectLatest
+                        val ranked = musicBrain.rankTracks(pool, "heavy_rotation").take(26)
+                        if (ranked.isNotEmpty()) {
+                            _uiState.update { it.copy(speedDialTracks = ranked) }
+                        }
+                    }
             }
         }
 
@@ -146,7 +174,7 @@ class MusicViewModel
                 // saved taste keeps seeding even when recent history is noisy.
                 val seeds = MusicQuickPicks.selectSeeds(current, history + favorites)
 
-                val (relatedLanes, artistLanesRaw) =
+                val (relatedLanes, artistResult) =
                     kotlinx.coroutines.coroutineScope {
                         val relatedJobs =
                             seeds.map { seed ->
@@ -156,10 +184,18 @@ class MusicViewModel
                             async(PerformanceDispatcher.networkIO) {
                                 runCatching { buildArtistLanes() }
                                     .onFailure { Log.w("MusicViewModel", "Artist lanes failed: $it") }
-                                    .getOrDefault(emptyList())
+                                    .getOrDefault(ArtistLanes(emptyList(), emptyList()))
                             }
                         relatedJobs.awaitAll() to artistJob.await()
                     }
+                val artistLanesRaw = artistResult.lanes
+
+                if (artistResult.albums.size >= 4) {
+                    _uiState.update { state ->
+                        val topAlbumIds = state.topAlbums.mapTo(HashSet()) { it.id }
+                        state.copy(favoriteArtistAlbums = artistResult.albums.filterNot { it.id in topAlbumIds })
+                    }
+                }
 
                 val personalizedLanes =
                     relatedLanes
@@ -233,17 +269,24 @@ class MusicViewModel
                     .getOrNull()
                     ?.also { artistDetailsCache[channelId] = it }
 
+        /** Lanes for the Quick Picks composer plus the artists' own releases for the albums shelf. */
+        private data class ArtistLanes(
+            val lanes: List<List<MusicTrack>>,
+            val albums: List<MusicPlaylist>,
+        )
+
         /**
          * The artist-graph lanes: top tracks of the brain's strongest artists, plus
          * one lane drawn from their "fans also like" artists — recall the user's
          * taste has earned, independent of what happens to be in recent history.
          */
-        private suspend fun buildArtistLanes(): List<List<MusicTrack>> {
+        private suspend fun buildArtistLanes(): ArtistLanes {
             val topArtists = musicBrain.topArtistKeys(MusicQuickPicks.ARTIST_LANE_COUNT)
-            if (topArtists.isEmpty()) return emptyList()
+            if (topArtists.isEmpty()) return ArtistLanes(emptyList(), emptyList())
 
             val lanes = ArrayList<List<MusicTrack>>()
             val relatedPerArtist = ArrayList<List<String>>()
+            val releasesPerArtist = ArrayList<List<MusicPlaylist>>()
             kotlinx.coroutines.coroutineScope {
                 topArtists
                     .map { key -> async(PerformanceDispatcher.networkIO) { key to cachedArtistDetails(key) } }
@@ -255,6 +298,12 @@ class MusicViewModel
                             .take(MusicQuickPicks.LANE_SIZE)
                             .takeIf { it.isNotEmpty() }
                             ?.let { lanes.add(it) }
+                        // Artist pages list releases newest-first, so the head of
+                        // each list is that artist's latest work.
+                        (details.albums.take(2) + details.singles.take(2))
+                            .filter { it.id.isNotBlank() }
+                            .takeIf { it.isNotEmpty() }
+                            ?.let { releasesPerArtist.add(it) }
                         val related = details.relatedArtists.mapNotNull { r -> r.channelId.takeIf { it.isNotBlank() } }
                         if (related.isNotEmpty()) {
                             musicBrain.recordArtistRelated(key, related)
@@ -287,7 +336,22 @@ class MusicViewModel
                         .distinctBy { it.videoId }
                 if (similarPool.isNotEmpty()) lanes.add(similarPool)
             }
-            return lanes
+
+            // Round-robin one release per artist per pass, so no artist owns the shelf.
+            val albums = ArrayList<MusicPlaylist>()
+            var depth = 0
+            while (albums.size < 12) {
+                var any = false
+                for (releases in releasesPerArtist) {
+                    releases.getOrNull(depth)?.let {
+                        albums.add(it)
+                        any = true
+                    }
+                }
+                if (!any) break
+                depth++
+            }
+            return ArtistLanes(lanes, albums.distinctBy { it.id })
         }
 
         /**
@@ -297,35 +361,7 @@ class MusicViewModel
          */
         private suspend fun refreshDailyMixes() {
             try {
-                val mixes = musicBrain.dailyMixes(3)
-                if (mixes.isEmpty()) return
-                val used = HashSet<String>()
-                val sections = ArrayList<MusicSection>()
-                for (mix in mixes) {
-                    val related =
-                        kotlinx.coroutines.coroutineScope {
-                            mix.seedTrackIds
-                                .take(3)
-                                .map { seedId ->
-                                    async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seedId) }
-                                }.awaitAll()
-                                .flatten()
-                        }
-                    val pool = musicBrain.rankTracks(related.distinctBy { it.videoId }, "discover")
-                    val items = pool.filterNot { it.videoId in used }.take(14)
-                    if (items.size < 4) continue
-                    used.addAll(items.map { it.videoId })
-                    sections.add(
-                        MusicSection(
-                            title = context.getString(R.string.section_daily_mix_title, mix.label),
-                            label = context.getString(R.string.section_daily_mix_label),
-                            thumbnailUrl = items.first().thumbnailUrl,
-                            seedId = null,
-                            isArtistSeed = false,
-                            tracks = items,
-                        ),
-                    )
-                }
+                val sections = buildDailyMixSections()
                 if (sections.isNotEmpty()) {
                     _uiState.update { it.copy(dailyMixSections = sections) }
                 }
@@ -334,14 +370,114 @@ class MusicViewModel
             }
         }
 
-        private suspend fun refreshOnRepeat() {
+        private suspend fun buildDailyMixSections(): List<MusicSection> {
+            val mixes = musicBrain.dailyMixes(3)
+            if (mixes.isEmpty()) return emptyList()
+            // One parallel round for every mix's lanes — sequential rounds tripled
+            // the wall-clock cost on a cold related-lane cache.
+            val lanesByMix =
+                kotlinx.coroutines.coroutineScope {
+                    mixes
+                        .map { mix ->
+                            mix.seedTrackIds
+                                .take(3)
+                                .map { seedId ->
+                                    async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seedId) }
+                                }
+                        }.map { jobs -> jobs.awaitAll().flatten() }
+                }
+            val used = HashSet<String>()
+            val sections = ArrayList<MusicSection>()
+            for ((index, mix) in mixes.withIndex()) {
+                val related = lanesByMix[index]
+                val pool = musicBrain.rankTracks(related.distinctBy { it.videoId }, "discover")
+                val items = pool.filterNot { it.videoId in used }.take(14)
+                if (items.size < 4) continue
+                used.addAll(items.map { it.videoId })
+                sections.add(
+                    MusicSection(
+                        title = context.getString(R.string.section_daily_mix_title, mix.label),
+                        label = context.getString(R.string.section_daily_mix_label),
+                        thumbnailUrl = items.first().thumbnailUrl,
+                        // The synthetic id routes the header tap to a playlist page.
+                        seedId = "$DAILY_MIX_ID_PREFIX${sections.size}",
+                        isArtistSeed = false,
+                        tracks = items,
+                    ),
+                )
+            }
+            return sections
+        }
+
+        /**
+         * A Daily Mix as a full playlist page (play all, shuffle, save to library).
+         * Mixes are deterministic per brain state, so a fresh ViewModel (own nav
+         * destination) rebuilds the same mix when the section isn't in memory.
+         */
+        fun loadDailyMixPage(mixId: String) {
+            val index = mixId.removePrefix(DAILY_MIX_ID_PREFIX).toIntOrNull() ?: return
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                _uiState.update { it.copy(isPlaylistLoading = true, playlistDetails = null) }
+                val section =
+                    _uiState.value.dailyMixSections.getOrNull(index)
+                        ?: runCatching { buildDailyMixSections() }
+                            .onFailure { Log.e("MusicViewModel", "Error rebuilding daily mix", it) }
+                            .getOrDefault(emptyList())
+                            .getOrNull(index)
+                if (section == null) {
+                    _uiState.update { it.copy(isPlaylistLoading = false) }
+                    return@launch
+                }
+                val details =
+                    PlaylistDetails(
+                        id = mixId,
+                        title = section.title,
+                        thumbnailUrl = section.thumbnailUrl ?: section.tracks.first().thumbnailUrl,
+                        author = context.getString(R.string.section_daily_mix_label),
+                        trackCount = section.tracks.size,
+                        description = context.getString(R.string.daily_mix_page_description),
+                        tracks = section.tracks,
+                    )
+                _uiState.update {
+                    it.copy(
+                        isPlaylistLoading = false,
+                        playlistDetails = details,
+                        selectedPlaylist = details,
+                    )
+                }
+            }
+        }
+
+        /**
+         * The three brain-native shelves rendered purely from local meta:
+         * On Repeat, the time-of-day rotation and Rediscover. Zero network,
+         * refreshed together per track change (visibility-gated by the callers).
+         */
+        private suspend fun refreshLocalShelves() {
             try {
                 val onRepeat = musicBrain.heavyRotationTracks(16).audioMusicOnly()
-                if (onRepeat.size >= 2) {
-                    _uiState.update { it.copy(onRepeatTracks = onRepeat) }
+                val onRepeatIds = onRepeat.mapTo(HashSet()) { it.videoId }
+                val rotation =
+                    musicBrain
+                        .timeOfDayTracks(20)
+                        .audioMusicOnly()
+                        .filterNot { it.videoId in onRepeatIds }
+                val rediscover =
+                    musicBrain
+                        .rediscoverTracks(12)
+                        .audioMusicOnly()
+                        .filterNot { it.videoId in onRepeatIds }
+                _uiState.update {
+                    it.copy(
+                        onRepeatTracks = if (onRepeat.size >= 2) onRepeat else it.onRepeatTracks,
+                        // Time-sensitive shelves hide rather than linger when thin.
+                        rotationTracks = if (rotation.size >= 3) rotation else emptyList(),
+                        rotationBucket = MusicTimeBucket.fromTimestamp(System.currentTimeMillis()),
+                        rediscoverTracks = if (rediscover.size >= 3) rediscover else emptyList(),
+                    )
                 }
             } catch (e: Exception) {
-                Log.e("MusicViewModel", "Error loading On Repeat", e)
+                Log.e("MusicViewModel", "Error loading local shelves", e)
             }
         }
 
@@ -391,7 +527,11 @@ class MusicViewModel
             // Watch history holds one row per track, so backfill cannot seed relistens;
             // the shelf earns items only from live sessions and refreshes per track change.
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                refreshOnRepeat()
+                refreshLocalShelves()
+                // Maturity steers which sections lead the page (planner-lite).
+                runCatching { musicBrain.tasteProfile().maturity }
+                    .getOrNull()
+                    ?.let { maturity -> _uiState.update { it.copy(brainMaturity = maturity) } }
             }
 
             // Daily Mixes — co-occurrence clusters expanded through related recall.
@@ -458,9 +598,17 @@ class MusicViewModel
                 val homeSections = homeResult.first
                 val homeContinuation = homeResult.second
 
-                // Fetch Chips
+                // Fetch Chips — ordered by learned genre/mood affinity so the
+                // moods the user actually plays lead the row (stable otherwise).
                 val homeChips = musicRecommendationAlgorithm.getHomeChips()
-                _uiState.update { it.copy(homeChips = homeChips) }
+                val genreAffinity = musicBrain.genreAffinitySnapshot()
+                val orderedChips =
+                    if (genreAffinity.isEmpty()) {
+                        homeChips
+                    } else {
+                        homeChips.sortedByDescending { genreAffinity[it.title.trim().lowercase()] ?: 0.0 }
+                    }
+                _uiState.update { it.copy(homeChips = orderedChips) }
 
                 if (homeSections.isNotEmpty()) {
                     processHomeSections(homeSections)
@@ -1026,6 +1174,13 @@ class MusicViewModel
                     }?.tracks
                     ?.audioMusicOnly() ?: emptyList()
 
+            // YT hands these shelves back unranked; a brain pass puts the user's
+            // taste first and drops blocked artists at the source.
+            val rankedListenAgain = musicBrain.rankTracks(listenAgain, "heavy_rotation")
+            val rankedRecommended = musicBrain.rankTracks(recommended, "quick_picks")
+            val rankedVideosForYou = musicBrain.rankTracks(musicVideosForYou, "quick_picks")
+            val rankedLongListens = musicBrain.rankTracks(longListens, "quick_picks")
+
             _uiState.update { currentState ->
                 currentState.copy(
                     forYouTracks =
@@ -1034,12 +1189,12 @@ class MusicViewModel
                         } else {
                             quickPicks.ifEmpty { currentState.forYouTracks }
                         },
-                    recommendedTracks = recommended.ifEmpty { currentState.recommendedTracks },
-                    listenAgain = listenAgain,
+                    recommendedTracks = rankedRecommended.ifEmpty { currentState.recommendedTracks },
+                    listenAgain = rankedListenAgain,
                     musicVideos = musicVideos,
-                    musicVideosForYou = musicVideosForYou,
+                    musicVideosForYou = rankedVideosForYou,
                     livePerformances = livePerformances,
-                    longListens = longListens,
+                    longListens = rankedLongListens,
                     dynamicSections = sections,
                 )
             }
@@ -1082,7 +1237,13 @@ class MusicViewModel
          */
         fun fetchArtistDetails(channelId: String) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.value = _uiState.value.copy(isArtistLoading = true, artistDetails = null)
+                _uiState.value =
+                    _uiState.value.copy(
+                        isArtistLoading = true,
+                        artistDetails = null,
+                        artistInsights = null,
+                        knownRelatedArtistIds = emptySet(),
+                    )
 
                 supervisorScope {
                     val detailsDeferred =
@@ -1100,10 +1261,28 @@ class MusicViewModel
                     val details = detailsDeferred.await()
                     val isSubscribed = subscriptionDeferred.await()
 
+                    // The brain's history with this artist plus which of the
+                    // "fans also like" row the user already listens to — local reads.
+                    val insights = details?.let { musicBrain.artistInsights(channelId, it.name) }
+                    val knownRelated =
+                        details
+                            ?.relatedArtists
+                            ?.takeIf { it.isNotEmpty() }
+                            ?.let { related ->
+                                val known = musicBrain.listenedArtistKeys()
+                                related
+                                    .filter { artist ->
+                                        val key = musicArtistKey(artist.channelId.takeIf { it.isNotBlank() }, artist.name)
+                                        key in known || artist.name.trim().lowercase() in known
+                                    }.mapTo(HashSet()) { it.channelId }
+                            }.orEmpty()
+
                     _uiState.value =
                         _uiState.value.copy(
                             isArtistLoading = false,
                             artistDetails = details?.copy(isSubscribed = isSubscribed),
+                            artistInsights = insights,
+                            knownRelatedArtistIds = knownRelated,
                         )
                 }
             }
@@ -1136,7 +1315,12 @@ class MusicViewModel
         }
 
         fun clearArtistDetails() {
-            _uiState.value = _uiState.value.copy(artistDetails = null)
+            _uiState.value =
+                _uiState.value.copy(
+                    artistDetails = null,
+                    artistInsights = null,
+                    knownRelatedArtistIds = emptySet(),
+                )
         }
 
         /**
@@ -1339,6 +1523,10 @@ data class MusicUiState(
     val sessionSeed: Long = System.currentTimeMillis(),
     val dailyDiscover: List<DailyDiscoverItem> = emptyList(),
     val onRepeatTracks: List<MusicTrack> = emptyList(), // On Repeat (local music brain)
+    val rediscoverTracks: List<MusicTrack> = emptyList(), // Loved-but-quiet artists (local music brain)
+    val rotationTracks: List<MusicTrack> = emptyList(), // Time-of-day rotation (local music brain)
+    val rotationBucket: MusicTimeBucket? = null,
+    val speedDialTracks: List<MusicTrack> = emptyList(), // Brain-ranked speed dial pool
     val forYouTracks: List<MusicTrack> = emptyList(), // Quick Picks
     val recommendedTracks: List<MusicTrack> = emptyList(), // Recommended for you
     val listenAgain: List<MusicTrack> = emptyList(), // Listen Again
@@ -1355,10 +1543,12 @@ data class MusicUiState(
     val genres: List<String> = emptyList(),
     val featuredPlaylists: List<MusicPlaylist> = emptyList(),
     val topAlbums: List<MusicPlaylist> = emptyList(),
+    val favoriteArtistAlbums: List<MusicPlaylist> = emptyList(), // Releases from the brain's top artists
     val dynamicSections: List<MusicSection> = emptyList(),
     val dailyMixSections: List<MusicSection> = emptyList(),
     val homeChips: List<HomePage.Chip> = emptyList(),
     val selectedHomeChip: HomePage.Chip? = null,
+    val brainMaturity: String? = null, // "cold_start" / "warming" / "mature" — steers section order
     val explorePage: io.github.aedev.flow.innertube.pages.ExplorePage? = null,
     val moodsAndGenres: List<MoodAndGenres> = emptyList(),
     val selectedGenre: String? = null,
@@ -1368,6 +1558,8 @@ data class MusicUiState(
     val error: String? = null,
     val downloadedTrackIds: Set<String> = emptySet(),
     val artistDetails: ArtistDetails? = null,
+    val artistInsights: MusicArtistInsights? = null,
+    val knownRelatedArtistIds: Set<String> = emptySet(),
     val isArtistLoading: Boolean = false,
     val playlistDetails: PlaylistDetails? = null,
     val selectedPlaylist: PlaylistDetails? = null,

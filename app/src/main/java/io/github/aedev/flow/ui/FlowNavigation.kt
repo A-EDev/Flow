@@ -1116,7 +1116,9 @@ fun NavGraphBuilder.flowAppGraph(
     // Artist Page
     composable("artist/{channelId}") { backStackEntry ->
         val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
-        val musicViewModel: MusicViewModel = hiltViewModel()
+        val musicViewModel: MusicViewModel =
+            io.github.aedev.flow.ui.screens.music
+                .sharedMusicViewModel()
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
         val uiState by musicViewModel.uiState.collectAsState()
 
@@ -1133,6 +1135,8 @@ fun NavGraphBuilder.flowAppGraph(
                 ArtistPage(
                     artistDetails = details,
                     downloadedTrackIds = uiState.downloadedTrackIds,
+                    insights = uiState.artistInsights,
+                    knownRelatedArtistIds = uiState.knownRelatedArtistIds,
                     onBackClick = { navController.popBackStack() },
                     onTrackClick = { track, queue ->
                         musicPlayerViewModel.loadAndPlayTrack(track, queue)
@@ -1179,7 +1183,9 @@ fun NavGraphBuilder.flowAppGraph(
         val params = backStackEntry.arguments?.getString("params")
         // channelId is available if needed contextually
 
-        val musicViewModel: MusicViewModel = hiltViewModel()
+        val musicViewModel: MusicViewModel =
+            io.github.aedev.flow.ui.screens.music
+                .sharedMusicViewModel()
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
 
         io.github.aedev.flow.ui.screens.music.ArtistItemsScreen(
@@ -1217,7 +1223,9 @@ fun NavGraphBuilder.flowAppGraph(
     // Music Playlist Page
     composable("musicPlaylist/{playlistId}") { backStackEntry ->
         val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
-        val musicViewModel: MusicViewModel = hiltViewModel()
+        val musicViewModel: MusicViewModel =
+            io.github.aedev.flow.ui.screens.music
+                .sharedMusicViewModel()
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
         val musicPlaylistsViewModel: io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel = hiltViewModel()
         val uiState by musicViewModel.uiState.collectAsState()
@@ -1227,6 +1235,8 @@ fun NavGraphBuilder.flowAppGraph(
             if (playlistId.startsWith("community_")) {
                 val genre = playlistId.substringAfter("community_")
                 musicViewModel.loadCommunityPlaylist(genre)
+            } else if (playlistId.startsWith(MusicViewModel.DAILY_MIX_ID_PREFIX)) {
+                musicViewModel.loadDailyMixPage(playlistId)
             } else {
                 musicViewModel.fetchPlaylistDetails(playlistId)
             }

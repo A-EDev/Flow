@@ -209,6 +209,12 @@ object MusicBrainParams {
     // Ranking
     const val ACT_DECAY = 0.5
     const val ACT_DT_FLOOR_HOURS = 0.05
+
+    // Local shelves (Rediscover / time-of-day rotation)
+    const val REDISCOVER_MIN_PLAYS = 3
+    const val REDISCOVER_MIN_SCORE = 0.25
+    const val REDISCOVER_STALE_MS = 21L * 24 * 60 * 60 * 1000
+    const val TIME_BUCKET_MIN_PLAYS = 2
     const val DISLIKE_COOLDOWN_MS = 14L * 24 * 60 * 60 * 1000
     const val DISLIKE_COOLDOWN_MULTIPLIER = 0.1
     const val MAX_CONSECUTIVE_ARTIST = 2

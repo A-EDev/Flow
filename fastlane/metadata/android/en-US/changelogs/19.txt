@@ -1,7 +1,0 @@
-- Added a local music taste engine with ranked shelves, smarter Quick Picks and On Repeat
-- Added Daily Mixes built from your own listening and endless music radio with a stable queue
-- Added artist feedback (not interested / don't recommend) with blocked-artist management
-- Added music taste cards to the Flow Control Center and a music engine backup
-- Added the music taste profile to device sync
-- Fixed music region settings, related music fetching and stale recommendations
-- Lower battery use during background music playback

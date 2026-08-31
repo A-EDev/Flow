@@ -50,7 +50,7 @@ fun ArtistItemsScreen(
     onAlbumClick: (String) -> Unit,
     onArtistClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
-    viewModel: MusicViewModel = hiltViewModel(),
+    viewModel: MusicViewModel = sharedMusicViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val artistItemsPage = uiState.artistItemsPage

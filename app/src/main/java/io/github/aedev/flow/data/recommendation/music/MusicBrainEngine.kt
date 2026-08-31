@@ -48,6 +48,7 @@ class MusicBrainEngine
         }
 
         private val storage = MusicBrainStorage(appContext)
+        private val statsStorage = MusicStatsStorage(appContext)
         private val playerPreferences by lazy { PlayerPreferences(appContext) }
 
         private val mutex = Mutex()
@@ -55,6 +56,9 @@ class MusicBrainEngine
         private var pendingSaveJob: Job? = null
 
         private var brain = MusicBrain()
+
+        /** Monthly listening aggregates for the recap surfaces — device-local, never synced. */
+        private var ledger = MusicStatsLedger()
         private var isInitialized = false
 
         private val _hiddenArtists = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(emptySet())
@@ -82,6 +86,7 @@ class MusicBrainEngine
                 mutex.withLock {
                     if (isInitialized) return@withLock
                     brain = storage.load() ?: MusicBrain()
+                    ledger = statsStorage.load() ?: MusicStatsLedger()
                     if (!brain.backfilled) {
                         backfill.run(brain, System.currentTimeMillis())
                         brain.backfilled = true
@@ -102,31 +107,52 @@ class MusicBrainEngine
         suspend fun onListenSession(
             track: MusicTrack,
             playedFraction: Double,
+            genre: String? = null,
+            playedMs: Long = 0L,
         ) {
             if (track.videoId.isBlank() || track.videoId.startsWith(LOCAL_MEDIA_PREFIX)) return
             val pct = playedFraction.coerceIn(0.0, 1.0)
-            val crossed = MusicBrainLearn.newlyCrossed(0.0, pct)
-            if (crossed.isEmpty()) {
-                Log.d(TAG, "listen ${track.videoId} pct=$pct below first milestone")
-                return
-            }
             if (playerPreferences.isDeepFlowCurrentlyActive()) return
             ensureInitialized()
 
-            val signal = track.toMusicSignal(pct)
+            val signal =
+                track
+                    .toMusicSignal(pct)
+                    .copy(genre = genre?.trim()?.lowercase()?.takeIf { it.isNotEmpty() })
             if (signal.artistKey.isEmpty()) {
                 Log.w(TAG, "listen ${track.videoId} has no artist key")
                 return
             }
+            // Sub-milestone sessions teach the brain nothing, but their listening
+            // time still belongs in the recap ledger's minutes.
+            val crossed = MusicBrainLearn.newlyCrossed(0.0, pct)
             val now = System.currentTimeMillis()
             mutex.withLock {
-                val coArtist =
-                    lastCounted
-                        ?.takeIf { now - it.second < MusicBrainParams.SESSION_GAP_MS && it.first != signal.artistKey }
-                        ?.first
-                val counted = MusicBrainLearn.applyMusicSignal(brain, signal, crossed, now, coArtist)
-                if (counted) lastCounted = signal.artistKey to now
-                Log.i(TAG, "listen ${track.videoId} pct=${"%.2f".format(pct)} counted=$counted artist=${signal.artistKey}")
+                val wasNewArtist = signal.artistKey !in brain.seenArtists
+                var counted = false
+                if (crossed.isNotEmpty()) {
+                    val coArtist =
+                        lastCounted
+                            ?.takeIf { now - it.second < MusicBrainParams.SESSION_GAP_MS && it.first != signal.artistKey }
+                            ?.first
+                    counted = MusicBrainLearn.applyMusicSignal(brain, signal, crossed, now, coArtist)
+                    if (counted) lastCounted = signal.artistKey to now
+                    Log.i(TAG, "listen ${track.videoId} pct=${"%.2f".format(pct)} counted=$counted artist=${signal.artistKey}")
+                } else {
+                    Log.d(TAG, "listen ${track.videoId} pct=$pct below first milestone")
+                }
+                MusicStatsLedgerOps.record(
+                    ledger,
+                    now,
+                    artistKey = signal.artistKey,
+                    artistName = signal.artistDisplay,
+                    trackId = signal.trackId,
+                    trackTitle = signal.title,
+                    genre = signal.genre,
+                    listenedMs = playedMs,
+                    counted = counted,
+                    newArtist = counted && wasNewArtist,
+                )
             }
             scheduleDebouncedSave()
         }
@@ -139,10 +165,12 @@ class MusicBrainEngine
         fun onListenSessionAsync(
             track: MusicTrack,
             playedFraction: Double,
+            genre: String? = null,
+            playedMs: Long = 0L,
         ) {
             saveScope.launch {
                 try {
-                    onListenSession(track, playedFraction)
+                    onListenSession(track, playedFraction, genre, playedMs)
                 } catch (e: Exception) {
                     Log.w(TAG, "Listen session failed: ${e.message}")
                 }
@@ -159,8 +187,23 @@ class MusicBrainEngine
             if (signal.artistKey.isEmpty()) return
             val now = System.currentTimeMillis()
             mutex.withLock {
+                val wasNewArtist = signal.artistKey !in brain.seenArtists
                 val counted = MusicBrainLearn.applyMusicSignal(brain, signal, emptyList(), now, coArtist = null)
-                if (counted) lastCounted = signal.artistKey to now
+                if (counted) {
+                    lastCounted = signal.artistKey to now
+                    MusicStatsLedgerOps.record(
+                        ledger,
+                        now,
+                        artistKey = signal.artistKey,
+                        artistName = signal.artistDisplay,
+                        trackId = signal.trackId,
+                        trackTitle = signal.title,
+                        genre = null,
+                        listenedMs = 0L,
+                        counted = true,
+                        newArtist = wasNewArtist,
+                    )
+                }
             }
             scheduleDebouncedSave()
         }
@@ -227,30 +270,100 @@ class MusicBrainEngine
         }
 
         /** On Repeat, rendered entirely from local meta — zero network. */
-        suspend fun heavyRotationTracks(limit: Int): List<MusicTrack> {
+        suspend fun heavyRotationTracks(limit: Int): List<MusicTrack> =
+            localShelf(limit) { now, cap -> MusicBrainRanker.heavyRotation(brain, now, cap) }
+
+        /** Loved-but-quiet artists' best tracks — zero network. */
+        suspend fun rediscoverTracks(limit: Int): List<MusicTrack> =
+            localShelf(limit) { now, cap -> MusicBrainRanker.rediscover(brain, now, cap) }
+
+        /** Tracks the user actually plays at this time of day — zero network. */
+        suspend fun timeOfDayTracks(limit: Int): List<MusicTrack> =
+            localShelf(limit) { now, cap -> MusicBrainRanker.timeOfDayRotation(brain, now, cap) }
+
+        /**
+         * The brain's history with one artist, matched across both key forms.
+         * Null when the brain has never counted a play for them.
+         */
+        suspend fun artistInsights(
+            artistId: String?,
+            artistName: String,
+        ): MusicArtistInsights? {
             ensureInitialized()
             return mutex.withLock {
-                MusicBrainRanker
-                    .heavyRotation(brain, System.currentTimeMillis(), limit.coerceIn(1, 100))
-                    .mapNotNull { trackId ->
-                        val meta = brain.trackMeta[trackId] ?: return@mapNotNull null
-                        MusicTrack(
-                            videoId = trackId,
-                            title = meta.title,
-                            artist = meta.artist,
-                            thumbnailUrl = meta.thumbnail,
-                            duration = 0,
-                            channelId = if (isIdKeyedArtist(meta.artistKey)) meta.artistKey else "",
-                            artists =
-                                listOf(
-                                    MusicArtist(
-                                        name = meta.artist,
-                                        id = meta.artistKey.takeIf { isIdKeyedArtist(it) },
-                                    ),
-                                ),
-                        )
+                val keys =
+                    buildSet {
+                        add(musicArtistKey(artistId, artistName))
+                        artistName
+                            .trim()
+                            .lowercase()
+                            .takeIf { it.isNotEmpty() }
+                            ?.let { add(it) }
                     }
+                val affinity = keys.mapNotNull { brain.artistAffinity[it] }.maxByOrNull { it.plays }
+                if (affinity == null || affinity.plays <= 0) return@withLock null
+                val topTracks =
+                    brain.trackMeta.entries
+                        .filter { it.value.artistKey in keys }
+                        .mapNotNull { (id, _) ->
+                            brain.trackPlays[id]?.takeIf { it.isNotEmpty() }?.let { Triple(id, it.size, it.max()) }
+                        }.sortedWith(
+                            compareByDescending<Triple<String, Int, Long>> { it.second }.thenByDescending { it.third },
+                        ).take(10)
+                        .mapNotNull { trackFromMeta(it.first) }
+                MusicArtistInsights(plays = affinity.plays, liked = affinity.liked, topTracks = topTracks)
             }
+        }
+
+        /** Read-only copy of the learned genre/mood affinities (lowercased keys). */
+        suspend fun genreAffinitySnapshot(): Map<String, Double> {
+            ensureInitialized()
+            return mutex.withLock { HashMap(brain.genreAffinity) }
+        }
+
+        /** Every key form of every artist with counted plays — badge lookups on artist pages. */
+        suspend fun listenedArtistKeys(): Set<String> {
+            ensureInitialized()
+            return mutex.withLock {
+                val out = HashSet<String>()
+                for ((key, affinity) in brain.artistAffinity) {
+                    if (affinity.plays <= 0 || brain.isArtistBlocked(key)) continue
+                    out.add(key)
+                    affinity.display.takeIf { it.isNotBlank() }?.let { out.add(it.trim().lowercase()) }
+                }
+                out
+            }
+        }
+
+        private suspend fun localShelf(
+            limit: Int,
+            pick: (nowMs: Long, cap: Int) -> List<String>,
+        ): List<MusicTrack> {
+            ensureInitialized()
+            return mutex.withLock {
+                pick(System.currentTimeMillis(), limit.coerceIn(1, 100))
+                    .mapNotNull { trackId -> trackFromMeta(trackId) }
+            }
+        }
+
+        /** Must run with the mutex held. */
+        private fun trackFromMeta(trackId: String): MusicTrack? {
+            val meta = brain.trackMeta[trackId] ?: return null
+            return MusicTrack(
+                videoId = trackId,
+                title = meta.title,
+                artist = meta.artist,
+                thumbnailUrl = meta.thumbnail,
+                duration = 0,
+                channelId = if (isIdKeyedArtist(meta.artistKey)) meta.artistKey else "",
+                artists =
+                    listOf(
+                        MusicArtist(
+                            name = meta.artist,
+                            id = meta.artistKey.takeIf { isIdKeyedArtist(it) },
+                        ),
+                    ),
+            )
         }
 
         suspend fun dislikeArtist(
@@ -351,12 +464,21 @@ class MusicBrainEngine
             }
         }
 
+        /** Immutable snapshot of the listening ledger for the stats/recap surfaces. */
+        internal suspend fun listeningStats(): MusicStatsStorage.SerializableStats {
+            ensureInitialized()
+            return mutex.withLock { ledger.toSerializable() }
+        }
+
         private fun scheduleDebouncedSave() {
             pendingSaveJob?.cancel()
             pendingSaveJob =
                 saveScope.launch {
                     delay(SAVE_DEBOUNCE_MS)
-                    mutex.withLock { storage.save(brain) }
+                    mutex.withLock {
+                        storage.save(brain)
+                        statsStorage.save(ledger)
+                    }
                 }
         }
     }
