@@ -40,10 +40,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -105,7 +107,6 @@ internal fun FullMusicPlayerContent(
     palette: MusicPaletteColors,
     backgroundStyle: MusicPlayerBackgroundStyle,
     hideArtwork: Boolean,
-    onBackClick: () -> Unit,
     onArtistClick: (String) -> Unit,
     onAlbumClick: (String) -> Unit,
     onSleepTimerClick: () -> Unit,
@@ -209,6 +210,7 @@ internal fun FullMusicPlayerContent(
             },
             onInfoClick = { showInfoDialog = true },
             onAudioEffectsClick = { showAudioSettings = true },
+            onSleepTimerClick = onSleepTimerClick,
             showPlaylistDialogs = false,
         )
     }
@@ -430,13 +432,8 @@ internal fun FullMusicPlayerContent(
             ) {
                 PlayerTopBar(
                     playingFrom = uiState.playingFrom,
-                    onBackClick = onBackClick,
-                    onSleepTimerClick = onSleepTimerClick,
-                    onMoreOptionsClick = { showMoreOptions = true },
                     modifier = Modifier.statusBarsPadding(),
                     contentColor = colorScheme.onSurface,
-                    activeColor = colorScheme.primary,
-                    showSleepTimerAction = false,
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Box(
@@ -536,7 +533,7 @@ internal fun FullMusicPlayerContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             PlayerProgressSlider(
                 positionProvider = { positionState.value },
@@ -546,7 +543,7 @@ internal fun FullMusicPlayerContent(
                 modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
             PlayerPlaybackControls(
                 isPlaying = uiState.isPlaying,
@@ -558,30 +555,53 @@ internal fun FullMusicPlayerContent(
                 onPreviewDirectionChange = { previewDirection = it },
             )
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            PlayerSecondaryActions(
-                lyricsActive = showLyricsSheet,
-                shuffleEnabled = uiState.shuffleEnabled,
-                repeatMode = uiState.repeatMode,
-                sleepTimerActive = SleepTimerManager.isActive,
-                onLyricsClick = {
-                    uiState.currentTrack?.let { viewModel.ensureLyricsLoaded(it) }
-                    showLyricsSheet = true
-                },
-                onShuffleClick = { viewModel.toggleShuffle() },
-                onRepeatClick = { viewModel.toggleRepeat() },
-                onQueueClick = {
-                    if (isPlayerSheetExpanded) {
-                        showQueueSheet = true
-                        animateQueueSheet(queueExpandedY)
-                    }
-                },
-                onSleepTimerClick = onSleepTimerClick,
-                modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-            )
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PlayerHorizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PlayerSecondaryActions(
+                    lyricsActive = showLyricsSheet,
+                    shuffleEnabled = uiState.shuffleEnabled,
+                    repeatMode = uiState.repeatMode,
+                    onLyricsClick = {
+                        uiState.currentTrack?.let { viewModel.ensureLyricsLoaded(it) }
+                        showLyricsSheet = true
+                    },
+                    onShuffleClick = { viewModel.toggleShuffle() },
+                    onRepeatClick = { viewModel.toggleRepeat() },
+                    onQueueClick = {
+                        if (isPlayerSheetExpanded) {
+                            showQueueSheet = true
+                            animateQueueSheet(queueExpandedY)
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                FilledTonalIconButton(
+                    onClick = { showMoreOptions = true },
+                    modifier = Modifier.size(42.dp),
+                    shape = CircleShape,
+                    colors =
+                        IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = colorScheme.secondaryContainer,
+                            contentColor = colorScheme.onSecondaryContainer,
+                        ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = stringResource(R.string.more_options),
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
 
-            Spacer(modifier = Modifier.height(navBarPadding + 20.dp))
+            Spacer(modifier = Modifier.height(navBarPadding + 16.dp))
         }
 
         if (queueFraction > 0.3f) {
@@ -766,6 +786,7 @@ internal fun FullMusicPlayerContent(
 
         MusicLyricsSheet(
             visible = showLyricsSheet,
+            retainContent = isPlayerSheetExpanded,
             backdropBaseColor = palette.base,
             accentColor = colorScheme.primary,
             lyrics = uiState.lyrics,

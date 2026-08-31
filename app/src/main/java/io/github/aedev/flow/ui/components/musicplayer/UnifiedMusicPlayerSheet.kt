@@ -507,7 +507,6 @@ fun UnifiedMusicPlayerSheet(
                             palette = palette,
                             backgroundStyle = backgroundStyle,
                             hideArtwork = hideArtwork,
-                            onBackClick = { state.collapse() },
                             onArtistClick = onArtistClick,
                             onAlbumClick = onAlbumClick,
                             onSleepTimerClick = onSleepTimerClick,

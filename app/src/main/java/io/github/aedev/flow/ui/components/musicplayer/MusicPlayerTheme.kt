@@ -61,3 +61,16 @@ private fun paletteColorScheme(palette: MusicPaletteColors): ColorScheme {
         surfaceTint = accent,
     )
 }
+
+/**
+ * The accent only if it reads against [container]; otherwise a guaranteed-contrast ink.
+ */
+internal fun readableAccentOn(
+    container: Color,
+    accent: Color,
+): Color =
+    when {
+        kotlin.math.abs(accent.luminance() - container.luminance()) >= 0.3f -> accent
+        container.luminance() > 0.5f -> PaletteInkDark
+        else -> Color.White
+    }

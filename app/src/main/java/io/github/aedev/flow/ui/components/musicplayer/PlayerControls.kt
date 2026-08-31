@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -225,26 +226,27 @@ fun PlayerPlaybackControls(
     }
 }
 
+private val SegmentFullRadius = 21.dp
+private val SegmentEdgeRadius = 8.dp
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PlayerSecondaryActions(
     lyricsActive: Boolean,
     shuffleEnabled: Boolean,
     repeatMode: RepeatMode,
-    sleepTimerActive: Boolean,
     onLyricsClick: () -> Unit,
     onShuffleClick: () -> Unit,
     onRepeatClick: () -> Unit,
     onQueueClick: () -> Unit,
-    onSleepTimerClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(48.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                .height(42.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PlayerToggleButton(
@@ -253,6 +255,13 @@ fun PlayerSecondaryActions(
             checkedContentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             icon = Icons.Outlined.Lyrics,
             contentDescription = stringResource(R.string.lyrics),
+            uncheckedShape =
+                RoundedCornerShape(
+                    topStart = SegmentFullRadius,
+                    bottomStart = SegmentFullRadius,
+                    topEnd = SegmentEdgeRadius,
+                    bottomEnd = SegmentEdgeRadius,
+                ),
             onClick = onLyricsClick,
         )
         PlayerToggleButton(
@@ -261,6 +270,7 @@ fun PlayerSecondaryActions(
             checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             icon = Icons.Rounded.Shuffle,
             contentDescription = stringResource(R.string.shuffle),
+            uncheckedShape = RoundedCornerShape(SegmentEdgeRadius),
             onClick = onShuffleClick,
         )
         PlayerToggleButton(
@@ -273,6 +283,7 @@ fun PlayerSecondaryActions(
                     else -> Icons.Rounded.Repeat
                 },
             contentDescription = stringResource(R.string.repeat),
+            uncheckedShape = RoundedCornerShape(SegmentEdgeRadius),
             onClick = onRepeatClick,
         )
         PlayerToggleButton(
@@ -281,15 +292,14 @@ fun PlayerSecondaryActions(
             checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             icon = Icons.Outlined.QueueMusic,
             contentDescription = stringResource(R.string.playlist_queue),
+            uncheckedShape =
+                RoundedCornerShape(
+                    topStart = SegmentEdgeRadius,
+                    bottomStart = SegmentEdgeRadius,
+                    topEnd = SegmentFullRadius,
+                    bottomEnd = SegmentFullRadius,
+                ),
             onClick = onQueueClick,
-        )
-        PlayerToggleButton(
-            checked = sleepTimerActive,
-            checkedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            checkedContentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-            icon = Icons.Outlined.Bedtime,
-            contentDescription = stringResource(R.string.sleep_timer),
-            onClick = onSleepTimerClick,
         )
     }
 }
@@ -302,6 +312,7 @@ private fun RowScope.PlayerToggleButton(
     checkedContentColor: Color,
     icon: ImageVector,
     contentDescription: String?,
+    uncheckedShape: Shape,
     onClick: () -> Unit,
 ) {
     ToggleButton(
@@ -318,12 +329,18 @@ private fun RowScope.PlayerToggleButton(
                 checkedContainerColor = checkedContainerColor,
                 checkedContentColor = checkedContentColor,
             ),
+        shapes =
+            ToggleButtonShapes(
+                shape = uncheckedShape,
+                pressedShape = RoundedCornerShape(12.dp),
+                checkedShape = RoundedCornerShape(SegmentFullRadius),
+            ),
         contentPadding = PaddingValues(0.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -494,9 +511,9 @@ fun PlayerProgressSlider(
                         interactionSource = interactionSource,
                         colors =
                             SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.onSurface,
-                                activeTrackColor = MaterialTheme.colorScheme.onSurface,
-                                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
                             ),
                         modifier =
                             Modifier
@@ -515,9 +532,9 @@ fun PlayerProgressSlider(
                         interactionSource = interactionSource,
                         colors =
                             SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.onSurface,
-                                activeTrackColor = MaterialTheme.colorScheme.onSurface,
-                                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
                             ),
                         modifier =
                             Modifier
@@ -534,9 +551,9 @@ fun PlayerProgressSlider(
                         valueRange = 0f..sliderEnd,
                         colors =
                             SliderDefaults.colors(
-                                activeTrackColor = MaterialTheme.colorScheme.onSurface,
-                                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                thumbColor = MaterialTheme.colorScheme.onSurface,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                                thumbColor = MaterialTheme.colorScheme.primary,
                             ),
                         isPlaying = isPlaying,
                     )
@@ -555,8 +572,8 @@ fun PlayerProgressSlider(
                                 sliderState = sliderState,
                                 colors =
                                     SliderDefaults.colors(
-                                        activeTrackColor = MaterialTheme.colorScheme.onSurface,
-                                        inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                                        inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
                                     ),
                                 trackHeight = 4.dp,
                             )
@@ -588,7 +605,7 @@ fun PlayerProgressSlider(
                                         .size(24.dp)
                                         .graphicsLayer { alpha = thumbAlpha }
                                         .shadow(8.dp, CircleShape)
-                                        .background(MaterialTheme.colorScheme.onSurface, CircleShape),
+                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
                             )
                         },
                         track = {
@@ -600,7 +617,7 @@ fun PlayerProgressSlider(
                                         .fillMaxWidth()
                                         .height(animatedTrackHeight)
                                         .clip(RoundedCornerShape(4.dp))
-                                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)),
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                             ) {
                                 // Active Track
                                 Box(
@@ -612,8 +629,8 @@ fun PlayerProgressSlider(
                                             .background(
                                                 Brush.horizontalGradient(
                                                     listOf(
-                                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                                        MaterialTheme.colorScheme.onSurface,
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                                        MaterialTheme.colorScheme.primary,
                                                     ),
                                                 ),
                                             ),
@@ -726,7 +743,10 @@ private fun SplitCapsuleButton(
             if (active) {
                 MaterialTheme.colorScheme.onPrimary
             } else {
-                MaterialTheme.colorScheme.primary
+                readableAccentOn(
+                    container = MaterialTheme.colorScheme.onPrimary,
+                    accent = MaterialTheme.colorScheme.primary,
+                )
             },
         animationSpec = tween(durationMillis = 250),
         label = "capsuleContent",

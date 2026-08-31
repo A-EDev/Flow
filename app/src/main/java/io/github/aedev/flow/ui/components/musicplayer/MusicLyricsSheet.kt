@@ -1,17 +1,12 @@
 package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.activity.compose.PredictiveBackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,14 +47,16 @@ import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Full-screen lyrics surface presented over the expanded player. The enter spring and the
- * predictive-back gesture both drive [backProgress], which is only read inside graphicsLayer so
- * the scrub never recomposes the panel. The backdrop stays dark in every theme because the lyrics
- * renderer draws light text.
+ * Full-screen lyrics surface presented over the expanded player. Show/hide is a manual
+ * graphicsLayer animation over content that stays composed while [retainContent] holds, so only
+ * the very first open pays the lyrics renderer's composition cost — and even that is deferred
+ * past the slide so the transition itself never drops frames. When fully hidden the sheet is
+ * parked off-screen, which also keeps it out of hit testing.
  */
 @Composable
 internal fun MusicLyricsSheet(
     visible: Boolean,
+    retainContent: Boolean,
     backdropBaseColor: Color,
     accentColor: Color,
     lyrics: String?,
@@ -73,145 +69,136 @@ internal fun MusicLyricsSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    AnimatedVisibility(
-        visible = visible,
-        enter =
-            slideInVertically(
-                initialOffsetY = { it / 5 },
-                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-            ) + fadeIn(animationSpec = tween(durationMillis = 160)),
-        exit =
-            slideOutVertically(
-                targetOffsetY = { it / 6 },
-                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-            ) + fadeOut(animationSpec = tween(durationMillis = 120)),
-        modifier = modifier,
-    ) {
-        var backProgress by remember { mutableFloatStateOf(1f) }
-        val scope = rememberCoroutineScope()
-        val onDismissState = rememberUpdatedState(onDismiss)
+    val sheetShown = remember { Animatable(0f) }
+    val backProgress = remember { Animatable(0f) }
+    var panelComposed by remember { mutableStateOf(false) }
+    val visibleState = rememberUpdatedState(visible)
+    val onDismissState = rememberUpdatedState(onDismiss)
+    val scope = rememberCoroutineScope()
 
-        // The lyrics renderer is expensive to compose; keep it out of the enter/exit
-        // transitions so the sheet itself animates jank-free, then fade the panel in.
-        var panelComposed by remember { mutableStateOf(false) }
-        LaunchedEffect(visible) {
-            if (visible) {
-                delay(240)
-                panelComposed = true
-            } else {
-                panelComposed = false
+    LaunchedEffect(visible) {
+        if (visible) {
+            launch {
+                sheetShown.animateTo(
+                    targetValue = 1f,
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                )
             }
-        }
-        val panelAlpha by animateFloatAsState(
-            targetValue = if (panelComposed) 1f else 0f,
-            animationSpec = tween(durationMillis = 200),
-            label = "lyricsPanelAlpha",
-        )
-
-        LaunchedEffect(Unit) {
-            val enter = Animatable(backProgress)
-            enter.animateTo(
+            delay(140)
+            panelComposed = true
+        } else {
+            sheetShown.animateTo(
                 targetValue = 0f,
-                animationSpec =
-                    spring(
-                        stiffness = Spring.StiffnessMediumLow,
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                    ),
-            ) { backProgress = value }
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+            )
+            backProgress.snapTo(0f)
         }
+    }
 
-        PredictiveBackHandler(enabled = visible) { progressFlow ->
-            try {
-                progressFlow.collect { backEvent ->
-                    backProgress = backEvent.progress
-                }
-                scope.launch {
-                    val commit = Animatable(backProgress)
-                    commit.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(durationMillis = 160),
-                    ) { backProgress = value }
-                    onDismissState.value()
-                }
-            } catch (_: CancellationException) {
-                scope.launch {
-                    val cancel = Animatable(backProgress)
-                    cancel.animateTo(
-                        targetValue = 0f,
-                        animationSpec = tween(durationMillis = 250),
-                    ) { backProgress = value }
-                }
+    LaunchedEffect(retainContent) {
+        if (!retainContent) panelComposed = false
+    }
+
+    PredictiveBackHandler(enabled = visible) { progressFlow ->
+        try {
+            progressFlow.collect { backEvent ->
+                backProgress.snapTo(backEvent.progress)
+            }
+            backProgress.animateTo(1f, tween(durationMillis = 160))
+            onDismissState.value()
+        } catch (_: CancellationException) {
+            scope.launch {
+                backProgress.animateTo(0f, tween(durationMillis = 250))
             }
         }
+    }
 
-        val backdropColor = remember(backdropBaseColor) { lerp(backdropBaseColor, Color.Black, 0.3f) }
+    val panelAlpha by animateFloatAsState(
+        targetValue = if (panelComposed) 1f else 0f,
+        animationSpec = tween(durationMillis = 180),
+        label = "lyricsPanelAlpha",
+    )
 
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationY = backProgress * size.height * 0.06f
-                        alpha = 1f - backProgress * 0.25f
-                    }.background(backdropColor),
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = { onDismissState.value() }) {
-                        Icon(
-                            imageVector = Icons.Filled.KeyboardArrowDown,
-                            contentDescription = stringResource(R.string.close),
-                            modifier = Modifier.size(30.dp),
-                            tint = Color.White,
-                        )
+    if (!visible && !panelComposed && !sheetShown.isRunning && sheetShown.value == 0f) return
+
+    val backdropColor = remember(backdropBaseColor) { lerp(backdropBaseColor, Color.Black, 0.3f) }
+
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    val shown = sheetShown.value
+                    val back = backProgress.value
+                    if (shown <= 0.001f && !visibleState.value) {
+                        alpha = 0f
+                        translationY = size.height
+                    } else {
+                        alpha = (shown * (1f - back * 0.25f)).coerceIn(0f, 1f)
+                        translationY = (1f - shown) * size.height / 5f + back * size.height * 0.06f
                     }
-                    Text(
-                        text = stringResource(R.string.lyrics),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.weight(1f),
-                    )
-                    PlayerLyricsRefreshButton(
-                        isLoading = isLoading,
-                        accentColor = accentColor,
-                        onRefresh = onRefresh,
+                }.background(backdropColor),
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { onDismissState.value() }) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = stringResource(R.string.close),
+                        modifier = Modifier.size(30.dp),
+                        tint = Color.White,
                     )
                 }
+                Text(
+                    text = stringResource(R.string.lyrics),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f),
+                )
+                PlayerLyricsRefreshButton(
+                    isLoading = isLoading,
+                    accentColor = accentColor,
+                    onRefresh = onRefresh,
+                )
+            }
 
-                Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                ) {
-                    if (panelComposed) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer { alpha = panelAlpha },
-                        ) {
-                            InlineLyricsPanel(
-                                lyrics = lyrics,
-                                syncedLyrics = syncedLyrics,
-                                positionProvider = positionProvider,
-                                isLoading = isLoading,
-                                accentColor = accentColor,
-                                onSeekTo = onSeekTo,
-                                providerName = providerName,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+            ) {
+                if (panelComposed) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { alpha = panelAlpha },
+                    ) {
+                        InlineLyricsPanel(
+                            lyrics = lyrics,
+                            syncedLyrics = syncedLyrics,
+                            positionProvider = positionProvider,
+                            isLoading = isLoading,
+                            accentColor = accentColor,
+                            onSeekTo = onSeekTo,
+                            providerName = providerName,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
                 }
             }

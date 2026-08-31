@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.outlined.Album
+import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Download
@@ -52,6 +53,7 @@ fun MusicQuickActionsSheet(
     onShare: () -> Unit = {},
     onInfoClick: () -> Unit = {},
     onAudioEffectsClick: () -> Unit = {},
+    onSleepTimerClick: () -> Unit = {},
     showPlaylistDialogs: Boolean = true,
     viewModel: MusicPlayerViewModel = hiltViewModel(),
 ) {
@@ -197,6 +199,14 @@ fun MusicQuickActionsSheet(
                                 title = { Text(stringResource(R.string.audio_effects)) },
                                 onClick = {
                                     onAudioEffectsClick()
+                                    onDismiss()
+                                },
+                            ),
+                            FlowMenuItemData(
+                                icon = { Icon(Icons.Outlined.Bedtime, null) },
+                                title = { Text(stringResource(R.string.sleep_timer)) },
+                                onClick = {
+                                    onSleepTimerClick()
                                     onDismiss()
                                 },
                             ),
