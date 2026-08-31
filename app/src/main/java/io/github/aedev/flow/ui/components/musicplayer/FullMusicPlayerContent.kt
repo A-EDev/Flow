@@ -12,7 +12,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +67,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
@@ -361,45 +363,49 @@ internal fun FullMusicPlayerContent(
                     .graphicsLayer { alpha = mainAlpha }
                     .pointerInput(isPlayerSheetExpanded, queueExpandedY, safeHiddenY) {
                         if (!isPlayerSheetExpanded) return@pointerInput
-                        val velocityTracker = VelocityTracker()
-                        var queueDragActive = false
-                        detectVerticalDragGestures(
-                            onDragStart = {
-                                queueDragActive = false
-                                velocityTracker.resetTracking()
-                            },
-                            onVerticalDrag = { change, dragAmount ->
-                                if (!queueDragActive) {
-                                    if (dragAmount < 0f) {
-                                        queueDragActive = true
+                        // Claims only clearly upward drags (queue pull-up); anything else stays
+                        // unconsumed so the sheet's collapse drag underneath keeps working.
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val velocityTracker = VelocityTracker()
+                            var totalDy = 0f
+                            var claimed = false
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change =
+                                    event.changes.firstOrNull { it.id == down.id }
+                                        ?: event.changes.firstOrNull { it.pressed }
+                                        ?: break
+                                if (!change.pressed) {
+                                    if (claimed) {
+                                        val velocity = velocityTracker.calculateVelocity().y
+                                        scope.launch { settleQueueSheet(velocity) }
+                                    }
+                                    break
+                                }
+                                val dy = change.positionChange().y
+                                if (!claimed) {
+                                    if (change.isConsumed) break
+                                    totalDy += dy
+                                    if (totalDy <= -viewConfiguration.touchSlop) {
+                                        claimed = true
                                         showQueueSheet = true
+                                        velocityTracker.resetTracking()
+                                    } else if (totalDy >= viewConfiguration.touchSlop) {
+                                        break
                                     } else {
-                                        // Downward drags stay unconsumed so the sheet can collapse.
-                                        return@detectVerticalDragGestures
+                                        continue
                                     }
                                 }
                                 change.consume()
                                 velocityTracker.addPointerInputChange(change)
                                 scope.launch {
                                     queueOffsetY.snapTo(
-                                        (queueOffsetY.value + dragAmount).coerceIn(queueExpandedY, safeHiddenY),
+                                        (queueOffsetY.value + dy).coerceIn(queueExpandedY, safeHiddenY),
                                     )
                                 }
-                            },
-                            onDragEnd = {
-                                if (queueDragActive) {
-                                    val velocity = velocityTracker.calculateVelocity().y
-                                    scope.launch { settleQueueSheet(velocity) }
-                                }
-                                queueDragActive = false
-                            },
-                            onDragCancel = {
-                                if (queueDragActive) {
-                                    scope.launch { settleQueueSheet(0f) }
-                                }
-                                queueDragActive = false
-                            },
-                        )
+                            }
+                        }
                     },
         ) {
             Column(
@@ -514,6 +520,7 @@ internal fun FullMusicPlayerContent(
                     onLikeClick = { viewModel.toggleLike() },
                     onDownloadClick = { viewModel.downloadTrack() },
                     onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) },
+                    accentColor = colorScheme.primary,
                 )
             }
 
@@ -546,6 +553,7 @@ internal fun FullMusicPlayerContent(
                 shuffleEnabled = uiState.shuffleEnabled,
                 repeatMode = uiState.repeatMode,
                 sleepTimerActive = SleepTimerManager.isActive,
+                accentColor = colorScheme.primary,
                 onLyricsClick = {
                     uiState.currentTrack?.let { viewModel.ensureLyricsLoaded(it) }
                     showLyricsSheet = true
