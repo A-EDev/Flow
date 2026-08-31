@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -32,6 +33,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Explicit
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Sensors
@@ -96,7 +99,9 @@ fun QueueSheet(
     currentIndex: Int,
     isRadioLoading: Boolean,
     endlessRadioEnabled: Boolean,
+    shuffleEnabled: Boolean,
     repeatMode: RepeatMode,
+    downloadedTrackIds: Set<String>,
     onTrackClick: (Int) -> Unit,
     onMoveTrack: (Int, Int) -> Unit,
     onPlayNextFromQueue: (Int) -> Unit,
@@ -166,6 +171,7 @@ fun QueueSheet(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .statusBarsPadding()
                         .then(dragHandleModifier),
             ) {
                 Box(
@@ -220,8 +226,18 @@ fun QueueSheet(
                                 ),
                             colors =
                                 IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    containerColor =
+                                        if (shuffleEnabled) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.secondaryContainer
+                                        },
+                                    contentColor =
+                                        if (shuffleEnabled) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSecondaryContainer
+                                        },
                                 ),
                         ) {
                             Icon(
@@ -302,6 +318,7 @@ fun QueueSheet(
                             isRadioItem = false,
                             isDragging = isDragging,
                             swipeEnabled = !isCurrent && !isDragging,
+                            isDownloaded = downloadedTrackIds.contains(track.videoId),
                             flyOffOnCommit = false,
                             rowKey = localKeys.getOrNull(index) ?: track.videoId,
                             onClick = { onTrackClick(index) },
@@ -366,6 +383,7 @@ fun QueueSheet(
                                 isRadioItem = true,
                                 isDragging = false,
                                 swipeEnabled = true,
+                                isDownloaded = downloadedTrackIds.contains(track.videoId),
                                 flyOffOnCommit = true,
                                 rowKey = "radio:${track.videoId}",
                                 onClick = { onRadioTrackClick(track) },
@@ -386,7 +404,7 @@ fun QueueSheet(
                         modifier =
                             Modifier
                                 .navigationBarsPadding()
-                                .height(18.dp),
+                                .height(28.dp),
                     )
                 }
             }
@@ -418,6 +436,7 @@ private fun QueueTrackRow(
     isRadioItem: Boolean,
     isDragging: Boolean,
     swipeEnabled: Boolean,
+    isDownloaded: Boolean,
     flyOffOnCommit: Boolean,
     rowKey: Any,
     onClick: () -> Unit,
@@ -560,12 +579,42 @@ private fun QueueTrackRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = track.artist,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        if (track.isExplicit == true) {
+                            Icon(
+                                imageVector = Icons.Outlined.Explicit,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                        Text(
+                            text = track.artist,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (track.duration > 0) {
+                            Text(
+                                text = "• " + formatTime(track.duration * 1000L),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+                if (isDownloaded) {
+                    Icon(
+                        imageVector = Icons.Outlined.CheckCircle,
+                        contentDescription = stringResource(R.string.downloaded),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
                     )
                 }
                 if (isRadioItem) {

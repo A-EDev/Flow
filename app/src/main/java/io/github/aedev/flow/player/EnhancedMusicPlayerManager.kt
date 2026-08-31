@@ -309,10 +309,6 @@ object EnhancedMusicPlayerManager {
                     applyEqProfile(AudioEffectsController.resolvedEq.value)
                 }
 
-                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                    _shuffleEnabled.value = shuffleModeEnabled
-                }
-
                 override fun onRepeatModeChanged(repeatMode: Int) {
                     _repeatMode.value =
                         when (repeatMode) {
@@ -889,11 +885,16 @@ object EnhancedMusicPlayerManager {
         }
     }
 
+    /**
+     * Shuffle is app-owned state, not ExoPlayer's shuffle mode: enabling it physically
+     * rearranges the queue so the listed order always matches the playback order.
+     */
     fun toggleShuffle() {
         scope.launch {
-            player?.let {
-                it.shuffleModeEnabled = !it.shuffleModeEnabled
-            }
+            val enabling = !_shuffleEnabled.value
+            player?.shuffleModeEnabled = false
+            _shuffleEnabled.value = enabling
+            if (enabling) shuffleQueue()
         }
     }
 

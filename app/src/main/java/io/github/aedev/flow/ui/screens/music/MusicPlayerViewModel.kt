@@ -435,10 +435,6 @@ class MusicPlayerViewModel
             EnhancedMusicPlayerManager.moveMediaItem(fromIndex, toIndex)
         }
 
-        fun shuffleQueueOrder() {
-            EnhancedMusicPlayerManager.shuffleQueue()
-        }
-
         fun playNextFromQueuePosition(index: Int) {
             val current = _uiState.value.currentQueueIndex
             if (index == current) return

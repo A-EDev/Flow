@@ -55,6 +55,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -263,7 +264,7 @@ internal fun FullMusicPlayerContent(
 
         val maxHeightPx = constraints.maxHeight.toFloat()
         val queueHiddenY = maxHeightPx + navBarPx
-        val queueExpandedY = with(density) { (statusBarPadding + 72.dp).toPx() }
+        val queueExpandedY = 0f
         val safeHiddenY = queueHiddenY.coerceAtLeast(queueExpandedY)
 
         val queueOffsetY = remember { Animatable(safeHiddenY) }
@@ -603,10 +604,16 @@ internal fun FullMusicPlayerContent(
 
         val queueCornerRadius = 28.dp * (1f - queueFraction)
 
+        var handleDragActive by remember { mutableStateOf(false) }
+        var handleDragTotal by remember { mutableFloatStateOf(0f) }
         val queueDraggableState =
             rememberDraggableState { delta ->
+                handleDragTotal += delta
                 scope.launch {
-                    queueOffsetY.snapTo((queueOffsetY.value + delta).coerceIn(queueExpandedY, safeHiddenY))
+                    // A delta queued behind the release must not cancel the settle animation.
+                    if (handleDragActive) {
+                        queueOffsetY.snapTo((queueOffsetY.value + delta).coerceIn(queueExpandedY, safeHiddenY))
+                    }
                 }
             }
 
@@ -615,10 +622,13 @@ internal fun FullMusicPlayerContent(
                 orientation = Orientation.Vertical,
                 state = queueDraggableState,
                 onDragStarted = {
+                    handleDragActive = true
+                    handleDragTotal = 0f
                     scope.launch { queueOffsetY.stop() }
                 },
                 onDragStopped = { velocity ->
-                    settleQueueSheet(velocity)
+                    handleDragActive = false
+                    settleQueueSheet(velocity, handleDragTotal)
                 },
             )
 
@@ -695,7 +705,9 @@ internal fun FullMusicPlayerContent(
                     currentIndex = uiState.currentQueueIndex,
                     isRadioLoading = uiState.isRelatedLoading,
                     endlessRadioEnabled = uiState.endlessRadioEnabled,
+                    shuffleEnabled = uiState.shuffleEnabled,
                     repeatMode = uiState.repeatMode,
+                    downloadedTrackIds = uiState.downloadedTrackIds,
                     onTrackClick = { viewModel.playFromQueue(it) },
                     onMoveTrack = { from, to -> viewModel.moveTrack(from, to) },
                     onPlayNextFromQueue = { viewModel.playNextFromQueuePosition(it) },
@@ -704,7 +716,7 @@ internal fun FullMusicPlayerContent(
                     onPlayNextRadio = { viewModel.playNextFromRadio(it) },
                     onAddRadioToQueue = { viewModel.addRadioTrackToQueue(it) },
                     onToggleEndlessRadio = { viewModel.setEndlessRadioEnabled(it) },
-                    onShuffleQueue = { viewModel.shuffleQueueOrder() },
+                    onShuffleQueue = { viewModel.toggleShuffle() },
                     onCycleRepeat = { viewModel.toggleRepeat() },
                     dragHandleModifier = queueDragHandleModifier,
                 )
