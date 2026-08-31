@@ -1650,6 +1650,10 @@
     <string name="section_daily_mix_label">Daily Mix</string>
     <string name="section_rediscover">Rediscover</string>
     <string name="section_from_artists_you_love">From artists you love</string>
+    <string name="section_your_history">Your history</string>
+    <string name="artist_insights_played_times">Played %1$d times</string>
+    <string name="artist_insights_liked">Liked</string>
+    <string name="artist_known_related_badge">In your rotation</string>
     <string name="section_rotation_morning">Your morning rotation</string>
     <string name="section_rotation_afternoon">Your afternoon rotation</string>
     <string name="section_rotation_evening">Your evening rotation</string>

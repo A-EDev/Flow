@@ -14,8 +14,10 @@ import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
+import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
 import io.github.aedev.flow.data.recommendation.music.MusicQuickPicks
 import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
+import io.github.aedev.flow.data.recommendation.music.musicArtistKey
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.BrowseEndpoint
 import io.github.aedev.flow.innertube.models.SongItem
@@ -1168,7 +1170,13 @@ class MusicViewModel
          */
         fun fetchArtistDetails(channelId: String) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.value = _uiState.value.copy(isArtistLoading = true, artistDetails = null)
+                _uiState.value =
+                    _uiState.value.copy(
+                        isArtistLoading = true,
+                        artistDetails = null,
+                        artistInsights = null,
+                        knownRelatedArtistIds = emptySet(),
+                    )
 
                 supervisorScope {
                     val detailsDeferred =
@@ -1186,10 +1194,28 @@ class MusicViewModel
                     val details = detailsDeferred.await()
                     val isSubscribed = subscriptionDeferred.await()
 
+                    // The brain's history with this artist plus which of the
+                    // "fans also like" row the user already listens to — local reads.
+                    val insights = details?.let { musicBrain.artistInsights(channelId, it.name) }
+                    val knownRelated =
+                        details
+                            ?.relatedArtists
+                            ?.takeIf { it.isNotEmpty() }
+                            ?.let { related ->
+                                val known = musicBrain.listenedArtistKeys()
+                                related
+                                    .filter { artist ->
+                                        val key = musicArtistKey(artist.channelId.takeIf { it.isNotBlank() }, artist.name)
+                                        key in known || artist.name.trim().lowercase() in known
+                                    }.mapTo(HashSet()) { it.channelId }
+                            }.orEmpty()
+
                     _uiState.value =
                         _uiState.value.copy(
                             isArtistLoading = false,
                             artistDetails = details?.copy(isSubscribed = isSubscribed),
+                            artistInsights = insights,
+                            knownRelatedArtistIds = knownRelated,
                         )
                 }
             }
@@ -1222,7 +1248,12 @@ class MusicViewModel
         }
 
         fun clearArtistDetails() {
-            _uiState.value = _uiState.value.copy(artistDetails = null)
+            _uiState.value =
+                _uiState.value.copy(
+                    artistDetails = null,
+                    artistInsights = null,
+                    knownRelatedArtistIds = emptySet(),
+                )
         }
 
         /**
@@ -1459,6 +1490,8 @@ data class MusicUiState(
     val error: String? = null,
     val downloadedTrackIds: Set<String> = emptySet(),
     val artistDetails: ArtistDetails? = null,
+    val artistInsights: MusicArtistInsights? = null,
+    val knownRelatedArtistIds: Set<String> = emptySet(),
     val isArtistLoading: Boolean = false,
     val playlistDetails: PlaylistDetails? = null,
     val selectedPlaylist: PlaylistDetails? = null,

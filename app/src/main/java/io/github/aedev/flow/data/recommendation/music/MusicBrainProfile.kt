@@ -6,6 +6,15 @@
 
 package io.github.aedev.flow.data.recommendation.music
 
+import io.github.aedev.flow.ui.screens.music.MusicTrack
+
+/** The brain's view of one artist, rendered on that artist's page. */
+data class MusicArtistInsights(
+    val plays: Int,
+    val liked: Boolean,
+    val topTracks: List<MusicTrack>,
+)
+
 data class MusicTopArtist(
     val key: String,
     val name: String,

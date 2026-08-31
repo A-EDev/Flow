@@ -238,6 +238,50 @@ class MusicBrainEngine
         suspend fun timeOfDayTracks(limit: Int): List<MusicTrack> =
             localShelf(limit) { now, cap -> MusicBrainRanker.timeOfDayRotation(brain, now, cap) }
 
+        /**
+         * The brain's history with one artist, matched across both key forms.
+         * Null when the brain has never counted a play for them.
+         */
+        suspend fun artistInsights(
+            artistId: String?,
+            artistName: String,
+        ): MusicArtistInsights? {
+            ensureInitialized()
+            return mutex.withLock {
+                val keys =
+                    buildSet {
+                        add(musicArtistKey(artistId, artistName))
+                        artistName.trim().lowercase().takeIf { it.isNotEmpty() }?.let { add(it) }
+                    }
+                val affinity = keys.mapNotNull { brain.artistAffinity[it] }.maxByOrNull { it.plays }
+                if (affinity == null || affinity.plays <= 0) return@withLock null
+                val topTracks =
+                    brain.trackMeta.entries
+                        .filter { it.value.artistKey in keys }
+                        .mapNotNull { (id, _) ->
+                            brain.trackPlays[id]?.takeIf { it.isNotEmpty() }?.let { Triple(id, it.size, it.max()) }
+                        }.sortedWith(
+                            compareByDescending<Triple<String, Int, Long>> { it.second }.thenByDescending { it.third },
+                        ).take(10)
+                        .mapNotNull { trackFromMeta(it.first) }
+                MusicArtistInsights(plays = affinity.plays, liked = affinity.liked, topTracks = topTracks)
+            }
+        }
+
+        /** Every key form of every artist with counted plays — badge lookups on artist pages. */
+        suspend fun listenedArtistKeys(): Set<String> {
+            ensureInitialized()
+            return mutex.withLock {
+                val out = HashSet<String>()
+                for ((key, affinity) in brain.artistAffinity) {
+                    if (affinity.plays <= 0 || brain.isArtistBlocked(key)) continue
+                    out.add(key)
+                    affinity.display.takeIf { it.isNotBlank() }?.let { out.add(it.trim().lowercase()) }
+                }
+                out
+            }
+        }
+
         private suspend fun localShelf(
             limit: Int,
             pick: (nowMs: Long, cap: Int) -> List<String>,
