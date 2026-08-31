@@ -7,9 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -39,7 +36,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +51,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private enum class PlaybackButtonType { PREVIOUS, PLAY_PAUSE, NEXT }
+
 @Composable
 fun PlayerPlaybackControls(
     isPlaying: Boolean,
@@ -64,102 +62,141 @@ fun PlayerPlaybackControls(
     onNextClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var lastClicked by remember { mutableStateOf<PlaybackButtonType?>(null) }
+    var clickTrigger by remember { mutableIntStateOf(0) }
+    val latestIsPlaying by rememberUpdatedState(isPlaying)
+    val isPlayPauseLocked =
+        lastClicked == PlaybackButtonType.NEXT || lastClicked == PlaybackButtonType.PREVIOUS
+    var playPauseVisualState by remember { mutableStateOf(isPlaying) }
+    var pendingPlayPauseState by remember { mutableStateOf<Boolean?>(null) }
+    val hapticFeedback = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(lastClicked, clickTrigger) {
+        if (lastClicked != null) {
+            val releaseDelay = if (lastClicked == PlaybackButtonType.PLAY_PAUSE) 220L else 600L
+            delay(releaseDelay)
+            lastClicked = null
+        }
+    }
+
+    // Latch the icon while a skip is in flight so play/pause doesn't flicker on track changes.
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            pendingPlayPauseState = true
+            return@LaunchedEffect
+        }
+        if (lastClicked != PlaybackButtonType.PLAY_PAUSE) {
+            delay(220L)
+        }
+        if (!latestIsPlaying) {
+            pendingPlayPauseState = false
+        }
+    }
+
+    LaunchedEffect(isPlayPauseLocked, pendingPlayPauseState) {
+        if (!isPlayPauseLocked) {
+            pendingPlayPauseState?.let {
+                playPauseVisualState = it
+                pendingPlayPauseState = null
+            }
+        }
+    }
+
+    val elasticSpec = spring<Float>(dampingRatio = 0.62f, stiffness = 720f)
+
+    fun weightFor(
+        button: PlaybackButtonType,
+        base: Float,
+        expanded: Float,
+        compressed: Float,
+    ): Float =
+        when (lastClicked) {
+            button -> expanded
+            null -> base
+            else -> compressed
+        }
+
+    val playPauseWeight by animateFloatAsState(
+        targetValue = weightFor(PlaybackButtonType.PLAY_PAUSE, 1.3f, 1.9f, 1.1f),
+        animationSpec = elasticSpec,
+        label = "playPauseWeight",
+    )
+    val previousWeight by animateFloatAsState(
+        targetValue = weightFor(PlaybackButtonType.PREVIOUS, 0.45f, 0.65f, 0.35f),
+        animationSpec = elasticSpec,
+        label = "previousWeight",
+    )
+    val nextWeight by animateFloatAsState(
+        targetValue = weightFor(PlaybackButtonType.NEXT, 0.45f, 0.65f, 0.35f),
+        animationSpec = elasticSpec,
+        label = "nextWeight",
+    )
+    val playPauseCorner by animateDpAsState(
+        targetValue = if (playPauseVisualState) 18.dp else 34.dp,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 380f),
+        label = "playPauseCorner",
+    )
+
     Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(68.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val previousInteractionSource = remember { MutableInteractionSource() }
-        val nextInteractionSource = remember { MutableInteractionSource() }
-        val interactionSource = remember { MutableInteractionSource() }
-        var isPressed by remember { mutableStateOf(false) }
-        var isPreviousPressed by remember { mutableStateOf(false) }
-        var isNextPressed by remember { mutableStateOf(false) }
-
-        val elasticSpec = spring<Float>(dampingRatio = 0.62f, stiffness = 720f)
-
-        val playPauseWeight by animateFloatAsState(
-            targetValue =
-                if (isPressed) {
-                    1.9f
-                } else if (isPreviousPressed || isNextPressed) {
-                    1.1f
-                } else {
-                    1.3f
-                },
-            animationSpec = elasticSpec,
-            label = "playPauseWeight",
-        )
-        val previousWeight by animateFloatAsState(
-            targetValue =
-                if (isPreviousPressed) {
-                    0.65f
-                } else if (isPressed) {
-                    0.35f
-                } else {
-                    0.45f
-                },
-            animationSpec = elasticSpec,
-            label = "previousWeight",
-        )
-        val nextWeight by animateFloatAsState(
-            targetValue =
-                if (isNextPressed) {
-                    0.65f
-                } else if (isPressed) {
-                    0.35f
-                } else {
-                    0.45f
-                },
-            animationSpec = elasticSpec,
-            label = "nextWeight",
+        ElasticControlButton(
+            weight = previousWeight,
+            icon = Icons.Rounded.SkipPrevious,
+            contentDescription = stringResource(R.string.previous),
+            onClick = {
+                lastClicked = PlaybackButtonType.PREVIOUS
+                clickTrigger++
+                scope.launch {
+                    delay(180L)
+                    onPreviousClick()
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            iconSize = 30.dp,
         )
 
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(68.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ElasticControlButton(
-                weight = previousWeight,
-                icon = Icons.Rounded.SkipPrevious,
-                contentDescription = stringResource(R.string.previous),
-                onClick = onPreviousClick,
-                interactionSource = previousInteractionSource,
-                onPressedChange = { isPreviousPressed = it },
-                containerColor = Color.White.copy(alpha = 0.12f),
-                contentColor = Color.White,
-                iconSize = 30.dp,
-            )
+        ElasticControlButton(
+            weight = playPauseWeight,
+            icon = if (playPauseVisualState) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+            contentDescription =
+                if (playPauseVisualState) stringResource(R.string.pause) else stringResource(R.string.play),
+            onClick = {
+                lastClicked = PlaybackButtonType.PLAY_PAUSE
+                clickTrigger++
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onPlayPauseToggle()
+            },
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            iconSize = 36.dp,
+            cornerRadius = playPauseCorner,
+            isBuffering = isBuffering,
+        )
 
-            ElasticControlButton(
-                weight = playPauseWeight,
-                icon = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
-                onClick = onPlayPauseToggle,
-                interactionSource = interactionSource,
-                onPressedChange = { isPressed = it },
-                containerColor = Color.White,
-                contentColor = Color.Black,
-                iconSize = 36.dp,
-                isBuffering = isBuffering,
-            )
-
-            ElasticControlButton(
-                weight = nextWeight,
-                icon = Icons.Rounded.SkipNext,
-                contentDescription = stringResource(R.string.next),
-                onClick = onNextClick,
-                interactionSource = nextInteractionSource,
-                onPressedChange = { isNextPressed = it },
-                containerColor = Color.White.copy(alpha = 0.12f),
-                contentColor = Color.White,
-                iconSize = 30.dp,
-            )
-        }
+        ElasticControlButton(
+            weight = nextWeight,
+            icon = Icons.Rounded.SkipNext,
+            contentDescription = stringResource(R.string.next),
+            onClick = {
+                lastClicked = PlaybackButtonType.NEXT
+                clickTrigger++
+                scope.launch {
+                    delay(180L)
+                    onNextClick()
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            iconSize = 30.dp,
+        )
     }
 }
 
@@ -249,8 +286,8 @@ private fun SecondaryActionButton(
         interactionSource = interactionSource,
         colors =
             IconButtonDefaults.iconButtonColors(
-                containerColor = if (isActive) activeColor.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f),
-                contentColor = if (isActive) activeColor else Color.White.copy(alpha = 0.68f),
+                containerColor = if (isActive) activeColor.copy(alpha = 0.18f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                contentColor = if (isActive) activeColor else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         modifier =
             Modifier
@@ -274,11 +311,10 @@ private fun RowScope.ElasticControlButton(
     icon: ImageVector,
     contentDescription: String?,
     onClick: () -> Unit,
-    interactionSource: MutableInteractionSource,
-    onPressedChange: (Boolean) -> Unit,
     containerColor: Color,
     contentColor: Color,
     iconSize: Dp,
+    cornerRadius: Dp = 34.dp,
     isBuffering: Boolean = false,
 ) {
     Box(
@@ -286,20 +322,10 @@ private fun RowScope.ElasticControlButton(
             Modifier
                 .weight(weight)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(50))
+                .clip(RoundedCornerShape(cornerRadius))
                 .background(containerColor)
-                .pointerInput(onPressedChange) {
-                    awaitEachGesture {
-                        try {
-                            awaitFirstDown(requireUnconsumed = false)
-                            onPressedChange(true)
-                            waitForUpOrCancellation()
-                        } finally {
-                            onPressedChange(false)
-                        }
-                    }
-                }.clickable(
-                    interactionSource = interactionSource,
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                 ) { onClick() },
         contentAlignment = Alignment.Center,
@@ -406,9 +432,9 @@ fun PlayerProgressSlider(
                         interactionSource = interactionSource,
                         colors =
                             SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                                thumbColor = MaterialTheme.colorScheme.onSurface,
+                                activeTrackColor = MaterialTheme.colorScheme.onSurface,
+                                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                             ),
                         modifier =
                             Modifier
@@ -427,9 +453,9 @@ fun PlayerProgressSlider(
                         interactionSource = interactionSource,
                         colors =
                             SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                                thumbColor = MaterialTheme.colorScheme.onSurface,
+                                activeTrackColor = MaterialTheme.colorScheme.onSurface,
+                                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                             ),
                         modifier =
                             Modifier
@@ -446,9 +472,9 @@ fun PlayerProgressSlider(
                         valueRange = 0f..sliderEnd,
                         colors =
                             SliderDefaults.colors(
-                                activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.3f),
-                                thumbColor = Color.White,
+                                activeTrackColor = MaterialTheme.colorScheme.onSurface,
+                                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                thumbColor = MaterialTheme.colorScheme.onSurface,
                             ),
                         isPlaying = isPlaying,
                     )
@@ -467,8 +493,8 @@ fun PlayerProgressSlider(
                                 sliderState = sliderState,
                                 colors =
                                     SliderDefaults.colors(
-                                        activeTrackColor = Color.White,
-                                        inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                                        activeTrackColor = MaterialTheme.colorScheme.onSurface,
+                                        inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                                     ),
                                 trackHeight = 4.dp,
                             )
@@ -500,7 +526,7 @@ fun PlayerProgressSlider(
                                         .size(24.dp)
                                         .graphicsLayer { alpha = thumbAlpha }
                                         .shadow(8.dp, CircleShape)
-                                        .background(Color.White, CircleShape),
+                                        .background(MaterialTheme.colorScheme.onSurface, CircleShape),
                             )
                         },
                         track = {
@@ -512,7 +538,7 @@ fun PlayerProgressSlider(
                                         .fillMaxWidth()
                                         .height(animatedTrackHeight)
                                         .clip(RoundedCornerShape(4.dp))
-                                        .background(Color.White.copy(alpha = 0.15f)),
+                                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)),
                             ) {
                                 // Active Track
                                 Box(
@@ -524,8 +550,8 @@ fun PlayerProgressSlider(
                                             .background(
                                                 Brush.horizontalGradient(
                                                     listOf(
-                                                        Color.White.copy(alpha = 0.8f),
-                                                        Color.White,
+                                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                                        MaterialTheme.colorScheme.onSurface,
                                                     ),
                                                 ),
                                             ),
@@ -550,13 +576,13 @@ fun PlayerProgressSlider(
             Text(
                 formatTime(displayedPositionMs),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (isInteracting) Color.White else Color.White.copy(alpha = 0.5f),
+                color = if (isInteracting) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 fontWeight = if (isInteracting) FontWeight.Bold else FontWeight.Medium,
             )
             Text(
                 formatTime(duration),
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 fontWeight = FontWeight.Medium,
             )
         }
@@ -580,10 +606,10 @@ fun PlayerMainActionButtons(
         modifier =
             modifier
                 .clip(RoundedCornerShape(32.dp))
-                .background(Color.White.copy(alpha = 0.08f))
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 .border(
                     width = 1.dp,
-                    color = Color.White.copy(alpha = 0.1f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(32.dp),
                 ).padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -598,7 +624,7 @@ fun PlayerMainActionButtons(
             Icon(
                 imageVector = if (isDownloaded) Icons.Rounded.OfflinePin else Icons.Outlined.Download,
                 contentDescription = stringResource(R.string.download),
-                tint = if (isDownloaded) accentColor else Color.White,
+                tint = if (isDownloaded) accentColor else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -611,7 +637,7 @@ fun PlayerMainActionButtons(
                 Modifier
                     .width(1.dp)
                     .height(16.dp)
-                    .background(Color.White.copy(alpha = 0.2f)),
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)),
         )
 
         Spacer(modifier = Modifier.width(2.dp))
@@ -653,7 +679,7 @@ fun PlayerMainActionButtons(
             Icon(
                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                 contentDescription = stringResource(R.string.like),
-                tint = if (isLiked) accentColor else Color.White,
+                tint = if (isLiked) accentColor else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -690,10 +716,10 @@ fun PlayerLyricsRefreshButton(
         modifier =
             modifier
                 .clip(RoundedCornerShape(32.dp))
-                .background(Color.White.copy(alpha = 0.08f))
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 .border(
                     width = 1.dp,
-                    color = Color.White.copy(alpha = 0.1f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(32.dp),
                 ).padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -720,7 +746,7 @@ fun PlayerLyricsRefreshButton(
             Icon(
                 imageVector = Icons.Rounded.Refresh,
                 contentDescription = stringResource(R.string.refresh_lyrics),
-                tint = if (isLoading) accentColor else Color.White,
+                tint = if (isLoading) accentColor else MaterialTheme.colorScheme.onSurface,
                 modifier =
                     Modifier
                         .size(22.dp)

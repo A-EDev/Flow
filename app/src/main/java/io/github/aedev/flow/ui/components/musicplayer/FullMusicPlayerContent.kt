@@ -1,42 +1,69 @@
-package io.github.aedev.flow.ui.screens.music
+package io.github.aedev.flow.ui.components.musicplayer
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -47,16 +74,18 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
-import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
+import io.github.aedev.flow.service.Media3MusicService
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
-import io.github.aedev.flow.ui.components.musicplayer.*
+import io.github.aedev.flow.ui.screens.music.AddToPlaylistDialog
+import io.github.aedev.flow.ui.screens.music.CreatePlaylistDialog
+import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
+import io.github.aedev.flow.ui.screens.music.MusicTrack
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -64,13 +93,16 @@ private val PlayerHorizontalPadding = 28.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EnhancedMusicPlayerScreen(
+internal fun FullMusicPlayerContent(
     track: MusicTrack,
+    isPlayerSheetExpanded: Boolean,
+    palette: MusicPaletteColors,
+    backgroundStyle: MusicPlayerBackgroundStyle,
+    hideArtwork: Boolean,
     onBackClick: () -> Unit,
-    onArtistClick: (String) -> Unit = {},
-    onAlbumClick: (String) -> Unit = {},
-    onSleepTimerClick: () -> Unit = {},
-    isPlayerSheetExpanded: Boolean = true,
+    onArtistClick: (String) -> Unit,
+    onAlbumClick: (String) -> Unit,
+    onSleepTimerClick: () -> Unit,
     viewModel: MusicPlayerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -78,25 +110,15 @@ fun EnhancedMusicPlayerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
-    val playerPreferences = remember { PlayerPreferences(context) }
-    val backgroundStyle by playerPreferences.musicPlayerBackgroundStyle.collectAsState(
-        initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT,
-    )
-    val hideMusicPlayerArtwork by playerPreferences.hideMusicPlayerArtwork.collectAsState(initial = false)
+    val colorScheme = MaterialTheme.colorScheme
 
-    val isVideoMode = false
     val thumbnailUrl = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl
-    val musicPalette = rememberMusicPalette(thumbnailUrl)
-    val animatedSheetColor = musicPalette.base
-    val animatedAccentColor = musicPalette.accent
-    val adaptiveOnSheetColor = musicPalette.onBase
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
     var skipDirection by remember { mutableStateOf<SkipDirection?>(null) }
     val musicPlayer by EnhancedMusicPlayerManager.playerInstance.collectAsState()
 
-    // ── Sleep Timer ──────────────────────────────────────────────────────
     LaunchedEffect(musicPlayer) {
         SleepTimerManager.attachToPlayer(
             player = musicPlayer,
@@ -108,18 +130,14 @@ fun EnhancedMusicPlayerScreen(
     LaunchedEffect(Unit) {
         SleepTimerManager.attachExitCallback {
             EnhancedMusicPlayerManager.stop()
-            context.stopService(
-                android.content.Intent(context, io.github.aedev.flow.service.Media3MusicService::class.java),
-            )
+            context.stopService(Intent(context, Media3MusicService::class.java))
             (context as? android.app.Activity)?.finishAndRemoveTask()
         }
     }
 
-    // ── Unified Sheet State ──────────────────────────────────────────────
     var showQueueSheet by remember { mutableStateOf(false) }
-    var showInlineLyrics by remember { mutableStateOf(false) }
+    var showLyricsSheet by remember { mutableStateOf(false) }
 
-    // ── Dialogs & Sheets ─────────────────────────────────────────────────
     if (uiState.showCreatePlaylistDialog) {
         CreatePlaylistDialog(
             onDismiss = { viewModel.showCreatePlaylistDialog(false) },
@@ -213,10 +231,7 @@ fun EnhancedMusicPlayerScreen(
     }
 
     BoxWithConstraints(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black),
+        modifier = Modifier.fillMaxSize(),
     ) {
         val screenWidth = maxWidth
         val screenHeight = maxHeight
@@ -238,6 +253,7 @@ fun EnhancedMusicPlayerScreen(
         LaunchedEffect(isPlayerSheetExpanded, safeHiddenY) {
             if (!isPlayerSheetExpanded) {
                 showQueueSheet = false
+                showLyricsSheet = false
                 queueOffsetY.snapTo(safeHiddenY)
             }
         }
@@ -270,7 +286,6 @@ fun EnhancedMusicPlayerScreen(
         val miniHeaderAlpha = ((queueFraction - 0.5f) / 0.5f).coerceIn(0f, 1f)
         val miniHeaderTranslation = with(density) { 10.dp.toPx() * (1f - miniHeaderAlpha) }
 
-        // ── Sheet animation helper ──────────────────────────────────────────
         suspend fun animateQueueSheetTo(
             target: Float,
             initialVelocity: Float = 0f,
@@ -314,21 +329,17 @@ fun EnhancedMusicPlayerScreen(
             scope.launch { animateQueueSheetTo(target) }
         }
 
-        // ── Intercept system back when sheet is expanded ────────────────────
         BackHandler(enabled = queueSheetActive && queueFraction > 0.05f) {
             animateQueueSheet(safeHiddenY)
         }
 
         PlayerBackground(
-            thumbnailUrl = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl,
+            thumbnailUrl = thumbnailUrl,
             style = backgroundStyle,
-            paletteBaseColor = animatedSheetColor,
-            paletteAccentColor = animatedAccentColor,
+            paletteBaseColor = palette.base,
+            paletteAccentColor = palette.accent,
         )
 
-        // ══════════════════════════════════════════════════════════
-        //  MAIN PLAYER CONTENT
-        // ══════════════════════════════════════════════════════════
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier =
@@ -336,120 +347,60 @@ fun EnhancedMusicPlayerScreen(
                     .fillMaxSize()
                     .graphicsLayer { alpha = mainAlpha },
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .weight(1f),
             ) {
-                AnimatedContent(
-                    targetState = showInlineLyrics,
-                    transitionSpec = {
-                        (fadeIn(tween(500)) + scaleIn(tween(500), initialScale = 0.98f)) togetherWith
-                            (fadeOut(tween(260)) + scaleOut(tween(260), targetScale = 1.02f))
-                    },
-                    label = "artworkInlineLyrics",
-                ) { lyricsVisible ->
-                    if (lyricsVisible) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer {
-                                        scaleX = artworkScale
-                                        scaleY = artworkScale
-                                    },
-                        ) {
-                            InlineLyricsPanel(
-                                lyrics = uiState.lyrics,
-                                syncedLyrics = uiState.syncedLyrics,
-                                positionProvider = { positionState.value },
-                                isLoading = uiState.isLyricsLoading,
-                                accentColor = animatedAccentColor,
-                                onSeekTo = { viewModel.seekTo(it) },
-                                providerName = uiState.lyricsProviderName,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
-                    } else {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .pointerInput(onBackClick) {
-                                        var downwardDrag = 0f
-                                        detectVerticalDragGestures(
-                                            onDragStart = { downwardDrag = 0f },
-                                            onVerticalDrag = { change, dragAmount ->
-                                                if (dragAmount > 0f) {
-                                                    downwardDrag += dragAmount
-                                                    change.consume()
-                                                }
-                                            },
-                                            onDragEnd = {
-                                                if (downwardDrag > 72.dp.toPx()) {
-                                                    onBackClick()
-                                                }
-                                                downwardDrag = 0f
-                                            },
-                                            onDragCancel = { downwardDrag = 0f },
-                                        )
-                                    },
-                        ) {
-                            PlayerTopBar(
-                                playingFrom = uiState.playingFrom,
-                                onBackClick = onBackClick,
-                                onSleepTimerClick = onSleepTimerClick,
-                                onMoreOptionsClick = { showMoreOptions = true },
-                                modifier = Modifier.statusBarsPadding(),
-                                activeColor = animatedAccentColor,
-                                showSleepTimerAction = false,
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .padding(horizontal = PlayerHorizontalPadding)
-                                        .size(artworkSize)
-                                        .graphicsLayer {
-                                            scaleX = artworkScale
-                                            scaleY = artworkScale
-                                        }.shadow(
-                                            elevation = if (uiState.isPlaying) 32.dp else 12.dp,
-                                            shape = RoundedCornerShape(8.dp),
-                                            ambientColor = Color.Black.copy(alpha = 0.5f),
-                                            spotColor = Color.Black.copy(alpha = 0.6f),
-                                        ).clip(RoundedCornerShape(8.dp)),
-                            ) {
-                                PlayerArtwork(
-                                    thumbnailUrl = (uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl),
-                                    isVideoMode = isVideoMode,
-                                    isLoading = uiState.isLoading,
-                                    hideArtwork = hideMusicPlayerArtwork,
-                                    hiddenArtworkColor = animatedSheetColor,
-                                    player = EnhancedMusicPlayerManager.player,
-                                    onSkipPrevious = {
-                                        viewModel.skipToPrevious()
-                                        skipDirection = SkipDirection.PREVIOUS
-                                    },
-                                    onSkipNext = {
-                                        viewModel.skipToNext()
-                                        skipDirection = SkipDirection.NEXT
-                                    },
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
+                PlayerTopBar(
+                    playingFrom = uiState.playingFrom,
+                    onBackClick = onBackClick,
+                    onSleepTimerClick = onSleepTimerClick,
+                    onMoreOptionsClick = { showMoreOptions = true },
+                    modifier = Modifier.statusBarsPadding(),
+                    contentColor = colorScheme.onSurface,
+                    activeColor = colorScheme.primary,
+                    showSleepTimerAction = false,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Box(
+                    modifier =
+                        Modifier
+                            .padding(horizontal = PlayerHorizontalPadding)
+                            .size(artworkSize)
+                            .graphicsLayer {
+                                scaleX = artworkScale
+                                scaleY = artworkScale
+                            }.shadow(
+                                elevation = if (uiState.isPlaying) 24.dp else 8.dp,
+                                shape = RoundedCornerShape(8.dp),
+                            ).clip(RoundedCornerShape(8.dp)),
+                ) {
+                    PlayerArtwork(
+                        thumbnailUrl = thumbnailUrl,
+                        isVideoMode = false,
+                        isLoading = uiState.isLoading,
+                        hideArtwork = hideArtwork,
+                        hiddenArtworkColor = colorScheme.surfaceContainerHigh,
+                        player = EnhancedMusicPlayerManager.player,
+                        onSkipPrevious = {
+                            viewModel.skipToPrevious()
+                            skipDirection = SkipDirection.PREVIOUS
+                        },
+                        onSkipNext = {
+                            viewModel.skipToNext()
+                            skipDirection = SkipDirection.NEXT
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
+                Spacer(modifier = Modifier.weight(1f))
             }
 
-            Spacer(modifier = Modifier.height(if (showInlineLyrics) 8.dp else 16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // ── Title & Artist + Action Buttons ──
             Row(
                 modifier =
                     Modifier
@@ -467,7 +418,7 @@ fun EnhancedMusicPlayerScreen(
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleLarge,
-                            color = Color.White,
+                            color = colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -483,7 +434,7 @@ fun EnhancedMusicPlayerScreen(
                     Text(
                         text = uiState.currentTrack?.artist ?: track.artist,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -499,36 +450,18 @@ fun EnhancedMusicPlayerScreen(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                AnimatedContent(
-                    targetState = showInlineLyrics,
-                    transitionSpec = {
-                        (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.9f)) togetherWith
-                            (fadeOut(tween(160)) + scaleOut(tween(160), targetScale = 0.9f))
-                    },
-                    label = "lyricsActionsSwap",
-                ) { lyricsActive ->
-                    if (lyricsActive) {
-                        PlayerLyricsRefreshButton(
-                            isLoading = uiState.isLyricsLoading,
-                            accentColor = animatedAccentColor,
-                            onRefresh = { viewModel.refreshLyrics() },
-                        )
-                    } else {
-                        PlayerMainActionButtons(
-                            isLiked = uiState.isLiked,
-                            isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
-                            onLikeClick = { viewModel.toggleLike() },
-                            onDownloadClick = { viewModel.downloadTrack() },
-                            onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) },
-                            accentColor = animatedAccentColor,
-                        )
-                    }
-                }
+                PlayerMainActionButtons(
+                    isLiked = uiState.isLiked,
+                    isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
+                    onLikeClick = { viewModel.toggleLike() },
+                    onDownloadClick = { viewModel.downloadTrack() },
+                    onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) },
+                    accentColor = colorScheme.primary,
+                )
             }
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // ── Progress Slider ──
             PlayerProgressSlider(
                 positionProvider = { positionState.value },
                 duration = uiState.duration,
@@ -539,7 +472,6 @@ fun EnhancedMusicPlayerScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // ── Playback Controls ──
             PlayerPlaybackControls(
                 isPlaying = uiState.isPlaying,
                 isBuffering = uiState.isBuffering,
@@ -552,14 +484,14 @@ fun EnhancedMusicPlayerScreen(
             Spacer(modifier = Modifier.height(22.dp))
 
             PlayerSecondaryActions(
-                lyricsActive = showInlineLyrics,
+                lyricsActive = showLyricsSheet,
                 shuffleEnabled = uiState.shuffleEnabled,
                 repeatMode = uiState.repeatMode,
                 sleepTimerActive = SleepTimerManager.isActive,
-                accentColor = animatedAccentColor,
+                accentColor = colorScheme.primary,
                 onLyricsClick = {
                     uiState.currentTrack?.let { viewModel.ensureLyricsLoaded(it) }
-                    showInlineLyrics = !showInlineLyrics
+                    showLyricsSheet = true
                 },
                 onShuffleClick = { viewModel.toggleShuffle() },
                 onRepeatClick = { viewModel.toggleRepeat() },
@@ -601,7 +533,7 @@ fun EnhancedMusicPlayerScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                     ) {
                         AsyncImage(
-                            model = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl,
+                            model = thumbnailUrl,
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
@@ -613,7 +545,7 @@ fun EnhancedMusicPlayerScreen(
                             text = uiState.currentTrack?.title ?: "",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
+                            color = colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -621,7 +553,7 @@ fun EnhancedMusicPlayerScreen(
                         Text(
                             text = uiState.currentTrack?.artist ?: "",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -631,8 +563,8 @@ fun EnhancedMusicPlayerScreen(
                     onClick = { viewModel.togglePlayPause() },
                     colors =
                         IconButtonDefaults.filledIconButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black,
+                            containerColor = colorScheme.primary,
+                            contentColor = colorScheme.onPrimary,
                         ),
                     shape = CircleShape,
                     modifier = Modifier.size(36.dp),
@@ -667,7 +599,6 @@ fun EnhancedMusicPlayerScreen(
                 },
             )
 
-        // ── NestedScrollConnection: isolates sheet events from MusicPlayerBottomSheet ──
         val sheetNestedScrollConnection =
             remember(queueExpandedY, safeHiddenY) {
                 object : NestedScrollConnection {
@@ -735,9 +666,9 @@ fun EnhancedMusicPlayerScreen(
                         ).nestedScroll(sheetNestedScrollConnection),
             ) {
                 QueueSheet(
-                    sheetBackgroundColor = animatedSheetColor,
-                    accentColor = animatedAccentColor,
-                    onSheetColor = adaptiveOnSheetColor,
+                    sheetBackgroundColor = colorScheme.surfaceContainerHigh,
+                    accentColor = colorScheme.primary,
+                    onSheetColor = colorScheme.onSurface,
                     sheetCornerRadius = queueCornerRadius,
                     queue = uiState.queue,
                     automixTracks = uiState.autoplaySuggestions,
@@ -760,6 +691,20 @@ fun EnhancedMusicPlayerScreen(
         AnimatedSkipIndicators(
             direction = skipDirection,
             onAnimationComplete = { skipDirection = null },
+        )
+
+        MusicLyricsSheet(
+            visible = showLyricsSheet,
+            backdropBaseColor = palette.base,
+            accentColor = colorScheme.primary,
+            lyrics = uiState.lyrics,
+            syncedLyrics = uiState.syncedLyrics,
+            positionProvider = { positionState.value },
+            isLoading = uiState.isLyricsLoading,
+            providerName = uiState.lyricsProviderName,
+            onSeekTo = { viewModel.seekTo(it) },
+            onRefresh = { viewModel.refreshLyrics() },
+            onDismiss = { showLyricsSheet = false },
         )
     }
 }

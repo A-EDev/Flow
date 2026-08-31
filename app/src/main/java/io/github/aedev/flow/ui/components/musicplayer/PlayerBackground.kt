@@ -8,6 +8,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -33,26 +34,16 @@ fun PlayerBackground(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(
+                    if (style == MusicPlayerBackgroundStyle.DEFAULT) {
+                        MaterialTheme.colorScheme.surface
+                    } else {
+                        Color.Black
+                    },
+                ),
     ) {
         when (style) {
-            MusicPlayerBackgroundStyle.DEFAULT -> {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colorStops =
-                                        arrayOf(
-                                            0.00f to Color.Black,
-                                            0.45f to baseColor.copy(alpha = 0.22f),
-                                            1.00f to Color.Black,
-                                        ),
-                                ),
-                            ),
-                )
-            }
+            MusicPlayerBackgroundStyle.DEFAULT -> Unit
 
             MusicPlayerBackgroundStyle.BLUR -> {
                 BlurredArtworkLayer(thumbnailUrl = thumbnailUrl, alpha = 0.62f)

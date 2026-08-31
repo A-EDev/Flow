@@ -1,6 +1,11 @@
 package io.github.aedev.flow.ui.components.musicplayer
 
 import android.view.ViewGroup
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -10,10 +15,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -29,6 +36,7 @@ import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.size.Precision
 import io.github.aedev.flow.R
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlayerArtwork(
@@ -55,6 +63,9 @@ fun PlayerArtwork(
                 .build()
         }
 
+    val scope = rememberCoroutineScope()
+    val dragOffsetX = remember { Animatable(0f) }
+
     Box(
         modifier =
             modifier
@@ -63,17 +74,64 @@ fun PlayerArtwork(
                 .pointerInput(Unit) {
                     var totalDrag = 0f
                     detectHorizontalDragGestures(
-                        onDragStart = { totalDrag = 0f },
+                        onDragStart = {
+                            totalDrag = 0f
+                            scope.launch { dragOffsetX.stop() }
+                        },
                         onDragEnd = {
-                            if (totalDrag > 100) {
-                                onSkipPrevious()
-                            } else if (totalDrag < -100) {
-                                onSkipNext()
+                            val width = size.width.toFloat()
+                            when {
+                                totalDrag > 100 -> {
+                                    scope.launch {
+                                        dragOffsetX.animateTo(
+                                            targetValue = width,
+                                            animationSpec = tween(180, easing = FastOutSlowInEasing),
+                                        )
+                                        onSkipPrevious()
+                                        dragOffsetX.snapTo(-width)
+                                        dragOffsetX.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f),
+                                        )
+                                    }
+                                }
+
+                                totalDrag < -100 -> {
+                                    scope.launch {
+                                        dragOffsetX.animateTo(
+                                            targetValue = -width,
+                                            animationSpec = tween(180, easing = FastOutSlowInEasing),
+                                        )
+                                        onSkipNext()
+                                        dragOffsetX.snapTo(width)
+                                        dragOffsetX.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f),
+                                        )
+                                    }
+                                }
+
+                                else -> {
+                                    scope.launch {
+                                        dragOffsetX.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec =
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium,
+                                                ),
+                                        )
+                                    }
+                                }
                             }
+                        },
+                        onDragCancel = {
+                            scope.launch { dragOffsetX.animateTo(0f) }
                         },
                         onHorizontalDrag = { change, dragAmount ->
                             totalDrag += dragAmount
                             change.consume()
+                            scope.launch { dragOffsetX.snapTo(dragOffsetX.value + dragAmount * 0.6f) }
                         },
                     )
                 },
@@ -124,7 +182,13 @@ fun PlayerArtwork(
             AsyncImage(
                 model = artworkRequest,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationX = dragOffsetX.value
+                            alpha = (1f - kotlin.math.abs(dragOffsetX.value) / (size.width * 1.2f)).coerceIn(0f, 1f)
+                        },
                 contentScale = ContentScale.Crop,
             )
 
