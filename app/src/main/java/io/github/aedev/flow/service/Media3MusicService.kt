@@ -455,6 +455,7 @@ class Media3MusicService : MediaLibraryService() {
 
     private var learnMediaId: String? = null
     private var learnTrack: io.github.aedev.flow.ui.screens.music.MusicTrack? = null
+    private var learnGenre: String? = null
     private var learnDurationMs = 0L
     private var learnPlayedMs = 0L
     private var learnPlayingSinceMs = -1L
@@ -488,6 +489,10 @@ class Media3MusicService : MediaLibraryService() {
         // Pin the track now: by finalize time a new playlist may have replaced the
         // queue and the outgoing track would no longer resolve.
         learnTrack = resolveLearnTrack(mediaId)
+        // Pin the genre context too — it belongs to the queue this track started in.
+        learnGenre =
+            io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                .playContextGenre
         learnDurationMs = 0L
         learnPlayedMs = 0L
         learnPlayingSinceMs =
@@ -501,8 +506,10 @@ class Media3MusicService : MediaLibraryService() {
         val pinnedTrack = learnTrack
         val pinnedDurationMs = learnDurationMs
         val playedMs = learnPlayedMs
+        val pinnedGenre = learnGenre
         learnMediaId = null
         learnTrack = null
+        learnGenre = null
         learnDurationMs = 0L
         learnPlayedMs = 0L
         if (mediaId.isNullOrBlank() || playedMs <= 0) {
@@ -524,7 +531,7 @@ class Media3MusicService : MediaLibraryService() {
         Log.d(TAG, "listen finalize: $mediaId playedMs=$playedMs pct=${playedMs.toDouble() / durationMs}")
         // Engine-scoped, NOT lifecycleScope: the finalize from onDestroy runs after
         // this service's scope is already cancelled, and the session must still land.
-        musicBrain.onListenSessionAsync(track, playedMs.toDouble() / durationMs)
+        musicBrain.onListenSessionAsync(track, playedMs.toDouble() / durationMs, pinnedGenre)
     }
 
     /**

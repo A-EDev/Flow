@@ -204,6 +204,25 @@ internal fun MusicListeningPatternsSection(profile: MusicTasteProfile) {
 }
 
 @Composable
+internal fun MusicGenreAffinitySection(profile: MusicTasteProfile) {
+    val maxAffinity = profile.topGenres.maxOfOrNull { it.second } ?: 0.0
+    if (maxAffinity <= 0.0) return
+    DashboardSection(
+        title = stringResource(R.string.music_genre_affinity_title),
+        subtitle = stringResource(R.string.music_genre_affinity_subtitle),
+        icon = Icons.Outlined.LibraryMusic,
+    ) {
+        profile.topGenres.take(8).forEach { (genre, affinity) ->
+            CompactProgressRow(
+                title = genre.replaceFirstChar { it.titlecase() },
+                subtitle = affinity.percentLabel(),
+                value = affinity / maxAffinity,
+            )
+        }
+    }
+}
+
+@Composable
 internal fun MusicBlockedArtistsSection(
     blockedArtists: List<Pair<String, String>>,
     onUnblock: (String) -> Unit,

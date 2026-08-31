@@ -5,6 +5,13 @@ import kotlinx.serialization.Serializable
 
 enum class MusicItemType { SONG, ALBUM, PLAYLIST, ARTIST }
 
+/**
+ * Play-source prefix marking a genre/mood-scoped surface (genre rows, mood
+ * chips). The player strips it for the "Playing from" label and hands the genre
+ * to the music brain as listen-context provenance.
+ */
+const val MUSIC_GENRE_SOURCE_PREFIX = "genre:"
+
 @Serializable
 data class MusicTrack(
     val videoId: String,

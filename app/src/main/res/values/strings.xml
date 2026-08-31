@@ -1659,6 +1659,9 @@
     <string name="section_rotation_afternoon">Your afternoon rotation</string>
     <string name="section_rotation_evening">Your evening rotation</string>
     <string name="section_rotation_night">Your late-night rotation</string>
+    <string name="source_your_rotation">Your rotation</string>
+    <string name="music_genre_affinity_title">Genres and moods</string>
+    <string name="music_genre_affinity_subtitle">Learned from the genre and mood surfaces you actually play</string>
     <string name="recommendations_header">Recommendations</string>
     <string name="not_interested_desc">Show less from this artist for a while</string>
     <string name="dont_recommend_artist">Don\'t recommend %1$s</string>

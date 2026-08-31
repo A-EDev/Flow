@@ -633,7 +633,7 @@ fun EnhancedMusicScreen(
                                                                 thumbnailUrl = track.thumbnailUrl,
                                                                 thumbnailHeight = genreThumbnailHeight,
                                                                 isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                onClick = { onSongClick(track, tracks, genre) },
+                                                                onClick = { onSongClick(track, tracks, MUSIC_GENRE_SOURCE_PREFIX + genre) },
                                                                 onLongClick = {
                                                                     selectedTrack = track
                                                                     showBottomSheet = true
@@ -676,7 +676,16 @@ fun EnhancedMusicScreen(
                                                                             MusicItemType.PLAYLIST,
                                                                             -> onAlbumClick(track.videoId)
 
-                                                                            else -> onSongClick(track, section.tracks, section.title)
+                                                                            // Under a mood chip every section is that
+                                                                            // mood's content — tag plays with it.
+                                                                            else ->
+                                                                                onSongClick(
+                                                                                    track,
+                                                                                    section.tracks,
+                                                                                    uiState.selectedHomeChip?.title
+                                                                                        ?.let { MUSIC_GENRE_SOURCE_PREFIX + it }
+                                                                                        ?: section.title,
+                                                                                )
                                                                         }
                                                                     },
                                                                     onLongClick = {

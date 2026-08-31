@@ -102,6 +102,7 @@ class MusicBrainEngine
         suspend fun onListenSession(
             track: MusicTrack,
             playedFraction: Double,
+            genre: String? = null,
         ) {
             if (track.videoId.isBlank() || track.videoId.startsWith(LOCAL_MEDIA_PREFIX)) return
             val pct = playedFraction.coerceIn(0.0, 1.0)
@@ -113,7 +114,10 @@ class MusicBrainEngine
             if (playerPreferences.isDeepFlowCurrentlyActive()) return
             ensureInitialized()
 
-            val signal = track.toMusicSignal(pct)
+            val signal =
+                track
+                    .toMusicSignal(pct)
+                    .copy(genre = genre?.trim()?.lowercase()?.takeIf { it.isNotEmpty() })
             if (signal.artistKey.isEmpty()) {
                 Log.w(TAG, "listen ${track.videoId} has no artist key")
                 return
@@ -139,10 +143,11 @@ class MusicBrainEngine
         fun onListenSessionAsync(
             track: MusicTrack,
             playedFraction: Double,
+            genre: String? = null,
         ) {
             saveScope.launch {
                 try {
-                    onListenSession(track, playedFraction)
+                    onListenSession(track, playedFraction, genre)
                 } catch (e: Exception) {
                     Log.w(TAG, "Listen session failed: ${e.message}")
                 }
@@ -266,6 +271,12 @@ class MusicBrainEngine
                         .mapNotNull { trackFromMeta(it.first) }
                 MusicArtistInsights(plays = affinity.plays, liked = affinity.liked, topTracks = topTracks)
             }
+        }
+
+        /** Read-only copy of the learned genre/mood affinities (lowercased keys). */
+        suspend fun genreAffinitySnapshot(): Map<String, Double> {
+            ensureInitialized()
+            return mutex.withLock { HashMap(brain.genreAffinity) }
         }
 
         /** Every key form of every artist with counted plays — badge lookups on artist pages. */

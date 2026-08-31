@@ -255,6 +255,11 @@ fun FlowPersonalityScreen(
                         MusicListeningPatternsSection(profile = profile)
                     }
                 }
+                if (profile.topGenres.isNotEmpty()) {
+                    item(key = "music_genres") {
+                        MusicGenreAffinitySection(profile = profile)
+                    }
+                }
                 if (musicBlockedArtists.isNotEmpty()) {
                     item(key = "music_blocked") {
                         MusicBlockedArtistsSection(

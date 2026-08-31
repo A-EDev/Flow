@@ -589,9 +589,17 @@ class MusicViewModel
                 val homeSections = homeResult.first
                 val homeContinuation = homeResult.second
 
-                // Fetch Chips
+                // Fetch Chips — ordered by learned genre/mood affinity so the
+                // moods the user actually plays lead the row (stable otherwise).
                 val homeChips = musicRecommendationAlgorithm.getHomeChips()
-                _uiState.update { it.copy(homeChips = homeChips) }
+                val genreAffinity = musicBrain.genreAffinitySnapshot()
+                val orderedChips =
+                    if (genreAffinity.isEmpty()) {
+                        homeChips
+                    } else {
+                        homeChips.sortedByDescending { genreAffinity[it.title.trim().lowercase()] ?: 0.0 }
+                    }
+                _uiState.update { it.copy(homeChips = orderedChips) }
 
                 if (homeSections.isNotEmpty()) {
                     processHomeSections(homeSections)

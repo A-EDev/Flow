@@ -44,6 +44,15 @@ import kotlin.math.pow
 object EnhancedMusicPlayerManager {
     var player: Player? = null
         private set
+
+    /**
+     * Genre/mood of the surface the current queue was started from, or null for
+     * unscoped queues. Stamped into listen signals by the music service so the
+     * brain learns time-of-day × genre context.
+     */
+    @Volatile
+    var playContextGenre: String? = null
+
     private var appContext: Context? = null
 
     private val _playerInstance = MutableStateFlow<Player?>(null)
@@ -1017,6 +1026,7 @@ object EnhancedMusicPlayerManager {
             _currentTrack.value = null
             _queue.value = emptyList()
             _automixItems.value = emptyList()
+            playContextGenre = null
             _currentQueueIndex.value = 0
             clearPendingPlayNext()
             _currentPosition.value = 0L
