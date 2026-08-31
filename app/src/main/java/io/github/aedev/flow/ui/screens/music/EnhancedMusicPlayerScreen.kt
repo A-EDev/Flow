@@ -56,7 +56,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
-import io.github.aedev.flow.ui.screens.music.player.*
+import io.github.aedev.flow.ui.components.musicplayer.*
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 

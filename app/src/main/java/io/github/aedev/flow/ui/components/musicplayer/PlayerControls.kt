@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -51,8 +51,6 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.ui.components.pressScale
-import io.github.aedev.flow.ui.screens.music.player.components.PlayerSliderTrack
-import io.github.aedev.flow.ui.screens.music.player.components.SquigglySlider
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

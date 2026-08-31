@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable

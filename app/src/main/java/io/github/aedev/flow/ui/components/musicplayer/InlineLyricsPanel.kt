@@ -6,7 +6,7 @@
  * Upstream files: ui/component/ExperimentalLyrics.kt, LyricsLine.kt,
  * LyricsCommon.kt, and ui/utils/FadingEdge.kt.
  */
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import android.graphics.BlurMaskFilter
 import android.graphics.RenderEffect

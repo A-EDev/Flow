@@ -4,7 +4,7 @@
 // THIS IMPLEMENTATION WAS INSPIRED BY METROLIST
 // ============================================================================
 
-package io.github.aedev.flow.ui.screens.music.player.components
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas

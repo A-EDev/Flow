@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

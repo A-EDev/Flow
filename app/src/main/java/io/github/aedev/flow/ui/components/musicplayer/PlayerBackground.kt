@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween

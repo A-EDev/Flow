@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import android.view.ViewGroup
 import androidx.compose.foundation.Image
