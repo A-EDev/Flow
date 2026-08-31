@@ -56,6 +56,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.util.Locale
 import javax.inject.Inject
@@ -135,6 +136,11 @@ class Media3MusicService : MediaLibraryService() {
     private var radioTopUpJob: Job? = null
     private var radioAutoplayEnabled = true
     private var lastQueueIds: List<String>? = null
+
+    // Queue-end continuation: appends go through the manager's MediaController and
+    // land asynchronously, so a resume at STATE_ENDED must wait for the timeline.
+    private var radioResumeWhenAppended = false
+    private var radioEndedItemCount = 0
 
     private val retryCountMap = mutableMapOf<String, Int>()
     private val lastPlaybackErrorAtMap = mutableMapOf<String, Long>()
@@ -362,6 +368,30 @@ class Media3MusicService : MediaLibraryService() {
                     }
 
                     widgetPublisher.publish(player)
+                }
+
+                override fun onTimelineChanged(
+                    timeline: androidx.media3.common.Timeline,
+                    reason: Int,
+                ) {
+                    // Radio tracks appended at queue end arrive asynchronously (the
+                    // manager routes addMediaItem through its MediaController) —
+                    // resume the moment they actually land in the playlist.
+                    if (!radioResumeWhenAppended) return
+                    if (player.playbackState != Player.STATE_ENDED) {
+                        radioResumeWhenAppended = false
+                        return
+                    }
+                    if (player.mediaItemCount <= radioEndedItemCount) return
+                    radioResumeWhenAppended = false
+                    if (player.hasNextMediaItem()) {
+                        player.seekToNextMediaItem()
+                    } else {
+                        // Shuffle can slot the new items before the current position;
+                        // the appended range always starts at the old item count.
+                        player.seekTo(radioEndedItemCount, 0L)
+                    }
+                    player.play()
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -1055,6 +1085,7 @@ class Media3MusicService : MediaLibraryService() {
         radioSeedId = currentId
         radioContinuation = null
         radioEndpoint = null
+        radioResumeWhenAppended = false
         startRadio(currentId)
     }
 
@@ -1101,6 +1132,9 @@ class Media3MusicService : MediaLibraryService() {
                     if (ranked.isNotEmpty()) {
                         io.github.aedev.flow.player.EnhancedMusicPlayerManager
                             .updateAutomixItems(ranked)
+                        // The queue may already be short (or ended) by the time the
+                        // seed arrives — move pool tracks into it right away.
+                        withContext(Dispatchers.Main) { maybeExtendRadio() }
                     }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
@@ -1118,10 +1152,13 @@ class Media3MusicService : MediaLibraryService() {
     private fun maybeExtendRadio() {
         if (!radioAutoplayEnabled) return
         if (!::player.isInitialized) return
-        // Repeat and shuffle already produce an endless queue — matching desktop.
+        // Repeat already produces an endless queue — matching desktop.
         if (player.repeatMode != Player.REPEAT_MODE_OFF) return
         val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
-        if (manager.shuffleEnabled.value) return
+        val ended = player.playbackState == Player.STATE_ENDED
+        // Shuffle keeps meaning "shuffle MY queue" while it plays, but once the
+        // shuffled queue is exhausted the radio still has to carry on.
+        if (manager.shuffleEnabled.value && !ended) return
         if (manager.currentTrack.value
                 ?.videoId
                 ?.startsWith(LOCAL_MEDIA_PREFIX) == true
@@ -1129,14 +1166,19 @@ class Media3MusicService : MediaLibraryService() {
             return
         }
 
+        // At ENDED every item has played, whatever the timeline says (shuffle).
         val remaining = player.mediaItemCount - player.currentMediaItemIndex - 1
-        if (remaining > RADIO_MIN_UPCOMING) return
+        if (!ended && remaining > RADIO_MIN_UPCOMING) return
 
         val queueIds = manager.queue.value.mapTo(HashSet()) { it.videoId }
         val batch =
             manager.automixItems.value
                 .filterNot { it.videoId in queueIds }
                 .take(RADIO_APPEND_BATCH)
+        if (ended && batch.isNotEmpty() && !radioResumeWhenAppended) {
+            radioResumeWhenAppended = true
+            radioEndedItemCount = player.mediaItemCount
+        }
         batch.forEach { track ->
             manager.addToQueue(track)
             manager.removeAutomixItem(track.videoId)
@@ -1146,7 +1188,9 @@ class Media3MusicService : MediaLibraryService() {
             lastQueueIds = manager.queue.value.map { it.videoId }
             Log.d(TAG, "Radio appended ${batch.size} tracks to the queue")
         }
-        if (manager.automixItems.value.size < RADIO_POOL_LOW_WATER) extendRadioPool()
+        // A dead-ended queue with nothing appendable needs a fetch regardless of
+        // pool size — the pool may be all duplicates of what already played.
+        if (manager.automixItems.value.size < RADIO_POOL_LOW_WATER || (ended && batch.isEmpty())) extendRadioPool()
     }
 
     /** Fetch the next radio page and APPEND it to the pool — never replaces. */
@@ -1182,6 +1226,11 @@ class Media3MusicService : MediaLibraryService() {
                     Log.d(TAG, "Radio pool topped up with ${ranked.size} tracks, continuation=${radioContinuation != null}")
                     if (ranked.isNotEmpty()) {
                         manager.appendAutomixItems(ranked)
+                        // If the queue ended while this fetch was in flight, feed it
+                        // now — no further transition will ever call maybeExtendRadio.
+                        // Re-entry is safe: this job is still active, so a nested
+                        // extendRadioPool() is a no-op.
+                        withContext(Dispatchers.Main) { maybeExtendRadio() }
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Radio top-up failed: ${e.message}")
