@@ -65,15 +65,34 @@ fun EnhancedMusicScreen(
     val musicListState = rememberLazyListState()
     val quickPicksGridState = rememberLazyGridState()
 
+    // Planner-lite: the brain's maturity decides which sections lead the page —
+    // a cold brain has nothing personal to say, a mature one leads with taste.
     val sectionOrder =
-        remember(uiState.sessionSeed) {
+        remember(uiState.sessionSeed, uiState.brainMaturity) {
             val defaultOrder = HomeSectionType.values().toList()
             val anchored =
-                listOf(
-                    HomeSectionType.QUICK_PICKS,
-                    HomeSectionType.FROM_COMMUNITY,
-                    HomeSectionType.DAILY_DISCOVER,
-                )
+                when (uiState.brainMaturity) {
+                    "cold_start" ->
+                        listOf(
+                            HomeSectionType.CHARTS,
+                            HomeSectionType.MOODS_AND_GENRES,
+                            HomeSectionType.NEW_RELEASES,
+                        )
+
+                    "mature" ->
+                        listOf(
+                            HomeSectionType.QUICK_PICKS,
+                            HomeSectionType.SIMILAR_TO,
+                            HomeSectionType.FROM_COMMUNITY,
+                        )
+
+                    else ->
+                        listOf(
+                            HomeSectionType.QUICK_PICKS,
+                            HomeSectionType.FROM_COMMUNITY,
+                            HomeSectionType.DAILY_DISCOVER,
+                        )
+                }
             val dynamicPool = defaultOrder - anchored
             anchored + dynamicPool.shuffled(java.util.Random(uiState.sessionSeed))
         }

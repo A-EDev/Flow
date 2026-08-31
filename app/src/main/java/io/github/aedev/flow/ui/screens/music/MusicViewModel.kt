@@ -523,6 +523,10 @@ class MusicViewModel
             // the shelf earns items only from live sessions and refreshes per track change.
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 refreshLocalShelves()
+                // Maturity steers which sections lead the page (planner-lite).
+                runCatching { musicBrain.tasteProfile().maturity }
+                    .getOrNull()
+                    ?.let { maturity -> _uiState.update { it.copy(brainMaturity = maturity) } }
             }
 
             // Daily Mixes — co-occurrence clusters expanded through related recall.
@@ -1539,6 +1543,7 @@ data class MusicUiState(
     val dailyMixSections: List<MusicSection> = emptyList(),
     val homeChips: List<HomePage.Chip> = emptyList(),
     val selectedHomeChip: HomePage.Chip? = null,
+    val brainMaturity: String? = null, // "cold_start" / "warming" / "mature" — steers section order
     val explorePage: io.github.aedev.flow.innertube.pages.ExplorePage? = null,
     val moodsAndGenres: List<MoodAndGenres> = emptyList(),
     val selectedGenre: String? = null,
