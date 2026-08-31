@@ -1648,6 +1648,11 @@
     <string name="section_on_repeat">On Repeat</string>
     <string name="section_daily_mix_title">%1$s Mix</string>
     <string name="section_daily_mix_label">Daily Mix</string>
+    <string name="section_rediscover">Rediscover</string>
+    <string name="section_rotation_morning">Your morning rotation</string>
+    <string name="section_rotation_afternoon">Your afternoon rotation</string>
+    <string name="section_rotation_evening">Your evening rotation</string>
+    <string name="section_rotation_night">Your late-night rotation</string>
     <string name="recommendations_header">Recommendations</string>
     <string name="not_interested_desc">Show less from this artist for a while</string>
     <string name="dont_recommend_artist">Don\'t recommend %1$s</string>

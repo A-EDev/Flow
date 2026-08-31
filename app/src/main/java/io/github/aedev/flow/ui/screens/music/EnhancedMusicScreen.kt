@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
@@ -283,25 +284,28 @@ fun EnhancedMusicScreen(
                                     }
                                 }
                             } else {
-                                // On Repeat — the local music brain's relistening shelf, zero network
+                                // The local-brain cluster: On Repeat, the time-of-day
+                                // rotation and Rediscover render from stored meta only.
                                 if (uiState.onRepeatTracks.isNotEmpty()) {
                                     item {
-                                        NavigationTitle(title = stringResource(R.string.section_on_repeat))
-                                        val onRepeatThumbnailHeight = currentGridThumbnailHeight()
-                                        LazyRow(
-                                            contentPadding = PaddingValues(horizontal = 12.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        ) {
-                                            items(uiState.onRepeatTracks, key = { it.videoId }) { track ->
-                                                GridItem(
-                                                    title = track.title,
-                                                    subtitle = track.artist,
-                                                    thumbnailUrl = track.thumbnailUrl,
-                                                    thumbnailHeight = onRepeatThumbnailHeight,
-                                                    onClick = { onSongClick(track, uiState.onRepeatTracks, "on_repeat") },
-                                                )
-                                            }
-                                        }
+                                        LocalBrainShelf(
+                                            title = stringResource(R.string.section_on_repeat),
+                                            tracks = uiState.onRepeatTracks,
+                                            playFrom = "on_repeat",
+                                            onSongClick = onSongClick,
+                                        )
+                                    }
+                                }
+
+                                val rotationBucket = uiState.rotationBucket
+                                if (uiState.rotationTracks.isNotEmpty() && rotationBucket != null) {
+                                    item {
+                                        LocalBrainShelf(
+                                            title = stringResource(rotationTitleRes(rotationBucket)),
+                                            tracks = uiState.rotationTracks,
+                                            playFrom = "rotation",
+                                            onSongClick = onSongClick,
+                                        )
                                     }
                                 }
 
@@ -315,6 +319,17 @@ fun EnhancedMusicScreen(
                                                 selectedTrack = track
                                                 showBottomSheet = true
                                             },
+                                        )
+                                    }
+                                }
+
+                                if (uiState.rediscoverTracks.isNotEmpty()) {
+                                    item {
+                                        LocalBrainShelf(
+                                            title = stringResource(R.string.section_rediscover),
+                                            tracks = uiState.rediscoverTracks,
+                                            playFrom = "rediscover",
+                                            onSongClick = onSongClick,
                                         )
                                     }
                                 }
@@ -957,3 +972,37 @@ private fun quickPicksPlayAllAction(
     val first = tracks.firstOrNull() ?: return null
     return { onSongClick(first, tracks, "quick_picks") }
 }
+
+/** Shared renderer for the zero-network brain shelves (On Repeat, rotation, Rediscover). */
+@Composable
+private fun LocalBrainShelf(
+    title: String,
+    tracks: List<MusicTrack>,
+    playFrom: String,
+    onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
+) {
+    NavigationTitle(title = title)
+    val thumbnailHeight = currentGridThumbnailHeight()
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(tracks, key = { it.videoId }) { track ->
+            GridItem(
+                title = track.title,
+                subtitle = track.artist,
+                thumbnailUrl = track.thumbnailUrl,
+                thumbnailHeight = thumbnailHeight,
+                onClick = { onSongClick(track, tracks, playFrom) },
+            )
+        }
+    }
+}
+
+private fun rotationTitleRes(bucket: MusicTimeBucket): Int =
+    when (bucket) {
+        MusicTimeBucket.WEEKDAY_MORNING, MusicTimeBucket.WEEKEND_MORNING -> R.string.section_rotation_morning
+        MusicTimeBucket.WEEKDAY_AFTERNOON, MusicTimeBucket.WEEKEND_AFTERNOON -> R.string.section_rotation_afternoon
+        MusicTimeBucket.WEEKDAY_EVENING, MusicTimeBucket.WEEKEND_EVENING -> R.string.section_rotation_evening
+        MusicTimeBucket.WEEKDAY_NIGHT, MusicTimeBucket.WEEKEND_NIGHT -> R.string.section_rotation_night
+    }

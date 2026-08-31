@@ -288,4 +288,75 @@ internal object MusicBrainRanker {
             .take(limit)
             .map { it.first }
             .toList()
+
+    /**
+     * Rediscover: one best track per loved-but-quiet artist — strong affinity,
+     * enough counted plays, and nothing played for [MusicBrainParams.REDISCOVER_STALE_MS].
+     * Ordered by affinity so the most-missed artist leads. Zero network.
+     */
+    fun rediscover(
+        brain: MusicBrain,
+        nowMs: Long,
+        limit: Int,
+    ): List<String> {
+        val staleBefore = nowMs - MusicBrainParams.REDISCOVER_STALE_MS
+
+        // One pass over the track library: the best-remembered track per artist
+        // (most ring entries, newest play breaks ties).
+        data class Best(val trackId: String, val plays: Int, val newest: Long)
+        val bestByArtist = HashMap<String, Best>()
+        for ((trackId, meta) in brain.trackMeta) {
+            val stamps = brain.trackPlays[trackId] ?: continue
+            if (stamps.isEmpty()) continue
+            val candidate = Best(trackId, stamps.size, stamps.max())
+            val current = bestByArtist[meta.artistKey]
+            if (current == null ||
+                candidate.plays > current.plays ||
+                (candidate.plays == current.plays && candidate.newest > current.newest)
+            ) {
+                bestByArtist[meta.artistKey] = candidate
+            }
+        }
+
+        return brain.artistAffinity.entries
+            .asSequence()
+            .filter { (key, aff) ->
+                aff.plays >= MusicBrainParams.REDISCOVER_MIN_PLAYS &&
+                    aff.score >= MusicBrainParams.REDISCOVER_MIN_SCORE &&
+                    aff.lastPlayed in 1 until staleBefore &&
+                    !brain.isArtistBlocked(key) &&
+                    !isInDislikeCooldown(brain, key, nowMs)
+            }.sortedByDescending { it.value.score }
+            .mapNotNull { (key, _) -> bestByArtist[key]?.trackId }
+            .take(limit)
+            .toList()
+    }
+
+    /**
+     * Time-of-day rotation: tracks the user actually plays in the CURRENT time
+     * bucket, ranked by in-bucket play count with activation as the tie-break.
+     * Bucket-conditional, so it complements (not duplicates) On Repeat. Zero network.
+     */
+    fun timeOfDayRotation(
+        brain: MusicBrain,
+        nowMs: Long,
+        limit: Int,
+    ): List<String> {
+        val bucket = MusicTimeBucket.fromTimestamp(nowMs)
+        return brain.trackPlays.entries
+            .asSequence()
+            .filter { (trackId, _) ->
+                val meta = brain.trackMeta[trackId]
+                meta == null ||
+                    (!brain.isArtistBlocked(meta.artistKey) && !isInDislikeCooldown(brain, meta.artistKey, nowMs))
+            }.map { (trackId, stamps) ->
+                Triple(trackId, stamps.count { MusicTimeBucket.fromTimestamp(it) == bucket }, stamps)
+            }.filter { it.second >= MusicBrainParams.TIME_BUCKET_MIN_PLAYS }
+            .sortedWith(
+                compareByDescending<Triple<String, Int, List<Long>>> { it.second }
+                    .thenByDescending { baseLevelActivation(brain, it.first, nowMs) },
+            ).take(limit)
+            .map { it.first }
+            .toList()
+    }
 }

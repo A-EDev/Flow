@@ -227,30 +227,46 @@ class MusicBrainEngine
         }
 
         /** On Repeat, rendered entirely from local meta — zero network. */
-        suspend fun heavyRotationTracks(limit: Int): List<MusicTrack> {
+        suspend fun heavyRotationTracks(limit: Int): List<MusicTrack> =
+            localShelf(limit) { now, cap -> MusicBrainRanker.heavyRotation(brain, now, cap) }
+
+        /** Loved-but-quiet artists' best tracks — zero network. */
+        suspend fun rediscoverTracks(limit: Int): List<MusicTrack> =
+            localShelf(limit) { now, cap -> MusicBrainRanker.rediscover(brain, now, cap) }
+
+        /** Tracks the user actually plays at this time of day — zero network. */
+        suspend fun timeOfDayTracks(limit: Int): List<MusicTrack> =
+            localShelf(limit) { now, cap -> MusicBrainRanker.timeOfDayRotation(brain, now, cap) }
+
+        private suspend fun localShelf(
+            limit: Int,
+            pick: (nowMs: Long, cap: Int) -> List<String>,
+        ): List<MusicTrack> {
             ensureInitialized()
             return mutex.withLock {
-                MusicBrainRanker
-                    .heavyRotation(brain, System.currentTimeMillis(), limit.coerceIn(1, 100))
-                    .mapNotNull { trackId ->
-                        val meta = brain.trackMeta[trackId] ?: return@mapNotNull null
-                        MusicTrack(
-                            videoId = trackId,
-                            title = meta.title,
-                            artist = meta.artist,
-                            thumbnailUrl = meta.thumbnail,
-                            duration = 0,
-                            channelId = if (isIdKeyedArtist(meta.artistKey)) meta.artistKey else "",
-                            artists =
-                                listOf(
-                                    MusicArtist(
-                                        name = meta.artist,
-                                        id = meta.artistKey.takeIf { isIdKeyedArtist(it) },
-                                    ),
-                                ),
-                        )
-                    }
+                pick(System.currentTimeMillis(), limit.coerceIn(1, 100))
+                    .mapNotNull { trackId -> trackFromMeta(trackId) }
             }
+        }
+
+        /** Must run with the mutex held. */
+        private fun trackFromMeta(trackId: String): MusicTrack? {
+            val meta = brain.trackMeta[trackId] ?: return null
+            return MusicTrack(
+                videoId = trackId,
+                title = meta.title,
+                artist = meta.artist,
+                thumbnailUrl = meta.thumbnail,
+                duration = 0,
+                channelId = if (isIdKeyedArtist(meta.artistKey)) meta.artistKey else "",
+                artists =
+                    listOf(
+                        MusicArtist(
+                            name = meta.artist,
+                            id = meta.artistKey.takeIf { isIdKeyedArtist(it) },
+                        ),
+                    ),
+            )
         }
 
         suspend fun dislikeArtist(

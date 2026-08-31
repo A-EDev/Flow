@@ -64,6 +64,8 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
     val filteredGenreTracks = genreTracks.mapValuesIfChanged { it.dropHidden() }
 
     val filteredOnRepeat = onRepeatTracks.dropHidden()
+    val filteredRediscover = rediscoverTracks.dropHidden()
+    val filteredRotation = rotationTracks.dropHidden()
     val filteredForYou = forYouTracks.dropHidden()
     val filteredRecommended = recommendedTracks.dropHidden()
     val filteredListenAgain = listenAgain.dropHidden()
@@ -81,6 +83,8 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
     if (
         filteredDailyDiscover === dailyDiscover &&
         filteredOnRepeat === onRepeatTracks &&
+        filteredRediscover === rediscoverTracks &&
+        filteredRotation === rotationTracks &&
         filteredForYou === forYouTracks &&
         filteredRecommended === recommendedTracks &&
         filteredListenAgain === listenAgain &&
@@ -104,6 +108,8 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
     return copy(
         dailyDiscover = filteredDailyDiscover,
         onRepeatTracks = filteredOnRepeat,
+        rediscoverTracks = filteredRediscover,
+        rotationTracks = filteredRotation,
         forYouTracks = filteredForYou,
         recommendedTracks = filteredRecommended,
         listenAgain = filteredListenAgain,

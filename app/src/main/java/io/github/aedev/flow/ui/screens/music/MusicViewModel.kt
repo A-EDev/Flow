@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
 import io.github.aedev.flow.data.recommendation.music.MusicQuickPicks
+import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.BrowseEndpoint
 import io.github.aedev.flow.innertube.models.SongItem
@@ -99,7 +100,7 @@ class MusicViewModel
                             lastTrackId = activeTrack.videoId
                             if (isUiVisible()) {
                                 rebuildQuickPicks(activeTrack)
-                                refreshOnRepeat()
+                                refreshLocalShelves()
                             } else {
                                 shelvesStale = true
                             }
@@ -113,7 +114,7 @@ class MusicViewModel
                     if (count > 0 && shelvesStale) {
                         shelvesStale = false
                         rebuildQuickPicks(EnhancedMusicPlayerManager.currentTrack.value)
-                        refreshOnRepeat()
+                        refreshLocalShelves()
                     }
                 }
             }
@@ -334,14 +335,36 @@ class MusicViewModel
             }
         }
 
-        private suspend fun refreshOnRepeat() {
+        /**
+         * The three brain-native shelves rendered purely from local meta:
+         * On Repeat, the time-of-day rotation and Rediscover. Zero network,
+         * refreshed together per track change (visibility-gated by the callers).
+         */
+        private suspend fun refreshLocalShelves() {
             try {
                 val onRepeat = musicBrain.heavyRotationTracks(16).audioMusicOnly()
-                if (onRepeat.size >= 2) {
-                    _uiState.update { it.copy(onRepeatTracks = onRepeat) }
+                val onRepeatIds = onRepeat.mapTo(HashSet()) { it.videoId }
+                val rotation =
+                    musicBrain
+                        .timeOfDayTracks(20)
+                        .audioMusicOnly()
+                        .filterNot { it.videoId in onRepeatIds }
+                val rediscover =
+                    musicBrain
+                        .rediscoverTracks(12)
+                        .audioMusicOnly()
+                        .filterNot { it.videoId in onRepeatIds }
+                _uiState.update {
+                    it.copy(
+                        onRepeatTracks = if (onRepeat.size >= 2) onRepeat else it.onRepeatTracks,
+                        // Time-sensitive shelves hide rather than linger when thin.
+                        rotationTracks = if (rotation.size >= 3) rotation else emptyList(),
+                        rotationBucket = MusicTimeBucket.fromTimestamp(System.currentTimeMillis()),
+                        rediscoverTracks = if (rediscover.size >= 3) rediscover else emptyList(),
+                    )
                 }
             } catch (e: Exception) {
-                Log.e("MusicViewModel", "Error loading On Repeat", e)
+                Log.e("MusicViewModel", "Error loading local shelves", e)
             }
         }
 
@@ -391,7 +414,7 @@ class MusicViewModel
             // Watch history holds one row per track, so backfill cannot seed relistens;
             // the shelf earns items only from live sessions and refreshes per track change.
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                refreshOnRepeat()
+                refreshLocalShelves()
             }
 
             // Daily Mixes — co-occurrence clusters expanded through related recall.
@@ -1339,6 +1362,9 @@ data class MusicUiState(
     val sessionSeed: Long = System.currentTimeMillis(),
     val dailyDiscover: List<DailyDiscoverItem> = emptyList(),
     val onRepeatTracks: List<MusicTrack> = emptyList(), // On Repeat (local music brain)
+    val rediscoverTracks: List<MusicTrack> = emptyList(), // Loved-but-quiet artists (local music brain)
+    val rotationTracks: List<MusicTrack> = emptyList(), // Time-of-day rotation (local music brain)
+    val rotationBucket: MusicTimeBucket? = null,
     val forYouTracks: List<MusicTrack> = emptyList(), // Quick Picks
     val recommendedTracks: List<MusicTrack> = emptyList(), // Recommended for you
     val listenAgain: List<MusicTrack> = emptyList(), // Listen Again
