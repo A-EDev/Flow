@@ -322,7 +322,10 @@ internal fun FullMusicPlayerContent(
             }
         }
 
-        suspend fun settleQueueSheet(velocity: Float) {
+        suspend fun settleQueueSheet(
+            velocity: Float,
+            totalDrag: Float = 0f,
+        ) {
             val distance = safeHiddenY - queueExpandedY
             val progress =
                 if (distance > 0f) {
@@ -330,11 +333,18 @@ internal fun FullMusicPlayerContent(
                 } else {
                     1f
                 }
+            val dragThresholdPx =
+                (distance * 0.05f).coerceIn(
+                    with(density) { 14.dp.toPx() },
+                    with(density) { 56.dp.toPx() },
+                )
             val target =
                 when {
-                    velocity < -900f -> queueExpandedY
-                    velocity > 900f -> safeHiddenY
-                    progress < 0.42f -> queueExpandedY
+                    velocity < -520f -> queueExpandedY
+                    velocity > 450f -> safeHiddenY
+                    totalDrag < -dragThresholdPx -> queueExpandedY
+                    totalDrag > dragThresholdPx -> safeHiddenY
+                    progress < 0.5f -> queueExpandedY
                     else -> safeHiddenY
                 }
             animateQueueSheetTo(target, velocity)
@@ -379,14 +389,17 @@ internal fun FullMusicPlayerContent(
                                 if (!change.pressed) {
                                     if (claimed) {
                                         val velocity = velocityTracker.calculateVelocity().y
-                                        scope.launch { settleQueueSheet(velocity) }
+                                        val committedDrag = totalDy
+                                        scope.launch { settleQueueSheet(velocity, committedDrag) }
                                     }
                                     break
                                 }
                                 val dy = change.positionChange().y
+                                totalDy += dy
                                 if (!claimed) {
-                                    if (change.isConsumed) break
-                                    totalDy += dy
+                                    if (change.isConsumed) {
+                                        break
+                                    }
                                     if (totalDy <= -viewConfiguration.touchSlop) {
                                         claimed = true
                                         showQueueSheet = true
