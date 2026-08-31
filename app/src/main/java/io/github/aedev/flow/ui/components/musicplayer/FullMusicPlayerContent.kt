@@ -300,9 +300,6 @@ internal fun FullMusicPlayerContent(
         val mainAlpha = (1f - (queueFraction / 0.4f)).coerceIn(0f, 1f)
         val artworkScale = 1f - (queueFraction * 0.10f)
 
-        val miniHeaderAlpha = ((queueFraction - 0.5f) / 0.5f).coerceIn(0f, 1f)
-        val miniHeaderTranslation = with(density) { 10.dp.toPx() * (1f - miniHeaderAlpha) }
-
         suspend fun animateQueueSheetTo(
             target: Float,
             initialVelocity: Float = 0f,
@@ -604,76 +601,6 @@ internal fun FullMusicPlayerContent(
             Spacer(modifier = Modifier.height(navBarPadding + 16.dp))
         }
 
-        if (queueFraction > 0.3f) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .height(64.dp)
-                        .padding(horizontal = 20.dp)
-                        .graphicsLayer {
-                            alpha = miniHeaderAlpha
-                            translationY = miniHeaderTranslation
-                        },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Card(
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.size(42.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                    ) {
-                        AsyncImage(
-                            model = thumbnailUrl,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = uiState.currentTrack?.title ?: "",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = uiState.currentTrack?.artist ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                FilledIconButton(
-                    onClick = { viewModel.togglePlayPause() },
-                    colors =
-                        IconButtonDefaults.filledIconButtonColors(
-                            containerColor = colorScheme.primary,
-                            contentColor = colorScheme.onPrimary,
-                        ),
-                    shape = CircleShape,
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Icon(
-                        imageVector = if (uiState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-        }
-
         val queueCornerRadius = 28.dp * (1f - queueFraction)
 
         val queueDraggableState =
@@ -762,23 +689,23 @@ internal fun FullMusicPlayerContent(
                         ).nestedScroll(sheetNestedScrollConnection),
             ) {
                 QueueSheet(
-                    sheetBackgroundColor = colorScheme.surfaceContainerHigh,
-                    accentColor = colorScheme.primary,
-                    onSheetColor = colorScheme.onSurface,
                     sheetCornerRadius = queueCornerRadius,
                     queue = uiState.queue,
-                    automixTracks = uiState.autoplaySuggestions,
+                    radioTracks = uiState.autoplaySuggestions,
                     currentIndex = uiState.currentQueueIndex,
-                    downloadedTrackIds = uiState.downloadedTrackIds,
-                    playingFrom = uiState.playingFrom,
-                    selectedFilter = uiState.selectedFilter,
-                    isAutomixLoading = uiState.isRelatedLoading,
+                    isRadioLoading = uiState.isRelatedLoading,
+                    endlessRadioEnabled = uiState.endlessRadioEnabled,
+                    repeatMode = uiState.repeatMode,
                     onTrackClick = { viewModel.playFromQueue(it) },
                     onMoveTrack = { from, to -> viewModel.moveTrack(from, to) },
-                    onFilterSelect = { viewModel.setFilter(it) },
-                    onAutomixTrackClick = { viewModel.loadAndPlayTrack(it) },
-                    onPlayNextAutomix = { viewModel.playNext(it) },
-                    onAddToQueueAutomix = { viewModel.addToQueue(it) },
+                    onPlayNextFromQueue = { viewModel.playNextFromQueuePosition(it) },
+                    onSendQueueTrackToEnd = { viewModel.moveQueueTrackToEnd(it) },
+                    onRadioTrackClick = { viewModel.loadAndPlayTrack(it) },
+                    onPlayNextRadio = { viewModel.playNextFromRadio(it) },
+                    onAddRadioToQueue = { viewModel.addRadioTrackToQueue(it) },
+                    onToggleEndlessRadio = { viewModel.setEndlessRadioEnabled(it) },
+                    onShuffleQueue = { viewModel.shuffleQueueOrder() },
+                    onCycleRepeat = { viewModel.toggleRepeat() },
                     dragHandleModifier = queueDragHandleModifier,
                 )
             }

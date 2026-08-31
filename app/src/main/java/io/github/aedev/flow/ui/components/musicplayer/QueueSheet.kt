@@ -1,326 +1,583 @@
 package io.github.aedev.flow.ui.components.musicplayer
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.PlaylistAdd
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
+import androidx.compose.material.icons.automirrored.outlined.QueueMusic
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Sensors
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.screens.music.FILTER_ALL
-import io.github.aedev.flow.ui.screens.music.FILTER_DEEP_CUTS
-import io.github.aedev.flow.ui.screens.music.FILTER_DISCOVER
-import io.github.aedev.flow.ui.screens.music.FILTER_POPULAR
-import io.github.aedev.flow.ui.screens.music.FILTER_WORKOUT
+import io.github.aedev.flow.player.RepeatMode
+import io.github.aedev.flow.ui.components.PlayingWaveform
+import io.github.aedev.flow.ui.components.musicplayer.motion.QueueRowSwipeGestureHandler
+import io.github.aedev.flow.ui.components.musicplayer.motion.QueueSwipeAction
 import io.github.aedev.flow.ui.screens.music.MusicTrack
-import io.github.aedev.flow.ui.screens.music.components.TrackListItem
-import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
-val LocalPlayerAccentColor = compositionLocalOf<Color?> { null }
-val LocalPlayerOnAccentColor = compositionLocalOf<Color?> { null }
-val LocalPlayerOnSheetColor = compositionLocalOf<Color?> { null }
-
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The pull-up queue: reorder by holding and dragging a row, swipe a row toward the start to play
+ * it next or toward the end to send it to the back of the queue, and an endless-radio section
+ * that continues playback with suggestions when the queue runs out.
+ */
 @Composable
 fun QueueSheet(
-    sheetBackgroundColor: Color,
-    accentColor: Color,
-    onSheetColor: Color = Color.Unspecified,
     sheetCornerRadius: Dp,
     queue: List<MusicTrack>,
-    automixTracks: List<MusicTrack>,
+    radioTracks: List<MusicTrack>,
     currentIndex: Int,
-    downloadedTrackIds: Set<String>,
-    playingFrom: String,
-    selectedFilter: String,
-    isAutomixLoading: Boolean,
+    isRadioLoading: Boolean,
+    endlessRadioEnabled: Boolean,
+    repeatMode: RepeatMode,
     onTrackClick: (Int) -> Unit,
     onMoveTrack: (Int, Int) -> Unit,
-    onFilterSelect: (String) -> Unit,
-    onAutomixTrackClick: (MusicTrack) -> Unit,
-    onPlayNextAutomix: (MusicTrack) -> Unit,
-    onAddToQueueAutomix: (MusicTrack) -> Unit,
+    onPlayNextFromQueue: (Int) -> Unit,
+    onSendQueueTrackToEnd: (Int) -> Unit,
+    onRadioTrackClick: (MusicTrack) -> Unit,
+    onPlayNextRadio: (MusicTrack) -> Unit,
+    onAddRadioToQueue: (MusicTrack) -> Unit,
+    onToggleEndlessRadio: (Boolean) -> Unit,
+    onShuffleQueue: () -> Unit,
+    onCycleRepeat: () -> Unit,
     modifier: Modifier = Modifier,
     dragHandleModifier: Modifier = Modifier,
 ) {
-    val resolvedOnSheetColor =
-        remember(sheetBackgroundColor, onSheetColor) {
-            if (onSheetColor != Color.Unspecified) {
-                onSheetColor
-            } else if (sheetBackgroundColor.luminance() < 0.45f) {
-                Color.White
-            } else {
-                Color(0xFF161616)
+    val listState = rememberLazyListState()
+    val haptics = LocalHapticFeedback.current
+
+    val localQueue = remember { mutableStateListOf<MusicTrack>() }
+    val localKeys = remember { mutableStateListOf<String>() }
+    LaunchedEffect(queue) {
+        localQueue.clear()
+        localQueue.addAll(queue)
+        val seen = HashMap<String, Int>()
+        localKeys.clear()
+        queue.forEach { track ->
+            val occurrence = (seen[track.videoId] ?: 0) + 1
+            seen[track.videoId] = occurrence
+            localKeys.add("${track.videoId}#$occurrence")
+        }
+    }
+
+    var dragInfo by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    val reorderableState =
+        rememberReorderableLazyListState(listState) { from, to ->
+            val fromIdx = from.index
+            val toIdx = to.index
+            if (fromIdx in localQueue.indices && toIdx in localQueue.indices && fromIdx != toIdx) {
+                dragInfo = (dragInfo?.first ?: fromIdx) to toIdx
+                localQueue.add(toIdx, localQueue.removeAt(fromIdx))
+                localKeys.add(toIdx, localKeys.removeAt(fromIdx))
             }
         }
-    val onAccentColor =
-        remember(accentColor) {
-            if (accentColor.luminance() < 0.55f) Color.White else Color(0xFF161616)
+
+    LaunchedEffect(reorderableState.isAnyItemDragging) {
+        if (!reorderableState.isAnyItemDragging) {
+            dragInfo?.let { (from, to) ->
+                if (from != to) onMoveTrack(from, to)
+            }
+            dragInfo = null
         }
-    val adaptiveSheetColors =
-        lightColorScheme(
-            primary = accentColor,
-            onPrimary = onAccentColor,
-            surface = sheetBackgroundColor,
-            onSurface = resolvedOnSheetColor,
-            onSurfaceVariant = resolvedOnSheetColor.copy(alpha = 0.72f),
-            surfaceVariant = resolvedOnSheetColor.copy(alpha = 0.12f),
-            outline = resolvedOnSheetColor.copy(alpha = 0.32f),
-            background = sheetBackgroundColor,
-            onBackground = resolvedOnSheetColor,
-        )
+    }
+
+    LaunchedEffect(Unit) {
+        if (currentIndex in queue.indices) {
+            listState.scrollToItem(currentIndex)
+        }
+    }
 
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = sheetBackgroundColor,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius),
         shadowElevation = 24.dp,
         tonalElevation = 0.dp,
     ) {
-        CompositionLocalProvider(
-            LocalPlayerAccentColor provides accentColor,
-            LocalPlayerOnAccentColor provides onAccentColor,
-            LocalPlayerOnSheetColor provides resolvedOnSheetColor,
-        ) {
-            MaterialTheme(colorScheme = adaptiveSheetColors) {
-                val scrimAlpha = if (sheetBackgroundColor.luminance() < 0.45f) 0.18f else 0.04f
+        Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .then(dragHandleModifier),
+            ) {
                 Box(
                     modifier =
                         Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colorStops =
-                                        arrayOf(
-                                            0.0f to resolvedOnSheetColor.copy(alpha = 0.08f),
-                                            0.28f to Color.Transparent,
-                                            1.0f to Color.Black.copy(alpha = scrimAlpha),
-                                        ),
-                                ),
-                            ),
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 10.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(width = 42.dp, height = 4.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)),
+                    )
+                }
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 22.dp, end = 16.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.up_next),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = pluralStringResource(R.plurals.queue_track_count, queue.size, queue.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        FilledTonalIconButton(
+                            onClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onShuffleQueue()
+                            },
+                            modifier = Modifier.size(width = 52.dp, height = 42.dp),
+                            shape =
+                                RoundedCornerShape(
+                                    topStart = 21.dp,
+                                    bottomStart = 21.dp,
+                                    topEnd = 6.dp,
+                                    bottomEnd = 6.dp,
+                                ),
+                            colors =
+                                IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                ),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Shuffle,
+                                contentDescription = stringResource(R.string.shuffle),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        val repeatActive = repeatMode != RepeatMode.OFF
+                        FilledTonalIconButton(
+                            onClick = onCycleRepeat,
+                            modifier = Modifier.size(width = 52.dp, height = 42.dp),
+                            shape =
+                                RoundedCornerShape(
+                                    topStart = 6.dp,
+                                    bottomStart = 6.dp,
+                                    topEnd = 21.dp,
+                                    bottomEnd = 21.dp,
+                                ),
+                            colors =
+                                IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor =
+                                        if (repeatActive) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.secondaryContainer
+                                        },
+                                    contentColor =
+                                        if (repeatActive) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                                        },
+                                ),
+                        ) {
+                            Icon(
+                                imageVector =
+                                    if (repeatMode == RepeatMode.ONE) {
+                                        Icons.Rounded.RepeatOne
+                                    } else {
+                                        Icons.Rounded.Repeat
+                                    },
+                                contentDescription = stringResource(R.string.repeat),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
+            LazyColumn(
+                state = listState,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                contentPadding = PaddingValues(horizontal = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                itemsIndexed(localQueue, key = { index, _ -> localKeys.getOrNull(index) ?: index }) { index, track ->
+                    ReorderableItem(
+                        state = reorderableState,
+                        key = localKeys.getOrNull(index) ?: index,
+                    ) { isDragging ->
+                        val scale by animateFloatAsState(
+                            targetValue = if (isDragging) 1.02f else 1f,
+                            animationSpec =
+                                spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                ),
+                            label = "queueRowLift",
+                        )
+                        val isCurrent = index == currentIndex
+                        QueueTrackRow(
+                            track = track,
+                            isCurrent = isCurrent,
+                            isRadioItem = false,
+                            isDragging = isDragging,
+                            swipeEnabled = !isCurrent && !isDragging,
+                            flyOffOnCommit = false,
+                            rowKey = localKeys.getOrNull(index) ?: track.videoId,
+                            onClick = { onTrackClick(index) },
+                            onPlayNext = { onPlayNextFromQueue(index) },
+                            onAddToQueue = { onSendQueueTrackToEnd(index) },
+                            modifier =
+                                Modifier
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                    }.longPressDraggableHandle(
+                                        onDragStarted = {
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        },
+                                        onDragStopped = {
+                                            haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                        },
+                                    ),
+                        )
+                    }
+                }
+
+                item(key = "endless_radio_toggle") {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .animateItem()
+                                .padding(top = 10.dp, bottom = 4.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable { onToggleEndlessRadio(!endlessRadioEnabled) }
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Sensors,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.music_endless_radio_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Switch(
+                            checked = endlessRadioEnabled,
+                            onCheckedChange = onToggleEndlessRadio,
+                        )
+                    }
+                }
+
+                if (endlessRadioEnabled) {
+                    itemsIndexed(radioTracks, key = { _, track -> "radio:${track.videoId}" }) { _, track ->
+                        Box(modifier = Modifier.animateItem()) {
+                            QueueTrackRow(
+                                track = track,
+                                isCurrent = false,
+                                isRadioItem = true,
+                                isDragging = false,
+                                swipeEnabled = true,
+                                flyOffOnCommit = true,
+                                rowKey = "radio:${track.videoId}",
+                                onClick = { onRadioTrackClick(track) },
+                                onPlayNext = { onPlayNextRadio(track) },
+                                onAddToQueue = { onAddRadioToQueue(track) },
+                            )
+                        }
+                    }
+                    if (isRadioLoading && radioTracks.isEmpty()) {
+                        item(key = "radio_loading") {
+                            RadioLoadingRow()
+                        }
+                    }
+                }
+
+                item(key = "bottom_spacer") {
+                    Spacer(
+                        modifier =
+                            Modifier
+                                .navigationBarsPadding()
+                                .height(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RadioLoadingRow() {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        LoadingIndicator(
+            modifier = Modifier.size(30.dp),
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+@Composable
+private fun QueueTrackRow(
+    track: MusicTrack,
+    isCurrent: Boolean,
+    isRadioItem: Boolean,
+    isDragging: Boolean,
+    swipeEnabled: Boolean,
+    flyOffOnCommit: Boolean,
+    rowKey: Any,
+    onClick: () -> Unit,
+    onPlayNext: () -> Unit,
+    onAddToQueue: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+
+    var rowSizePx by remember { mutableStateOf(IntSize.Zero) }
+    val offsetX = remember(rowKey) { Animatable(0f) }
+    val currentOnPlayNext by rememberUpdatedState(onPlayNext)
+    val currentOnAddToQueue by rememberUpdatedState(onAddToQueue)
+    val swipeHandler =
+        remember(rowKey) {
+            QueueRowSwipeGestureHandler(
+                scope = scope,
+                offset = offsetX,
+                density = density.density,
+                itemWidthPx = { rowSizePx.width.toFloat() },
+                haptics = haptics,
+                flyOffOnCommit = flyOffOnCommit,
+                onCommit = { action ->
+                    when (action) {
+                        QueueSwipeAction.PLAY_NEXT -> currentOnPlayNext()
+                        QueueSwipeAction.ADD_TO_QUEUE -> currentOnAddToQueue()
+                    }
+                },
+            )
+        }
+
+    val rowCorner by animateDpAsState(
+        targetValue = if (isCurrent) 30.dp else 14.dp,
+        label = "queueRowCorner",
+    )
+    val artCorner by animateDpAsState(
+        targetValue = if (isCurrent) 22.dp else 10.dp,
+        label = "queueArtCorner",
+    )
+    val elevation by animateDpAsState(
+        targetValue = if (isDragging) 6.dp else 0.dp,
+        label = "queueRowElevation",
+    )
+
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .onSizeChanged { rowSizePx = it },
+    ) {
+        SwipeRevealPanel(
+            offsetX = offsetX.value,
+            rowHeightPx = rowSizePx.height,
+            isTargeted = swipeHandler.isInCommitZone,
+        )
+
+        Surface(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { translationX = offsetX.value }
+                    .clip(RoundedCornerShape(rowCorner))
+                    .clickable(enabled = offsetX.value == 0f, onClick = onClick)
+                    .then(
+                        if (swipeEnabled) {
+                            Modifier.pointerInput(rowKey, swipeHandler) {
+                                detectHorizontalDragGestures(
+                                    onDragStart = { swipeHandler.onDragStart() },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        swipeHandler.onDrag(dragAmount)
+                                    },
+                                    onDragEnd = { swipeHandler.onDragEnd() },
+                                    onDragCancel = { swipeHandler.onDragCancel() },
+                                )
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ),
+            shape = RoundedCornerShape(rowCorner),
+            color =
+                if (isCurrent) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.55f)
+                },
+            tonalElevation = elevation,
+            shadowElevation = elevation,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(artCorner)),
+                ) {
+                    AsyncImage(
+                        model = track.listThumbnailUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                    if (isCurrent) {
                         Box(
                             modifier =
                                 Modifier
-                                    .then(dragHandleModifier)
-                                    .fillMaxWidth()
-                                    .padding(top = 14.dp, bottom = 12.dp),
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.35f)),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .width(44.dp)
-                                        .height(5.dp)
-                                        .background(
-                                            color = accentColor.copy(alpha = 0.62f),
-                                            shape = CircleShape,
-                                        ).align(Alignment.Center),
+                            PlayingWaveform(
+                                color = Color.White.copy(alpha = 0.9f),
+                                barCount = 3,
+                                barWidth = 2.5.dp,
+                                barSpacing = 1.5.dp,
+                                staggerMillis = 120,
                             )
                         }
-
-                        Box(modifier = Modifier.weight(1f)) {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 100.dp, start = 16.dp, end = 16.dp),
-                            ) {
-                                item {
-                                    Row(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = stringResource(R.string.playing_from),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                            )
-                                            Text(
-                                                text = playingFrom.ifBlank { stringResource(R.string.unknown_source) },
-                                                style = MaterialTheme.typography.titleMedium,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                }
-
-                                itemsIndexed(
-                                    items = queue,
-                                    key = { index, track -> "${track.videoId}_$index" },
-                                ) { index, track ->
-                                    TrackListItem(
-                                        track = track,
-                                        isPlaying = index == currentIndex,
-                                        isDownloaded = downloadedTrackIds.contains(track.videoId),
-                                        onClick = { onTrackClick(index) },
-                                        showMenu = false,
-                                        trailingContent = {
-                                            val canMoveUp = index > 0
-                                            val canMoveDown = index < queue.size - 1
-                                            val onSurface = MaterialTheme.colorScheme.onSurface
-                                            Column {
-                                                IconButton(
-                                                    onClick = { if (canMoveUp) onMoveTrack(index, index - 1) },
-                                                    modifier = Modifier.size(24.dp),
-                                                    enabled = canMoveUp,
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.KeyboardArrowUp,
-                                                        contentDescription = stringResource(R.string.move_up),
-                                                        tint = onSurface.copy(alpha = if (canMoveUp) 0.45f else 0.16f),
-                                                    )
-                                                }
-                                                IconButton(
-                                                    onClick = { if (canMoveDown) onMoveTrack(index, index + 1) },
-                                                    modifier = Modifier.size(24.dp),
-                                                    enabled = canMoveDown,
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                                        contentDescription = stringResource(R.string.move_down),
-                                                        tint = onSurface.copy(alpha = if (canMoveDown) 0.45f else 0.16f),
-                                                    )
-                                                }
-                                            }
-                                        },
-                                    )
-                                }
-
-                                item {
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    val filters =
-                                        listOf(
-                                            FILTER_ALL to stringResource(R.string.view_all_button_label),
-                                            FILTER_DISCOVER to stringResource(R.string.filter_discover),
-                                            FILTER_POPULAR to stringResource(R.string.filter_popular),
-                                            FILTER_DEEP_CUTS to stringResource(R.string.filter_deep_cuts),
-                                            FILTER_WORKOUT to stringResource(R.string.filter_workout),
-                                        )
-
-                                    LazyRow(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 8.dp),
-                                    ) {
-                                        items(filters, key = { it.first }) { (filter, label) ->
-                                            FilterChip(
-                                                selected = selectedFilter == filter,
-                                                onClick = { onFilterSelect(filter) },
-                                                label = { Text(label) },
-                                                colors =
-                                                    FilterChipDefaults.filterChipColors(
-                                                        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                                                        labelColor = MaterialTheme.colorScheme.onSurface,
-                                                        selectedContainerColor = accentColor,
-                                                        selectedLabelColor = onAccentColor,
-                                                    ),
-                                                border = null,
-                                                shape = RoundedCornerShape(8.dp),
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                }
-
-                                item {
-                                    HorizontalDivider(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = resolvedOnSheetColor.copy(alpha = 0.15f),
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text(
-                                        text = stringResource(R.string.similar_content),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(bottom = 12.dp),
-                                    )
-                                }
-
-                                if (automixTracks.isEmpty() && isAutomixLoading) {
-                                    item {
-                                        Box(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(vertical = 32.dp),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                color = accentColor,
-                                                strokeWidth = 2.dp,
-                                            )
-                                        }
-                                    }
-                                } else if (automixTracks.isEmpty()) {
-                                    item {
-                                        Text(
-                                            text = stringResource(R.string.no_similar_content_found),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
-                                            modifier = Modifier.padding(vertical = 24.dp),
-                                        )
-                                    }
-                                } else {
-                                    items(automixTracks, key = { it.videoId }) { track ->
-                                        TrackListItem(
-                                            track = track,
-                                            isDownloaded = downloadedTrackIds.contains(track.videoId),
-                                            onClick = { onAutomixTrackClick(track) },
-                                            showMenu = false,
-                                            trailingContent = {
-                                                AutomixQuickActions(
-                                                    onPlayNext = { onPlayNextAutomix(track) },
-                                                    onAddToQueue = { onAddToQueueAutomix(track) },
-                                                    onSheetColor = resolvedOnSheetColor,
-                                                )
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-                        }
                     }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = track.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color =
+                            if (isCurrent) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = track.artist,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (isRadioItem) {
+                    Icon(
+                        imageVector = Icons.Rounded.Sensors,
+                        contentDescription = stringResource(R.string.music_endless_radio_title),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                        modifier =
+                            Modifier
+                                .padding(end = 4.dp)
+                                .size(18.dp),
+                    )
                 }
             }
         }
@@ -328,37 +585,81 @@ fun QueueSheet(
 }
 
 @Composable
-private fun AutomixQuickActions(
-    onPlayNext: () -> Unit,
-    onAddToQueue: () -> Unit,
-    onSheetColor: Color,
+private fun BoxScope.SwipeRevealPanel(
+    offsetX: Float,
+    rowHeightPx: Int,
+    isTargeted: Boolean,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(
-            onClick = onPlayNext,
-            modifier = Modifier.size(36.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlaylistPlay,
-                contentDescription = stringResource(R.string.play_next),
-                tint = onSheetColor.copy(alpha = 0.7f),
-                modifier = Modifier.size(20.dp),
-            )
-        }
+    if (offsetX == 0f) return
+    val density = LocalDensity.current
+    val revealWidthPx = kotlin.math.abs(offsetX)
+    val revealProgress = (revealWidthPx / (56.dp.value * density.density)).coerceIn(0f, 1f)
+    val towardStart = offsetX < 0f
 
-        IconButton(
-            onClick = onAddToQueue,
-            modifier = Modifier.size(36.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Queue,
-                contentDescription = stringResource(R.string.add_to_queue),
-                tint = onSheetColor.copy(alpha = 0.7f),
-                modifier = Modifier.size(20.dp),
-            )
+    val containerColor =
+        if (towardStart) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.tertiaryContainer
         }
+    val contentColor =
+        if (towardStart) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onTertiaryContainer
+        }
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isTargeted) containerColor else containerColor.copy(alpha = 0.82f),
+        animationSpec = tween(durationMillis = 150),
+        label = "queueSwipeRevealColor",
+    )
+    val iconAlpha by animateFloatAsState(
+        targetValue = revealProgress * if (isTargeted) 1f else 0.88f,
+        animationSpec = tween(durationMillis = 120),
+        label = "queueSwipeIconAlpha",
+    )
+    val iconScale by animateFloatAsState(
+        targetValue = if (isTargeted) 1.1f else 0.95f,
+        animationSpec = tween(durationMillis = 120),
+        label = "queueSwipeIconScale",
+    )
+
+    val revealWidthDp = with(density) { revealWidthPx.toDp() }
+    Box(
+        modifier =
+            Modifier
+                .align(if (towardStart) Alignment.CenterEnd else Alignment.CenterStart)
+                .padding(
+                    start = if (towardStart) 0.dp else 8.dp,
+                    end = if (towardStart) 8.dp else 0.dp,
+                ).height(with(density) { rowHeightPx.toDp() })
+                .padding(vertical = 2.dp)
+                .width(revealWidthDp)
+                .clip(CircleShape)
+                .background(backgroundColor),
+        contentAlignment = if (towardStart) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Icon(
+            imageVector =
+                if (towardStart) {
+                    Icons.AutoMirrored.Outlined.PlaylistPlay
+                } else {
+                    Icons.AutoMirrored.Outlined.QueueMusic
+                },
+            contentDescription =
+                stringResource(
+                    if (towardStart) R.string.play_next else R.string.add_to_queue,
+                ),
+            tint = contentColor,
+            modifier =
+                Modifier
+                    .padding(horizontal = 14.dp)
+                    .size(22.dp)
+                    .graphicsLayer {
+                        alpha = iconAlpha
+                        scaleX = iconScale
+                        scaleY = iconScale
+                    },
+        )
     }
 }

@@ -135,6 +135,10 @@
     <string name="lyrics_not_available">Lyrics not available</string>
     <string name="refresh_lyrics">Refresh lyrics</string>
     <string name="lyrics_save_file">Save as .lrc file</string>
+    <plurals name="queue_track_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
     <string name="lyrics_saved">Lyrics saved</string>
     <string name="lyrics_save_failed">Could not save lyrics</string>
     <string name="lyrics_choose_source">Choose lyrics source</string>

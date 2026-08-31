@@ -9,6 +9,7 @@ navigationCompose = "2.10.0"
 lifecycle = "2.11.0"
 constraintlayoutCompose = "1.1.2"
 coil = "3.5.0"
+composeReorderable = "3.1.0"
 hilt = "2.60.1"
 hiltNavigationCompose = "1.4.0"
 newPipeExtractor = "v0.26.5"
@@ -62,6 +63,7 @@ androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lif
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-constraintlayout-compose = { group = "androidx.constraintlayout", name = "constraintlayout-compose", version.ref = "constraintlayoutCompose" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+compose-reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "composeReorderable" }
 coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }

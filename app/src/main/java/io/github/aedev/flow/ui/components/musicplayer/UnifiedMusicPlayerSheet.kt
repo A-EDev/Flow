@@ -73,7 +73,7 @@ import kotlin.math.roundToInt
 val MusicMiniPlayerHeight = 64.dp
 val MusicMiniPlayerBottomSpacer = 8.dp
 private val CollapsedHorizontalPadding = 12.dp
-private val CollapsedCornerRadius = 18.dp
+private val CollapsedCornerRadius = 32.dp
 
 private val SheetDefaultSpring =
     spring<Float>(

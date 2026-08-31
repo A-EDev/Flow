@@ -18,7 +18,6 @@ import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.data.lyrics.LyricsHelper
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.YouTubeMusicService
@@ -79,6 +78,11 @@ class MusicPlayerViewModel
             viewModelScope.launch {
                 playerPreferences.lyricsTextAlign.collect { align ->
                     _uiState.update { it.copy(lyricsTextAlign = align) }
+                }
+            }
+            viewModelScope.launch {
+                playerPreferences.musicEndlessRadioEnabled.collect { enabled ->
+                    _uiState.update { it.copy(endlessRadioEnabled = enabled) }
                 }
             }
         }
@@ -235,7 +239,6 @@ class MusicPlayerViewModel
                             isLoading = false,
                             error = null,
                             playingFrom = context.getString(R.string.local_media_title),
-                            selectedFilter = FILTER_ALL,
                         )
                     }
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
@@ -309,7 +312,6 @@ class MusicPlayerViewModel
                             isLoading = true,
                             error = null,
                             playingFrom = finalSourceName,
-                            selectedFilter = FILTER_ALL,
                         )
                     }
 
@@ -426,65 +428,41 @@ class MusicPlayerViewModel
             EnhancedMusicPlayerManager.pause()
         }
 
-        fun setFilter(filter: String) {
-            val currentTrack = _uiState.value.currentTrack ?: return
-            _uiState.update { it.copy(selectedFilter = filter, isRelatedLoading = true) }
-
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                try {
-                    val freshRelated =
-                        withTimeoutOrNull(10_000L) {
-                            YouTubeMusicService.getRelatedMusic(currentTrack.videoId, 25)
-                        } ?: emptyList()
-
-                    val filteredList =
-                        when (filter) {
-                            FILTER_DISCOVER -> {
-                                freshRelated.shuffled().take(20)
-                            }
-
-                            FILTER_POPULAR -> {
-                                freshRelated.sortedByDescending { it.duration }.take(20)
-                            }
-
-                            FILTER_DEEP_CUTS -> {
-                                freshRelated.reversed().take(20)
-                            }
-
-                            FILTER_WORKOUT -> {
-                                freshRelated
-                                    .filter {
-                                        it.title.contains("remix", ignoreCase = true) ||
-                                            it.title.contains("workout", ignoreCase = true) ||
-                                            it.title.contains("mix", ignoreCase = true)
-                                    }.ifEmpty { freshRelated.shuffled() }
-                                    .take(20)
-                            }
-
-                            else -> {
-                                freshRelated
-                            }
-                        }.distinctByNonBlankKey(MusicTrack::videoId)
-
-                    _uiState.update {
-                        it.copy(
-                            autoplaySuggestions = filteredList,
-                            isRelatedLoading = false,
-                        )
-                    }
-
-                    EnhancedMusicPlayerManager.updateAutomixItems(filteredList)
-                } catch (e: Exception) {
-                    _uiState.update { it.copy(isRelatedLoading = false) }
-                }
-            }
-        }
-
         fun moveTrack(
             fromIndex: Int,
             toIndex: Int,
         ) {
             EnhancedMusicPlayerManager.moveMediaItem(fromIndex, toIndex)
+        }
+
+        fun shuffleQueueOrder() {
+            EnhancedMusicPlayerManager.shuffleQueue()
+        }
+
+        fun playNextFromQueuePosition(index: Int) {
+            val current = _uiState.value.currentQueueIndex
+            if (index == current) return
+            val target = if (index > current) current + 1 else current
+            if (index != target) EnhancedMusicPlayerManager.moveMediaItem(index, target)
+        }
+
+        fun moveQueueTrackToEnd(index: Int) {
+            val lastIndex = _uiState.value.queue.size - 1
+            if (index in 0 until lastIndex) EnhancedMusicPlayerManager.moveMediaItem(index, lastIndex)
+        }
+
+        fun playNextFromRadio(track: MusicTrack) {
+            EnhancedMusicPlayerManager.playNext(track)
+            EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
+        }
+
+        fun addRadioTrackToQueue(track: MusicTrack) {
+            EnhancedMusicPlayerManager.addToQueue(track)
+            EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
+        }
+
+        fun setEndlessRadioEnabled(enabled: Boolean) {
+            viewModelScope.launch { playerPreferences.setMusicEndlessRadioEnabled(enabled) }
         }
 
         fun seekTo(position: Long) {
@@ -924,8 +902,7 @@ data class MusicPlayerUiState(
     val syncedLyrics: List<LyricsEntry> = emptyList(),
     val isLyricsLoading: Boolean = false,
     val playingFrom: String = "",
-    val autoplayEnabled: Boolean = true,
-    val selectedFilter: String = FILTER_ALL,
+    val endlessRadioEnabled: Boolean = true,
     val relatedContent: List<MusicTrack> = emptyList(),
     val isRelatedLoading: Boolean = false,
     val downloadedTrackIds: Set<String> = emptySet(),
@@ -935,12 +912,6 @@ data class MusicPlayerUiState(
     val lyricsCandidates: List<LyricsCandidate> = emptyList(),
     val isBrowsingLyrics: Boolean = false,
 )
-
-const val FILTER_ALL = "ALL"
-const val FILTER_DISCOVER = "DISCOVER"
-const val FILTER_POPULAR = "POPULAR"
-const val FILTER_DEEP_CUTS = "DEEP_CUTS"
-const val FILTER_WORKOUT = "WORKOUT"
 
 private const val SEEK_POSITION_CONFIRM_TOLERANCE_MS = 1_000L
 private const val SEEK_POSITION_MIN_HOLD_MS = 250L
