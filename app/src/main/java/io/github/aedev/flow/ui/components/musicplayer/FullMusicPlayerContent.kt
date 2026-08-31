@@ -533,7 +533,6 @@ internal fun FullMusicPlayerContent(
                     onLikeClick = { viewModel.toggleLike() },
                     onDownloadClick = { viewModel.downloadTrack() },
                     onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) },
-                    accentColor = colorScheme.primary,
                 )
             }
 
@@ -566,7 +565,6 @@ internal fun FullMusicPlayerContent(
                 shuffleEnabled = uiState.shuffleEnabled,
                 repeatMode = uiState.repeatMode,
                 sleepTimerActive = SleepTimerManager.isActive,
-                accentColor = colorScheme.primary,
                 onLyricsClick = {
                     uiState.currentTrack?.let { viewModel.ensureLyricsLoaded(it) }
                     showLyricsSheet = true

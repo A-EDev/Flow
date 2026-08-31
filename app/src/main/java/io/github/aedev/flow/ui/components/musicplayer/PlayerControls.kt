@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.musicplayer
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
@@ -224,13 +225,13 @@ fun PlayerPlaybackControls(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PlayerSecondaryActions(
     lyricsActive: Boolean,
     shuffleEnabled: Boolean,
     repeatMode: RepeatMode,
     sleepTimerActive: Boolean,
-    accentColor: Color,
     onLyricsClick: () -> Unit,
     onShuffleClick: () -> Unit,
     onRepeatClick: () -> Unit,
@@ -239,92 +240,90 @@ fun PlayerSecondaryActions(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(48.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SecondaryActionButton(
+        PlayerToggleButton(
+            checked = lyricsActive,
+            checkedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             icon = Icons.Outlined.Lyrics,
             contentDescription = stringResource(R.string.lyrics),
-            isActive = lyricsActive,
-            activeColor = accentColor,
             onClick = onLyricsClick,
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        SecondaryActionButton(
+        PlayerToggleButton(
+            checked = shuffleEnabled,
+            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             icon = Icons.Rounded.Shuffle,
             contentDescription = stringResource(R.string.shuffle),
-            isActive = shuffleEnabled,
-            activeColor = accentColor,
             onClick = onShuffleClick,
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        SecondaryActionButton(
+        PlayerToggleButton(
+            checked = repeatMode != RepeatMode.OFF,
+            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             icon =
                 when (repeatMode) {
                     RepeatMode.ONE -> Icons.Rounded.RepeatOne
-                    RepeatMode.ALL -> Icons.Rounded.Repeat
                     else -> Icons.Rounded.Repeat
                 },
             contentDescription = stringResource(R.string.repeat),
-            isActive = repeatMode != RepeatMode.OFF,
-            activeColor = accentColor,
             onClick = onRepeatClick,
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        SecondaryActionButton(
+        PlayerToggleButton(
+            checked = false,
+            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             icon = Icons.Outlined.QueueMusic,
             contentDescription = stringResource(R.string.playlist_queue),
-            isActive = false,
-            activeColor = accentColor,
             onClick = onQueueClick,
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        SecondaryActionButton(
+        PlayerToggleButton(
+            checked = sleepTimerActive,
+            checkedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             icon = Icons.Outlined.Bedtime,
             contentDescription = stringResource(R.string.sleep_timer),
-            isActive = sleepTimerActive,
-            activeColor = accentColor,
             onClick = onSleepTimerClick,
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SecondaryActionButton(
+private fun RowScope.PlayerToggleButton(
+    checked: Boolean,
+    checkedContainerColor: Color,
+    checkedContentColor: Color,
     icon: ImageVector,
     contentDescription: String?,
-    isActive: Boolean,
-    activeColor: Color,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.82f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 420f),
-        label = "secondaryActionScale",
-    )
-    IconButton(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        colors =
-            IconButtonDefaults.iconButtonColors(
-                containerColor = if (isActive) activeColor.copy(alpha = 0.18f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                contentColor = if (isActive) activeColor else MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
+    ToggleButton(
+        checked = checked,
+        onCheckedChange = { onClick() },
         modifier =
             Modifier
-                .size(48.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                },
+                .weight(1f)
+                .fillMaxHeight(),
+        colors =
+            ToggleButtonDefaults.toggleButtonColors(
+                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                checkedContainerColor = checkedContainerColor,
+                checkedContentColor = checkedContentColor,
+            ),
+        contentPadding = PaddingValues(0.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(23.dp),
+            modifier = Modifier.size(22.dp),
         )
     }
 }
@@ -654,7 +653,6 @@ fun PlayerProgressSlider(
 
 private fun Float.coerceAtPositive(minimumValue: Float): Float = if (this < minimumValue) minimumValue else this
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlayerMainActionButtons(
     isLiked: Boolean,
@@ -662,90 +660,95 @@ fun PlayerMainActionButtons(
     onLikeClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onAddToPlaylist: () -> Unit,
-    accentColor: Color = MaterialTheme.colorScheme.primary,
     modifier: Modifier = Modifier,
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
     Row(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(32.dp))
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(32.dp),
-                ).padding(horizontal = 4.dp, vertical = 4.dp),
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Download Button
-        val downloadInteractionSource = remember { MutableInteractionSource() }
-        IconButton(
+        SplitCapsuleButton(
+            active = isDownloaded,
+            shape =
+                RoundedCornerShape(
+                    topStart = 50.dp,
+                    topEnd = 6.dp,
+                    bottomStart = 50.dp,
+                    bottomEnd = 6.dp,
+                ),
+            icon = if (isDownloaded) Icons.Rounded.OfflinePin else Icons.Outlined.Download,
+            contentDescription = stringResource(R.string.download),
             onClick = onDownloadClick,
-            modifier = Modifier.size(40.dp).pressScale(downloadInteractionSource),
-            interactionSource = downloadInteractionSource,
-        ) {
-            Icon(
-                imageVector = if (isDownloaded) Icons.Rounded.OfflinePin else Icons.Outlined.Download,
-                contentDescription = stringResource(R.string.download),
-                tint = if (isDownloaded) accentColor else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-
-        Spacer(modifier = Modifier.width(2.dp))
-
-        // Divider
-        Box(
-            modifier =
-                Modifier
-                    .width(1.dp)
-                    .height(16.dp)
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)),
         )
-
-        Spacer(modifier = Modifier.width(2.dp))
-
-        // Like Button
-        val likeInteractionSource = remember { MutableInteractionSource() }
-        val isLikePressed by likeInteractionSource.collectIsPressedAsState()
-        val likeScale by animateFloatAsState(
-            targetValue =
-                if (isLikePressed) {
-                    0.8f
-                } else if (isLiked) {
-                    1.2f
-                } else {
-                    1f
-                },
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-            label = "likeScale",
+        SplitCapsuleButton(
+            active = isLiked,
+            shape =
+                RoundedCornerShape(
+                    topStart = 6.dp,
+                    topEnd = 50.dp,
+                    bottomStart = 6.dp,
+                    bottomEnd = 50.dp,
+                ),
+            icon = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+            contentDescription = stringResource(R.string.like),
+            onClick = onLikeClick,
+            onLongClick = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onAddToPlaylist()
+            },
         )
-        // Reset the bounce effect
-        val finalLikeScale = if (likeScale > 1f) 1f else likeScale
+    }
+}
 
-        Box(
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .graphicsLayer {
-                        scaleX = likeScale
-                        scaleY = likeScale
-                    }.clip(CircleShape)
-                    .combinedClickable(
-                        interactionSource = likeInteractionSource,
-                        indication = LocalIndication.current,
-                        onClick = onLikeClick,
-                        onLongClick = onAddToPlaylist,
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                contentDescription = stringResource(R.string.like),
-                tint = if (isLiked) accentColor else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SplitCapsuleButton(
+    active: Boolean,
+    shape: RoundedCornerShape,
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+) {
+    val containerColor by animateColorAsState(
+        targetValue =
+            if (active) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+            },
+        animationSpec = tween(durationMillis = 250),
+        label = "capsuleContainer",
+    )
+    val contentColor by animateColorAsState(
+        targetValue =
+            if (active) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.primary
+            },
+        animationSpec = tween(durationMillis = 250),
+        label = "capsuleContent",
+    )
+    Box(
+        modifier =
+            Modifier
+                .size(width = 50.dp, height = 42.dp)
+                .clip(shape)
+                .background(containerColor)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = contentColor,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 

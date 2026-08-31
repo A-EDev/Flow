@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,6 +87,7 @@ private val SheetDefaultSpring =
  * expansion fraction. All per-frame values are read in the layout/draw phase via lambdas so
  * dragging never recomposes the tree.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun UnifiedMusicPlayerSheet(
     state: MusicPlayerSheetState,
@@ -350,7 +353,10 @@ fun UnifiedMusicPlayerSheet(
     }
     val shouldRenderFullPlayer = rememberShouldRenderFullPlayer(state, displayTrack.videoId)
 
-    MaterialTheme(colorScheme = playerScheme) {
+    MaterialTheme(
+        colorScheme = playerScheme,
+        motionScheme = MotionScheme.expressive(),
+    ) {
         val cardColor = MaterialTheme.colorScheme.surfaceContainerHigh
 
         Box(

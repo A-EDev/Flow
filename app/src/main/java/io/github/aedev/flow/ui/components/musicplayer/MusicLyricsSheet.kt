@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.components.musicplayer
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -32,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -46,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.lyrics.LyricsEntry
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -87,6 +90,23 @@ internal fun MusicLyricsSheet(
         var backProgress by remember { mutableFloatStateOf(1f) }
         val scope = rememberCoroutineScope()
         val onDismissState = rememberUpdatedState(onDismiss)
+
+        // The lyrics renderer is expensive to compose; keep it out of the enter/exit
+        // transitions so the sheet itself animates jank-free, then fade the panel in.
+        var panelComposed by remember { mutableStateOf(false) }
+        LaunchedEffect(visible) {
+            if (visible) {
+                delay(240)
+                panelComposed = true
+            } else {
+                panelComposed = false
+            }
+        }
+        val panelAlpha by animateFloatAsState(
+            targetValue = if (panelComposed) 1f else 0f,
+            animationSpec = tween(durationMillis = 200),
+            label = "lyricsPanelAlpha",
+        )
 
         LaunchedEffect(Unit) {
             val enter = Animatable(backProgress)
@@ -168,19 +188,32 @@ internal fun MusicLyricsSheet(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                InlineLyricsPanel(
-                    lyrics = lyrics,
-                    syncedLyrics = syncedLyrics,
-                    positionProvider = positionProvider,
-                    isLoading = isLoading,
-                    accentColor = accentColor,
-                    onSeekTo = onSeekTo,
-                    providerName = providerName,
+                Box(
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .weight(1f),
-                )
+                ) {
+                    if (panelComposed) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer { alpha = panelAlpha },
+                        ) {
+                            InlineLyricsPanel(
+                                lyrics = lyrics,
+                                syncedLyrics = syncedLyrics,
+                                positionProvider = positionProvider,
+                                isLoading = isLoading,
+                                accentColor = accentColor,
+                                onSeekTo = onSeekTo,
+                                providerName = providerName,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
