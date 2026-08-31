@@ -32,7 +32,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -117,6 +119,24 @@ class MusicViewModel
                         refreshLocalShelves()
                     }
                 }
+            }
+
+            // Speed dial ranked by the comfort surface, so the tiles are the
+            // truest "most yours" rather than raw shelf concatenation order.
+            // Writing speedDialTracks re-emits _uiState, but the source triple is
+            // unchanged then, so distinctUntilChanged breaks the loop.
+            viewModelScope.launch {
+                _uiState
+                    .map { Triple(it.history, it.forYouTracks, it.listenAgain) }
+                    .distinctUntilChanged()
+                    .collectLatest { (history, forYou, listenAgain) ->
+                        val pool = (history + forYou + listenAgain).audioMusicOnly().take(40)
+                        if (pool.isEmpty()) return@collectLatest
+                        val ranked = musicBrain.rankTracks(pool, "heavy_rotation").take(26)
+                        if (ranked.isNotEmpty()) {
+                            _uiState.update { it.copy(speedDialTracks = ranked) }
+                        }
+                    }
             }
         }
 
@@ -1049,6 +1069,13 @@ class MusicViewModel
                     }?.tracks
                     ?.audioMusicOnly() ?: emptyList()
 
+            // YT hands these shelves back unranked; a brain pass puts the user's
+            // taste first and drops blocked artists at the source.
+            val rankedListenAgain = musicBrain.rankTracks(listenAgain, "heavy_rotation")
+            val rankedRecommended = musicBrain.rankTracks(recommended, "quick_picks")
+            val rankedVideosForYou = musicBrain.rankTracks(musicVideosForYou, "quick_picks")
+            val rankedLongListens = musicBrain.rankTracks(longListens, "quick_picks")
+
             _uiState.update { currentState ->
                 currentState.copy(
                     forYouTracks =
@@ -1057,12 +1084,12 @@ class MusicViewModel
                         } else {
                             quickPicks.ifEmpty { currentState.forYouTracks }
                         },
-                    recommendedTracks = recommended.ifEmpty { currentState.recommendedTracks },
-                    listenAgain = listenAgain,
+                    recommendedTracks = rankedRecommended.ifEmpty { currentState.recommendedTracks },
+                    listenAgain = rankedListenAgain,
                     musicVideos = musicVideos,
-                    musicVideosForYou = musicVideosForYou,
+                    musicVideosForYou = rankedVideosForYou,
                     livePerformances = livePerformances,
-                    longListens = longListens,
+                    longListens = rankedLongListens,
                     dynamicSections = sections,
                 )
             }
@@ -1365,6 +1392,7 @@ data class MusicUiState(
     val rediscoverTracks: List<MusicTrack> = emptyList(), // Loved-but-quiet artists (local music brain)
     val rotationTracks: List<MusicTrack> = emptyList(), // Time-of-day rotation (local music brain)
     val rotationBucket: MusicTimeBucket? = null,
+    val speedDialTracks: List<MusicTrack> = emptyList(), // Brain-ranked speed dial pool
     val forYouTracks: List<MusicTrack> = emptyList(), // Quick Picks
     val recommendedTracks: List<MusicTrack> = emptyList(), // Recommended for you
     val listenAgain: List<MusicTrack> = emptyList(), // Listen Again
