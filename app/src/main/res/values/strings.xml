@@ -2487,6 +2487,10 @@
     <string name="widget_turntable_label">Turntable</string>
     <string name="widget_turntable_description">Your music as a spinning record</string>
     <string name="widget_recently_played_label">Recently played</string>
+    <string name="widget_on_repeat_label">On Repeat</string>
+    <string name="widget_on_repeat">On Repeat</string>
+    <string name="widget_on_repeat_description">The songs you keep coming back to</string>
+    <string name="widget_no_on_repeat">Songs you keep replaying will appear here</string>
     <string name="widget_recently_played_description">Pick up where you left off</string>
     <string name="widget_downloads_label">Downloads</string>
     <string name="widget_downloads_description">Play your offline downloads</string>

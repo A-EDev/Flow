@@ -35,13 +35,18 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import io.github.aedev.flow.R
 
-/** Display model for the video content widgets. The first item may carry a hero image. */
+/**
+ * Display model for the content widgets. The first item may carry a hero image.
+ * [openIntent] overrides the default tap target (the video player) — music
+ * widgets point their rows at the Music surfaces instead.
+ */
 data class WidgetVideoItem(
     val videoId: String,
     val title: String,
     val subtitle: String,
     val thumbnail: Bitmap? = null,
     val hero: Bitmap? = null,
+    val openIntent: android.content.Intent? = null,
 )
 
 // Row thumbnail (16:9) — shared so every list widget loads/caches at the same size.
@@ -145,7 +150,7 @@ private fun HeroCard(item: WidgetVideoItem) {
         modifier = GlanceModifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
-            .clickable(actionStartActivity(WidgetDeepLink.playVideo(context, item.videoId))),
+            .clickable(actionStartActivity(item.openIntent ?: WidgetDeepLink.playVideo(context, item.videoId))),
     ) {
         Image(
             provider = ImageProvider(item.hero!!),
@@ -184,7 +189,7 @@ private fun VideoRow(item: WidgetVideoItem) {
         modifier = GlanceModifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 5.dp)
-            .clickable(actionStartActivity(WidgetDeepLink.playVideo(context, item.videoId))),
+            .clickable(actionStartActivity(item.openIntent ?: WidgetDeepLink.playVideo(context, item.videoId))),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (item.thumbnail != null) {

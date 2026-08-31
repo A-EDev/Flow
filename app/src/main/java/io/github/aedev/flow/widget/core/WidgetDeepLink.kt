@@ -20,6 +20,7 @@ object WidgetDeepLink {
     const val ROUTE_DOWNLOADS = "downloads"
     const val ROUTE_HISTORY = "history"
     const val ROUTE_RECOGNIZE = "musicRecognize"
+    const val ROUTE_MUSIC = "music"
 
     fun openApp(context: Context): Intent = base(context, "open")
 

@@ -5,6 +5,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.video.VideoDownloadManager
 
 /**
@@ -15,6 +16,8 @@ import io.github.aedev.flow.data.video.VideoDownloadManager
 @InstallIn(SingletonComponent::class)
 interface WidgetEntryPoint {
     fun videoDownloadManager(): VideoDownloadManager
+
+    fun musicBrainEngine(): MusicBrainEngine
 }
 
 fun widgetEntryPoint(context: Context): WidgetEntryPoint =
