@@ -59,15 +59,21 @@ class OnRepeatWidget : GlanceAppWidget() {
                                     null
                                 } else {
                                     WidgetImageLoader.load(
-                                        context, track.thumbnailUrl,
-                                        thumbWidthPx, thumbHeightPx, WIDGET_THUMB_CORNER_DP * density,
+                                        context,
+                                        track.thumbnailUrl,
+                                        thumbWidthPx,
+                                        thumbHeightPx,
+                                        WIDGET_THUMB_CORNER_DP * density,
                                     )
                                 },
                             hero =
                                 if (index == 0) {
                                     WidgetImageLoader.load(
-                                        context, track.thumbnailUrl,
-                                        WIDGET_HERO_WIDTH_PX, WIDGET_HERO_HEIGHT_PX, WIDGET_HERO_CORNER_DP * density,
+                                        context,
+                                        track.thumbnailUrl,
+                                        WIDGET_HERO_WIDTH_PX,
+                                        WIDGET_HERO_HEIGHT_PX,
+                                        WIDGET_HERO_CORNER_DP * density,
                                     )
                                 } else {
                                     null

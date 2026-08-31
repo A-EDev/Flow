@@ -72,26 +72,29 @@ fun EnhancedMusicScreen(
             val defaultOrder = HomeSectionType.values().toList()
             val anchored =
                 when (uiState.brainMaturity) {
-                    "cold_start" ->
+                    "cold_start" -> {
                         listOf(
                             HomeSectionType.CHARTS,
                             HomeSectionType.MOODS_AND_GENRES,
                             HomeSectionType.NEW_RELEASES,
                         )
+                    }
 
-                    "mature" ->
+                    "mature" -> {
                         listOf(
                             HomeSectionType.QUICK_PICKS,
                             HomeSectionType.SIMILAR_TO,
                             HomeSectionType.FROM_COMMUNITY,
                         )
+                    }
 
-                    else ->
+                    else -> {
                         listOf(
                             HomeSectionType.QUICK_PICKS,
                             HomeSectionType.FROM_COMMUNITY,
                             HomeSectionType.DAILY_DISCOVER,
                         )
+                    }
                 }
             val dynamicPool = defaultOrder - anchored
             anchored + dynamicPool.shuffled(java.util.Random(uiState.sessionSeed))
@@ -517,7 +520,10 @@ fun EnhancedMusicScreen(
                                                                     {
                                                                         if (section.isArtistSeed) {
                                                                             onArtistClick(section.seedId)
-                                                                        } else if (section.seedId.startsWith(MusicViewModel.DAILY_MIX_ID_PREFIX)) {
+                                                                        } else if (section.seedId.startsWith(
+                                                                                MusicViewModel.DAILY_MIX_ID_PREFIX,
+                                                                            )
+                                                                        ) {
                                                                             onAlbumClick(section.seedId)
                                                                         }
                                                                     }
@@ -693,18 +699,22 @@ fun EnhancedMusicScreen(
                                                                         when (track.itemType) {
                                                                             MusicItemType.ALBUM,
                                                                             MusicItemType.PLAYLIST,
-                                                                            -> onAlbumClick(track.videoId)
+                                                                            -> {
+                                                                                onAlbumClick(track.videoId)
+                                                                            }
 
                                                                             // Under a mood chip every section is that
                                                                             // mood's content — tag plays with it.
-                                                                            else ->
+                                                                            else -> {
                                                                                 onSongClick(
                                                                                     track,
                                                                                     section.tracks,
-                                                                                    uiState.selectedHomeChip?.title
+                                                                                    uiState.selectedHomeChip
+                                                                                        ?.title
                                                                                         ?.let { MUSIC_GENRE_SOURCE_PREFIX + it }
                                                                                         ?: section.title,
                                                                                 )
+                                                                            }
                                                                         }
                                                                     },
                                                                     onLongClick = {

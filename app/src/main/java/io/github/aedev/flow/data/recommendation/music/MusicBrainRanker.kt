@@ -303,7 +303,11 @@ internal object MusicBrainRanker {
 
         // One pass over the track library: the best-remembered track per artist
         // (most ring entries, newest play breaks ties).
-        data class Best(val trackId: String, val plays: Int, val newest: Long)
+        data class Best(
+            val trackId: String,
+            val plays: Int,
+            val newest: Long,
+        )
         val bestByArtist = HashMap<String, Best>()
         for ((trackId, meta) in brain.trackMeta) {
             val stamps = brain.trackPlays[trackId] ?: continue

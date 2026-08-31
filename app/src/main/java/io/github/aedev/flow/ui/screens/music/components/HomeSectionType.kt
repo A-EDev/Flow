@@ -17,5 +17,5 @@ enum class HomeSectionType {
     CHARTS,
     POPULAR_ARTISTS,
     MIXED_FOR_YOU,
-    MOODS_AND_GENRES
+    MOODS_AND_GENRES,
 }

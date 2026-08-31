@@ -110,17 +110,19 @@ private fun PanelHeader(
     onClick: Action,
 ) {
     Row(
-        modifier = GlanceModifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-            .clickable(onClick),
+        modifier =
+            GlanceModifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .clickable(onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = GlanceModifier
-                .size(28.dp)
-                .background(chipBackground)
-                .cornerRadius(14.dp),
+            modifier =
+                GlanceModifier
+                    .size(28.dp)
+                    .background(chipBackground)
+                    .cornerRadius(14.dp),
             contentAlignment = Alignment.Center,
         ) {
             Image(
@@ -133,11 +135,12 @@ private fun PanelHeader(
         Spacer(modifier = GlanceModifier.width(10.dp))
         Text(
             text = title,
-            style = TextStyle(
-                color = GlanceTheme.colors.onSurface,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-            ),
+            style =
+                TextStyle(
+                    color = GlanceTheme.colors.onSurface,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
             maxLines = 1,
         )
     }
@@ -147,28 +150,31 @@ private fun PanelHeader(
 private fun HeroCard(item: WidgetVideoItem) {
     val context = LocalContext.current
     Column(
-        modifier = GlanceModifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .clickable(actionStartActivity(item.openIntent ?: WidgetDeepLink.playVideo(context, item.videoId))),
+        modifier =
+            GlanceModifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .clickable(actionStartActivity(item.openIntent ?: WidgetDeepLink.playVideo(context, item.videoId))),
     ) {
         Image(
             provider = ImageProvider(item.hero!!),
             contentDescription = null,
-            modifier = GlanceModifier
-                .fillMaxWidth()
-                .height(104.dp)
-                .cornerRadius(WIDGET_HERO_CORNER_DP.dp),
+            modifier =
+                GlanceModifier
+                    .fillMaxWidth()
+                    .height(104.dp)
+                    .cornerRadius(WIDGET_HERO_CORNER_DP.dp),
             contentScale = ContentScale.Crop,
         )
         Spacer(modifier = GlanceModifier.height(6.dp))
         Text(
             text = item.title,
-            style = TextStyle(
-                color = GlanceTheme.colors.onSurface,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-            ),
+            style =
+                TextStyle(
+                    color = GlanceTheme.colors.onSurface,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
             maxLines = 2,
         )
         if (item.subtitle.isNotBlank()) {
@@ -186,10 +192,11 @@ private fun HeroCard(item: WidgetVideoItem) {
 private fun VideoRow(item: WidgetVideoItem) {
     val context = LocalContext.current
     Row(
-        modifier = GlanceModifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 5.dp)
-            .clickable(actionStartActivity(item.openIntent ?: WidgetDeepLink.playVideo(context, item.videoId))),
+        modifier =
+            GlanceModifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 5.dp)
+                .clickable(actionStartActivity(item.openIntent ?: WidgetDeepLink.playVideo(context, item.videoId))),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (item.thumbnail != null) {
@@ -201,10 +208,11 @@ private fun VideoRow(item: WidgetVideoItem) {
             )
         } else {
             Box(
-                modifier = GlanceModifier
-                    .size(WIDGET_THUMB_WIDTH, WIDGET_THUMB_HEIGHT)
-                    .background(GlanceTheme.colors.surfaceVariant)
-                    .cornerRadius(WIDGET_THUMB_CORNER_DP.dp),
+                modifier =
+                    GlanceModifier
+                        .size(WIDGET_THUMB_WIDTH, WIDGET_THUMB_HEIGHT)
+                        .background(GlanceTheme.colors.surfaceVariant)
+                        .cornerRadius(WIDGET_THUMB_CORNER_DP.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Image(

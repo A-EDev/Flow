@@ -256,7 +256,11 @@ class MusicBrainEngine
                 val keys =
                     buildSet {
                         add(musicArtistKey(artistId, artistName))
-                        artistName.trim().lowercase().takeIf { it.isNotEmpty() }?.let { add(it) }
+                        artistName
+                            .trim()
+                            .lowercase()
+                            .takeIf { it.isNotEmpty() }
+                            ?.let { add(it) }
                     }
                 val affinity = keys.mapNotNull { brain.artistAffinity[it] }.maxByOrNull { it.plays }
                 if (affinity == null || affinity.plays <= 0) return@withLock null
