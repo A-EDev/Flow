@@ -107,6 +107,9 @@ fun FlowApp(
     val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
     val isCategoriesNavigationEnabled by preferences.categoriesNavigationEnabled.collectAsState(initial = false)
     val disableShortsPlayer by preferences.effectiveDisableShortsPlayer.collectAsState(initial = false)
+    val musicPlayerBackgroundStyle by preferences.musicPlayerBackgroundStyle.collectAsState(
+        initial = io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle.BLUR_GRADIENT,
+    )
     val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
     val subscriptionRefreshOnStartup by preferences.subscriptionRefreshOnStartup.collectAsState(initial = false)
@@ -432,6 +435,8 @@ fun FlowApp(
             systemDarkThemeMode = systemDarkThemeMode,
             isFullscreen = playerUiState.isFullscreen,
             isMusicPlayerImmersive = currentMusicTrack != null && musicPlayerSheetState.isImmersive,
+            musicPlayerFollowsTheme =
+                musicPlayerBackgroundStyle == io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle.DEFAULT,
             isShortsPlayer = isShortsPlayerRoute,
         )
 
@@ -775,6 +780,7 @@ private fun ApplyStatusBarStyle(
     systemDarkThemeMode: ThemeMode,
     isFullscreen: Boolean,
     isMusicPlayerImmersive: Boolean = false,
+    musicPlayerFollowsTheme: Boolean = false,
     isShortsPlayer: Boolean = false,
 ) {
     val activity = LocalContext.current as? Activity ?: return
@@ -801,6 +807,9 @@ private fun ApplyStatusBarStyle(
                 colorScheme.background.toArgb()
             }
 
-        insetsController.isAppearanceLightStatusBars = !isDarkTheme && !shouldDrawBehindStatusBar
+        val musicImmersiveOnLightSurface =
+            isMusicPlayerImmersive && musicPlayerFollowsTheme && !isDarkTheme && !isFullscreen && !isShortsPlayer
+        insetsController.isAppearanceLightStatusBars =
+            (!isDarkTheme && !shouldDrawBehindStatusBar) || musicImmersiveOnLightSurface
     }
 }
