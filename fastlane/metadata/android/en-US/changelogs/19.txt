@@ -3,5 +3,7 @@
 - Added artist feedback (not interested / don't recommend) with blocked-artist management
 - Added music taste cards to the Flow Control Center and a music engine backup
 - Added the music taste profile to device sync
+- Added Rediscover, time-of-day rotation and top-artist album shelves
+- Added Daily Mix playlist pages, artist-page history and an On Repeat widget
 - Fixed music region settings, related music fetching and stale recommendations
 - Lower battery use during background music playback
