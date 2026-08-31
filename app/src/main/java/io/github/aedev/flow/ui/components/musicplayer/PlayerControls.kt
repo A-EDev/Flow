@@ -1,21 +1,19 @@
 package io.github.aedev.flow.ui.components.musicplayer
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -36,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +60,7 @@ fun PlayerPlaybackControls(
     onPlayPauseToggle: () -> Unit,
     onNextClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onPreviewDirectionChange: (SkipDirection?) -> Unit = {},
 ) {
     var lastClicked by remember { mutableStateOf<PlaybackButtonType?>(null) }
     var clickTrigger by remember { mutableIntStateOf(0) }
@@ -80,7 +80,7 @@ fun PlayerPlaybackControls(
         }
     }
 
-    // Latch the icon while a skip is in flight so play/pause doesn't flicker on track changes.
+    // Latch the icon while a skip is in flight so play/pause does not flicker on track changes.
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
             pendingPlayPauseState = true
@@ -153,6 +153,7 @@ fun PlayerPlaybackControls(
             onClick = {
                 lastClicked = PlaybackButtonType.PREVIOUS
                 clickTrigger++
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 scope.launch {
                     delay(180L)
                     onPreviousClick()
@@ -161,6 +162,11 @@ fun PlayerPlaybackControls(
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             iconSize = 30.dp,
+            onLongPressStart = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onPreviewDirectionChange(SkipDirection.PREVIOUS)
+            },
+            onLongPressEnd = { onPreviewDirectionChange(null) },
         )
 
         ElasticControlButton(
@@ -188,6 +194,7 @@ fun PlayerPlaybackControls(
             onClick = {
                 lastClicked = PlaybackButtonType.NEXT
                 clickTrigger++
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 scope.launch {
                     delay(180L)
                     onNextClick()
@@ -196,6 +203,11 @@ fun PlayerPlaybackControls(
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             iconSize = 30.dp,
+            onLongPressStart = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onPreviewDirectionChange(SkipDirection.NEXT)
+            },
+            onLongPressEnd = { onPreviewDirectionChange(null) },
         )
     }
 }
@@ -206,7 +218,6 @@ fun PlayerSecondaryActions(
     shuffleEnabled: Boolean,
     repeatMode: RepeatMode,
     sleepTimerActive: Boolean,
-    accentColor: Color,
     onLyricsClick: () -> Unit,
     onShuffleClick: () -> Unit,
     onRepeatClick: () -> Unit,
@@ -215,92 +226,116 @@ fun PlayerSecondaryActions(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.7f))
+                .padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SecondaryActionButton(
+        ExpressiveSegmentButton(
+            active = lyricsActive,
+            activeColor = MaterialTheme.colorScheme.tertiaryContainer,
+            activeContentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             icon = Icons.Outlined.Lyrics,
             contentDescription = stringResource(R.string.lyrics),
-            isActive = lyricsActive,
-            activeColor = accentColor,
             onClick = onLyricsClick,
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        SecondaryActionButton(
+        ExpressiveSegmentButton(
+            active = shuffleEnabled,
+            activeColor = MaterialTheme.colorScheme.primaryContainer,
+            activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             icon = Icons.Rounded.Shuffle,
             contentDescription = stringResource(R.string.shuffle),
-            isActive = shuffleEnabled,
-            activeColor = accentColor,
             onClick = onShuffleClick,
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        SecondaryActionButton(
+        ExpressiveSegmentButton(
+            active = repeatMode != RepeatMode.OFF,
+            activeColor = MaterialTheme.colorScheme.secondaryContainer,
+            activeContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             icon =
                 when (repeatMode) {
                     RepeatMode.ONE -> Icons.Rounded.RepeatOne
-                    RepeatMode.ALL -> Icons.Rounded.Repeat
                     else -> Icons.Rounded.Repeat
                 },
             contentDescription = stringResource(R.string.repeat),
-            isActive = repeatMode != RepeatMode.OFF,
-            activeColor = accentColor,
             onClick = onRepeatClick,
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        SecondaryActionButton(
+        ExpressiveSegmentButton(
+            active = false,
+            activeColor = MaterialTheme.colorScheme.primaryContainer,
+            activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             icon = Icons.Outlined.QueueMusic,
             contentDescription = stringResource(R.string.playlist_queue),
-            isActive = false,
-            activeColor = accentColor,
             onClick = onQueueClick,
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        SecondaryActionButton(
+        ExpressiveSegmentButton(
+            active = sleepTimerActive,
+            activeColor = MaterialTheme.colorScheme.tertiaryContainer,
+            activeContentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             icon = Icons.Outlined.Bedtime,
             contentDescription = stringResource(R.string.sleep_timer),
-            isActive = sleepTimerActive,
-            activeColor = accentColor,
             onClick = onSleepTimerClick,
         )
     }
 }
 
 @Composable
-private fun SecondaryActionButton(
+private fun RowScope.ExpressiveSegmentButton(
+    active: Boolean,
+    activeColor: Color,
+    activeContentColor: Color,
     icon: ImageVector,
     contentDescription: String?,
-    isActive: Boolean,
-    activeColor: Color,
     onClick: () -> Unit,
 ) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (active) activeColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+        animationSpec = tween(durationMillis = 250),
+        label = "segmentBackground",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (active) activeContentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(durationMillis = 250),
+        label = "segmentContent",
+    )
+    val cornerRadius by animateDpAsState(
+        targetValue = if (active) 22.dp else 12.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "segmentCorner",
+    )
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.82f else 1f,
+        targetValue = if (isPressed) 0.9f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 420f),
-        label = "secondaryActionScale",
+        label = "segmentScale",
     )
-    IconButton(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        colors =
-            IconButtonDefaults.iconButtonColors(
-                containerColor = if (isActive) activeColor.copy(alpha = 0.18f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                contentColor = if (isActive) activeColor else MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
+    Box(
         modifier =
             Modifier
-                .size(48.dp)
+                .weight(1f)
+                .fillMaxHeight()
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                },
+                }.clip(RoundedCornerShape(cornerRadius))
+                .background(backgroundColor)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(23.dp),
+            tint = contentColor,
+            modifier = Modifier.size(22.dp),
         )
     }
 }
@@ -316,7 +351,12 @@ private fun RowScope.ElasticControlButton(
     iconSize: Dp,
     cornerRadius: Dp = 34.dp,
     isBuffering: Boolean = false,
+    onLongPressStart: (() -> Unit)? = null,
+    onLongPressEnd: (() -> Unit)? = null,
 ) {
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentLongPressStart by rememberUpdatedState(onLongPressStart)
+    val currentLongPressEnd by rememberUpdatedState(onLongPressEnd)
     Box(
         modifier =
             Modifier
@@ -324,10 +364,16 @@ private fun RowScope.ElasticControlButton(
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(cornerRadius))
                 .background(containerColor)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { onClick() },
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { currentOnClick() },
+                        onLongPress = { currentLongPressStart?.invoke() },
+                        onPress = {
+                            tryAwaitRelease()
+                            currentLongPressEnd?.invoke()
+                        },
+                    )
+                },
         contentAlignment = Alignment.Center,
     ) {
         if (isBuffering) {
@@ -599,90 +645,98 @@ fun PlayerMainActionButtons(
     onLikeClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onAddToPlaylist: () -> Unit,
-    accentColor: Color = MaterialTheme.colorScheme.primary,
     modifier: Modifier = Modifier,
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
     Row(
         modifier =
             modifier
-                .clip(RoundedCornerShape(32.dp))
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(32.dp),
-                ).padding(horizontal = 4.dp, vertical = 4.dp),
+                .height(44.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.7f))
+                .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Download Button
-        val downloadInteractionSource = remember { MutableInteractionSource() }
-        IconButton(
+        MainActionSegment(
+            active = isDownloaded,
+            activeColor = MaterialTheme.colorScheme.secondaryContainer,
+            activeContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            icon = if (isDownloaded) Icons.Rounded.OfflinePin else Icons.Outlined.Download,
+            contentDescription = stringResource(R.string.download),
             onClick = onDownloadClick,
-            modifier = Modifier.size(40.dp).pressScale(downloadInteractionSource),
-            interactionSource = downloadInteractionSource,
-        ) {
-            Icon(
-                imageVector = if (isDownloaded) Icons.Rounded.OfflinePin else Icons.Outlined.Download,
-                contentDescription = stringResource(R.string.download),
-                tint = if (isDownloaded) accentColor else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-
-        Spacer(modifier = Modifier.width(2.dp))
-
-        // Divider
-        Box(
-            modifier =
-                Modifier
-                    .width(1.dp)
-                    .height(16.dp)
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)),
         )
-
-        Spacer(modifier = Modifier.width(2.dp))
-
-        // Like Button
-        val likeInteractionSource = remember { MutableInteractionSource() }
-        val isLikePressed by likeInteractionSource.collectIsPressedAsState()
-        val likeScale by animateFloatAsState(
-            targetValue =
-                if (isLikePressed) {
-                    0.8f
-                } else if (isLiked) {
-                    1.2f
-                } else {
-                    1f
-                },
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-            label = "likeScale",
+        MainActionSegment(
+            active = isLiked,
+            activeColor = MaterialTheme.colorScheme.primaryContainer,
+            activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            icon = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+            contentDescription = stringResource(R.string.like),
+            onClick = onLikeClick,
+            onLongClick = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onAddToPlaylist()
+            },
         )
-        // Reset the bounce effect
-        val finalLikeScale = if (likeScale > 1f) 1f else likeScale
+    }
+}
 
-        Box(
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .graphicsLayer {
-                        scaleX = likeScale
-                        scaleY = likeScale
-                    }.clip(CircleShape)
-                    .combinedClickable(
-                        interactionSource = likeInteractionSource,
-                        indication = LocalIndication.current,
-                        onClick = onLikeClick,
-                        onLongClick = onAddToPlaylist,
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                contentDescription = stringResource(R.string.like),
-                tint = if (isLiked) accentColor else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MainActionSegment(
+    active: Boolean,
+    activeColor: Color,
+    activeContentColor: Color,
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (active) activeColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+        animationSpec = tween(durationMillis = 250),
+        label = "actionBackground",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (active) activeContentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(durationMillis = 250),
+        label = "actionContent",
+    )
+    val cornerRadius by animateDpAsState(
+        targetValue = if (active) 18.dp else 10.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "actionCorner",
+    )
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.88f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 420f),
+        label = "actionScale",
+    )
+    Box(
+        modifier =
+            Modifier
+                .size(width = 52.dp, height = 36.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }.clip(RoundedCornerShape(cornerRadius))
+                .background(backgroundColor)
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = contentColor,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
@@ -715,13 +769,9 @@ fun PlayerLyricsRefreshButton(
     Row(
         modifier =
             modifier
-                .clip(RoundedCornerShape(32.dp))
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(32.dp),
-                ).padding(horizontal = 4.dp, vertical = 4.dp),
+                .clip(RoundedCornerShape(22.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.7f))
+                .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(

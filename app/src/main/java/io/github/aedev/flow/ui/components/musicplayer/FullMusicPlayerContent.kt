@@ -12,6 +12,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
@@ -64,6 +65,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -116,8 +120,17 @@ internal fun FullMusicPlayerContent(
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
-    var skipDirection by remember { mutableStateOf<SkipDirection?>(null) }
+    var previewDirection by remember { mutableStateOf<SkipDirection?>(null) }
     val musicPlayer by EnhancedMusicPlayerManager.playerInstance.collectAsState()
+
+    val previousTrack = uiState.queue.getOrNull(uiState.currentQueueIndex - 1)
+    val nextTrack = uiState.queue.getOrNull(uiState.currentQueueIndex + 1)
+    val previewTrack =
+        when (previewDirection) {
+            SkipDirection.NEXT -> nextTrack
+            SkipDirection.PREVIOUS -> previousTrack
+            null -> null
+        }
 
     LaunchedEffect(musicPlayer) {
         SleepTimerManager.attachToPlayer(
@@ -345,7 +358,49 @@ internal fun FullMusicPlayerContent(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .graphicsLayer { alpha = mainAlpha },
+                    .graphicsLayer { alpha = mainAlpha }
+                    .pointerInput(isPlayerSheetExpanded, queueExpandedY, safeHiddenY) {
+                        if (!isPlayerSheetExpanded) return@pointerInput
+                        val velocityTracker = VelocityTracker()
+                        var queueDragActive = false
+                        detectVerticalDragGestures(
+                            onDragStart = {
+                                queueDragActive = false
+                                velocityTracker.resetTracking()
+                            },
+                            onVerticalDrag = { change, dragAmount ->
+                                if (!queueDragActive) {
+                                    if (dragAmount < 0f) {
+                                        queueDragActive = true
+                                        showQueueSheet = true
+                                    } else {
+                                        // Downward drags stay unconsumed so the sheet can collapse.
+                                        return@detectVerticalDragGestures
+                                    }
+                                }
+                                change.consume()
+                                velocityTracker.addPointerInputChange(change)
+                                scope.launch {
+                                    queueOffsetY.snapTo(
+                                        (queueOffsetY.value + dragAmount).coerceIn(queueExpandedY, safeHiddenY),
+                                    )
+                                }
+                            },
+                            onDragEnd = {
+                                if (queueDragActive) {
+                                    val velocity = velocityTracker.calculateVelocity().y
+                                    scope.launch { settleQueueSheet(velocity) }
+                                }
+                                queueDragActive = false
+                            },
+                            onDragCancel = {
+                                if (queueDragActive) {
+                                    scope.launch { settleQueueSheet(0f) }
+                                }
+                                queueDragActive = false
+                            },
+                        )
+                    },
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -380,19 +435,16 @@ internal fun FullMusicPlayerContent(
                 ) {
                     PlayerArtwork(
                         thumbnailUrl = thumbnailUrl,
+                        previousThumbnailUrl = previousTrack?.highResThumbnailUrl,
+                        nextThumbnailUrl = nextTrack?.highResThumbnailUrl,
+                        previewDirection = previewDirection,
                         isVideoMode = false,
                         isLoading = uiState.isLoading,
                         hideArtwork = hideArtwork,
                         hiddenArtworkColor = colorScheme.surfaceContainerHigh,
                         player = EnhancedMusicPlayerManager.player,
-                        onSkipPrevious = {
-                            viewModel.skipToPrevious()
-                            skipDirection = SkipDirection.PREVIOUS
-                        },
-                        onSkipNext = {
-                            viewModel.skipToNext()
-                            skipDirection = SkipDirection.NEXT
-                        },
+                        onSkipPrevious = { viewModel.skipToPrevious() },
+                        onSkipNext = { viewModel.skipToNext() },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -411,7 +463,7 @@ internal fun FullMusicPlayerContent(
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     AnimatedContent(
-                        targetState = uiState.currentTrack?.title ?: track.title,
+                        targetState = previewTrack?.title ?: uiState.currentTrack?.title ?: track.title,
                         transitionSpec = { fadeIn() togetherWith fadeOut() },
                         label = "title",
                     ) { title ->
@@ -431,21 +483,27 @@ internal fun FullMusicPlayerContent(
                         )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = uiState.currentTrack?.artist ?: track.artist,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier =
-                            Modifier.clickable {
-                                uiState.currentTrack
-                                    ?.channelId
-                                    ?.takeIf { it.isNotEmpty() }
-                                    ?.let { onArtistClick(it) }
-                            },
-                    )
+                    AnimatedContent(
+                        targetState = previewTrack?.artist ?: uiState.currentTrack?.artist ?: track.artist,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "artist",
+                    ) { artist ->
+                        Text(
+                            text = artist,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier =
+                                Modifier.clickable {
+                                    uiState.currentTrack
+                                        ?.channelId
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.let { onArtistClick(it) }
+                                },
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -456,7 +514,6 @@ internal fun FullMusicPlayerContent(
                     onLikeClick = { viewModel.toggleLike() },
                     onDownloadClick = { viewModel.downloadTrack() },
                     onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) },
-                    accentColor = colorScheme.primary,
                 )
             }
 
@@ -479,6 +536,7 @@ internal fun FullMusicPlayerContent(
                 onPlayPauseToggle = { viewModel.togglePlayPause() },
                 onNextClick = { viewModel.skipToNext() },
                 modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
+                onPreviewDirectionChange = { previewDirection = it },
             )
 
             Spacer(modifier = Modifier.height(22.dp))
@@ -488,7 +546,6 @@ internal fun FullMusicPlayerContent(
                 shuffleEnabled = uiState.shuffleEnabled,
                 repeatMode = uiState.repeatMode,
                 sleepTimerActive = SleepTimerManager.isActive,
-                accentColor = colorScheme.primary,
                 onLyricsClick = {
                     uiState.currentTrack?.let { viewModel.ensureLyricsLoaded(it) }
                     showLyricsSheet = true
@@ -687,11 +744,6 @@ internal fun FullMusicPlayerContent(
                 )
             }
         }
-
-        AnimatedSkipIndicators(
-            direction = skipDirection,
-            onAnimationComplete = { skipDirection = null },
-        )
 
         MusicLyricsSheet(
             visible = showLyricsSheet,

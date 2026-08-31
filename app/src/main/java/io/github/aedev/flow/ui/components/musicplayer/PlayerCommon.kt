@@ -1,81 +1,13 @@
 package io.github.aedev.flow.ui.components.musicplayer
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 
 enum class SkipDirection {
     NEXT,
     PREVIOUS,
-}
-
-@Composable
-fun AnimatedSkipIndicators(
-    direction: SkipDirection?,
-    onAnimationComplete: () -> Unit,
-) {
-    direction?.let {
-        LaunchedEffect(direction) {
-            delay(500)
-            onAnimationComplete()
-        }
-
-        val slideIn = remember { Animatable(if (direction == SkipDirection.NEXT) 1f else -1f) }
-
-        LaunchedEffect(direction) {
-            slideIn.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-            )
-        }
-
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-            contentAlignment =
-                if (direction == SkipDirection.NEXT) {
-                    Alignment.CenterEnd
-                } else {
-                    Alignment.CenterStart
-                },
-        ) {
-            Surface(
-                modifier = Modifier.size(64.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                shadowElevation = 8.dp,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector =
-                            if (direction == SkipDirection.NEXT) {
-                                Icons.Filled.SkipNext
-                            } else {
-                                Icons.Filled.SkipPrevious
-                            },
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(40.dp),
-                    )
-                }
-            }
-        }
-    }
 }
 
 @Composable

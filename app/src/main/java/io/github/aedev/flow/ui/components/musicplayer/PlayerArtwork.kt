@@ -10,6 +10,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -24,9 +25,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.LaunchedEffect
 import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -39,8 +42,31 @@ import io.github.aedev.flow.R
 import kotlinx.coroutines.launch
 
 @Composable
+private fun rememberArtworkRequest(thumbnailUrl: String?): ImageRequest {
+    val context = LocalContext.current
+    return remember(thumbnailUrl) {
+        ImageRequest
+            .Builder(context)
+            .data(thumbnailUrl)
+            .allowHardware(false)
+            .crossfade(true)
+            .precision(Precision.EXACT)
+            .size(1080)
+            .build()
+    }
+}
+
+/**
+ * Artwork behaves like a pager: the neighbouring track's cover slides in with the drag, and a
+ * long-press preview drives the same offset. A committed swipe leaves the neighbour centered
+ * until the track actually changes, so the handoff to the new "current" cover is seamless.
+ */
+@Composable
 fun PlayerArtwork(
     thumbnailUrl: String?,
+    previousThumbnailUrl: String?,
+    nextThumbnailUrl: String?,
+    previewDirection: SkipDirection?,
     isVideoMode: Boolean,
     isLoading: Boolean,
     hideArtwork: Boolean,
@@ -50,157 +76,191 @@ fun PlayerArtwork(
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val artworkRequest =
-        remember(thumbnailUrl) {
-            ImageRequest
-                .Builder(context)
-                .data(thumbnailUrl)
-                .allowHardware(false)
-                .crossfade(true)
-                .precision(Precision.EXACT)
-                .size(1080)
-                .build()
-        }
-
     val scope = rememberCoroutineScope()
     val dragOffsetX = remember { Animatable(0f) }
+    val density = LocalDensity.current
 
-    Box(
+    BoxWithConstraints(
         modifier =
             modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.Black)
-                .pointerInput(Unit) {
-                    var totalDrag = 0f
-                    detectHorizontalDragGestures(
-                        onDragStart = {
-                            totalDrag = 0f
-                            scope.launch { dragOffsetX.stop() }
-                        },
-                        onDragEnd = {
-                            val width = size.width.toFloat()
-                            when {
-                                totalDrag > 100 -> {
-                                    scope.launch {
-                                        dragOffsetX.animateTo(
-                                            targetValue = width,
-                                            animationSpec = tween(180, easing = FastOutSlowInEasing),
-                                        )
-                                        onSkipPrevious()
-                                        dragOffsetX.snapTo(-width)
-                                        dragOffsetX.animateTo(
-                                            targetValue = 0f,
-                                            animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f),
-                                        )
-                                    }
-                                }
-
-                                totalDrag < -100 -> {
-                                    scope.launch {
-                                        dragOffsetX.animateTo(
-                                            targetValue = -width,
-                                            animationSpec = tween(180, easing = FastOutSlowInEasing),
-                                        )
-                                        onSkipNext()
-                                        dragOffsetX.snapTo(width)
-                                        dragOffsetX.animateTo(
-                                            targetValue = 0f,
-                                            animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f),
-                                        )
-                                    }
-                                }
-
-                                else -> {
-                                    scope.launch {
-                                        dragOffsetX.animateTo(
-                                            targetValue = 0f,
-                                            animationSpec =
-                                                spring(
-                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                    stiffness = Spring.StiffnessMedium,
-                                                ),
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        onDragCancel = {
-                            scope.launch { dragOffsetX.animateTo(0f) }
-                        },
-                        onHorizontalDrag = { change, dragAmount ->
-                            totalDrag += dragAmount
-                            change.consume()
-                            scope.launch { dragOffsetX.snapTo(dragOffsetX.value + dragAmount * 0.6f) }
-                        },
-                    )
-                },
+                .background(Color.Black),
     ) {
-        if (isVideoMode) {
-            AndroidView(
-                factory = { context ->
-                    PlayerView(context).apply {
-                        this.player = player
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        layoutParams =
-                            ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                            )
+        val widthPx = with(density) { maxWidth.toPx() }
+
+        LaunchedEffect(thumbnailUrl) {
+            dragOffsetX.snapTo(0f)
+        }
+
+        LaunchedEffect(previewDirection, widthPx) {
+            when (previewDirection) {
+                SkipDirection.NEXT ->
+                    if (nextThumbnailUrl != null) {
+                        dragOffsetX.animateTo(-widthPx, spring(dampingRatio = 0.85f, stiffness = 380f))
                     }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else if (hideArtwork) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(hiddenArtworkColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_launcher_foreground),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(0.42f),
+
+                SkipDirection.PREVIOUS ->
+                    if (previousThumbnailUrl != null) {
+                        dragOffsetX.animateTo(widthPx, spring(dampingRatio = 0.85f, stiffness = 380f))
+                    }
+
+                null ->
+                    if (dragOffsetX.value != 0f) {
+                        dragOffsetX.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 380f))
+                    }
+            }
+        }
+
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(previousThumbnailUrl != null, nextThumbnailUrl != null) {
+                        detectHorizontalDragGestures(
+                            onDragStart = {
+                                scope.launch { dragOffsetX.stop() }
+                            },
+                            onDragEnd = {
+                                val width = size.width.toFloat()
+                                val threshold = width * 0.3f
+                                val offset = dragOffsetX.value
+                                when {
+                                    offset < -threshold && nextThumbnailUrl != null -> {
+                                        scope.launch {
+                                            dragOffsetX.animateTo(
+                                                targetValue = -width,
+                                                animationSpec = tween(200, easing = FastOutSlowInEasing),
+                                            )
+                                            onSkipNext()
+                                        }
+                                    }
+
+                                    offset > threshold && previousThumbnailUrl != null -> {
+                                        scope.launch {
+                                            dragOffsetX.animateTo(
+                                                targetValue = width,
+                                                animationSpec = tween(200, easing = FastOutSlowInEasing),
+                                            )
+                                            onSkipPrevious()
+                                        }
+                                    }
+
+                                    else -> {
+                                        scope.launch {
+                                            dragOffsetX.animateTo(
+                                                targetValue = 0f,
+                                                animationSpec =
+                                                    spring(
+                                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                        stiffness = Spring.StiffnessMedium,
+                                                    ),
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            onDragCancel = {
+                                scope.launch { dragOffsetX.animateTo(0f) }
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                val target = dragOffsetX.value + dragAmount
+                                val hasNeighbor =
+                                    if (target < 0f) nextThumbnailUrl != null else previousThumbnailUrl != null
+                                val resistance = if (hasNeighbor) 1f else 0.3f
+                                val newOffset =
+                                    (dragOffsetX.value + dragAmount * resistance)
+                                        .coerceIn(-size.width.toFloat(), size.width.toFloat())
+                                scope.launch { dragOffsetX.snapTo(newOffset) }
+                            },
+                        )
+                    },
+        ) {
+            if (isVideoMode) {
+                AndroidView(
+                    factory = { context ->
+                        PlayerView(context).apply {
+                            this.player = player
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            layoutParams =
+                                ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                )
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
                 )
-            }
-
-            if (isLoading) {
+            } else if (hideArtwork) {
                 Box(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.3f)),
+                            .background(hiddenArtworkColor),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = Color.White)
+                    Image(
+                        painter = painterResource(R.drawable.ic_launcher_foreground),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(0.42f),
+                    )
                 }
-            }
-        } else {
-            AsyncImage(
-                model = artworkRequest,
-                contentDescription = null,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            translationX = dragOffsetX.value
-                            alpha = (1f - kotlin.math.abs(dragOffsetX.value) / (size.width * 1.2f)).coerceIn(0f, 1f)
-                        },
-                contentScale = ContentScale.Crop,
-            )
 
-            if (isLoading) {
-                Box(
+                if (isLoading) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = Color.White)
+                    }
+                }
+            } else {
+                if (previousThumbnailUrl != null) {
+                    AsyncImage(
+                        model = rememberArtworkRequest(previousThumbnailUrl),
+                        contentDescription = null,
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { translationX = dragOffsetX.value - widthPx },
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                if (nextThumbnailUrl != null) {
+                    AsyncImage(
+                        model = rememberArtworkRequest(nextThumbnailUrl),
+                        contentDescription = null,
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { translationX = dragOffsetX.value + widthPx },
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                AsyncImage(
+                    model = rememberArtworkRequest(thumbnailUrl),
+                    contentDescription = null,
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = Color.White)
+                            .graphicsLayer { translationX = dragOffsetX.value },
+                    contentScale = ContentScale.Crop,
+                )
+
+                if (isLoading) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = Color.White)
+                    }
                 }
             }
         }
