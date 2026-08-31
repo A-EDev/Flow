@@ -182,6 +182,39 @@ internal object MusicBrainLearn {
         brain.blockedArtists.remove(artistKey)
     }
 
+    /**
+     * Every artist the shelves must hide right now: blocked, plus disliked ones
+     * still inside the cooldown. Each artist contributes BOTH key forms — the
+     * brain key and the lowercased display name — because the same artist is
+     * id-keyed on tracks that carry a browseId and name-keyed on tracks that
+     * don't, and feedback must remove them everywhere regardless.
+     */
+    fun hiddenArtistKeys(
+        brain: MusicBrain,
+        nowMs: Long,
+    ): Set<String> {
+        val keys = HashSet<String>(brain.blockedArtists)
+        brain.dislikedArtists.forEach { (key, ts) ->
+            if (nowMs - ts < MusicBrainParams.DISLIKE_COOLDOWN_MS) keys.add(key)
+        }
+        if (keys.isEmpty()) return emptySet()
+        val expanded = HashSet<String>(keys.size * 2)
+        for (key in keys) {
+            expanded.add(key)
+            val display =
+                brain.artistAffinity[key]?.display?.takeIf { it.isNotBlank() }
+                    ?: brain.trackMeta.values
+                        .firstOrNull { it.artistKey == key }
+                        ?.artist
+            display
+                ?.trim()
+                ?.lowercase()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { expanded.add(it) }
+        }
+        return expanded
+    }
+
     /** Replace the "fans also like" edges for one artist — platform knowledge, newest fetch wins. */
     fun recordArtistRelated(
         brain: MusicBrain,

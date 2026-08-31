@@ -57,6 +57,20 @@ class MusicBrainEngine
         private var brain = MusicBrain()
         private var isInitialized = false
 
+        private val _hiddenArtists = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(emptySet())
+
+        /**
+         * Blocked + dislike-cooldown artists in every matchable key form, kept
+         * current across feedback, unblock, import and sync. Shelf composers
+         * combine this so feedback removes an artist from every section at once.
+         */
+        val hiddenArtists: kotlinx.coroutines.flow.StateFlow<Set<String>> = _hiddenArtists
+
+        /** Must run with the mutex held (or during single-threaded init). */
+        private fun refreshHiddenArtistsLocked() {
+            _hiddenArtists.value = MusicBrainLearn.hiddenArtistKeys(brain, System.currentTimeMillis())
+        }
+
         /** Previous counted artist + timestamp, for session co-occurrence. Ephemeral, never persisted. */
         private var lastCounted: Pair<String, Long>? = null
 
@@ -74,6 +88,7 @@ class MusicBrainEngine
                         storage.save(brain)
                     }
                     isInitialized = true
+                    refreshHiddenArtistsLocked()
                     Log.i(TAG, "Initialized: plays=${brain.totalPlays} artists=${brain.artistAffinity.size}")
                 }
             }
@@ -243,7 +258,12 @@ class MusicBrainEngine
             artistName: String,
         ) {
             ensureInitialized()
-            mutex.withLock { MusicBrainLearn.applyDislike(brain, musicArtistKey(artistId, artistName), System.currentTimeMillis()) }
+            mutex.withLock {
+                val key = musicArtistKey(artistId, artistName)
+                stampDisplayLocked(key, artistName)
+                MusicBrainLearn.applyDislike(brain, key, System.currentTimeMillis())
+                refreshHiddenArtistsLocked()
+            }
             scheduleDebouncedSave()
         }
 
@@ -252,13 +272,34 @@ class MusicBrainEngine
             artistName: String,
         ) {
             ensureInitialized()
-            mutex.withLock { MusicBrainLearn.blockArtist(brain, musicArtistKey(artistId, artistName)) }
+            mutex.withLock {
+                val key = musicArtistKey(artistId, artistName)
+                stampDisplayLocked(key, artistName)
+                MusicBrainLearn.blockArtist(brain, key)
+                refreshHiddenArtistsLocked()
+            }
             scheduleDebouncedSave()
+        }
+
+        /**
+         * Feedback on a never-listened artist has no affinity row yet; without a
+         * display name an id key could never match name-keyed shelf tracks.
+         */
+        private fun stampDisplayLocked(
+            key: String,
+            artistName: String,
+        ) {
+            if (key.isEmpty() || artistName.isBlank()) return
+            val affinity = brain.artistAffinity.getOrPut(key) { MusicAffinity() }
+            if (affinity.display.isBlank()) affinity.display = artistName.trim()
         }
 
         suspend fun unblockArtist(artistKey: String) {
             ensureInitialized()
-            mutex.withLock { MusicBrainLearn.unblockArtist(brain, artistKey.trim()) }
+            mutex.withLock {
+                MusicBrainLearn.unblockArtist(brain, artistKey.trim())
+                refreshHiddenArtistsLocked()
+            }
             scheduleDebouncedSave()
         }
 
@@ -295,6 +336,7 @@ class MusicBrainEngine
                 brain = storage.importFromStream(input)
                 lastCounted = null
                 isInitialized = true
+                refreshHiddenArtistsLocked()
             }
         }
 
@@ -304,6 +346,7 @@ class MusicBrainEngine
                 // Leave backfilled=false so the warm start can run again, matching desktop reset.
                 lastCounted = null
                 isInitialized = true
+                refreshHiddenArtistsLocked()
                 storage.save(brain)
             }
         }
@@ -322,6 +365,17 @@ class MusicBrainEngine
 internal fun MusicTrack.primaryArtistKey(): String {
     val primary = artists.firstOrNull()
     return musicArtistKey(primary?.id ?: channelId.takeIf { it.isNotBlank() }, primary?.name ?: artist)
+}
+
+/**
+ * Matches on both key forms because [hidden] carries both: a track's id key when
+ * it has one, and always its lowercased display name.
+ */
+internal fun MusicTrack.isHiddenArtist(hidden: Set<String>): Boolean {
+    if (hidden.isEmpty()) return false
+    if (primaryArtistKey() in hidden) return true
+    val name = (artists.firstOrNull()?.name ?: artist).trim().lowercase()
+    return name.isNotEmpty() && name in hidden
 }
 
 internal fun MusicTrack.toMusicSignal(pct: Double): MusicSignal {

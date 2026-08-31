@@ -15,7 +15,6 @@ import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
 import io.github.aedev.flow.data.recommendation.music.MusicQuickPicks
-import io.github.aedev.flow.data.recommendation.music.primaryArtistKey
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.BrowseEndpoint
 import io.github.aedev.flow.innertube.models.SongItem
@@ -31,8 +30,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -57,15 +56,16 @@ class MusicViewModel
 
         // WhileSubscribed (not Eagerly) is load-bearing for battery: it makes
         // _uiState.subscriptionCount reflect real UI visibility, which gates the
-        // per-track shelf recomposition below.
+        // per-track shelf recomposition below. Hidden artists are combined here
+        // so feedback removes an artist from every shelf reactively.
         val uiState: StateFlow<MusicUiState> =
-            _uiState
-                .map(MusicUiState::withUniqueLazyContent)
-                .stateIn(
-                    scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5_000),
-                    initialValue = _uiState.value.withUniqueLazyContent(),
-                )
+            combine(_uiState, musicBrain.hiddenArtists) { state, hidden ->
+                state.withHiddenArtists(hidden).withUniqueLazyContent()
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = _uiState.value.withUniqueLazyContent(),
+            )
 
         private fun isUiVisible(): Boolean = _uiState.subscriptionCount.value > 0
 
@@ -331,31 +331,6 @@ class MusicViewModel
                 }
             } catch (e: Exception) {
                 Log.e("MusicViewModel", "Error building daily mixes", e)
-            }
-        }
-
-        /**
-         * Instant UI response to "not interested"/"don't recommend": the brain
-         * already learned it; this just clears the artist from the shelves the
-         * user is looking at, in memory, without waiting for the next compose.
-         */
-        fun removeArtistFromShelves(artistKey: String) {
-            if (artistKey.isEmpty()) return
-
-            fun List<MusicTrack>.without() = filterNot { it.primaryArtistKey() == artistKey }
-            _uiState.update { state ->
-                state.copy(
-                    forYouTracks = state.forYouTracks.without(),
-                    onRepeatTracks = state.onRepeatTracks.without(),
-                    dailyMixSections =
-                        state.dailyMixSections
-                            .map { it.copy(tracks = it.tracks.without()) }
-                            .filter { it.tracks.size >= 4 },
-                    similarToSections =
-                        state.similarToSections
-                            .map { it.copy(tracks = it.tracks.without()) }
-                            .filter { it.tracks.isNotEmpty() },
-                )
             }
         }
 

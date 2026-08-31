@@ -94,7 +94,6 @@ fun EnhancedMusicScreen(
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onRecommendationFeedback = { artistKey -> viewModel.removeArtistFromShelves(artistKey) },
             onViewArtist = { channelId ->
                 if (channelId.isNotEmpty()) {
                     onArtistClick(channelId)

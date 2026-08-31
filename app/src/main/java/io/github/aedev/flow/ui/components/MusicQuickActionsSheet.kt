@@ -36,7 +36,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.recommendation.music.musicArtistKey
 import io.github.aedev.flow.ui.screens.music.AddToPlaylistDialog
 import io.github.aedev.flow.ui.screens.music.CreatePlaylistDialog
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
@@ -53,7 +52,6 @@ fun MusicQuickActionsSheet(
     onShare: () -> Unit = {},
     onInfoClick: () -> Unit = {},
     onAudioEffectsClick: () -> Unit = {},
-    onRecommendationFeedback: (String) -> Unit = {},
     showPlaylistDialogs: Boolean = true,
     viewModel: MusicPlayerViewModel = hiltViewModel(),
 ) {
@@ -211,14 +209,9 @@ fun MusicQuickActionsSheet(
 
             // Recommendation feedback — the two-layer escalation from the music brain:
             // "not interested" soft-suppresses the artist, a repeat (or the explicit
-            // action) blocks permanently. Reversible under Settings.
+            // action) blocks permanently. Reversible in the Control Center.
             item {
                 val artistName = track.artists.firstOrNull()?.name ?: track.artist
-                val artistKey =
-                    musicArtistKey(
-                        track.artists.firstOrNull()?.id ?: track.channelId.takeIf { it.isNotBlank() },
-                        artistName,
-                    )
                 FlowMenuSectionHeader(stringResource(R.string.recommendations_header))
                 FlowMenuGroup(
                     items =
@@ -229,7 +222,6 @@ fun MusicQuickActionsSheet(
                                 description = { Text(stringResource(R.string.not_interested_desc)) },
                                 onClick = {
                                     viewModel.notInterested(track)
-                                    onRecommendationFeedback(artistKey)
                                     android.widget.Toast
                                         .makeText(
                                             context,
@@ -245,7 +237,6 @@ fun MusicQuickActionsSheet(
                                 description = { Text(stringResource(R.string.dont_recommend_artist_desc)) },
                                 onClick = {
                                     viewModel.dontRecommendArtist(track)
-                                    onRecommendationFeedback(artistKey)
                                     android.widget.Toast
                                         .makeText(
                                             context,

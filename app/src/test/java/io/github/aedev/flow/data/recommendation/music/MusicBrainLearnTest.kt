@@ -219,4 +219,24 @@ class MusicBrainLearnTest {
         assertThat(brain.artistRelated["UCa"]).hasSize(MusicBrainParams.ARTIST_RELATED_EDGES)
         assertThat(brain.artistRelated["UCa"]!!.first()).isEqualTo("UCr0")
     }
+
+    @Test
+    fun `hidden artists carry both the brain key and the lowercased display name`() {
+        val brain = MusicBrain()
+        listen(brain, signal(artistKey = "UCartist1", display = "Artist One"))
+        MusicBrainLearn.blockArtist(brain, "UCartist1")
+
+        val hidden = MusicBrainLearn.hiddenArtistKeys(brain, now)
+        assertThat(hidden).containsExactly("UCartist1", "artist one")
+    }
+
+    @Test
+    fun `a dislike hides only while its cooldown is active`() {
+        val brain = MusicBrain()
+        MusicBrainLearn.applyDislike(brain, "UCartist1", now)
+
+        assertThat(MusicBrainLearn.hiddenArtistKeys(brain, now + 1_000)).contains("UCartist1")
+        val afterCooldown = now + MusicBrainParams.DISLIKE_COOLDOWN_MS + 1_000
+        assertThat(MusicBrainLearn.hiddenArtistKeys(brain, afterCooldown)).isEmpty()
+    }
 }
