@@ -2934,6 +2934,26 @@ object YouTube {
                         endpoint.params,
                         continuation,
                     ).body<NextResponse>()
+            // YouTube inserts/reorders watch-next tabs (a Comments tab appeared at
+            // index 2 in 2026), so lyrics/related must be found by browseId prefix,
+            // never by position.
+            val watchNextTabs =
+                response.contents.singleColumnMusicWatchNextResultsRenderer
+                    ?.tabbedRenderer
+                    ?.watchNextTabbedResultsRenderer
+                    ?.tabs
+            val lyricsBrowseEndpoint =
+                watchNextTabs?.firstNotNullOfOrNull { tab ->
+                    tab.tabRenderer.endpoint
+                        ?.browseEndpoint
+                        ?.takeIf { it.browseId.startsWith("MPLYt") }
+                }
+            val relatedBrowseEndpoint =
+                watchNextTabs?.firstNotNullOfOrNull { tab ->
+                    tab.tabRenderer.endpoint
+                        ?.browseEndpoint
+                        ?.takeIf { it.browseId.startsWith("MPTRt") }
+                }
             val playlistPanelRenderer =
                 response.continuationContents?.playlistPanelContinuation
                     ?: response.contents.singleColumnMusicWatchNextResultsRenderer
@@ -2983,24 +3003,8 @@ object YouTube {
                         result.copy(
                             title = title,
                             items = songs + result.items,
-                            lyricsEndpoint =
-                                response.contents.singleColumnMusicWatchNextResultsRenderer
-                                    ?.tabbedRenderer
-                                    ?.watchNextTabbedResultsRenderer
-                                    ?.tabs
-                                    ?.getOrNull(1)
-                                    ?.tabRenderer
-                                    ?.endpoint
-                                    ?.browseEndpoint,
-                            relatedEndpoint =
-                                response.contents.singleColumnMusicWatchNextResultsRenderer
-                                    ?.tabbedRenderer
-                                    ?.watchNextTabbedResultsRenderer
-                                    ?.tabs
-                                    ?.getOrNull(2)
-                                    ?.tabRenderer
-                                    ?.endpoint
-                                    ?.browseEndpoint,
+                            lyricsEndpoint = lyricsBrowseEndpoint,
+                            relatedEndpoint = relatedBrowseEndpoint,
                             currentIndex = currentIndex,
                             endpoint = watchPlaylistEndpoint,
                         )
@@ -3010,24 +3014,8 @@ object YouTube {
                 title = title,
                 items = songs,
                 currentIndex = currentIndex,
-                lyricsEndpoint =
-                    response.contents.singleColumnMusicWatchNextResultsRenderer
-                        ?.tabbedRenderer
-                        ?.watchNextTabbedResultsRenderer
-                        ?.tabs
-                        ?.getOrNull(1)
-                        ?.tabRenderer
-                        ?.endpoint
-                        ?.browseEndpoint,
-                relatedEndpoint =
-                    response.contents.singleColumnMusicWatchNextResultsRenderer
-                        ?.tabbedRenderer
-                        ?.watchNextTabbedResultsRenderer
-                        ?.tabs
-                        ?.getOrNull(2)
-                        ?.tabRenderer
-                        ?.endpoint
-                        ?.browseEndpoint,
+                lyricsEndpoint = lyricsBrowseEndpoint,
+                relatedEndpoint = relatedBrowseEndpoint,
                 continuation = playlistPanelRenderer.continuations?.getContinuation(),
                 endpoint = endpoint,
             )

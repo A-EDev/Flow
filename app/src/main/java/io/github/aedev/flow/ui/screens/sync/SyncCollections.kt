@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.ThumbUp
@@ -24,6 +25,7 @@ internal val COLLECTION_KEYS =
         SyncCollection.SUBSCRIPTIONS,
         SyncCollection.SETTINGS,
         SyncCollection.FLOW_NEURO_BRAIN,
+        SyncCollection.MUSIC_BRAIN,
     )
 
 @Composable
@@ -36,6 +38,7 @@ internal fun collectionLabel(key: String): String =
         SyncCollection.SUBSCRIPTIONS -> stringResource(R.string.sync_collection_subscription_groups)
         SyncCollection.SETTINGS -> stringResource(R.string.sync_collection_settings)
         SyncCollection.FLOW_NEURO_BRAIN -> stringResource(R.string.sync_collection_recommendation_profile)
+        SyncCollection.MUSIC_BRAIN -> stringResource(R.string.sync_collection_music_profile)
         else -> key
     }
 
@@ -50,6 +53,7 @@ internal fun collectionDescription(key: String): String? =
         SyncCollection.SUBSCRIPTIONS -> stringResource(R.string.sync_collection_subscription_groups_body)
         SyncCollection.SETTINGS -> stringResource(R.string.sync_collection_settings_body)
         SyncCollection.FLOW_NEURO_BRAIN -> stringResource(R.string.sync_collection_recommendation_profile_body)
+        SyncCollection.MUSIC_BRAIN -> stringResource(R.string.sync_collection_music_profile_body)
         else -> null
     }
 
@@ -61,5 +65,6 @@ internal fun collectionIcon(key: String): ImageVector =
         SyncCollection.SUBSCRIBED_CHANNELS -> Icons.Outlined.Subscriptions
         SyncCollection.SUBSCRIPTIONS -> Icons.Outlined.Folder
         SyncCollection.SETTINGS -> Icons.Outlined.Tune
+        SyncCollection.MUSIC_BRAIN -> Icons.Outlined.LibraryMusic
         else -> Icons.Outlined.Psychology
     }

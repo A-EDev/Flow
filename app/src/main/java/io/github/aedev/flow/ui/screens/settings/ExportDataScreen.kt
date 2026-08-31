@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material3.*
@@ -28,7 +29,12 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExportDataScreen(onNavigateBack: () -> Unit) {
+fun ExportDataScreen(
+    onNavigateBack: () -> Unit,
+    musicBrainBackup: MusicBrainBackupViewModel =
+        androidx.hilt.navigation.compose
+            .hiltViewModel(),
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val backupRepo = remember { BackupRepository(context) }
@@ -117,6 +123,28 @@ fun ExportDataScreen(onNavigateBack: () -> Unit) {
                             context,
                             context.getString(
                                 if (success) R.string.export_engine_success else R.string.export_engine_failed,
+                            ),
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                }
+            }
+        }
+
+    val exportMusicBrainLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("application/json"),
+        ) { uri ->
+            uri?.let {
+                scope.launch {
+                    val success =
+                        context.contentResolver.openOutputStream(it)?.use { out ->
+                            musicBrainBackup.exportTo(out)
+                        } ?: false
+                    android.widget.Toast
+                        .makeText(
+                            context,
+                            context.getString(
+                                if (success) R.string.music_brain_export_success else R.string.music_brain_export_failed,
                             ),
                             android.widget.Toast.LENGTH_SHORT,
                         ).show()
@@ -226,6 +254,18 @@ fun ExportDataScreen(onNavigateBack: () -> Unit) {
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     onClick = {
                         exportEngineLauncher.launch("flow_engine_${System.currentTimeMillis()}.json")
+                    },
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.export_music_brain_title),
+                    description = stringResource(R.string.export_music_brain_desc),
+                    icon = Icons.Outlined.LibraryMusic,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    onClick = {
+                        exportMusicBrainLauncher.launch("flow_music_brain_${System.currentTimeMillis()}.json")
                     },
                 )
             }
