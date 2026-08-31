@@ -1,29 +1,30 @@
 package io.github.aedev.flow.ui.components.musicplayer
 
+import android.content.ClipData
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,13 +38,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -59,22 +64,46 @@ internal fun MusicLyricsSheet(
     retainContent: Boolean,
     backdropBaseColor: Color,
     accentColor: Color,
+    trackTitle: String,
+    trackArtist: String,
+    artworkUrl: String,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
     lyrics: String?,
     syncedLyrics: List<LyricsEntry>,
     positionProvider: () -> Long,
     isLoading: Boolean,
     providerName: String,
+    alignPref: String,
+    syncOffsetMs: Long,
+    candidates: List<LyricsCandidate>,
+    isBrowsing: Boolean,
     onSeekTo: (Long) -> Unit,
     onRefresh: () -> Unit,
+    onTogglePlayPause: () -> Unit,
+    onAlignChange: (String) -> Unit,
+    onAdjustOffset: (Long) -> Unit,
+    onResetOffset: () -> Unit,
+    onBrowseSources: () -> Unit,
+    onCancelBrowse: () -> Unit,
+    onSelectCandidate: (LyricsCandidate) -> Unit,
+    onApplyEditedLyrics: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetShown = remember { Animatable(0f) }
     val backProgress = remember { Animatable(0f) }
     var panelComposed by remember { mutableStateOf(false) }
+    var showActionsSheet by remember { mutableStateOf(false) }
+    var showSourcesSheet by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showSyncControls by remember { mutableStateOf(false) }
+    var pendingSaveText by remember { mutableStateOf<String?>(null) }
     val visibleState = rememberUpdatedState(visible)
     val onDismissState = rememberUpdatedState(onDismiss)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val clipboard = LocalClipboard.current
 
     LaunchedEffect(visible) {
         if (visible) {
@@ -91,6 +120,10 @@ internal fun MusicLyricsSheet(
             delay(140)
             panelComposed = true
         } else {
+            showActionsSheet = false
+            showSourcesSheet = false
+            showEditDialog = false
+            showSyncControls = false
             sheetShown.animateTo(
                 targetValue = 0f,
                 animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
@@ -116,6 +149,32 @@ internal fun MusicLyricsSheet(
             }
         }
     }
+
+    val saveLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/octet-stream"),
+        ) { uri ->
+            val text = pendingSaveText
+            pendingSaveText = null
+            if (uri != null && text != null) {
+                scope.launch(Dispatchers.IO) {
+                    val ok =
+                        runCatching {
+                            context.contentResolver.openOutputStream(uri)?.use { out ->
+                                out.write(text.toByteArray(Charsets.UTF_8))
+                            } != null
+                        }.getOrDefault(false)
+                    withContext(Dispatchers.Main) {
+                        Toast
+                            .makeText(
+                                context,
+                                context.getString(if (ok) R.string.lyrics_saved else R.string.lyrics_save_failed),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                    }
+                }
+            }
+        }
 
     val panelAlpha by animateFloatAsState(
         targetValue = if (panelComposed) 1f else 0f,
@@ -144,37 +203,22 @@ internal fun MusicLyricsSheet(
                 }.background(backdropColor),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
+            Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                        .padding(top = 8.dp, start = 24.dp, end = 24.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                IconButton(onClick = { onDismissState.value() }) {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.close),
-                        modifier = Modifier.size(30.dp),
-                        tint = Color.White,
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.lyrics),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.weight(1f),
-                )
-                PlayerLyricsRefreshButton(
+                LyricsTrackPill(
+                    title = trackTitle,
+                    artist = trackArtist,
+                    artworkUrl = artworkUrl,
+                    isPlaying = isPlaying,
                     isLoading = isLoading,
-                    accentColor = accentColor,
-                    onRefresh = onRefresh,
                 )
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
 
             Box(
                 modifier =
@@ -197,11 +241,106 @@ internal fun MusicLyricsSheet(
                             accentColor = accentColor,
                             onSeekTo = onSeekTo,
                             providerName = providerName,
+                            textAlign = lyricsTextAlignFor(alignPref),
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
                 }
             }
+
+            AnimatedVisibility(
+                visible = showSyncControls,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                LyricsSyncOffsetRow(
+                    offsetMs = syncOffsetMs,
+                    onAdjust = onAdjustOffset,
+                    onReset = onResetOffset,
+                    onHide = { showSyncControls = false },
+                    modifier =
+                        Modifier
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 10.dp),
+                )
+            }
+
+            LyricsBottomBar(
+                isPlaying = isPlaying,
+                isBuffering = isBuffering,
+                onBack = { onDismissState.value() },
+                onTogglePlayPause = onTogglePlayPause,
+                onMenu = { showActionsSheet = true },
+                modifier =
+                    Modifier
+                        .padding(horizontal = 20.dp)
+                        .navigationBarsPadding()
+                        .padding(bottom = 8.dp),
+            )
         }
+    }
+
+    if (showActionsSheet) {
+        LyricsActionsSheet(
+            hasLyrics = !lyrics.isNullOrBlank() || syncedLyrics.isNotEmpty(),
+            providerName = providerName,
+            alignPref = alignPref,
+            syncOffsetMs = syncOffsetMs,
+            onRefresh = onRefresh,
+            onChooseSource = {
+                showSourcesSheet = true
+                onBrowseSources()
+            },
+            onEdit = { showEditDialog = true },
+            onCopy = {
+                val text = lyrics ?: syncedLyrics.joinToString("\n") { it.text }
+                if (text.isNotBlank()) {
+                    scope.launch {
+                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(trackTitle, text)))
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                            Toast
+                                .makeText(context, R.string.lyrics_copied, Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    }
+                }
+            },
+            onSaveFile = {
+                pendingSaveText = buildLrcExportText(syncedLyrics, lyrics)
+                val baseName =
+                    listOf(trackArtist, trackTitle)
+                        .filter { it.isNotBlank() }
+                        .joinToString(" - ")
+                        .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                saveLauncher.launch("$baseName.lrc")
+            },
+            onAlignChange = onAlignChange,
+            onAdjustSync = { showSyncControls = true },
+            onDismiss = { showActionsSheet = false },
+        )
+    }
+
+    if (showSourcesSheet) {
+        LyricsSourcesSheet(
+            candidates = candidates,
+            isBrowsing = isBrowsing,
+            currentProviderName = providerName,
+            onSelect = {
+                onSelectCandidate(it)
+                showSourcesSheet = false
+            },
+            onDismiss = {
+                onCancelBrowse()
+                showSourcesSheet = false
+            },
+        )
+    }
+
+    if (showEditDialog) {
+        LyricsEditDialog(
+            initialText = buildLrcExportText(syncedLyrics, lyrics),
+            onApply = onApplyEditedLyrics,
+            onDismiss = { showEditDialog = false },
+        )
     }
 }

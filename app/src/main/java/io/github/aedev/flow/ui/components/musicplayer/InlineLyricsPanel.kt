@@ -158,6 +158,7 @@ fun InlineLyricsPanel(
     accentColor: Color,
     onSeekTo: (Long) -> Unit,
     providerName: String = "",
+    textAlign: TextAlign = TextAlign.Center,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -651,6 +652,7 @@ fun InlineLyricsPanel(
                                     expressiveAccent = expressiveAccent,
                                     isAutoScrollEnabled = isAutoScrollEnabled,
                                     displayedCurrentLineIndex = deferredCurrentLineIndex,
+                                    textAlign = textAlign,
                                     onSizeChanged = { itemHeights[listIndex] = it },
                                     onClick = {
                                         if (isSynced) {
@@ -848,6 +850,7 @@ private fun LyricsLine(
     expressiveAccent: Color,
     isAutoScrollEnabled: Boolean,
     displayedCurrentLineIndex: Int,
+    textAlign: TextAlign,
     onSizeChanged: (Int) -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -946,7 +949,7 @@ private fun LyricsLine(
                                 (adaptiveTextSize * lyricsLineSpacing).sp
                             },
                         letterSpacing = 0.sp,
-                        textAlign = TextAlign.Center,
+                        textAlign = textAlign,
                         fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                         lineHeightStyle =
@@ -986,7 +989,7 @@ private fun LyricsLine(
                         expressiveAccent = expressiveAccent,
                         isBackground = item.isBackground,
                         focusedAlpha = focusedAlpha,
-                        alignment = TextAlign.Center,
+                        alignment = textAlign,
                     )
                 } else {
                     Text(

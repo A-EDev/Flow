@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -29,7 +30,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.runtime.LaunchedEffect
 import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -94,20 +94,23 @@ fun PlayerArtwork(
 
         LaunchedEffect(previewDirection, widthPx) {
             when (previewDirection) {
-                SkipDirection.NEXT ->
+                SkipDirection.NEXT -> {
                     if (nextThumbnailUrl != null) {
                         dragOffsetX.animateTo(-widthPx, spring(dampingRatio = 0.85f, stiffness = 380f))
                     }
+                }
 
-                SkipDirection.PREVIOUS ->
+                SkipDirection.PREVIOUS -> {
                     if (previousThumbnailUrl != null) {
                         dragOffsetX.animateTo(widthPx, spring(dampingRatio = 0.85f, stiffness = 380f))
                     }
+                }
 
-                null ->
+                null -> {
                     if (dragOffsetX.value != 0f) {
                         dragOffsetX.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 380f))
                     }
+                }
             }
         }
 

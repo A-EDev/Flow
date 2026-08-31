@@ -134,6 +134,7 @@ class PlayerPreferences(
         val CATEGORIES_NAV_TAB_ENABLED = booleanPreferencesKey("categories_nav_tab_enabled")
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
         val LYRICS_PROVIDER_ORDER = stringPreferencesKey("lyrics_provider_order")
+        val LYRICS_TEXT_ALIGN = stringPreferencesKey("lyrics_text_align")
         val LYRICS_PROVIDER_ENABLED_BETTERLYRICS = booleanPreferencesKey("lyrics_provider_enabled_betterlyrics")
         val LYRICS_PROVIDER_ENABLED_SIMPMUSIC = booleanPreferencesKey("lyrics_provider_enabled_simpmusic")
         val LYRICS_PROVIDER_ENABLED_LYRICSPLUS = booleanPreferencesKey("lyrics_provider_enabled_lyricsplus")
@@ -2635,6 +2636,18 @@ class PlayerPreferences(
             providerEnabledKeys.mapValues { (_, key) -> preferences[key] ?: true }
         }
 
+    val lyricsTextAlign: Flow<String> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.LYRICS_TEXT_ALIGN] ?: LYRICS_ALIGN_CENTER
+            }
+
+    suspend fun setLyricsTextAlign(align: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.LYRICS_TEXT_ALIGN] = align
+        }
+    }
+
     // ========== MINI PLAYER PREFERENCES ==========
 
     val miniPlayerScale: Flow<Float> =
@@ -3038,3 +3051,7 @@ enum class WatchedThreshold(
         }
     }
 }
+
+const val LYRICS_ALIGN_LEFT = "left"
+const val LYRICS_ALIGN_CENTER = "center"
+const val LYRICS_ALIGN_RIGHT = "right"

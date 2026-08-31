@@ -39,7 +39,7 @@ fun PlayerSliderTrack(
     sliderState: SliderState,
     modifier: Modifier = Modifier,
     colors: SliderColors = SliderDefaults.colors(),
-    trackHeight: Dp = 10.dp
+    trackHeight: Dp = 10.dp,
 ) {
     val inactiveTrackColor = colors.inactiveTrackColor
     val activeTrackColor = colors.activeTrackColor
@@ -49,7 +49,7 @@ fun PlayerSliderTrack(
     Canvas(
         modifier
             .fillMaxWidth()
-            .height(trackHeight)
+            .height(trackHeight),
     ) {
         drawTrack(
             stepsToTickFractions(sliderState.steps),
@@ -57,13 +57,13 @@ fun PlayerSliderTrack(
             calcFraction(
                 valueRange.start,
                 valueRange.endInclusive,
-                sliderState.value.coerceIn(valueRange.start, valueRange.endInclusive)
+                sliderState.value.coerceIn(valueRange.start, valueRange.endInclusive),
             ),
             inactiveTrackColor,
             activeTrackColor,
             inactiveTickColor,
             activeTickColor,
-            trackHeight
+            trackHeight,
         )
     }
 }
@@ -76,7 +76,7 @@ private fun DrawScope.drawTrack(
     activeTrackColor: Color,
     inactiveTickColor: Color,
     activeTickColor: Color,
-    trackHeight: Dp = 2.dp
+    trackHeight: Dp = 2.dp,
 ) {
     val isRtl = layoutDirection == LayoutDirection.Rtl
     val sliderLeft = Offset(0f, center.y)
@@ -90,42 +90,51 @@ private fun DrawScope.drawTrack(
         sliderStart,
         sliderEnd,
         trackStrokeWidth,
-        StrokeCap.Round
+        StrokeCap.Round,
     )
-    val sliderValueEnd = Offset(
-        sliderStart.x +
+    val sliderValueEnd =
+        Offset(
+            sliderStart.x +
                 (sliderEnd.x - sliderStart.x) * activeRangeEnd,
-        center.y
-    )
-    val sliderValueStart = Offset(
-        sliderStart.x +
+            center.y,
+        )
+    val sliderValueStart =
+        Offset(
+            sliderStart.x +
                 (sliderEnd.x - sliderStart.x) * activeRangeStart,
-        center.y
-    )
+            center.y,
+        )
     drawLine(
         activeTrackColor,
         sliderValueStart,
         sliderValueEnd,
         trackStrokeWidth,
-        StrokeCap.Round
+        StrokeCap.Round,
     )
     for (tick in tickFractions) {
         val outsideFraction = tick > activeRangeEnd || tick < activeRangeStart
         drawCircle(
             color = if (outsideFraction) inactiveTickColor else activeTickColor,
             center = Offset(lerp(sliderStart, sliderEnd, tick).x, center.y),
-            radius = tickSize / 2f
+            radius = tickSize / 2f,
         )
     }
 }
 
-private fun stepsToTickFractions(steps: Int): FloatArray {
-    return if (steps == 0) floatArrayOf() else FloatArray(steps + 2) { it.toFloat() / (steps + 1) }
-}
+private fun stepsToTickFractions(steps: Int): FloatArray =
+    if (steps == 0) {
+        floatArrayOf()
+    } else {
+        FloatArray(steps + 2) {
+            it.toFloat() / (steps + 1)
+        }
+    }
 
-private fun calcFraction(a: Float, b: Float, pos: Float) =
-    (if (b - a == 0f) 0f else (pos - a) / (b - a)).coerceIn(0f, 1f)
-
+private fun calcFraction(
+    a: Float,
+    b: Float,
+    pos: Float,
+) = (if (b - a == 0f) 0f else (pos - a) / (b - a)).coerceIn(0f, 1f)
 
 // ============================================================================
 // SQUIGGLY SLIDER
@@ -146,7 +155,7 @@ fun SquigglySlider(
 
     var isDragging by remember { mutableStateOf(false) }
     var dragPosition by remember { mutableFloatStateOf(value) }
-    
+
     val currentValue = if (isDragging) dragPosition else value
     val duration = valueRange.endInclusive - valueRange.start
     val position = currentValue - valueRange.start
@@ -160,7 +169,7 @@ fun SquigglySlider(
     // Wave parameters
     val waveLength = 80f
     val lineAmplitude = 6f
-    val phaseSpeed = 24f 
+    val phaseSpeed = 24f
     val transitionPeriods = 1.5f
     val minWaveEndpoint = 0f
     val matchedWaveEndpoint = 1f
@@ -171,7 +180,7 @@ fun SquigglySlider(
         scope.launch {
             val shouldFlatten = !isPlaying || isDragging
             val targetHeight = if (shouldFlatten) 0f else 1f
-            val animDuration = if (shouldFlatten) 150 else 200 
+            val animDuration = if (shouldFlatten) 150 else 200
             val startDelay = if (shouldFlatten) 0L else 30L
 
             delay(startDelay)
@@ -179,10 +188,11 @@ fun SquigglySlider(
             val animator = Animatable(heightFraction)
             animator.animateTo(
                 targetValue = targetHeight,
-                animationSpec = tween(
-                    durationMillis = animDuration,
-                    easing = LinearEasing,
-                ),
+                animationSpec =
+                    tween(
+                        durationMillis = animDuration,
+                        easing = LinearEasing,
+                    ),
             ) {
                 heightFraction = this.value
             }
@@ -205,53 +215,54 @@ fun SquigglySlider(
     }
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .then(
-                if (enabled) {
-                    Modifier
-                        .pointerInput(valueRange) {
-                            detectTapGestures { offset ->
-                                val newPosition = (offset.x / size.width) * duration
-                                val mappedValue = valueRange.start + newPosition.coerceIn(0f, duration)
-                                onValueChange(mappedValue)
-                                onValueChangeFinished?.invoke()
-                            }
-                        }
-                        .pointerInput(valueRange) {
-                            detectDragGestures(
-                                onDragStart = { offset ->
-                                    isDragging = true
-                                    val newPosition = (offset.x / size.width) * duration
-                                    dragPosition = valueRange.start + newPosition.coerceIn(0f, duration)
-                                    onValueChange(dragPosition)
-                                },
-                                onDragEnd = {
-                                    isDragging = false
-                                    onValueChangeFinished?.invoke()
-                                },
-                                onDragCancel = {
-                                    isDragging = false
-                                },
-                                onDrag = { change, _ ->
-                                    change.consume()
-                                    val newPosition = (change.position.x / size.width) * duration
-                                    dragPosition = valueRange.start + newPosition.coerceIn(0f, duration)
-                                    onValueChange(dragPosition)
-                                }
-                            )
-                        }
-                } else {
-                    Modifier
-                }
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(
-            modifier = Modifier
+        modifier =
+            modifier
                 .fillMaxWidth()
                 .height(48.dp)
+                .then(
+                    if (enabled) {
+                        Modifier
+                            .pointerInput(valueRange) {
+                                detectTapGestures { offset ->
+                                    val newPosition = (offset.x / size.width) * duration
+                                    val mappedValue = valueRange.start + newPosition.coerceIn(0f, duration)
+                                    onValueChange(mappedValue)
+                                    onValueChangeFinished?.invoke()
+                                }
+                            }.pointerInput(valueRange) {
+                                detectDragGestures(
+                                    onDragStart = { offset ->
+                                        isDragging = true
+                                        val newPosition = (offset.x / size.width) * duration
+                                        dragPosition = valueRange.start + newPosition.coerceIn(0f, duration)
+                                        onValueChange(dragPosition)
+                                    },
+                                    onDragEnd = {
+                                        isDragging = false
+                                        onValueChangeFinished?.invoke()
+                                    },
+                                    onDragCancel = {
+                                        isDragging = false
+                                    },
+                                    onDrag = { change, _ ->
+                                        change.consume()
+                                        val newPosition = (change.position.x / size.width) * duration
+                                        dragPosition = valueRange.start + newPosition.coerceIn(0f, duration)
+                                        onValueChange(dragPosition)
+                                    },
+                                )
+                            }
+                    } else {
+                        Modifier
+                    },
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
         ) {
             val strokeWidth = 5.dp.toPx()
             val progress = if (duration > 0f) (position / duration).coerceIn(0f, 1f) else 0f
@@ -259,22 +270,25 @@ fun SquigglySlider(
             val totalProgressPx = totalWidth * progress
             val centerY = size.height / 2f
 
-            val waveProgressPx = if (!transitionEnabled || progress > matchedWaveEndpoint) {
-                totalWidth * progress
-            } else {
-                val t = (progress / matchedWaveEndpoint).coerceIn(0f, 1f)
-                totalWidth * (minWaveEndpoint + (matchedWaveEndpoint - minWaveEndpoint) * t)
-            }
+            val waveProgressPx =
+                if (!transitionEnabled || progress > matchedWaveEndpoint) {
+                    totalWidth * progress
+                } else {
+                    val t = (progress / matchedWaveEndpoint).coerceIn(0f, 1f)
+                    totalWidth * (minWaveEndpoint + (matchedWaveEndpoint - minWaveEndpoint) * t)
+                }
 
-            fun computeAmplitude(x: Float, sign: Float): Float {
-                return if (transitionEnabled) {
+            fun computeAmplitude(
+                x: Float,
+                sign: Float,
+            ): Float =
+                if (transitionEnabled) {
                     val length = transitionPeriods * waveLength
                     val coeff = ((waveProgressPx + length / 2f - x) / length).coerceIn(0f, 1f)
                     sign * heightFraction * lineAmplitude * coeff
                 } else {
                     sign * heightFraction * lineAmplitude
                 }
-            }
 
             val path = Path()
             val waveStart = -phaseOffset - waveLength / 2f
@@ -312,7 +326,11 @@ fun SquigglySlider(
             val inactiveTrackColor = primaryColor.copy(alpha = disabledAlpha)
             val capRadius = strokeWidth / 2f
 
-            fun drawPathSegment(startX: Float, endX: Float, color: Color) {
+            fun drawPathSegment(
+                startX: Float,
+                endX: Float,
+                color: Color,
+            ) {
                 if (endX <= startX) return
                 clipRect(
                     left = startX,
@@ -336,14 +354,15 @@ fun SquigglySlider(
                 val phase = (x - waveStart) / waveLength
                 val waveCycle = phase - kotlin.math.floor(phase)
                 val waveValue = kotlin.math.cos(waveCycle * 2f * kotlin.math.PI.toFloat())
-                
-                val ampCoeff = if (transitionEnabled) {
-                    val length = transitionPeriods * waveLength
-                    ((waveProgressPx + length / 2f - x) / length).coerceIn(0f, 1f)
-                } else {
-                    1f
-                }
-                
+
+                val ampCoeff =
+                    if (transitionEnabled) {
+                        val length = transitionPeriods * waveLength
+                        ((waveProgressPx + length / 2f - x) / length).coerceIn(0f, 1f)
+                    } else {
+                        1f
+                    }
+
                 return centerY + waveValue * lineAmplitude * heightFraction * ampCoeff
             }
 
@@ -383,4 +402,3 @@ fun SquigglySlider(
         }
     }
 }
-

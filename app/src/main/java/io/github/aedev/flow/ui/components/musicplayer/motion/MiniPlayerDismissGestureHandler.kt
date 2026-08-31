@@ -103,7 +103,9 @@ internal class MiniPlayerDismissGestureHandler(
                     }
             }
 
-            MiniDismissDragPhase.IDLE -> Unit
+            MiniDismissDragPhase.IDLE -> {
+                Unit
+            }
         }
     }
 

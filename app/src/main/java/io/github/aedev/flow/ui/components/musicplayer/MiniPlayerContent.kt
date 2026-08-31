@@ -12,12 +12,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -39,8 +37,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -82,28 +83,11 @@ internal fun MiniPlayerContent(
     )
 
     Box(modifier = modifier.fillMaxSize()) {
-        val progressTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-        val progressFillColor = MaterialTheme.colorScheme.primary
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .align(Alignment.BottomCenter)
-                    .drawBehind {
-                        drawRect(color = progressTrackColor)
-                        drawRect(
-                            color = progressFillColor,
-                            size = Size(size.width * animatedProgress, size.height),
-                        )
-                    },
-        )
-
         Row(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 8.5.dp),
+                    .padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -112,34 +96,68 @@ internal fun MiniPlayerContent(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val ringTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+                val ringFillColor = MaterialTheme.colorScheme.primary
                 Box(
                     modifier =
                         Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .size(52.dp)
+                            .drawBehind {
+                                val stroke = 2.5.dp.toPx()
+                                val inset = stroke / 2f
+                                val arcSize = Size(size.width - stroke, size.height - stroke)
+                                drawArc(
+                                    color = ringTrackColor,
+                                    startAngle = -90f,
+                                    sweepAngle = 360f,
+                                    useCenter = false,
+                                    topLeft = Offset(inset, inset),
+                                    size = arcSize,
+                                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                                )
+                                if (animatedProgress > 0f) {
+                                    drawArc(
+                                        color = ringFillColor,
+                                        startAngle = -90f,
+                                        sweepAngle = 360f * animatedProgress,
+                                        useCenter = false,
+                                        topLeft = Offset(inset, inset),
+                                        size = arcSize,
+                                        style = Stroke(width = stroke, cap = StrokeCap.Round),
+                                    )
+                                }
+                            },
+                    contentAlignment = Alignment.Center,
                 ) {
-                    AsyncImage(
-                        model = track.listThumbnailUrl,
-                        contentDescription = stringResource(R.string.album_art),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(43.dp)
+                                .clip(CircleShape),
+                    ) {
+                        AsyncImage(
+                            model = track.listThumbnailUrl,
+                            contentDescription = stringResource(R.string.album_art),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
 
-                    if (playerState.isPlaying) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.35f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            PlayingWaveform(
-                                color = Color.White.copy(alpha = 0.9f),
-                                barCount = 3,
-                                barWidth = 2.5.dp,
-                                barSpacing = 1.5.dp,
-                                staggerMillis = 120,
-                            )
+                        if (playerState.isPlaying) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.35f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                PlayingWaveform(
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    barCount = 3,
+                                    barWidth = 2.5.dp,
+                                    barSpacing = 1.5.dp,
+                                    staggerMillis = 120,
+                                )
+                            }
                         }
                     }
                 }

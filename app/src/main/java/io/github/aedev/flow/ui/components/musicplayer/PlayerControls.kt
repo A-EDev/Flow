@@ -385,9 +385,13 @@ private fun RowScope.ElasticControlButton(
                                     up
                                 }
                             when {
-                                cancelled -> Unit
+                                cancelled -> {
+                                    Unit
+                                }
 
-                                upBeforeTimeout != null -> currentOnClick()
+                                upBeforeTimeout != null -> {
+                                    currentOnClick()
+                                }
 
                                 currentLongPressStart != null -> {
                                     longPressed = true
@@ -769,75 +773,5 @@ private fun SplitCapsuleButton(
             tint = contentColor,
             modifier = Modifier.size(22.dp),
         )
-    }
-}
-
-@Composable
-fun PlayerLyricsRefreshButton(
-    isLoading: Boolean,
-    accentColor: Color,
-    onRefresh: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val rotation = remember { Animatable(0f) }
-    val coroutineScope = rememberCoroutineScope()
-
-    LaunchedEffect(isLoading) {
-        if (isLoading) {
-            while (true) {
-                rotation.snapTo(0f)
-                rotation.animateTo(
-                    targetValue = 360f,
-                    animationSpec = tween(durationMillis = 900, easing = LinearEasing),
-                )
-            }
-        } else {
-            rotation.snapTo(0f)
-        }
-    }
-
-    val interactionSource = remember { MutableInteractionSource() }
-
-    Row(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(32.dp))
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(32.dp),
-                ).padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(
-            onClick = {
-                if (!isLoading) {
-                    coroutineScope.launch {
-                        rotation.snapTo(0f)
-                        rotation.animateTo(
-                            targetValue = 360f,
-                            animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
-                        )
-                    }
-                    onRefresh()
-                }
-            },
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .pressScale(interactionSource),
-            interactionSource = interactionSource,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Refresh,
-                contentDescription = stringResource(R.string.refresh_lyrics),
-                tint = if (isLoading) accentColor else MaterialTheme.colorScheme.onSurface,
-                modifier =
-                    Modifier
-                        .size(22.dp)
-                        .graphicsLayer { rotationZ = rotation.value },
-            )
-        }
     }
 }

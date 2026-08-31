@@ -43,7 +43,9 @@ fun PlayerBackground(
                 ),
     ) {
         when (style) {
-            MusicPlayerBackgroundStyle.DEFAULT -> Unit
+            MusicPlayerBackgroundStyle.DEFAULT -> {
+                Unit
+            }
 
             MusicPlayerBackgroundStyle.BLUR -> {
                 BlurredArtworkLayer(thumbnailUrl = thumbnailUrl, alpha = 0.62f)

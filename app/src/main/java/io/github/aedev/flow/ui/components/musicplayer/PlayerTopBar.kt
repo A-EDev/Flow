@@ -53,6 +53,8 @@ fun PlayerTopBar(
                 containerColor = Color.Transparent,
             ),
         modifier = modifier,
-        windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+        windowInsets =
+            androidx.compose.foundation.layout
+                .WindowInsets(0, 0, 0, 0),
     )
 }

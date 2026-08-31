@@ -9,10 +9,12 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.LYRICS_ALIGN_CENTER
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.data.lyrics.LyricsHelper
 import io.github.aedev.flow.data.model.Video
@@ -64,6 +66,7 @@ class MusicPlayerViewModel
         val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
 
         private val lyricsHelper = LyricsHelper(context)
+        private val playerPreferences = PlayerPreferences(context)
 
         private var isInitialized = false
         private var loadTrackJob: kotlinx.coroutines.Job? = null
@@ -73,6 +76,11 @@ class MusicPlayerViewModel
         init {
             EnhancedMusicPlayerManager.initialize(context)
             initializeObservers()
+            viewModelScope.launch {
+                playerPreferences.lyricsTextAlign.collect { align ->
+                    _uiState.update { it.copy(lyricsTextAlign = align) }
+                }
+            }
         }
 
         private fun initializeObservers() {
@@ -716,6 +724,8 @@ class MusicPlayerViewModel
                             lyrics = null,
                             syncedLyrics = emptyList(),
                             lyricsProviderName = "",
+                            lyricsSyncOffsetMs = 0L,
+                            lyricsCandidates = emptyList(),
                         )
                     }
 
@@ -796,6 +806,99 @@ class MusicPlayerViewModel
             }
         }
 
+        private var browseLyricsJob: kotlinx.coroutines.Job? = null
+
+        fun browseLyricsCandidates() {
+            val track = _uiState.value.currentTrack ?: return
+            browseLyricsJob?.cancel()
+            browseLyricsJob =
+                viewModelScope.launch {
+                    _uiState.update { it.copy(isBrowsingLyrics = true, lyricsCandidates = emptyList()) }
+                    try {
+                        lyricsHelper.getAllLyrics(
+                            videoId = track.videoId,
+                            title = cleanName(track.title),
+                            artist = cleanName(track.artist),
+                            duration = track.duration,
+                            album = track.album,
+                        ) { candidate ->
+                            _uiState.update { it.copy(lyricsCandidates = it.lyricsCandidates + candidate) }
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        android.util.Log.w("MusicPlayerViewModel", "Lyrics browse failed: ${e.message}")
+                    } finally {
+                        _uiState.update { it.copy(isBrowsingLyrics = false) }
+                    }
+                }
+        }
+
+        fun cancelLyricsBrowse() {
+            browseLyricsJob?.cancel()
+            _uiState.update { it.copy(isBrowsingLyrics = false) }
+        }
+
+        fun applyLyricsCandidate(candidate: LyricsCandidate) {
+            val track = _uiState.value.currentTrack ?: return
+            viewModelScope.launch {
+                lyricsHelper.applyManualLyrics(track.videoId, candidate.entries)
+                val plainText = candidate.entries.joinToString("\n") { it.text }
+                _uiState.update {
+                    it.copy(
+                        lyrics = plainText.takeIf { text -> text.isNotBlank() },
+                        syncedLyrics = if (candidate.synced) candidate.entries else emptyList(),
+                        lyricsProviderName = candidate.providerName,
+                        lyricsSyncOffsetMs = 0L,
+                    )
+                }
+            }
+        }
+
+        fun applyEditedLyrics(text: String) {
+            val track = _uiState.value.currentTrack ?: return
+            viewModelScope.launch {
+                val parsed =
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        io.github.aedev.flow.data.lyrics.LyricsUtils
+                            .parseLyrics(text)
+                    }
+                val entries =
+                    parsed.ifEmpty {
+                        text
+                            .lines()
+                            .map { line -> line.trim() }
+                            .filter { line -> line.isNotBlank() }
+                            .map { line -> LyricsEntry(0L, line) }
+                    }
+                if (entries.isEmpty()) return@launch
+                val synced = lyricsHelper.entriesAreSynced(entries)
+                lyricsHelper.applyManualLyrics(track.videoId, entries)
+                val plainText = entries.joinToString("\n") { it.text }
+                _uiState.update {
+                    it.copy(
+                        lyrics = plainText.takeIf { t -> t.isNotBlank() },
+                        syncedLyrics = if (synced) entries else emptyList(),
+                        lyricsProviderName = context.getString(io.github.aedev.flow.R.string.lyrics_source_edited),
+                    )
+                }
+            }
+        }
+
+        fun adjustLyricsSyncOffset(deltaMs: Long) {
+            _uiState.update {
+                it.copy(lyricsSyncOffsetMs = (it.lyricsSyncOffsetMs + deltaMs).coerceIn(-30_000L, 30_000L))
+            }
+        }
+
+        fun resetLyricsSyncOffset() {
+            _uiState.update { it.copy(lyricsSyncOffsetMs = 0L) }
+        }
+
+        fun setLyricsTextAlign(align: String) {
+            viewModelScope.launch { playerPreferences.setLyricsTextAlign(align) }
+        }
+
         override fun onCleared() {
             super.onCleared()
         }
@@ -827,6 +930,10 @@ data class MusicPlayerUiState(
     val isRelatedLoading: Boolean = false,
     val downloadedTrackIds: Set<String> = emptySet(),
     val lyricsProviderName: String = "",
+    val lyricsSyncOffsetMs: Long = 0L,
+    val lyricsTextAlign: String = LYRICS_ALIGN_CENTER,
+    val lyricsCandidates: List<LyricsCandidate> = emptyList(),
+    val isBrowsingLyrics: Boolean = false,
 )
 
 const val FILTER_ALL = "ALL"
