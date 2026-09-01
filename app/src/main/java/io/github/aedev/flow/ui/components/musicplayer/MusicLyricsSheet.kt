@@ -152,7 +152,9 @@ internal fun MusicLyricsSheet(
 
     val saveLauncher =
         rememberLauncherForActivityResult(
-            ActivityResultContracts.CreateDocument("application/octet-stream"),
+            // LRC is UTF-8 text; a text MIME keeps document providers, previews and
+            // share targets treating the export as the plain text it is.
+            ActivityResultContracts.CreateDocument("text/plain"),
         ) { uri ->
             val text = pendingSaveText
             pendingSaveText = null

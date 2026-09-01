@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
@@ -804,14 +805,21 @@ class MusicPlayerViewModel
                             duration = track.duration,
                             album = track.album,
                         ) { candidate ->
-                            _uiState.update { it.copy(lyricsCandidates = it.lyricsCandidates + candidate) }
+                            if (isActive) {
+                                _uiState.update { it.copy(lyricsCandidates = it.lyricsCandidates + candidate) }
+                            }
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         android.util.Log.w("MusicPlayerViewModel", "Lyrics browse failed: ${e.message}")
                     } finally {
-                        _uiState.update { it.copy(isBrowsingLyrics = false) }
+                        // cancel() does not wait: a superseded browse's finally can run after the
+                        // replacement already set isBrowsingLyrics = true. Only the job that is
+                        // still current may clear the flag.
+                        if (browseLyricsJob === coroutineContext[kotlinx.coroutines.Job]) {
+                            _uiState.update { it.copy(isBrowsingLyrics = false) }
+                        }
                     }
                 }
         }
