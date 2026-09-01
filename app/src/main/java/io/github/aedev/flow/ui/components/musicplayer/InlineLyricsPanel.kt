@@ -159,6 +159,9 @@ fun InlineLyricsPanel(
     onSeekTo: (Long) -> Unit,
     providerName: String = "",
     textAlign: TextAlign = TextAlign.Center,
+    // False while the host keeps the panel composed but hidden: the 80 ms sync loop and the
+    // per-frame karaoke interpolation stop, everything else stays warm for an instant reopen.
+    active: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -203,8 +206,8 @@ fun InlineLyricsPanel(
         lastMainMaxSeen = -1
     }
 
-    LaunchedEffect(lines) {
-        if (lines.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(lines, active) {
+        if (lines.isEmpty() || !active) return@LaunchedEffect
 
         var lastPlayerPos =
             EnhancedMusicPlayerManager.getCurrentPosition().takeIf { it > 0 }
@@ -644,7 +647,10 @@ fun InlineLyricsPanel(
                                     index = index,
                                     item = item,
                                     isSynced = isSynced,
-                                    isActiveLine = isActiveLine,
+                                    // The && stops the active line's withFrameMillis karaoke loop
+                                    // while the panel is retained invisible; one recomposition on
+                                    // reopen restores the state before the first visible frame.
+                                    isActiveLine = isActiveLine && active,
                                     bgVisible = bgVisible,
                                     currentPositionState = currentPositionState,
                                     lyricsTextSize = 36f,

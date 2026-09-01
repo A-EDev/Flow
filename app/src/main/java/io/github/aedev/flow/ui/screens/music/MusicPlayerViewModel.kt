@@ -505,7 +505,13 @@ class MusicPlayerViewModel
             EnhancedMusicPlayerManager.playFromQueue(index)
         }
 
+        // Both the currentTrack collector and the (kept-composed) player content request
+        // related tracks for the same id; without this guard every advance fetched twice.
+        private var relatedFetchedForId: String? = null
+
         fun fetchRelatedContent(videoId: String) {
+            if (relatedFetchedForId == videoId) return
+            relatedFetchedForId = videoId
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 _uiState.update { it.copy(isRelatedLoading = true) }
                 try {
@@ -513,6 +519,7 @@ class MusicPlayerViewModel
                         withTimeoutOrNull(10_000L) {
                             YouTubeMusicService.getRelatedMusic(videoId, 20)
                         } ?: emptyList()
+                    if (related.isEmpty()) relatedFetchedForId = null
 
                     // Related content is display-only here: the radio pool (automix)
                     // is owned by Media3MusicService and must not churn per track.
@@ -523,6 +530,7 @@ class MusicPlayerViewModel
                         )
                     }
                 } catch (e: Exception) {
+                    relatedFetchedForId = null
                     _uiState.update { it.copy(isRelatedLoading = false) }
                 }
             }

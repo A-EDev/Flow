@@ -215,7 +215,9 @@ internal fun MusicLyricsSheet(
                     title = trackTitle,
                     artist = trackArtist,
                     artworkUrl = artworkUrl,
-                    isPlaying = isPlaying,
+                    // The sheet stays composed at alpha 0 while retained — the pill's
+                    // waveform must not keep animating behind an invisible layer.
+                    isPlaying = isPlaying && visible,
                     isLoading = isLoading,
                 )
             }
@@ -242,6 +244,9 @@ internal fun MusicLyricsSheet(
                             onSeekTo = onSeekTo,
                             providerName = providerName,
                             textAlign = lyricsTextAlignFor(alignPref),
+                            // Retention keeps the panel composed for an instant reopen; the
+                            // position loops must still pause while the sheet is hidden.
+                            active = visible,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

@@ -444,6 +444,12 @@ fun UnifiedMusicPlayerSheet(
                 val miniZIndex by remember(state) {
                     derivedStateOf { if (state.expansionFraction.value < 0.5f) 1f else 0f }
                 }
+                // The mini bar is fully transparent past 0.5 expansion; its waveform, marquee
+                // and progress-ring animations stop there instead of animating under the full
+                // player for entire listening sessions. derivedStateOf: recomposes only on flip.
+                val miniAnimationsEnabled by remember(state) {
+                    derivedStateOf { state.expansionFraction.value < 0.5f }
+                }
                 Box(
                     modifier =
                         Modifier
@@ -470,7 +476,7 @@ fun UnifiedMusicPlayerSheet(
                                 }
                             }.zIndex(miniZIndex),
                 ) {
-                    MiniPlayerContent(track = displayTrack)
+                    MiniPlayerContent(track = displayTrack, animationsEnabled = miniAnimationsEnabled)
                 }
 
                 if (shouldRenderFullPlayer) {

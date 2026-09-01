@@ -562,7 +562,10 @@ internal fun FullMusicPlayerContent(
                 positionProvider = { positionState.value },
                 duration = uiState.duration,
                 onSeekTo = { viewModel.seekTo(it) },
-                isPlaying = uiState.isPlaying,
+                // The tree stays composed while collapsed (warm for a jank-free expand), so the
+                // squiggly/wavy per-frame wave animations must stop when nobody can see them —
+                // they otherwise burn a frame budget for the whole background-listening session.
+                isPlaying = uiState.isPlaying && isPlayerSheetExpanded,
                 modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
             )
 

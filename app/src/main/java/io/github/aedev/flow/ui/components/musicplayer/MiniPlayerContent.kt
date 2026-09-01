@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -61,6 +62,9 @@ import kotlinx.coroutines.launch
 internal fun MiniPlayerContent(
     track: MusicTrack,
     modifier: Modifier = Modifier,
+    // False while the expanded player covers the (alpha-0) mini bar: the waveform, marquee
+    // and smooth progress ring stop forcing frames nobody can see. Values still update.
+    animationsEnabled: Boolean = true,
 ) {
     val playerState by EnhancedMusicPlayerManager.playerState.collectAsState()
     val scope = rememberCoroutineScope()
@@ -72,7 +76,7 @@ internal fun MiniPlayerContent(
             } else {
                 0f
             },
-        animationSpec = tween(900, easing = LinearEasing),
+        animationSpec = if (animationsEnabled) tween(900, easing = LinearEasing) else snap(),
         label = "miniProgress",
     )
 
@@ -143,7 +147,7 @@ internal fun MiniPlayerContent(
                             contentScale = ContentScale.Crop,
                         )
 
-                        if (playerState.isPlaying) {
+                        if (playerState.isPlaying && animationsEnabled) {
                             Box(
                                 modifier =
                                     Modifier
@@ -177,11 +181,16 @@ internal fun MiniPlayerContent(
                             ),
                         maxLines = 1,
                         color = MaterialTheme.colorScheme.onSurface,
+                        overflow = TextOverflow.Ellipsis,
                         modifier =
-                            Modifier.basicMarquee(
-                                iterations = Int.MAX_VALUE,
-                                repeatDelayMillis = 2500,
-                            ),
+                            if (animationsEnabled) {
+                                Modifier.basicMarquee(
+                                    iterations = Int.MAX_VALUE,
+                                    repeatDelayMillis = 2500,
+                                )
+                            } else {
+                                Modifier
+                            },
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
