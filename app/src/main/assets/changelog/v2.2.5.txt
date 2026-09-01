@@ -19,6 +19,9 @@ NEW FEATURES
 - New On Repeat home-screen widget puts the songs you keep replaying one tap away
 - The engine now learns genres and moods from what you play on genre rows and mood chips: mood chips reorder to match your habits and a Genres card appears in the Control Center
 - The engine now keeps a private monthly listening ledger on your device — minutes listened, plays, discoveries and your listening clock — the foundation for an upcoming recap screen; it never leaves your device
+- Full music player redesign: pill mini player with a progress ring, an overhauled lyrics sheet with source browsing, editing, saving, alignment and sync-offset controls, and a rebuilt queue with drag-to-reorder, swipe actions and an endless-radio toggle
+- Album colors now flow through the entire player with guaranteed readability on any cover — including the sheets and a redesigned, color-adaptive sleep timer
+- Six Material 3 expressive seek bar styles including new Wavy and Squiggly waves, plus a new Immersive Artwork background that follows your swipes and previews between tracks
 - Serve every one of your interests in every home feed: your biggest interests are always present and your smaller ones rotate through the remaining slots, instead of the feed looping your top topic
 - Dig deeper as you scroll: each load of more videos descends one level further into every interest's branches, like walking a tree, instead of repeating the surface
 - Keep the feed going forever: when the usual sources thin out, loading more now digs fresh related-video lanes seeded from the videos on screen, your history, likes and playlists
