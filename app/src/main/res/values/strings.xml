@@ -696,7 +696,8 @@
     <string name="style_default">Expressive</string>
     <string name="style_thick">Thick</string>
     <string name="style_compact">Compact</string>
-    <string name="style_squiggly">Wavy</string>
+    <string name="style_wavy">Wavy</string>
+    <string name="style_squiggly">Squiggly</string>
     <string name="style_slim">Ultra Slim</string>
     <string name="player_appearance_gestures_header">Gestures</string>
     <string name="player_appearance_swipe_gestures_title">Brightness &amp; Volume Gestures</string>

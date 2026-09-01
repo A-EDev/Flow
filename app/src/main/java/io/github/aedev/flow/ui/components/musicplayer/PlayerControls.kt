@@ -512,6 +512,16 @@ fun PlayerProgressSlider(
                     )
                 }
 
+                SliderStyle.EXPRESSIVE_WAVY -> {
+                    ExpressiveWavySlider(
+                        value = displayedPosition,
+                        onValueChange = { handleSeekPreview(it) },
+                        onValueChangeFinished = { commitSeekPreview() },
+                        valueRange = 0f..sliderEnd,
+                        isPlaying = isPlaying,
+                    )
+                }
+
                 else -> {
                     val spec = expressiveSliderSpec(sliderStyle)
                     ExpressivePlayerSlider(

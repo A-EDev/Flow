@@ -9,6 +9,7 @@ package io.github.aedev.flow.ui.components.musicplayer
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -56,7 +57,7 @@ fun expressiveSliderSpec(style: SliderStyle): ExpressiveSliderSpec =
             ExpressiveSliderSpec(trackHeight = 4.dp, thumbHeight = 0.dp, thumbTrackGap = 0.dp)
         }
 
-        SliderStyle.DEFAULT, SliderStyle.SQUIGGLY -> {
+        SliderStyle.DEFAULT, SliderStyle.SQUIGGLY, SliderStyle.EXPRESSIVE_WAVY -> {
             ExpressiveSliderSpec(trackHeight = 16.dp, thumbHeight = 36.dp, thumbTrackGap = 6.dp)
         }
     }
@@ -105,6 +106,90 @@ fun ExpressivePlayerSlider(
         },
         modifier = modifier.fillMaxWidth(),
     )
+}
+
+// ============================================================================
+// EXPRESSIVE WAVY SLIDER (seekable LinearWavyProgressIndicator + round thumb)
+// ============================================================================
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ExpressiveWavySlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val range = (valueRange.endInclusive - valueRange.start).coerceAtLeast(0.001f)
+    var isDragging by remember { mutableStateOf(false) }
+    var dragFraction by remember { mutableFloatStateOf(0f) }
+    val fraction =
+        if (isDragging) {
+            dragFraction
+        } else {
+            ((value - valueRange.start) / range).coerceIn(0f, 1f)
+        }
+    val animatedAmplitude by animateFloatAsState(
+        targetValue = if (isPlaying && !isDragging) 1f else 0f,
+        label = "expressiveWaveAmplitude",
+    )
+    val activeColor = MaterialTheme.colorScheme.primary
+    val inactiveColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+    val density = LocalDensity.current
+    val thumbRadius = 7.dp
+    val stroke = remember(density) { Stroke(width = with(density) { 5.dp.toPx() }, cap = StrokeCap.Round) }
+
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .pointerInput(valueRange) {
+                    detectTapGestures { offset ->
+                        val tapped = (offset.x / size.width).coerceIn(0f, 1f)
+                        onValueChange(valueRange.start + tapped * range)
+                        onValueChangeFinished()
+                    }
+                }.pointerInput(valueRange) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            isDragging = true
+                            dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            onValueChange(valueRange.start + dragFraction * range)
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            onValueChangeFinished()
+                        },
+                        onDragCancel = { isDragging = false },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            dragFraction = (dragFraction + dragAmount / size.width).coerceIn(0f, 1f)
+                            onValueChange(valueRange.start + dragFraction * range)
+                        },
+                    )
+                },
+        contentAlignment = Alignment.Center,
+    ) {
+        LinearWavyProgressIndicator(
+            progress = { fraction },
+            modifier = Modifier.fillMaxWidth(),
+            color = activeColor,
+            trackColor = inactiveColor,
+            stroke = stroke,
+            trackStroke = stroke,
+            gapSize = thumbRadius + 4.dp,
+            amplitude = { progress -> if (progress > 0f) animatedAmplitude else 0f },
+        )
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = activeColor,
+                radius = thumbRadius.toPx(),
+                center = Offset(size.width * fraction, size.height / 2f),
+            )
+        }
+    }
 }
 
 // ============================================================================

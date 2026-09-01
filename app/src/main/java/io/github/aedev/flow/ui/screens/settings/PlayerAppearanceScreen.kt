@@ -49,6 +49,7 @@ import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.data.local.resolveSeekbarHorizontalPaddingDp
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.musicplayer.ExpressivePlayerSlider
+import io.github.aedev.flow.ui.components.musicplayer.ExpressiveWavySlider
 import io.github.aedev.flow.ui.components.musicplayer.SquigglySlider
 import io.github.aedev.flow.ui.components.musicplayer.expressiveSliderSpec
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
@@ -1187,6 +1188,16 @@ fun PreviewPlayerSlider(style: SliderStyle) {
             )
         }
 
+        SliderStyle.EXPRESSIVE_WAVY -> {
+            ExpressiveWavySlider(
+                value = position,
+                onValueChange = {},
+                onValueChangeFinished = {},
+                valueRange = 0f..duration,
+                isPlaying = true,
+            )
+        }
+
         else -> {
             val spec = expressiveSliderSpec(style)
             ExpressivePlayerSlider(
@@ -1275,7 +1286,8 @@ private fun getStyleLabelResInScreen(style: SliderStyle): Int =
         SliderStyle.DEFAULT -> R.string.style_default
         SliderStyle.THICK -> R.string.style_thick
         SliderStyle.COMPACT -> R.string.style_compact
-        SliderStyle.SQUIGGLY -> R.string.style_squiggly
+        SliderStyle.SQUIGGLY -> R.string.style_wavy
+        SliderStyle.EXPRESSIVE_WAVY -> R.string.style_squiggly
         SliderStyle.SLIM -> R.string.style_slim
     }
 

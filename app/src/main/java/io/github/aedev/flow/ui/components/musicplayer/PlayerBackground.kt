@@ -7,10 +7,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
@@ -84,7 +85,7 @@ fun PlayerBackground(
             MusicPlayerBackgroundStyle.IMMERSIVE -> {
                 // Issue #954: full-bleed artwork holds the top of the screen, then hands off to
                 // its own blurred continuation and a scrim so the controls stay readable.
-                BlurredArtworkLayer(thumbnailUrl = thumbnailUrl, alpha = 0.85f)
+                BlurredArtworkLayer(thumbnailUrl = thumbnailUrl, alpha = 0.85f, crossfadeMillis = 450)
                 ImmersiveArtworkLayer(thumbnailUrl = thumbnailUrl)
                 Box(
                     modifier =
@@ -131,30 +132,39 @@ fun PlayerBackground(
 private fun ImmersiveArtworkLayer(thumbnailUrl: String?) {
     AnimatedContent(
         targetState = thumbnailUrl,
-        transitionSpec = { fadeIn(tween(800)) togetherWith fadeOut(tween(800)) },
+        transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(400)) },
         label = "playerImmersiveArt",
     ) { targetUrl ->
-        AsyncImage(
-            model = targetUrl,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                    .drawWithContent {
-                        drawContent()
-                        drawRect(
-                            brush =
-                                Brush.verticalGradient(
-                                    0.42f to Color.Black,
-                                    0.85f to Color.Transparent,
-                                ),
-                            blendMode = BlendMode.DstIn,
-                        )
-                    },
-            contentScale = ContentScale.Crop,
-            alignment = Alignment.TopCenter,
-        )
+        Box(modifier = Modifier.fillMaxSize()) {
+            // A full-width square window with minimal crop (no full-screen zoom, so covers with
+            // their own borders don't blow up into a blank band); the bottom quarter of the ART
+            // dissolves into the blurred continuation below it.
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(
+                                brush =
+                                    Brush.verticalGradient(
+                                        0.72f to Color.Black,
+                                        1.00f to Color.Transparent,
+                                    ),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        },
+            ) {
+                AsyncImage(
+                    model = targetUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+        }
     }
 }
 
@@ -162,10 +172,11 @@ private fun ImmersiveArtworkLayer(thumbnailUrl: String?) {
 private fun BlurredArtworkLayer(
     thumbnailUrl: String?,
     alpha: Float,
+    crossfadeMillis: Int = 800,
 ) {
     AnimatedContent(
         targetState = thumbnailUrl,
-        transitionSpec = { fadeIn(tween(800)) togetherWith fadeOut(tween(800)) },
+        transitionSpec = { fadeIn(tween(crossfadeMillis)) togetherWith fadeOut(tween(crossfadeMillis)) },
         label = "playerBackgroundArt",
     ) { targetUrl ->
         AsyncImage(

@@ -76,6 +76,7 @@ fun PlayerArtwork(
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
+    onDragPreviewChange: (SkipDirection?) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val dragOffsetX = remember { Animatable(0f) }
@@ -151,6 +152,7 @@ fun PlayerArtwork(
                                     }
 
                                     else -> {
+                                        onDragPreviewChange(null)
                                         scope.launch {
                                             dragOffsetX.animateTo(
                                                 targetValue = 0f,
@@ -165,6 +167,7 @@ fun PlayerArtwork(
                                 }
                             },
                             onDragCancel = {
+                                onDragPreviewChange(null)
                                 scope.launch { dragOffsetX.animateTo(0f) }
                             },
                             onHorizontalDrag = { change, dragAmount ->
@@ -176,6 +179,14 @@ fun PlayerArtwork(
                                 val newOffset =
                                     (dragOffsetX.value + dragAmount * resistance)
                                         .coerceIn(-size.width.toFloat(), size.width.toFloat())
+                                val previewThreshold = size.width * 0.3f
+                                onDragPreviewChange(
+                                    when {
+                                        newOffset < -previewThreshold && nextThumbnailUrl != null -> SkipDirection.NEXT
+                                        newOffset > previewThreshold && previousThumbnailUrl != null -> SkipDirection.PREVIOUS
+                                        else -> null
+                                    },
+                                )
                                 scope.launch { dragOffsetX.snapTo(newOffset) }
                             },
                         )

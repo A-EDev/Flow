@@ -138,6 +138,18 @@ internal fun FullMusicPlayerContent(
             null -> null
         }
 
+    // Both the hold-press preview and the artwork drag carousel swap the background art too,
+    // so the immersive/blur backdrops track whatever cover the user is currently peeking at.
+    var artworkDragPreview by remember { mutableStateOf<SkipDirection?>(null) }
+    LaunchedEffect(thumbnailUrl) { artworkDragPreview = null }
+    val backgroundPreviewTrack =
+        when (artworkDragPreview ?: previewDirection) {
+            SkipDirection.NEXT -> nextTrack
+            SkipDirection.PREVIOUS -> previousTrack
+            null -> null
+        }
+    val backgroundThumbnailUrl = backgroundPreviewTrack?.highResThumbnailUrl ?: thumbnailUrl
+
     LaunchedEffect(musicPlayer) {
         SleepTimerManager.attachToPlayer(
             player = musicPlayer,
@@ -361,7 +373,7 @@ internal fun FullMusicPlayerContent(
         }
 
         PlayerBackground(
-            thumbnailUrl = thumbnailUrl,
+            thumbnailUrl = backgroundThumbnailUrl,
             style = backgroundStyle,
             paletteBaseColor = palette.base,
             paletteAccentColor = palette.accent,
@@ -472,6 +484,7 @@ internal fun FullMusicPlayerContent(
                         onSkipPrevious = { viewModel.skipToPrevious() },
                         onSkipNext = { viewModel.skipToNext() },
                         modifier = Modifier.fillMaxSize(),
+                        onDragPreviewChange = { artworkDragPreview = it },
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))

@@ -2955,6 +2955,7 @@ enum class SliderStyle {
     THICK,
     COMPACT,
     SQUIGGLY,
+    EXPRESSIVE_WAVY,
     SLIM,
 }
 
