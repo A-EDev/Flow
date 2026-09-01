@@ -81,11 +81,12 @@ fun PlayerArtwork(
     val dragOffsetX = remember { Animatable(0f) }
     val density = LocalDensity.current
 
+    val invisibleSlot = hideArtwork && !hiddenArtworkColor.isSpecified
     BoxWithConstraints(
         modifier =
             modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.Black),
+                .then(if (invisibleSlot) Modifier else Modifier.background(Color.Black)),
     ) {
         val widthPx = with(density) { maxWidth.toPx() }
 
