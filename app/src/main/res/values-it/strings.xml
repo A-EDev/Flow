@@ -2171,4 +2171,247 @@
     <string name="tv_guide_search_edit">Utilizza Spazio, Elimina e Cancella nella riga inferiore della tastiera per modificare la richiesta.</string>
     <string name="tv_guide_search_voice">Avvia la ricerca vocale quando il TV dispone di un servizio microfono supportato.</string>
     <string name="tv_guide_search_results">Spostati dalla tastiera ai filtri e ai risultati; usa le frecce Su e Giù tra le sezioni.</string>
+    <string name="top_bar_clear_search">Cancella ricerca</string>
+    <string name="top_bar_close_search">Chiudi ricerca</string>
+    <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="one">Aggiornamento di %1$d su %2$d canale</item>
+        <item quantity="many">Aggiornamento di %1$d su %2$d canali</item>
+        <item quantity="other">Aggiornamento di %1$d su %2$d canali</item>
+    </plurals>
+    <plurals name="download_all_confirmation">
+        <item quantity="one">Scaricare %1$d video? Questa operazione potrebbe utilizzare molto spazio di archiviazione.</item>
+        <item quantity="many">Scaricare tutti i %1$d video? Questa operazione potrebbe utilizzare molto spazio di archiviazione.</item>
+        <item quantity="other">Scaricare tutti i %1$d video? Questa operazione potrebbe utilizzare molto spazio di archiviazione.</item>
+    </plurals>
+    <string name="explicit_badge">E</string>
+    <plurals name="view_replies_template">
+        <item quantity="one">Visualizza %1$d risposta</item>
+        <item quantity="many">Visualizza %1$d risposte</item>
+        <item quantity="other">Visualizza %1$d risposte</item>
+    </plurals>
+    <plurals name="videos_curated_template">
+        <item quantity="one">%1$d video selezionato apposta per te</item>
+        <item quantity="many">%1$d video selezionati apposta per te</item>
+        <item quantity="other">%1$d video selezionati apposta per te</item>
+    </plurals>
+    <plurals name="videos_count_template">
+        <item quantity="one">%1$d video</item>
+        <item quantity="many">%1$d video</item>
+        <item quantity="other">%1$d video</item>
+    </plurals>
+    <plurals name="songs_count_template">
+        <item quantity="one">%1$d brano</item>
+        <item quantity="many">%1$d brani</item>
+        <item quantity="other">%1$d brani</item>
+    </plurals>
+    <string name="metadata_separator">·</string>
+    <string name="player_time_separator">/</string>
+    <string name="you">Tu</string>
+    <string name="search_voice_prompt">Parla per cercare…</string>
+    <string name="shared_video">Video condiviso</string>
+    <string name="search_failed">Rierca non riuscita</string>
+    <string name="player_settings_video_codec_fallback_auto">Automatico</string>
+    <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="one">Ultimo aggiornamento %1$s - %2$d video controllato</item>
+        <item quantity="many">Ultimo aggiornamento %1$s - %2$d video controllati</item>
+        <item quantity="other">Ultimo aggiornamento %1$s - %2$d video controllati</item>
+    </plurals>
+    <string name="conjunction_and">e</string>
+    <string name="streamed_date_template">Trasmesso in streaming il %1$s</string>
+    <string name="loading_more">Caricamento in corso…</string>
+    <string name="load_failed">Caricamento non riuscito</string>
+    <string name="import_success_count">Importato %1$d %2$s</string>
+    <string name="import_success">%1$s importato correttamente</string>
+    <plurals name="deep_flow_duration_hours">
+        <item quantity="one">%1$d ora</item>
+        <item quantity="many">%1$d ore</item>
+        <item quantity="other">%1$d ore</item>
+    </plurals>
+    <plurals name="appearance_themes_count_all">
+        <item quantity="one">%1$d tema</item>
+        <item quantity="many">%1$d temi</item>
+        <item quantity="other">%1$d temi</item>
+    </plurals>
+    <plurals name="lyrics_providers_enabled">
+        <item quantity="one">%1$d / %2$d provider abilitato</item>
+        <item quantity="many">%1$d / %2$d provider abilitati</item>
+        <item quantity="other">%1$d / %2$d provider abilitati</item>
+    </plurals>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+        <item quantity="one">Scorrimento automatico ogni %1$d secondo</item>
+        <item quantity="many">Scorrimento automatico ogni %1$d secondi</item>
+        <item quantity="other">Scorrimento automatico ogni %1$d secondi</item>
+    </plurals>
+    <plurals name="player_settings_shorts_auto_scroll_seconds_template">
+        <item quantity="one">%1$d secondo</item>
+        <item quantity="many">%1$d secondi</item>
+        <item quantity="other">%1$d secondi</item>
+    </plurals>
+    <plurals name="player_settings_autoplay_countdown_seconds_template">
+        <item quantity="one">%1$d secondo</item>
+        <item quantity="many">%1$d secondi</item>
+        <item quantity="other">%1$d secondi</item>
+    </plurals>
+    <string name="player_settings_video_codec_fallback">Codec alternativo</string>
+    <string name="player_settings_video_codec_fallback_dialog_body">Doced da utilizzare quando un video non è disponibile nel tuo codec preferito. Ricade automaticamente in quello che l\'app ritiene più compatibile, solitamente H.264.</string>
+    <string name="player_settings_video_codec_fallback_auto_desc">Lascia scegliere all\'app (preferisce H.264)</string>
+    <plurals name="player_settings_double_tap_seek_subtitle">
+        <item quantity="one">Doppio tocco da %1$d secondo per lato</item>
+        <item quantity="many">Doppio tocco da %1$d secondi per lato</item>
+        <item quantity="other">Doppio tocco da %1$d secondi per lato</item>
+    </plurals>
+    <plurals name="topics_count_template">
+        <item quantity="one">%1$d argomento</item>
+        <item quantity="many">%1$d argomenti</item>
+        <item quantity="other">%1$d argomenti</item>
+    </plurals>
+    <plurals name="topics_blocked_count_plural">
+        <item quantity="one">%1$d argomento</item>
+        <item quantity="many">%1$d argomenti</item>
+        <item quantity="other">%1$d argomenti</item>
+    </plurals>
+    <plurals name="selected_count_template">
+        <item quantity="one">%1$d selezionato</item>
+        <item quantity="many">%1$d selezionati</item>
+        <item quantity="other">%1$d selezionati</item>
+    </plurals>
+    <plurals name="every_min_template">
+        <item quantity="one">Ogni %1$d min</item>
+        <item quantity="many">Ogni %1$d min</item>
+        <item quantity="other">Ogni %1$d min</item>
+    </plurals>
+    <plurals name="every_minutes_template">
+        <item quantity="one">Ogni %1$d minuto</item>
+        <item quantity="many">Ogni %1$d minuti</item>
+        <item quantity="other">Ogni %1$d minuti</item>
+    </plurals>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="many">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
+    <plurals name="currently_searches_template">
+        <item quantity="one">Attualmente: %1$d ricerca</item>
+        <item quantity="many">Attualmente: %1$d ricerche</item>
+        <item quantity="other">Attualmente: %1$d ricerche</item>
+    </plurals>
+    <plurals name="delete_after_days_template">
+        <item quantity="one">Elimina dopo %1$d giorno</item>
+        <item quantity="many">Elimina dopo %1$d giorni</item>
+        <item quantity="other">Elimina dopo %1$d giorni</item>
+    </plurals>
+    <plurals name="delete_older_than_template">
+        <item quantity="one">Elimina le ricerche più vecchie di %1$d giorno</item>
+        <item quantity="many">Elimina le ricerche più vecchie di %1$d giorni</item>
+        <item quantity="other">Elimina le ricerche più vecchie di %1$d giorni</item>
+    </plurals>
+    <plurals name="searches_count_template">
+        <item quantity="one">%1$d ricerca</item>
+        <item quantity="many">%1$d ricerche</item>
+        <item quantity="other">%1$d ricerche</item>
+    </plurals>
+    <plurals name="days_count_template">
+        <item quantity="one">%1$d giorno</item>
+        <item quantity="many">%1$d giorni</item>
+        <item quantity="other">%1$d giorni</item>
+    </plurals>
+    <string name="import_label_newpipe_subscriptions">Iscrizioni di NewPipe</string>
+    <string name="import_label_youtube_subscriptions">Iscrizioni di YouTube</string>
+    <string name="import_label_youtube_watch_history">Cronologia di visualizzazione di YouTube</string>
+    <string name="import_label_freetube_watch_history">Cronologia di visualizzazione di FreeTube</string>
+    <string name="import_label_newpipe_watch_history">Cronologia di visualizzazione di NewPipe</string>
+    <string name="import_label_libretube_subscriptions">Iscrizioni di LibreTube</string>
+    <string name="import_label_metrolist_playlists">Playlist musicali di Metrolist</string>
+    <string name="import_label_newpipe_playlists">Playlist di NewPipe</string>
+    <string name="import_label_libretube_playlists">Playlist di LibreTube</string>
+    <string name="import_label_youtube_takeout">YouTube Takeout</string>
+    <string name="import_yt_watch_later">Importa Guarda più tardi</string>
+    <string name="import_yt_watch_later_desc">Importa un CSV di YouTube Takeout direttamente nella tua lista Guarda più tardi, qualsiasi sia il nome del file.</string>
+    <plurals name="import_yt_playlist_success_template">
+        <item quantity="one">Playlist \"%1$s\" importata con %2$d video</item>
+        <item quantity="many">Playlist \"%1$s\" importata con %2$d video</item>
+        <item quantity="other">Playlist \"%1$s\" importata con %2$d video</item>
+    </plurals>
+    <plurals name="threads_per_download_template">
+        <item quantity="one">%1$d thread per download</item>
+        <item quantity="many">%1$d thread per download</item>
+        <item quantity="other">%1$d thread per download</item>
+    </plurals>
+    <plurals name="threads_count_label">
+        <item quantity="one">%1$d thread</item>
+        <item quantity="many">%1$d thread</item>
+        <item quantity="other">%1$d thread</item>
+    </plurals>
+    <string name="playlist_downloading_template">In download: %1$s</string>
+    <string name="playlist_downloads_queued">%1$d/%2$d download in coda</string>
+    <string name="playlist_download_queue_empty">Impossibile mettere in coda qualsiasi download da questa playlist</string>
+    <plurals name="playlist_metadata_private_template">
+        <item quantity="one">Playlist • Privato • %1$d video</item>
+        <item quantity="many">Playlist • Privato • %1$d video</item>
+        <item quantity="other">Playlist • Privato • %1$d video</item>
+    </plurals>
+    <plurals name="playlist_metadata_public_template">
+        <item quantity="one">Playlist • Pubblico • %1$d video</item>
+        <item quantity="many">Playlist • Pubblico • %1$d video</item>
+        <item quantity="other">Playlist • Pubblico • %1$d video</item>
+    </plurals>
+    <plurals name="remove_selected_videos_title">
+        <item quantity="one">Rimuovere %1$d video?</item>
+        <item quantity="many">Rimuovere %1$d video?</item>
+        <item quantity="other">Rimuovere %1$d video?</item>
+    </plurals>
+    <plurals name="onboarding_channels_added_count">
+        <item quantity="one">%1$d canale aggiunto</item>
+        <item quantity="many">%1$d canale aggiunti</item>
+        <item quantity="other">%1$d canale aggiunti</item>
+    </plurals>
+    <string name="onboarding_step_interests">Interessi</string>
+    <string name="onboarding_step_channels">Canali</string>
+    <string name="onboarding_step_import">Importa</string>
+    <string name="onboarding_imported_count">Importato %1$d %2$s</string>
+    <string name="onboarding_imported">%1$s importato</string>
+    <string name="queue_position_template">%1$d / %2$d</string>
+    <string name="next_up_template">%1$s: %2$s</string>
+    <string name="equalizer_frequency_label">F</string>
+    <string name="equalizer_gain_label">G</string>
+    <string name="equalizer_q_label">Q</string>
+    <plurals name="favorites_count_template">
+        <item quantity="one">%1$d brano preferito</item>
+        <item quantity="many">%1$d brani preferiti</item>
+        <item quantity="other">%1$d brani preferiti</item>
+    </plurals>
+    <string name="audio_format_unknown">Audio</string>
+    <string name="download_size_estimate_mb">~%1$s MB</string>
+    <string name="download_size_estimate_gb">~%1$s GB</string>
+    <plurals name="remove_incomplete_downloads_message">
+        <item quantity="one">Rimuovere %1$d download messo in pausa, non riuscito o parziale? I download completati non saranno coinvolti.</item>
+        <item quantity="many">Rimuovere %1$d download messi in pausa, non riusciti o parziali? I download completati non saranno coinvolti.</item>
+        <item quantity="other">Rimuovere %1$d download messi in pausa, non riusciti o parziali? I download completati non saranno coinvolti.</item>
+    </plurals>
+    <plurals name="sync_selected_count">
+        <item quantity="one">%1$d di %2$d selezionato</item>
+        <item quantity="many">%1$d di %2$d selezionati</item>
+        <item quantity="other">%1$d di %2$d selezionati</item>
+    </plurals>
+    <string name="diagnostics_report_subject">Rapporto di diagnostica di Flow</string>
+    <plurals name="merge_playlist_success">
+        <item quantity="one">%1$d brano aggiunto a “%2$s”</item>
+        <item quantity="many">%1$d brani aggiunti a “%2$s”</item>
+        <item quantity="other">%1$d brani aggiunti a “%2$s”</item>
+    </plurals>
+    <plurals name="taste_topic_breadth_detail">
+        <item quantity="one">%1$d argomento nel vettore globale</item>
+        <item quantity="many">%1$d argomenti nel vettore globale</item>
+        <item quantity="other">%1$d argomenti nel vettore globale</item>
+    </plurals>
+    <string name="tv_guide_left_edge">Spostati a sinistra dal bordo del contenuto per aprire la barra di navigazione.</string>
+    <string name="tv_guide_rail">Utilizza Su e Giù per scegliere una destinazione, OK per aprirla, e Destra per ritornare al contenuto.</string>
+    <string name="tv_guide_player_toggle">Riproduci o metti in pausa e mostra i controlli di riproduzione.</string>
+    <string name="tv_guide_player_seek">Scorri indietro o avanti; la barra di avanzamento mostra la posizione in sospeso.</string>
+    <string name="tv_guide_player_hold">Tieni premuto Sinistra o Destra per accelerare lo scorrimento, quindi rilascia per confermare.</string>
+    <string name="tv_guide_player_up">Rivela i controlli e seleziona la riga A seguire</string>
+    <string name="tv_guide_player_down">Rivela i controlli di riproduzione e seleziona Riproduci/Pausa.</string>
+    <string name="tv_guide_player_media">Riproduci, Pausa, Precedente, Successivo, Riavvolgi, Avanzamento rapido e Sottotitoli funzionano direttamente.</string>
+    <string name="tv_guide_player_back">Chiudi prima un pannello o i controlli; premi di nuovo per lasciare il player.</string>
+    <string name="tv_settings_wifi_quality">Qualità predefinita (Wi-Fi)</string>
 </resources>
