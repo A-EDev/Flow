@@ -45,7 +45,6 @@ import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.DonationPromptHost
 import io.github.aedev.flow.ui.components.FloatingBottomNavBar
 import io.github.aedev.flow.ui.components.PlayerSheetValue
-import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerBottomSpacer
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerHeight
@@ -363,7 +362,6 @@ fun FlowApp(
 
         val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
         var suppressMusicMiniAfterVideo by remember { mutableStateOf(false) }
-        var showMusicSleepTimerSheet by remember { mutableStateOf(false) }
         var handledMusicPlayerRequest by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(activeVideo?.id) {
@@ -732,13 +730,6 @@ fun FlowApp(
                     musicPlayerSheetState.collapse()
                     navController.navigate("musicPlaylist/${android.net.Uri.encode(albumId)}")
                 },
-                onSleepTimerClick = { showMusicSleepTimerSheet = true },
-            )
-        }
-
-        if (showMusicSleepTimerSheet) {
-            SleepTimerSheet(
-                onDismiss = { showMusicSleepTimerSheet = false },
             )
         }
 

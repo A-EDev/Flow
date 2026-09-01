@@ -91,6 +91,7 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.service.Media3MusicService
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.screens.music.AddToPlaylistDialog
 import io.github.aedev.flow.ui.screens.music.CreatePlaylistDialog
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
@@ -110,7 +111,6 @@ internal fun FullMusicPlayerContent(
     hideArtwork: Boolean,
     onArtistClick: (String) -> Unit,
     onAlbumClick: (String) -> Unit,
-    onSleepTimerClick: () -> Unit,
     viewModel: MusicPlayerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -124,6 +124,7 @@ internal fun FullMusicPlayerContent(
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
+    var showSleepTimer by remember { mutableStateOf(false) }
     var previewDirection by remember { mutableStateOf<SkipDirection?>(null) }
     val musicPlayer by EnhancedMusicPlayerManager.playerInstance.collectAsState()
 
@@ -211,7 +212,7 @@ internal fun FullMusicPlayerContent(
             },
             onInfoClick = { showInfoDialog = true },
             onAudioEffectsClick = { showAudioSettings = true },
-            onSleepTimerClick = onSleepTimerClick,
+            onSleepTimerClick = { showSleepTimer = true },
             showPlaylistDialogs = false,
         )
     }
@@ -754,5 +755,10 @@ internal fun FullMusicPlayerContent(
             onApplyEditedLyrics = { viewModel.applyEditedLyrics(it) },
             onDismiss = { showLyricsSheet = false },
         )
+
+        // Hosted here rather than at app level so it picks up the palette-derived scheme.
+        if (showSleepTimer) {
+            SleepTimerSheet(onDismiss = { showSleepTimer = false })
+        }
     }
 }

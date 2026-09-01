@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -732,12 +733,13 @@ private fun SplitCapsuleButton(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
 ) {
+    val scheme = MaterialTheme.colorScheme
     val containerColor by animateColorAsState(
         targetValue =
             if (active) {
-                MaterialTheme.colorScheme.primary
+                scheme.primary
             } else {
-                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                scheme.onPrimary.copy(alpha = 0.7f)
             },
         animationSpec = tween(durationMillis = 250),
         label = "capsuleContainer",
@@ -745,11 +747,12 @@ private fun SplitCapsuleButton(
     val contentColor by animateColorAsState(
         targetValue =
             if (active) {
-                MaterialTheme.colorScheme.onPrimary
+                scheme.onPrimary
             } else {
+                // Contrast-check against what the eye sees: the translucent pill over the surface.
                 readableAccentOn(
-                    container = MaterialTheme.colorScheme.onPrimary,
-                    accent = MaterialTheme.colorScheme.primary,
+                    container = lerp(scheme.surface, scheme.onPrimary, 0.7f),
+                    accent = scheme.primary,
                 )
             },
         animationSpec = tween(durationMillis = 250),

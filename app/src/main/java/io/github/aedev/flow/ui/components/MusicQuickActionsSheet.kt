@@ -227,8 +227,8 @@ fun MusicQuickActionsSheet(
                     items =
                         listOf(
                             FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.ThumbDown, null) },
-                                title = { Text(stringResource(R.string.not_interested)) },
+                                icon = { Icon(Icons.Outlined.ThumbDown, null, tint = MaterialTheme.colorScheme.error) },
+                                title = { Text(stringResource(R.string.not_interested), color = MaterialTheme.colorScheme.error) },
                                 description = { Text(stringResource(R.string.not_interested_desc)) },
                                 onClick = {
                                     viewModel.notInterested(track)
@@ -242,8 +242,13 @@ fun MusicQuickActionsSheet(
                                 },
                             ),
                             FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.Block, null) },
-                                title = { Text(stringResource(R.string.dont_recommend_artist, artistName)) },
+                                icon = { Icon(Icons.Outlined.Block, null, tint = MaterialTheme.colorScheme.error) },
+                                title = {
+                                    Text(
+                                        stringResource(R.string.dont_recommend_artist, artistName),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                },
                                 description = { Text(stringResource(R.string.dont_recommend_artist_desc)) },
                                 onClick = {
                                     viewModel.dontRecommendArtist(track)

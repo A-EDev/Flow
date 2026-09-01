@@ -97,7 +97,6 @@ fun UnifiedMusicPlayerSheet(
     onDismiss: () -> Unit,
     onArtistClick: (String) -> Unit,
     onAlbumClick: (String) -> Unit,
-    onSleepTimerClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -509,7 +508,6 @@ fun UnifiedMusicPlayerSheet(
                             hideArtwork = hideArtwork,
                             onArtistClick = onArtistClick,
                             onAlbumClick = onAlbumClick,
-                            onSleepTimerClick = onSleepTimerClick,
                         )
                     }
                 }
