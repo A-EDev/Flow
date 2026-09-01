@@ -43,11 +43,14 @@ IMPROVEMENTS
 - Channels you interact with are no longer scored below channels you have never seen
 - Only a couple of fresh subscription uploads pin to the top of the feed, and only one per channel, so the first screen is a real mix of sources
 - A one-time brain revitalization recovers your real interests from your channel knowledge, repairing profiles hollowed out by old learning bugs
+- Music radio no longer plays the same artist twice in a row: radio queues now alternate artists whenever an alternative exists, including across the seam where new tracks are appended
 
 PERFORMANCE
 - Feed ranking noise now scales with your actual scores instead of drowning them when the feed was stale
 - Music shelves only recompose while the Music screen is visible and similar-song lanes are cached, so background listening no longer burns network and battery
 - Opening an artist, album or Daily Mix page no longer silently reloads the entire music home feed behind the scenes — one shared engine now serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and device heat
+- The redesigned player stops animating what you cannot see: the seek bar's wave, the lyrics sync engine and the mini player's equalizer now pause whenever their layer is hidden, ending a constant per-frame drain (heat and battery) that ran for entire listening sessions
+- Every track change now fetches its similar-tracks lane once instead of twice
 
 FIXES AND STABILITY
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
