@@ -233,6 +233,30 @@ class MusicBrainEngine
         }
 
         /**
+         * Order a radio append batch so adjacent tracks never share an artist (when an
+         * alternative exists), seeded with the current queue tail so the seam between
+         * the queue and the appended batch is covered too. Pure sequencing — candidates
+         * are already ranked and block/cooldown-filtered by [rankTracks] on the radio
+         * surface. Pass more candidates than [limit] so the spread has real alternatives.
+         */
+        fun sequenceRadioBatch(
+            candidates: List<MusicTrack>,
+            previousTrack: MusicTrack?,
+            limit: Int,
+        ): List<MusicTrack> {
+            if (candidates.isEmpty() || limit <= 0) return emptyList()
+            val inputs = candidates.map { MusicRankInput(trackId = it.videoId, artistKey = it.primaryArtistKey()) }
+            val order =
+                MusicBrainRanker.spreadArtists(
+                    order = inputs.indices.toList(),
+                    inputs = inputs,
+                    maxRun = MusicBrainParams.RADIO_MAX_CONSECUTIVE_ARTIST,
+                    previousArtist = previousTrack?.primaryArtistKey(),
+                )
+            return order.take(limit).map { candidates[it] }
+        }
+
+        /**
          * Highest-affinity artists with routable browseIds — the seeds for artist
          * and fans-also-like lanes. Blocked artists never surface.
          */
