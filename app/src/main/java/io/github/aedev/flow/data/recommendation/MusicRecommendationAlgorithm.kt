@@ -375,11 +375,14 @@ class MusicRecommendationAlgorithm
                         artist = item.artists?.joinToString(", ") { it.name } ?: "",
                         thumbnailUrl = item.thumbnail,
                         duration = 0,
-                        channelId = "",
+                        // Structured attribution so "don't recommend"/"not interested"
+                        // feedback hides an artist's album cards, not just their songs.
+                        channelId = item.artists?.firstOrNull()?.id ?: "",
                         views = 0L,
                         album = "Album",
                         isExplicit = item.explicit,
                         itemType = MusicItemType.ALBUM,
+                        artists = item.artists?.map { MusicArtist(name = it.name, id = it.id) } ?: emptyList(),
                     )
                 }
 

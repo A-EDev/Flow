@@ -72,6 +72,11 @@ data class MusicPlaylist(
     val thumbnailUrl: String,
     val trackCount: Int = 0,
     val author: String = "",
+    // Structured attribution for "not interested"/"don't recommend" filtering.
+    // `author` is a display subtitle — album cards put the release YEAR there —
+    // so feedback matching must never rely on parsing it.
+    val authorId: String? = null,
+    val authorName: String? = null,
 )
 
 data class PlaylistDetails(

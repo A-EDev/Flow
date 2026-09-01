@@ -349,7 +349,7 @@ object InnertubeMusicService {
                             albums =
                                 section.items
                                     .filterIsInstance<io.github.aedev.flow.innertube.models.AlbumItem>()
-                                    .map { convertAlbumToPlaylist(it) }
+                                    .map { convertAlbumToPlaylist(it, artistItem.id, artistItem.title) }
                             albumsBrowseId = section.moreEndpoint?.browseId
                             albumsParams = section.moreEndpoint?.params
                         }
@@ -358,7 +358,7 @@ object InnertubeMusicService {
                             singles =
                                 section.items
                                     .filterIsInstance<io.github.aedev.flow.innertube.models.AlbumItem>()
-                                    .map { convertAlbumToPlaylist(it) }
+                                    .map { convertAlbumToPlaylist(it, artistItem.id, artistItem.title) }
                             singlesBrowseId = section.moreEndpoint?.browseId
                             singlesParams = section.moreEndpoint?.params
                         }
@@ -497,6 +497,8 @@ object InnertubeMusicService {
 
     private fun convertAlbumToPlaylist(
         item: io.github.aedev.flow.innertube.models.AlbumItem,
+        fallbackArtistId: String? = null,
+        fallbackArtistName: String? = null,
     ): io.github.aedev.flow.ui.screens.music.MusicPlaylist =
         io.github.aedev.flow.ui.screens.music.MusicPlaylist(
             id = item.browseId ?: "",
@@ -504,6 +506,9 @@ object InnertubeMusicService {
             thumbnailUrl = item.thumbnail ?: "",
             trackCount = 0, // Not always available in list view
             author = item.year?.toString() ?: "", // Resusing author field for Year/Subtitle
+            // The feedback filter needs the artist even though the card shows the year.
+            authorId = item.artists?.firstOrNull()?.id ?: fallbackArtistId,
+            authorName = item.artists?.firstOrNull()?.name ?: fallbackArtistName,
         )
 
     private fun convertPlaylistToMusicPlaylist(

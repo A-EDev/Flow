@@ -87,6 +87,66 @@ class MusicUiStateHiddenArtistsTest {
         assertSame(state, state.withHiddenArtists(setOf("someone else")))
     }
 
+    @Test
+    fun `album cards hide by structured attribution even when the subtitle is a year`() {
+        val badAlbum = album("bad", author = "2026", authorId = "UCbad", authorName = "Bad Artist")
+        val goodAlbum = album("good", author = "2026", authorId = "UCgood", authorName = "Good Artist")
+        val state =
+            MusicUiState(
+                topAlbums = listOf(badAlbum, goodAlbum),
+                favoriteArtistAlbums = listOf(badAlbum, goodAlbum),
+            )
+
+        val byId = state.withHiddenArtists(setOf("UCbad"))
+        assertEquals(listOf("good"), byId.topAlbums.map(MusicPlaylist::id))
+        assertEquals(listOf("good"), byId.favoriteArtistAlbums.map(MusicPlaylist::id))
+
+        val byName = state.withHiddenArtists(setOf("bad artist"))
+        assertEquals(listOf("good"), byName.topAlbums.map(MusicPlaylist::id))
+    }
+
+    @Test
+    fun `legacy album cards without attribution still match on the author subtitle`() {
+        val legacy = album("legacy", author = "Bad Artist")
+        val state = MusicUiState(topAlbums = listOf(legacy, album("kept", author = "Good Artist")))
+
+        val result = state.withHiddenArtists(setOf("bad artist"))
+
+        assertEquals(listOf("kept"), result.topAlbums.map(MusicPlaylist::id))
+    }
+
+    @Test
+    fun `album track items hide when any credited artist is hidden`() {
+        val collabAlbum =
+            track("collab", artist = "Good Artist, Bad Artist").copy(
+                itemType = MusicItemType.ALBUM,
+                artists =
+                    listOf(
+                        MusicArtist(name = "Good Artist", id = "UCgood"),
+                        MusicArtist(name = "Bad Artist", id = "UCbad"),
+                    ),
+            )
+        val state = MusicUiState(newReleases = listOf(collabAlbum, track("kept", artist = "Good Artist")))
+
+        val result = state.withHiddenArtists(setOf("UCbad"))
+
+        assertEquals(listOf("kept"), result.newReleases.map(MusicTrack::videoId))
+    }
+
+    private fun album(
+        id: String,
+        author: String,
+        authorId: String? = null,
+        authorName: String? = null,
+    ) = MusicPlaylist(
+        id = id,
+        title = id,
+        thumbnailUrl = "thumbnail",
+        author = author,
+        authorId = authorId,
+        authorName = authorName,
+    )
+
     private fun track(
         id: String,
         artist: String = "Artist",

@@ -44,6 +44,7 @@ IMPROVEMENTS
 - Only a couple of fresh subscription uploads pin to the top of the feed, and only one per channel, so the first screen is a real mix of sources
 - A one-time brain revitalization recovers your real interests from your channel knowledge, repairing profiles hollowed out by old learning bugs
 - Music radio no longer plays the same artist twice in a row: radio queues now alternate artists whenever an alternative exists, including across the seam where new tracks are appended
+- "Not interested" and "Don't recommend" now hide the artist's albums too: album cards across new releases and your artist shelves carry real artist attribution, and a track or album is hidden when ANY credited artist is hidden, so collabs no longer slip through
 
 PERFORMANCE
 - Feed ranking noise now scales with your actual scores instead of drowning them when the feed was stale
