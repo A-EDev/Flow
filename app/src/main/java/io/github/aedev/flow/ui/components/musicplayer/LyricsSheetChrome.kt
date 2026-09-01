@@ -1,6 +1,8 @@
 package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -10,6 +12,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,7 +60,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,6 +74,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ToggleButtonShapes
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -318,54 +323,109 @@ internal fun LyricsSyncOffsetRow(
     onHide: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptic = LocalHapticFeedback.current
+    val offsetActive = offsetMs != 0L
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                .height(52.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OffsetStepButton(deltaMs = -500L, onAdjust = onAdjust)
-        OffsetStepButton(deltaMs = -100L, onAdjust = onAdjust)
-
-        val offsetActive = offsetMs != 0L
-        FilledTonalButton(
-            onClick = onReset,
-            enabled = offsetActive,
+        // M3E connected button group: 2dp seams, round outer ends, the pressed
+        // segment widens with a spring while its inner corners relax — the same
+        // press-morph idiom as the player's main transport buttons.
+        Row(
             modifier =
                 Modifier
-                    .weight(1.3f)
+                    .weight(1f)
                     .fillMaxHeight(),
-            shape = CircleShape,
-            colors =
-                ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-            contentPadding = PaddingValues(0.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            val valueText =
-                if (offsetActive) {
-                    String.format(Locale.US, "%+.1f", offsetMs / 1000f)
-                } else {
-                    "0"
-                }
-            Text(
-                text = stringResource(R.string.lyrics_sync_offset_value, valueText),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-            )
-        }
+            OffsetStepSegment(deltaMs = -500L, edge = OffsetSegmentEdge.START, onAdjust = onAdjust)
+            OffsetStepSegment(deltaMs = -100L, edge = OffsetSegmentEdge.INNER, onAdjust = onAdjust)
 
-        OffsetStepButton(deltaMs = 100L, onAdjust = onAdjust)
-        OffsetStepButton(deltaMs = 500L, onAdjust = onAdjust)
+            val chipWeight by animateFloatAsState(
+                targetValue = if (offsetActive) 1.7f else 1.4f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                label = "syncChipWeight",
+            )
+            val chipContainer by animateColorAsState(
+                targetValue =
+                    if (offsetActive) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                label = "syncChipContainer",
+            )
+            val chipContent by animateColorAsState(
+                targetValue =
+                    if (offsetActive) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                label = "syncChipContent",
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .weight(chipWeight)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(chipContainer)
+                        .clickable(enabled = offsetActive) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onReset()
+                        },
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AnimatedContent(
+                        targetState = offsetMs,
+                        transitionSpec = {
+                            // The value rolls like a counter: up when the offset grows.
+                            if (targetState > initialState) {
+                                (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut())
+                            } else {
+                                (slideInVertically { -it } + fadeIn()) togetherWith (slideOutVertically { it } + fadeOut())
+                            }
+                        },
+                        label = "syncOffsetValue",
+                    ) { value ->
+                        val valueText = if (value != 0L) String.format(Locale.US, "%+.1f", value / 1000f) else "0"
+                        Text(
+                            text = stringResource(R.string.lyrics_sync_offset_value, valueText),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = chipContent,
+                            maxLines = 1,
+                        )
+                    }
+                    AnimatedVisibility(
+                        visible = offsetActive,
+                        enter = fadeIn() + scaleIn(),
+                        exit = fadeOut() + scaleOut(),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = stringResource(R.string.lyrics_sync_reset),
+                            modifier = Modifier.size(14.dp),
+                            tint = chipContent,
+                        )
+                    }
+                }
+            }
+
+            OffsetStepSegment(deltaMs = 100L, edge = OffsetSegmentEdge.INNER, onAdjust = onAdjust)
+            OffsetStepSegment(deltaMs = 500L, edge = OffsetSegmentEdge.END, onAdjust = onAdjust)
+        }
 
         IconButton(
             onClick = onHide,
@@ -381,30 +441,60 @@ internal fun LyricsSyncOffsetRow(
     }
 }
 
+private enum class OffsetSegmentEdge { START, INNER, END }
+
 @Composable
-private fun RowScope.OffsetStepButton(
+private fun RowScope.OffsetStepSegment(
     deltaMs: Long,
+    edge: OffsetSegmentEdge,
     onAdjust: (Long) -> Unit,
 ) {
-    FilledTonalButton(
-        onClick = { onAdjust(deltaMs) },
+    val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val weight by animateFloatAsState(
+        targetValue = if (pressed) 1.35f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "syncStepWeight",
+    )
+    val innerRadius by animateDpAsState(
+        targetValue = if (pressed) 18.dp else 10.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "syncStepCorner",
+    )
+    val shape =
+        when (edge) {
+            OffsetSegmentEdge.START -> {
+                RoundedCornerShape(topStart = 26.dp, bottomStart = 26.dp, topEnd = innerRadius, bottomEnd = innerRadius)
+            }
+
+            OffsetSegmentEdge.END -> {
+                RoundedCornerShape(topStart = innerRadius, bottomStart = innerRadius, topEnd = 26.dp, bottomEnd = 26.dp)
+            }
+
+            OffsetSegmentEdge.INNER -> {
+                RoundedCornerShape(innerRadius)
+            }
+        }
+    Box(
         modifier =
             Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-        shape = CircleShape,
-        colors =
-            ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            ),
-        contentPadding = PaddingValues(0.dp),
+                .weight(weight)
+                .fillMaxHeight()
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .clickable(interactionSource = interactionSource, indication = ripple()) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onAdjust(deltaMs)
+                },
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = String.format(Locale.US, "%+.1f", deltaMs / 1000f),
             style = MaterialTheme.typography.labelSmall,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
             maxLines = 1,
         )
     }

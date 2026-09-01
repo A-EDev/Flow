@@ -152,6 +152,7 @@
     <string name="lyrics_align_right">Align right</string>
     <string name="lyrics_adjust_sync">Adjust sync offset</string>
     <string name="lyrics_sync_offset_value">%1$ss</string>
+    <string name="lyrics_sync_reset">Reset lyrics timing</string>
     <string name="lyrics_searching_sources">Searching sources…</string>
     <string name="lyrics_no_sources_found">No lyrics found from any source</string>
     <string name="lyrics_source_edited">Edited</string>

@@ -64,6 +64,7 @@ FIXES AND STABILITY
 - Fix related videos being stamped with the current time, defeating the old-content filter and mis-sorting the Shorts shelf
 - Fix junk words like "right" leaking into your learned interests and forming meaningless topic groups
 - Fix a liked video silently failing to teach the brain when its details could not be loaded
+- Fix the lyrics sync offset having no effect: the timing loops tracked the raw player position, so adjusting the offset moved the number but never the highlighted line — it now shifts line highlighting, scrolling and word-by-word fills live, and the control got an expressive redesign with a rolling value, springy stepped buttons and haptic ticks
 - Fix the music feed crashing with the taste engine after an update: release builds could mis-read the artist lists stored inside saved history, queues, playlists and downloads, and the engine crashed on the malformed entries — stored tracks are now repaired on read, so no clean install or data reset is needed
 
 BUILD AND CI

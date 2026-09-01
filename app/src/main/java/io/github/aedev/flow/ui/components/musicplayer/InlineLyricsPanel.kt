@@ -159,6 +159,9 @@ fun InlineLyricsPanel(
     onSeekTo: (Long) -> Unit,
     providerName: String = "",
     textAlign: TextAlign = TextAlign.Center,
+    // User-tuned lyric timing nudge. Applied INSIDE the sync loops (which track the raw
+    // player position for smoothness), so adjustments take effect live mid-line.
+    syncOffsetMs: Long = 0L,
     // False while the host keeps the panel composed but hidden: the 80 ms sync loop and the
     // per-frame karaoke interpolation stop, everything else stays warm for an instant reopen.
     active: Boolean = true,
@@ -206,6 +209,7 @@ fun InlineLyricsPanel(
         lastMainMaxSeen = -1
     }
 
+    val latestSyncOffsetMs by rememberUpdatedState(syncOffsetMs)
     LaunchedEffect(lines, active) {
         if (lines.isEmpty() || !active) return@LaunchedEffect
 
@@ -224,7 +228,8 @@ fun InlineLyricsPanel(
                 lastUpdateTime = now
             }
             val elapsed = now - lastUpdateTime
-            val position = lastPlayerPos + if (EnhancedMusicPlayerManager.isPlaying()) elapsed else 0L
+            val position =
+                lastPlayerPos + (if (EnhancedMusicPlayerManager.isPlaying()) elapsed else 0L) + latestSyncOffsetMs
 
             if (previousPosition - position > 2000L && isAutoScrollEnabled) {
                 val seekTarget =
@@ -651,6 +656,7 @@ fun InlineLyricsPanel(
                                     // while the panel is retained invisible; one recomposition on
                                     // reopen restores the state before the first visible frame.
                                     isActiveLine = isActiveLine && active,
+                                    syncOffsetMs = latestSyncOffsetMs,
                                     bgVisible = bgVisible,
                                     currentPositionState = currentPositionState,
                                     lyricsTextSize = 36f,
@@ -849,6 +855,7 @@ private fun LyricsLine(
     item: LyricsEntry,
     isSynced: Boolean,
     isActiveLine: Boolean,
+    syncOffsetMs: Long,
     bgVisible: Boolean,
     currentPositionState: Long,
     lyricsTextSize: Float,
@@ -989,6 +996,7 @@ private fun LyricsLine(
                         mainText = mainText,
                         words = effectiveWords,
                         isActiveLine = isActiveLine,
+                        syncOffsetMs = syncOffsetMs,
                         currentPositionState = currentPositionState,
                         lyricStyle = lyricStyle,
                         lineColor = lineColor,
@@ -1049,6 +1057,7 @@ private fun WordLevelLyrics(
     mainText: String,
     words: List<WordTimestamp>,
     isActiveLine: Boolean,
+    syncOffsetMs: Long,
     currentPositionState: Long,
     lyricStyle: TextStyle,
     lineColor: Color,
@@ -1069,6 +1078,7 @@ private fun WordLevelLyrics(
         }
     var smoothPosition by remember { mutableLongStateOf(currentPositionState) }
 
+    val latestSyncOffsetMs by rememberUpdatedState(syncOffsetMs)
     LaunchedEffect(isActiveLine) {
         if (isActiveLine) {
             var lastPlayerPos = EnhancedMusicPlayerManager.getCurrentPosition()
@@ -1082,7 +1092,8 @@ private fun WordLevelLyrics(
                         lastUpdateTime = now
                     }
                     val elapsed = now - lastUpdateTime
-                    smoothPosition = lastPlayerPos + if (EnhancedMusicPlayerManager.isPlaying()) elapsed else 0L
+                    smoothPosition =
+                        lastPlayerPos + (if (EnhancedMusicPlayerManager.isPlaying()) elapsed else 0L) + latestSyncOffsetMs
                 }
             }
         }

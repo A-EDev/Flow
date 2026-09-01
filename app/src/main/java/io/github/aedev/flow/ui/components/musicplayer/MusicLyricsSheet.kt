@@ -246,6 +246,7 @@ internal fun MusicLyricsSheet(
                             onSeekTo = onSeekTo,
                             providerName = providerName,
                             textAlign = lyricsTextAlignFor(alignPref),
+                            syncOffsetMs = syncOffsetMs,
                             // Retention keeps the panel composed for an instant reopen; the
                             // position loops must still pause while the sheet is hidden.
                             active = visible,

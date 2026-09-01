@@ -763,7 +763,9 @@ internal fun FullMusicPlayerContent(
             isBuffering = uiState.isBuffering,
             lyrics = uiState.lyrics,
             syncedLyrics = uiState.syncedLyrics,
-            positionProvider = { positionState.value + uiState.lyricsSyncOffsetMs },
+            // Raw position — the panel's own sync loops apply syncOffsetMs; baking the
+            // offset in here double-counted (and the loops ignored it anyway, #offset fix).
+            positionProvider = { positionState.value },
             isLoading = uiState.isLyricsLoading,
             providerName = uiState.lyricsProviderName,
             alignPref = uiState.lyricsTextAlign,
