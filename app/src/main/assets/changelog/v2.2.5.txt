@@ -63,6 +63,7 @@ FIXES AND STABILITY
 - Fix related videos being stamped with the current time, defeating the old-content filter and mis-sorting the Shorts shelf
 - Fix junk words like "right" leaking into your learned interests and forming meaningless topic groups
 - Fix a liked video silently failing to teach the brain when its details could not be loaded
+- Fix the music feed crashing with the taste engine after an update: release builds could mis-read the artist lists stored inside saved history, queues, playlists and downloads, and the engine crashed on the malformed entries — stored tracks are now repaired on read, so no clean install or data reset is needed
 
 BUILD AND CI
 - Add an offline recommendation benchmark with regression floors, so feed diversity and repetition are verified by tests instead of claims
