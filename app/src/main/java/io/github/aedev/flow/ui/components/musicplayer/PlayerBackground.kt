@@ -7,11 +7,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
@@ -135,36 +134,27 @@ private fun ImmersiveArtworkLayer(thumbnailUrl: String?) {
         transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(400)) },
         label = "playerImmersiveArt",
     ) { targetUrl ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            // A full-width square window with minimal crop (no full-screen zoom, so covers with
-            // their own borders don't blow up into a blank band); the bottom quarter of the ART
-            // dissolves into the blurred continuation below it.
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                        .drawWithContent {
-                            drawContent()
-                            drawRect(
-                                brush =
-                                    Brush.verticalGradient(
-                                        0.72f to Color.Black,
-                                        1.00f to Color.Transparent,
-                                    ),
-                                blendMode = BlendMode.DstIn,
-                            )
-                        },
-            ) {
-                AsyncImage(
-                    model = targetUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-        }
+        AsyncImage(
+            model = targetUrl,
+            contentDescription = null,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush =
+                                Brush.verticalGradient(
+                                    0.42f to Color.Black,
+                                    0.85f to Color.Transparent,
+                                ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                    },
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.TopCenter,
+        )
     }
 }
 
