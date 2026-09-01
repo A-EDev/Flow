@@ -6,7 +6,7 @@
  * Upstream files: ui/component/ExperimentalLyrics.kt, LyricsLine.kt,
  * LyricsCommon.kt, and ui/utils/FadingEdge.kt.
  */
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import android.graphics.BlurMaskFilter
 import android.graphics.RenderEffect
@@ -158,6 +158,13 @@ fun InlineLyricsPanel(
     accentColor: Color,
     onSeekTo: (Long) -> Unit,
     providerName: String = "",
+    textAlign: TextAlign = TextAlign.Center,
+    // User-tuned lyric timing nudge. Applied INSIDE the sync loops (which track the raw
+    // player position for smoothness), so adjustments take effect live mid-line.
+    syncOffsetMs: Long = 0L,
+    // False while the host keeps the panel composed but hidden: the 80 ms sync loop and the
+    // per-frame karaoke interpolation stop, everything else stays warm for an instant reopen.
+    active: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -202,8 +209,9 @@ fun InlineLyricsPanel(
         lastMainMaxSeen = -1
     }
 
-    LaunchedEffect(lines) {
-        if (lines.isEmpty()) return@LaunchedEffect
+    val latestSyncOffsetMs by rememberUpdatedState(syncOffsetMs)
+    LaunchedEffect(lines, active) {
+        if (lines.isEmpty() || !active) return@LaunchedEffect
 
         var lastPlayerPos =
             EnhancedMusicPlayerManager.getCurrentPosition().takeIf { it > 0 }
@@ -220,7 +228,8 @@ fun InlineLyricsPanel(
                 lastUpdateTime = now
             }
             val elapsed = now - lastUpdateTime
-            val position = lastPlayerPos + if (EnhancedMusicPlayerManager.isPlaying()) elapsed else 0L
+            val position =
+                lastPlayerPos + (if (EnhancedMusicPlayerManager.isPlaying()) elapsed else 0L) + latestSyncOffsetMs
 
             if (previousPosition - position > 2000L && isAutoScrollEnabled) {
                 val seekTarget =
@@ -643,7 +652,11 @@ fun InlineLyricsPanel(
                                     index = index,
                                     item = item,
                                     isSynced = isSynced,
-                                    isActiveLine = isActiveLine,
+                                    // The && stops the active line's withFrameMillis karaoke loop
+                                    // while the panel is retained invisible; one recomposition on
+                                    // reopen restores the state before the first visible frame.
+                                    isActiveLine = isActiveLine && active,
+                                    syncOffsetMs = latestSyncOffsetMs,
                                     bgVisible = bgVisible,
                                     currentPositionState = currentPositionState,
                                     lyricsTextSize = 36f,
@@ -651,6 +664,7 @@ fun InlineLyricsPanel(
                                     expressiveAccent = expressiveAccent,
                                     isAutoScrollEnabled = isAutoScrollEnabled,
                                     displayedCurrentLineIndex = deferredCurrentLineIndex,
+                                    textAlign = textAlign,
                                     onSizeChanged = { itemHeights[listIndex] = it },
                                     onClick = {
                                         if (isSynced) {
@@ -841,6 +855,7 @@ private fun LyricsLine(
     item: LyricsEntry,
     isSynced: Boolean,
     isActiveLine: Boolean,
+    syncOffsetMs: Long,
     bgVisible: Boolean,
     currentPositionState: Long,
     lyricsTextSize: Float,
@@ -848,6 +863,7 @@ private fun LyricsLine(
     expressiveAccent: Color,
     isAutoScrollEnabled: Boolean,
     displayedCurrentLineIndex: Int,
+    textAlign: TextAlign,
     onSizeChanged: (Int) -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -946,7 +962,7 @@ private fun LyricsLine(
                                 (adaptiveTextSize * lyricsLineSpacing).sp
                             },
                         letterSpacing = 0.sp,
-                        textAlign = TextAlign.Center,
+                        textAlign = textAlign,
                         fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                         lineHeightStyle =
@@ -980,13 +996,14 @@ private fun LyricsLine(
                         mainText = mainText,
                         words = effectiveWords,
                         isActiveLine = isActiveLine,
+                        syncOffsetMs = syncOffsetMs,
                         currentPositionState = currentPositionState,
                         lyricStyle = lyricStyle,
                         lineColor = lineColor,
                         expressiveAccent = expressiveAccent,
                         isBackground = item.isBackground,
                         focusedAlpha = focusedAlpha,
-                        alignment = TextAlign.Center,
+                        alignment = textAlign,
                     )
                 } else {
                     Text(
@@ -1040,6 +1057,7 @@ private fun WordLevelLyrics(
     mainText: String,
     words: List<WordTimestamp>,
     isActiveLine: Boolean,
+    syncOffsetMs: Long,
     currentPositionState: Long,
     lyricStyle: TextStyle,
     lineColor: Color,
@@ -1060,6 +1078,7 @@ private fun WordLevelLyrics(
         }
     var smoothPosition by remember { mutableLongStateOf(currentPositionState) }
 
+    val latestSyncOffsetMs by rememberUpdatedState(syncOffsetMs)
     LaunchedEffect(isActiveLine) {
         if (isActiveLine) {
             var lastPlayerPos = EnhancedMusicPlayerManager.getCurrentPosition()
@@ -1073,7 +1092,8 @@ private fun WordLevelLyrics(
                         lastUpdateTime = now
                     }
                     val elapsed = now - lastUpdateTime
-                    smoothPosition = lastPlayerPos + if (EnhancedMusicPlayerManager.isPlaying()) elapsed else 0L
+                    smoothPosition =
+                        lastPlayerPos + (if (EnhancedMusicPlayerManager.isPlaying()) elapsed else 0L) + latestSyncOffsetMs
                 }
             }
         }

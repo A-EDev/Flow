@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.outlined.Album
+import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Download
@@ -52,6 +53,7 @@ fun MusicQuickActionsSheet(
     onShare: () -> Unit = {},
     onInfoClick: () -> Unit = {},
     onAudioEffectsClick: () -> Unit = {},
+    onSleepTimerClick: () -> Unit = {},
     showPlaylistDialogs: Boolean = true,
     viewModel: MusicPlayerViewModel = hiltViewModel(),
 ) {
@@ -200,6 +202,14 @@ fun MusicQuickActionsSheet(
                                     onDismiss()
                                 },
                             ),
+                            FlowMenuItemData(
+                                icon = { Icon(Icons.Outlined.Bedtime, null) },
+                                title = { Text(stringResource(R.string.sleep_timer)) },
+                                onClick = {
+                                    onSleepTimerClick()
+                                    onDismiss()
+                                },
+                            ),
                         ),
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
@@ -217,8 +227,8 @@ fun MusicQuickActionsSheet(
                     items =
                         listOf(
                             FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.ThumbDown, null) },
-                                title = { Text(stringResource(R.string.not_interested)) },
+                                icon = { Icon(Icons.Outlined.ThumbDown, null, tint = MaterialTheme.colorScheme.error) },
+                                title = { Text(stringResource(R.string.not_interested), color = MaterialTheme.colorScheme.error) },
                                 description = { Text(stringResource(R.string.not_interested_desc)) },
                                 onClick = {
                                     viewModel.notInterested(track)
@@ -232,8 +242,13 @@ fun MusicQuickActionsSheet(
                                 },
                             ),
                             FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.Block, null) },
-                                title = { Text(stringResource(R.string.dont_recommend_artist, artistName)) },
+                                icon = { Icon(Icons.Outlined.Block, null, tint = MaterialTheme.colorScheme.error) },
+                                title = {
+                                    Text(
+                                        stringResource(R.string.dont_recommend_artist, artistName),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                },
                                 description = { Text(stringResource(R.string.dont_recommend_artist_desc)) },
                                 onClick = {
                                     viewModel.dontRecommendArtist(track)

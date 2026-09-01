@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.music
 import io.github.aedev.flow.data.model.distinctByNonBlankKeyOrSelf
 import io.github.aedev.flow.data.recommendation.MusicSection
 import io.github.aedev.flow.data.recommendation.music.isHiddenArtist
+import io.github.aedev.flow.data.recommendation.music.isHiddenAuthor
 
 /**
  * Applies "not interested"/"don't recommend" feedback to every recommendation
@@ -49,11 +50,11 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
             .let { if (it.size == dailyDiscover.size) dailyDiscover else it }
     val filteredTopAlbums =
         topAlbums
-            .filterNot { it.author.trim().lowercase() in hidden }
+            .filterNot { it.isHiddenAuthor(hidden) }
             .let { if (it.size == topAlbums.size) topAlbums else it }
     val filteredFavoriteAlbums =
         favoriteArtistAlbums
-            .filterNot { it.author.trim().lowercase() in hidden }
+            .filterNot { it.isHiddenAuthor(hidden) }
             .let { if (it.size == favoriteArtistAlbums.size) favoriteArtistAlbums else it }
     val filteredCommunity =
         communityPlaylists

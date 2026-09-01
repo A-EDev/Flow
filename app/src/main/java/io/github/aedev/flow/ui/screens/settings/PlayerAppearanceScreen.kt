@@ -48,9 +48,11 @@ import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.data.local.resolveSeekbarHorizontalPaddingDp
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.musicplayer.ExpressivePlayerSlider
+import io.github.aedev.flow.ui.components.musicplayer.ExpressiveWavySlider
+import io.github.aedev.flow.ui.components.musicplayer.SquigglySlider
+import io.github.aedev.flow.ui.components.musicplayer.expressiveSliderSpec
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
-import io.github.aedev.flow.ui.screens.music.player.components.PlayerSliderTrack
-import io.github.aedev.flow.ui.screens.music.player.components.SquigglySlider
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -75,7 +77,7 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     val playerPreferences = remember { PlayerPreferences(context) }
 
-    val currentSliderStyle by playerPreferences.sliderStyle.collectAsState(initial = SliderStyle.METROLIST_SLIM)
+    val currentSliderStyle by playerPreferences.sliderStyle.collectAsState(initial = SliderStyle.COMPACT)
     val currentMusicPlayerBackgroundStyle by playerPreferences.musicPlayerBackgroundStyle.collectAsState(
         initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT,
     )
@@ -1171,42 +1173,6 @@ fun PreviewPlayerSlider(style: SliderStyle) {
     val duration = 100f
     val position = duration * progress
     when (style) {
-        SliderStyle.METROLIST -> {
-            Slider(
-                value = position,
-                onValueChange = {},
-                valueRange = 0f..duration,
-                colors =
-                    SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.primary,
-                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-            )
-        }
-
-        SliderStyle.METROLIST_SLIM -> {
-            Slider(
-                value = position,
-                onValueChange = {},
-                valueRange = 0f..duration,
-                colors =
-                    SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.primary,
-                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(24.dp),
-            )
-        }
-
         SliderStyle.SQUIGGLY -> {
             SquigglySlider(
                 value = position,
@@ -1222,82 +1188,26 @@ fun PreviewPlayerSlider(style: SliderStyle) {
             )
         }
 
-        SliderStyle.SLIM -> {
-            Slider(
+        SliderStyle.EXPRESSIVE_WAVY -> {
+            ExpressiveWavySlider(
                 value = position,
                 onValueChange = {},
+                onValueChangeFinished = {},
                 valueRange = 0f..duration,
-                thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                track = { sliderState ->
-                    PlayerSliderTrack(
-                        sliderState = sliderState,
-                        colors =
-                            SliderDefaults.colors(
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            ),
-                        trackHeight = 4.dp,
-                    )
-                },
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(12.dp),
+                isPlaying = true,
             )
         }
 
-        SliderStyle.DEFAULT -> {
-            val animatedTrackHeight = 12.dp
-
-            Slider(
+        else -> {
+            val spec = expressiveSliderSpec(style)
+            ExpressivePlayerSlider(
                 value = position,
                 onValueChange = {},
+                onValueChangeFinished = {},
                 valueRange = 0f..duration,
-                colors =
-                    SliderDefaults.colors(
-                        thumbColor = Color.Transparent,
-                        activeTrackColor = Color.Transparent,
-                        inactiveTrackColor = Color.Transparent,
-                    ),
-                thumb = {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(24.dp)
-                                .shadow(8.dp, CircleShape)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape),
-                    )
-                },
-                track = {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(animatedTrackHeight)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                    ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth(progress)
-                                    .fillMaxHeight()
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            listOf(
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                                MaterialTheme.colorScheme.primary,
-                                            ),
-                                        ),
-                                    ),
-                        )
-                    }
-                },
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(24.dp),
+                trackHeight = spec.trackHeight,
+                thumbHeight = spec.thumbHeight,
+                thumbTrackGap = spec.thumbTrackGap,
             )
         }
     }
@@ -1325,6 +1235,12 @@ fun PreviewPlayerBackground(style: MusicPlayerBackgroundStyle) {
             MusicPlayerBackgroundStyle.GRADIENT -> {
                 Brush.linearGradient(
                     listOf(primary.copy(alpha = 0.95f), secondary.copy(alpha = 0.75f), Color.Black.copy(alpha = 0.92f)),
+                )
+            }
+
+            MusicPlayerBackgroundStyle.IMMERSIVE -> {
+                Brush.verticalGradient(
+                    listOf(primary.copy(alpha = 0.95f), primary.copy(alpha = 0.55f), Color.Black),
                 )
             }
 
@@ -1368,9 +1284,10 @@ fun PreviewPlayerBackground(style: MusicPlayerBackgroundStyle) {
 private fun getStyleLabelResInScreen(style: SliderStyle): Int =
     when (style) {
         SliderStyle.DEFAULT -> R.string.style_default
-        SliderStyle.METROLIST -> R.string.style_metrolist
-        SliderStyle.METROLIST_SLIM -> R.string.style_metrolist_slim
-        SliderStyle.SQUIGGLY -> R.string.style_squiggly
+        SliderStyle.THICK -> R.string.style_thick
+        SliderStyle.COMPACT -> R.string.style_compact
+        SliderStyle.SQUIGGLY -> R.string.style_wavy
+        SliderStyle.EXPRESSIVE_WAVY -> R.string.style_squiggly
         SliderStyle.SLIM -> R.string.style_slim
     }
 
@@ -1379,6 +1296,7 @@ private fun getBackgroundStyleLabelResInScreen(style: MusicPlayerBackgroundStyle
         MusicPlayerBackgroundStyle.BLUR_GRADIENT -> R.string.player_background_style_blur_gradient
         MusicPlayerBackgroundStyle.BLUR -> R.string.player_background_style_blur
         MusicPlayerBackgroundStyle.GRADIENT -> R.string.player_background_style_gradient
+        MusicPlayerBackgroundStyle.IMMERSIVE -> R.string.player_background_style_immersive
         MusicPlayerBackgroundStyle.DEFAULT -> R.string.player_background_style_default
     }
 

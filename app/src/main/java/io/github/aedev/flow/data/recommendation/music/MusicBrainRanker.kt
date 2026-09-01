@@ -204,7 +204,13 @@ internal object MusicBrainRanker {
         val adjacent = primary.filter { it in novel && isTasteAdjacent(brain, inputs[it], anchors) }.toSet()
         val composed = composeToRatio(primary, novel, adjacent, target)
 
-        return spreadArtists(composed + suppressed, inputs)
+        val maxRun =
+            if (surface == SURFACE_RADIO) {
+                MusicBrainParams.RADIO_MAX_CONSECUTIVE_ARTIST
+            } else {
+                MusicBrainParams.MAX_CONSECUTIVE_ARTIST
+            }
+        return spreadArtists(composed + suppressed, inputs, maxRun)
     }
 
     /** Interleave familiar and novel picks toward the target ratio, adjacent novelty first. */
@@ -236,27 +242,32 @@ internal object MusicBrainRanker {
     }
 
     /**
-     * Break same-artist runs longer than [MusicBrainParams.MAX_CONSECUTIVE_ARTIST].
-     * Short runs are GOOD for music (album blocks) — only long ones get broken, and
-     * only when a different-artist candidate actually exists further down.
+     * Break same-artist runs longer than [maxRun]. Short runs are GOOD for music
+     * shelves (album blocks) — only long ones get broken, and only when a
+     * different-artist candidate actually exists further down. [previousArtist]
+     * seeds the run so a batch appended after an existing queue also avoids a
+     * same-artist seam at the boundary. Unknown artists (empty key) never count
+     * as a run — two unattributed tracks are not evidence of repetition.
      */
     internal fun spreadArtists(
         order: List<Int>,
         inputs: List<MusicRankInput>,
+        maxRun: Int = MusicBrainParams.MAX_CONSECUTIVE_ARTIST,
+        previousArtist: String? = null,
     ): List<Int> {
         val remaining = ArrayDeque(order)
         val result = ArrayList<Int>(order.size)
-        var lastArtist: String? = null
-        var run = 0
+        var lastArtist: String? = previousArtist?.takeIf { it.isNotEmpty() }
+        var run = if (lastArtist != null) maxRun else 0
         while (remaining.isNotEmpty()) {
             var pos = 0
-            if (run >= MusicBrainParams.MAX_CONSECUTIVE_ARTIST) {
+            if (run >= maxRun && !lastArtist.isNullOrEmpty()) {
                 val alt = remaining.indexOfFirst { inputs[it].artistKey != lastArtist }
                 if (alt >= 0) pos = alt
             }
             val idx = remaining.removeAt(pos)
             val artist = inputs[idx].artistKey
-            if (artist == lastArtist) {
+            if (artist.isNotEmpty() && artist == lastArtist) {
                 run += 1
             } else {
                 run = 1

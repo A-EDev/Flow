@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,9 +19,7 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AudioSettingsSheet(
-    onDismiss: () -> Unit
-) {
+fun AudioSettingsSheet(onDismiss: () -> Unit) {
     val speed by EnhancedMusicPlayerManager.playbackSpeed.collectAsState()
     val pitch by EnhancedMusicPlayerManager.playbackPitch.collectAsState()
 
@@ -29,28 +27,29 @@ fun AudioSettingsSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
         containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
         ) {
             Text(
                 stringResource(R.string.audio_settings_title),
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = 16.dp),
             )
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(24.dp),
-                contentPadding = PaddingValues(bottom = 32.dp)
+                contentPadding = PaddingValues(bottom = 32.dp),
             ) {
                 // --- Speed & Pitch ---
                 item {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -71,12 +70,15 @@ fun AudioSettingsSheet(
                             Spacer(Modifier.height(8.dp))
 
                             // Speed
-                            Text(stringResource(R.string.template_speed, (speed * 100).roundToInt()), style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                stringResource(R.string.template_speed, (speed * 100).roundToInt()),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
                             Slider(
                                 value = speed,
                                 onValueChange = { EnhancedMusicPlayerManager.setPlaybackSpeed(it) },
                                 valueRange = 0.25f..2.0f,
-                                steps = 34
+                                steps = 34,
                             )
 
                             // Pitch
@@ -85,7 +87,7 @@ fun AudioSettingsSheet(
                                 value = pitch,
                                 onValueChange = { EnhancedMusicPlayerManager.setPlaybackPitch(it) },
                                 valueRange = -12f..12f,
-                                steps = 23
+                                steps = 23,
                             )
                         }
                     }

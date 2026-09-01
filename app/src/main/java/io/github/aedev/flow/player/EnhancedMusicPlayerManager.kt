@@ -309,10 +309,6 @@ object EnhancedMusicPlayerManager {
                     applyEqProfile(AudioEffectsController.resolvedEq.value)
                 }
 
-                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                    _shuffleEnabled.value = shuffleModeEnabled
-                }
-
                 override fun onRepeatModeChanged(repeatMode: Int) {
                     _repeatMode.value =
                         when (repeatMode) {
@@ -635,6 +631,44 @@ object EnhancedMusicPlayerManager {
         }
     }
 
+    /**
+     * Physically rearranges the queue: the playing track is pinned to the top and everything else
+     * is randomized. Applied as individual player moves so playback never restarts or rebuffers.
+     */
+    fun shuffleQueue() {
+        scope.launch {
+            val currentQ = _queue.value
+            if (currentQ.size < 2) return@launch
+            val currentIdx =
+                currentPlaybackQueueIndex().takeIf { it in currentQ.indices }
+                    ?: _currentQueueIndex.value.coerceIn(0, currentQ.size - 1)
+            val target =
+                buildList {
+                    add(currentQ[currentIdx])
+                    addAll(currentQ.filterIndexed { index, _ -> index != currentIdx }.shuffled())
+                }
+            _queue.value = target
+            clearPendingPlayNext()
+            player?.let { p ->
+                if (p.mediaItemCount == target.size) {
+                    target.forEachIndexed { targetIdx, track ->
+                        var fromIdx = -1
+                        for (i in targetIdx until p.mediaItemCount) {
+                            if (p.getMediaItemAt(i).mediaId == track.videoId) {
+                                fromIdx = i
+                                break
+                            }
+                        }
+                        if (fromIdx > targetIdx) {
+                            p.moveMediaItem(fromIdx, targetIdx)
+                        }
+                    }
+                }
+            }
+            triggerQueueSave()
+        }
+    }
+
     fun updateAutomixItems(items: List<MusicTrack>) {
         val currentId = _currentTrack.value?.videoId
         _automixItems.value =
@@ -851,11 +885,16 @@ object EnhancedMusicPlayerManager {
         }
     }
 
+    /**
+     * Shuffle is app-owned state, not ExoPlayer's shuffle mode: enabling it physically
+     * rearranges the queue so the listed order always matches the playback order.
+     */
     fun toggleShuffle() {
         scope.launch {
-            player?.let {
-                it.shuffleModeEnabled = !it.shuffleModeEnabled
-            }
+            val enabling = !_shuffleEnabled.value
+            player?.shuffleModeEnabled = false
+            _shuffleEnabled.value = enabling
+            if (enabling) shuffleQueue()
         }
     }
 

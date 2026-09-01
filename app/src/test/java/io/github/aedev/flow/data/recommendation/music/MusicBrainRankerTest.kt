@@ -103,6 +103,55 @@ class MusicBrainRankerTest {
     }
 
     @Test
+    fun `radio never plays the same artist back to back when an alternative exists`() {
+        val brain = brainWithFavorite()
+        val inputs =
+            (0 until 4).map { input("f$it", "UCfav") } +
+                listOf(input("x", "UCother1"), input("y", "UCother2"), input("z", "UCother3"))
+        val order = MusicBrainRanker.rank(brain, inputs, MusicBrainRanker.SURFACE_RADIO, now)
+        for (i in 1 until order.size - 1) {
+            // The tail may be forced (only favorites left); every earlier pair must differ.
+            assertThat(inputs[order[i]].artistKey).isNotEqualTo(inputs[order[i - 1]].artistKey)
+        }
+    }
+
+    @Test
+    fun `shelves still allow same-artist pairs as album blocks`() {
+        val brain = brainWithFavorite()
+        val inputs =
+            (0 until 3).map { input("f$it", "UCfav") } + listOf(input("x", "UCother1"))
+        val order = MusicBrainRanker.rank(brain, inputs, MusicBrainRanker.SURFACE_QUICK_PICKS, now)
+        // The favorite outranks the unknown, and quick picks tolerates a two-track block.
+        assertThat(inputs[order[0]].artistKey).isEqualTo("UCfav")
+        assertThat(inputs[order[1]].artistKey).isEqualTo("UCfav")
+    }
+
+    @Test
+    fun `seeded spread avoids a same-artist seam at the batch boundary`() {
+        val inputs = listOf(input("a1", "UCa"), input("a2", "UCa"), input("b", "UCb"))
+        val order =
+            MusicBrainRanker.spreadArtists(
+                order = inputs.indices.toList(),
+                inputs = inputs,
+                maxRun = MusicBrainParams.RADIO_MAX_CONSECUTIVE_ARTIST,
+                previousArtist = "UCa",
+            )
+        assertThat(inputs[order.first()].artistKey).isEqualTo("UCb")
+    }
+
+    @Test
+    fun `unknown artists never count as a run`() {
+        val inputs = listOf(input("u1", ""), input("u2", ""), input("c", "UCc"))
+        val order =
+            MusicBrainRanker.spreadArtists(
+                order = inputs.indices.toList(),
+                inputs = inputs,
+                maxRun = MusicBrainParams.RADIO_MAX_CONSECUTIVE_ARTIST,
+            )
+        assertThat(order).isEqualTo(listOf(0, 1, 2))
+    }
+
+    @Test
     fun `heavy rotation orders by activation and recency dominates`() {
         val brain = MusicBrain()
         // "hot": 4 plays in the last 4 hours. "stale": 1 play 3 weeks ago.

@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -29,7 +29,7 @@ data class MusicPaletteColors(
     val onBase: Color,
 )
 
-private val PALETTE_INK_DARK = Color(0xFF161616)
+internal val PaletteInkDark = Color(0xFF161616)
 
 @Composable
 fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
@@ -77,7 +77,7 @@ fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
     )
     val onBase =
         remember(base) {
-            if (base.luminance() < 0.45f) Color.White else PALETTE_INK_DARK
+            if (base.luminance() < 0.45f) Color.White else PaletteInkDark
         }
     return MusicPaletteColors(base = base, accent = accent, onBase = onBase)
 }

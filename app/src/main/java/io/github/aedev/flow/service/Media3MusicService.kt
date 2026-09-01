@@ -1178,10 +1178,15 @@ class Media3MusicService : MediaLibraryService() {
         if (!ended && remaining > RADIO_MIN_UPCOMING) return
 
         val queueIds = manager.queue.value.mapTo(HashSet()) { it.videoId }
-        val batch =
+        // A wider candidate window than the batch gives the artist spread real
+        // alternatives; sequencing is seeded with the queue tail so the appended
+        // batch never opens with the artist that just played (review feedback:
+        // same artist back-to-back in a 10-track radio queue).
+        val candidates =
             manager.automixItems.value
                 .filterNot { it.videoId in queueIds }
-                .take(RADIO_APPEND_BATCH)
+                .take(RADIO_APPEND_BATCH * 2)
+        val batch = musicBrain.sequenceRadioBatch(candidates, manager.queue.value.lastOrNull(), RADIO_APPEND_BATCH)
         if (ended && batch.isNotEmpty() && !radioResumeWhenAppended) {
             radioResumeWhenAppended = true
             radioEndedItemCount = player.mediaItemCount

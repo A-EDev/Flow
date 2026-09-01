@@ -42,6 +42,20 @@ data class MusicArtist(
     val id: String? = null,
 )
 
+/**
+ * Repairs a Gson-deserialized track whose [MusicTrack.artists] may hold untyped maps
+ * instead of [MusicArtist] objects: release builds that lose the field's generic
+ * signature make Gson fall back to LinkedTreeMap entries, which crash with a
+ * ClassCastException on first element access (issue #996). filterIsInstance performs
+ * only instanceof checks, so it is safe on a poisoned list; bad entries are dropped
+ * and the plain [MusicTrack.artist]/[MusicTrack.channelId] fallbacks take over.
+ * Call it on every Gson read path that yields a [MusicTrack].
+ */
+fun MusicTrack.withTypedArtists(): MusicTrack {
+    val raw: List<*> = artists
+    return if (raw.all { it is MusicArtist }) this else copy(artists = raw.filterIsInstance<MusicArtist>())
+}
+
 data class DailyDiscoverItem(
     val seed: MusicTrack,
     val recommendation: MusicTrack,
@@ -58,6 +72,11 @@ data class MusicPlaylist(
     val thumbnailUrl: String,
     val trackCount: Int = 0,
     val author: String = "",
+    // Structured attribution for "not interested"/"don't recommend" filtering.
+    // `author` is a display subtitle — album cards put the release YEAR there —
+    // so feedback matching must never rely on parsing it.
+    val authorId: String? = null,
+    val authorName: String? = null,
 )
 
 data class PlaylistDetails(

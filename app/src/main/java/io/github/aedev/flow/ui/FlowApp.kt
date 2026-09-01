@@ -44,16 +44,15 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.DonationPromptHost
 import io.github.aedev.flow.ui.components.FloatingBottomNavBar
-import io.github.aedev.flow.ui.components.MusicPlayerBottomSheet
-import io.github.aedev.flow.ui.components.MusicPlayerSheetState
-import io.github.aedev.flow.ui.components.PersistentMiniMusicPlayer
 import io.github.aedev.flow.ui.components.PlayerSheetValue
-import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
-import io.github.aedev.flow.ui.components.rememberMusicPlayerSheetState
+import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerBottomSpacer
+import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerHeight
+import io.github.aedev.flow.ui.components.musicplayer.MusicPlayerSheetState
+import io.github.aedev.flow.ui.components.musicplayer.UnifiedMusicPlayerSheet
+import io.github.aedev.flow.ui.components.musicplayer.rememberMusicPlayerSheetState
 import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
-import io.github.aedev.flow.ui.screens.music.EnhancedMusicPlayerScreen
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.theme.CustomThemePalettes
@@ -107,6 +106,9 @@ fun FlowApp(
     val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
     val isCategoriesNavigationEnabled by preferences.categoriesNavigationEnabled.collectAsState(initial = false)
     val disableShortsPlayer by preferences.effectiveDisableShortsPlayer.collectAsState(initial = false)
+    val musicPlayerBackgroundStyle by preferences.musicPlayerBackgroundStyle.collectAsState(
+        initial = io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle.BLUR_GRADIENT,
+    )
     val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
     val subscriptionRefreshOnStartup by preferences.subscriptionRefreshOnStartup.collectAsState(initial = false)
@@ -280,12 +282,7 @@ fun FlowApp(
         var playerVisible by playerVisibleState
         var keepMiniOnQueueAutoAdvance by remember { mutableStateOf(false) }
 
-        val miniPlayerHeightDp = 80.dp
-        val musicPlayerSheetState =
-            rememberMusicPlayerSheetState(
-                expandedBound = with(density) { screenHeightPx.toDp() },
-                collapsedBound = miniPlayerHeightDp,
-            )
+        val musicPlayerSheetState = rememberMusicPlayerSheetState()
 
         val activeVideo =
             playerUiState.cachedVideo ?: playerUiState.streamInfo?.let { streamInfo ->
@@ -365,7 +362,6 @@ fun FlowApp(
 
         val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
         var suppressMusicMiniAfterVideo by remember { mutableStateOf(false) }
-        var showMusicSleepTimerSheet by remember { mutableStateOf(false) }
         var handledMusicPlayerRequest by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(activeVideo?.id) {
@@ -436,7 +432,9 @@ fun FlowApp(
             systemLightThemeMode = systemLightThemeMode,
             systemDarkThemeMode = systemDarkThemeMode,
             isFullscreen = playerUiState.isFullscreen,
-            isMusicPlayerImmersive = currentMusicTrack != null && musicPlayerSheetState.progress > 0.5f,
+            isMusicPlayerImmersive = currentMusicTrack != null && musicPlayerSheetState.isImmersive,
+            musicPlayerFollowsTheme =
+                musicPlayerBackgroundStyle == io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle.DEFAULT,
             isShortsPlayer = isShortsPlayerRoute,
         )
 
@@ -480,7 +478,7 @@ fun FlowApp(
             val musicMiniPlayerContentPadding by animateDpAsState(
                 targetValue =
                     if (shouldReserveMusicMiniPlayerSpace && isMusicMiniPlayerObscuringContent) {
-                        miniPlayerHeightDp
+                        MusicMiniPlayerHeight + MusicMiniPlayerBottomSpacer
                     } else {
                         0.dp
                     },
@@ -715,45 +713,23 @@ fun FlowApp(
             playerUiState.cachedVideo == null &&
             playerUiState.streamInfo == null
         ) {
-            MusicPlayerBottomSheet(
+            UnifiedMusicPlayerSheet(
                 state = musicPlayerSheetState,
+                containerHeight = with(density) { screenHeightPx.toDp() },
                 bottomPadding = animatedBottomPadding,
+                track = currentMusicTrack!!,
                 onDismiss = {
                     EnhancedMusicPlayerManager.stop()
                     EnhancedMusicPlayerManager.clearCurrentTrack()
                 },
-                collapsedContent = {
-                    PersistentMiniMusicPlayer(
-                        onExpandClick = { musicPlayerSheetState.expand() },
-                        onDismiss = {
-                            EnhancedMusicPlayerManager.stop()
-                            EnhancedMusicPlayerManager.clearCurrentTrack()
-                            musicPlayerSheetState.dismiss()
-                        },
-                    )
+                onArtistClick = { channelId ->
+                    musicPlayerSheetState.collapse()
+                    navController.navigate("artist/${android.net.Uri.encode(channelId)}")
                 },
-                expandedContent = {
-                    EnhancedMusicPlayerScreen(
-                        track = currentMusicTrack!!,
-                        isPlayerSheetExpanded = musicPlayerSheetState.isExpanded,
-                        onBackClick = { musicPlayerSheetState.collapse() },
-                        onSleepTimerClick = { showMusicSleepTimerSheet = true },
-                        onArtistClick = { channelId ->
-                            musicPlayerSheetState.collapse()
-                            navController.navigate("artist/${android.net.Uri.encode(channelId)}")
-                        },
-                        onAlbumClick = { albumId ->
-                            musicPlayerSheetState.collapse()
-                            navController.navigate("musicPlaylist/${android.net.Uri.encode(albumId)}")
-                        },
-                    )
+                onAlbumClick = { albumId ->
+                    musicPlayerSheetState.collapse()
+                    navController.navigate("musicPlaylist/${android.net.Uri.encode(albumId)}")
                 },
-            )
-        }
-
-        if (showMusicSleepTimerSheet) {
-            SleepTimerSheet(
-                onDismiss = { showMusicSleepTimerSheet = false },
             )
         }
 
@@ -795,6 +771,7 @@ private fun ApplyStatusBarStyle(
     systemDarkThemeMode: ThemeMode,
     isFullscreen: Boolean,
     isMusicPlayerImmersive: Boolean = false,
+    musicPlayerFollowsTheme: Boolean = false,
     isShortsPlayer: Boolean = false,
 ) {
     val activity = LocalContext.current as? Activity ?: return
@@ -821,6 +798,9 @@ private fun ApplyStatusBarStyle(
                 colorScheme.background.toArgb()
             }
 
-        insetsController.isAppearanceLightStatusBars = !isDarkTheme && !shouldDrawBehindStatusBar
+        val musicImmersiveOnLightSurface =
+            isMusicPlayerImmersive && musicPlayerFollowsTheme && !isDarkTheme && !isFullscreen && !isShortsPlayer
+        insetsController.isAppearanceLightStatusBars =
+            (!isDarkTheme && !shouldDrawBehindStatusBar) || musicImmersiveOnLightSurface
     }
 }

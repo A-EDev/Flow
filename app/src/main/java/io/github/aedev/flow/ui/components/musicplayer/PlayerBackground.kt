@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -8,11 +8,17 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -33,25 +39,17 @@ fun PlayerBackground(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(
+                    if (style == MusicPlayerBackgroundStyle.DEFAULT) {
+                        MaterialTheme.colorScheme.surface
+                    } else {
+                        Color.Black
+                    },
+                ),
     ) {
         when (style) {
             MusicPlayerBackgroundStyle.DEFAULT -> {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colorStops =
-                                        arrayOf(
-                                            0.00f to Color.Black,
-                                            0.45f to baseColor.copy(alpha = 0.22f),
-                                            1.00f to Color.Black,
-                                        ),
-                                ),
-                            ),
-                )
+                Unit
             }
 
             MusicPlayerBackgroundStyle.BLUR -> {
@@ -83,6 +81,28 @@ fun PlayerBackground(
                 )
             }
 
+            MusicPlayerBackgroundStyle.IMMERSIVE -> {
+                // Issue #954: full-bleed artwork holds the top of the screen, then hands off to
+                // its own blurred continuation and a scrim so the controls stay readable.
+                BlurredArtworkLayer(thumbnailUrl = thumbnailUrl, alpha = 0.85f, crossfadeMillis = 450)
+                ImmersiveArtworkLayer(thumbnailUrl = thumbnailUrl)
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colorStops =
+                                        arrayOf(
+                                            0.00f to Color.Transparent,
+                                            0.52f to Color.Black.copy(alpha = 0.28f),
+                                            1.00f to Color.Black.copy(alpha = 0.86f),
+                                        ),
+                                ),
+                            ),
+                )
+            }
+
             MusicPlayerBackgroundStyle.BLUR_GRADIENT -> {
                 BlurredArtworkLayer(thumbnailUrl = thumbnailUrl, alpha = 0.55f)
                 Box(
@@ -108,13 +128,45 @@ fun PlayerBackground(
 }
 
 @Composable
+private fun ImmersiveArtworkLayer(thumbnailUrl: String?) {
+    AnimatedContent(
+        targetState = thumbnailUrl,
+        transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(400)) },
+        label = "playerImmersiveArt",
+    ) { targetUrl ->
+        AsyncImage(
+            model = targetUrl,
+            contentDescription = null,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush =
+                                Brush.verticalGradient(
+                                    0.42f to Color.Black,
+                                    0.85f to Color.Transparent,
+                                ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                    },
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.TopCenter,
+        )
+    }
+}
+
+@Composable
 private fun BlurredArtworkLayer(
     thumbnailUrl: String?,
     alpha: Float,
+    crossfadeMillis: Int = 800,
 ) {
     AnimatedContent(
         targetState = thumbnailUrl,
-        transitionSpec = { fadeIn(tween(800)) togetherWith fadeOut(tween(800)) },
+        transitionSpec = { fadeIn(tween(crossfadeMillis)) togetherWith fadeOut(tween(crossfadeMillis)) },
         label = "playerBackgroundArt",
     ) { targetUrl ->
         AsyncImage(

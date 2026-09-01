@@ -218,6 +218,9 @@ object MusicBrainParams {
     const val DISLIKE_COOLDOWN_MS = 14L * 24 * 60 * 60 * 1000
     const val DISLIKE_COOLDOWN_MULTIPLIER = 0.1
     const val MAX_CONSECUTIVE_ARTIST = 2
+
+    /** Radio is a station, not an album: back-to-back same-artist reads as a bug there. */
+    const val RADIO_MAX_CONSECUTIVE_ARTIST = 1
     const val COOC_ANCHOR_ARTISTS = 12
     const val CONTEXT_CONFIDENCE_K = 8.0
     const val ADJACENT_GENRE_THRESHOLD = 0.1

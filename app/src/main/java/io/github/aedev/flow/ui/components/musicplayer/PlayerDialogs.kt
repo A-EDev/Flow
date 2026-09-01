@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music.player
+package io.github.aedev.flow.ui.components.musicplayer
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -13,16 +13,15 @@ import io.github.aedev.flow.ui.screens.music.MusicTrack
 @Composable
 fun TrackInfoDialog(
     track: MusicTrack,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.track_details)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 InfoRow(stringResource(R.string.title_label), track.title)
                 InfoRow(stringResource(R.string.artist_label), track.artist)
@@ -30,15 +29,15 @@ fun TrackInfoDialog(
                     InfoRow(stringResource(R.string.album_label), track.album)
                 }
                 InfoRow(stringResource(R.string.video_id_label), track.videoId)
-                
+
                 HorizontalDivider()
-                
+
                 // Audio format info not directly available in standard Player interface
                 // Simplified for Media3 migration
                 Text(
                     stringResource(R.string.audio_info_not_available),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -46,6 +45,6 @@ fun TrackInfoDialog(
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.close))
             }
-        }
+        },
     )
 }

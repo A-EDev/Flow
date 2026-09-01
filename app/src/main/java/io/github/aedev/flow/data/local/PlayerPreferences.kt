@@ -122,7 +122,6 @@ class PlayerPreferences(
         val HIDE_MUSIC_PLAYER_ARTWORK = booleanPreferencesKey("hide_music_player_artwork")
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
         val GROUPED_QUALITY_SELECTOR_ENABLED = booleanPreferencesKey("grouped_quality_selector_enabled")
-        val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_CONTENT_ENABLED = booleanPreferencesKey("shorts_content_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
@@ -134,6 +133,7 @@ class PlayerPreferences(
         val CATEGORIES_NAV_TAB_ENABLED = booleanPreferencesKey("categories_nav_tab_enabled")
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
         val LYRICS_PROVIDER_ORDER = stringPreferencesKey("lyrics_provider_order")
+        val LYRICS_TEXT_ALIGN = stringPreferencesKey("lyrics_text_align")
         val LYRICS_PROVIDER_ENABLED_BETTERLYRICS = booleanPreferencesKey("lyrics_provider_enabled_betterlyrics")
         val LYRICS_PROVIDER_ENABLED_SIMPMUSIC = booleanPreferencesKey("lyrics_provider_enabled_simpmusic")
         val LYRICS_PROVIDER_ENABLED_LYRICSPLUS = booleanPreferencesKey("lyrics_provider_enabled_lyricsplus")
@@ -668,11 +668,16 @@ class PlayerPreferences(
         return newId
     }
 
-    // Slider Style preference
+    // Slider Style preference.
     val sliderStyle: Flow<SliderStyle> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                SliderStyle.valueOf(preferences[Keys.SLIDER_STYLE] ?: SliderStyle.METROLIST_SLIM.name)
+                when (val stored = preferences[Keys.SLIDER_STYLE]) {
+                    null -> SliderStyle.COMPACT
+                    "METROLIST" -> SliderStyle.THICK
+                    "METROLIST_SLIM" -> SliderStyle.COMPACT
+                    else -> runCatching { SliderStyle.valueOf(stored) }.getOrDefault(SliderStyle.COMPACT)
+                }
             }
 
     suspend fun setSliderStyle(style: SliderStyle) {
@@ -733,18 +738,6 @@ class PlayerPreferences(
     suspend fun setGroupedQualitySelectorEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.GROUPED_QUALITY_SELECTOR_ENABLED] = enabled
-        }
-    }
-
-    val squigglySliderEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.SQUIGGLY_SLIDER_ENABLED] ?: false
-            }
-
-    suspend fun setSquigglySliderEnabled(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.SQUIGGLY_SLIDER_ENABLED] = enabled
         }
     }
 
@@ -2635,6 +2628,18 @@ class PlayerPreferences(
             providerEnabledKeys.mapValues { (_, key) -> preferences[key] ?: true }
         }
 
+    val lyricsTextAlign: Flow<String> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.LYRICS_TEXT_ALIGN] ?: LYRICS_ALIGN_CENTER
+            }
+
+    suspend fun setLyricsTextAlign(align: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.LYRICS_TEXT_ALIGN] = align
+        }
+    }
+
     // ========== MINI PLAYER PREFERENCES ==========
 
     val miniPlayerScale: Flow<Float> =
@@ -2947,9 +2952,10 @@ enum class MusicAudioQuality(
 
 enum class SliderStyle {
     DEFAULT,
-    METROLIST,
-    METROLIST_SLIM,
+    THICK,
+    COMPACT,
     SQUIGGLY,
+    EXPRESSIVE_WAVY,
     SLIM,
 }
 
@@ -2962,6 +2968,7 @@ enum class MusicPlayerBackgroundStyle {
     BLUR_GRADIENT,
     BLUR,
     GRADIENT,
+    IMMERSIVE,
     DEFAULT,
 }
 
@@ -3038,3 +3045,7 @@ enum class WatchedThreshold(
         }
     }
 }
+
+const val LYRICS_ALIGN_LEFT = "left"
+const val LYRICS_ALIGN_CENTER = "center"
+const val LYRICS_ALIGN_RIGHT = "right"

@@ -11,6 +11,7 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.ui.screens.music.MusicArtist
+import io.github.aedev.flow.ui.screens.music.MusicPlaylist
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -230,6 +231,30 @@ class MusicBrainEngine
                     }
                 }
             }
+        }
+
+        /**
+         * Order a radio append batch so adjacent tracks never share an artist (when an
+         * alternative exists), seeded with the current queue tail so the seam between
+         * the queue and the appended batch is covered too. Pure sequencing — candidates
+         * are already ranked and block/cooldown-filtered by [rankTracks] on the radio
+         * surface. Pass more candidates than [limit] so the spread has real alternatives.
+         */
+        fun sequenceRadioBatch(
+            candidates: List<MusicTrack>,
+            previousTrack: MusicTrack?,
+            limit: Int,
+        ): List<MusicTrack> {
+            if (candidates.isEmpty() || limit <= 0) return emptyList()
+            val inputs = candidates.map { MusicRankInput(trackId = it.videoId, artistKey = it.primaryArtistKey()) }
+            val order =
+                MusicBrainRanker.spreadArtists(
+                    order = inputs.indices.toList(),
+                    inputs = inputs,
+                    maxRun = MusicBrainParams.RADIO_MAX_CONSECUTIVE_ARTIST,
+                    previousArtist = previousTrack?.primaryArtistKey(),
+                )
+            return order.take(limit).map { candidates[it] }
         }
 
         /**
@@ -491,13 +516,32 @@ internal fun MusicTrack.primaryArtistKey(): String {
 
 /**
  * Matches on both key forms because [hidden] carries both: a track's id key when
- * it has one, and always its lowercased display name.
+ * it has one, and always its lowercased display name. EVERY credited artist is
+ * tested, not just the primary — a blocked artist's collabs and album cards are
+ * still that artist's output to the user.
  */
 internal fun MusicTrack.isHiddenArtist(hidden: Set<String>): Boolean {
     if (hidden.isEmpty()) return false
     if (primaryArtistKey() in hidden) return true
+    for (credited in artists) {
+        if (musicArtistKey(credited.id, credited.name) in hidden) return true
+        val creditedName = credited.name.trim().lowercase()
+        if (creditedName.isNotEmpty() && creditedName in hidden) return true
+    }
     val name = (artists.firstOrNull()?.name ?: artist).trim().lowercase()
     return name.isNotEmpty() && name in hidden
+}
+
+/**
+ * Feedback filter for album/playlist cards. Their [MusicPlaylist.author] is a
+ * display subtitle (album cards carry the release year there), so matching uses
+ * the structured [MusicPlaylist.authorId]/[MusicPlaylist.authorName] first and
+ * falls back to the subtitle only when it is all we have.
+ */
+internal fun MusicPlaylist.isHiddenAuthor(hidden: Set<String>): Boolean {
+    if (hidden.isEmpty()) return false
+    if (musicArtistKey(authorId, authorName ?: author) in hidden) return true
+    return listOf(authorName, author).any { !it.isNullOrBlank() && it.trim().lowercase() in hidden }
 }
 
 internal fun MusicTrack.toMusicSignal(pct: Double): MusicSignal {
