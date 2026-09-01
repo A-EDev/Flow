@@ -119,13 +119,55 @@ class YouTubeTakeoutCsvParserTest {
                 "Video ID,Created At\ntoo-short,2026-08-30T09:38:42Z",
                 "Video ID,Created At\n$videoId,not-a-timestamp",
                 "Video ID,Created At\n$videoId,2026-08-30T09:38:42Z,extra",
-                "Video ID,Created At\n$videoId,2026-08-30T09:38:42Z\ninvalid,row",
                 "Video ID,Created At\n\"$videoId,2026-08-30T09:38:42Z",
             )
 
         malformedFiles.forEach { csv ->
             assertThat(parse(csv)).isEqualTo(YouTubeTakeoutCsvContent.Unsupported)
         }
+    }
+
+    @Test
+    fun `invalid rows are skipped without discarding the file`() {
+        val playlistVideos =
+            "Video ID,Created At\n" +
+                "$videoId,2026-08-30T09:38:42Z\n" +
+                "invalid,row\n" +
+                "ZYXwvut-987,2026-08-30T09:38:43Z"
+        val subscriptions =
+            "Channel Id,Channel Url,Channel Title\n" +
+                "$channelId,https://www.youtube.com/channel/$channelId,Channel\n" +
+                "$channelId,https://www.youtube.com/channel/$channelId,\n" +
+                "not-a-channel,https://www.youtube.com/channel/$channelId,Deleted"
+        val playlistId = "PL${"c".repeat(20)}"
+        val metadata =
+            "Playlist ID,c1,c2,c3,c4,c5,c6,c7,c8,c9,Title\n" +
+                "$playlistId,,,,,,,,,,Road\n" +
+                "WL,,,,,,,,,,Watch later"
+
+        assertThat(parse(playlistVideos))
+            .isEqualTo(YouTubeTakeoutCsvContent.PlaylistVideos(listOf(videoId, "ZYXwvut-987")))
+        assertThat(parse(subscriptions))
+            .isEqualTo(
+                YouTubeTakeoutCsvContent.Subscriptions(
+                    listOf(YouTubeTakeoutSubscription(channelId, "Channel")),
+                ),
+            )
+        assertThat(parse(metadata)).isEqualTo(YouTubeTakeoutCsvContent.PlaylistMetadata(listOf("Road")))
+    }
+
+    @Test
+    fun `subscription csv tolerates additional trailing columns`() {
+        val csv =
+            "Channel Id,Channel Url,Channel Title,Channel Handle\n" +
+                "$channelId,https://www.youtube.com/channel/$channelId,Channel,@channel"
+
+        assertThat(parse(csv))
+            .isEqualTo(
+                YouTubeTakeoutCsvContent.Subscriptions(
+                    listOf(YouTubeTakeoutSubscription(channelId, "Channel")),
+                ),
+            )
     }
 
     @Test
@@ -166,7 +208,7 @@ class YouTubeTakeoutCsvParserTest {
         val rejectedCsv =
             "Channel Id,Channel Url,Channel Title\n" +
                 "$channelId,https://youtube.com/channel/$channelId,${"a".repeat(100)}\n" +
-                "invalid,row"
+                "\"unterminated"
 
         assertThat(readYouTubeTakeoutCsv(rejectedCsv.reader().buffered(), budget))
             .isEqualTo(YouTubeTakeoutCsvContent.Unsupported)

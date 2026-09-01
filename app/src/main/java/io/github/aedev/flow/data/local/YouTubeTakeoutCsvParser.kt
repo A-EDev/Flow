@@ -82,16 +82,31 @@ internal fun readYouTubeTakeoutCsv(
     val firstPlaylistTitle = firstData.fields.toPlaylistTitle()
 
     return when {
-        header.fields.size == 3 && header.fields.toSubscription() == null && firstSubscription != null -> {
-            readSubscriptions(csvReader, firstSubscription)
+        header.fields.size >= 3 && header.fields.toSubscription() == null && firstSubscription != null -> {
+            csvReader.readRows(
+                first = firstSubscription,
+                weight = { row -> row.channelId.length + row.channelName.length },
+                parse = { fields -> fields.toSubscription() },
+                build = { rows -> YouTubeTakeoutCsvContent.Subscriptions(rows) },
+            )
         }
 
         header.fields.size == 2 && header.fields.toPlaylistVideoId() == null && firstPlaylistVideo != null -> {
-            readPlaylistVideos(csvReader, firstPlaylistVideo)
+            csvReader.readRows(
+                first = firstPlaylistVideo,
+                weight = String::length,
+                parse = { fields -> fields.toPlaylistVideoId() },
+                build = { videoIds -> YouTubeTakeoutCsvContent.PlaylistVideos(videoIds) },
+            )
         }
 
         header.fields.size >= 11 && header.fields.toPlaylistTitle() == null && firstPlaylistTitle != null -> {
-            readPlaylistMetadata(csvReader, firstPlaylistTitle)
+            csvReader.readRows(
+                first = firstPlaylistTitle,
+                weight = String::length,
+                parse = { fields -> fields.toPlaylistTitle() },
+                build = { titles -> YouTubeTakeoutCsvContent.PlaylistMetadata(titles) },
+            )
         }
 
         else -> {
@@ -151,86 +166,37 @@ internal fun resolveYouTubeTakeoutPlaylistNames(
     return resolved
 }
 
-private fun readSubscriptions(
-    reader: TakeoutCsvReader,
-    first: YouTubeTakeoutSubscription,
+private fun <T> TakeoutCsvReader.readRows(
+    first: T,
+    weight: (T) -> Int,
+    parse: (List<String>) -> T?,
+    build: (List<T>) -> YouTubeTakeoutCsvContent,
 ): YouTubeTakeoutCsvContent {
-    reader.stageContent(first.channelId.length + first.channelName.length)
+    stageContent(weight(first))
     val rows = mutableListOf(first)
     while (true) {
-        when (val result = reader.nextNonBlankRecord()) {
+        when (val result = nextNonBlankRecord()) {
             CsvRecordResult.End -> {
-                reader.commitContent()
-                return YouTubeTakeoutCsvContent.Subscriptions(rows)
+                commitContent()
+                return build(rows)
             }
 
             CsvRecordResult.Malformed -> {
-                return reader.rejectTargetAsUnsupported()
+                return rejectTargetAsUnsupported()
             }
 
             is CsvRecordResult.Record -> {
-                val row = result.fields.toSubscription() ?: return reader.rejectTargetAsUnsupported()
-                reader.stageContent(row.channelId.length + row.channelName.length)
-                rows += row
-            }
-        }
-    }
-}
-
-private fun readPlaylistVideos(
-    reader: TakeoutCsvReader,
-    firstVideoId: String,
-): YouTubeTakeoutCsvContent {
-    reader.stageContent(firstVideoId.length)
-    val videoIds = mutableListOf(firstVideoId)
-    while (true) {
-        when (val result = reader.nextNonBlankRecord()) {
-            CsvRecordResult.End -> {
-                reader.commitContent()
-                return YouTubeTakeoutCsvContent.PlaylistVideos(videoIds)
-            }
-
-            CsvRecordResult.Malformed -> {
-                return reader.rejectTargetAsUnsupported()
-            }
-
-            is CsvRecordResult.Record -> {
-                val videoId = result.fields.toPlaylistVideoId() ?: return reader.rejectTargetAsUnsupported()
-                reader.stageContent(videoId.length)
-                videoIds += videoId
-            }
-        }
-    }
-}
-
-private fun readPlaylistMetadata(
-    reader: TakeoutCsvReader,
-    firstTitle: String,
-): YouTubeTakeoutCsvContent {
-    reader.stageContent(firstTitle.length)
-    val titles = mutableListOf(firstTitle)
-    while (true) {
-        when (val result = reader.nextNonBlankRecord()) {
-            CsvRecordResult.End -> {
-                reader.commitContent()
-                return YouTubeTakeoutCsvContent.PlaylistMetadata(titles)
-            }
-
-            CsvRecordResult.Malformed -> {
-                return reader.rejectTargetAsUnsupported()
-            }
-
-            is CsvRecordResult.Record -> {
-                val title = result.fields.toPlaylistTitle() ?: return reader.rejectTargetAsUnsupported()
-                reader.stageContent(title.length)
-                titles += title
+                parse(result.fields)?.let { row ->
+                    stageContent(weight(row))
+                    rows += row
+                }
             }
         }
     }
 }
 
 private fun List<String>.toSubscription(): YouTubeTakeoutSubscription? {
-    if (size != 3) return null
+    if (size < 3) return null
     val channelId = this[0].trim().trimStart('\uFEFF')
     if (!youtubeChannelIdPattern.matches(channelId)) return null
 

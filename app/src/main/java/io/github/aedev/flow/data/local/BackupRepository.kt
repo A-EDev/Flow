@@ -1379,7 +1379,6 @@ class BackupRepository(
                     ZipInputStream(raw.buffered()).use { zip ->
                         var entry = zip.nextEntry
                         while (entry != null) {
-                            takeoutCsvBudget.startEntry()
                             val name = entry.name
                             when {
                                 name.endsWith("history/watch-history.html", ignoreCase = true) -> {
@@ -1449,6 +1448,7 @@ class BackupRepository(
                                 }
 
                                 !entry.isDirectory && isYouTubeTakeoutCsvEntry(name) -> {
+                                    takeoutCsvBudget.startEntry()
                                     val content =
                                         readYouTubeTakeoutCsv(
                                             zip.bufferedReader(Charsets.UTF_8),
@@ -1528,10 +1528,17 @@ class BackupRepository(
                 val fallbackPlaylistName = context.getString(R.string.imported_playlist_fallback)
                 val playlistNames =
                     buildMap {
-                        playlistTitlesByDirectory.forEach { (directory, titles) ->
-                            val filenames = videoCsvData.keys.filter { filename -> filename.takeoutParentPath() == directory }
-                            putAll(resolveYouTubeTakeoutPlaylistNames(filenames, titles, fallbackPlaylistName))
-                        }
+                        videoCsvData.keys
+                            .groupBy { filename -> filename.takeoutParentPath() }
+                            .forEach { (directory, filenames) ->
+                                putAll(
+                                    resolveYouTubeTakeoutPlaylistNames(
+                                        filenames,
+                                        playlistTitlesByDirectory[directory].orEmpty(),
+                                        fallbackPlaylistName,
+                                    ),
+                                )
+                            }
                     }
                 playlistNames.forEach { (filename, playlistName) ->
                     val videoIds = videoCsvData.getValue(filename)
