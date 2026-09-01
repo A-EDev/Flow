@@ -1,9 +1,27 @@
 FLOW CHANGE LOG
 VERSION: 2.2.5
-DATE: 2026-08-29
+DATE: 2026-08-31
 STATUS: PRE-RELEASE
 
 NEW FEATURES
+- A local music taste engine now ranks every music shelf: it learns the artists you love from how much of each song you actually play, entirely on-device
+- Quick Picks are now composed from your taste: similar-song lanes, your top artists' tracks and their fans-also-like neighbours, with global charts held to a small quota
+- New On Repeat shelf surfaces the songs you keep coming back to, rendered with zero network calls
+- New Daily Mixes cluster the artists you listen to together into personal mixes that appear as your listening grows
+- Endless music radio: the queue no longer dead-ends — similar songs are appended as it runs low, and the up-next list stays stable instead of changing on every song
+- Tell the music engine what you don't want: "Not interested" softens an artist for two weeks and "Don't recommend" blocks them everywhere, both reversible
+- The Flow Control Center now shows your music taste: top artists, listening rhythm, discovery appetite and blocked-artist management
+- Your music taste profile now syncs between devices and can be exported and imported as a file
+- New Rediscover shelf brings back loved artists you haven't played in weeks, and a time-of-day rotation shelf surfaces what you actually play at this hour — both rendered without a single network call
+- New "From artists you love" shelf collects the latest albums and singles from your top artists
+- Daily Mixes now open as full playlist pages you can play, shuffle and save to your library
+- Artist pages now show your own history with that artist — play count, liked status and your most-played tracks — and mark which "fans also like" artists are already in your rotation
+- New On Repeat home-screen widget puts the songs you keep replaying one tap away
+- The engine now learns genres and moods from what you play on genre rows and mood chips: mood chips reorder to match your habits and a Genres card appears in the Control Center
+- The engine now keeps a private monthly listening ledger on your device — minutes listened, plays, discoveries and your listening clock — the foundation for an upcoming recap screen; it never leaves your device
+- Full music player redesign: pill mini player with a progress ring, an overhauled lyrics sheet with source browsing, editing, saving, alignment and sync-offset controls, and a rebuilt queue with drag-to-reorder, swipe actions and an endless-radio toggle
+- Album colors now flow through the entire player with guaranteed readability on any cover — including the sheets and a redesigned, color-adaptive sleep timer
+- Six Material 3 expressive seek bar styles including new Wavy and Squiggly waves, plus a new Immersive Artwork background that follows your swipes and previews between tracks
 - Serve every one of your interests in every home feed: your biggest interests are always present and your smaller ones rotate through the remaining slots, instead of the feed looping your top topic
 - Dig deeper as you scroll: each load of more videos descends one level further into every interest's branches, like walking a tree, instead of repeating the surface
 - Keep the feed going forever: when the usual sources thin out, loading more now digs fresh related-video lanes seeded from the videos on screen, your history, likes and playlists
@@ -12,6 +30,10 @@ NEW FEATURES
 - Learn what each channel is about from its creator-declared tags when you subscribe, and passively from its recent upload titles, improving interest grouping and recommendations
 
 IMPROVEMENTS
+- Music content now follows your chosen region setting instead of the device's locale
+- Music home caches invalidate when the region changes, so shelves refresh with the right content immediately
+- The Speed dial, Listen again, Recommended, music videos and long listens shelves are now ranked by your taste instead of arriving in YouTube's order
+- The music page now leads with what fits your journey: charts and moods while the engine is new, your own taste once it has matured
 - Stop showing you the same videos over and over: something you actually saw is filtered out of the next refreshes, briefly after one appearance and for days after repeats, and gently returns later
 - Pull-to-refresh now builds a genuinely fresh page instead of reshuffling what is already on screen
 - Cached reserve videos are consumed once served instead of reappearing for hours after every refresh
@@ -21,11 +43,20 @@ IMPROVEMENTS
 - Channels you interact with are no longer scored below channels you have never seen
 - Only a couple of fresh subscription uploads pin to the top of the feed, and only one per channel, so the first screen is a real mix of sources
 - A one-time brain revitalization recovers your real interests from your channel knowledge, repairing profiles hollowed out by old learning bugs
+- Music radio no longer plays the same artist twice in a row: radio queues now alternate artists whenever an alternative exists, including across the seam where new tracks are appended
+- "Not interested" and "Don't recommend" now hide the artist's albums too: album cards across new releases and your artist shelves carry real artist attribution, and a track or album is hidden when ANY credited artist is hidden, so collabs no longer slip through
 
 PERFORMANCE
 - Feed ranking noise now scales with your actual scores instead of drowning them when the feed was stale
+- Music shelves only recompose while the Music screen is visible and similar-song lanes are cached, so background listening no longer burns network and battery
+- Opening an artist, album or Daily Mix page no longer silently reloads the entire music home feed behind the scenes — one shared engine now serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and device heat
+- The redesigned player stops animating what you cannot see: the seek bar's wave, the lyrics sync engine and the mini player's equalizer now pause whenever their layer is hidden, ending a constant per-frame drain (heat and battery) that ran for entire listening sessions
+- Every track change now fetches its similar-tracks lane once instead of twice
 
 FIXES AND STABILITY
+- Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
+- Fix listened songs never reaching the music engine when playback was stopped, the queue was replaced, or the track shipped without a duration
+- Fix a playback-statistics crash on some devices by replacing Media3's tracker with a wall-clock session tracker
 - Fix watch progress on normal videos never reaching your recommendation brain, so it learned almost nothing from what you actually watched
 - Fix topic-pair learning deleting every learned connection the moment it was created, which had left long-time users with zero learned topic links
 - Fix mature recommendation brains being mathematically unable to pick up new interests no matter how much you watched them
@@ -33,7 +64,10 @@ FIXES AND STABILITY
 - Fix related videos being stamped with the current time, defeating the old-content filter and mis-sorting the Shorts shelf
 - Fix junk words like "right" leaking into your learned interests and forming meaningless topic groups
 - Fix a liked video silently failing to teach the brain when its details could not be loaded
+- Fix the lyrics sync offset having no effect: the timing loops tracked the raw player position, so adjusting the offset moved the number but never the highlighted line — it now shifts line highlighting, scrolling and word-by-word fills live, and the control got an expressive redesign with a rolling value, springy stepped buttons and haptic ticks
+- Fix the music feed crashing with the taste engine after an update: release builds could mis-read the artist lists stored inside saved history, queues, playlists and downloads, and the engine crashed on the malformed entries — stored tracks are now repaired on read, so no clean install or data reset is needed
 
 BUILD AND CI
 - Add an offline recommendation benchmark with regression floors, so feed diversity and repetition are verified by tests instead of claims
 - Add an offline brain diagnostic that inspects a real exported profile through the production clustering and discovery code
+- Add an offline music benchmark with regression floors and a music brain diagnostic over real exported data

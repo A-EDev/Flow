@@ -9,17 +9,19 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.LYRICS_ALIGN_CENTER
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.data.lyrics.LyricsHelper
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.utils.PerformanceDispatcher
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
@@ -49,6 +52,7 @@ class MusicPlayerViewModel
         private val likedVideosRepository: LikedVideosRepository,
         private val viewHistory: ViewHistory,
         private val localPlaylistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
+        private val musicBrain: MusicBrainEngine,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicPlayerUiState())
         val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
@@ -62,6 +66,7 @@ class MusicPlayerViewModel
         val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
 
         private val lyricsHelper = LyricsHelper(context)
+        private val playerPreferences = PlayerPreferences(context)
 
         private var isInitialized = false
         private var loadTrackJob: kotlinx.coroutines.Job? = null
@@ -71,6 +76,16 @@ class MusicPlayerViewModel
         init {
             EnhancedMusicPlayerManager.initialize(context)
             initializeObservers()
+            viewModelScope.launch {
+                playerPreferences.lyricsTextAlign.collect { align ->
+                    _uiState.update { it.copy(lyricsTextAlign = align) }
+                }
+            }
+            viewModelScope.launch {
+                playerPreferences.musicEndlessRadioEnabled.collect { enabled ->
+                    _uiState.update { it.copy(endlessRadioEnabled = enabled) }
+                }
+            }
         }
 
         private fun initializeObservers() {
@@ -225,7 +240,6 @@ class MusicPlayerViewModel
                             isLoading = false,
                             error = null,
                             playingFrom = context.getString(R.string.local_media_title),
-                            selectedFilter = FILTER_ALL,
                         )
                     }
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
@@ -245,7 +259,7 @@ class MusicPlayerViewModel
                             title = track.title,
                             thumbnailUrl = track.thumbnailUrl,
                             channelName = track.artist,
-                            channelId = "",
+                            channelId = track.channelId,
                             isMusic = true,
                             isLocal = true,
                         )
@@ -261,9 +275,21 @@ class MusicPlayerViewModel
             sourceName: String? = null,
         ) {
             loadTrackJob?.cancel()
+            // Genre-scoped surfaces tag their source; the genre becomes listen
+            // context for this queue and is stripped from the display label.
+            // Any non-tagged queue start clears the previous context.
+            val contextGenre =
+                sourceName
+                    ?.trim()
+                    ?.takeIf { it.startsWith(MUSIC_GENRE_SOURCE_PREFIX) }
+                    ?.removePrefix(MUSIC_GENRE_SOURCE_PREFIX)
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+            EnhancedMusicPlayerManager.playContextGenre = contextGenre
+            val displaySourceName = contextGenre ?: sourceName
             loadTrackJob =
                 viewModelScope.launch {
-                    val finalSourceName = resolveSourceName(sourceName, track)
+                    val finalSourceName = resolveSourceName(displaySourceName, track)
                     val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
                     val localUriOverrides =
                         withContext(PerformanceDispatcher.diskIO) {
@@ -287,7 +313,6 @@ class MusicPlayerViewModel
                             isLoading = true,
                             error = null,
                             playingFrom = finalSourceName,
-                            selectedFilter = FILTER_ALL,
                         )
                     }
 
@@ -321,7 +346,7 @@ class MusicPlayerViewModel
                                 title = track.title,
                                 thumbnailUrl = track.thumbnailUrl,
                                 channelName = track.artist,
-                                channelId = "",
+                                channelId = track.channelId,
                                 isMusic = true,
                             )
                         }
@@ -329,19 +354,8 @@ class MusicPlayerViewModel
                         launch(PerformanceDispatcher.networkIO) {
                             fetchRelatedContent(track.videoId)
                         }
-
-                        if (queue.size <= 1) {
-                            launch(PerformanceDispatcher.networkIO) {
-                                val relatedTracks =
-                                    withTimeoutOrNull(8_000L) {
-                                        YouTubeMusicService.getRelatedMusic(track.videoId, 20)
-                                    } ?: emptyList()
-
-                                if (relatedTracks.isNotEmpty()) {
-                                    EnhancedMusicPlayerManager.updateAutomixItems(relatedTracks)
-                                }
-                            }
-                        }
+                        // Single-track queues need no special automix fill: the service
+                        // seeds the radio pool for every new queue context.
                     }
                 }
         }
@@ -359,6 +373,9 @@ class MusicPlayerViewModel
             val mapped =
                 when (key) {
                     "listen_again" -> context.getString(R.string.section_listen_again)
+                    "on_repeat" -> context.getString(R.string.section_on_repeat)
+                    "rotation" -> context.getString(R.string.source_your_rotation)
+                    "rediscover" -> context.getString(R.string.section_rediscover)
                     "daily_discover" -> context.getString(R.string.section_daily_discover)
                     "quick_picks" -> context.getString(R.string.section_quick_picks)
                     "speed_dial", "speed_dial_shuffle" -> context.getString(R.string.section_speed_dial)
@@ -412,65 +429,37 @@ class MusicPlayerViewModel
             EnhancedMusicPlayerManager.pause()
         }
 
-        fun setFilter(filter: String) {
-            val currentTrack = _uiState.value.currentTrack ?: return
-            _uiState.update { it.copy(selectedFilter = filter, isRelatedLoading = true) }
-
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                try {
-                    val freshRelated =
-                        withTimeoutOrNull(10_000L) {
-                            YouTubeMusicService.getRelatedMusic(currentTrack.videoId, 25)
-                        } ?: emptyList()
-
-                    val filteredList =
-                        when (filter) {
-                            FILTER_DISCOVER -> {
-                                freshRelated.shuffled().take(20)
-                            }
-
-                            FILTER_POPULAR -> {
-                                freshRelated.sortedByDescending { it.duration }.take(20)
-                            }
-
-                            FILTER_DEEP_CUTS -> {
-                                freshRelated.reversed().take(20)
-                            }
-
-                            FILTER_WORKOUT -> {
-                                freshRelated
-                                    .filter {
-                                        it.title.contains("remix", ignoreCase = true) ||
-                                            it.title.contains("workout", ignoreCase = true) ||
-                                            it.title.contains("mix", ignoreCase = true)
-                                    }.ifEmpty { freshRelated.shuffled() }
-                                    .take(20)
-                            }
-
-                            else -> {
-                                freshRelated
-                            }
-                        }.distinctByNonBlankKey(MusicTrack::videoId)
-
-                    _uiState.update {
-                        it.copy(
-                            autoplaySuggestions = filteredList,
-                            isRelatedLoading = false,
-                        )
-                    }
-
-                    EnhancedMusicPlayerManager.updateAutomixItems(filteredList)
-                } catch (e: Exception) {
-                    _uiState.update { it.copy(isRelatedLoading = false) }
-                }
-            }
-        }
-
         fun moveTrack(
             fromIndex: Int,
             toIndex: Int,
         ) {
             EnhancedMusicPlayerManager.moveMediaItem(fromIndex, toIndex)
+        }
+
+        fun playNextFromQueuePosition(index: Int) {
+            val current = _uiState.value.currentQueueIndex
+            if (index == current) return
+            val target = if (index > current) current + 1 else current
+            if (index != target) EnhancedMusicPlayerManager.moveMediaItem(index, target)
+        }
+
+        fun moveQueueTrackToEnd(index: Int) {
+            val lastIndex = _uiState.value.queue.size - 1
+            if (index in 0 until lastIndex) EnhancedMusicPlayerManager.moveMediaItem(index, lastIndex)
+        }
+
+        fun playNextFromRadio(track: MusicTrack) {
+            EnhancedMusicPlayerManager.playNext(track)
+            EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
+        }
+
+        fun addRadioTrackToQueue(track: MusicTrack) {
+            EnhancedMusicPlayerManager.addToQueue(track)
+            EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
+        }
+
+        fun setEndlessRadioEnabled(enabled: Boolean) {
+            viewModelScope.launch { playerPreferences.setMusicEndlessRadioEnabled(enabled) }
         }
 
         fun seekTo(position: Long) {
@@ -517,7 +506,13 @@ class MusicPlayerViewModel
             EnhancedMusicPlayerManager.playFromQueue(index)
         }
 
+        // Both the currentTrack collector and the (kept-composed) player content request
+        // related tracks for the same id; without this guard every advance fetched twice.
+        private var relatedFetchedForId: String? = null
+
         fun fetchRelatedContent(videoId: String) {
+            if (relatedFetchedForId == videoId) return
+            relatedFetchedForId = videoId
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 _uiState.update { it.copy(isRelatedLoading = true) }
                 try {
@@ -525,15 +520,18 @@ class MusicPlayerViewModel
                         withTimeoutOrNull(10_000L) {
                             YouTubeMusicService.getRelatedMusic(videoId, 20)
                         } ?: emptyList()
+                    if (related.isEmpty()) relatedFetchedForId = null
 
+                    // Related content is display-only here: the radio pool (automix)
+                    // is owned by Media3MusicService and must not churn per track.
                     _uiState.update {
                         it.copy(
                             relatedContent = related,
                             isRelatedLoading = false,
                         )
                     }
-                    EnhancedMusicPlayerManager.updateAutomixItems(related)
                 } catch (e: Exception) {
+                    relatedFetchedForId = null
                     _uiState.update { it.copy(isRelatedLoading = false) }
                 }
             }
@@ -564,9 +562,36 @@ class MusicPlayerViewModel
                             isMusic = true,
                         ),
                     )
+                    musicBrain.onExplicitLike(currentTrack)
                 } else {
                     likedVideosRepository.removeLikeState(currentTrack.videoId)
                 }
+            }
+        }
+
+        /**
+         * "Not interested": soft-suppresses the track's artist for two weeks. A
+         * second one while still suppressed escalates to a permanent block —
+         * mirrored from the desktop two-layer feedback system.
+         */
+        fun notInterested(track: MusicTrack) {
+            val primary = track.artists.firstOrNull()
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                musicBrain.dislikeArtist(
+                    primary?.id ?: track.channelId.takeIf { it.isNotBlank() },
+                    primary?.name ?: track.artist,
+                )
+            }
+        }
+
+        /** "Don't recommend {artist}": an immediate permanent hard block, reversible in settings. */
+        fun dontRecommendArtist(track: MusicTrack) {
+            val primary = track.artists.firstOrNull()
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                musicBrain.blockArtist(
+                    primary?.id ?: track.channelId.takeIf { it.isNotBlank() },
+                    primary?.name ?: track.artist,
+                )
             }
         }
 
@@ -582,7 +607,7 @@ class MusicPlayerViewModel
                         id = trackToAdd.videoId,
                         title = trackToAdd.title,
                         channelName = trackToAdd.artist,
-                        channelId = "",
+                        channelId = trackToAdd.channelId,
                         thumbnailUrl = trackToAdd.thumbnailUrl,
                         duration = trackToAdd.duration,
                         viewCount = 0,
@@ -682,6 +707,8 @@ class MusicPlayerViewModel
                             lyrics = null,
                             syncedLyrics = emptyList(),
                             lyricsProviderName = "",
+                            lyricsSyncOffsetMs = 0L,
+                            lyricsCandidates = emptyList(),
                         )
                     }
 
@@ -762,6 +789,106 @@ class MusicPlayerViewModel
             }
         }
 
+        private var browseLyricsJob: kotlinx.coroutines.Job? = null
+
+        fun browseLyricsCandidates() {
+            val track = _uiState.value.currentTrack ?: return
+            browseLyricsJob?.cancel()
+            browseLyricsJob =
+                viewModelScope.launch {
+                    _uiState.update { it.copy(isBrowsingLyrics = true, lyricsCandidates = emptyList()) }
+                    try {
+                        lyricsHelper.getAllLyrics(
+                            videoId = track.videoId,
+                            title = cleanName(track.title),
+                            artist = cleanName(track.artist),
+                            duration = track.duration,
+                            album = track.album,
+                        ) { candidate ->
+                            if (isActive) {
+                                _uiState.update { it.copy(lyricsCandidates = it.lyricsCandidates + candidate) }
+                            }
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        android.util.Log.w("MusicPlayerViewModel", "Lyrics browse failed: ${e.message}")
+                    } finally {
+                        // cancel() does not wait: a superseded browse's finally can run after the
+                        // replacement already set isBrowsingLyrics = true. Only the job that is
+                        // still current may clear the flag.
+                        if (browseLyricsJob === coroutineContext[kotlinx.coroutines.Job]) {
+                            _uiState.update { it.copy(isBrowsingLyrics = false) }
+                        }
+                    }
+                }
+        }
+
+        fun cancelLyricsBrowse() {
+            browseLyricsJob?.cancel()
+            _uiState.update { it.copy(isBrowsingLyrics = false) }
+        }
+
+        fun applyLyricsCandidate(candidate: LyricsCandidate) {
+            val track = _uiState.value.currentTrack ?: return
+            viewModelScope.launch {
+                lyricsHelper.applyManualLyrics(track.videoId, candidate.entries)
+                val plainText = candidate.entries.joinToString("\n") { it.text }
+                _uiState.update {
+                    it.copy(
+                        lyrics = plainText.takeIf { text -> text.isNotBlank() },
+                        syncedLyrics = if (candidate.synced) candidate.entries else emptyList(),
+                        lyricsProviderName = candidate.providerName,
+                        lyricsSyncOffsetMs = 0L,
+                    )
+                }
+            }
+        }
+
+        fun applyEditedLyrics(text: String) {
+            val track = _uiState.value.currentTrack ?: return
+            viewModelScope.launch {
+                val parsed =
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        io.github.aedev.flow.data.lyrics.LyricsUtils
+                            .parseLyrics(text)
+                    }
+                val entries =
+                    parsed.ifEmpty {
+                        text
+                            .lines()
+                            .map { line -> line.trim() }
+                            .filter { line -> line.isNotBlank() }
+                            .map { line -> LyricsEntry(0L, line) }
+                    }
+                if (entries.isEmpty()) return@launch
+                val synced = lyricsHelper.entriesAreSynced(entries)
+                lyricsHelper.applyManualLyrics(track.videoId, entries)
+                val plainText = entries.joinToString("\n") { it.text }
+                _uiState.update {
+                    it.copy(
+                        lyrics = plainText.takeIf { t -> t.isNotBlank() },
+                        syncedLyrics = if (synced) entries else emptyList(),
+                        lyricsProviderName = context.getString(io.github.aedev.flow.R.string.lyrics_source_edited),
+                    )
+                }
+            }
+        }
+
+        fun adjustLyricsSyncOffset(deltaMs: Long) {
+            _uiState.update {
+                it.copy(lyricsSyncOffsetMs = (it.lyricsSyncOffsetMs + deltaMs).coerceIn(-30_000L, 30_000L))
+            }
+        }
+
+        fun resetLyricsSyncOffset() {
+            _uiState.update { it.copy(lyricsSyncOffsetMs = 0L) }
+        }
+
+        fun setLyricsTextAlign(align: String) {
+            viewModelScope.launch { playerPreferences.setLyricsTextAlign(align) }
+        }
+
         override fun onCleared() {
             super.onCleared()
         }
@@ -787,19 +914,16 @@ data class MusicPlayerUiState(
     val syncedLyrics: List<LyricsEntry> = emptyList(),
     val isLyricsLoading: Boolean = false,
     val playingFrom: String = "",
-    val autoplayEnabled: Boolean = true,
-    val selectedFilter: String = FILTER_ALL,
+    val endlessRadioEnabled: Boolean = true,
     val relatedContent: List<MusicTrack> = emptyList(),
     val isRelatedLoading: Boolean = false,
     val downloadedTrackIds: Set<String> = emptySet(),
     val lyricsProviderName: String = "",
+    val lyricsSyncOffsetMs: Long = 0L,
+    val lyricsTextAlign: String = LYRICS_ALIGN_CENTER,
+    val lyricsCandidates: List<LyricsCandidate> = emptyList(),
+    val isBrowsingLyrics: Boolean = false,
 )
-
-const val FILTER_ALL = "ALL"
-const val FILTER_DISCOVER = "DISCOVER"
-const val FILTER_POPULAR = "POPULAR"
-const val FILTER_DEEP_CUTS = "DEEP_CUTS"
-const val FILTER_WORKOUT = "WORKOUT"
 
 private const val SEEK_POSITION_CONFIRM_TOLERANCE_MS = 1_000L
 private const val SEEK_POSITION_MIN_HOLD_MS = 250L

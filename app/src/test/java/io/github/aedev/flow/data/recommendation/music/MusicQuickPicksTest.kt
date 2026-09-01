@@ -1,0 +1,117 @@
+/*
+ * Copyright (C) 2025-2026 Flow | A-EDev
+ *
+ * This file is part of Flow (https://github.com/A-EDev/Flow).
+ */
+
+package io.github.aedev.flow.data.recommendation.music
+
+import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.ui.screens.music.MusicArtist
+import io.github.aedev.flow.ui.screens.music.MusicTrack
+import org.junit.Test
+
+class MusicQuickPicksTest {
+    private fun track(
+        id: String,
+        artistId: String,
+    ) = MusicTrack(
+        videoId = id,
+        title = "T$id",
+        artist = "A$artistId",
+        thumbnailUrl = "",
+        duration = 200,
+        channelId = artistId,
+        artists = listOf(MusicArtist("A$artistId", artistId)),
+    )
+
+    @Test
+    fun `current track leads and artists are diversified first`() {
+        val current = track("now", "UCa")
+        val history =
+            listOf(
+                track("h1", "UCa"),
+                track("h2", "UCa"),
+                track("h3", "UCb"),
+                track("h4", "UCc"),
+                track("h5", "UCd"),
+            )
+        val seeds = MusicQuickPicks.selectSeeds(current, history)
+        assertThat(seeds.first().videoId).isEqualTo("now")
+        assertThat(seeds.map { it.videoId }).containsExactly("now", "h3", "h4", "h5", "h1").inOrder()
+    }
+
+    @Test
+    fun `narrow history still fills the seed quota with repeats`() {
+        val history = listOf(track("h1", "UCa"), track("h2", "UCa"), track("h3", "UCa"))
+        val seeds = MusicQuickPicks.selectSeeds(null, history)
+        assertThat(seeds.map { it.videoId }).containsExactly("h1", "h2", "h3").inOrder()
+    }
+
+    @Test
+    fun `interleave round-robins lanes and dedupes globally`() {
+        val laneA = listOf(track("a1", "UC1"), track("a2", "UC1"), track("shared", "UC1"))
+        val laneB = listOf(track("b1", "UC2"), track("shared", "UC2"), track("b2", "UC2"))
+        val mixed = MusicQuickPicks.interleave(listOf(laneA, laneB), limit = 10, excludedIds = emptySet())
+        assertThat(mixed.map { it.videoId }).containsExactly("a1", "b1", "a2", "shared", "b2").inOrder()
+    }
+
+    @Test
+    fun `interleave excludes seed ids and respects the limit`() {
+        val lane = (0 until 10).map { track("t$it", "UC$it") }
+        val mixed = MusicQuickPicks.interleave(listOf(lane), limit = 4, excludedIds = setOf("t0", "t1"))
+        assertThat(mixed.map { it.videoId }).containsExactly("t2", "t3", "t4", "t5").inOrder()
+    }
+
+    @Test
+    fun `interleave stops when all lanes are exhausted`() {
+        val mixed = MusicQuickPicks.interleave(listOf(listOf(track("x", "UC1"))), limit = 24, excludedIds = emptySet())
+        assertThat(mixed).hasSize(1)
+    }
+
+    @Test
+    fun `a capped lane stops contributing at its cap while others keep filling`() {
+        val taste = (0 until 10).map { track("t$it", "UCt$it") }
+        val charts = (0 until 10).map { track("c$it", "UCc$it") }
+        val mixed =
+            MusicQuickPicks.interleave(
+                listOf(taste, charts),
+                limit = 10,
+                excludedIds = emptySet(),
+                laneCaps = listOf(Int.MAX_VALUE, 2),
+            )
+        assertThat(mixed.count { it.videoId.startsWith("c") }).isEqualTo(2)
+        assertThat(mixed.count { it.videoId.startsWith("t") }).isEqualTo(8)
+        assertThat(mixed.take(4).map { it.videoId }).containsExactly("t0", "c0", "t1", "c1").inOrder()
+    }
+
+    @Test
+    fun `a capped-out shelf still reaches the limit from uncapped lanes`() {
+        val only = (0 until 6).map { track("t$it", "UCt$it") }
+        val charts = (0 until 6).map { track("c$it", "UCc$it") }
+        val mixed =
+            MusicQuickPicks.interleave(
+                listOf(only, charts),
+                limit = 8,
+                excludedIds = emptySet(),
+                laneCaps = listOf(Int.MAX_VALUE, 3),
+            )
+        assertThat(mixed).hasSize(8)
+        assertThat(mixed.count { it.videoId.startsWith("c") }).isEqualTo(3)
+    }
+
+    @Test
+    fun `no artist exceeds the shelf-wide cap even across lanes`() {
+        val nfLane = (0 until 8).map { track("nf$it", "UCnf") }
+        val nfHeavyRelated = listOf(track("r0", "UCnf"), track("r1", "UCother"), track("r2", "UCnf"), track("r3", "UCmore"))
+        val mixed =
+            MusicQuickPicks.interleave(
+                listOf(nfLane, nfHeavyRelated),
+                limit = 10,
+                excludedIds = emptySet(),
+                maxPerArtist = 3,
+            )
+        assertThat(mixed.count { it.artists.first().id == "UCnf" }).isEqualTo(3)
+        assertThat(mixed.map { it.videoId }).containsAtLeast("r1", "r3")
+    }
+}

@@ -59,6 +59,8 @@ import io.github.aedev.flow.ui.screens.music.components.TrackListItem
 fun ArtistPage(
     artistDetails: ArtistDetails,
     downloadedTrackIds: Set<String> = emptySet(),
+    insights: io.github.aedev.flow.data.recommendation.music.MusicArtistInsights? = null,
+    knownRelatedArtistIds: Set<String> = emptySet(),
     onBackClick: () -> Unit,
     onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onAlbumClick: (MusicPlaylist) -> Unit,
@@ -444,6 +446,50 @@ fun ArtistPage(
                     }
                 }
 
+                // Your history — the local brain's record of this artist, zero network
+                if (insights != null && insights.topTracks.isNotEmpty()) {
+                    item {
+                        SectionHeader(title = stringResource(R.string.section_your_history))
+                        Text(
+                            text =
+                                buildString {
+                                    append(stringResource(R.string.artist_insights_played_times, insights.plays))
+                                    if (insights.liked) {
+                                        append(" · ")
+                                        append(stringResource(R.string.artist_insights_liked))
+                                    }
+                                },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                        )
+                    }
+                    itemsIndexed(insights.topTracks.take(5)) { index, track ->
+                        TrackListItem(
+                            track = track,
+                            isDownloaded = downloadedTrackIds.contains(track.videoId),
+                            leadingContent = {
+                                Text(
+                                    text = (index + 1).toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.width(32.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                )
+                            },
+                            onClick = { onTrackClick(track, insights.topTracks) },
+                            onLongClick = {
+                                selectedTrack = track
+                                showBottomSheet = true
+                            },
+                            onMenuClick = {
+                                selectedTrack = track
+                                showBottomSheet = true
+                            },
+                        )
+                    }
+                }
+
                 // Singles & EPs
                 if (artistDetails.singles.isNotEmpty()) {
                     item {
@@ -538,6 +584,9 @@ fun ArtistPage(
                             items(artistDetails.relatedArtists) { artist ->
                                 RelatedArtistCard(
                                     artist = artist,
+                                    badge =
+                                        stringResource(R.string.artist_known_related_badge)
+                                            .takeIf { artist.channelId in knownRelatedArtistIds },
                                     onClick = { onArtistClick(artist.channelId) },
                                 )
                             }
@@ -708,6 +757,7 @@ fun VideoCard(
 fun RelatedArtistCard(
     artist: ArtistDetails,
     onClick: () -> Unit,
+    badge: String? = null,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -733,5 +783,15 @@ fun RelatedArtistCard(
             overflow = TextOverflow.Ellipsis,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
+        if (badge != null) {
+            Text(
+                text = badge,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
     }
 }

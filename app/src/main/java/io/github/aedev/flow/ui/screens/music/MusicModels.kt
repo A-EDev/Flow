@@ -1,9 +1,18 @@
 package io.github.aedev.flow.ui.screens.music
 
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import kotlinx.serialization.Serializable
 
 enum class MusicItemType { SONG, ALBUM, PLAYLIST, ARTIST }
 
+/**
+ * Play-source prefix marking a genre/mood-scoped surface (genre rows, mood
+ * chips). The player strips it for the "Playing from" label and hands the genre
+ * to the music brain as listen-context provenance.
+ */
+const val MUSIC_GENRE_SOURCE_PREFIX = "genre:"
+
+@Serializable
 data class MusicTrack(
     val videoId: String,
     val title: String,
@@ -18,7 +27,7 @@ data class MusicTrack(
     val isVideoSong: Boolean = false,
     val albumId: String? = null,
     val artists: List<MusicArtist> = emptyList(),
-    val itemType: MusicItemType = MusicItemType.SONG
+    val itemType: MusicItemType = MusicItemType.SONG,
 ) {
     val highResThumbnailUrl: String
         get() = ThumbnailUrlResolver.resolveMusicThumbnail(videoId, thumbnailUrl, 1080)
@@ -27,19 +36,34 @@ data class MusicTrack(
         get() = ThumbnailUrlResolver.resolveMusicThumbnail(videoId, thumbnailUrl, 256)
 }
 
+@Serializable
 data class MusicArtist(
     val name: String,
-    val id: String? = null
+    val id: String? = null,
 )
+
+/**
+ * Repairs a Gson-deserialized track whose [MusicTrack.artists] may hold untyped maps
+ * instead of [MusicArtist] objects: release builds that lose the field's generic
+ * signature make Gson fall back to LinkedTreeMap entries, which crash with a
+ * ClassCastException on first element access (issue #996). filterIsInstance performs
+ * only instanceof checks, so it is safe on a poisoned list; bad entries are dropped
+ * and the plain [MusicTrack.artist]/[MusicTrack.channelId] fallbacks take over.
+ * Call it on every Gson read path that yields a [MusicTrack].
+ */
+fun MusicTrack.withTypedArtists(): MusicTrack {
+    val raw: List<*> = artists
+    return if (raw.all { it is MusicArtist }) this else copy(artists = raw.filterIsInstance<MusicArtist>())
+}
 
 data class DailyDiscoverItem(
     val seed: MusicTrack,
-    val recommendation: MusicTrack
+    val recommendation: MusicTrack,
 )
 
 data class CommunityMusicPlaylist(
     val playlist: MusicPlaylist,
-    val tracks: List<MusicTrack>
+    val tracks: List<MusicTrack>,
 )
 
 data class MusicPlaylist(
@@ -47,7 +71,12 @@ data class MusicPlaylist(
     val title: String,
     val thumbnailUrl: String,
     val trackCount: Int = 0,
-    val author: String = ""
+    val author: String = "",
+    // Structured attribution for "not interested"/"don't recommend" filtering.
+    // `author` is a display subtitle — album cards put the release YEAR there —
+    // so feedback matching must never rely on parsing it.
+    val authorId: String? = null,
+    val authorName: String? = null,
 )
 
 data class PlaylistDetails(
@@ -63,7 +92,7 @@ data class PlaylistDetails(
     val durationText: String? = null,
     val dateText: String? = null,
     val tracks: List<MusicTrack> = emptyList(),
-    val continuation: String? = null
+    val continuation: String? = null,
 )
 
 data class ArtistDetails(
@@ -85,5 +114,5 @@ data class ArtistDetails(
     val singlesBrowseId: String? = null,
     val singlesParams: String? = null,
     val topTracksBrowseId: String? = null,
-    val topTracksParams: String? = null
+    val topTracksParams: String? = null,
 )

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.QueueMusic
@@ -50,7 +51,10 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ImportDataScreen(onNavigateBack: () -> Unit) {
+fun ImportDataScreen(
+    onNavigateBack: () -> Unit,
+    musicBrainBackup: MusicBrainBackupViewModel = hiltViewModel(),
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val backupRepo = remember { BackupRepository(context) }
@@ -204,6 +208,30 @@ fun ImportDataScreen(onNavigateBack: () -> Unit) {
             },
         )
 
+    val importMusicBrainLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocument(),
+            onResult = { uri ->
+                uri?.let {
+                    scope.launch {
+                        val success =
+                            context.contentResolver.openInputStream(it)?.use { inp ->
+                                musicBrainBackup.importFrom(inp)
+                            } ?: false
+                        snackbarHostState.showSnackbar(
+                            context.getString(
+                                if (success) {
+                                    R.string.music_brain_import_success
+                                } else {
+                                    R.string.music_brain_import_failed
+                                },
+                            ),
+                        )
+                    }
+                }
+            },
+        )
+
     val importMasterLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
@@ -278,6 +306,16 @@ fun ImportDataScreen(onNavigateBack: () -> Unit) {
                     icon = Icons.Outlined.Psychology,
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     onClick = { importEngineLauncher.launch(arrayOf("application/json")) },
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_music_brain_title),
+                    description = stringResource(R.string.import_music_brain_desc),
+                    icon = Icons.Outlined.LibraryMusic,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    onClick = { importMusicBrainLauncher.launch(arrayOf("application/json")) },
                 )
             }
 

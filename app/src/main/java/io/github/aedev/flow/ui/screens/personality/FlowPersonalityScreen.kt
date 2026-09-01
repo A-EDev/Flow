@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,9 +54,16 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FlowPersonalityScreen(onNavigateBack: () -> Unit) {
+fun FlowPersonalityScreen(
+    onNavigateBack: () -> Unit,
+    musicPersona: MusicPersonaViewModel =
+        androidx.hilt.navigation.compose
+            .hiltViewModel(),
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val musicProfile by musicPersona.profile.collectAsState()
+    val musicBlockedArtists by musicPersona.blockedArtists.collectAsState()
 
     var brain by remember { mutableStateOf<UserBrain?>(null) }
     var persona by remember { mutableStateOf<FlowPersona?>(null) }
@@ -157,6 +165,7 @@ fun FlowPersonalityScreen(onNavigateBack: () -> Unit) {
                     IconButton(
                         onClick = {
                             isLoading = true
+                            musicPersona.refresh()
                             scope.launch { reloadBrain() }
                         },
                     ) {
@@ -231,6 +240,36 @@ fun FlowPersonalityScreen(onNavigateBack: () -> Unit) {
                     queries = discoveryQueries,
                 )
             }
+            // ── Music engine (MusicBrain) — mirrors the desktop Control Center cards ──
+            musicProfile?.let { profile ->
+                item(key = "music_overview") {
+                    MusicTasteOverviewSection(profile = profile)
+                }
+                if (profile.topArtists.isNotEmpty()) {
+                    item(key = "music_artists") {
+                        MusicTopArtistsSection(profile = profile)
+                    }
+                }
+                if (profile.timeOfDay.any { it.plays > 0 }) {
+                    item(key = "music_patterns") {
+                        MusicListeningPatternsSection(profile = profile)
+                    }
+                }
+                if (profile.topGenres.isNotEmpty()) {
+                    item(key = "music_genres") {
+                        MusicGenreAffinitySection(profile = profile)
+                    }
+                }
+                if (musicBlockedArtists.isNotEmpty()) {
+                    item(key = "music_blocked") {
+                        MusicBlockedArtistsSection(
+                            blockedArtists = musicBlockedArtists,
+                            onUnblock = { key -> musicPersona.unblock(key) },
+                        )
+                    }
+                }
+            }
+
             if (snapshot.blockedTopics.isNotEmpty() || snapshot.blockedChannels.isNotEmpty()) {
                 item(key = "blocked") {
                     BlockedContentSection(

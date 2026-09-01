@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
@@ -56,7 +57,7 @@ fun EnhancedMusicScreen(
     onRecognizeClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
     onMoodsClick: (io.github.aedev.flow.innertube.pages.MoodAndGenres.Item?) -> Unit = {},
-    viewModel: MusicViewModel = hiltViewModel(),
+    viewModel: MusicViewModel = sharedMusicViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -64,15 +65,37 @@ fun EnhancedMusicScreen(
     val musicListState = rememberLazyListState()
     val quickPicksGridState = rememberLazyGridState()
 
+    // Planner-lite: the brain's maturity decides which sections lead the page —
+    // a cold brain has nothing personal to say, a mature one leads with taste.
     val sectionOrder =
-        remember(uiState.sessionSeed) {
+        remember(uiState.sessionSeed, uiState.brainMaturity) {
             val defaultOrder = HomeSectionType.values().toList()
             val anchored =
-                listOf(
-                    HomeSectionType.QUICK_PICKS,
-                    HomeSectionType.FROM_COMMUNITY,
-                    HomeSectionType.DAILY_DISCOVER,
-                )
+                when (uiState.brainMaturity) {
+                    "cold_start" -> {
+                        listOf(
+                            HomeSectionType.CHARTS,
+                            HomeSectionType.MOODS_AND_GENRES,
+                            HomeSectionType.NEW_RELEASES,
+                        )
+                    }
+
+                    "mature" -> {
+                        listOf(
+                            HomeSectionType.QUICK_PICKS,
+                            HomeSectionType.SIMILAR_TO,
+                            HomeSectionType.FROM_COMMUNITY,
+                        )
+                    }
+
+                    else -> {
+                        listOf(
+                            HomeSectionType.QUICK_PICKS,
+                            HomeSectionType.FROM_COMMUNITY,
+                            HomeSectionType.DAILY_DISCOVER,
+                        )
+                    }
+                }
             val dynamicPool = defaultOrder - anchored
             anchored + dynamicPool.shuffled(java.util.Random(uiState.sessionSeed))
         }
@@ -176,12 +199,15 @@ fun EnhancedMusicScreen(
                                 .take(10)
                         }
 
-                    val speedDialTracks =
+                    // Raw concatenation is only the placeholder until the VM's
+                    // brain-ranked speed dial lands.
+                    val fallbackSpeedDial =
                         remember(uiState.history, uiState.forYouTracks, uiState.listenAgain) {
                             (uiState.history + uiState.forYouTracks + uiState.listenAgain)
                                 .audioMusicOnly()
                                 .take(26)
                         }
+                    val speedDialTracks = uiState.speedDialTracks.ifEmpty { fallbackSpeedDial }
                     val quickPickTracks =
                         remember(uiState.forYouTracks) {
                             uiState.forYouTracks.audioMusicOnly().take(20)
@@ -283,6 +309,31 @@ fun EnhancedMusicScreen(
                                     }
                                 }
                             } else {
+                                // The local-brain cluster: On Repeat, the time-of-day
+                                // rotation and Rediscover render from stored meta only.
+                                if (uiState.onRepeatTracks.isNotEmpty()) {
+                                    item {
+                                        LocalBrainShelf(
+                                            title = stringResource(R.string.section_on_repeat),
+                                            tracks = uiState.onRepeatTracks,
+                                            playFrom = "on_repeat",
+                                            onSongClick = onSongClick,
+                                        )
+                                    }
+                                }
+
+                                val rotationBucket = uiState.rotationBucket
+                                if (uiState.rotationTracks.isNotEmpty() && rotationBucket != null) {
+                                    item {
+                                        LocalBrainShelf(
+                                            title = stringResource(rotationTitleRes(rotationBucket)),
+                                            tracks = uiState.rotationTracks,
+                                            playFrom = "rotation",
+                                            onSongClick = onSongClick,
+                                        )
+                                    }
+                                }
+
                                 if (speedDialTracks.isNotEmpty()) {
                                     item {
                                         SpeedDialSection(
@@ -293,6 +344,17 @@ fun EnhancedMusicScreen(
                                                 selectedTrack = track
                                                 showBottomSheet = true
                                             },
+                                        )
+                                    }
+                                }
+
+                                if (uiState.rediscoverTracks.isNotEmpty()) {
+                                    item {
+                                        LocalBrainShelf(
+                                            title = stringResource(R.string.section_rediscover),
+                                            tracks = uiState.rediscoverTracks,
+                                            playFrom = "rediscover",
+                                            onSongClick = onSongClick,
                                         )
                                     }
                                 }
@@ -431,7 +493,7 @@ fun EnhancedMusicScreen(
                                         }
 
                                         HomeSectionType.SIMILAR_TO -> {
-                                            uiState.similarToSections.forEach { section ->
+                                            (uiState.dailyMixSections + uiState.similarToSections).forEach { section ->
                                                 item {
                                                     if (section.label != null) {
                                                         NavigationTitle(
@@ -458,7 +520,11 @@ fun EnhancedMusicScreen(
                                                                     {
                                                                         if (section.isArtistSeed) {
                                                                             onArtistClick(section.seedId)
-                                                                        } else {
+                                                                        } else if (section.seedId.startsWith(
+                                                                                MusicViewModel.DAILY_MIX_ID_PREFIX,
+                                                                            )
+                                                                        ) {
+                                                                            onAlbumClick(section.seedId)
                                                                         }
                                                                     }
                                                                 } else {
@@ -592,7 +658,7 @@ fun EnhancedMusicScreen(
                                                                 thumbnailUrl = track.thumbnailUrl,
                                                                 thumbnailHeight = genreThumbnailHeight,
                                                                 isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                onClick = { onSongClick(track, tracks, genre) },
+                                                                onClick = { onSongClick(track, tracks, MUSIC_GENRE_SOURCE_PREFIX + genre) },
                                                                 onLongClick = {
                                                                     selectedTrack = track
                                                                     showBottomSheet = true
@@ -633,9 +699,22 @@ fun EnhancedMusicScreen(
                                                                         when (track.itemType) {
                                                                             MusicItemType.ALBUM,
                                                                             MusicItemType.PLAYLIST,
-                                                                            -> onAlbumClick(track.videoId)
+                                                                            -> {
+                                                                                onAlbumClick(track.videoId)
+                                                                            }
 
-                                                                            else -> onSongClick(track, section.tracks, section.title)
+                                                                            // Under a mood chip every section is that
+                                                                            // mood's content — tag plays with it.
+                                                                            else -> {
+                                                                                onSongClick(
+                                                                                    track,
+                                                                                    section.tracks,
+                                                                                    uiState.selectedHomeChip
+                                                                                        ?.title
+                                                                                        ?.let { MUSIC_GENRE_SOURCE_PREFIX + it }
+                                                                                        ?: section.title,
+                                                                                )
+                                                                            }
                                                                         }
                                                                     },
                                                                     onLongClick = {
@@ -679,6 +758,32 @@ fun EnhancedMusicScreen(
                                                                 subtitle = album.author,
                                                                 thumbnailUrl = album.thumbnailUrl,
                                                                 thumbnailHeight = albumThumbnailHeight,
+                                                                onClick = { onAlbumClick(album.id) },
+                                                                onLongClick = {
+                                                                    selectedCollection = album.toCollectionActionItem(isAlbum = true)
+                                                                },
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        HomeSectionType.FAVORITE_ARTIST_ALBUMS -> {
+                                            if (uiState.favoriteArtistAlbums.isNotEmpty()) {
+                                                item {
+                                                    SectionTitle(title = stringResource(R.string.section_from_artists_you_love))
+                                                    val favoriteAlbumThumbnailHeight = currentGridThumbnailHeight()
+                                                    LazyRow(
+                                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                    ) {
+                                                        items(uiState.favoriteArtistAlbums, key = { it.id }) { album ->
+                                                            GridItem(
+                                                                title = album.title,
+                                                                subtitle = album.author,
+                                                                thumbnailUrl = album.thumbnailUrl,
+                                                                thumbnailHeight = favoriteAlbumThumbnailHeight,
                                                                 onClick = { onAlbumClick(album.id) },
                                                                 onLongClick = {
                                                                     selectedCollection = album.toCollectionActionItem(isAlbum = true)
@@ -935,3 +1040,37 @@ private fun quickPicksPlayAllAction(
     val first = tracks.firstOrNull() ?: return null
     return { onSongClick(first, tracks, "quick_picks") }
 }
+
+/** Shared renderer for the zero-network brain shelves (On Repeat, rotation, Rediscover). */
+@Composable
+private fun LocalBrainShelf(
+    title: String,
+    tracks: List<MusicTrack>,
+    playFrom: String,
+    onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
+) {
+    NavigationTitle(title = title)
+    val thumbnailHeight = currentGridThumbnailHeight()
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(tracks, key = { it.videoId }) { track ->
+            GridItem(
+                title = track.title,
+                subtitle = track.artist,
+                thumbnailUrl = track.thumbnailUrl,
+                thumbnailHeight = thumbnailHeight,
+                onClick = { onSongClick(track, tracks, playFrom) },
+            )
+        }
+    }
+}
+
+private fun rotationTitleRes(bucket: MusicTimeBucket): Int =
+    when (bucket) {
+        MusicTimeBucket.WEEKDAY_MORNING, MusicTimeBucket.WEEKEND_MORNING -> R.string.section_rotation_morning
+        MusicTimeBucket.WEEKDAY_AFTERNOON, MusicTimeBucket.WEEKEND_AFTERNOON -> R.string.section_rotation_afternoon
+        MusicTimeBucket.WEEKDAY_EVENING, MusicTimeBucket.WEEKEND_EVENING -> R.string.section_rotation_evening
+        MusicTimeBucket.WEEKDAY_NIGHT, MusicTimeBucket.WEEKEND_NIGHT -> R.string.section_rotation_night
+    }

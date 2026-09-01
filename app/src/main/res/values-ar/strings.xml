@@ -2370,4 +2370,205 @@
     <string name="download_stream_blocked_403">تم حظر البث أو انتهت صلاحيته (HTTP 403). جرّب جودة أو ترميزًا آخر، أو حاول لاحقًا.</string>
     <string name="import_yt_watch_later">استيراد المشاهدة لاحقاً</string>
     <string name="import_yt_watch_later_desc">قم باستيراد ملف CSV الخاص بـ YouTube Takeout مباشرة إلى قائمة \"المشاهدة لاحقًا\" الخاصة بك، بغض النظر عن اسم الملف.</string>
+    <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="one">تحديث %1$d من %2$d قناة</item>
+        <item quantity="two">تحديث %1$d من %2$d قناة</item>
+        <item quantity="few">تحديث %1$d من %2$d قنوات</item>
+        <item quantity="many">تحديث %1$d من %2$d قناة</item>
+        <item quantity="other">تحديث %1$d من %2$d قناة</item>
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="one">آخر تحديث %1$s - %2$d فيديو تم فحصه</item>
+        <item quantity="two">آخر تحديث %1$s - %2$d فيديو تم فحصه</item>
+        <item quantity="few">آخر تحديث %1$s - %2$d فيديوهات تم فحصها</item>
+        <item quantity="many">آخر تحديث %1$s - %2$d فيديو تم فحصه</item>
+        <item quantity="other">آخر تحديث %1$s - %2$d فيديو تم فحصه</item>
+    </plurals>
+    <string name="streamed_date_template">تم البث %1$s</string>
+    <plurals name="download_all_confirmation">
+        <item quantity="one">هل تريد تنزيل %1$d فيديو؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
+        <item quantity="two">هل تريد تنزيل %1$d فيديو؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
+        <item quantity="few">هل تريد تنزيل %1$d فيديوهات؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
+        <item quantity="many">هل تريد تنزيل %1$d فيديو؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
+        <item quantity="other">هل تريد تنزيل %1$d فيديو؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
+    </plurals>
+    <plurals name="view_replies_template">
+        <item quantity="one">عرض رد واحد</item>
+        <item quantity="two">عرض ردان</item>
+        <item quantity="few">عرض %1$d ردود</item>
+        <item quantity="many">عرض %1$d رد</item>
+        <item quantity="other">عرض %1$d رد</item>
+    </plurals>
+    <plurals name="videos_curated_template">
+        <item quantity="one">فيديو واحد تم اختياره خصيصاً لك</item>
+        <item quantity="two">%1$d فيديو تم اختيارهما خصيصاً لك</item>
+        <item quantity="few">%1$d فيديوهات تم اختيارهم خصيصاً لك</item>
+        <item quantity="many">%1$d فيديو تم اختياره خصيصاً لك</item>
+        <item quantity="other">%1$d فيديو تم اختياره خصيصاً لك</item>
+    </plurals>
+    <plurals name="videos_count_template">
+        <item quantity="one">فيديو واحد</item>
+        <item quantity="two">%1$d فيديو</item>
+        <item quantity="few">%1$d فيديوهات</item>
+        <item quantity="many">%1$d فيديو</item>
+        <item quantity="other">%1$d فيديو</item>
+    </plurals>
+    <plurals name="songs_count_template">
+        <item quantity="one">أغنية واحدة</item>
+        <item quantity="two">%1$d أغنية</item>
+        <item quantity="few">%1$d أغاني</item>
+        <item quantity="many">%1$d أغنية</item>
+        <item quantity="other">%1$d أغنية</item>
+    </plurals>
+    <string name="metadata_separator">·</string>
+    <string name="player_time_separator">/</string>
+    <string name="you">أنت</string>
+    <string name="search_voice_prompt">تحدث للبحث…</string>
+    <string name="search_failed">فشل البحث</string>
+    <string name="loading_more">تحميل المزيد…</string>
+    <string name="load_failed">فشل التحميل</string>
+    <string name="import_success_count">تم استيراد %1$d %2$s</string>
+    <string name="import_success">تم استيراد %1$s بنجاح</string>
+    <plurals name="deep_flow_duration_hours">
+        <item quantity="one">%1$d ساعة</item>
+        <item quantity="two">%1$d ساعة</item>
+        <item quantity="few">%1$d ساعات</item>
+        <item quantity="many">%1$d ساعة</item>
+        <item quantity="other">%1$d ساعة</item>
+    </plurals>
+    <plurals name="appearance_themes_count_all">
+        <item quantity="one">سمة واحدة</item>
+        <item quantity="two">%1$d سمة</item>
+        <item quantity="few">%1$d سمات</item>
+        <item quantity="many">%1$d سمة</item>
+        <item quantity="other">%1$d سمة</item>
+    </plurals>
+    <plurals name="lyrics_providers_enabled">
+        <item quantity="zero">تم تفعيل %1$d / %2$d موفر خدمة</item>
+        <item quantity="one">تم تفعيل %1$d / %2$d موفر خدمة</item>
+        <item quantity="two">تم تفعيل %1$d / %2$d موفر خدمة</item>
+        <item quantity="few">تم تفعيل %1$d / %2$d موفر خدمة</item>
+        <item quantity="many">تم تفعيل %1$d / %2$d موفر خدمة</item>
+        <item quantity="other">تم تفعيل %1$d / %2$d موفر خدمة</item>
+    </plurals>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+        <item quantity="one">التمرير التلقائي كل %1$d ثانية</item>
+        <item quantity="two">التمرير التلقائي كل %1$d ثانية</item>
+        <item quantity="few">التمرير التلقائي كل %1$d ثواني</item>
+        <item quantity="many">التمرير التلقائي كل %1$d ثانية</item>
+        <item quantity="other">التمرير التلقائي كل %1$d ثانية</item>
+    </plurals>
+    <plurals name="player_settings_shorts_auto_scroll_seconds_template">
+        <item quantity="one">%1$d ثانية</item>
+        <item quantity="two">%1$d ثانية</item>
+        <item quantity="few">%1$d ثواني</item>
+        <item quantity="many">%1$d ثانية</item>
+        <item quantity="other">%1$d ثانية</item>
+    </plurals>
+    <plurals name="player_settings_autoplay_countdown_seconds_template">
+        <item quantity="one">%1$d ثانية</item>
+        <item quantity="two">%1$d ثانية</item>
+        <item quantity="few">%1$d ثواني</item>
+        <item quantity="many">%1$d ثانية</item>
+        <item quantity="other">%1$d ثانية</item>
+    </plurals>
+    <string name="player_settings_video_codec_fallback">برنامج الترميز البديل</string>
+    <string name="player_settings_video_codec_fallback_auto">تلقائي</string>
+    <string name="player_settings_video_codec_fallback_dialog_body">الترميز المستخدم عندما لا يتوفر الفيديو بالترميز المُفضل لديك. يقوم الخيار التلقائي بالرجوع تلقائياً إلى الترميز الذي يراه التطبيق الأكثر توافقًا، وهو عادةً H.264.</string>
+    <string name="player_settings_video_codec_fallback_auto_desc">‎دع التطبيق يختار (يفضل H.264)</string>
+    <plurals name="player_settings_double_tap_seek_subtitle">
+        <item quantity="zero">%1$d ثانية لكل نقرة مزدوجة جانبية</item>
+        <item quantity="one">%1$d ثانية لكل نقرة مزدوجة جانبية</item>
+        <item quantity="two">%1$d ثانية لكل نقرة مزدوجة جانبية</item>
+        <item quantity="few">%1$d ثواني لكل نقرة مزدوجة جانبية</item>
+        <item quantity="many">%1$d ثانية لكل نقرة مزدوجة جانبية</item>
+        <item quantity="other">%1$d ثانية لكل نقرة مزدوجة جانبية</item>
+    </plurals>
+    <plurals name="topics_count_template">
+        <item quantity="one">موضوع واحد</item>
+        <item quantity="two">%1$d موضوع</item>
+        <item quantity="few">%1$d موضوعات</item>
+        <item quantity="many">%1$d موضوع</item>
+        <item quantity="other">%1$d موضوع</item>
+    </plurals>
+    <plurals name="topics_blocked_count_plural">
+        <item quantity="one">موضوع واحد</item>
+        <item quantity="two">%1$d موضوع</item>
+        <item quantity="few">%1$d موضوعات</item>
+        <item quantity="many">%1$d موضوع</item>
+        <item quantity="other">%1$d موضوع</item>
+    </plurals>
+    <plurals name="selected_count_template">
+        <item quantity="one">%1$d محدد</item>
+        <item quantity="two">%1$d محدد</item>
+        <item quantity="few">%1$d محدد</item>
+        <item quantity="many">%1$d محدد</item>
+        <item quantity="other">%1$d محدد</item>
+    </plurals>
+    <plurals name="every_min_template">
+        <item quantity="one">كل %1$d دقيقة</item>
+        <item quantity="two">كل %1$d دقيقة</item>
+        <item quantity="few">كل %1$d دقائق</item>
+        <item quantity="many">كل %1$d دقيقة</item>
+        <item quantity="other">كل %1$d دقيقة</item>
+    </plurals>
+    <plurals name="every_minutes_template">
+        <item quantity="one">كل %1$d دقيقة</item>
+        <item quantity="two">كل %1$d دقيقة</item>
+        <item quantity="few">كل %1$d دقائق</item>
+        <item quantity="many">كل %1$d دقيقة</item>
+        <item quantity="other">كل %1$d دقيقة</item>
+    </plurals>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d دقيقة</item>
+        <item quantity="two">%1$d دقيقة</item>
+        <item quantity="few">%1$d دقائق</item>
+        <item quantity="many">%1$d دقيقة</item>
+        <item quantity="other">%1$d دقيقة</item>
+    </plurals>
+    <plurals name="currently_searches_template">
+        <item quantity="one">حاليا: %1$d عملية بحث</item>
+        <item quantity="two">حاليا: %1$d عملية بحث</item>
+        <item quantity="few">حاليا: %1$d عمليات بحث</item>
+        <item quantity="many">حاليا: %1$d عملية بحث</item>
+        <item quantity="other">حاليا: %1$d عملية بحث</item>
+    </plurals>
+    <plurals name="delete_after_days_template">
+        <item quantity="one">حذف بعد يوم واحد</item>
+        <item quantity="two">حذف بعد يومان</item>
+        <item quantity="few">حذف بعد %1$d أيام</item>
+        <item quantity="many">حذف بعد %1$d يوم</item>
+        <item quantity="other">حذف بعد %1$d يوم</item>
+    </plurals>
+    <plurals name="delete_older_than_template">
+        <item quantity="one">حذف عمليات البحث الأقدم من يوم واحد</item>
+        <item quantity="two">حذف عمليات البحث الأقدم من يومان</item>
+        <item quantity="few">حذف عمليات البحث الأقدم من %1$d أيام</item>
+        <item quantity="many">حذف عمليات البحث الأقدم من %1$d يوم</item>
+        <item quantity="other">حذف عمليات البحث الأقدم من %1$d يوم</item>
+    </plurals>
+    <plurals name="searches_count_template">
+        <item quantity="zero">لا توجد عمليات بحث</item>
+        <item quantity="one">بحث واحد</item>
+        <item quantity="two">%1$d عملية بحث</item>
+        <item quantity="few">%1$d عمليات بحث</item>
+        <item quantity="many">%1$d عملية بحث</item>
+        <item quantity="other">%1$d عملية بحث</item>
+    </plurals>
+    <plurals name="days_count_template">
+        <item quantity="one">يوم واحد</item>
+        <item quantity="two">يومان</item>
+        <item quantity="few">%1$d أيام</item>
+        <item quantity="many">%1$d يوم</item>
+        <item quantity="other">%1$d يوم</item>
+    </plurals>
+    <string name="import_label_newpipe_subscriptions">اشتراكات NewPipe</string>
+    <string name="import_label_youtube_subscriptions">اشتراكات YouTube</string>
+    <string name="import_label_youtube_watch_history">سجل مشاهدة YouTube</string>
+    <string name="import_label_freetube_watch_history">سجل مشاهدة FreeTube</string>
+    <string name="import_label_newpipe_watch_history">سجل مشاهدة NewPipe</string>
+    <string name="import_label_libretube_subscriptions">اشتراكات LibreTube</string>
+    <string name="import_label_metrolist_playlists">قوائم تشغيل موسيقي ‏Metrolist</string>
+    <string name="import_label_newpipe_playlists">قوائم تشغيل NewPipe</string>
+    <string name="import_label_libretube_playlists">قوائم تشغيل LibreTube</string>
 </resources>

@@ -55,7 +55,7 @@ object SyncCollection {
      * nor express an unsubscribe. */
     const val SUBSCRIBED_CHANNELS = "subscribed_channels"
 
-    /** Collections Android can exchange in v1 (music_brain excluded — Android has no consumer). */
+    /** Collections Android can exchange. */
     val ANDROID_SYNCABLE =
         listOf(
             WATCH_HISTORY,
@@ -63,6 +63,7 @@ object SyncCollection {
             LIKES,
             SETTINGS,
             FLOW_NEURO_BRAIN,
+            MUSIC_BRAIN,
             SUBSCRIBED_CHANNELS,
             SUBSCRIPTIONS,
         )

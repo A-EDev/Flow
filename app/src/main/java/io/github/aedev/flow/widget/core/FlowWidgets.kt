@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.glance.appwidget.updateAll
 import io.github.aedev.flow.widget.downloads.DownloadsWidget
 import io.github.aedev.flow.widget.nowplaying.NowPlayingWidget
+import io.github.aedev.flow.widget.onrepeat.OnRepeatWidget
 import io.github.aedev.flow.widget.quickactions.QuickActionsWidget
 import io.github.aedev.flow.widget.recent.RecentlyPlayedWidget
 import io.github.aedev.flow.widget.recognize.RecognizeWidget
@@ -18,5 +19,6 @@ object FlowWidgets {
         RecognizeWidget().updateAll(context)
         RecentlyPlayedWidget().updateAll(context)
         DownloadsWidget().updateAll(context)
+        OnRepeatWidget().updateAll(context)
     }
 }
