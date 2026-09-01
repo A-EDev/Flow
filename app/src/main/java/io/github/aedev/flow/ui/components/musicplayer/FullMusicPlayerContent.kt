@@ -65,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -435,6 +436,9 @@ internal fun FullMusicPlayerContent(
                     contentColor = colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.weight(1f))
+                // Under the immersive background the full-bleed art IS the artwork, so the card
+                // vanishes (no placeholder, no shadow) while keeping its swipe-to-skip gestures.
+                val immersiveBackground = backgroundStyle == MusicPlayerBackgroundStyle.IMMERSIVE
                 Box(
                     modifier =
                         Modifier
@@ -443,9 +447,15 @@ internal fun FullMusicPlayerContent(
                             .graphicsLayer {
                                 scaleX = artworkScale
                                 scaleY = artworkScale
-                            }.shadow(
-                                elevation = if (uiState.isPlaying) 24.dp else 8.dp,
-                                shape = RoundedCornerShape(8.dp),
+                            }.then(
+                                if (immersiveBackground) {
+                                    Modifier
+                                } else {
+                                    Modifier.shadow(
+                                        elevation = if (uiState.isPlaying) 24.dp else 8.dp,
+                                        shape = RoundedCornerShape(8.dp),
+                                    )
+                                },
                             ).clip(RoundedCornerShape(8.dp)),
                 ) {
                     PlayerArtwork(
@@ -455,8 +465,9 @@ internal fun FullMusicPlayerContent(
                         previewDirection = previewDirection,
                         isVideoMode = false,
                         isLoading = uiState.isLoading,
-                        hideArtwork = hideArtwork,
-                        hiddenArtworkColor = colorScheme.surfaceContainerHigh,
+                        hideArtwork = hideArtwork || immersiveBackground,
+                        hiddenArtworkColor =
+                            if (immersiveBackground) Color.Unspecified else colorScheme.surfaceContainerHigh,
                         player = EnhancedMusicPlayerManager.player,
                         onSkipPrevious = { viewModel.skipToPrevious() },
                         onSkipNext = { viewModel.skipToNext() },

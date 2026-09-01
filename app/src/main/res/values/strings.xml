@@ -676,6 +676,7 @@
     <string name="player_background_style_blur_gradient">Blur + Gradient</string>
     <string name="player_background_style_blur">Blurred Artwork</string>
     <string name="player_background_style_gradient">Palette Gradient</string>
+    <string name="player_background_style_immersive">Immersive Artwork</string>
     <string name="player_background_style_default">Default Surface</string>
     <string name="player_appearance_hide_music_artwork_title">Hide music player artwork</string>
     <string name="player_appearance_hide_music_artwork_subtitle">Show the app icon on the extracted artwork color instead</string>
@@ -692,10 +693,10 @@
     <string name="shorts_showing_less_like_this">Got it, showing less of this</string>
     <string name="settings_item_player_appearance">Player Appearance</string>
     <string name="settings_item_player_appearance_subtitle">Customize progress bar style</string>
-    <string name="style_default">Regular</string>
-    <string name="style_metrolist">Thick</string>
-    <string name="style_metrolist_slim">Default</string>
-    <string name="style_squiggly">Squiggly</string>
+    <string name="style_default">Expressive</string>
+    <string name="style_thick">Thick</string>
+    <string name="style_compact">Compact</string>
+    <string name="style_squiggly">Wavy</string>
     <string name="style_slim">Ultra Slim</string>
     <string name="player_appearance_gestures_header">Gestures</string>
     <string name="player_appearance_swipe_gestures_title">Brightness &amp; Volume Gestures</string>

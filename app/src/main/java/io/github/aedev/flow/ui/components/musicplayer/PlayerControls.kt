@@ -13,7 +13,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -34,11 +33,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -465,20 +461,14 @@ fun PlayerProgressSlider(
     }
 
     val animatedTrackHeight by animateDpAsState(
-        targetValue = if (isInteracting) 16.dp else 12.dp,
+        targetValue = if (isInteracting) 22.dp else 16.dp,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "trackHeight",
     )
 
-    val thumbAlpha by animateFloatAsState(
-        targetValue = if (isInteracting) 1f else 0f,
-        label = "thumbAlpha",
-    )
-
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences = remember { PlayerPreferences(context) }
-    val sliderStyle by preferences.sliderStyle.collectAsState(initial = SliderStyle.METROLIST_SLIM)
-    val squigglyEnabled by preferences.squigglySliderEnabled.collectAsState(initial = false)
+    val sliderStyle by preferences.sliderStyle.collectAsState(initial = SliderStyle.COMPACT)
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -506,48 +496,6 @@ fun PlayerProgressSlider(
             }
 
             when (sliderStyle) {
-                SliderStyle.METROLIST -> {
-                    // Metrolist Thick Style
-                    Slider(
-                        value = displayedPosition,
-                        onValueChange = { handleSeekPreview(it) },
-                        onValueChangeFinished = { commitSeekPreview() },
-                        valueRange = 0f..sliderEnd,
-                        interactionSource = interactionSource,
-                        colors =
-                            SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
-                            ),
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                    )
-                }
-
-                SliderStyle.METROLIST_SLIM -> {
-                    // Metrolist Slim Style
-                    Slider(
-                        value = displayedPosition,
-                        onValueChange = { handleSeekPreview(it) },
-                        onValueChangeFinished = { commitSeekPreview() },
-                        valueRange = 0f..sliderEnd,
-                        interactionSource = interactionSource,
-                        colors =
-                            SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
-                            ),
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(24.dp),
-                    )
-                }
-
                 SliderStyle.SQUIGGLY -> {
                     SquigglySlider(
                         value = displayedPosition,
@@ -564,88 +512,17 @@ fun PlayerProgressSlider(
                     )
                 }
 
-                SliderStyle.SLIM -> {
-                    Slider(
+                else -> {
+                    val spec = expressiveSliderSpec(sliderStyle)
+                    ExpressivePlayerSlider(
                         value = displayedPosition,
                         onValueChange = { handleSeekPreview(it) },
                         onValueChangeFinished = { commitSeekPreview() },
                         valueRange = 0f..sliderEnd,
+                        trackHeight = if (sliderStyle == SliderStyle.DEFAULT) animatedTrackHeight else spec.trackHeight,
+                        thumbHeight = spec.thumbHeight,
+                        thumbTrackGap = spec.thumbTrackGap,
                         interactionSource = interactionSource,
-                        thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                        track = { sliderState ->
-                            PlayerSliderTrack(
-                                sliderState = sliderState,
-                                colors =
-                                    SliderDefaults.colors(
-                                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                                        inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
-                                    ),
-                                trackHeight = 4.dp,
-                            )
-                        },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(12.dp),
-                    )
-                }
-
-                SliderStyle.DEFAULT -> {
-                    Slider(
-                        value = displayedPosition,
-                        onValueChange = { handleSeekPreview(it) },
-                        onValueChangeFinished = { commitSeekPreview() },
-                        valueRange = 0f..sliderEnd,
-                        interactionSource = interactionSource,
-                        colors =
-                            SliderDefaults.colors(
-                                thumbColor = Color.Transparent,
-                                activeTrackColor = Color.Transparent,
-                                inactiveTrackColor = Color.Transparent,
-                            ),
-                        thumb = {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(24.dp)
-                                        .graphicsLayer { alpha = thumbAlpha }
-                                        .shadow(8.dp, CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                            )
-                        },
-                        track = {
-                            val fraction = if (duration > 0) displayedPosition / sliderEnd else 0f
-
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(animatedTrackHeight)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                            ) {
-                                // Active Track
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth(fraction)
-                                            .fillMaxHeight()
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(
-                                                Brush.horizontalGradient(
-                                                    listOf(
-                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                                        MaterialTheme.colorScheme.primary,
-                                                    ),
-                                                ),
-                                            ),
-                                )
-                            }
-                        },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(24.dp),
                     )
                 }
             }

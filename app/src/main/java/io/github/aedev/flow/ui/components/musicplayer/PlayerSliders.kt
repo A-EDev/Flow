@@ -10,131 +10,102 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.data.local.SliderStyle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 // ============================================================================
-// SLIM SLIDER TRACK (PlayerSliderTrack)
+// EXPRESSIVE SLIDER (M3 handle thumb + gapped track + stop indicator)
 // ============================================================================
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PlayerSliderTrack(
-    sliderState: SliderState,
-    modifier: Modifier = Modifier,
-    colors: SliderColors = SliderDefaults.colors(),
-    trackHeight: Dp = 10.dp,
-) {
-    val inactiveTrackColor = colors.inactiveTrackColor
-    val activeTrackColor = colors.activeTrackColor
-    val inactiveTickColor = colors.inactiveTickColor
-    val activeTickColor = colors.activeTickColor
-    val valueRange = sliderState.valueRange
-    Canvas(
-        modifier
-            .fillMaxWidth()
-            .height(trackHeight),
-    ) {
-        drawTrack(
-            stepsToTickFractions(sliderState.steps),
-            0f,
-            calcFraction(
-                valueRange.start,
-                valueRange.endInclusive,
-                sliderState.value.coerceIn(valueRange.start, valueRange.endInclusive),
-            ),
-            inactiveTrackColor,
-            activeTrackColor,
-            inactiveTickColor,
-            activeTickColor,
-            trackHeight,
-        )
-    }
-}
 
-private fun DrawScope.drawTrack(
-    tickFractions: FloatArray,
-    activeRangeStart: Float,
-    activeRangeEnd: Float,
-    inactiveTrackColor: Color,
-    activeTrackColor: Color,
-    inactiveTickColor: Color,
-    activeTickColor: Color,
-    trackHeight: Dp = 2.dp,
-) {
-    val isRtl = layoutDirection == LayoutDirection.Rtl
-    val sliderLeft = Offset(0f, center.y)
-    val sliderRight = Offset(size.width, center.y)
-    val sliderStart = if (isRtl) sliderRight else sliderLeft
-    val sliderEnd = if (isRtl) sliderLeft else sliderRight
-    val tickSize = 2.0.dp.toPx()
-    val trackStrokeWidth = trackHeight.toPx()
-    drawLine(
-        inactiveTrackColor,
-        sliderStart,
-        sliderEnd,
-        trackStrokeWidth,
-        StrokeCap.Round,
-    )
-    val sliderValueEnd =
-        Offset(
-            sliderStart.x +
-                (sliderEnd.x - sliderStart.x) * activeRangeEnd,
-            center.y,
-        )
-    val sliderValueStart =
-        Offset(
-            sliderStart.x +
-                (sliderEnd.x - sliderStart.x) * activeRangeStart,
-            center.y,
-        )
-    drawLine(
-        activeTrackColor,
-        sliderValueStart,
-        sliderValueEnd,
-        trackStrokeWidth,
-        StrokeCap.Round,
-    )
-    for (tick in tickFractions) {
-        val outsideFraction = tick > activeRangeEnd || tick < activeRangeStart
-        drawCircle(
-            color = if (outsideFraction) inactiveTickColor else activeTickColor,
-            center = Offset(lerp(sliderStart, sliderEnd, tick).x, center.y),
-            radius = tickSize / 2f,
-        )
-    }
-}
+@Immutable
+data class ExpressiveSliderSpec(
+    val trackHeight: Dp,
+    val thumbHeight: Dp,
+    val thumbTrackGap: Dp,
+)
 
-private fun stepsToTickFractions(steps: Int): FloatArray =
-    if (steps == 0) {
-        floatArrayOf()
-    } else {
-        FloatArray(steps + 2) {
-            it.toFloat() / (steps + 1)
+/** Per-style anatomy for the M3 expressive slider; SQUIGGLY draws its own wave instead. */
+fun expressiveSliderSpec(style: SliderStyle): ExpressiveSliderSpec =
+    when (style) {
+        SliderStyle.THICK -> {
+            ExpressiveSliderSpec(trackHeight = 26.dp, thumbHeight = 44.dp, thumbTrackGap = 6.dp)
+        }
+
+        SliderStyle.COMPACT -> {
+            ExpressiveSliderSpec(trackHeight = 8.dp, thumbHeight = 26.dp, thumbTrackGap = 4.dp)
+        }
+
+        SliderStyle.SLIM -> {
+            ExpressiveSliderSpec(trackHeight = 4.dp, thumbHeight = 0.dp, thumbTrackGap = 0.dp)
+        }
+
+        SliderStyle.DEFAULT, SliderStyle.SQUIGGLY -> {
+            ExpressiveSliderSpec(trackHeight = 16.dp, thumbHeight = 36.dp, thumbTrackGap = 6.dp)
         }
     }
 
-private fun calcFraction(
-    a: Float,
-    b: Float,
-    pos: Float,
-) = (if (b - a == 0f) 0f else (pos - a) / (b - a)).coerceIn(0f, 1f)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExpressivePlayerSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    trackHeight: Dp,
+    thumbHeight: Dp,
+    thumbTrackGap: Dp,
+    modifier: Modifier = Modifier,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+) {
+    val colors =
+        SliderDefaults.colors(
+            thumbColor = MaterialTheme.colorScheme.primary,
+            activeTrackColor = MaterialTheme.colorScheme.primary,
+            inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+        )
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        onValueChangeFinished = onValueChangeFinished,
+        valueRange = valueRange,
+        interactionSource = interactionSource,
+        thumb = {
+            if (thumbHeight > 0.dp) {
+                SliderDefaults.Thumb(
+                    interactionSource = interactionSource,
+                    colors = colors,
+                    thumbSize = DpSize(width = 4.dp, height = thumbHeight),
+                )
+            }
+        },
+        track = { sliderState ->
+            SliderDefaults.Track(
+                sliderState = sliderState,
+                colors = colors,
+                thumbTrackGapSize = thumbTrackGap,
+                modifier = Modifier.height(trackHeight),
+            )
+        },
+        modifier = modifier.fillMaxWidth(),
+    )
+}
 
 // ============================================================================
 // SQUIGGLY SLIDER

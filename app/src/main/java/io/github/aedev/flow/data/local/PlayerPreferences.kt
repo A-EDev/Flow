@@ -122,7 +122,6 @@ class PlayerPreferences(
         val HIDE_MUSIC_PLAYER_ARTWORK = booleanPreferencesKey("hide_music_player_artwork")
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
         val GROUPED_QUALITY_SELECTOR_ENABLED = booleanPreferencesKey("grouped_quality_selector_enabled")
-        val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_CONTENT_ENABLED = booleanPreferencesKey("shorts_content_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
@@ -669,11 +668,16 @@ class PlayerPreferences(
         return newId
     }
 
-    // Slider Style preference
+    // Slider Style preference.
     val sliderStyle: Flow<SliderStyle> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                SliderStyle.valueOf(preferences[Keys.SLIDER_STYLE] ?: SliderStyle.METROLIST_SLIM.name)
+                when (val stored = preferences[Keys.SLIDER_STYLE]) {
+                    null -> SliderStyle.COMPACT
+                    "METROLIST" -> SliderStyle.THICK
+                    "METROLIST_SLIM" -> SliderStyle.COMPACT
+                    else -> runCatching { SliderStyle.valueOf(stored) }.getOrDefault(SliderStyle.COMPACT)
+                }
             }
 
     suspend fun setSliderStyle(style: SliderStyle) {
@@ -734,18 +738,6 @@ class PlayerPreferences(
     suspend fun setGroupedQualitySelectorEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.GROUPED_QUALITY_SELECTOR_ENABLED] = enabled
-        }
-    }
-
-    val squigglySliderEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.SQUIGGLY_SLIDER_ENABLED] ?: false
-            }
-
-    suspend fun setSquigglySliderEnabled(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.SQUIGGLY_SLIDER_ENABLED] = enabled
         }
     }
 
@@ -2960,8 +2952,8 @@ enum class MusicAudioQuality(
 
 enum class SliderStyle {
     DEFAULT,
-    METROLIST,
-    METROLIST_SLIM,
+    THICK,
+    COMPACT,
     SQUIGGLY,
     SLIM,
 }
@@ -2975,6 +2967,7 @@ enum class MusicPlayerBackgroundStyle {
     BLUR_GRADIENT,
     BLUR,
     GRADIENT,
+    IMMERSIVE,
     DEFAULT,
 }
 

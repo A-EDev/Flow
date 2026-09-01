@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -196,18 +197,22 @@ fun PlayerArtwork(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else if (hideArtwork) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(hiddenArtworkColor),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_launcher_foreground),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(0.42f),
-                    )
+                // An unspecified color means the slot should stay fully invisible (immersive
+                // background), keeping only the gesture area and the loading overlay.
+                if (hiddenArtworkColor.isSpecified) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(hiddenArtworkColor),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_launcher_foreground),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(0.42f),
+                        )
+                    }
                 }
 
                 if (isLoading) {
