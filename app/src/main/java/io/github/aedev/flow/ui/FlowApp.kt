@@ -759,7 +759,6 @@ private fun String.isLibraryOrSettingsRouteForMusicMiniPlayer(): Boolean =
         this == "playlist" ||
         this == "likes" ||
         this == "downloads" ||
-        this == "musicLibrary" ||
         this == "savedShorts" ||
         startsWith("settings")
 

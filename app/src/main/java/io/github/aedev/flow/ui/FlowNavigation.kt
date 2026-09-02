@@ -1095,24 +1095,6 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
 
-    composable("musicLibrary") {
-        currentRoute.value = "musicLibrary"
-        showBottomNav.value = false
-
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-
-        io.github.aedev.flow.ui.screens.music.LibraryScreen(
-            onBackClick = { navController.popBackStack() },
-            onTrackClick = { track, queue ->
-                musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                val encodedTitle = android.net.Uri.encode(track.title)
-                val encodedArtist = android.net.Uri.encode(track.artist)
-                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-            },
-        )
-    }
-
     // Artist Page
     composable("artist/{channelId}") { backStackEntry ->
         val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
