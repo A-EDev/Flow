@@ -47,6 +47,8 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
+import io.github.aedev.flow.ui.theme.MusicScrimContent
+import io.github.aedev.flow.ui.theme.musicScrim
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -199,9 +201,9 @@ fun SpeedDialArtworkCard(
                         .background(
                             Brush.verticalGradient(
                                 listOf(
-                                    Color.Black.copy(alpha = 0.12f),
+                                    musicScrim(0.12f),
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.72f),
+                                    musicScrim(0.72f),
                                 ),
                             ),
                         ),
@@ -210,7 +212,7 @@ fun SpeedDialArtworkCard(
                 text = track.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White,
+                color = MusicScrimContent,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier =
@@ -222,7 +224,7 @@ fun SpeedDialArtworkCard(
                 Icon(
                     imageVector = Icons.Rounded.OfflinePin,
                     contentDescription = stringResource(R.string.status_downloaded),
-                    tint = Color.White,
+                    tint = MusicScrimContent,
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)

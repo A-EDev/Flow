@@ -36,6 +36,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.theme.MusicScrimContent
+import io.github.aedev.flow.ui.theme.MusicScrimThumbnailActive
+import io.github.aedev.flow.ui.theme.MusicScrimThumbnailIndex
 
 /**
  * The single artwork surface for the music library. [shape] covers the circular artist variant,
@@ -74,7 +77,7 @@ fun MusicThumbnail(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
+                        .background(MusicScrimThumbnailActive),
             ) {
                 if (isPlaying) {
                     PlayingWaveform()
@@ -93,7 +96,7 @@ fun MusicThumbnail(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.ui_selected),
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(size / 2),
                 )
             }
@@ -105,13 +108,13 @@ fun MusicThumbnail(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.6f)),
+                        .background(MusicScrimThumbnailIndex),
             ) {
                 Text(
                     text = albumIndex.toString(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = MusicScrimContent,
                     textAlign = TextAlign.Center,
                 )
             }

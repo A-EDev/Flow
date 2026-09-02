@@ -54,6 +54,7 @@ import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicExplicitBadge
 import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.theme.MusicScrimNowPlaying
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatViewCount
 
@@ -170,7 +171,7 @@ fun MusicTrackItem(
                         modifier =
                             Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.46f)),
+                                .background(MusicScrimNowPlaying),
                         contentAlignment = Alignment.Center,
                     ) {
                         PlayingWaveform(

@@ -63,6 +63,7 @@ import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.theme.MusicScrimContent
 import io.github.aedev.flow.utils.formatViewCount
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -174,7 +175,7 @@ fun ArtistPage(
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.btn_back),
-                            tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface,
+                            tint = if (transparentAppBar) MusicScrimContent else MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 },
@@ -187,7 +188,7 @@ fun ArtistPage(
                         Icon(
                             imageVector = Icons.Default.Link,
                             contentDescription = stringResource(R.string.share_link_cd),
-                            tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface,
+                            tint = if (transparentAppBar) MusicScrimContent else MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 },

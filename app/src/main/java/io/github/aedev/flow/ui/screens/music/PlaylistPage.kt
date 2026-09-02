@@ -64,6 +64,8 @@ import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
+import io.github.aedev.flow.ui.theme.musicScrim
+import io.github.aedev.flow.ui.theme.musicScrimContent
 import io.github.aedev.flow.utils.formatDuration
 import kotlinx.coroutines.delay
 
@@ -224,10 +226,10 @@ fun PlaylistPage(
                         Brush.verticalGradient(
                             colors =
                                 listOf(
-                                    Color.Black.copy(alpha = 0.45f),
-                                    Color.Black.copy(alpha = 0.3f),
-                                    Color.Black.copy(alpha = 0.65f),
-                                    Color.Black.copy(alpha = 0.92f),
+                                    musicScrim(0.45f),
+                                    musicScrim(0.3f),
+                                    musicScrim(0.65f),
+                                    musicScrim(0.92f),
                                     MaterialTheme.colorScheme.background,
                                 ),
                         ),
@@ -403,7 +405,7 @@ fun PlaylistPage(
                     item {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = Color.White.copy(alpha = 0.08f),
+                            color = musicScrimContent(0.08f),
                         )
                     }
                     itemsIndexed(orderedDisplayTracks, key = { index, t -> "${t.videoId}_$index" }) { index, track ->

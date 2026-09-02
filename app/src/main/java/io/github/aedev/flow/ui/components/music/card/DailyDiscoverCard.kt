@@ -32,6 +32,9 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.DailyDiscoverItem
+import io.github.aedev.flow.ui.theme.MusicScrimContent
+import io.github.aedev.flow.ui.theme.musicScrim
+import io.github.aedev.flow.ui.theme.musicScrimContent
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -74,10 +77,10 @@ fun DailyDiscoverCard(
                                 Brush.verticalGradient(
                                     colors =
                                         listOf(
-                                            Color.Black.copy(alpha = 0.28f),
+                                            musicScrim(0.28f),
                                             Color.Transparent,
-                                            Color.Black.copy(alpha = 0.65f),
-                                            Color.Black.copy(alpha = 0.92f),
+                                            musicScrim(0.65f),
+                                            musicScrim(0.92f),
                                         ),
                                 ),
                         ),
@@ -94,7 +97,7 @@ fun DailyDiscoverCard(
                     text = stringResource(R.string.daily_discover_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.78f),
+                    color = musicScrimContent(0.78f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -104,7 +107,7 @@ fun DailyDiscoverCard(
                         text = item.recommendation.title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MusicScrimContent,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -112,7 +115,7 @@ fun DailyDiscoverCard(
                     Text(
                         text = item.recommendation.artist,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = musicScrimContent(0.8f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -122,7 +125,7 @@ fun DailyDiscoverCard(
                 Icon(
                     imageVector = Icons.Rounded.OfflinePin,
                     contentDescription = stringResource(R.string.status_downloaded),
-                    tint = Color.White,
+                    tint = MusicScrimContent,
                     modifier =
                         Modifier
                             .padding(14.dp)

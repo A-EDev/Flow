@@ -43,6 +43,10 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.ui.screens.music.*
+import io.github.aedev.flow.ui.theme.MusicScrim
+import io.github.aedev.flow.ui.theme.MusicScrimAffordance
+import io.github.aedev.flow.ui.theme.MusicScrimContent
+import io.github.aedev.flow.ui.theme.musicScrimContent
 
 @Composable
 internal fun PlaylistTopBar(
@@ -88,7 +92,7 @@ internal fun PlaylistTopBar(
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
                     contentDescription = stringResource(R.string.btn_back),
-                    tint = Color.White,
+                    tint = MusicScrimContent,
                 )
             }
             Box(modifier = Modifier.weight(1f)) {
@@ -98,7 +102,7 @@ internal fun PlaylistTopBar(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Color.White,
+                        color = MusicScrimContent,
                     )
                 }
             }
@@ -115,7 +119,7 @@ internal fun PlaylistTopBar(
                             } else {
                                 stringResource(R.string.ui_add_songs)
                             },
-                        tint = Color.White,
+                        tint = MusicScrimContent,
                     )
                 }
             }
@@ -129,7 +133,7 @@ internal fun PlaylistTopBar(
                                     androidx.compose.ui.res.stringResource(
                                         io.github.aedev.flow.R.string.add_all_to_playlist,
                                     ),
-                                tint = Color.White,
+                                tint = MusicScrimContent,
                             )
                         }
                     }
@@ -145,7 +149,7 @@ internal fun PlaylistTopBar(
                                     } else {
                                         stringResource(R.string.ui_save_to_library)
                                     },
-                                tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White,
+                                tint = if (isSaved) MaterialTheme.colorScheme.primary else MusicScrimContent,
                             )
                         }
                     }
@@ -201,7 +205,7 @@ internal fun PlaylistCenteredHeader(
                     fontWeight = FontWeight.ExtraBold,
                     lineHeight = 30.sp,
                 ),
-            color = Color.White,
+            color = MusicScrimContent,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier =
@@ -220,7 +224,7 @@ internal fun PlaylistCenteredHeader(
         Text(
             text = playlistDetails.author,
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-            color = Color.White.copy(alpha = 0.7f),
+            color = musicScrimContent(0.7f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier =
@@ -262,7 +266,7 @@ internal fun PlaylistCenteredHeader(
             Text(
                 text = meta,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.45f),
+                color = musicScrimContent(0.45f),
                 maxLines = 1,
             )
         }
@@ -273,7 +277,7 @@ internal fun PlaylistCenteredHeader(
             Text(
                 text = desc,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.38f),
+                color = musicScrimContent(0.38f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 32.dp),
@@ -299,12 +303,12 @@ internal fun PlaylistCenteredHeader(
                     modifier =
                         Modifier
                             .size(48.dp)
-                            .background(Color.White.copy(alpha = 0.1f), CircleShape),
+                            .background(MusicScrimAffordance, CircleShape),
                 ) {
                     Icon(
                         imageVector = if (isDownloading) Icons.Outlined.Downloading else Icons.Outlined.Download,
                         contentDescription = stringResource(R.string.download),
-                        tint = Color.White,
+                        tint = MusicScrimContent,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -313,7 +317,7 @@ internal fun PlaylistCenteredHeader(
                         progress = { downloadProgress },
                         modifier = Modifier.size(54.dp),
                         strokeWidth = 2.5.dp,
-                        color = Color.White,
+                        color = MusicScrimContent,
                     )
                 }
             }
@@ -329,8 +333,8 @@ internal fun PlaylistCenteredHeader(
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 colors =
                     ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black,
+                        containerColor = MusicScrimContent,
+                        contentColor = MusicScrim,
                     ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
             ) {
@@ -354,12 +358,12 @@ internal fun PlaylistCenteredHeader(
                 modifier =
                     Modifier
                         .size(48.dp)
-                        .background(Color.White.copy(alpha = 0.1f), CircleShape),
+                        .background(MusicScrimAffordance, CircleShape),
             ) {
                 Icon(
                     imageVector = Icons.Default.Shuffle,
                     contentDescription = stringResource(R.string.shuffle),
-                    tint = Color.White,
+                    tint = MusicScrimContent,
                     modifier = Modifier.size(22.dp),
                 )
             }

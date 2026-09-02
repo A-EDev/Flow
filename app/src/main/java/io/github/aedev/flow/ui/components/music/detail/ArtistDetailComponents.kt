@@ -51,6 +51,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.ArtistDetails
+import io.github.aedev.flow.ui.theme.musicScrim
 import io.github.aedev.flow.utils.formatViewCount
 
 /**
@@ -110,8 +111,8 @@ fun ArtistHero(
                                 colors =
                                     listOf(
                                         Color.Transparent,
-                                        Color.Black.copy(alpha = 0.1f),
-                                        Color.Black.copy(alpha = 0.5f),
+                                        musicScrim(0.1f),
+                                        musicScrim(0.5f),
                                         MaterialTheme.colorScheme.background,
                                     ),
                                 startY = 0.5f,
