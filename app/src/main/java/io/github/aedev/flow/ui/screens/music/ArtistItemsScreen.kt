@@ -39,7 +39,7 @@ import io.github.aedev.flow.ui.components.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.screens.music.components.TrackListItem
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -148,7 +148,7 @@ fun ArtistItemsScreen(
                         items(artistItemsPage.items, key = { it.id }) { item ->
                             if (item is SongItem) {
                                 val track = item.toMusicTrack()
-                                TrackListItem(
+                                MusicTrackItem(
                                     track = track,
                                     isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
                                     onClick = { onTrackClick(item) },

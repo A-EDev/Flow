@@ -40,10 +40,13 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.common.MusicChartRankBadge
 import io.github.aedev.flow.ui.components.music.common.MusicErrorState
 import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
+import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.screens.music.components.*
 import io.github.aedev.flow.ui.theme.Dimensions
 import kotlinx.coroutines.flow.collectLatest
@@ -301,7 +304,7 @@ fun EnhancedMusicScreen(
                                     }
                                 } else {
                                     items(uiState.allSongs, key = { it.videoId }) { track ->
-                                        MusicTrackRow(
+                                        MusicTrackItem(
                                             track = track,
                                             isPlaying = currentTrack?.videoId == track.videoId,
                                             isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
@@ -435,7 +438,7 @@ fun EnhancedMusicScreen(
                                                                 .fillMaxWidth(),
                                                     ) {
                                                         items(quickPickTracks, key = { it.videoId }) { track ->
-                                                            TrackListItem(
+                                                            MusicTrackItem(
                                                                 track = track,
                                                                 isPlaying = currentTrack?.videoId == track.videoId,
                                                                 isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
@@ -877,11 +880,11 @@ fun EnhancedMusicScreen(
                                                             key = { index -> uiState.trendingSongs[index].videoId },
                                                         ) { index ->
                                                             val track = uiState.trendingSongs[index]
-                                                            ChartTrackItem(
-                                                                rank = index + 1,
-                                                                title = track.title,
-                                                                artist = track.artist,
-                                                                thumbnailUrl = track.thumbnailUrl,
+                                                            MusicTrackItem(
+                                                                track = track,
+                                                                density = MusicItemDensity.Compact,
+                                                                leadingContent = { MusicChartRankBadge(index + 1) },
+                                                                showMenu = false,
                                                                 isPlaying = currentTrack?.videoId == track.videoId,
                                                                 isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
                                                                 onClick = { onSongClick(track, uiState.trendingSongs, "charts") },

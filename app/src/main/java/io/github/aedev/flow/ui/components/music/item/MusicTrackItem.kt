@@ -1,30 +1,49 @@
-package io.github.aedev.flow.ui.screens.music.components
+/*
+ * Copyright (C) 2025-2026 Flow | A-EDev
+ *
+ * This file is part of Flow (https://github.com/A-EDev/Flow).
+ */
 
-import androidx.compose.animation.core.*
+package io.github.aedev.flow.ui.components.music.item
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.rounded.OfflinePin
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -32,45 +51,103 @@ import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.PlayingWaveform
+import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicExplicitBadge
+import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatViewCount
 
+/**
+ * Row height and artwork size. Comfortable is the default browse density; Compact is for dense
+ * lists such as a playlist body, where more rows on screen matters more than artwork size.
+ */
+enum class MusicItemDensity {
+    Comfortable,
+    Compact,
+}
+
+private val MusicItemDensity.rowHeight: Dp
+    get() = if (this == MusicItemDensity.Comfortable) 72.dp else Dimensions.ListItemHeight
+
+private val MusicItemDensity.thumbnailSize: Dp
+    get() = if (this == MusicItemDensity.Comfortable) 56.dp else Dimensions.ListThumbnailSize
+
+private val MusicItemDensity.horizontalPadding: Dp
+    get() = if (this == MusicItemDensity.Comfortable) 16.dp else Dimensions.ContentPaddingHorizontal
+
+/**
+ * The single row that renders one track anywhere in the app — browse shelves, search results,
+ * playlist bodies, queues, chart lanes and download lists.
+ *
+ * Variants are expressed through the slots rather than through separate composables: [index] or
+ * [leadingContent] for anything before the artwork, [thumbnailOverlay] for progress or state drawn
+ * on it, [trailingContent] for an extra affordance before the overflow menu. [leadingContent] wins
+ * when both it and [index] are supplied.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TrackListItem(
+fun MusicTrackItem(
     track: MusicTrack,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    density: MusicItemDensity = MusicItemDensity.Comfortable,
+    index: Int? = null,
+    shape: Shape = RectangleShape,
+    thumbnailWidth: Dp = density.thumbnailSize,
     isPlaying: Boolean = false,
     isDownloaded: Boolean = false,
     showMenu: Boolean = true,
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     thumbnailOverlay: (@Composable BoxScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
-    onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     onMenuClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
+
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .height(density.rowHeight)
+                .clip(shape)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
-                ).padding(horizontal = 16.dp, vertical = 8.dp),
+                ).padding(horizontal = density.horizontalPadding, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (leadingContent != null) {
-            leadingContent()
-            Spacer(modifier = Modifier.width(8.dp))
+        when {
+            leadingContent != null -> {
+                leadingContent()
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            index != null -> {
+                Text(
+                    text = index.toString(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Normal,
+                    color =
+                        if (isPlaying) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    modifier = Modifier.width(32.dp),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
         }
 
         Surface(
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.size(56.dp),
+            modifier =
+                Modifier
+                    .width(thumbnailWidth)
+                    .height(density.thumbnailSize),
             tonalElevation = 4.dp,
         ) {
             Box(
@@ -130,7 +207,7 @@ fun TrackListItem(
                 }
 
                 Text(
-                    text = track.musicMetadataLine(),
+                    text = track.metadataLine(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     maxLines = 1,
@@ -140,20 +217,10 @@ fun TrackListItem(
         }
 
         if (isDownloaded) {
-            Icon(
-                imageVector = Icons.Rounded.OfflinePin,
-                contentDescription = stringResource(R.string.status_downloaded),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier =
-                    Modifier
-                        .padding(start = 8.dp)
-                        .size(18.dp),
-            )
+            MusicDownloadedBadge(modifier = Modifier.padding(start = 8.dp))
         }
 
-        if (trailingContent != null) {
-            trailingContent()
-        }
+        trailingContent?.invoke(this)
 
         if (showMenu) {
             IconButton(onClick = onMenuClick) {
@@ -168,7 +235,7 @@ fun TrackListItem(
 }
 
 @Composable
-private fun MusicTrack.musicMetadataLine(): String {
+private fun MusicTrack.metadataLine(): String {
     val suffix =
         when {
             duration > 0 -> formatDuration(duration)

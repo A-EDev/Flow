@@ -79,7 +79,7 @@ import io.github.aedev.flow.ui.components.ShortsCard
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarMenuItem
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarOverflow
-import io.github.aedev.flow.ui.screens.music.MusicTrackRow
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -521,9 +521,10 @@ private fun HistoryEntryRow(
 ) {
     val track = remember(entry) { entry.toMusicTrack() }
     if (entry.isMusic) {
-        MusicTrackRow(
+        MusicTrackItem(
             track = track,
             onClick = { onMusicClick(track, musicQueue) },
+            showMenu = false,
             trailingContent = {
                 IconButton(onClick = { onRemove(entry.videoId) }) {
                     Icon(

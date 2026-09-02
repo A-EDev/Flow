@@ -51,7 +51,7 @@ import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
-import io.github.aedev.flow.ui.screens.music.components.TrackListItem
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import kotlinx.coroutines.FlowPreview
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, FlowPreview::class, ExperimentalFoundationApi::class)
@@ -722,7 +722,7 @@ fun RecommendedItemRow(
     onMenuClick: (() -> Unit)? = null,
 ) {
     if (item is SongItem) {
-        TrackListItem(
+        MusicTrackItem(
             track = convertSongToMusicTrack(item),
             isDownloaded = isDownloaded,
             showMenu = onMenuClick != null,
@@ -798,7 +798,7 @@ fun YTItemRow(
     onMenuClick: (() -> Unit)? = null,
 ) {
     if (item is SongItem) {
-        TrackListItem(
+        MusicTrackItem(
             track = convertSongToMusicTrack(item),
             isDownloaded = isDownloaded,
             showMenu = onMenuClick != null,

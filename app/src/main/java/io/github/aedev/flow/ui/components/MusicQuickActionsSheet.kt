@@ -38,10 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.screens.music.AddToPlaylistDialog
 import io.github.aedev.flow.ui.screens.music.CreatePlaylistDialog
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
-import io.github.aedev.flow.ui.screens.music.MusicTrackRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,10 +115,10 @@ fun MusicQuickActionsSheet(
         ) {
             // Header
             item {
-                MusicTrackRow(
+                MusicTrackItem(
                     track = track,
-                    onClick = {}, // No action on click in header
-                    trailingContent = {},
+                    onClick = {},
+                    showMenu = false,
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }

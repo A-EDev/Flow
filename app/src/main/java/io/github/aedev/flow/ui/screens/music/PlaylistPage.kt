@@ -54,6 +54,8 @@ import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.ReorderHandle
 import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
+import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
@@ -347,13 +349,34 @@ fun PlaylistPage(
                             searchResults,
                             key = { index, track -> "${track.videoId}_$index" },
                         ) { _, track ->
-                            SearchResultTrackRow(
+                            val isAdded = addedTrackIds.contains(track.videoId)
+                            MusicTrackItem(
                                 track = track,
-                                isAdded = addedTrackIds.contains(track.videoId),
-                                onAddClick = {
-                                    playlistsViewModel.addTrackToPlaylist(playlistDetails.id, track)
-                                },
                                 onClick = { onTrackClick(track, listOf(track)) },
+                                showMenu = false,
+                                trailingContent = {
+                                    if (isAdded) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = stringResource(R.string.ui_added),
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(28.dp),
+                                        )
+                                    } else {
+                                        IconButton(
+                                            onClick = {
+                                                playlistsViewModel.addTrackToPlaylist(playlistDetails.id, track)
+                                            },
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.AddCircle,
+                                                contentDescription = stringResource(R.string.add_to_playlist),
+                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                                modifier = Modifier.size(28.dp),
+                                            )
+                                        }
+                                    }
+                                },
                             )
                         }
                     } else if (searchQuery.isNotEmpty()) {
@@ -379,26 +402,57 @@ fun PlaylistPage(
                         )
                     }
                     itemsIndexed(orderedDisplayTracks, key = { index, t -> "${t.videoId}_$index" }) { index, track ->
-                        PlaylistTrackRow(
-                            index = index + 1,
+                        MusicTrackItem(
                             track = track,
-                            reorderModifier = if (isUserPlaylist) reorderState.itemModifier(index) else Modifier,
-                            dragHandleModifier = if (isUserPlaylist) reorderState.handleModifier(index) else Modifier,
-                            showDragHandle = isUserPlaylist,
                             onClick = { onTrackClick(track, orderedDisplayTracks) },
-                            onMenuClick = {
-                                selectedTrack = track
-                                showBottomSheet = true
-                            },
-                            onDeleteClick =
+                            modifier = if (isUserPlaylist) reorderState.itemModifier(index) else Modifier,
+                            density = MusicItemDensity.Compact,
+                            index = index + 1,
+                            leadingContent =
                                 if (isUserPlaylist) {
                                     {
-                                        deletedTrackIds.value = deletedTrackIds.value + track.videoId
-                                        playlistsViewModel.removeTrackFromPlaylist(playlistDetails.id, track.videoId)
+                                        ReorderHandle(
+                                            modifier = reorderState.handleModifier(index),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
                                     }
                                 } else {
                                     null
                                 },
+                            thumbnailOverlay = {
+                                ThumbnailWatchProgress(
+                                    videoId = track.videoId,
+                                    modifier =
+                                        Modifier
+                                            .align(Alignment.BottomStart)
+                                            .fillMaxWidth()
+                                            .height(3.dp),
+                                )
+                            },
+                            trailingContent =
+                                if (isUserPlaylist) {
+                                    {
+                                        IconButton(
+                                            onClick = {
+                                                deletedTrackIds.value = deletedTrackIds.value + track.videoId
+                                                playlistsViewModel.removeTrackFromPlaylist(playlistDetails.id, track.videoId)
+                                            },
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = stringResource(R.string.ui_delete_from_playlist),
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    null
+                                },
+                            onMenuClick = {
+                                selectedTrack = track
+                                showBottomSheet = true
+                            },
                         )
                     }
                     item {
@@ -850,183 +904,6 @@ private fun PlaylistSearchBar(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-// ─── Track Row ────────────────────────────────────────────────────────────────
-
-@Composable
-private fun PlaylistTrackRow(
-    index: Int,
-    track: MusicTrack,
-    reorderModifier: Modifier,
-    dragHandleModifier: Modifier,
-    showDragHandle: Boolean,
-    onClick: () -> Unit,
-    onMenuClick: () -> Unit,
-    onDeleteClick: (() -> Unit)? = null,
-) {
-    Row(
-        modifier =
-            Modifier
-                .then(reorderModifier)
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (showDragHandle) {
-            ReorderHandle(
-                modifier = dragHandleModifier,
-                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-            )
-        } else {
-            Text(
-                text = index.toString(),
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.35f),
-                modifier = Modifier.width(22.dp),
-                maxLines = 1,
-            )
-        }
-        Box {
-            Surface(
-                modifier =
-                    Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(6.dp)),
-                shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-            ) {
-                AsyncImage(
-                    model = track.thumbnailUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-
-            ThumbnailWatchProgress(
-                videoId = track.videoId,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(3.dp),
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = track.artist,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (track.duration > 0) {
-            Text(
-                text = formatDuration(track.duration),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-            )
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (onDeleteClick != null) {
-                IconButton(onClick = onDeleteClick, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.ui_delete_from_playlist),
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-            IconButton(onClick = onMenuClick, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.more_options),
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-    }
-}
-
-// ─── Search Result Row ────────────────────────────────────────────────────────
-
-@Composable
-private fun SearchResultTrackRow(
-    track: MusicTrack,
-    isAdded: Boolean,
-    onAddClick: () -> Unit,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AsyncImage(
-            model = track.thumbnailUrl,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop,
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = track.title,
-                style =
-                    MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp,
-                    ),
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = track.artist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (isAdded) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = stringResource(R.string.ui_added),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp),
-            )
-        } else {
-            IconButton(onClick = onAddClick) {
-                Icon(
-                    imageVector = Icons.Outlined.AddCircle,
-                    contentDescription = stringResource(R.string.add_to_playlist),
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                    modifier = Modifier.size(28.dp),
-                )
             }
         }
     }

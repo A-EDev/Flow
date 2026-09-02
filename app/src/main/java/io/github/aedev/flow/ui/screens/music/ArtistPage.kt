@@ -57,7 +57,7 @@ import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
-import io.github.aedev.flow.ui.screens.music.components.TrackListItem
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.utils.formatViewCount
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -427,7 +427,7 @@ fun ArtistPage(
                     }
 
                     itemsIndexed(artistDetails.topTracks.take(5)) { index, track ->
-                        TrackListItem(
+                        MusicTrackItem(
                             track = track,
                             isDownloaded = downloadedTrackIds.contains(track.videoId),
                             leadingContent = {
@@ -471,7 +471,7 @@ fun ArtistPage(
                         )
                     }
                     itemsIndexed(insights.topTracks.take(5)) { index, track ->
-                        TrackListItem(
+                        MusicTrackItem(
                             track = track,
                             isDownloaded = downloadedTrackIds.contains(track.videoId),
                             leadingContent = {
