@@ -2388,4 +2388,145 @@
     </plurals>
     <string name="conjunction_and">et</string>
     <string name="streamed_date_template">Diffusé en streaming %1$s</string>
+    <plurals name="download_all_confirmation">
+        <item quantity="one">Télécharger %1$d vidéo ? Cela risque d\'occuper beaucoup d\'espace de stockage.</item>
+        <item quantity="many">Télécharger toutes les %1$d vidéos ? Cela risque de prendre beaucoup d\'espace de stockage.</item>
+        <item quantity="other">Télécharger toutes les %1$d vidéos ? Cela risque de prendre beaucoup d\'espace de stockage.</item>
+    </plurals>
+    <string name="explicit_badge">E</string>
+    <plurals name="view_replies_template">
+        <item quantity="one">Afficher %1$d réponse</item>
+        <item quantity="many">Afficher %1$d réponses</item>
+        <item quantity="other">Afficher %1$d réponses</item>
+    </plurals>
+    <plurals name="videos_curated_template">
+        <item quantity="one">%1$d vidéo sélectionnée spécialement pour vous</item>
+        <item quantity="many">%1$d vidéos sélectionnées spécialement pour vous</item>
+        <item quantity="other">%1$d vidéos sélectionnées spécialement pour vous</item>
+    </plurals>
+    <plurals name="videos_count_template">
+        <item quantity="one">%1$d vidéo</item>
+        <item quantity="many">%1$d vidéos</item>
+        <item quantity="other">%1$d vidéos</item>
+    </plurals>
+    <plurals name="songs_count_template">
+        <item quantity="one">%1$d titre</item>
+        <item quantity="many">%1$d titres</item>
+        <item quantity="other">%1$d titres</item>
+    </plurals>
+    <string name="metadata_separator">·</string>
+    <string name="player_time_separator">/</string>
+    <string name="you">Vous</string>
+    <string name="search_voice_prompt">Parlez pour lancer la recherche…</string>
+    <string name="shared_video">Vidéo partagée</string>
+    <string name="search_failed">Échec de la recherche</string>
+    <string name="loading_more">Chargement en cours…</string>
+    <string name="load_failed">Échec du chargement</string>
+    <string name="import_success_count">%1$d %2$s importé</string>
+    <string name="import_success">%1$s a été importé avec succès</string>
+    <plurals name="deep_flow_duration_hours">
+        <item quantity="one">%1$d heure</item>
+        <item quantity="many">%1$d heures</item>
+        <item quantity="other">%1$d heures</item>
+    </plurals>
+    <plurals name="appearance_themes_count_all">
+        <item quantity="one">%1$d thème</item>
+        <item quantity="many">%1$d thèmes</item>
+        <item quantity="other">%1$d thèmes</item>
+    </plurals>
+    <plurals name="lyrics_providers_enabled">
+        <item quantity="one">%1$d / %2$d fournisseur activé</item>
+        <item quantity="many">%1$d / %2$d fournisseurs activés</item>
+        <item quantity="other">%1$d / %2$d fournisseurs activés</item>
+    </plurals>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+        <item quantity="one">Défilement automatique toutes les %1$d secondes</item>
+        <item quantity="many">Défilement automatique toutes les %1$d secondes</item>
+        <item quantity="other">Défilement automatique toutes les %1$d secondes</item>
+    </plurals>
+    <plurals name="player_settings_shorts_auto_scroll_seconds_template">
+        <item quantity="one">%1$d seconde</item>
+        <item quantity="many">%1$d secondes</item>
+        <item quantity="other">%1$d secondes</item>
+    </plurals>
+    <plurals name="player_settings_autoplay_countdown_seconds_template">
+        <item quantity="one">%1$d seconde</item>
+        <item quantity="many">%1$d secondes</item>
+        <item quantity="other">%1$d secondes</item>
+    </plurals>
+    <string name="player_settings_video_codec_fallback">Codec de Secours</string>
+    <string name="player_settings_video_codec_fallback_auto">Automatique</string>
+    <string name="player_settings_video_codec_fallback_dialog_body">Codec à utiliser lorsqu\'une vidéo n\'est pas disponible dans votre codec préféré. Le système bascule automatiquement vers le codec que l\'application juge le plus compatible, généralement le H.264.</string>
+    <string name="player_settings_video_codec_fallback_auto_desc">Laisser l\'application choisir (H.264 de préférence)</string>
+    <plurals name="player_settings_double_tap_seek_subtitle">
+        <item quantity="one">%1$d seconde par côté (double pression)</item>
+        <item quantity="many">%1$d secondes par côté en appuyant deux fois</item>
+        <item quantity="other">%1$d secondes par côté en appuyant deux fois</item>
+    </plurals>
+    <string name="import_label_newpipe_watch_history">Historique des visionnages sur NewPipe</string>
+    <string name="import_label_libretube_subscriptions">Abonnements à LibreTube</string>
+    <string name="import_label_metrolist_playlists">Playlists musicales Metrolist</string>
+    <string name="import_label_newpipe_playlists">Playlists NewPipe</string>
+    <string name="import_label_libretube_playlists">Playlists LibreTube</string>
+    <string name="import_label_youtube_takeout">YouTube Takeout</string>
+    <string name="import_yt_watch_later">Importer pour regarder plus tard</string>
+    <string name="import_yt_watch_later_desc">Importez un fichier CSV YouTube Takeout directement dans votre liste « À regarder plus tard », quel que soit le nom du fichier.</string>
+    <string name="queue_position_template">%1$d / %2$d</string>
+    <string name="next_up_template">%1$s : %2$s</string>
+    <string name="equalizer_frequency_label">F</string>
+    <string name="equalizer_gain_label">G</string>
+    <string name="equalizer_q_label">Q</string>
+    <string name="section_on_repeat">En Boucle</string>
+    <string name="section_daily_mix_title">%1$s Mix</string>
+    <string name="section_daily_mix_label">Compilation du Jour</string>
+    <string name="daily_mix_page_description">Conçu à partir des artistes que vous écoutez ensemble. Enregistrez-le pour conserver la sélection d\'aujourd\'hui.</string>
+    <string name="section_rediscover">Redécouvrir</string>
+    <string name="section_from_artists_you_love">Issu des artistes que vous adorez</string>
+    <string name="section_your_history">Votre historique</string>
+    <string name="artist_insights_played_times">Joué %1$d fois</string>
+    <string name="artist_insights_liked">Aimé</string>
+    <string name="artist_known_related_badge">Dans votre programme</string>
+    <string name="section_rotation_morning">Votre programme du matin</string>
+    <string name="section_rotation_afternoon">Votre programme de l\'après-midi</string>
+    <string name="section_rotation_evening">Votre programme du soir</string>
+    <string name="section_rotation_night">Votre sélection musicale pour la fin de soirée</string>
+    <string name="source_your_rotation">Votre programme</string>
+    <string name="music_genre_affinity_title">Ambiances et Genres</string>
+    <string name="music_genre_affinity_subtitle">Appris à partir des genres et des ambiances que vous jouez réellement</string>
+    <string name="recommendations_header">Recommandations</string>
+    <string name="not_interested_desc">Ne plus afficher les œuvres de cet artiste pendant un certain temps</string>
+    <string name="dont_recommend_artist">Ne pas recommander %1$s</string>
+    <string name="dont_recommend_artist_desc">Ne recommander plus jamais cet artiste</string>
+    <string name="feedback_not_interested_applied">Vous verrez moins de %1$s</string>
+    <string name="feedback_artist_blocked">%1$s ne sera plus recommandé</string>
+    <string name="music_prefs_section_title">Suggestions musicales</string>
+    <string name="music_endless_radio_title">Radio sans fin</string>
+    <string name="music_endless_radio_desc">Lorsque la file d\'attente est vide, continuez à la remplir avec des morceaux similaires</string>
+    <string name="music_blocked_artists_title">Artistes bloqués</string>
+    <string name="music_blocked_artists_empty">Aucun artiste bloqué</string>
+    <string name="music_unblock">Débloquer</string>
+    <string name="export_music_brain_title">Exporter les données du moteur musical</string>
+    <string name="export_music_brain_desc">Enregistrez votre profil musical sous forme de fichier JSON</string>
+    <string name="import_music_brain_title">Importer les données du moteur musical</string>
+    <string name="import_music_brain_desc">Restaurer un profil de goûts musicaux à partir d\'un fichier JSON</string>
+    <string name="music_brain_export_success">Données du moteur musical exportées</string>
+    <string name="music_brain_export_failed">Échec de l\'exportation du moteur musical</string>
+    <string name="music_brain_import_success">Données du moteur musical importées</string>
+    <string name="music_brain_import_failed">Échec de l\'importation du moteur musical</string>
+    <string name="music_persona_overview_title">Goûts Musicaux</string>
+    <string name="music_persona_overview_subtitle">Ce que le moteur musical a appris de vos écoutes</string>
+    <string name="music_persona_maturity_cold">Démarrage à froid</string>
+    <string name="music_persona_maturity_warming">Échauffement</string>
+    <string name="music_persona_maturity_mature">Adulte</string>
+    <string name="music_metric_total_plays">Nombre de représentations</string>
+    <string name="music_metric_total_plays_detail">Plus de 50 % des auditeurs</string>
+    <string name="music_metric_artists">Artistes</string>
+    <string name="music_metric_artists_detail">au goût raffiné</string>
+    <string name="music_metric_tracks">Pistes avec traces</string>
+    <string name="music_metric_tracks_detail">répéter les historiques</string>
+    <string name="music_metric_on_repeat">En Boucle</string>
+    <string name="music_metric_on_repeat_detail">très tendance en ce moment</string>
+    <string name="music_discovery_appetite">Soif de découvertes</string>
+    <string name="music_discovery_appetite_detail">Quelle proportion de morceaux récents le moteur intègre-t-il dans la sélection ?</string>
+    <string name="music_persona_empty">Mettez de la musique et le moteur commencera à apprendre</string>
 </resources>
