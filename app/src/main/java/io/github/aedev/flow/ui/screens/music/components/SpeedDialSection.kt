@@ -45,9 +45,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.ItemThumbnail
 import io.github.aedev.flow.ui.components.SectionTitle
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

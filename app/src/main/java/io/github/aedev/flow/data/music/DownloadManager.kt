@@ -15,11 +15,11 @@ import io.github.aedev.flow.data.download.DownloadUtil
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.safePreferencesDataStore
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.model.withTypedArtists
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.downloader.FlowDownloadService
 import io.github.aedev.flow.service.ExoDownloadService
-import io.github.aedev.flow.ui.screens.music.MusicTrack
-import io.github.aedev.flow.ui.screens.music.withTypedArtists
 import io.github.aedev.flow.utils.MusicPlayerUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

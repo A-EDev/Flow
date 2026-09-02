@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music
+package io.github.aedev.flow.data.music.model
 
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.serialization.Serializable
@@ -52,7 +52,8 @@ data class MusicArtist(
  * Call it on every Gson read path that yields a [MusicTrack].
  */
 fun MusicTrack.withTypedArtists(): MusicTrack {
-    val raw: List<*> = artists
+    val raw: List<*>? = artists
+    if (raw == null) return copy(artists = emptyList())
     return if (raw.all { it is MusicArtist }) this else copy(artists = raw.filterIsInstance<MusicArtist>())
 }
 

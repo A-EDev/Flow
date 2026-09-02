@@ -72,13 +72,13 @@ import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.components.ShortsCard
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarMenuItem
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarOverflow
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicTrackRow
 import java.text.SimpleDateFormat
 import java.util.Calendar

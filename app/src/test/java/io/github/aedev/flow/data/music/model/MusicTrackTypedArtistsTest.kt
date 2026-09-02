@@ -4,7 +4,7 @@
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  */
 
-package io.github.aedev.flow.ui.screens.music
+package io.github.aedev.flow.data.music.model
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.recommendation.music.primaryArtistKey

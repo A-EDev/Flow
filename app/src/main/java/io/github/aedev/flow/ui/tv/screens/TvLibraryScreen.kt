@@ -26,13 +26,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideoInfo
+import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
-import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.tv.components.TvFilterChip
 import io.github.aedev.flow.ui.tv.components.TvMediaRow
 import io.github.aedev.flow.ui.tv.components.TvMessageState
@@ -50,7 +50,9 @@ import io.github.aedev.flow.ui.tv.tvWatchProgress
 
 private const val LIBRARY_GRID_COLUMNS = 3
 
-private enum class TvLibrarySection(@StringRes val titleRes: Int) {
+private enum class TvLibrarySection(
+    @StringRes val titleRes: Int,
+) {
     HISTORY(R.string.tv_library_history),
     LIKES(R.string.tv_library_likes),
     WATCH_LATER(R.string.tv_library_watch_later),
@@ -74,15 +76,20 @@ fun TvLibraryScreen(
     val historyRepository = remember { ViewHistory.getInstance(context.applicationContext) }
     val likedRepository = remember { LikedVideosRepository.getInstance(context.applicationContext) }
     val playlistRepository = remember { PlaylistRepository(context.applicationContext) }
-    val history by historyRepository.getAllHistory()
+    val history by historyRepository
+        .getAllHistory()
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val liked by likedRepository.getAllLikedVideos()
+    val liked by likedRepository
+        .getAllLikedVideos()
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val watchLater by playlistRepository.getWatchLaterVideosFlow()
+    val watchLater by playlistRepository
+        .getWatchLaterVideosFlow()
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val videoPlaylists by playlistRepository.getAllPlaylistsFlow()
+    val videoPlaylists by playlistRepository
+        .getAllPlaylistsFlow()
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val musicPlaylists by playlistRepository.getMusicPlaylistsFlow()
+    val musicPlaylists by playlistRepository
+        .getMusicPlaylistsFlow()
         .collectAsStateWithLifecycle(initialValue = emptyList())
     var selectedSection by rememberSaveable { mutableStateOf(TvLibrarySection.HISTORY) }
     val dimens = LocalTvDimens.current
@@ -96,9 +103,10 @@ fun TvLibraryScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .tvRowFocus(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .tvRowFocus(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(horizontal = dimens.overscanHorizontal),
             ) {
@@ -112,49 +120,63 @@ fun TvLibraryScreen(
             }
 
             when (selectedSection) {
-                TvLibrarySection.HISTORY -> TvLibraryMixedContent(
-                    musicTracks = history.filter { it.isMusic }.map { it.toTvMusicTrack() },
-                    musicSource = stringResource(TvLibrarySection.HISTORY.titleRes),
-                    videos = history.filterNot { it.isMusic }
-                        .map { entry -> entry.toTvVideo() to entry.tvWatchProgress() },
-                    onVideoClick = onVideoClick,
-                    onPlayTrack = onPlayTrack,
-                )
+                TvLibrarySection.HISTORY -> {
+                    TvLibraryMixedContent(
+                        musicTracks = history.filter { it.isMusic }.map { it.toTvMusicTrack() },
+                        musicSource = stringResource(TvLibrarySection.HISTORY.titleRes),
+                        videos =
+                            history
+                                .filterNot { it.isMusic }
+                                .map { entry -> entry.toTvVideo() to entry.tvWatchProgress() },
+                        onVideoClick = onVideoClick,
+                        onPlayTrack = onPlayTrack,
+                    )
+                }
 
-                TvLibrarySection.LIKES -> TvLibraryMixedContent(
-                    musicTracks = liked.filter { it.isMusic }.map(LikedVideoInfo::toTvMusicTrack),
-                    musicSource = stringResource(TvLibrarySection.LIKES.titleRes),
-                    videos = liked.filterNot { it.isMusic }
-                        .map { info -> info.toTvVideo() to null },
-                    onVideoClick = onVideoClick,
-                    onPlayTrack = onPlayTrack,
-                )
+                TvLibrarySection.LIKES -> {
+                    TvLibraryMixedContent(
+                        musicTracks = liked.filter { it.isMusic }.map(LikedVideoInfo::toTvMusicTrack),
+                        musicSource = stringResource(TvLibrarySection.LIKES.titleRes),
+                        videos =
+                            liked
+                                .filterNot { it.isMusic }
+                                .map { info -> info.toTvVideo() to null },
+                        onVideoClick = onVideoClick,
+                        onPlayTrack = onPlayTrack,
+                    )
+                }
 
-                TvLibrarySection.WATCH_LATER -> TvLibraryMixedContent(
-                    musicTracks = watchLater.filter { it.isMusic }.map(Video::toTvMusicTrack),
-                    musicSource = stringResource(TvLibrarySection.WATCH_LATER.titleRes),
-                    videos = watchLater.filterNot { it.isMusic }.map { it to null },
-                    onVideoClick = onVideoClick,
-                    onPlayTrack = onPlayTrack,
-                )
+                TvLibrarySection.WATCH_LATER -> {
+                    TvLibraryMixedContent(
+                        musicTracks = watchLater.filter { it.isMusic }.map(Video::toTvMusicTrack),
+                        musicSource = stringResource(TvLibrarySection.WATCH_LATER.titleRes),
+                        videos = watchLater.filterNot { it.isMusic }.map { it to null },
+                        onVideoClick = onVideoClick,
+                        onPlayTrack = onPlayTrack,
+                    )
+                }
 
-                TvLibrarySection.PLAYLISTS -> TvLibraryPlaylists(
-                    videoPlaylists = videoPlaylists
-                        .filterNot { it.id == PlaylistRepository.WATCH_LATER_ID || it.id == PlaylistRepository.SAVED_SHORTS_ID }
-                        .map { info ->
-                            Playlist(
-                                id = info.id,
-                                name = info.name,
-                                thumbnailUrl = info.thumbnailUrl,
-                                videoCount = info.videoCount,
-                                description = info.description,
-                            )
-                        },
-                    musicPlaylists = musicPlaylists
-                        .filterNot { it.id == PlaylistRepository.WATCH_LATER_ID || it.id == PlaylistRepository.SAVED_SHORTS_ID },
-                    onOpenPlaylist = onOpenPlaylist,
-                    onOpenMusicCollection = onOpenMusicCollection,
-                )
+                TvLibrarySection.PLAYLISTS -> {
+                    TvLibraryPlaylists(
+                        videoPlaylists =
+                            videoPlaylists
+                                .filterNot { it.id == PlaylistRepository.WATCH_LATER_ID || it.id == PlaylistRepository.SAVED_SHORTS_ID }
+                                .map { info ->
+                                    Playlist(
+                                        id = info.id,
+                                        name = info.name,
+                                        thumbnailUrl = info.thumbnailUrl,
+                                        videoCount = info.videoCount,
+                                        description = info.description,
+                                    )
+                                },
+                        musicPlaylists =
+                            musicPlaylists
+                                .filterNot { it.id == PlaylistRepository.WATCH_LATER_ID || it.id == PlaylistRepository.SAVED_SHORTS_ID },
+                        onOpenPlaylist = onOpenPlaylist,
+                        onOpenMusicCollection = onOpenMusicCollection,
+                    )
+                }
             }
         }
     }
@@ -172,16 +194,20 @@ private fun TvLibraryMixedContent(
     if (musicTracks.isEmpty() && videos.isEmpty()) {
         TvMessageState(
             title = stringResource(R.string.tv_library_empty),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = dimens.overscanHorizontal),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = dimens.overscanHorizontal),
         )
         return
     }
     ProvideTvColumnPivot {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val cardWidth = (maxWidth - dimens.overscanHorizontal * 2 -
-                dimens.itemSpacing * (LIBRARY_GRID_COLUMNS - 1)) / LIBRARY_GRID_COLUMNS
+            val cardWidth =
+                (
+                    maxWidth - dimens.overscanHorizontal * 2 -
+                        dimens.itemSpacing * (LIBRARY_GRID_COLUMNS - 1)
+                ) / LIBRARY_GRID_COLUMNS
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
@@ -206,9 +232,10 @@ private fun TvLibraryMixedContent(
                     key = { rowItems -> rowItems.first().first.id },
                 ) { rowItems ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = dimens.overscanHorizontal),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = dimens.overscanHorizontal),
                         horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                     ) {
                         rowItems.forEach { (video, progress) ->
@@ -237,16 +264,20 @@ private fun TvLibraryPlaylists(
     if (videoPlaylists.isEmpty() && musicPlaylists.isEmpty()) {
         TvMessageState(
             title = stringResource(R.string.tv_library_empty),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = dimens.overscanHorizontal),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = dimens.overscanHorizontal),
         )
         return
     }
     ProvideTvColumnPivot {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val cardWidth = (maxWidth - dimens.overscanHorizontal * 2 -
-                dimens.itemSpacing * (LIBRARY_GRID_COLUMNS - 1)) / LIBRARY_GRID_COLUMNS
+            val cardWidth =
+                (
+                    maxWidth - dimens.overscanHorizontal * 2 -
+                        dimens.itemSpacing * (LIBRARY_GRID_COLUMNS - 1)
+                ) / LIBRARY_GRID_COLUMNS
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
@@ -273,9 +304,10 @@ private fun TvLibraryPlaylists(
                     key = { rowItems -> rowItems.first().id },
                 ) { rowItems ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = dimens.overscanHorizontal),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = dimens.overscanHorizontal),
                         horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                     ) {
                         rowItems.forEach { playlist ->

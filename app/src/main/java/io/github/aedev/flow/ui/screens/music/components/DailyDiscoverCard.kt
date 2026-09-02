@@ -31,7 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.screens.music.DailyDiscoverItem
+import io.github.aedev.flow.data.music.model.DailyDiscoverItem
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

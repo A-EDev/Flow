@@ -20,7 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.data.music.model.MusicTrack
 
 @Composable
 fun SectionHeader(

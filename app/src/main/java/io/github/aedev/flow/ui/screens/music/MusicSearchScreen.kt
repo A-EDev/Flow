@@ -44,6 +44,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
 import io.github.aedev.flow.innertube.models.*
 import io.github.aedev.flow.ui.components.AddToPlaylistDialog

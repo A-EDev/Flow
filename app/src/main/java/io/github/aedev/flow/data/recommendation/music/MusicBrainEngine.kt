@@ -10,9 +10,9 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.ui.screens.music.MusicArtist
-import io.github.aedev.flow.ui.screens.music.MusicPlaylist
-import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.data.music.model.MusicArtist
+import io.github.aedev.flow.data.music.model.MusicPlaylist
+import io.github.aedev.flow.data.music.model.MusicTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

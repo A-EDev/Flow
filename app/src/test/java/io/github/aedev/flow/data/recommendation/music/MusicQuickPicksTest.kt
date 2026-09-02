@@ -7,8 +7,8 @@
 package io.github.aedev.flow.data.recommendation.music
 
 import com.google.common.truth.Truth.assertThat
-import io.github.aedev.flow.ui.screens.music.MusicArtist
-import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.data.music.model.MusicArtist
+import io.github.aedev.flow.data.music.model.MusicTrack
 import org.junit.Test
 
 class MusicQuickPicksTest {

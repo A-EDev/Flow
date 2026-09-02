@@ -11,6 +11,13 @@ import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.MusicCache
 import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.data.music.model.ArtistDetails
+import io.github.aedev.flow.data.music.model.CommunityMusicPlaylist
+import io.github.aedev.flow.data.music.model.DailyDiscoverItem
+import io.github.aedev.flow.data.music.model.MusicItemType
+import io.github.aedev.flow.data.music.model.MusicPlaylist
+import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
@@ -1028,7 +1035,7 @@ class MusicViewModel
                                     artist = playlist.author,
                                     thumbnailUrl = playlist.thumbnailUrl,
                                     duration = 0,
-                                    itemType = io.github.aedev.flow.ui.screens.music.MusicItemType.PLAYLIST,
+                                    itemType = MusicItemType.PLAYLIST,
                                 )
                             }
                         similarSections.add(

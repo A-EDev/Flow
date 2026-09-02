@@ -10,9 +10,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.musicplayer.InlineLyricsPanel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerUiState
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.tv.components.TvSidePanel
 import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 
