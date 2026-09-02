@@ -9,6 +9,8 @@ package io.github.aedev.flow.ui.components.music.section
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -383,4 +385,37 @@ fun MusicSeedThumbnail(
         shape = if (isArtist) CircleShape else MaterialTheme.shapes.small,
         modifier = modifier,
     )
+}
+
+/**
+ * A named group of mood/genre tiles laid out in rows of [itemsPerRow] — the moods page shape.
+ */
+@Composable
+fun MoodCategorySection(
+    title: String,
+    items: List<MoodAndGenres.Item>,
+    itemsPerRow: Int,
+    onMoodClick: (MoodAndGenres.Item) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.padding(horizontal = 6.dp)) {
+        MusicSectionHeader(title = title)
+        items.chunked(itemsPerRow).forEach { row ->
+            Row(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.ItemSpacing),
+            ) {
+                row.forEach { item ->
+                    MoodAndGenresButton(
+                        title = item.title,
+                        onClick = { onMoodClick(item) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                repeat(itemsPerRow - row.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
 }

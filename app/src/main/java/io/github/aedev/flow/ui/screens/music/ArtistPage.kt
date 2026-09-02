@@ -52,6 +52,9 @@ import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.AddToPlaylistDialog
+import io.github.aedev.flow.ui.components.music.detail.ArtistBio
+import io.github.aedev.flow.ui.components.music.detail.ArtistHeaderActions
+import io.github.aedev.flow.ui.components.music.detail.ArtistHero
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.components.music.item.MusicCardOverflowButton
@@ -203,204 +206,35 @@ fun ArtistPage(
                 contentPadding = PaddingValues(bottom = 32.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                // Header Image Setup
                 item {
-                    val imageUrl = artistDetails.thumbnailUrl.ifEmpty { artistDetails.bannerUrl }
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        // Background Image
-                        AsyncImage(
-                            model =
-                                ImageRequest
-                                    .Builder(context)
-                                    .data(imageUrl)
-                                    .crossfade(true)
-                                    .build(),
-                            contentDescription = null,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(400.dp)
-                                    .blur(50.dp)
-                                    .mediaQuery(
-                                        comparator = androidx.compose.ui.layout.ContentScale.Crop,
-                                    ),
-                            contentScale = ContentScale.Crop,
-                            alpha = 0.6f,
-                        )
-
-                        // Main Hero Image
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1f),
-                        ) {
-                            AsyncImage(
-                                model =
-                                    ImageRequest
-                                        .Builder(context)
-                                        .data(imageUrl)
-                                        .crossfade(true)
-                                        .build(),
-                                contentDescription = null,
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize(),
-                                contentScale = ContentScale.Crop,
-                            )
-
-                            // Bottom Gradient for Text
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                colors =
-                                                    listOf(
-                                                        Color.Transparent,
-                                                        Color.Black.copy(alpha = 0.1f),
-                                                        Color.Black.copy(alpha = 0.5f),
-                                                        MaterialTheme.colorScheme.background,
-                                                    ),
-                                                startY = 0.5f,
-                                            ),
-                                        ),
-                            )
-                        }
-                    }
+                    ArtistHero(artist = artistDetails)
                 }
 
-                // Artist Info & Controls
                 item {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .offset(y = (-32).dp)
-                                .padding(horizontal = 24.dp),
-                    ) {
-                        Text(
-                            text = artistDetails.name,
-                            style =
-                                MaterialTheme.typography.displaySmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = (-1).sp,
-                                ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Controls Row
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            // Subscribe Button
-                            Button(
-                                onClick = onFollowClick,
-                                colors =
-                                    ButtonDefaults.buttonColors(
-                                        containerColor =
-                                            if (artistDetails.isSubscribed) {
-                                                MaterialTheme.colorScheme.surfaceVariant
-                                            } else {
-                                                MaterialTheme.colorScheme.primary
-                                            },
-                                        contentColor =
-                                            if (artistDetails.isSubscribed) {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            } else {
-                                                MaterialTheme.colorScheme.onPrimary
-                                            },
-                                    ),
-                                contentPadding = PaddingValues(horizontal = 24.dp),
-                                shape = RoundedCornerShape(32.dp),
-                                modifier = Modifier.height(44.dp),
-                            ) {
-                                Text(
-                                    text =
-                                        if (artistDetails.isSubscribed) {
-                                            stringResource(
-                                                R.string.subscribed,
-                                            )
-                                        } else {
-                                            stringResource(R.string.subscribe)
-                                        },
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                )
+                    ArtistHeaderActions(
+                        name = artistDetails.name,
+                        isSubscribed = artistDetails.isSubscribed,
+                        onFollowClick = onFollowClick,
+                        onShuffleClick = {
+                            if (artistDetails.topTracks.isNotEmpty()) {
+                                onTrackClick(artistDetails.topTracks.random(), artistDetails.topTracks.shuffled())
                             }
-
-                            Spacer(modifier = Modifier.weight(1f))
-
-                            // Shuffle Button
-                            FilledIconButton(
-                                onClick = {
-                                    if (artistDetails.topTracks.isNotEmpty()) {
-                                        onTrackClick(artistDetails.topTracks.random(), artistDetails.topTracks.shuffled())
-                                    }
-                                },
-                                modifier = Modifier.size(48.dp),
-                                colors =
-                                    IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    ),
-                            ) {
-                                Icon(Icons.Default.Shuffle, stringResource(R.string.shuffle))
+                        },
+                        onPlayClick = {
+                            if (artistDetails.topTracks.isNotEmpty()) {
+                                onTrackClick(artistDetails.topTracks.first(), artistDetails.topTracks)
                             }
-
-                            // Play Button
-                            FilledIconButton(
-                                onClick = {
-                                    if (artistDetails.topTracks.isNotEmpty()) {
-                                        onTrackClick(artistDetails.topTracks.first(), artistDetails.topTracks)
-                                    }
-                                },
-                                modifier = Modifier.size(48.dp),
-                                colors =
-                                    IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                                    ),
-                            ) {
-                                Icon(Icons.Default.PlayArrow, stringResource(R.string.play))
-                            }
-                        }
-                    }
+                        },
+                    )
                 }
 
-                // About Artist Section
                 item {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp)
-                                .padding(bottom = 24.dp)
-                                .animateContentSize(),
-                    ) {
-                        if (artistDetails.subscriberCount > 0) {
-                            Text(
-                                text = stringResource(R.string.subscribers_count_template, formatViewCount(artistDetails.subscriberCount)),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-
-                        if (artistDetails.description.isNotEmpty()) {
-                            Text(
-                                text = artistDetails.description,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = if (descriptionExpanded) Int.MAX_VALUE else 3,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.clickable { descriptionExpanded = !descriptionExpanded },
-                            )
-                        }
-                    }
+                    ArtistBio(
+                        subscriberCount = artistDetails.subscriberCount,
+                        description = artistDetails.description,
+                        isExpanded = descriptionExpanded,
+                        onToggleExpanded = { descriptionExpanded = !descriptionExpanded },
+                    )
                 }
 
                 // Top Songs
