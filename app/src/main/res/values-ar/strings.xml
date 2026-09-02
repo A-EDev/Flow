@@ -249,7 +249,7 @@
     <string name="player_appearance_style_subtitle">حدد النمط لشريط التقديم</string>
     <string name="settings_item_player_appearance">مظهر المشغل</string>
     <string name="settings_item_player_appearance_subtitle">خصص نمط شريط التقدم</string>
-    <string name="style_default">عادي</string>
+    <string name="style_default">تعبيري</string>
     <string name="style_squiggly">متعرج</string>
     <string name="style_slim">نحيف جدا</string>
     <string name="style_metrolist">عريض</string>
@@ -2571,4 +2571,14 @@
     <string name="import_label_metrolist_playlists">قوائم تشغيل موسيقي ‏Metrolist</string>
     <string name="import_label_newpipe_playlists">قوائم تشغيل NewPipe</string>
     <string name="import_label_libretube_playlists">قوائم تشغيل LibreTube</string>
+    <string name="conjunction_and">و</string>
+    <plurals name="queue_track_count">
+        <item quantity="zero">%1$d مقطوعة</item>
+        <item quantity="one">مقطوعة واحدة</item>
+        <item quantity="two">مقطوعتان</item>
+        <item quantity="few">%1$d مقطوعات</item>
+        <item quantity="many">%1$d مقطوعة</item>
+        <item quantity="other">%1$d مقطوعة</item>
+    </plurals>
+    <string name="shared_video">فيديو مُشارَك</string>
 </resources>
