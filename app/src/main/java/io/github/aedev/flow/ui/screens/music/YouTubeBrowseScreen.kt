@@ -35,6 +35,9 @@ import io.github.aedev.flow.ui.components.music.common.MusicEmptyState
 import io.github.aedev.flow.ui.components.music.common.MusicErrorState
 import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
+import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
+import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.theme.Dimensions
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -135,11 +138,11 @@ fun YouTubeBrowseScreen(
                                                 key = { it.stableLazyKey("browse_grid_${section.title}") },
                                             ) { item ->
                                                 val song = item as SongItem
-                                                ListItem(
-                                                    title = song.title,
-                                                    subtitle = song.artists.joinToString(", ") { it.name },
-                                                    thumbnailUrl = song.thumbnail,
+                                                MusicTrackItem(
+                                                    track = convertSongToMusicTrack(song),
+                                                    density = MusicItemDensity.Compact,
                                                     isPlaying = currentTrack?.videoId == song.id,
+                                                    showMenu = false,
                                                     onClick = { onSongClick(song) },
                                                     modifier = Modifier.width(300.dp),
                                                 )
@@ -158,7 +161,7 @@ fun YouTubeBrowseScreen(
                                             ) { item ->
                                                 when (item) {
                                                     is SongItem -> {
-                                                        GridItem(
+                                                        MusicCollectionCard(
                                                             title = item.title,
                                                             subtitle = item.artists.joinToString(", ") { it.name },
                                                             thumbnailUrl = item.thumbnail,
@@ -168,7 +171,7 @@ fun YouTubeBrowseScreen(
                                                     }
 
                                                     is AlbumItem -> {
-                                                        GridItem(
+                                                        MusicCollectionCard(
                                                             title = item.title,
                                                             subtitle = item.artists?.joinToString(", ") { it.name } ?: "",
                                                             thumbnailUrl = item.thumbnail,
@@ -200,7 +203,7 @@ fun YouTubeBrowseScreen(
                                                     }
 
                                                     is PlaylistItem -> {
-                                                        GridItem(
+                                                        MusicCollectionCard(
                                                             title = item.title,
                                                             subtitle = item.author?.name ?: "",
                                                             thumbnailUrl = item.thumbnail,

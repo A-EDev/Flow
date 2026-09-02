@@ -45,6 +45,7 @@ import io.github.aedev.flow.ui.components.music.common.MusicErrorState
 import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
+import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.screens.music.components.*
@@ -248,7 +249,7 @@ fun EnhancedMusicScreen(
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
                                         items(uiState.listenAgain, key = { it.videoId }) { track ->
-                                            GridItem(
+                                            MusicCollectionCard(
                                                 title = track.title,
                                                 subtitle = track.artist,
                                                 thumbnailUrl = track.thumbnailUrl,
@@ -488,7 +489,7 @@ fun EnhancedMusicScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                     ) {
                                                         items(uiState.recommendedTracks, key = { it.videoId }) { track ->
-                                                            GridItem(
+                                                            MusicCollectionCard(
                                                                 title = track.title,
                                                                 subtitle = track.artist,
                                                                 thumbnailUrl = track.thumbnailUrl,
@@ -556,7 +557,7 @@ fun EnhancedMusicScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                     ) {
                                                         items(section.tracks, key = { it.videoId }) { track ->
-                                                            GridItem(
+                                                            MusicCollectionCard(
                                                                 title = track.title,
                                                                 subtitle = track.artist,
                                                                 thumbnailUrl = track.thumbnailUrl,
@@ -667,7 +668,7 @@ fun EnhancedMusicScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                     ) {
                                                         items(tracks, key = { it.videoId }) { track ->
-                                                            GridItem(
+                                                            MusicCollectionCard(
                                                                 title = track.title,
                                                                 subtitle = track.artist,
                                                                 thumbnailUrl = track.thumbnailUrl,
@@ -704,7 +705,7 @@ fun EnhancedMusicScreen(
                                                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                         ) {
                                                             items(section.tracks, key = { it.videoId }) { track ->
-                                                                GridItem(
+                                                                MusicCollectionCard(
                                                                     title = track.title,
                                                                     subtitle = track.artist,
                                                                     thumbnailUrl = track.thumbnailUrl,
@@ -768,7 +769,7 @@ fun EnhancedMusicScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                     ) {
                                                         items(uiState.topAlbums, key = { it.id }) { album ->
-                                                            GridItem(
+                                                            MusicCollectionCard(
                                                                 title = album.title,
                                                                 subtitle = album.author,
                                                                 thumbnailUrl = album.thumbnailUrl,
@@ -794,7 +795,7 @@ fun EnhancedMusicScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                     ) {
                                                         items(uiState.favoriteArtistAlbums, key = { it.id }) { album ->
-                                                            GridItem(
+                                                            MusicCollectionCard(
                                                                 title = album.title,
                                                                 subtitle = album.author,
                                                                 thumbnailUrl = album.thumbnailUrl,
@@ -820,7 +821,7 @@ fun EnhancedMusicScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                     ) {
                                                         items(uiState.newReleases.take(10), key = { it.videoId }) { track ->
-                                                            GridItem(
+                                                            MusicCollectionCard(
                                                                 title = track.title,
                                                                 subtitle = stringResource(R.string.subtitle_single_template, track.artist),
                                                                 thumbnailUrl = track.thumbnailUrl,
@@ -944,7 +945,7 @@ fun EnhancedMusicScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                     ) {
                                                         items(uiState.featuredPlaylists, key = { it.id }) { playlist ->
-                                                            GridItem(
+                                                            MusicCollectionCard(
                                                                 title = playlist.title,
                                                                 subtitle = playlist.author,
                                                                 thumbnailUrl = playlist.thumbnailUrl,
@@ -1071,7 +1072,7 @@ private fun LocalBrainShelf(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(tracks, key = { it.videoId }) { track ->
-            GridItem(
+            MusicCollectionCard(
                 title = track.title,
                 subtitle = track.artist,
                 thumbnailUrl = track.thumbnailUrl,

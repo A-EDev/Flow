@@ -53,69 +53,6 @@ fun currentGridThumbnailHeight(): Dp {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun GridItem(
-    title: String,
-    subtitle: String,
-    thumbnailUrl: String?,
-    thumbnailHeight: Dp,
-    modifier: Modifier = Modifier,
-    aspectRatio: Float = 1f,
-    isDownloaded: Boolean = false,
-    onClick: () -> Unit = {},
-    onLongClick: (() -> Unit)? = null,
-) {
-    Column(
-        modifier =
-            modifier
-                .width(thumbnailHeight * aspectRatio)
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongClick,
-                ),
-    ) {
-        Box {
-            AsyncImage(
-                model = thumbnailUrl,
-                contentDescription = title,
-                contentScale = ContentScale.Crop,
-                modifier =
-                    Modifier
-                        .height(thumbnailHeight)
-                        .aspectRatio(aspectRatio)
-                        .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius)),
-            )
-            if (isDownloaded) {
-                MusicDownloadedBadge(
-                    modifier =
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp),
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
 fun ListItem(
     title: String,
     subtitle: String,

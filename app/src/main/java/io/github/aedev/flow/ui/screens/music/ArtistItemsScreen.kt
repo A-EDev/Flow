@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -35,10 +36,13 @@ import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
+import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.components.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.item.MusicCardOverflowButton
+import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -174,13 +178,19 @@ fun ArtistItemsScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         items(artistItemsPage.items, key = { it.id }) { item ->
-                            ArtistGridItem(
-                                item = item,
-                                onActionClick =
-                                    when (item) {
-                                        is AlbumItem, is PlaylistItem -> ({ selectedCollection = item.toCollectionActionItem() })
-                                        else -> null
-                                    },
+                            val onAction: (() -> Unit)? =
+                                when (item) {
+                                    is AlbumItem, is PlaylistItem -> ({ selectedCollection = item.toCollectionActionItem() })
+                                    else -> null
+                                }
+                            MusicCollectionCard(
+                                title = item.title,
+                                subtitle = item.cardSubtitle(),
+                                thumbnailUrl = item.thumbnail,
+                                thumbnailHeight = 160.dp,
+                                shape = if (item is ArtistItem) CircleShape else MaterialTheme.shapes.medium,
+                                onLongClick = onAction,
+                                trailingContent = onAction?.let { action -> { MusicCardOverflowButton(onClick = action) } },
                                 onClick = {
                                     when (item) {
                                         is AlbumItem -> {
@@ -230,94 +240,6 @@ private fun SongItem.toMusicTrack(): MusicTrack =
         isVideoSong = isVideoSong,
     )
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun ArtistGridItem(
-    item: io.github.aedev.flow.innertube.models.YTItem,
-    onClick: () -> Unit,
-    onActionClick: (() -> Unit)? = null,
-) {
-    var title = ""
-    var subtitle = ""
-    var thumbnailUrl: String? = null
-
-    when (item) {
-        is AlbumItem -> {
-            title = item.title
-            val artistOrAlbum = item.artists?.firstOrNull()?.name ?: stringResource(R.string.album_label)
-            subtitle = stringResource(R.string.year_artist_template, item.year ?: "", artistOrAlbum)
-            thumbnailUrl = item.thumbnail
-        }
-
-        is ArtistItem -> {
-            title = item.title
-            subtitle = stringResource(R.string.subtitle_artist)
-            thumbnailUrl = item.thumbnail
-        }
-
-        is PlaylistItem -> {
-            title = item.title
-            subtitle = stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
-            thumbnailUrl = item.thumbnail
-        }
-
-        is SongItem -> {
-            title = item.title
-            subtitle = item.artists.joinToString { it.name }
-            thumbnailUrl = item.thumbnail
-        }
-    }
-
-    Column(
-        modifier =
-            Modifier
-                .width(160.dp)
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onActionClick,
-                ),
-    ) {
-        Box {
-            AsyncImage(
-                model = thumbnailUrl,
-                contentDescription = null,
-                modifier =
-                    Modifier
-                        .aspectRatio(1f)
-                        .fillMaxWidth()
-                        .clip(if (item is ArtistItem) androidx.compose.foundation.shape.CircleShape else RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop,
-            )
-            if (onActionClick != null) {
-                IconButton(
-                    onClick = onActionClick,
-                    modifier = Modifier.align(Alignment.TopEnd),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.more_options),
-                        tint = androidx.compose.ui.graphics.Color.White,
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
 private fun io.github.aedev.flow.innertube.models.YTItem.toCollectionActionItem(): MusicCollectionActionItem? =
     when (this) {
         is AlbumItem -> {
@@ -344,5 +266,26 @@ private fun io.github.aedev.flow.innertube.models.YTItem.toCollectionActionItem(
 
         else -> {
             null
+        }
+    }
+
+@Composable
+private fun YTItem.cardSubtitle(): String =
+    when (this) {
+        is AlbumItem -> {
+            val artistOrAlbum = artists?.firstOrNull()?.name ?: stringResource(R.string.album_label)
+            stringResource(R.string.year_artist_template, year ?: "", artistOrAlbum)
+        }
+
+        is ArtistItem -> {
+            stringResource(R.string.subtitle_artist)
+        }
+
+        is PlaylistItem -> {
+            stringResource(R.string.subtitle_playlist_template, author?.name ?: "")
+        }
+
+        is SongItem -> {
+            artists.joinToString { it.name }
         }
     }

@@ -51,6 +51,7 @@ import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.item.MusicCollectionRow
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import kotlinx.coroutines.FlowPreview
 
@@ -216,7 +217,7 @@ fun MusicSearchScreen(
                 // Show suggestions
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(uiState.recommendedItems, key = { it.stableLazyKey("recommended") }) { item ->
-                        RecommendedItemRow(
+                        MusicCollectionRow(
                             item = item,
                             onClick = {
                                 when (item) {
@@ -375,7 +376,8 @@ fun MusicSearchScreen(
                                             items = summary.items.drop(1),
                                             key = { it.stableLazyKey("summary_${summary.title}") },
                                         ) { item ->
-                                            YTItemRow(
+                                            MusicCollectionRow(
+                                                showPlayCount = true,
                                                 item = item,
                                                 onClick = {
                                                     when (item) {
@@ -417,7 +419,8 @@ fun MusicSearchScreen(
                                             items = summary.items,
                                             key = { it.stableLazyKey("summary_${summary.title}") },
                                         ) { item ->
-                                            YTItemRow(
+                                            MusicCollectionRow(
+                                                showPlayCount = true,
                                                 item = item,
                                                 onClick = {
                                                     when (item) {
@@ -459,7 +462,8 @@ fun MusicSearchScreen(
                             } else {
                                 // Filtered results
                                 items(uiState.filteredResults, key = { it.stableLazyKey("filtered") }) { item ->
-                                    YTItemRow(
+                                    MusicCollectionRow(
+                                        showPlayCount = true,
                                         item = item,
                                         onClick = {
                                             when (item) {
@@ -709,170 +713,6 @@ fun SearchSuggestionRow(
             tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
             modifier = Modifier.size(24.dp),
         )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun RecommendedItemRow(
-    item: YTItem,
-    onClick: () -> Unit,
-    isDownloaded: Boolean = false,
-    onLongClick: (() -> Unit)? = null,
-    onMenuClick: (() -> Unit)? = null,
-) {
-    if (item is SongItem) {
-        MusicTrackItem(
-            track = convertSongToMusicTrack(item),
-            isDownloaded = isDownloaded,
-            showMenu = onMenuClick != null,
-            onClick = onClick,
-            onLongClick = onLongClick,
-            onMenuClick = { onMenuClick?.invoke() },
-        )
-        return
-    }
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongClick,
-                ).padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AsyncImage(
-            model = item.thumbnail,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(56.dp)
-                    .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop,
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val subtitle =
-                when (item) {
-                    is SongItem -> stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name })
-                    is ArtistItem -> stringResource(R.string.subtitle_artist)
-                    is AlbumItem -> stringResource(R.string.subtitle_album_template, item.artists?.joinToString { it.name } ?: "")
-                    is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
-                }
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (onMenuClick != null) {
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    Icons.Default.MoreVert,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun YTItemRow(
-    item: YTItem,
-    onClick: () -> Unit,
-    isDownloaded: Boolean = false,
-    onLongClick: (() -> Unit)? = null,
-    onMenuClick: (() -> Unit)? = null,
-) {
-    if (item is SongItem) {
-        MusicTrackItem(
-            track = convertSongToMusicTrack(item),
-            isDownloaded = isDownloaded,
-            showMenu = onMenuClick != null,
-            onClick = onClick,
-            onLongClick = onLongClick,
-            onMenuClick = { onMenuClick?.invoke() },
-        )
-        return
-    }
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongClick,
-                ).padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AsyncImage(
-            model = item.thumbnail,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(56.dp)
-                    .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop,
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val subtitle =
-                when (item) {
-                    is SongItem -> {
-                        val plays = item.viewCountText?.let { stringResource(R.string.plays_count_template, it) } ?: ""
-                        stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name }) + plays
-                    }
-
-                    is ArtistItem -> {
-                        stringResource(R.string.subtitle_artist)
-                    }
-
-                    is AlbumItem -> {
-                        stringResource(R.string.album_year_template, item.artists?.joinToString { it.name } ?: "", item.year ?: "")
-                    }
-
-                    is PlaylistItem -> {
-                        stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
-                    }
-                }
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (onMenuClick != null) {
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    Icons.Default.MoreVert,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                )
-            }
-        }
     }
 }
 

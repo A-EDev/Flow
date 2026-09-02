@@ -57,6 +57,8 @@ import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
+import io.github.aedev.flow.ui.components.music.item.MusicCardOverflowButton
+import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.utils.formatViewCount
 
@@ -518,10 +520,18 @@ fun ArtistPage(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.singles) { album ->
-                                AlbumCard(
-                                    album = album,
+                                MusicCollectionCard(
+                                    title = album.title,
+                                    subtitle = album.collectionSubtitle(showAuthor = false),
+                                    thumbnailUrl = album.thumbnailUrl,
+                                    thumbnailHeight = 160.dp,
                                     onClick = { onAlbumClick(album) },
-                                    onActionClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
+                                    onLongClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
+                                    trailingContent = {
+                                        MusicCardOverflowButton(
+                                            onClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
+                                        )
+                                    },
                                 )
                             }
                         }
@@ -550,10 +560,18 @@ fun ArtistPage(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.albums) { album ->
-                                AlbumCard(
-                                    album = album,
+                                MusicCollectionCard(
+                                    title = album.title,
+                                    subtitle = album.collectionSubtitle(showAuthor = false),
+                                    thumbnailUrl = album.thumbnailUrl,
+                                    thumbnailHeight = 160.dp,
                                     onClick = { onAlbumClick(album) },
-                                    onActionClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
+                                    onLongClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
+                                    trailingContent = {
+                                        MusicCardOverflowButton(
+                                            onClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
+                                        )
+                                    },
                                 )
                             }
                         }
@@ -569,7 +587,14 @@ fun ArtistPage(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.videos, key = { it.videoId }) { video ->
-                                VideoCard(video = video, onClick = { onTrackClick(video, listOf(video)) })
+                                MusicCollectionCard(
+                                    title = video.title,
+                                    subtitle = video.videoSubtitle(),
+                                    thumbnailUrl = video.thumbnailUrl,
+                                    thumbnailHeight = 124.dp,
+                                    aspectRatio = 16f / 9f,
+                                    onClick = { onTrackClick(video, listOf(video)) },
+                                )
                             }
                         }
                     }
@@ -584,11 +609,18 @@ fun ArtistPage(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.featuredOn) { playlist ->
-                                AlbumCard(
-                                    album = playlist,
+                                MusicCollectionCard(
+                                    title = playlist.title,
+                                    subtitle = playlist.collectionSubtitle(showAuthor = true),
+                                    thumbnailUrl = playlist.thumbnailUrl,
+                                    thumbnailHeight = 160.dp,
                                     onClick = { onAlbumClick(playlist) },
-                                    showAuthor = true,
-                                    onActionClick = { selectedCollection = playlist.toCollectionActionItem(isAlbum = false) },
+                                    onLongClick = { selectedCollection = playlist.toCollectionActionItem(isAlbum = false) },
+                                    trailingContent = {
+                                        MusicCardOverflowButton(
+                                            onClick = { selectedCollection = playlist.toCollectionActionItem(isAlbum = false) },
+                                        )
+                                    },
                                 )
                             }
                         }
@@ -604,11 +636,15 @@ fun ArtistPage(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             items(artistDetails.relatedArtists) { artist ->
-                                RelatedArtistCard(
-                                    artist = artist,
-                                    badge =
+                                MusicCollectionCard(
+                                    title = artist.name,
+                                    subtitle =
                                         stringResource(R.string.artist_known_related_badge)
                                             .takeIf { artist.channelId in knownRelatedArtistIds },
+                                    thumbnailUrl = artist.thumbnailUrl,
+                                    thumbnailHeight = 100.dp,
+                                    shape = CircleShape,
+                                    horizontalAlignment = Alignment.CenterHorizontally,
                                     onClick = { onArtistClick(artist.channelId) },
                                 )
                             }
@@ -622,72 +658,6 @@ fun ArtistPage(
 
 private fun Modifier.mediaQuery(comparator: androidx.compose.ui.layout.ContentScale): Modifier = this
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun AlbumCard(
-    album: MusicPlaylist,
-    onClick: () -> Unit,
-    showAuthor: Boolean = false,
-    onActionClick: (() -> Unit)? = null,
-) {
-    Column(
-        modifier =
-            Modifier
-                .width(160.dp)
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onActionClick,
-                ),
-    ) {
-        Box {
-            AsyncImage(
-                model = album.thumbnailUrl,
-                contentDescription = null,
-                modifier =
-                    Modifier
-                        .size(160.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop,
-            )
-            if (onActionClick != null) {
-                IconButton(
-                    onClick = onActionClick,
-                    modifier = Modifier.align(Alignment.TopEnd),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.more_options),
-                        tint = Color.White,
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = album.title,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text =
-                if (showAuthor) {
-                    stringResource(R.string.subtitle_playlist_template, album.author)
-                } else if (album.trackCount >
-                    0
-                ) {
-                    stringResource(R.string.tracks_count_template, album.trackCount)
-                } else {
-                    stringResource(R.string.album_label)
-                },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
 private fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActionItem =
     MusicCollectionActionItem(
         id = id,
@@ -699,90 +669,15 @@ private fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollect
     )
 
 @Composable
-fun VideoCard(
-    video: MusicTrack,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .width(220.dp)
-                .clickable(onClick = onClick),
-    ) {
-        Box {
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = null,
-                modifier =
-                    Modifier
-                        .width(220.dp)
-                        .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop,
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = video.title,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-
-        val viewsText = if (video.views > 0) formatViewCount(video.views) else null
-        val subtitle =
-            if (viewsText != null) {
-                stringResource(R.string.artist_views_template, video.artist, viewsText)
-            } else {
-                video.artist
-            }
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+private fun MusicPlaylist.collectionSubtitle(showAuthor: Boolean): String =
+    when {
+        showAuthor -> stringResource(R.string.subtitle_playlist_template, author)
+        trackCount > 0 -> stringResource(R.string.tracks_count_template, trackCount)
+        else -> stringResource(R.string.album_label)
     }
-}
 
 @Composable
-fun RelatedArtistCard(
-    artist: ArtistDetails,
-    onClick: () -> Unit,
-    badge: String? = null,
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier =
-            Modifier
-                .width(100.dp)
-                .clickable(onClick = onClick),
-    ) {
-        AsyncImage(
-            model = artist.thumbnailUrl,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(100.dp)
-                    .clip(CircleShape),
-            contentScale = ContentScale.Crop,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = artist.name,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-        if (badge != null) {
-            Text(
-                text = badge,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
-        }
-    }
+private fun MusicTrack.videoSubtitle(): String {
+    val viewsText = if (views > 0) formatViewCount(views) else null
+    return if (viewsText != null) stringResource(R.string.artist_views_template, artist, viewsText) else artist
 }
