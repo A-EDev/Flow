@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,7 +44,8 @@ fun <T> MusicShelf(
     action: MusicSectionAction? = null,
     itemContent: @Composable (T) -> Unit,
 ) {
-    if (items.isEmpty()) return
+    val uniqueItems = remember(items) { items.distinctBy(key) }
+    if (uniqueItems.isEmpty()) return
 
     Column(modifier = modifier.fillMaxWidth()) {
         MusicSectionHeader(
@@ -56,7 +58,7 @@ fun <T> MusicShelf(
             contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
             horizontalArrangement = Arrangement.spacedBy(Dimensions.ItemSpacing),
         ) {
-            items(items = items, key = key) { item -> itemContent(item) }
+            items(items = uniqueItems, key = key) { item -> itemContent(item) }
         }
     }
 }
@@ -78,7 +80,8 @@ fun <T> MusicTrackShelf(
     state: LazyGridState = rememberLazyGridState(),
     itemContent: @Composable (T) -> Unit,
 ) {
-    if (items.isEmpty()) return
+    val uniqueItems = remember(items) { items.distinctBy(key) }
+    if (uniqueItems.isEmpty()) return
 
     Column(modifier = modifier.fillMaxWidth()) {
         MusicSectionHeader(title = title, subtitle = subtitle, action = action)
@@ -93,7 +96,7 @@ fun <T> MusicTrackShelf(
                     .height(rowHeight * rows + 12.dp)
                     .fillMaxWidth(),
         ) {
-            items(items = items, key = key) { item -> itemContent(item) }
+            items(items = uniqueItems, key = key) { item -> itemContent(item) }
         }
     }
 }

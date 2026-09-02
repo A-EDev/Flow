@@ -105,7 +105,7 @@ fun LazyListScope.musicHomeFeed(
         if (uiState.isSearching) {
             item(key = "filter_loading") { FeedProgress() }
         } else {
-            items(uiState.allSongs, key = { "filtered:${it.videoId}" }) { track ->
+            items(uiState.allSongs.distinctBy { it.videoId }, key = { "filtered:${it.videoId}" }) { track ->
                 MusicTrackItem(
                     track = track,
                     isDownloaded = downloaded.contains(track.videoId),
@@ -476,8 +476,8 @@ private fun LazyListScope.genres(
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit,
 ) {
-    genreTracks.entries.take(3).forEach { (genre, tracks) ->
-        item(key = "genre:$genre") {
+    genreTracks.entries.take(3).forEachIndexed { index, (genre, tracks) ->
+        item(key = "genre:$index:$genre") {
             MusicTrackCardShelf(
                 title = stringResource(R.string.genre_mix_template, genre),
                 tracks = tracks,
@@ -499,12 +499,12 @@ private fun LazyListScope.similarTo(
     onTrackMenu: (MusicTrack) -> Unit,
     onCollectionMenu: (MusicTrack) -> Unit,
 ) {
-    (uiState.dailyMixSections + uiState.similarToSections).forEach { section ->
-        item(key = "similar_to:${section.title}") {
+    (uiState.dailyMixSections + uiState.similarToSections).forEachIndexed { index, section ->
+        item(key = "similar_to:$index:${section.title}") {
             MusicTrackCardShelf(
                 title = section.title,
                 tracks = section.tracks,
-                keyNamespace = "similar_${section.title}",
+                keyNamespace = "similar_${index}_${section.title}",
                 subtitle = section.label ?: section.subtitle,
                 leading =
                     section.thumbnailUrl?.let { url ->
@@ -540,12 +540,12 @@ private fun LazyListScope.dynamicHome(
 ) {
     uiState.dynamicSections
         .filterNot { it.title.isDuplicateOfADedicatedShelf() }
-        .forEach { section ->
-            item(key = "dynamic:${section.title}") {
+        .forEachIndexed { index, section ->
+            item(key = "dynamic:$index:${section.title}") {
                 MusicTrackCardShelf(
                     title = section.title,
                     tracks = section.tracks,
-                    keyNamespace = "dynamic_${section.title}",
+                    keyNamespace = "dynamic_${index}_${section.title}",
                     downloadedTrackIds = downloaded,
                     onTrackClick = {
                         val playFrom =

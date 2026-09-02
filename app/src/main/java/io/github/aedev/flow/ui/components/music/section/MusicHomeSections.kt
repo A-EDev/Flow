@@ -259,7 +259,10 @@ fun DailyDiscoverShelf(
                     .height(336.dp)
                     .padding(bottom = 16.dp),
         ) {
-            items(items = items, key = { "daily_discover:${it.recommendation.videoId}" }) { item ->
+            items(
+                items = items.distinctBy { it.recommendation.videoId },
+                key = { "daily_discover:${it.recommendation.videoId}" },
+            ) { item ->
                 DailyDiscoverCard(
                     item = item,
                     isDownloaded = downloadedTrackIds.contains(item.recommendation.videoId),
@@ -283,7 +286,7 @@ fun MusicMoodsShelf(
 ) {
     if (moods.isEmpty()) return
 
-    val moodItems = remember(moods) { moods.flatMap { it.items } }
+    val moodItems = remember(moods) { moods.flatMap { it.items }.distinctBy { it.title } }
     val rows = 4
     val buttonWidth = (LocalConfiguration.current.screenWidthDp.dp - 36.dp) / 2
     val gridHeight = (Dimensions.MoodButtonHeight * rows) + (8.dp * (rows - 1))
@@ -334,7 +337,7 @@ fun MusicHomeChipRow(
         contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(items = chips, key = { it.title }) { chip ->
+        items(items = chips.distinctBy { it.title }, key = { it.title }) { chip ->
             val isSelected = selectedChipTitle == chip.title
             ContentFilterChip(
                 title = chip.title,
