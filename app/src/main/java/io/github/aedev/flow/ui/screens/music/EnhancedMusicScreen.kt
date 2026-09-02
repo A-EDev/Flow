@@ -39,6 +39,8 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
+import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.screens.music.components.*
 import io.github.aedev.flow.ui.theme.Dimensions
 import kotlinx.coroutines.flow.collectLatest
@@ -233,7 +235,7 @@ fun EnhancedMusicScreen(
                             // Listen Again
                             if (uiState.listenAgain.isNotEmpty()) {
                                 item {
-                                    NavigationTitle(title = stringResource(R.string.section_listen_again))
+                                    MusicSectionHeader(title = stringResource(R.string.section_listen_again))
                                     val listenThumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -369,11 +371,13 @@ fun EnhancedMusicScreen(
                                             if (uiState.dailyDiscover.isNotEmpty()) {
                                                 item {
                                                     val discoverTracks = uiState.dailyDiscover.map { it.recommendation }.audioMusicOnly()
-                                                    SectionHeader(
+                                                    MusicSectionHeader(
                                                         title = stringResource(R.string.section_daily_discover),
-                                                        onPlayAll =
+                                                        action =
                                                             discoverTracks.firstOrNull()?.let { first ->
-                                                                { onSongClick(first, discoverTracks, "daily_discover") }
+                                                                MusicSectionAction.PlayAll {
+                                                                    onSongClick(first, discoverTracks, "daily_discover")
+                                                                }
                                                             },
                                                     )
                                                     LazyRow(
@@ -412,9 +416,9 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.QUICK_PICKS -> {
                                             if (quickPickTracks.isNotEmpty()) {
                                                 item {
-                                                    SectionHeader(
+                                                    MusicSectionHeader(
                                                         title = stringResource(R.string.section_quick_picks),
-                                                        onPlayAll = quickPicksPlayAllAction(quickPickTracks, onSongClick),
+                                                        action = quickPicksPlayAllAction(quickPickTracks, onSongClick),
                                                     )
                                                     LazyHorizontalGrid(
                                                         rows = GridCells.Fixed(4),
@@ -471,7 +475,7 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.RECOMMENDED -> {
                                             if (uiState.recommendedTracks.isNotEmpty()) {
                                                 item {
-                                                    SectionTitle(title = stringResource(R.string.section_recommended))
+                                                    MusicSectionHeader(title = stringResource(R.string.section_recommended))
                                                     val thumbnailHeight = currentGridThumbnailHeight()
                                                     LazyRow(
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -500,10 +504,10 @@ fun EnhancedMusicScreen(
                                             (uiState.dailyMixSections + uiState.similarToSections).forEach { section ->
                                                 item {
                                                     if (section.label != null) {
-                                                        NavigationTitle(
+                                                        MusicSectionHeader(
                                                             title = section.title,
-                                                            label = section.label,
-                                                            thumbnail = {
+                                                            subtitle = section.label,
+                                                            leading = {
                                                                 if (section.thumbnailUrl != null) {
                                                                     if (section.isArtistSeed) {
                                                                         ArtistThumbnail(
@@ -519,9 +523,9 @@ fun EnhancedMusicScreen(
                                                                     }
                                                                 }
                                                             },
-                                                            onClick =
+                                                            action =
                                                                 if (!section.seedId.isNullOrBlank()) {
-                                                                    {
+                                                                    MusicSectionAction.Navigate {
                                                                         if (section.isArtistSeed) {
                                                                             onArtistClick(section.seedId)
                                                                         } else if (section.seedId.startsWith(
@@ -536,7 +540,7 @@ fun EnhancedMusicScreen(
                                                                 },
                                                         )
                                                     } else {
-                                                        SectionTitle(title = section.title, subtitle = section.subtitle)
+                                                        MusicSectionHeader(title = section.title, subtitle = section.subtitle)
                                                     }
 
                                                     val sectionThumbnailHeight = currentGridThumbnailHeight()
@@ -649,7 +653,7 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.GENRES -> {
                                             uiState.genreTracks.entries.take(3).forEach { (genre, tracks) ->
                                                 item {
-                                                    SectionTitle(title = stringResource(R.string.genre_mix_template, genre))
+                                                    MusicSectionHeader(title = stringResource(R.string.genre_mix_template, genre))
                                                     val genreThumbnailHeight = currentGridThumbnailHeight()
                                                     LazyRow(
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -686,7 +690,7 @@ fun EnhancedMusicScreen(
                                                     !section.title.contains("Listen again", true)
                                                 ) {
                                                     item {
-                                                        SectionTitle(title = section.title)
+                                                        MusicSectionHeader(title = section.title)
                                                         val sectionThumbnailHeight = currentGridThumbnailHeight()
                                                         LazyRow(
                                                             contentPadding = PaddingValues(horizontal = 12.dp),
@@ -750,7 +754,7 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.TOP_ALBUMS -> {
                                             if (uiState.topAlbums.isNotEmpty()) {
                                                 item {
-                                                    SectionTitle(title = stringResource(R.string.section_top_albums))
+                                                    MusicSectionHeader(title = stringResource(R.string.section_top_albums))
                                                     val albumThumbnailHeight = currentGridThumbnailHeight()
                                                     LazyRow(
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -776,7 +780,7 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.FAVORITE_ARTIST_ALBUMS -> {
                                             if (uiState.favoriteArtistAlbums.isNotEmpty()) {
                                                 item {
-                                                    SectionTitle(title = stringResource(R.string.section_from_artists_you_love))
+                                                    MusicSectionHeader(title = stringResource(R.string.section_from_artists_you_love))
                                                     val favoriteAlbumThumbnailHeight = currentGridThumbnailHeight()
                                                     LazyRow(
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -802,7 +806,7 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.NEW_RELEASES -> {
                                             if (uiState.newReleases.isNotEmpty()) {
                                                 item {
-                                                    SectionTitle(title = stringResource(R.string.section_new_releases))
+                                                    MusicSectionHeader(title = stringResource(R.string.section_new_releases))
                                                     val newReleaseThumbnailHeight = currentGridThumbnailHeight()
                                                     LazyRow(
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -852,7 +856,7 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.CHARTS -> {
                                             if (uiState.trendingSongs.isNotEmpty()) {
                                                 item {
-                                                    SectionTitle(title = stringResource(R.string.trending))
+                                                    MusicSectionHeader(title = stringResource(R.string.trending))
                                                     LazyHorizontalGrid(
                                                         rows = GridCells.Fixed(4),
                                                         state = rememberLazyGridState(),
@@ -892,7 +896,7 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.POPULAR_ARTISTS -> {
                                             if (popularArtists.isNotEmpty()) {
                                                 item {
-                                                    SectionTitle(title = stringResource(R.string.section_popular_artists))
+                                                    MusicSectionHeader(title = stringResource(R.string.section_popular_artists))
                                                     LazyRow(
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -925,7 +929,7 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.MIXED_FOR_YOU -> {
                                             if (uiState.featuredPlaylists.isNotEmpty()) {
                                                 item {
-                                                    SectionTitle(title = stringResource(R.string.section_mixed_for_you))
+                                                    MusicSectionHeader(title = stringResource(R.string.section_mixed_for_you))
                                                     val playlistThumbnailHeight = currentGridThumbnailHeight()
                                                     LazyRow(
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -951,10 +955,9 @@ fun EnhancedMusicScreen(
                                         HomeSectionType.MOODS_AND_GENRES -> {
                                             if (uiState.moodsAndGenres.isNotEmpty()) {
                                                 item {
-                                                    NavigationTitle(
+                                                    MusicSectionHeader(
                                                         title = stringResource(R.string.section_mood_and_genres),
-                                                        onClick = { onMoodsClick(null) },
-                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                                        action = MusicSectionAction.Navigate { onMoodsClick(null) },
                                                     )
 
                                                     val moodItems =
@@ -1040,9 +1043,9 @@ private fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollect
 private fun quickPicksPlayAllAction(
     tracks: List<MusicTrack>,
     onSongClick: (MusicTrack, List<MusicTrack>, String) -> Unit,
-): (() -> Unit)? {
+): MusicSectionAction? {
     val first = tracks.firstOrNull() ?: return null
-    return { onSongClick(first, tracks, "quick_picks") }
+    return MusicSectionAction.PlayAll { onSongClick(first, tracks, "quick_picks") }
 }
 
 /** Shared renderer for the zero-network brain shelves (On Repeat, rotation, Rediscover). */
@@ -1053,7 +1056,7 @@ private fun LocalBrainShelf(
     playFrom: String,
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
 ) {
-    NavigationTitle(title = title)
+    MusicSectionHeader(title = title)
     val thumbnailHeight = currentGridThumbnailHeight()
     LazyRow(
         contentPadding = PaddingValues(horizontal = 12.dp),

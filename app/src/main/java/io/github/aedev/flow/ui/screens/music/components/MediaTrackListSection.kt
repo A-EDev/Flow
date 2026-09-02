@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
+import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 
 @Composable
 fun MediaTrackListSection(
@@ -44,7 +46,7 @@ fun MediaTrackListSection(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        SectionHeader(title = title, onPlayAll = onPlayAll)
+        MusicSectionHeader(title = title, action = MusicSectionAction.PlayAll(onPlayAll))
         LazyHorizontalGrid(
             rows = GridCells.Fixed(4),
             contentPadding = PaddingValues(horizontal = 12.dp),

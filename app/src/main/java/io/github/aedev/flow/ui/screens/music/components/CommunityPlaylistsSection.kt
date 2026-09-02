@@ -42,7 +42,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.CommunityMusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.components.SectionTitle
+import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 
 @Composable
 fun CommunityPlaylistsSection(
@@ -55,7 +55,7 @@ fun CommunityPlaylistsSection(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        SectionTitle(title = stringResource(R.string.section_from_the_community))
+        MusicSectionHeader(title = stringResource(R.string.section_from_the_community))
         LazyRow(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),

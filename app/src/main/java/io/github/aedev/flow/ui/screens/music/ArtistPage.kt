@@ -55,6 +55,8 @@ import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
+import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.screens.music.components.TrackListItem
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -452,7 +454,7 @@ fun ArtistPage(
                 // Your history — the local brain's record of this artist, zero network
                 if (insights != null && insights.topTracks.isNotEmpty()) {
                     item {
-                        SectionHeader(title = stringResource(R.string.section_your_history))
+                        MusicSectionHeader(title = stringResource(R.string.section_your_history))
                         Text(
                             text =
                                 buildString {
@@ -496,9 +498,17 @@ fun ArtistPage(
                 // Singles & EPs
                 if (artistDetails.singles.isNotEmpty()) {
                     item {
-                        SectionHeader(
+                        MusicSectionHeader(
                             title = stringResource(R.string.section_singles),
-                            onSeeAllClick = { artistDetails.singlesBrowseId?.let { onSeeAllClick(it, artistDetails.singlesParams) } },
+                            action =
+                                MusicSectionAction.SeeAll {
+                                    artistDetails.singlesBrowseId?.let {
+                                        onSeeAllClick(
+                                            it,
+                                            artistDetails.singlesParams,
+                                        )
+                                    }
+                                },
                         )
                     }
                     item {
@@ -520,9 +530,17 @@ fun ArtistPage(
                 // Albums
                 if (artistDetails.albums.isNotEmpty()) {
                     item {
-                        SectionHeader(
+                        MusicSectionHeader(
                             title = stringResource(R.string.filter_albums),
-                            onSeeAllClick = { artistDetails.albumsBrowseId?.let { onSeeAllClick(it, artistDetails.albumsParams) } },
+                            action =
+                                MusicSectionAction.SeeAll {
+                                    artistDetails.albumsBrowseId?.let {
+                                        onSeeAllClick(
+                                            it,
+                                            artistDetails.albumsParams,
+                                        )
+                                    }
+                                },
                         )
                     }
                     item {
@@ -543,7 +561,7 @@ fun ArtistPage(
 
                 // Videos
                 if (artistDetails.videos.isNotEmpty()) {
-                    item { SectionHeader(title = stringResource(R.string.tab_videos)) }
+                    item { MusicSectionHeader(title = stringResource(R.string.tab_videos)) }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
@@ -558,7 +576,7 @@ fun ArtistPage(
 
                 // Featured On
                 if (artistDetails.featuredOn.isNotEmpty()) {
-                    item { SectionHeader(title = stringResource(R.string.section_featured_on)) }
+                    item { MusicSectionHeader(title = stringResource(R.string.section_featured_on)) }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
@@ -578,7 +596,7 @@ fun ArtistPage(
 
                 // Related Artists
                 if (artistDetails.relatedArtists.isNotEmpty()) {
-                    item { SectionHeader(title = stringResource(R.string.section_fans_also_like)) }
+                    item { MusicSectionHeader(title = stringResource(R.string.section_fans_also_like)) }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
@@ -602,37 +620,6 @@ fun ArtistPage(
 }
 
 private fun Modifier.mediaQuery(comparator: androidx.compose.ui.layout.ContentScale): Modifier = this
-
-@Composable
-fun SectionHeader(
-    title: String,
-    onSeeAllClick: (() -> Unit)? = null,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 24.dp, end = 12.dp, top = 24.dp, bottom = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-        )
-        if (onSeeAllClick != null) {
-            TextButton(
-                onClick = onSeeAllClick,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
-            ) {
-                Text(
-                    stringResource(R.string.action_view_all),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

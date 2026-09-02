@@ -30,6 +30,7 @@ import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.theme.Dimensions
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -130,10 +131,7 @@ fun YouTubeBrowseScreen(
                             if (section.items.isNotEmpty()) {
                                 section.title?.let { title ->
                                     item(key = "title_${title.hashCode()}") {
-                                        SectionTitle(
-                                            title = title,
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                        )
+                                        MusicSectionHeader(title = title)
                                     }
                                 }
 

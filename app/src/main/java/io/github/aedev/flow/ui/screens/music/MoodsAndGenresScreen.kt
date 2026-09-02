@@ -19,10 +19,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.components.MoodAndGenresButton
-import io.github.aedev.flow.ui.components.NavigationTitle
 import io.github.aedev.flow.ui.components.ShimmerHost
 import io.github.aedev.flow.ui.components.ShimmerMoodButton
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,7 +130,7 @@ fun MoodsAndGenresScreen(
                                 Column(
                                     modifier = Modifier.padding(horizontal = 6.dp),
                                 ) {
-                                    NavigationTitle(
+                                    MusicSectionHeader(
                                         title = moodCategory.title,
                                     )
 

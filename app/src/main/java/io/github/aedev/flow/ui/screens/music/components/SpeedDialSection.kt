@@ -47,7 +47,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.ItemThumbnail
-import io.github.aedev.flow.ui.components.SectionTitle
+import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -76,7 +76,7 @@ fun SpeedDialSection(
                 .fillMaxWidth()
                 .padding(top = 12.dp, bottom = 10.dp),
     ) {
-        SectionTitle(title = stringResource(R.string.section_speed_dial))
+        MusicSectionHeader(title = stringResource(R.string.section_speed_dial))
 
         HorizontalPager(
             state = pagerState,
