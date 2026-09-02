@@ -92,10 +92,10 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.service.Media3MusicService
-import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.SleepTimerSheet
-import io.github.aedev.flow.ui.screens.music.AddToPlaylistDialog
-import io.github.aedev.flow.ui.screens.music.CreatePlaylistDialog
+import io.github.aedev.flow.ui.components.music.sheet.AddToPlaylistDialog
+import io.github.aedev.flow.ui.components.music.sheet.CreatePlaylistDialog
+import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt

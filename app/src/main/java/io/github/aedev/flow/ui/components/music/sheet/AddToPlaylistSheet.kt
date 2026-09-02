@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music
+package io.github.aedev.flow.ui.components.music.sheet
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 
 /**

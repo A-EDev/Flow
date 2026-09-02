@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.music.sheet
 
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,9 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
-import io.github.aedev.flow.ui.screens.music.AddToPlaylistDialog
-import io.github.aedev.flow.ui.screens.music.CreatePlaylistDialog
+import io.github.aedev.flow.ui.components.music.sheet.AddToPlaylistDialog
+import io.github.aedev.flow.ui.components.music.sheet.CreatePlaylistDialog
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
