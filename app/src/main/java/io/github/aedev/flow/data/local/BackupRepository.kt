@@ -40,6 +40,7 @@ import java.io.OutputStreamWriter
 import java.io.StringReader
 import java.time.Instant
 import java.time.OffsetDateTime
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -1352,14 +1353,10 @@ class BackupRepository(
                 var playlistsImported = 0
                 var playlistVideosImported = 0
 
-                val playlistMeta = mutableMapOf<String, String>()
+                val playlistTitlesByDirectory = mutableMapOf<String, MutableList<String>>()
                 val videoCsvData = mutableMapOf<String, List<String>>()
-
-                data class SubRow(
-                    val channelId: String,
-                    val channelName: String,
-                )
-                val subRows = mutableListOf<SubRow>()
+                val subRows = mutableListOf<YouTubeTakeoutSubscription>()
+                val takeoutCsvBudget = YouTubeTakeoutCsvBudget()
                 val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
 
                 val overlap = 2_048
@@ -1384,24 +1381,6 @@ class BackupRepository(
                         while (entry != null) {
                             val name = entry.name
                             when {
-                                name.endsWith("subscriptions/subscriptions.csv", ignoreCase = true) -> {
-                                    onProgress?.invoke("Subscriptions", 0, 0)
-                                    val reader = zip.bufferedReader(Charsets.UTF_8)
-                                    reader.readLine()
-                                    var line = reader.readLine()
-                                    while (line != null) {
-                                        val parts = line.split(",", limit = 3)
-                                        if (parts.size >= 3) {
-                                            val channelId = parts[0].trim().trimStart('\uFEFF')
-                                            val channelName = parts[2].trim().removeSurrounding("\"")
-                                            if (channelId.isNotEmpty() && channelName.isNotEmpty()) {
-                                                subRows.add(SubRow(channelId, channelName))
-                                            }
-                                        }
-                                        line = reader.readLine()
-                                    }
-                                }
-
                                 name.endsWith("history/watch-history.html", ignoreCase = true) -> {
                                     onProgress?.invoke("Watch history", 0, 0)
                                     val reader = zip.bufferedReader(Charsets.UTF_8)
@@ -1468,39 +1447,31 @@ class BackupRepository(
                                     }
                                 }
 
-                                name.endsWith("playlists/playlists.csv", ignoreCase = true) -> {
-                                    val reader = zip.bufferedReader(Charsets.UTF_8)
-                                    reader.readLine()
-                                    var line = reader.readLine()
-                                    while (line != null) {
-                                        if (line.isNotBlank()) {
-                                            val cols = line.split(",")
-                                            val id = cols.getOrNull(0)?.trim() ?: ""
-                                            if (cols.size >= 11 && id.startsWith("PL")) {
-                                                val title = cols[10].trim().removeSurrounding("\"")
-                                                if (title.isNotEmpty()) playlistMeta[id] = title
-                                            }
+                                !entry.isDirectory && isYouTubeTakeoutCsvEntry(name) -> {
+                                    takeoutCsvBudget.startEntry()
+                                    val content =
+                                        readYouTubeTakeoutCsv(
+                                            zip.bufferedReader(Charsets.UTF_8),
+                                            takeoutCsvBudget,
+                                        )
+                                    when (content) {
+                                        is YouTubeTakeoutCsvContent.Subscriptions -> {
+                                            onProgress?.invoke("Subscriptions", 0, 0)
+                                            subRows += content.rows
                                         }
-                                        line = reader.readLine()
-                                    }
-                                }
 
-                                name.contains("/playlists/") && name.endsWith("-videos.csv", ignoreCase = true) -> {
-                                    val filename = name.substringAfterLast("/")
-                                    val ids = mutableListOf<String>()
-                                    val reader = zip.bufferedReader(Charsets.UTF_8)
-                                    var headerSkipped = false
-                                    var rawLine = reader.readLine()
-                                    while (rawLine != null) {
-                                        val line = rawLine.trim()
-                                        if (line.isNotEmpty()) {
-                                            val wasHeader = !headerSkipped && line.startsWith("Video ID", ignoreCase = true)
-                                            headerSkipped = true
-                                            if (!wasHeader) parseTakeoutVideoId(line)?.let { ids.add(it) }
+                                        is YouTubeTakeoutCsvContent.PlaylistVideos -> {
+                                            videoCsvData[name] = content.videoIds
                                         }
-                                        rawLine = reader.readLine()
+
+                                        is YouTubeTakeoutCsvContent.PlaylistMetadata -> {
+                                            playlistTitlesByDirectory
+                                                .getOrPut(name.takeoutParentPath()) { mutableListOf() }
+                                                .addAll(content.titles)
+                                        }
+
+                                        YouTubeTakeoutCsvContent.Unsupported -> {}
                                     }
-                                    if (ids.isNotEmpty()) videoCsvData[filename] = ids
                                 }
                             }
                             zip.closeEntry()
@@ -1550,25 +1521,34 @@ class BackupRepository(
                     }
                 }
 
-                videoCsvData.forEach { (filename, videoIds) ->
-                    val derivedName =
-                        filename
-                            .removeSuffix(".csv")
-                            .let { if (it.endsWith("-videos", ignoreCase = true)) it.dropLast(7) else it }
-                            .trim()
-                            .ifEmpty { "Imported Playlist" }
-
-                    val playlistName =
-                        playlistMeta.values.firstOrNull {
-                            it.equals(derivedName, ignoreCase = true)
-                        } ?: derivedName
+                validateYouTubeTakeoutPlaylistCount(
+                    videoFileCount = videoCsvData.size,
+                    metadataTitleCount = playlistTitlesByDirectory.values.sumOf { titles -> titles.size },
+                )
+                val fallbackPlaylistName = context.getString(R.string.imported_playlist_fallback)
+                val playlistNames =
+                    buildMap {
+                        videoCsvData.keys
+                            .groupBy { filename -> filename.takeoutParentPath() }
+                            .forEach { (directory, filenames) ->
+                                putAll(
+                                    resolveYouTubeTakeoutPlaylistNames(
+                                        filenames,
+                                        playlistTitlesByDirectory[directory].orEmpty(),
+                                        fallbackPlaylistName,
+                                    ),
+                                )
+                            }
+                    }
+                playlistNames.forEach { (filename, playlistName) ->
+                    val videoIds = videoCsvData.getValue(filename)
 
                     val isWatchLater = playlistName.equals("watch later", ignoreCase = true)
                     val playlistId =
                         if (isWatchLater) {
                             PlaylistRepository.WATCH_LATER_ID
                         } else {
-                            "yt_takeout_${playlistName.take(40)}_${System.currentTimeMillis()}"
+                            "yt_takeout_${UUID.randomUUID()}"
                         }
                     val firstThumb = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first())
 

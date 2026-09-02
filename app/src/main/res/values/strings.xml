@@ -2728,6 +2728,7 @@
     <string name="imported_successfully">%1$s imported successfully</string>
     <string name="importing_label">Importing %1$s…</string>
     <string name="imported_from_google_takeout">Imported from Google Takeout</string>
+    <string name="imported_playlist_fallback">Imported Playlist</string>
     <!-- Localization follow-up: fallback labels (#738) -->
     <string name="fallback_playing">Playing…</string>
     <string name="empty_saved_shorts">No saved shorts yet</string>
