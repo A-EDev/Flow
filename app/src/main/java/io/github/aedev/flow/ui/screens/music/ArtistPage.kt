@@ -58,6 +58,7 @@ import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.screens.music.components.TrackListItem
+import io.github.aedev.flow.utils.formatViewCount
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -380,7 +381,7 @@ fun ArtistPage(
                     ) {
                         if (artistDetails.subscriberCount > 0) {
                             Text(
-                                text = stringResource(R.string.subscribers_count_template, formatViews(artistDetails.subscriberCount)),
+                                text = stringResource(R.string.subscribers_count_template, formatViewCount(artistDetails.subscriberCount)),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -728,7 +729,7 @@ fun VideoCard(
             overflow = TextOverflow.Ellipsis,
         )
 
-        val viewsText = if (video.views > 0) formatViews(video.views) else null
+        val viewsText = if (video.views > 0) formatViewCount(video.views) else null
         val subtitle =
             if (viewsText != null) {
                 stringResource(R.string.artist_views_template, video.artist, viewsText)

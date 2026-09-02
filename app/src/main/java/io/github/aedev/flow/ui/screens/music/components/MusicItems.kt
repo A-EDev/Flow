@@ -32,8 +32,8 @@ import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.PlayingWaveform
-import io.github.aedev.flow.ui.screens.music.formatDuration
-import io.github.aedev.flow.ui.screens.music.formatViews
+import io.github.aedev.flow.utils.formatDuration
+import io.github.aedev.flow.utils.formatViewCount
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -195,7 +195,7 @@ private fun MusicTrack.musicMetadataLine(): String {
     val suffix =
         when {
             duration > 0 -> formatDuration(duration)
-            views > 0 -> formatViews(views)
+            views > 0 -> formatViewCount(views)
             else -> null
         }
     return if (suffix != null) stringResource(R.string.year_artist_template, artist, suffix) else artist

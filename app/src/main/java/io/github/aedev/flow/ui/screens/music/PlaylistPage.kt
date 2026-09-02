@@ -57,6 +57,7 @@ import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
+import io.github.aedev.flow.utils.formatDuration
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -935,7 +936,7 @@ private fun PlaylistTrackRow(
         }
         if (track.duration > 0) {
             Text(
-                text = formatTrackDuration(track.duration),
+                text = formatDuration(track.duration),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
             )
@@ -1069,12 +1070,6 @@ private fun PlaylistFooter(
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-private fun formatTrackDuration(seconds: Int): String {
-    val m = seconds / 60
-    val s = seconds % 60
-    return "%d:%02d".format(m, s)
-}
 
 // ─── Merge Into Playlist Dialog ─────────────────────────────────────────────────────
 

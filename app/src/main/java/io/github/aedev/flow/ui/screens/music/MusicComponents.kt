@@ -54,17 +54,3 @@ fun MusicTrackRow(
         onMenuClick = onMenuClick,
     )
 }
-
-fun formatDuration(seconds: Int): String {
-    val minutes = seconds / 60
-    val secs = seconds % 60
-    return "%d:%02d".format(minutes, secs)
-}
-
-fun formatViews(count: Long): String =
-    when {
-        count >= 1_000_000_000 -> String.format("%.1fB", count / 1_000_000_000.0)
-        count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-        count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
-        else -> count.toString()
-    }

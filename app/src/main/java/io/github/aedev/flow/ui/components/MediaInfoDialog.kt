@@ -42,6 +42,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.utils.DateContext
+import io.github.aedev.flow.utils.formatDuration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -277,12 +278,6 @@ private fun InfoItem(
             modifier = Modifier.size(20.dp),
         )
     }
-}
-
-private fun formatDuration(seconds: Int): String {
-    val minutes = seconds / 60
-    val remainingSeconds = seconds % 60
-    return "%d:%02d".format(minutes, remainingSeconds)
 }
 
 private fun formatFileSize(

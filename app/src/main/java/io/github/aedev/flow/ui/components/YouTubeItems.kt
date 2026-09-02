@@ -37,12 +37,7 @@ import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.theme.Dimensions
-
-private fun formatDuration(seconds: Int): String {
-    val minutes = seconds / 60
-    val secs = seconds % 60
-    return "$minutes:${secs.toString().padStart(2, '0')}"
-}
+import io.github.aedev.flow.utils.formatDuration
 
 private data class Quadruple<A, B, C, D>(
     val first: A,
