@@ -42,6 +42,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.CommunityMusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.music.common.MusicMosaicThumbnail
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 
 @Composable
@@ -106,7 +107,7 @@ fun CommunityPlaylistCard(
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                MosaicThumbnail(
+                MusicMosaicThumbnail(
                     tracks = item.tracks,
                     modifier = Modifier.size(104.dp),
                 )
@@ -208,33 +209,6 @@ fun CommunityPlaylistCard(
                 }
                 FilledTonalIconButton(onClick = onPlaylistClick) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MosaicThumbnail(
-    tracks: List<MusicTrack>,
-    modifier: Modifier = Modifier,
-) {
-    Box(modifier = modifier.clip(MaterialTheme.shapes.medium)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            repeat(2) { row ->
-                Row(modifier = Modifier.weight(1f)) {
-                    repeat(2) { col ->
-                        val track = tracks.getOrNull(row * 2 + col)
-                        AsyncImage(
-                            model = track?.thumbnailUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxSize(),
-                        )
-                    }
                 }
             }
         }

@@ -1,30 +1,25 @@
-package io.github.aedev.flow.ui.components
+/*
+ * Copyright (C) 2025-2026 Flow | A-EDev
+ *
+ * This file is part of Flow (https://github.com/A-EDev/Flow).
+ */
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+package io.github.aedev.flow.ui.components.music.common
+
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,13 +31,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.theme.Dimensions
 
+/**
+ * The single artwork surface for the music library. [shape] covers the circular artist variant,
+ * so there is no separate artist thumbnail to keep in sync.
+ */
 @Composable
-fun ItemThumbnail(
+fun MusicThumbnail(
     thumbnailUrl: String?,
     modifier: Modifier = Modifier,
     size: Dp = Dimensions.ListThumbnailSize,
@@ -77,7 +77,7 @@ fun ItemThumbnail(
                         .background(Color.Black.copy(alpha = 0.5f)),
             ) {
                 if (isPlaying) {
-                    PlayingWaveAnimation()
+                    PlayingWaveform()
                 }
             }
         }
@@ -119,24 +119,31 @@ fun ItemThumbnail(
     }
 }
 
+/**
+ * Two-by-two artwork grid standing in for a collection that has no cover of its own.
+ */
 @Composable
-fun PlayingWaveAnimation(
+fun MusicMosaicThumbnail(
+    tracks: List<MusicTrack>,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
 ) {
-    PlayingWaveform(modifier = modifier, color = color)
-}
-
-@Composable
-fun ArtistThumbnail(
-    thumbnailUrl: String?,
-    modifier: Modifier = Modifier,
-    size: Dp = Dimensions.ListThumbnailSize,
-) {
-    ItemThumbnail(
-        thumbnailUrl = thumbnailUrl,
-        size = size,
-        shape = CircleShape,
-        modifier = modifier,
-    )
+    Box(modifier = modifier.clip(MaterialTheme.shapes.medium)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            repeat(2) { row ->
+                Row(modifier = Modifier.weight(1f)) {
+                    repeat(2) { col ->
+                        AsyncImage(
+                            model = tracks.getOrNull(row * 2 + col)?.thumbnailUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxSize(),
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

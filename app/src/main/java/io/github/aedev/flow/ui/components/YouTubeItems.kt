@@ -36,6 +36,7 @@ import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
+import io.github.aedev.flow.ui.components.music.common.MusicChartRankBadge
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatDuration
 
@@ -69,7 +70,7 @@ fun ChartTrackItem(
                     onLongClick = onLongClick,
                 ).padding(horizontal = 12.dp),
     ) {
-        BadgeIcon.ChartPosition(rank)
+        MusicChartRankBadge(rank)
         Spacer(modifier = Modifier.width(8.dp))
 
         AsyncImage(

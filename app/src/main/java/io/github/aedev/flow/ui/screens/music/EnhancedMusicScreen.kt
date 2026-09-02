@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Mic
@@ -39,6 +40,8 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.common.MusicErrorState
+import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.screens.music.components.*
@@ -191,7 +194,7 @@ fun EnhancedMusicScreen(
                 }
 
                 uiState.error != null && uiState.trendingSongs.isEmpty() -> {
-                    ErrorContent(
+                    MusicErrorState(
                         error = uiState.error ?: stringResource(R.string.error_occurred),
                         onRetry = { viewModel.retry() },
                     )
@@ -510,12 +513,13 @@ fun EnhancedMusicScreen(
                                                             leading = {
                                                                 if (section.thumbnailUrl != null) {
                                                                     if (section.isArtistSeed) {
-                                                                        ArtistThumbnail(
+                                                                        MusicThumbnail(
+                                                                            shape = CircleShape,
                                                                             thumbnailUrl = section.thumbnailUrl,
                                                                             size = 40.dp,
                                                                         )
                                                                     } else {
-                                                                        ItemThumbnail(
+                                                                        MusicThumbnail(
                                                                             thumbnailUrl = section.thumbnailUrl,
                                                                             size = 40.dp,
                                                                             shape = RoundedCornerShape(8.dp),
@@ -909,7 +913,8 @@ fun EnhancedMusicScreen(
                                                                         .width(100.dp)
                                                                         .clickable { onArtistClick(track.channelId) },
                                                             ) {
-                                                                ArtistThumbnail(
+                                                                MusicThumbnail(
+                                                                    shape = CircleShape,
                                                                     thumbnailUrl = track.thumbnailUrl,
                                                                     size = 100.dp,
                                                                 )

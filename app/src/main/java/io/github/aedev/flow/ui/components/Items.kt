@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.ui.theme.GridItemSize
 
@@ -84,15 +85,11 @@ fun GridItem(
                         .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius)),
             )
             if (isDownloaded) {
-                Icon(
-                    imageVector = Icons.Rounded.OfflinePin,
-                    contentDescription = stringResource(R.string.status_downloaded),
-                    tint = androidx.compose.ui.graphics.Color.White,
+                MusicDownloadedBadge(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(18.dp),
+                            .padding(8.dp),
                 )
             }
         }

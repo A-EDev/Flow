@@ -1648,6 +1648,7 @@
     <string name="label_explicit">Explicit</string>
     <string name="duration_with_dot_template"> • %1$s</string>
     <string name="queue_position_template">%1$d / %2$d</string>
+    <string name="chart_position_template">#%1$d</string>
     <string name="next_up_template">%1$s: %2$s</string>
     <string name="equalizer_frequency_label">F</string>
     <string name="equalizer_gain_label">G</string>

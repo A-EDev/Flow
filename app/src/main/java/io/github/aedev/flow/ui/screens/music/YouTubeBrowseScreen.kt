@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -30,6 +31,9 @@ import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.common.MusicEmptyState
+import io.github.aedev.flow.ui.components.music.common.MusicErrorState
+import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.theme.Dimensions
 
@@ -89,37 +93,14 @@ fun YouTubeBrowseScreen(
                 }
 
                 uiState.error != null -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Text(
-                            text = uiState.error ?: stringResource(R.string.unknown_error),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.retry() }) {
-                            Text(stringResource(R.string.action_retry))
-                        }
-                    }
+                    MusicErrorState(
+                        error = uiState.error ?: stringResource(R.string.unknown_error),
+                        onRetry = { viewModel.retry() },
+                    )
                 }
 
                 uiState.sections.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.empty_browse_content),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    MusicEmptyState(title = stringResource(R.string.empty_browse_content))
                 }
 
                 else -> {
@@ -204,7 +185,8 @@ fun YouTubeBrowseScreen(
                                                                     .width(100.dp)
                                                                     .clickable { onArtistClick(item.id) },
                                                         ) {
-                                                            ArtistThumbnail(
+                                                            MusicThumbnail(
+                                                                shape = CircleShape,
                                                                 thumbnailUrl = item.thumbnail,
                                                                 size = 100.dp,
                                                             )

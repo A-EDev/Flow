@@ -39,30 +39,34 @@ fun PlayingWaveform(
     minBarHeight: Dp = 6.dp,
     maxBarHeight: Dp = 16.dp,
     cycleMillis: Int = 350,
-    staggerMillis: Int = 100
+    staggerMillis: Int = 100,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "waveform")
-    val bars = List(barCount) { index ->
-        infiniteTransition.animateFloat(
-            initialValue = minBarHeight.value,
-            targetValue = maxBarHeight.value,
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = cycleMillis,
-                    delayMillis = index * staggerMillis,
-                    easing = FastOutSlowInEasing
-                ),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "bar$index"
-        )
-    }
+    val bars =
+        List(barCount) { index ->
+            infiniteTransition.animateFloat(
+                initialValue = minBarHeight.value,
+                targetValue = maxBarHeight.value,
+                animationSpec =
+                    infiniteRepeatable(
+                        animation =
+                            tween(
+                                durationMillis = cycleMillis,
+                                delayMillis = index * staggerMillis,
+                                easing = FastOutSlowInEasing,
+                            ),
+                        repeatMode = RepeatMode.Reverse,
+                    ),
+                label = "bar$index",
+            )
+        }
 
     Canvas(
-        modifier = modifier.size(
-            width = barWidth * barCount + barSpacing * (barCount - 1),
-            height = maxBarHeight
-        )
+        modifier =
+            modifier.size(
+                width = barWidth * barCount + barSpacing * (barCount - 1),
+                height = maxBarHeight,
+            ),
     ) {
         val barWidthPx = barWidth.toPx()
         val spacingPx = barSpacing.toPx()
@@ -72,12 +76,13 @@ fun PlayingWaveform(
             val barHeightPx = bar.value.dp.toPx()
             drawRoundRect(
                 color = color,
-                topLeft = Offset(
-                    x = index * (barWidthPx + spacingPx),
-                    y = (size.height - barHeightPx) / 2f
-                ),
+                topLeft =
+                    Offset(
+                        x = index * (barWidthPx + spacingPx),
+                        y = (size.height - barHeightPx) / 2f,
+                    ),
                 size = Size(barWidthPx, barHeightPx),
-                cornerRadius = cornerRadius
+                cornerRadius = cornerRadius,
             )
         }
     }

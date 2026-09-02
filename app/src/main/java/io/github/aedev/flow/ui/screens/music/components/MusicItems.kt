@@ -32,6 +32,7 @@ import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.PlayingWaveform
+import io.github.aedev.flow.ui.components.music.common.MusicExplicitBadge
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatViewCount
 
@@ -95,7 +96,7 @@ fun TrackListItem(
                                 .background(Color.Black.copy(alpha = 0.46f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        MusicWaveAnimation(
+                        PlayingWaveform(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(width = 28.dp, height = 24.dp),
                         )
@@ -125,7 +126,7 @@ fun TrackListItem(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 if (track.isExplicit == true) {
-                    ExplicitBadge()
+                    MusicExplicitBadge()
                 }
 
                 Text(
@@ -164,30 +165,6 @@ fun TrackListItem(
             }
         }
     }
-}
-
-@Composable
-fun MusicWaveAnimation(
-    modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
-) {
-    PlayingWaveform(
-        modifier = modifier,
-        color = color,
-        minBarHeight = 8.dp,
-        maxBarHeight = 20.dp,
-        cycleMillis = 400,
-    )
-}
-
-@Composable
-private fun ExplicitBadge() {
-    Icon(
-        painter = painterResource(R.drawable.ic_explicit),
-        contentDescription = stringResource(R.string.label_explicit),
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.size(18.dp),
-    )
 }
 
 @Composable
