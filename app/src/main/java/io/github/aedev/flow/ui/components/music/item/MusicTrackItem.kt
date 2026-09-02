@@ -53,6 +53,8 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicExplicitBadge
+import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
+import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.ui.theme.MusicScrimNowPlaying
 import io.github.aedev.flow.utils.formatDuration
@@ -95,7 +97,7 @@ fun MusicTrackItem(
     index: Int? = null,
     shape: Shape = RectangleShape,
     thumbnailWidth: Dp = density.thumbnailSize,
-    isPlaying: Boolean = false,
+    isPlaying: Boolean = isTrackPlaying(track.videoId),
     isDownloaded: Boolean = false,
     showMenu: Boolean = true,
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
@@ -167,18 +169,7 @@ fun MusicTrackItem(
                     contentScale = ContentScale.Crop,
                 )
                 if (isPlaying) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .background(MusicScrimNowPlaying),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        PlayingWaveform(
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(width = 28.dp, height = 24.dp),
-                        )
-                    }
+                    MusicNowPlayingOverlay()
                 }
                 thumbnailOverlay?.invoke(this)
             }

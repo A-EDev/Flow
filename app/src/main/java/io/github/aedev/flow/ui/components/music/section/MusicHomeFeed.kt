@@ -46,7 +46,6 @@ import io.github.aedev.flow.ui.screens.music.MusicViewModel
 fun LazyListScope.musicHomeFeed(
     uiState: MusicUiState,
     sectionOrder: List<HomeSectionType>,
-    playingVideoId: String?,
     quickPickTracks: List<MusicTrack>,
     speedDialTracks: List<MusicTrack>,
     popularArtists: List<MusicTrack>,
@@ -109,7 +108,6 @@ fun LazyListScope.musicHomeFeed(
             items(uiState.allSongs, key = { "filtered:${it.videoId}" }) { track ->
                 MusicTrackItem(
                     track = track,
-                    isPlaying = playingVideoId == track.videoId,
                     isDownloaded = downloaded.contains(track.videoId),
                     onClick = { onSongClick(track, uiState.allSongs, uiState.selectedFilter) },
                     onLongClick = { onTrackMenu(track) },
@@ -175,7 +173,7 @@ fun LazyListScope.musicHomeFeed(
             }
 
             HomeSectionType.QUICK_PICKS -> {
-                quickPicks(quickPickTracks, playingVideoId, downloaded, quickPicksGridState, onSongClick, onTrackMenu)
+                quickPicks(quickPickTracks, downloaded, quickPicksGridState, onSongClick, onTrackMenu)
             }
 
             HomeSectionType.FROM_COMMUNITY -> {
@@ -274,7 +272,7 @@ fun LazyListScope.musicHomeFeed(
             }
 
             HomeSectionType.CHARTS -> {
-                charts(uiState.trendingSongs, playingVideoId, downloaded, onSongClick, onTrackMenu)
+                charts(uiState.trendingSongs, downloaded, onSongClick, onTrackMenu)
             }
 
             HomeSectionType.POPULAR_ARTISTS -> {
@@ -411,7 +409,6 @@ private fun LazyListScope.dailyDiscover(
 
 private fun LazyListScope.quickPicks(
     tracks: List<MusicTrack>,
-    playingVideoId: String?,
     downloaded: Set<String>,
     state: LazyGridState,
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
@@ -422,7 +419,6 @@ private fun LazyListScope.quickPicks(
         MusicQuickPicksShelf(
             title = stringResource(R.string.section_quick_picks),
             tracks = tracks,
-            playingVideoId = playingVideoId,
             downloadedTrackIds = downloaded,
             state = state,
             action =
@@ -437,7 +433,6 @@ private fun LazyListScope.quickPicks(
 
 private fun LazyListScope.charts(
     tracks: List<MusicTrack>,
-    playingVideoId: String?,
     downloaded: Set<String>,
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit,
@@ -447,7 +442,6 @@ private fun LazyListScope.charts(
         MusicChartsShelf(
             title = stringResource(R.string.trending),
             tracks = tracks,
-            playingVideoId = playingVideoId,
             downloadedTrackIds = downloaded,
             onTrackClick = { onSongClick(it, tracks, "charts") },
             onTrackMenu = onTrackMenu,

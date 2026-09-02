@@ -71,18 +71,15 @@ fun MusicThumbnail(
             modifier = Modifier.fillMaxSize(),
         )
 
-        if (isActive || isPlaying) {
+        if (isPlaying) {
+            MusicNowPlayingOverlay()
+        } else if (isActive) {
             Box(
-                contentAlignment = Alignment.Center,
                 modifier =
                     Modifier
-                        .fillMaxSize()
+                        .matchParentSize()
                         .background(MusicScrimThumbnailActive),
-            ) {
-                if (isPlaying) {
-                    PlayingWaveform()
-                }
-            }
+            )
         }
 
         if (isSelected) {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -37,6 +38,8 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.currentGridThumbnailHeight
 import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
+import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
+import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 
 /**
  * The single grid card for anything that is not a single track — albums, playlists, artists,
@@ -58,6 +61,9 @@ fun MusicCollectionCard(
     thumbnailHeight: Dp = currentGridThumbnailHeight(),
     aspectRatio: Float = 1f,
     shape: Shape = MaterialTheme.shapes.medium,
+    fillMaxWidth: Boolean = false,
+    mediaId: String? = null,
+    isPlaying: Boolean = isTrackPlaying(mediaId),
     isDownloaded: Boolean = false,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     trailingContent: (@Composable BoxScope.() -> Unit)? = null,
@@ -69,7 +75,7 @@ fun MusicCollectionCard(
         horizontalAlignment = horizontalAlignment,
         modifier =
             modifier
-                .width(thumbnailHeight * aspectRatio)
+                .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.width(thumbnailHeight * aspectRatio))
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
@@ -82,10 +88,13 @@ fun MusicCollectionCard(
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
-                        .height(thumbnailHeight)
+                        .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.height(thumbnailHeight))
                         .aspectRatio(aspectRatio)
                         .clip(shape),
             )
+            if (isPlaying) {
+                MusicNowPlayingOverlay()
+            }
             if (isDownloaded) {
                 MusicDownloadedBadge(
                     modifier =

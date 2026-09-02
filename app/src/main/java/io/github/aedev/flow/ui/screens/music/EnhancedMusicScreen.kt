@@ -36,7 +36,6 @@ import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
-import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
@@ -78,7 +77,6 @@ fun EnhancedMusicScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
     val musicListState = rememberLazyListState()
     val quickPicksGridState = rememberLazyGridState()
 
@@ -246,7 +244,6 @@ fun EnhancedMusicScreen(
                             musicHomeFeed(
                                 uiState = uiState,
                                 sectionOrder = sectionOrder,
-                                playingVideoId = currentTrack?.videoId,
                                 quickPickTracks = quickPickTracks,
                                 speedDialTracks = speedDialTracks,
                                 popularArtists = popularArtists,

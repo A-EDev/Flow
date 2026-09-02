@@ -28,7 +28,6 @@ import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
-import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.MusicEmptyState
@@ -51,7 +50,6 @@ fun YouTubeBrowseScreen(
     viewModel: YouTubeBrowseViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
 
     Scaffold(
         topBar = {
@@ -141,7 +139,6 @@ fun YouTubeBrowseScreen(
                                                 MusicTrackItem(
                                                     track = convertSongToMusicTrack(song),
                                                     density = MusicItemDensity.Compact,
-                                                    isPlaying = currentTrack?.videoId == song.id,
                                                     showMenu = false,
                                                     onClick = { onSongClick(song) },
                                                     modifier = Modifier.width(300.dp),

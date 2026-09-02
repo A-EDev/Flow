@@ -45,6 +45,7 @@ internal fun MusicPlaylistLibraryCard(
             thumbnailUrl = playlist.thumbnailUrl,
             onClick = onClick,
             onLongClick = { showMenu = true },
+            fillMaxWidth = true,
             modifier = Modifier.fillMaxWidth(),
         )
 

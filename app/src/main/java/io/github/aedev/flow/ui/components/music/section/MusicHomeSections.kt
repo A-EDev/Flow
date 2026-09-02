@@ -94,6 +94,7 @@ fun MusicTrackCardShelf(
             subtitle = trackSubtitle(track),
             thumbnailUrl = track.thumbnailUrl,
             thumbnailHeight = thumbnailHeight,
+            mediaId = track.videoId,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             onClick = {
                 if (track.isCollection && onCollectionClick != null) onCollectionClick(track) else onTrackClick(track)
@@ -177,7 +178,6 @@ fun MusicQuickPicksShelf(
     onTrackMenu: (MusicTrack) -> Unit,
     modifier: Modifier = Modifier,
     action: MusicSectionAction? = null,
-    playingVideoId: String? = null,
     downloadedTrackIds: Set<String> = emptySet(),
     state: LazyGridState = rememberLazyGridState(),
 ) {
@@ -192,7 +192,6 @@ fun MusicQuickPicksShelf(
         MusicTrackItem(
             track = track,
             density = MusicItemDensity.Compact,
-            isPlaying = playingVideoId == track.videoId,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             showMenu = false,
             onClick = { onTrackClick(track) },
@@ -212,7 +211,6 @@ fun MusicChartsShelf(
     onTrackClick: (MusicTrack) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit,
     modifier: Modifier = Modifier,
-    playingVideoId: String? = null,
     downloadedTrackIds: Set<String> = emptySet(),
 ) {
     val ranked = remember(tracks) { tracks.take(20).mapIndexed { index, track -> index + 1 to track } }
@@ -228,7 +226,6 @@ fun MusicChartsShelf(
             density = MusicItemDensity.Compact,
             leadingContent = { MusicChartRankBadge(rank) },
             showMenu = false,
-            isPlaying = playingVideoId == track.videoId,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             onClick = { onTrackClick(track) },
             onLongClick = { onTrackMenu(track) },

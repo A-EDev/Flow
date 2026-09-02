@@ -6,16 +6,22 @@
 
 package io.github.aedev.flow.ui.components.music.item
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.width
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.aedev.flow.R
 import org.junit.Assert.assertEquals
@@ -166,5 +172,53 @@ class MusicCollectionCardTest {
 
         composeRule.onNodeWithText("Album").performClick()
         assertEquals(1, cardClicks)
+    }
+
+    @Test
+    fun theFillModeLetsTheCardTakeItsContainerWidth() {
+        composeRule.setContent {
+            MaterialTheme {
+                Box(modifier = Modifier.width(240.dp)) {
+                    MusicCollectionCard(
+                        title = "Library playlist",
+                        onClick = {},
+                        fillMaxWidth = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Library playlist")
+            .assertIsDisplayed()
+        val cardWidth =
+            composeRule
+                .onNodeWithContentDescription("Library playlist")
+                .getUnclippedBoundsInRoot()
+                .width
+        assertEquals(240.dp.value, cardWidth.value, 1f)
+    }
+
+    @Test
+    fun withoutTheFillModeTheCardKeepsItsIntrinsicWidth() {
+        composeRule.setContent {
+            MaterialTheme {
+                Box(modifier = Modifier.width(240.dp)) {
+                    MusicCollectionCard(
+                        title = "Shelf album",
+                        onClick = {},
+                        thumbnailHeight = 160.dp,
+                    )
+                }
+            }
+        }
+
+        val cardWidth =
+            composeRule
+                .onNodeWithContentDescription("Shelf album")
+                .getUnclippedBoundsInRoot()
+                .width
+        assertEquals(160.dp.value, cardWidth.value, 1f)
     }
 }

@@ -46,6 +46,7 @@ import io.github.aedev.flow.ui.components.DonationPromptHost
 import io.github.aedev.flow.ui.components.FloatingBottomNavBar
 import io.github.aedev.flow.ui.components.PlayerSheetValue
 import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
+import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerBottomSpacer
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerHeight
 import io.github.aedev.flow.ui.components.musicplayer.MusicPlayerSheetState
@@ -502,115 +503,117 @@ fun FlowApp(
                 label = "bottomNavContentPadding",
             )
 
-            Scaffold(
-                modifier = Modifier.fillMaxSize(),
-                containerColor =
-                    if (isInPipMode) {
-                        androidx.compose.ui.graphics.Color.Black
-                    } else {
-                        androidx.compose.material3.MaterialTheme.colorScheme.background
-                    },
-                contentWindowInsets = WindowInsets.systemBars,
-                bottomBar = {},
-            ) { paddingValues ->
-                val layoutDirection = LocalLayoutDirection.current
-                val contentPadding =
-                    if (
-                        isShortsPlayerRoute
-                    ) {
-                        PaddingValues(
-                            start = paddingValues.calculateStartPadding(layoutDirection),
-                            top = 0.dp,
-                            end = paddingValues.calculateEndPadding(layoutDirection),
-                            bottom = paddingValues.calculateBottomPadding(),
-                        )
-                    } else {
-                        paddingValues
-                    }
-                Box(
-                    modifier =
-                        Modifier
-                            .padding(if (isInPipMode) PaddingValues(0.dp) else contentPadding)
-                            .padding(bottom = bottomNavContentPadding)
-                            .padding(bottom = musicMiniPlayerContentPadding.coerceAtLeast(0.dp))
-                            .nestedScroll(nestedScrollConnection),
-                ) {
-                    if (needsOnboarding != null) {
-                        val homeViewModel: HomeViewModel = hiltViewModel(activity!!)
-                        LaunchedEffect(homeViewModel) {
-                            homeViewModel.initialize(context.applicationContext)
-                        }
-
-                        ProvideFlowGlobalActions(
-                            unreadNotifications = notificationViewModel.unreadCount,
-                            onOpenNotifications = { navController.navigate("notifications") },
-                            onOpenSettings = { navController.navigate("settings") },
+            ProvideMusicPlaybackState {
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    containerColor =
+                        if (isInPipMode) {
+                            androidx.compose.ui.graphics.Color.Black
+                        } else {
+                            androidx.compose.material3.MaterialTheme.colorScheme.background
+                        },
+                    contentWindowInsets = WindowInsets.systemBars,
+                    bottomBar = {},
+                ) { paddingValues ->
+                    val layoutDirection = LocalLayoutDirection.current
+                    val contentPadding =
+                        if (
+                            isShortsPlayerRoute
                         ) {
-                            NavHost(
-                                navController = navController,
-                                startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
-                                enterTransition = {
-                                    fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
-                                        slideInHorizontally(
-                                            initialOffsetX = { (it * 0.06f).toInt() },
-                                            animationSpec =
-                                                spring(
-                                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                                    stiffness = Spring.StiffnessMediumLow,
-                                                ),
-                                        )
-                                },
-                                exitTransition = {
-                                    fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
-                                },
-                                popEnterTransition = {
-                                    fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing))
-                                },
-                                popExitTransition = {
-                                    fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing)) +
-                                        slideOutHorizontally(
-                                            targetOffsetX = { (it * 0.06f).toInt() },
-                                            animationSpec =
-                                                spring(
-                                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                                    stiffness = Spring.StiffnessMediumLow,
-                                                ),
-                                        )
-                                },
+                            PaddingValues(
+                                start = paddingValues.calculateStartPadding(layoutDirection),
+                                top = 0.dp,
+                                end = paddingValues.calculateEndPadding(layoutDirection),
+                                bottom = paddingValues.calculateBottomPadding(),
+                            )
+                        } else {
+                            paddingValues
+                        }
+                    Box(
+                        modifier =
+                            Modifier
+                                .padding(if (isInPipMode) PaddingValues(0.dp) else contentPadding)
+                                .padding(bottom = bottomNavContentPadding)
+                                .padding(bottom = musicMiniPlayerContentPadding.coerceAtLeast(0.dp))
+                                .nestedScroll(nestedScrollConnection),
+                    ) {
+                        if (needsOnboarding != null) {
+                            val homeViewModel: HomeViewModel = hiltViewModel(activity!!)
+                            LaunchedEffect(homeViewModel) {
+                                homeViewModel.initialize(context.applicationContext)
+                            }
+
+                            ProvideFlowGlobalActions(
+                                unreadNotifications = notificationViewModel.unreadCount,
+                                onOpenNotifications = { navController.navigate("notifications") },
+                                onOpenSettings = { navController.navigate("settings") },
                             ) {
-                                flowAppGraph(
+                                NavHost(
                                     navController = navController,
-                                    currentRoute = currentRoute,
-                                    showBottomNav = showBottomNav,
-                                    selectedBottomNavIndex = selectedBottomNavIndex,
-                                    playerSheetState = playerSheetState,
-                                    musicPlayerSheetState = musicPlayerSheetState,
-                                    homeViewModel = homeViewModel,
-                                    playerViewModel = playerViewModel,
-                                    playerUiStateResult = playerUiStateResult,
-                                    playerVisibleState = playerVisibleState,
-                                    currentTheme = currentTheme,
-                                    themeVariant = themeVariant,
-                                    customThemePalettes = customThemePalettes,
-                                    systemLightThemeMode = systemLightThemeMode,
-                                    systemDarkThemeMode = systemDarkThemeMode,
-                                    systemDarkThemeVariant = systemDarkThemeVariant,
-                                    onThemeChange = onThemeChange,
-                                    onThemeVariantChange = onThemeVariantChange,
-                                    onCustomThemePalettesChange = onCustomThemePalettesChange,
-                                    onSystemLightThemeChange = onSystemLightThemeChange,
-                                    onSystemDarkThemeChange = onSystemDarkThemeChange,
-                                    onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
-                                    disableShortsPlayer = disableShortsPlayer,
-                                    defaultStartRoute = defaultStartRoute,
-                                    bottomNavOverlayPadding = {
-                                        if (showBottomNav.value && isNavScrolledVisible) {
-                                            bottomNavContentHeightDp
-                                        } else {
-                                            0.dp
-                                        }
+                                    startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
+                                    enterTransition = {
+                                        fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
+                                            slideInHorizontally(
+                                                initialOffsetX = { (it * 0.06f).toInt() },
+                                                animationSpec =
+                                                    spring(
+                                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                    ),
+                                            )
                                     },
-                                )
+                                    exitTransition = {
+                                        fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
+                                    },
+                                    popEnterTransition = {
+                                        fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing))
+                                    },
+                                    popExitTransition = {
+                                        fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing)) +
+                                            slideOutHorizontally(
+                                                targetOffsetX = { (it * 0.06f).toInt() },
+                                                animationSpec =
+                                                    spring(
+                                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                    ),
+                                            )
+                                    },
+                                ) {
+                                    flowAppGraph(
+                                        navController = navController,
+                                        currentRoute = currentRoute,
+                                        showBottomNav = showBottomNav,
+                                        selectedBottomNavIndex = selectedBottomNavIndex,
+                                        playerSheetState = playerSheetState,
+                                        musicPlayerSheetState = musicPlayerSheetState,
+                                        homeViewModel = homeViewModel,
+                                        playerViewModel = playerViewModel,
+                                        playerUiStateResult = playerUiStateResult,
+                                        playerVisibleState = playerVisibleState,
+                                        currentTheme = currentTheme,
+                                        themeVariant = themeVariant,
+                                        customThemePalettes = customThemePalettes,
+                                        systemLightThemeMode = systemLightThemeMode,
+                                        systemDarkThemeMode = systemDarkThemeMode,
+                                        systemDarkThemeVariant = systemDarkThemeVariant,
+                                        onThemeChange = onThemeChange,
+                                        onThemeVariantChange = onThemeVariantChange,
+                                        onCustomThemePalettesChange = onCustomThemePalettesChange,
+                                        onSystemLightThemeChange = onSystemLightThemeChange,
+                                        onSystemDarkThemeChange = onSystemDarkThemeChange,
+                                        onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
+                                        disableShortsPlayer = disableShortsPlayer,
+                                        defaultStartRoute = defaultStartRoute,
+                                        bottomNavOverlayPadding = {
+                                            if (showBottomNav.value && isNavScrolledVisible) {
+                                                bottomNavContentHeightDp
+                                            } else {
+                                                0.dp
+                                            }
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
