@@ -12,7 +12,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
@@ -43,7 +42,6 @@ class MusicShelfTest {
                     title = "Nothing here",
                     items = emptyList<String>(),
                     key = { it },
-                    itemWidth = 120.dp,
                 ) { Text(it) }
             }
         }
@@ -59,7 +57,6 @@ class MusicShelfTest {
                     title = "Listen again",
                     items = listOf("one", "two"),
                     key = { it },
-                    itemWidth = 120.dp,
                 ) { Text(it) }
             }
         }
@@ -77,7 +74,6 @@ class MusicShelfTest {
                     title = "Charts",
                     items = listOf("one"),
                     key = { it },
-                    itemWidth = 120.dp,
                     action = MusicSectionAction.PlayAll { plays++ },
                 ) { Text(it) }
             }

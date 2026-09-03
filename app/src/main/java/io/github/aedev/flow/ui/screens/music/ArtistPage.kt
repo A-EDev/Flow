@@ -34,7 +34,6 @@ import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
-import io.github.aedev.flow.ui.components.music.card.MusicHeroCard
 import io.github.aedev.flow.ui.components.music.common.MusicSegmentedGap
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 import io.github.aedev.flow.ui.components.music.common.musicSegmentShape
@@ -44,10 +43,11 @@ import io.github.aedev.flow.ui.components.music.detail.ArtistHero
 import io.github.aedev.flow.ui.components.music.detail.MusicHeroTopBar
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
+import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.section.MusicArtistShelf
 import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
-import io.github.aedev.flow.ui.components.music.section.MusicHeroLane
+import io.github.aedev.flow.ui.components.music.section.MusicShelf
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
@@ -56,6 +56,7 @@ import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatViewCount
 
 private const val TOP_TRACKS_SHOWN = 5
+private val VideoCardHeight = 124.dp
 private const val VIDEO_ASPECT_RATIO = 16f / 9f
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -278,18 +279,18 @@ fun ArtistPage(
 
                 if (artistDetails.videos.isNotEmpty()) {
                     item(key = "videos") {
-                        MusicHeroLane(
+                        MusicShelf(
                             title = stringResource(R.string.tab_videos),
                             items = artistDetails.videos,
                             key = { "videos:${it.videoId}" },
-                            artAspectRatio = VIDEO_ASPECT_RATIO,
-                        ) { video, captionAlpha ->
-                            MusicHeroCard(
+                        ) { video ->
+                            MusicCollectionCard(
                                 title = video.title,
                                 subtitle = video.videoSubtitle(),
                                 thumbnailUrl = video.thumbnailUrl,
+                                thumbnailHeight = VideoCardHeight,
+                                aspectRatio = VIDEO_ASPECT_RATIO,
                                 mediaId = video.videoId,
-                                captionAlpha = captionAlpha,
                                 onClick = { onTrackClick(video, listOf(video)) },
                             )
                         }

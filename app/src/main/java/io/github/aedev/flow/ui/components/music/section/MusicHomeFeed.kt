@@ -173,7 +173,7 @@ fun LazyListScope.musicHomeFeed(
             }
 
             HomeSectionType.FROM_COMMUNITY -> {
-                community(uiState.communityPlaylists, onAlbumClick, onCollectionMenu)
+                community(uiState.communityPlaylists, downloaded, onAlbumClick, onSongClick, onTrackMenu, onCollectionMenu)
             }
 
             HomeSectionType.RECOMMENDED -> {
@@ -287,7 +287,7 @@ fun LazyListScope.musicHomeFeed(
             }
 
             HomeSectionType.MIXED_FOR_YOU -> {
-                collectionHeroLane(
+                collectionShelf(
                     id = "mixed_for_you",
                     titleRes = R.string.section_mixed_for_you,
                     collections = uiState.featuredPlaylists,
@@ -352,26 +352,6 @@ private fun LazyListScope.collectionShelf(
     if (collections.isEmpty()) return
     item(key = id) {
         MusicCollectionShelf(
-            title = stringResource(titleRes),
-            collections = collections,
-            keyNamespace = id,
-            onCollectionClick = { onAlbumClick(it.id) },
-            onCollectionMenu = { onCollectionMenu(it, isAlbum) },
-        )
-    }
-}
-
-private fun LazyListScope.collectionHeroLane(
-    id: String,
-    titleRes: Int,
-    collections: List<MusicPlaylist>,
-    isAlbum: Boolean,
-    onAlbumClick: (String) -> Unit,
-    onCollectionMenu: (MusicPlaylist, Boolean) -> Unit,
-) {
-    if (collections.isEmpty()) return
-    item(key = id) {
-        MusicCollectionHeroLane(
             title = stringResource(titleRes),
             collections = collections,
             keyNamespace = id,
@@ -469,15 +449,21 @@ private fun LazyListScope.charts(
 
 private fun LazyListScope.community(
     playlists: List<CommunityMusicPlaylist>,
+    downloaded: Set<String>,
     onAlbumClick: (String) -> Unit,
+    onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
+    onTrackMenu: (MusicTrack) -> Unit,
     onCollectionMenu: (MusicCollectionActionItem) -> Unit,
 ) {
     if (playlists.isEmpty()) return
     item(key = "from_the_community") {
         CommunityPlaylistsSection(
             playlists = playlists,
+            downloadedTrackIds = downloaded,
             onPlaylistClick = { onAlbumClick(it.playlist.id) },
             onPlaylistAction = { onCollectionMenu(it.playlist.toCollectionActionItem(isAlbum = false)) },
+            onTrackClick = { track, tracks -> onSongClick(track, tracks, "from_the_community") },
+            onTrackMenu = onTrackMenu,
         )
     }
 }
@@ -511,11 +497,13 @@ private fun LazyListScope.similarTo(
     onTrackMenu: (MusicTrack) -> Unit,
     onCollectionMenu: (MusicTrack) -> Unit,
 ) {
-    (uiState.dailyMixSections + uiState.similarToSections).forEachIndexed { index, section ->
+    val dailyMixes = uiState.dailyMixSections
+    (dailyMixes + uiState.similarToSections).forEachIndexed { index, section ->
         item(key = "similar_to:$index:${section.title}") {
-            MusicTrackHeroLane(
+            MusicTrackCardShelf(
                 title = section.title,
                 tracks = section.tracks,
+                lane = if (index < dailyMixes.size) MusicLane.Hero else MusicLane.Cards,
                 keyNamespace = "similar_${index}_${section.title}",
                 subtitle = section.label ?: section.subtitle,
                 leading =
@@ -554,7 +542,7 @@ private fun LazyListScope.dynamicHome(
         .filterNot { it.title.isDuplicateOfADedicatedShelf() }
         .forEachIndexed { index, section ->
             item(key = "dynamic:$index:${section.title}") {
-                MusicTrackHeroLane(
+                MusicTrackCardShelf(
                     title = section.title,
                     tracks = section.tracks,
                     keyNamespace = "dynamic_${index}_${section.title}",

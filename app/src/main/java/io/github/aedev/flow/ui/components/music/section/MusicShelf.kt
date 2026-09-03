@@ -7,23 +7,21 @@
 package io.github.aedev.flow.ui.components.music.section
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.carousel.CarouselItemScope
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
-import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -45,19 +43,16 @@ private val HeroLaneItemSpacing = 8.dp
 private val TrackShelfColumnSpacing = 8.dp
 
 /**
- * A titled lane of same-width cards on the uncontained carousel: items snap, and the last visible
- * one peeks in so the lane reads as scrollable.
+ * A titled horizontal lane of cards — the shape almost every music shelf shares.
  *
  * [key] is required rather than defaulted: the same video id appears in several shelves at once, so
  * a lane that keys on a bare id collides with its neighbours and crashes the feed. Namespace it.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> MusicShelf(
     title: String?,
     items: List<T>,
     key: (T) -> Any,
-    itemWidth: Dp,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     leading: (@Composable () -> Unit)? = null,
@@ -66,7 +61,6 @@ fun <T> MusicShelf(
 ) {
     val uniqueItems = remember(items) { items.distinctBy(key) }
     if (uniqueItems.isEmpty()) return
-    val carouselState = rememberCarouselState { uniqueItems.size }
 
     Column(modifier = modifier.fillMaxWidth()) {
         if (title != null) {
@@ -77,20 +71,20 @@ fun <T> MusicShelf(
                 action = action,
             )
         }
-        HorizontalUncontainedCarousel(
-            state = carouselState,
-            itemWidth = itemWidth,
-            itemSpacing = Dimensions.ItemSpacing,
+        LazyRow(
             contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
-            modifier = Modifier.fillMaxWidth(),
-        ) { index -> itemContent(uniqueItems[index]) }
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.ItemSpacing),
+        ) {
+            items(items = uniqueItems, key = key) { item -> itemContent(item) }
+        }
     }
 }
 
 /**
  * A titled hero lane on the multi-browse carousel: one item in focus at over four fifths of a
- * phone, the next peeking in. Items are masked to the extra-large shape, and [itemContent]
- * receives a caption alpha to read in the draw phase so labels fade as an item shrinks.
+ * phone, the next peeking in. [itemContent] runs in the carousel item scope so it can mask its
+ * artwork, and receives a caption alpha to read in the draw phase so labels fade as an item
+ * shrinks into a preview.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +97,7 @@ fun <T> MusicHeroLane(
     leading: (@Composable () -> Unit)? = null,
     action: MusicSectionAction? = null,
     artAspectRatio: Float = 1f,
-    itemContent: @Composable (item: T, captionAlpha: () -> Float) -> Unit,
+    itemContent: @Composable CarouselItemScope.(item: T, captionAlpha: () -> Float) -> Unit,
 ) {
     val uniqueItems = remember(items) { items.distinctBy(key) }
     if (uniqueItems.isEmpty()) return
@@ -130,14 +124,7 @@ fun <T> MusicHeroLane(
                     .padding(bottom = Dimensions.ContentPaddingVertical)
                     .height(itemWidth / artAspectRatio + MusicHeroCaptionHeight),
         ) { index ->
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .maskClip(MaterialTheme.shapes.extraLarge),
-            ) {
-                itemContent(uniqueItems[index], captionAlpha())
-            }
+            itemContent(uniqueItems[index], captionAlpha())
         }
     }
 }

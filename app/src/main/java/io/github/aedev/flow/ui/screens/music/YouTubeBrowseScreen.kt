@@ -148,7 +148,6 @@ fun YouTubeBrowseScreen(
                                         title = section.title,
                                         items = section.items,
                                         key = { it.stableLazyKey("browse_row_$sectionKey") },
-                                        itemWidth = thumbnailHeight,
                                     ) { item ->
                                         when (item) {
                                             is SongItem -> {

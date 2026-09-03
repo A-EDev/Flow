@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -65,6 +66,15 @@ private val ChartPeek = 56.dp
 private const val MOOD_ROWS = 3
 
 /**
+ * How a track shelf lays its items out: a lane of standard cards, or the wide hero carousel that
+ * Daily Discover and the Daily Mixes use.
+ */
+enum class MusicLane {
+    Cards,
+    Hero,
+}
+
+/**
  * True when a shelf entry is really a collection wearing a track's shape — InnerTube returns albums
  * and playlists inside track lanes, and tapping one must open the collection, not start playback.
  */
@@ -75,6 +85,7 @@ val MusicTrack.isCollection: Boolean
  * A lane of track cards. Handles the album/playlist routing that every track shelf needs, so the
  * itemType check lives here once instead of at each call site.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicTrackCardShelf(
     title: String,
@@ -86,74 +97,62 @@ fun MusicTrackCardShelf(
     subtitle: String? = null,
     leading: (@Composable () -> Unit)? = null,
     action: MusicSectionAction? = null,
+    lane: MusicLane = MusicLane.Cards,
     downloadedTrackIds: Set<String> = emptySet(),
     onCollectionClick: ((MusicTrack) -> Unit)? = null,
     onCollectionMenu: ((MusicTrack) -> Unit)? = null,
     trackSubtitle: @Composable (MusicTrack) -> String = { it.artist },
 ) {
-    val thumbnailHeight = currentGridThumbnailHeight()
+    val key: (MusicTrack) -> Any = { "$keyNamespace:${it.videoId}" }
 
-    MusicShelf(
-        title = title,
-        items = tracks,
-        key = { "$keyNamespace:${it.videoId}" },
-        itemWidth = thumbnailHeight,
-        modifier = modifier,
-        subtitle = subtitle,
-        leading = leading,
-        action = action,
-    ) { track ->
-        MusicCollectionCard(
-            title = track.title,
-            subtitle = trackSubtitle(track),
-            thumbnailUrl = track.thumbnailUrl,
-            thumbnailHeight = thumbnailHeight,
-            mediaId = track.videoId,
-            isDownloaded = downloadedTrackIds.contains(track.videoId),
-            onClick = { track.open(onTrackClick, onCollectionClick) },
-            onLongClick = { track.open(onTrackMenu, onCollectionMenu) },
-        )
-    }
-}
+    when (lane) {
+        MusicLane.Cards -> {
+            val thumbnailHeight = currentGridThumbnailHeight()
+            MusicShelf(
+                title = title,
+                items = tracks,
+                key = key,
+                modifier = modifier,
+                subtitle = subtitle,
+                leading = leading,
+                action = action,
+            ) { track ->
+                MusicCollectionCard(
+                    title = track.title,
+                    subtitle = trackSubtitle(track),
+                    thumbnailUrl = track.thumbnailUrl,
+                    thumbnailHeight = thumbnailHeight,
+                    mediaId = track.videoId,
+                    isDownloaded = downloadedTrackIds.contains(track.videoId),
+                    onClick = { track.open(onTrackClick, onCollectionClick) },
+                    onLongClick = { track.open(onTrackMenu, onCollectionMenu) },
+                )
+            }
+        }
 
-/**
- * The hero-lane counterpart of [MusicTrackCardShelf]: the same routing, on wide carousel items.
- */
-@Composable
-fun MusicTrackHeroLane(
-    title: String,
-    tracks: List<MusicTrack>,
-    keyNamespace: String,
-    onTrackClick: (MusicTrack) -> Unit,
-    onTrackMenu: (MusicTrack) -> Unit,
-    modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    leading: (@Composable () -> Unit)? = null,
-    action: MusicSectionAction? = null,
-    downloadedTrackIds: Set<String> = emptySet(),
-    onCollectionClick: ((MusicTrack) -> Unit)? = null,
-    onCollectionMenu: ((MusicTrack) -> Unit)? = null,
-    trackSubtitle: @Composable (MusicTrack) -> String = { it.artist },
-) {
-    MusicHeroLane(
-        title = title,
-        items = tracks,
-        key = { "$keyNamespace:${it.videoId}" },
-        modifier = modifier,
-        subtitle = subtitle,
-        leading = leading,
-        action = action,
-    ) { track, captionAlpha ->
-        MusicHeroCard(
-            title = track.title,
-            subtitle = trackSubtitle(track),
-            thumbnailUrl = track.highResThumbnailUrl,
-            mediaId = track.videoId,
-            isDownloaded = downloadedTrackIds.contains(track.videoId),
-            captionAlpha = captionAlpha,
-            onClick = { track.open(onTrackClick, onCollectionClick) },
-            onLongClick = { track.open(onTrackMenu, onCollectionMenu) },
-        )
+        MusicLane.Hero -> {
+            MusicHeroLane(
+                title = title,
+                items = tracks,
+                key = key,
+                modifier = modifier,
+                subtitle = subtitle,
+                leading = leading,
+                action = action,
+            ) { track, captionAlpha ->
+                MusicHeroCard(
+                    title = track.title,
+                    subtitle = trackSubtitle(track),
+                    thumbnailUrl = track.highResThumbnailUrl,
+                    artModifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge),
+                    mediaId = track.videoId,
+                    isDownloaded = downloadedTrackIds.contains(track.videoId),
+                    captionAlpha = captionAlpha,
+                    onClick = { track.open(onTrackClick, onCollectionClick) },
+                    onLongClick = { track.open(onTrackMenu, onCollectionMenu) },
+                )
+            }
+        }
     }
 }
 
@@ -184,7 +183,6 @@ fun MusicCollectionShelf(
         title = title,
         items = collections,
         key = { "$keyNamespace:${it.id}" },
-        itemWidth = thumbnailHeight,
         modifier = modifier,
         action = action,
     ) { collection ->
@@ -193,38 +191,6 @@ fun MusicCollectionShelf(
             subtitle = collectionSubtitle(collection),
             thumbnailUrl = collection.thumbnailUrl,
             thumbnailHeight = thumbnailHeight,
-            onClick = { onCollectionClick(collection) },
-            onLongClick = { onCollectionMenu(collection) },
-        )
-    }
-}
-
-/**
- * The hero-lane counterpart of [MusicCollectionShelf].
- */
-@Composable
-fun MusicCollectionHeroLane(
-    title: String,
-    collections: List<MusicPlaylist>,
-    keyNamespace: String,
-    onCollectionClick: (MusicPlaylist) -> Unit,
-    onCollectionMenu: (MusicPlaylist) -> Unit,
-    modifier: Modifier = Modifier,
-    action: MusicSectionAction? = null,
-    collectionSubtitle: @Composable (MusicPlaylist) -> String? = { it.author },
-) {
-    MusicHeroLane(
-        title = title,
-        items = collections,
-        key = { "$keyNamespace:${it.id}" },
-        modifier = modifier,
-        action = action,
-    ) { collection, captionAlpha ->
-        MusicHeroCard(
-            title = collection.title,
-            subtitle = collectionSubtitle(collection),
-            thumbnailUrl = collection.thumbnailUrl,
-            captionAlpha = captionAlpha,
             onClick = { onCollectionClick(collection) },
             onLongClick = { onCollectionMenu(collection) },
         )
@@ -251,7 +217,6 @@ fun <T> MusicArtistShelf(
         title = title,
         items = artists,
         key = key,
-        itemWidth = ArtistPortraitSize,
         modifier = modifier,
     ) { artist ->
         MusicCollectionCard(
@@ -344,6 +309,7 @@ fun MusicChartsShelf(
 /**
  * The Daily Discover hero lane: one recommendation in focus, the next ones peeking in.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DailyDiscoverShelf(
     items: List<DailyDiscoverItem>,
@@ -366,6 +332,7 @@ fun DailyDiscoverShelf(
             title = track.title,
             subtitle = track.artist,
             thumbnailUrl = track.highResThumbnailUrl,
+            artModifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge),
             mediaId = track.videoId,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             captionAlpha = captionAlpha,
